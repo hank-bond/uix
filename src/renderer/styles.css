@@ -1,0 +1,26 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: -apple-system, system-ui, sans-serif;
+  background: #111;
+  color: #eee;
+}
+
+#root {
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.hello h1 {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
+.hello small {
+  display: block;
+  margin-top: 0.5rem;
+  color: #888;
+  text-align: center;
+}
