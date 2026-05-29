@@ -1,26 +1,68 @@
-html, body {
-  margin: 0;
-  height: 100%;
-  font-family: -apple-system, system-ui, sans-serif;
-  background: #111;
-  color: #eee;
+/* Trellis cockpit — base chrome.
+ *
+ * Plain CSS, no framework. The cockpit's chrome stays tiny on purpose:
+ * everything visually interesting in v0 happens inside the canvas iframe,
+ * which has its own (default) styles. See TRELLIS_V0.md §7.
+ */
+
+:root {
+  color-scheme: dark;
+  --bg: #0e0e10;
+  --bg-pane: #16161a;
+  --border: #2a2a2f;
+  --fg: #e6e6e6;
+  --fg-dim: #888;
 }
 
+html,
+body,
 #root {
+  margin: 0;
+  height: 100%;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    system-ui,
+    sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.cockpit {
   height: 100%;
   display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(420px, 1.4fr);
+  gap: 1px;
+  background: var(--border);
+}
+
+.pane {
+  background: var(--bg-pane);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pane__header {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  border-bottom: 1px solid var(--border);
+}
+
+.pane__body {
+  padding: 1rem;
+  overflow: auto;
+}
+
+.pane__body--placeholder {
+  display: grid;
   place-items: center;
-}
-
-.hello h1 {
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  margin: 0;
-}
-
-.hello small {
-  display: block;
-  margin-top: 0.5rem;
-  color: #888;
+  color: var(--fg-dim);
+  font-style: italic;
+  font-size: 0.9rem;
   text-align: center;
 }

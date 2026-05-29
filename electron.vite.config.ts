@@ -1,12 +1,11 @@
 import { defineConfig } from "electron-vite";
+import react from "@vitejs/plugin-react";
 import { resolve } from "node:path";
 
 // Minimal electron-vite config.
 // - main: src/main/index.ts            → out/main/index.js
 // - preload: src/preload/index.ts      → out/preload/index.js
 // - renderer: src/renderer/index.html  → out/renderer/
-//
-// React lands in commit 4; for now the renderer is a single TS module.
 export default defineConfig({
   main: {
     build: {
@@ -26,6 +25,7 @@ export default defineConfig({
   },
   renderer: {
     root: resolve(__dirname, "src/renderer"),
+    plugins: [react()],
     build: {
       outDir: "out/renderer",
       rollupOptions: {
