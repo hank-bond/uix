@@ -1,3 +1,29 @@
-// Trellis cockpit — preload (sandboxed, contextIsolated).
-// Empty for now; the typed IPC bridge lands when we wire pi into main (milestone 2).
-export {};
+// Trellis cockpit — preload.
+//
+// Sandboxed + contextIsolated. The renderer never sees `ipcRenderer`
+// directly; it gets a typed surface on `window.trellis` mirroring the
+// contract in src/shared/ipc.ts.
+
+import { contextBridge, ipcRenderer } from "electron";
+
+import {
+  type AgentEvent,
+  Channels,
+  type PromptRequest,
+  type TrellisBridge,
+} from "../shared/ipc";
+
+const bridge: TrellisBridge = {
+  sendPrompt: (req: PromptRequest) => ipcRenderer.invoke(Channels.prompt, req),
+
+  onAgentEvent: (handler) => {
+    const listener = (_e: Electron.IpcRendererEvent, event: AgentEvent) =>
+      handler(event);
+    ipcRenderer.on(Channels.agentEvent, listener);
+    return () => {
+      ipcRenderer.off(Channels.agentEvent, listener);
+    };
+  },
+};
+
+contextBridge.exposeInMainWorld("trellis", bridge);

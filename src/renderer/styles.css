@@ -1,17 +1,21 @@
 /* Trellis cockpit — base chrome.
  *
- * Plain CSS, no framework. The cockpit's chrome stays tiny on purpose:
- * everything visually interesting in v0 happens inside the canvas iframe,
- * which has its own (default) styles. See TRELLIS_V0.md §7.
+ * Plain CSS, no framework. The chrome stays tiny on purpose: everything
+ * visually interesting happens inside the canvas iframe, which has its
+ * own (default) styles.
  */
 
 :root {
   color-scheme: dark;
   --bg: #0e0e10;
   --bg-pane: #16161a;
+  --bg-input: #1d1d22;
   --border: #2a2a2f;
   --fg: #e6e6e6;
   --fg-dim: #888;
+  --fg-faint: #5a5a60;
+  --accent: #7aa2f7;
+  --error: #e06c75;
 }
 
 html,
@@ -56,6 +60,7 @@ body,
 .pane__body {
   padding: 1rem;
   overflow: auto;
+  min-height: 0;
 }
 
 .pane__body--placeholder {
@@ -65,4 +70,103 @@ body,
   font-style: italic;
   font-size: 0.9rem;
   text-align: center;
+}
+
+.pane__body--conversation {
+  padding: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+}
+
+/* Conversation */
+
+.conversation__scroll {
+  overflow: auto;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.msg {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.msg__role {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  padding-top: 0.15rem;
+}
+
+.msg__text {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  min-width: 0;
+}
+
+.msg--user .msg__text {
+  color: var(--fg);
+}
+
+.msg--assistant .msg__text {
+  color: var(--fg);
+}
+
+.msg--error .msg__role,
+.msg--error .msg__text {
+  color: var(--error);
+}
+
+/* Composer */
+
+.composer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-pane);
+}
+
+.composer__input {
+  background: var(--bg-input);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+  font-size: 0.9rem;
+  resize: none;
+  outline: none;
+}
+
+.composer__input:focus {
+  border-color: var(--accent);
+}
+
+.composer__send {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 0.9rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.composer__send:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.composer__send:disabled {
+  color: var(--fg-faint);
+  cursor: not-allowed;
 }
