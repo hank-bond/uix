@@ -38,10 +38,11 @@ Pane content
   React components, iframe-rendered HTML, or declarative UI rendered by Trellis
 ```
 
-Pi and Trellis are separate systems. A package may contribute to both:
+Pi and Trellis are separate systems. A Trellis-loadable package may contribute to either or both:
 
 ```json
 {
+  "name": "my-package",
   "pi": {
     "extensions": ["./pi/index.ts"],
     "skills": ["./pi/skills"]
@@ -51,6 +52,8 @@ Pi and Trellis are separate systems. A package may contribute to both:
   }
 }
 ```
+
+Both `pi` and `trellis` are optional. A package can be pi-only (wrapping an existing pi extension so it gets discovered through Trellis), trellis-only (pure cockpit UI), or both.
 
 The `pi` field teaches the agent new backend capabilities. The `trellis` field teaches the cockpit new frontend capabilities.
 
@@ -87,16 +90,31 @@ An extension can contribute:
 Each extension receives an activation context and a lifetime bag. Anything it registers goes into that bag. Deactivation disposes the bag.
 
 ```ts
-export interface TrellisExtension {
-  id: string;
-  trellisApi: string;
-  activate(ctx: TrellisExtensionContext): void | Promise<void>;
+import type { ExtensionAPI } from "@trellis/api";
+
+export default function (trellis: ExtensionAPI) {
+  trellis.registerPane({ /* ... */ });
+  trellis.registerChannel({ /* ... */ });
 }
 ```
 
-`trellisApi` declares which substrate version the extension targets (e.g. `"^0.1.0"`). The cockpit refuses to load extensions whose declared range doesn't include the current substrate version. This lets the substrate evolve without breaking older extensions, in the same way VS Code uses `engines.vscode`.
+This mirrors pi's extension shape exactly — a default-exported factory function that receives an injected API object. Pi extensions look the same:
 
-The exact manifest shape will evolve, but the invariant is stable: extensions register contributions through a small context object instead of reaching into cockpit internals.
+```ts
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+export default function (pi: ExtensionAPI) {
+  pi.registerTool(helloTool);
+}
+```
+
+The shared shape is intentional. A developer (or LLM) writing both pi and Trellis extensions sees one pattern: import a type, export a factory, register contributions through the injected API. The `ExtensionAPI` symbol is disambiguated by its import source.
+
+The package's `id` comes from `package.json` (the `name` field), so the loader can identify a package before loading any of its code. Factories may be `async`.
+
+The exact API shape will evolve, but the invariant is stable: extensions register contributions through the injected API object instead of reaching into cockpit internals. **All extension ↔ cockpit traffic flows through the API object** — extensions never import cockpit internals. This is what makes a future move to worker-thread or utility-process isolation a mechanical swap rather than an API break.
+
+*Version gating* (refusing to load extensions targeting an incompatible substrate version, like VS Code's `engines.vscode`) is deliberately not done in v0. Pre-1.0 with one author, the gate would mostly be noise. We can add it later, in package.json, when external extensions become a real scenario.
 
 ## Pane types
 
@@ -315,7 +333,7 @@ Next:
    - append system-prompt orientation
    - append Trellis doc map
    - register smoke-test cockpit tools
-   - lives under `src/pi-package/extensions/trellis-core/` with its own `package.json` declaring `pi.extensions`
+   - lives under `src/extensions/trellis-core/` with its own `package.json` declaring `pi.extensions` (a pi-only Trellis package)
 
 5. Agent tool contribution
    - extensions declare pi tools

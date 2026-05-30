@@ -103,6 +103,42 @@ Promote to `DECISIONS.md` when stable.
   what the code is and how to use it) and `/docs/` (dev-facing,
   process and context). Archived the original `PROJECT_BRIEF.md` and
   pulled the still-relevant pieces into `DECISIONS.md`.
+- **2026-05-30** — Extension package layout decided ahead of building
+  the loader (milestone 1):
+  - First-party packages live under `src/extensions/<name>/`.
+  - Each package's `package.json` has optional `pi` and `trellis`
+    fields (each side independent).
+  - `trellis-core` moves from the previously-documented
+    `src/pi-package/extensions/trellis-core/` to
+    `src/extensions/trellis-core/`. It's pi-only — the canonical
+    example of a package with only a `pi` field.
+  - **No version gate in v0.** Originally planned a `trellisApi`
+    field in `package.json` (mirroring VS Code's `engines.vscode`),
+    but pi doesn't gate its extensions and the precondition for the
+    gate to pay off — user-installed extensions outliving substrate
+    upgrades — doesn't exist yet. Adding it later is one field +
+    one check in the loader. Pi-shaped move: build the gate when
+    the scenario surfaces.
+  - **Process-isolation posture for extensions:** v0 runs extensions
+    in the main process, guarded by try/catch around the factory
+    and `uncaughtException` / `unhandledRejection` handlers with
+    best-effort attribution ("option B" in our design chat). The
+    architectural commitment is stronger than the v0 mechanism: all
+    extension ↔ cockpit traffic goes through the injected API
+    object; extensions never import cockpit internals. That keeps
+    a future swap to `worker_threads` or `utilityProcess`
+    per-extension isolation a transport change, not an API change.
+  - **Extension shape mirrors pi exactly.** A trellis manifest
+    default-exports a factory function that receives an
+    `ExtensionAPI` object — same pattern as pi's
+    `export default function (pi: ExtensionAPI) { ... }`. Type
+    name (`ExtensionAPI`), export shape (default function), and
+    parameter convention (named for the injected system: `pi` or
+    `trellis`) all match. Reason: keep humans and LLMs in one
+    pattern across both systems. Disambiguation happens at the
+    import site (`@trellis/api` vs `@earendil-works/pi-coding-agent`).
+    Earlier sketches in our design chat used `activate` / `ctx` /
+    `TrellisExtensionContext`; those are superseded.
 - **2026-05-30** — TypeBox everywhere, not split with Zod. Pi forces
   TypeBox at the agent boundary; using it across IPC, channels, and
   on-disk schemas too removes a translation layer and a second mental
