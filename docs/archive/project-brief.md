@@ -1,4 +1,13 @@
-# Trellis — Project Brief
+# Trellis — Project Brief (archived)
+
+> **Archived 2026-05-30.** This is the original handoff document, written when
+> Trellis was framed as a single tailor-made coding-agent IDE with reports as
+> the central artifact. Trellis has since pivoted to a *substrate* shape that
+> hosts multiple applications (a code-reviewer being one, a knowledge-base
+> manager being another). The still-current pieces — Gundam framing, motivating
+> problems, stack landings, design principles — have moved to
+> [`/DECISIONS.md`](../../DECISIONS.md). The rest is preserved here as the
+> design source for the eventual code-reviewer extension.
 
 > Handoff document for an agent continuing this conversation. The goal is to capture **project context and decisions made**, not the exploratory technical Q&A that produced them.
 

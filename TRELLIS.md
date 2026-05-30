@@ -202,7 +202,7 @@ Pattern: extensions define their own on-disk schemas under a project directory (
 
 A custom session entry carries a small reference (`{ canvas: "main", contentHash: "abc..." }`); the content lives at a content-addressed path. Pi's tree drives versioning; files are deduped storage.
 
-Use for per-turn-but-large content: generated HTML reports, rendered images, anything where the entry is metadata and the file is bytes. See `docs/archive/v0-canvas-protocol.md` for the canonical worked example (canvas snapshots).
+Use for per-turn-but-large content: generated HTML reports, rendered images, anything where the entry is metadata and the file is bytes. See [`docs/archive/v0-canvas-protocol.md`](./docs/archive/v0-canvas-protocol.md) for the canonical worked example (canvas snapshots).
 
 Most non-trivial extensions use a mix of all three.
 
@@ -249,15 +249,20 @@ It also appends a Trellis documentation map:
 ```text
 Trellis documentation:
 - Main documentation: <repo>/TRELLIS.md
-- Additional docs: <repo>/docs
+- Additional docs: <repo>/src/docs
 - Examples: <repo>/examples
-- Extensions: docs/extensions.md
-- Panes: docs/panes.md
-- Channels: docs/channels.md
-- Agent integration: docs/agent.md
-- Contributions: docs/contributions.md
-- Lifetimes: docs/lifetimes.md
+- Extensions: src/docs/extensions.md
+- Panes: src/docs/panes.md
+- Channels: src/docs/channels.md
+- Agent integration: src/docs/agent.md
+- Contributions: src/docs/contributions.md
+- Lifetimes: src/docs/lifetimes.md
 ```
+
+`src/docs/` holds the user-facing documentation that ships with the substrate
+— what the code is and how to use it. The repo-root `/docs/` directory holds
+dev-facing documentation (architecture state, open questions, archived
+thinking) and is not pinned in the agent's system prompt.
 
 The docs are plain markdown. They should be small, cross-linked, and written so the agent can traverse them with `read` when asked to modify Trellis or a Trellis extension.
 
@@ -329,12 +334,12 @@ Next:
    - allow disabling
 
 8. Docs and examples
-   - `docs/extensions.md`
-   - `docs/panes.md`
-   - `docs/channels.md`
-   - `docs/agent.md`
-   - `docs/contributions.md`
-   - `docs/lifetimes.md`
+   - `src/docs/extensions.md`
+   - `src/docs/panes.md`
+   - `src/docs/channels.md`
+   - `src/docs/agent.md`
+   - `src/docs/contributions.md`
+   - `src/docs/lifetimes.md`
    - `examples/extensions/`
 
 ## Non-goals for v0
