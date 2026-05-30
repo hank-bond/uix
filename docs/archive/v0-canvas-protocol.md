@@ -1,3 +1,27 @@
+# v0 Canvas Protocol (archived)
+
+This is the original `TRELLIS_V0.md` spec. Most of it is superseded by
+`TRELLIS.md` (the current substrate spec). It is preserved here because parts
+remain useful as design notes for whoever eventually builds the canvas
+extension:
+
+- §2 "Unblocked beats awkward" — substrate-level discipline.
+- §4.1 URL schemes (noun + `trellis://` verb) — design for an extension that
+  wants the agent to address resources and trigger commands.
+- §4.3 Snapshot-per-turn / pi tree as canvas history — the canonical example
+  of the hybrid state-persistence pattern (custom session entry references
+  content-addressed file). Worth reading when building any extension that
+  needs per-turn versioned state.
+- §4.4 State diff — per-element-named-input delta format.
+- §7 "What's deliberately out" — substrate-level anti-scope.
+
+The rest (§1, §3, §5, §6, §8, §9, §10, §11) is fully superseded by
+`TRELLIS.md`.
+
+Original spec follows.
+
+---
+
 # Trellis v0 — Spec
 
 > Companion to `PROJECT_BRIEF.md`. The brief sets vision and motivation; this doc pins down the v0 protocol and what we will and won't build for it.
