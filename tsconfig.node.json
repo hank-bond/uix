@@ -10,6 +10,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    "lib": ["ES2022", "ESNext.Disposable"],
     "types": ["node"]
   },
   "include": [

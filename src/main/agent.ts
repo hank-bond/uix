@@ -1,43 +1,51 @@
 // Trellis cockpit — agent driver.
 //
 // Wraps `createAgentSession` from `@earendil-works/pi-coding-agent` and
-// translates the subset of pi's event stream we currently render into the
-// flat `AgentEvent` shape declared in src/shared/ipc.ts.
+// translates the subset of pi's event stream we currently render into
+// the flat `AgentEvent` shape declared in src/shared/ipc.ts.
 //
 // Why dynamic `import()`: pi is an ESM-only package and the main bundle
-// is CJS (the format Electron's sandboxed preload also has to use). A
-// static `import` would be rewritten to `require()` by the bundler and
-// fail at runtime. Dynamic `import()` is preserved through the build
-// and runs as a real ESM load.
+// is CJS. A static `import` would be rewritten to `require()` by the
+// bundler and fail at runtime. Dynamic `import()` is preserved through
+// the build and runs as a real ESM load. The `import type` line beside
+// it is erased at compile time, so we still get full pi types in the
+// IDE/typechecker without any runtime cost.
 //
-// The accompanying `import type` lines are erased at compile time, so
-// we still get full pi types in the IDE/typechecker without any runtime
-// cost. Inference handles the rest.
+// Lifetime management uses the conventions in src/main/lifecycle.ts:
+// every cleanup-requiring registration goes into the driver's
+// DisposableBag, and disposing the driver tears everything down at
+// once.
 
-import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
+import type { AgentSession, AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 
 import type { AgentEvent } from "../shared/ipc";
 
-export interface AgentDriver {
+import { disposable, DisposableBag, subscribe } from "./lifecycle";
+
+/**
+ * The driver itself is a Disposable so callers can hand it to a Bag
+ * and forget about it.
+ */
+export interface AgentDriver extends Disposable {
   prompt(text: string): Promise<void>;
-  dispose(): Promise<void>;
 }
 
 export interface AgentDriverOptions {
-  /** Forwarded for the renderer to consume. */
+  /** Forwarded to the renderer (over IPC). */
   onEvent: (event: AgentEvent) => void;
 }
 
 export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
-  // Session is built lazily on first prompt so missing API keys surface
-  // as an in-conversation error rather than a launch crash. Type is
-  // inferred from `createAgentSession`'s return.
-  let sessionPromise:
-    | ReturnType<typeof openSession>
-    | undefined;
-  let unsubscribe: (() => void) | undefined;
+  // Holds everything that needs teardown for this driver's lifetime:
+  // the subscription to pi's event stream, and (once it exists) the
+  // session itself.
+  const bag = new DisposableBag();
 
-  async function openSession() {
+  // Cached promise of the session. We cache the *promise*, not the
+  // resolved value, so concurrent first-callers share one init.
+  let sessionPromise: Promise<AgentSession> | undefined;
+
+  async function openSession(): Promise<AgentSession> {
     const sdk = await import("@earendil-works/pi-coding-agent");
     const authStorage = sdk.AuthStorage.create();
     const modelRegistry = sdk.ModelRegistry.create(authStorage);
@@ -52,9 +60,15 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       modelRegistry,
     });
 
-    unsubscribe = session.subscribe((event) => {
-      forwardEvent(event, opts.onEvent);
-    });
+    // Both registrations land in the bag, so a single dispose tears
+    // them down in LIFO order: the subscription first, then the
+    // session itself.
+    bag.add(
+      subscribe<AgentSessionEvent>(session, (event) =>
+        forwardEvent(event, opts.onEvent),
+      ),
+    );
+    bag.add(disposable(() => session.dispose()));
 
     return session;
   }
@@ -66,9 +80,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         // If openSession rejects (e.g. missing auth), clear the cache
         // so the next prompt tries fresh instead of replaying the
         // failure forever. Failures *inside* an established session
-        // — e.g. a bad prompt mid-stream — don't reach this catch path
-        // since they're surfaced through the event stream, not as a
-        // thrown error from prompt().
+        // surface through the event stream, not via a thrown error
+        // from prompt().
         sessionPromise ??= openSession().catch((err) => {
           sessionPromise = undefined;
           throw err;
@@ -86,16 +99,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       }
     },
 
-    async dispose() {
-      try {
-        unsubscribe?.();
-        if (sessionPromise) {
-          const session = await sessionPromise;
-          session.dispose();
-        }
-      } catch {
-        // Swallow on shutdown.
-      }
+    [Symbol.dispose]() {
+      bag[Symbol.dispose]();
+      sessionPromise = undefined;
     },
   };
 }
