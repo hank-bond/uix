@@ -1,18 +1,16 @@
 // Trellis cockpit — main process.
 //
-// Registers the IPC channels declared in src/shared/ipc.ts. The prompt
-// handler currently echoes the input back as a stream of
-// `assistant_delta` events; it will be replaced by a real agent session
-// once the runtime is wired in.
+// Owns app lifecycle, creates the BrowserWindow, and registers the IPC
+// channels declared in src/shared/ipc.ts. `trellis:prompt` is handed to
+// the agent driver (src/main/agent.ts), which talks to pi and forwards
+// events back to the renderer via `trellis:agent-event`.
 
 import { app, BrowserWindow, ipcMain } from "electron";
 import { join } from "node:path";
 
-import {
-  type AgentEvent,
-  Channels,
-  type PromptRequest,
-} from "../shared/ipc";
+import { type AgentEvent, Channels, type PromptRequest } from "../shared/ipc";
+
+import { type AgentDriver, createAgentDriver } from "./agent";
 
 const isDev = !app.isPackaged;
 
@@ -39,38 +37,23 @@ function createWindow(): BrowserWindow {
   return win;
 }
 
-/**
- * Stand-in for the real agent runtime. Splits the prompt into a few
- * chunks and pushes them back as `assistant_delta` events so the
- * renderer can prove its subscription pipeline works.
- */
-async function echoStream(
-  win: BrowserWindow,
-  text: string,
-): Promise<void> {
-  const send = (event: AgentEvent) => {
-    if (!win.isDestroyed()) win.webContents.send(Channels.agentEvent, event);
-  };
-
-  send({ type: "user_message", text });
-
-  const reply = `echo: ${text}`;
-  const chunks = reply.match(/.{1,8}/g) ?? [reply];
-  for (const chunk of chunks) {
-    await new Promise((r) => setTimeout(r, 40));
-    send({ type: "assistant_delta", delta: chunk });
-  }
-  send({ type: "assistant_end" });
-}
-
-function registerIpc(getWindow: () => BrowserWindow | null): void {
+function registerIpc(
+  getWindow: () => BrowserWindow | null,
+  driver: AgentDriver,
+): void {
   ipcMain.handle(Channels.prompt, async (_e, req: PromptRequest) => {
     const win = getWindow();
     if (!win) return;
-    // Fire and forget — the renderer subscribes to the event stream;
-    // `invoke` resolves once the prompt has been accepted.
-    void echoStream(win, req.text);
+    // Fire and forget — the renderer subscribes to the event stream,
+    // and `invoke` resolves once the prompt has been accepted.
+    void driver.prompt(req.text);
   });
+}
+
+function sendEvent(win: BrowserWindow | null, event: AgentEvent): void {
+  if (win && !win.isDestroyed()) {
+    win.webContents.send(Channels.agentEvent, event);
+  }
 }
 
 app.whenReady().then(() => {
@@ -79,7 +62,11 @@ app.whenReady().then(() => {
     mainWindow = null;
   });
 
-  registerIpc(() => mainWindow);
+  const driver = createAgentDriver({
+    onEvent: (event) => sendEvent(mainWindow, event),
+  });
+
+  registerIpc(() => mainWindow, driver);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -88,6 +75,10 @@ app.whenReady().then(() => {
         mainWindow = null;
       });
     }
+  });
+
+  app.on("will-quit", () => {
+    void driver.dispose();
   });
 });
 
