@@ -61,9 +61,18 @@ export class DisposableBag implements Disposable {
     return item;
   }
 
+  /** Dispose all current items (LIFO) but keep the bag reusable. */
+  clear(): void {
+    this.#drain();
+  }
+
   [Symbol.dispose](): void {
     if (this.#disposed) return;
     this.#disposed = true;
+    this.#drain();
+  }
+
+  #drain(): void {
     // LIFO: tear down in reverse order of registration so dependents
     // go first. (You added the listener after creating the thing it
     // listens to, so dispose the listener first.)

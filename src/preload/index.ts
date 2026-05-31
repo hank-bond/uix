@@ -15,6 +15,7 @@ import {
 
 const bridge: UIXBridge = {
   sendPrompt: (req: PromptRequest) => ipcRenderer.invoke(Channels.prompt, req),
+  reload: () => ipcRenderer.invoke(Channels.reload),
 
   onAgentEvent: (handler) => {
     const listener = (_e: Electron.IpcRendererEvent, event: AgentEvent) =>

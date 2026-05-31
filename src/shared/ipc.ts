@@ -12,11 +12,20 @@ export const Channels = {
   prompt: "uix:prompt",
   /** Main → renderer. webContents.send. Stream of agent events. */
   agentEvent: "uix:agent-event",
+  /** Renderer → main. invoke-style. Reloads cockpit resources in place. */
+  reload: "uix:reload",
 } as const;
 
 /** Payload for `uix:prompt`. */
 export interface PromptRequest {
   text: string;
+}
+
+export interface ReloadResult {
+  extensionsLoaded: number;
+  extensionsFailed: number;
+  /** True when a pi session already existed and pi's reload path ran. */
+  piReloaded: boolean;
 }
 
 /**
@@ -36,4 +45,6 @@ export type AgentEvent =
 export interface UIXBridge {
   sendPrompt: (req: PromptRequest) => Promise<void>;
   onAgentEvent: (handler: (event: AgentEvent) => void) => () => void;
+  /** Programmatic hook for future command palette/menu/chat /reload. */
+  reload: () => Promise<ReloadResult>;
 }

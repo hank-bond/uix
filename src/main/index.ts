@@ -9,15 +9,18 @@
 // See docs/conventions.md.
 
 import { app, BrowserWindow } from "electron";
-import fs from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 
-import { type AgentEvent, Channels, type PromptRequest } from "../shared/ipc";
+import {
+  type AgentEvent,
+  Channels,
+  type PromptRequest,
+  type ReloadResult,
+} from "../shared/ipc";
 
 import { createAgentDriver } from "./agent";
-import { discoverExtensions } from "./extensions/discovery";
-import { activateUIXExtensions } from "./extensions/loader";
+import { loadExtensions } from "./extensions/loader";
 import { defaultRoots } from "./extensions/roots";
 import {
   DisposableBag,
@@ -70,30 +73,13 @@ void app.whenReady().then(async () => {
   // They go in early so they're armed before any user code runs.
   appBag.add(installProcessHandlers(createLogger("main")));
 
-  // Discover extensions, then activate the uix side of each.
-  // Per-extension bags enroll into appBag so will-quit tears
-  // everything down with one dispose.
-  const extLog = createLogger("extensions");
+  // Extensions live under their own child scope so reload can tear
+  // down the extension subtree without touching app-lifetime process
+  // handlers, the window, the agent driver, or IPC registrations.
   const roots = defaultRoots();
-  extLog.info({ count: roots.length }, "scanning_roots");
-  for (const dir of roots) {
-    extLog.info({ dir, present: fs.existsSync(dir) }, "root");
-  }
-  const discovered = discoverExtensions(roots);
-  extLog.info({ count: discovered.length }, "discovered");
-  for (const ext of discovered) {
-    extLog.info(
-      {
-        displayName: ext.displayName,
-        dir: ext.dir,
-        hasPi: ext.hasPi,
-        hasUIX: ext.hasUIX,
-      },
-      "found",
-    );
-  }
-  const { loaded, failed } = await activateUIXExtensions(discovered, appBag);
-  extLog.info(
+  const extensionsBag = appBag.add(new DisposableBag());
+  const { loaded, failed } = await loadExtensions(roots, extensionsBag);
+  createLogger("extensions").info(
     { loaded: loaded.length, failed: failed.length },
     "activation_complete",
   );
@@ -115,6 +101,39 @@ void app.whenReady().then(async () => {
       // Fire and forget — the renderer subscribes to the event stream,
       // and `invoke` resolves once the prompt has been accepted.
       void driver.prompt(req.text);
+    }),
+  );
+
+  appBag.add(
+    handle<void, ReloadResult>(Channels.reload, async () => {
+      const reloadLog = createLogger("main");
+      reloadLog.info({}, "reload_started");
+
+      try {
+        const extensionResult = await loadExtensions(roots, extensionsBag);
+        const piReloaded = await driver.reload();
+        reloadLog.info(
+          {
+            extensionsLoaded: extensionResult.loaded.length,
+            extensionsFailed: extensionResult.failed.length,
+            piReloaded,
+          },
+          "reload_completed",
+        );
+        return {
+          extensionsLoaded: extensionResult.loaded.length,
+          extensionsFailed: extensionResult.failed.length,
+          piReloaded,
+        };
+      } catch (thrown) {
+        const error =
+          thrown instanceof Error ? thrown : new Error(String(thrown));
+        reloadLog.error(
+          { err: error.message, stack: error.stack },
+          "reload_failed",
+        );
+        throw error;
+      }
     }),
   );
 

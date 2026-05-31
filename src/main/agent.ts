@@ -31,6 +31,8 @@ import { disposable, DisposableBag, subscribe } from "./lifecycle";
  */
 export interface AgentDriver extends Disposable {
   prompt(text: string): Promise<void>;
+  /** Reload pi resources if a session already exists. */
+  reload(): Promise<boolean>;
 }
 
 export interface AgentDriverOptions {
@@ -77,6 +79,17 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   }
 
   return {
+    async reload() {
+      // Do not create a pi session solely to service a cockpit reload.
+      // If a session is already open (or opening), delegate to pi's own
+      // reload path so pi extensions, skills, prompts, themes, settings,
+      // and context files are refreshed with pi's native semantics.
+      if (!sessionPromise) return false;
+      const session = await sessionPromise;
+      await session.reload();
+      return true;
+    },
+
     async prompt(text) {
       opts.onEvent({ type: "user_message", text });
       try {

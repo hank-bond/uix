@@ -351,3 +351,49 @@ format:check` for a single gate.
     Conversation.tsx (React expects sync handlers). Both are
     fixed in this commit — evidence the type-checked ruleset
     earns its slower cost.
+- **2026-05-31** — Manual reload landed with a dedicated
+  `extensionsBag` child scope under `appBag`:
+  - **Scope boundary.** App-lifetime resources (process handlers,
+    BrowserWindow, agent driver, IPC handlers) stay in `appBag`.
+    Extension activations enroll under `extensionsBag`, so reload can
+    tear down every extension contribution without restarting Electron
+    or touching the agent/window/IPC substrate.
+  - **`clear()` vs dispose.** `DisposableBag.clear()` drains current
+    items in LIFO order but keeps the bag reusable; `[Symbol.dispose]()`
+    marks the bag permanently disposed and then drains it. The reusable
+    child bag avoids accumulating dead bags in `appBag` across reloads.
+  - **Whole-subtree extension load.** v0 reload deliberately disposes
+    and re-activates all UIX extensions, not just changed ones. Diff
+    reload can optimize later, but wholesale reload is the boundary test
+    that proves extension lifetimes are scoped correctly.
+  - **Discovery before teardown.** Discovery is side-effect-free
+    (directory/package.json reads only), so `loadExtensions()` performs
+    discovery before `extensionsBag.clear()`. If a substrate/discovery
+    bug throws, the old extension tree remains active, `reload_failed` is
+    logged by the caller, and the IPC invoke rejects. Once activation
+    starts, old contributions have been cleared; per-extension
+    import/factory failures are captured in `failed[]` and siblings
+    continue.
+  - **jiti for extension code.** UIX follows pi's runtime TypeScript
+    loading posture: extension entries are loaded through `jiti` with
+    `moduleCache: false`, so project/user `.ts` files can be edited and
+    reloaded in a packaged app without rebuilding UIX and without Node
+    ESM query-string cache busting. jiti is a loader/transpiler, not a
+    sandbox; extensions remain trusted local code. `@uix/api` remains
+    type-only for now, so extensions should use `import type` until a
+    real runtime API package exists.
+  - **Single-flight extension load.** Concurrent reload triggers share
+    the `inFlightExtensionLoad` Promise and await the same pass instead
+    of clearing or activating twice. Later watcher-driven reload can add
+    a dirty/queued second pass if file changes during activation matter;
+    v0 only prevents overlapping clear/activate.
+  - **Cockpit-level reload trigger.** Main exposes `uix:reload` through
+    the preload bridge as `window.uix.reload()`. The handler reloads the
+    UIX extension tree and, if a pi session already exists, delegates to
+    pi's own `session.reload()` path. It deliberately does not create a
+    pi session just to service reload. There is no throwaway renderer
+    button; the hook is ready for the future OS command palette/menu and
+    `/reload` chat command.
+  - **Deferred.** File-watcher auto-reload waits for the watcher service;
+    per-handler error isolation waits for the real command registry and
+    invocation path.

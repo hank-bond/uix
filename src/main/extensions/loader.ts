@@ -1,16 +1,17 @@
-// UIX extension loader — turns DiscoveredExtensions into
-// activated extensions (one per entry file).
+// UIX extension loader — discovers extension package dirs and turns
+// their entry files into activated extensions.
 //
 // Responsibilities:
-//   1. For each discovered extension with a `uix` manifest,
-//      resolve its entry files (relative paths in
-//      `ext.packageJson.uix.extensions`).
-//   2. Dynamic-import each entry file (ESM, via file:// URL).
-//   3. Build an ExtensionAPI bound to a per-entry DisposableBag.
-//   4. Invoke the default-exported factory with that API.
-//   5. Enroll the per-entry bag into the parent bag so a single
-//      dispose at app shutdown (or reload) tears every contribution
-//      down cleanly.
+//   1. Re-run side-effect-free discovery for every load pass.
+//   2. Log the roots and discovered packages in one shared path.
+//   3. Clear the owned extension bag before activation.
+//   4. Resolve each `uix.extensions` entry relative to its package dir.
+//   5. Load the entry with jiti so user/project extensions can be
+//      TypeScript files in a packaged Electron app.
+//   6. Build an ExtensionAPI bound to a per-entry DisposableBag.
+//   7. Invoke the default-exported factory with that API.
+//   8. Enroll the per-entry bag into the parent bag so a single clear
+//      or dispose tears every contribution down cleanly.
 //
 // Activation is sequential (`for...of` + `await`). Matches pi.
 // Predictable log order; tiny extension can't be slowed down by a
@@ -27,24 +28,36 @@
 // `unhandled_exception` / `unhandled_rejection` without attribution
 // (best-effort attribution can be layered on later if needed).
 //
-// TypeScript extensions aren't supported yet. Pi uses jiti to
-// transpile TS at runtime; we'll add the same when there's a real
-// TS extension to load. For now, entry files are `.js` / `.mjs`
-// only.
+// jiti mirrors pi's extension loading posture: extension authors can
+// write `.ts` files, and `moduleCache: false` means a reload
+// re-evaluates the same path without Node ESM query-string hacks.
+// jiti is a loader/transpiler, not a sandbox; UIX extensions remain
+// trusted local code.
 
+import fs from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 
 import type { ExtensionFactory } from "@uix/api";
+import { createJiti } from "jiti";
 
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
 
 import { createExtensionAPI } from "./context";
+import { discoverExtensions } from "./discovery";
 
 import type { DiscoveredExtension } from "./discovery";
 
 const log = createLogger("extensions");
+
+const jiti = createJiti(__filename, {
+  // Same hot-reload lever pi uses. Disabling the runtime module cache
+  // lets editing an extension's .ts/.js file and reloading evaluate the
+  // new source for the same absolute path. jiti may still keep its
+  // filesystem transform cache for performance; that cache tracks
+  // source state and is not the stale-module problem Node import() has.
+  moduleCache: false,
+});
 
 /** A single activated entry file that loaded successfully. */
 export interface LoadedExtension {
@@ -74,7 +87,7 @@ export interface FailedExtension {
   error: Error;
 }
 
-/** Result of `activateUIXExtensions`. */
+/** Result of an extension activation pass. */
 export interface ActivationResult {
   loaded: LoadedExtension[];
   failed: FailedExtension[];
@@ -96,6 +109,45 @@ const readUIXManifest = (ext: DiscoveredExtension): UIXManifest | null => {
   return raw;
 };
 
+const loadExtensionFactory = async (
+  entry: string,
+): Promise<ExtensionFactory | undefined> => {
+  const factory = await jiti.import<unknown>(entry, { default: true });
+  return typeof factory === "function"
+    ? (factory as ExtensionFactory)
+    : undefined;
+};
+
+/**
+ * Discover UIX extension packages under `roots` and emit the standard
+ * discovery log sequence. Discovery is intentionally side-effect-free:
+ * it reads directories/package.json only and never runs extension code.
+ */
+export const discoverUIXExtensions = (
+  roots: string[],
+): DiscoveredExtension[] => {
+  log.info({ count: roots.length }, "scanning_roots");
+  for (const dir of roots) {
+    log.info({ dir, present: fs.existsSync(dir) }, "root");
+  }
+
+  const discovered = discoverExtensions(roots);
+  log.info({ count: discovered.length }, "discovered");
+  for (const ext of discovered) {
+    log.info(
+      {
+        displayName: ext.displayName,
+        dir: ext.dir,
+        hasPi: ext.hasPi,
+        hasUIX: ext.hasUIX,
+      },
+      "found",
+    );
+  }
+
+  return discovered;
+};
+
 /**
  * Activate the uix side of each discovered extension.
  *
@@ -107,9 +159,10 @@ const readUIXManifest = (ext: DiscoveredExtension): UIXManifest | null => {
  * Each entry file becomes its own LoadedExtension with its own bag,
  * matching pi's "entry is the unit of loading" model.
  *
- * @param extensions from `discoverExtensions()`.
+ * @param extensions from `discoverUIXExtensions()` or
+ *   `discoverExtensions()`.
  * @param parentBag every per-entry bag is added here, so one
- *   dispose at app shutdown tears down everything.
+ *   dispose at app shutdown or reload clear tears down everything.
  */
 export const activateUIXExtensions = async (
   extensions: DiscoveredExtension[],
@@ -149,12 +202,8 @@ export const activateUIXExtensions = async (
       );
 
       try {
-        const moduleUrl = pathToFileURL(entry).href;
-        const mod = (await import(moduleUrl)) as {
-          default?: ExtensionFactory;
-        };
-        const factory = mod.default;
-        if (typeof factory !== "function") {
+        const factory = await loadExtensionFactory(entry);
+        if (!factory) {
           elog.warn({}, "no_default_export");
           bag[Symbol.dispose]();
           continue;
@@ -181,4 +230,33 @@ export const activateUIXExtensions = async (
   }
 
   return { loaded, failed };
+};
+
+/**
+ * Load UIX extensions from disk into the owned extension bag,
+ * replacing whatever that bag currently contains. Safe for initial
+ * startup (empty clear) and for manual reload (old contributions are
+ * disposed before activation).
+ *
+ * Discovery runs before clearing so a discovery-only substrate failure
+ * leaves the current extension tree intact. Concurrent callers share
+ * the same in-flight pass so clear/activate never overlaps itself.
+ */
+let inFlightExtensionLoad: Promise<ActivationResult> | undefined;
+
+export const loadExtensions = (
+  roots: string[],
+  extensionsBag: DisposableBag,
+): Promise<ActivationResult> => {
+  if (inFlightExtensionLoad) return inFlightExtensionLoad;
+
+  inFlightExtensionLoad = (async () => {
+    const discovered = discoverUIXExtensions(roots);
+    extensionsBag.clear();
+    return activateUIXExtensions(discovered, extensionsBag);
+  })().finally(() => {
+    inFlightExtensionLoad = undefined;
+  });
+
+  return inFlightExtensionLoad;
 };
