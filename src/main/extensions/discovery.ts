@@ -2,7 +2,7 @@
 //
 // Walks each configured root, reads each child directory's
 // `package.json`, and keeps the directories that declare a `pi`
-// and/or `trellis` field. The result is what the loader activates.
+// and/or `uix` field. The result is what the loader activates.
 //
 // Discovery is deliberately separate from activation:
 //   - It can't crash anything because no user code has run yet.
@@ -50,8 +50,8 @@ export interface DiscoveredExtension {
   dir: string;
   /** True if package.json declares a `pi` field. */
   hasPi: boolean;
-  /** True if package.json declares a `trellis` field. */
-  hasTrellis: boolean;
+  /** True if package.json declares a `uix` field. */
+  hasUIX: boolean;
   /** Raw parsed package.json. Loader uses this to resolve manifest paths. */
   packageJson: Record<string, unknown>;
 }
@@ -93,16 +93,16 @@ export const discoverExtensions = (roots: string[]): DiscoveredExtension[] => {
       }
 
       const hasPi = Boolean(parsed["pi"]);
-      const hasTrellis = Boolean(parsed["trellis"]);
-      // Not a Trellis-loadable package — could be a stray node_modules
+      const hasUIX = Boolean(parsed["uix"]);
+      // Not a UIX-loadable package — could be a stray node_modules
       // dir or an unrelated npm package that wandered in. Skip silently.
-      if (!hasPi && !hasTrellis) continue;
+      if (!hasPi && !hasUIX) continue;
 
       out.push({
         displayName: entryName,
         dir,
         hasPi,
-        hasTrellis,
+        hasUIX,
         packageJson: parsed,
       });
     }

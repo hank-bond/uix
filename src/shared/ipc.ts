@@ -1,6 +1,6 @@
-// Trellis cockpit — shared IPC contract.
+// UIX cockpit — shared IPC contract.
 //
-// Channels are scoped under `trellis:` so they don't collide with
+// Channels are scoped under `uix:` so they don't collide with
 // anything Electron or other libs might use. Renderer never imports
 // `electron`; it only sees the surface exposed by the preload via
 // contextBridge. These types describe that contract so both sides stay
@@ -9,12 +9,12 @@
 /** Channel names. Keep this list small. */
 export const Channels = {
   /** Renderer → main. invoke-style. Returns when the prompt has been accepted. */
-  prompt: "trellis:prompt",
+  prompt: "uix:prompt",
   /** Main → renderer. webContents.send. Stream of agent events. */
-  agentEvent: "trellis:agent-event",
+  agentEvent: "uix:agent-event",
 } as const;
 
-/** Payload for `trellis:prompt`. */
+/** Payload for `uix:prompt`. */
 export interface PromptRequest {
   text: string;
 }
@@ -32,8 +32,8 @@ export type AgentEvent =
   | { type: "assistant_end" }
   | { type: "error"; message: string };
 
-/** Shape exposed on `window.trellis` by the preload. */
-export interface TrellisBridge {
+/** Shape exposed on `window.uix` by the preload. */
+export interface UIXBridge {
   sendPrompt: (req: PromptRequest) => Promise<void>;
   onAgentEvent: (handler: (event: AgentEvent) => void) => () => void;
 }

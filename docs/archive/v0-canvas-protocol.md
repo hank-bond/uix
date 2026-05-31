@@ -1,12 +1,12 @@
 # v0 Canvas Protocol (archived)
 
-This is the original `TRELLIS_V0.md` spec. Most of it is superseded by
-`TRELLIS.md` (the current substrate spec). It is preserved here because parts
+This is the original v0 canvas protocol spec. Most of it is superseded by
+[`AGENTS.md`](../../AGENTS.md) (the current substrate spec). It is preserved here because parts
 remain useful as design notes for whoever eventually builds the canvas
 extension:
 
 - §2 "Unblocked beats awkward" — substrate-level discipline.
-- §4.1 URL schemes (noun + `trellis://` verb) — design for an extension that
+- §4.1 URL schemes (noun + `uix://` verb) — design for an extension that
   wants the agent to address resources and trigger commands.
 - §4.3 Snapshot-per-turn / pi tree as canvas history — the canonical example
   of the hybrid state-persistence pattern (custom session entry references
@@ -16,21 +16,21 @@ extension:
 - §7 "What's deliberately out" — substrate-level anti-scope.
 
 The rest (§1, §3, §5, §6, §8, §9, §10, §11) is fully superseded by
-`TRELLIS.md`.
+[`AGENTS.md`](../../AGENTS.md).
 
 Original spec follows.
 
 ---
 
-# Trellis v0 — Spec
+# UIX v0 — Spec
 
-> Companion to `PROJECT_BRIEF.md`. The brief sets vision and motivation; this doc pins down the v0 protocol and what we will and won't build for it.
+> Companion to [`project-brief.md`](./project-brief.md). The brief sets vision and motivation; this doc pins down the v0 protocol and what we will and won't build for it.
 
 ---
 
 ## 1. What this is
 
-Trellis v0 is **the minimal surface for an efficient, expressive, reliable agent ↔ HTML ↔ human interface.** Nothing else.
+UIX v0 is **the minimal surface for an efficient, expressive, reliable agent ↔ HTML ↔ human interface.** Nothing else.
 
 It ships as two halves connected by a small file/URL contract:
 
@@ -59,8 +59,8 @@ Inclusion test for any proposed base feature:
 
 1. Does this enable a use case otherwise impossible? — _maybe base._
 2. Does it make the protocol more efficient, expressive, or reliable? — _maybe base._
-3. Does it make an existing workflow nicer / faster / prettier? — _oh-my-trellis._
-4. Does it ship opinions about look, structure, or recipe? — _oh-my-trellis._
+3. Does it make an existing workflow nicer / faster / prettier? — _oh-my-uix._
+4. Does it ship opinions about look, structure, or recipe? — _oh-my-uix._
 
 When in doubt: out.
 
@@ -118,18 +118,18 @@ Adding new noun schemes is an extension concern — `pr://`, `issue://`, etc. fo
 
 **Verb scheme** (commands; never auto-fire):
 
-| URL                                  | Meaning                |
-| ------------------------------------ | ---------------------- |
-| `trellis://submit/<id>?...`          | submit a form payload  |
-| `trellis://run/<action>?...`         | trigger a named action |
-| `trellis://fork/<entry-id>`          | pi tree fork           |
-| `trellis://label/<label>?entry=<id>` | apply a label          |
+| URL                              | Meaning                |
+| -------------------------------- | ---------------------- |
+| `uix://submit/<id>?...`          | submit a form payload  |
+| `uix://run/<action>?...`         | trigger a named action |
+| `uix://fork/<entry-id>`          | pi tree fork           |
+| `uix://label/<label>?entry=<id>` | apply a label          |
 
-The split rule: **schemes are nouns or `trellis://`.** If you want the user to be able to _trigger_ a thing, use `trellis://`. If you want to _point at_ a thing, use a noun scheme.
+The split rule: **schemes are nouns or `uix://`.** If you want the user to be able to _trigger_ a thing, use `uix://`. If you want to _point at_ a thing, use a noun scheme.
 
 ### 4.2 Canvas files
 
-A canvas is an HTML file at `<project>/.trellis/canvas/<name>.html`. The agent writes it using normal file tools (`Write`, `Edit`, or pi's hash-anchor variants). The cockpit renders it in a sandboxed iframe with one bridge script injected.
+A canvas is an HTML file at `<project>/.uix/canvas/<name>.html`. The agent writes it using normal file tools (`Write`, `Edit`, or pi's hash-anchor variants). The cockpit renders it in a sandboxed iframe with one bridge script injected.
 
 **Naming discipline** (taught by the skill):
 
@@ -145,11 +145,11 @@ At each agent turn boundary, the **pi-extension hook** does:
 
 1. Read the current contents of each open canvas.
 2. Compute its content hash.
-3. Write `<project>/.trellis/canvas/snapshots/<hash>.html` if not already present (deduped).
+3. Write `<project>/.uix/canvas/snapshots/<hash>.html` if not already present (deduped).
 4. Append a custom entry to the session:
    ```ts
    session.appendCustomEntry({
-     type: "trellis:canvas",
+     type: "uix:canvas",
      canvas: "<name>",
      contentHash: "<hash>",
    });
@@ -157,7 +157,7 @@ At each agent turn boundary, the **pi-extension hook** does:
 
 When the **cockpit** resolves which snapshot to show for a canvas:
 
-1. Walk back from the current tree entry to the most recent `trellis:canvas` entry whose `canvas` matches.
+1. Walk back from the current tree entry to the most recent `uix:canvas` entry whose `canvas` matches.
 2. Load `snapshots/<contentHash>.html`.
 3. Render it. Set the bridge's diff baseline to this same snapshot.
 
@@ -196,7 +196,7 @@ When the user sends a message in the conversation pane, the bridge:
 The cockpit watches the agent's streaming text output for completed URLs (terminated by whitespace, quote, or angle bracket). Behavior:
 
 - **Noun-scheme URL completes mid-stream** → auto-fire navigation (open in the appropriate pane). Cheap to undo, useful for "the agent is about to explain `parseConfig` and the code pane already shows it."
-- **Verb-scheme URL** (`trellis://`) → render as a live link/button in the conversation pane. Never auto-executes. User must click.
+- **Verb-scheme URL** (`uix://`) → render as a live link/button in the conversation pane. Never auto-executes. User must click.
 
 Detection is a simple regex; no streaming HTML parser required.
 
@@ -204,7 +204,7 @@ Detection is a simple regex; no streaming HTML parser required.
 
 ## 5. Pi extension surface
 
-What the **base** Trellis pi extension(s) provide. Single package vs. several is an open question (§9); the surface itself is small either way.
+What the **base** UIX pi extension(s) provide. Single package vs. several is an open question (§9); the surface itself is small either way.
 
 **System-prompt addendum**
 
@@ -218,7 +218,7 @@ The canvas convention is environment, not opt-in behavior, so it lives in the sy
 
 Exact wording is an open question (§10); the content above is the minimum coverage.
 
-**Custom entry type:** `trellis:canvas`
+**Custom entry type:** `uix:canvas`
 
 `{ canvas: string, contentHash: string }`. Pi already supports custom entries; this is just a declared type.
 
@@ -241,16 +241,16 @@ Defer.
 
 What the **base** Electron app does. All small, all composable.
 
-- **Conversation pane** — subscribes to pi events via IPC, renders messages (plain text day one; richer rendering is oh-my-trellis), hosts the prompt input.
+- **Conversation pane** — subscribes to pi events via IPC, renders messages (plain text day one; richer rendering is oh-my-uix), hosts the prompt input.
 - **Canvas pane** — for each open canvas, renders the current snapshot (resolved from the pi tree) in a sandboxed iframe with the bridge script injected.
 - **Bridge script** (injected into every iframe) — intercepts:
   - `click` on `<a href="<scheme>://...">` for known schemes.
   - `submit` on `<form action="<scheme>://...">` for known schemes.
   - Forwards both to the URL resolver via IPC.
-- **URL resolver** — switch on scheme; noun → navigate/display; `trellis://` → command. Today a hardcoded switch; tomorrow a registry (the natural extension point).
+- **URL resolver** — switch on scheme; noun → navigate/display; `uix://` → command. Today a hardcoded switch; tomorrow a registry (the natural extension point).
 - **Stream URL parser** — regex over event-stream text deltas; auto-fires noun URLs; marks verb URLs as live links.
-- **File watcher** — `fs.watch` on `.trellis/canvas/*.html` for external edits (agent edits via tools, or user edits via their editor); re-renders.
-- **Snapshot resolver** — given the current pi tree entry, walks back to find the latest `trellis:canvas` entry per canvas; loads the HTML by hash.
+- **File watcher** — `fs.watch` on `.uix/canvas/*.html` for external edits (agent edits via tools, or user edits via their editor); re-renders.
+- **Snapshot resolver** — given the current pi tree entry, walks back to find the latest `uix:canvas` entry per canvas; loads the HTML by hash.
 - **State diff emitter** — on user-message-send: snapshot iframe DOM, compute named-element delta, write attrs back to HTML, prepend delta to prompt before forwarding.
 
 That's the entire cockpit. No code editor. No tree pane. No labels UI. No HUD widgets. No design system beyond the iframe's default styles.
@@ -261,11 +261,11 @@ That's the entire cockpit. No code editor. No tree pane. No labels UI. No HUD wi
 
 None of these ship in base:
 
-- **Design system / theme.** Default is the browser's. Users supply their own CSS conventions in oh-my-trellis layers.
+- **Design system / theme.** Default is the browser's. Users supply their own CSS conventions in oh-my-uix layers.
 - **Component library / UI primitives** beyond raw HTML.
 - **Templates, web components, "rich block" vocabularies, JSX-as-output.**
 - **Renderer extensions** (template engines, JSON → HTML compilers).
-- **Code editor pane.** VS Code is right there. Trellis is the cockpit next to it.
+- **Code editor pane.** VS Code is right there. UIX is the cockpit next to it.
 - **Tree visualization pane.**
 - **Reflection queue.**
 - **Cost / HUD widgets.**
@@ -275,7 +275,7 @@ None of these ship in base:
 - **Skill management UI.**
 - **Anything else VS Code-shaped.**
 
-All of the above belong in oh-my-trellis packages built on the protocol.
+All of the above belong in oh-my-uix packages built on the protocol.
 
 ---
 
@@ -313,9 +313,9 @@ Each step end-to-end before the next.
 1. **Scaffold the cockpit.** electron-vite + React + TS. `pnpm dev` runs.
 2. **Wire pi into main.** `createAgentSessionRuntime()`, one IPC channel for `prompt`, one for `agent-event`. Conversation pane renders plain-text streaming.
 3. **Scaffold the pi extension package.** Empty extension that registers the system-prompt addendum + custom entry type. No tools, no hooks yet.
-4. **Canvas v0.** Cockpit watches `.trellis/canvas/main.html`, renders in a sandboxed iframe. Agent writing a file produces a visible page.
-5. **Bridge script.** Injects into the iframe, catches `click` on `trellis://` and noun-scheme links, posts a stub message back via IPC.
-6. **Snapshot hook.** Extension captures HTML at turn boundary, writes to `snapshots/`, appends `trellis:canvas` custom entry.
+4. **Canvas v0.** Cockpit watches `.uix/canvas/main.html`, renders in a sandboxed iframe. Agent writing a file produces a visible page.
+5. **Bridge script.** Injects into the iframe, catches `click` on `uix://` and noun-scheme links, posts a stub message back via IPC.
+6. **Snapshot hook.** Extension captures HTML at turn boundary, writes to `snapshots/`, appends `uix:canvas` custom entry.
 7. **Snapshot resolver.** Cockpit walks tree on navigation, loads the right snapshot per canvas. Rollback works.
 8. **State diff emitter.** On user-message-send, compute delta against current baseline snapshot, write attrs back to HTML, prepend delta to prompt.
 
@@ -331,10 +331,10 @@ After step 8, the entire protocol is live end-to-end. Everything else is built o
 - **Bridge security model.** Iframe is sandboxed (`sandbox="allow-forms allow-same-origin allow-scripts"`). What about CDN scripts the agent embeds (mermaid, etc.)? Default permissive, revisit when something breaks.
 - **Exact system-prompt addendum wording.** Iterate against real sessions.
 - **Diff format edge cases.** Multi-select. File inputs. Disabled state. Defer; design as they appear.
-- **Naming the verb scheme.** `trellis://` is fine. Reconfirm before publishing.
+- **Naming the verb scheme.** `uix://` is fine. Reconfirm before publishing.
 
 ---
 
 ## 11. The shape, in one sentence
 
-**Trellis v0 is a minimal protocol — HTML files plus URL schemes plus snapshot-per-turn — and the smallest pi-extension/Electron-cockpit pair that makes the protocol work; everything richer is meant to be grown on top as oh-my-trellis.**
+**UIX v0 is a minimal protocol — HTML files plus URL schemes plus snapshot-per-turn — and the smallest pi-extension/Electron-cockpit pair that makes the protocol work; everything richer is meant to be grown on top as oh-my-uix.**

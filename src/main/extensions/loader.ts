@@ -1,10 +1,10 @@
-// Trellis extension loader — turns DiscoveredExtensions into
+// UIX extension loader — turns DiscoveredExtensions into
 // activated extensions (one per entry file).
 //
 // Responsibilities:
-//   1. For each discovered extension with a `trellis` manifest,
+//   1. For each discovered extension with a `uix` manifest,
 //      resolve its entry files (relative paths in
-//      `ext.packageJson.trellis.extensions`).
+//      `ext.packageJson.uix.extensions`).
 //   2. Dynamic-import each entry file (ESM, via file:// URL).
 //   3. Build an ExtensionAPI bound to a per-entry DisposableBag.
 //   4. Invoke the default-exported factory with that API.
@@ -35,7 +35,7 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import type { ExtensionFactory } from "@trellis/api";
+import type { ExtensionFactory } from "@uix/api";
 
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
@@ -74,7 +74,7 @@ export interface FailedExtension {
   error: Error;
 }
 
-/** Result of `activateTrellisExtensions`. */
+/** Result of `activateUIXExtensions`. */
 export interface ActivationResult {
   loaded: LoadedExtension[];
   failed: FailedExtension[];
@@ -83,27 +83,25 @@ export interface ActivationResult {
 const normalize = (thrown: unknown): Error =>
   thrown instanceof Error ? thrown : new Error(String(thrown));
 
-interface TrellisManifest {
+interface UIXManifest {
   /** Relative paths to entry files inside the extension's directory. */
   extensions?: string[];
 }
 
-const readTrellisManifest = (
-  ext: DiscoveredExtension,
-): TrellisManifest | null => {
-  const raw = ext.packageJson["trellis"];
+const readUIXManifest = (ext: DiscoveredExtension): UIXManifest | null => {
+  const raw = ext.packageJson["uix"];
   if (!raw || typeof raw !== "object") return null;
-  // `TrellisManifest` only has optional fields, so the narrowed
+  // `UIXManifest` only has optional fields, so the narrowed
   // `object` type already satisfies it structurally — no cast.
   return raw;
 };
 
 /**
- * Activate the trellis side of each discovered extension.
+ * Activate the uix side of each discovered extension.
  *
- * Extensions that don't declare a `trellis` field are skipped (the
+ * Extensions that don't declare a `uix` field are skipped (the
  * pi side, if present, is the agent's concern, not the cockpit's).
- * Manifests with an empty or missing `trellis.extensions` list get
+ * Manifests with an empty or missing `uix.extensions` list get
  * a warning and are otherwise ignored.
  *
  * Each entry file becomes its own LoadedExtension with its own bag,
@@ -113,7 +111,7 @@ const readTrellisManifest = (
  * @param parentBag every per-entry bag is added here, so one
  *   dispose at app shutdown tears down everything.
  */
-export const activateTrellisExtensions = async (
+export const activateUIXExtensions = async (
   extensions: DiscoveredExtension[],
   parentBag: DisposableBag,
 ): Promise<ActivationResult> => {
@@ -121,12 +119,12 @@ export const activateTrellisExtensions = async (
   const failed: FailedExtension[] = [];
 
   for (const ext of extensions) {
-    if (!ext.hasTrellis) continue;
+    if (!ext.hasUIX) continue;
 
-    const manifest = readTrellisManifest(ext);
+    const manifest = readUIXManifest(ext);
     const entries = manifest?.extensions ?? [];
     if (entries.length === 0) {
-      log.warn({ dir: ext.dir }, "trellis_manifest_empty");
+      log.warn({ dir: ext.dir }, "uix_manifest_empty");
       continue;
     }
 

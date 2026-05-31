@@ -24,7 +24,7 @@ import { DisposableBag, handle, onApp, subscribe } from "./lifecycle";
 
 const bag = new DisposableBag();
 
-bag.add(handle("trellis:prompt", (req) => { ... }));
+bag.add(handle("uix:prompt", (req) => { ... }));
 bag.add(onApp("activate", () => { ... }));
 bag.add(subscribe(session, (event) => { ... }));
 
@@ -82,7 +82,7 @@ log.error({ extension: id, err: e.message }, "activate_failed");
 - **All context in the fields object.** Never interpolate state into
   the message string.
 - **Component is the subsystem.** `extensions`, `main`, `agent`,
-  `channels`. No `trellis.` prefix — it's implied. Don't repeat the
+  `channels`. No `uix.` prefix — it's implied. Don't repeat the
   component name in the event (`activated`, not `extension_activated`,
   when the component is `extensions`).
 - **Per-instance child loggers** for attribution: when handling many
@@ -104,7 +104,7 @@ log.error({ extension: id, err: e.message }, "activate_failed");
   Don't stringify into the message.
 - **Levels.** `info` for lifecycle, `warn` for recoverable trouble
   worth a human's attention, `error` for failures. `debug` exists
-  (enable with `TRELLIS_LOG_LEVEL=debug`) for high-volume diagnostic
+  (enable with `UIX_LOG_LEVEL=debug`) for high-volume diagnostic
   trails.
 
 ## Imports

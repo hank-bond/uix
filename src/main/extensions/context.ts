@@ -11,7 +11,7 @@
 // (command registry, etc.) arrive in later commits; their wiring
 // goes here without changing the shape extensions see.
 
-import type { ExtensionAPI } from "@trellis/api";
+import type { ExtensionAPI } from "@uix/api";
 
 import { disposable, type DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";

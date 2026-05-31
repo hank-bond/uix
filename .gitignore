@@ -4,5 +4,5 @@ out/
 .DS_Store
 *.log
 .vite/
-.trellis/
+.uix/
 *.tsbuildinfo

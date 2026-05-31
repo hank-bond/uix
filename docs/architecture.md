@@ -1,9 +1,9 @@
 # Architecture
 
-This doc tracks the **current state** of Trellis development: what's built,
+This doc tracks the **current state** of UIX development: what's built,
 what's in flight, what's next, and the open questions we haven't resolved.
 
-For the architectural vision, see [`TRELLIS.md`](../TRELLIS.md). For the
+For the architectural vision, see [`AGENTS.md`](../AGENTS.md). For the
 "why this exists / why this stack" rationale, see
 [`DECISIONS.md`](../DECISIONS.md).
 
@@ -31,7 +31,7 @@ _(none — between milestones)_
 
 ### Next
 
-The substrate milestone list lives in `TRELLIS.md` under "Near-term
+The substrate milestone list lives in `AGENTS.md` under "Near-term
 milestones". The headline order:
 
 1. Extension loader (the lifetime-boundaries test: hot reload = dispose
@@ -40,7 +40,7 @@ milestones". The headline order:
    contributions).
 3. Typed channel substrate (TypeBox, local/silent/turn modes,
    in-process + iframe transports).
-4. `trellis-core` pi extension (orientation block + doc map +
+4. `uix-core` pi extension (orientation block + doc map +
    smoke-test tools).
 5. Agent tool contribution from extensions.
 6. File watcher service.
@@ -57,9 +57,9 @@ milestone when it becomes blocking.
 
 ### Substrate
 
-- **Manifest shape stability.** TRELLIS.md commits to "extensions register
+- **Manifest shape stability.** AGENTS.md commits to "extensions register
   contributions through a small context object," but the exact shape of
-  `TrellisExtensionContext` is undefined. Likely settled while building
+  `UIXExtensionContext` is undefined. Likely settled while building
   the extension loader.
 - **Channel transport unification.** One API, two transports
   (in-process + `postMessage`). Where does the boundary live — at
@@ -71,13 +71,13 @@ milestone when it becomes blocking.
   the correct behavior — pause, abort, finish then reload?
 - **Extension shapes — package.json always, or lighter shapes too?**
   Discovery currently requires `<root>/<name>/package.json` with a
-  `pi` or `trellis` field. Pi is more flexible: bare
+  `pi` or `uix` field. Pi is more flexible: bare
   `~/.pi/agent/extensions/<name>.ts`, folder-with-index, or full
   package — only the last needs `package.json`. We picked the strict
   shape because we need to disambiguate which side(s) an extension
-  targets (pi-only, trellis-only, both), which pi doesn't. A file/
+  targets (pi-only, uix-only, both), which pi doesn't. A file/
   folder-name convention could carry that disambiguation instead
-  (e.g. `notify.pi.ts`, `notify/{pi.ts, trellis.ts}`). Decide when
+  (e.g. `notify.pi.ts`, `notify/{pi.ts, uix.ts}`). Decide when
   ceremony cost is actually felt — likely after 3–5 dogfood
   extensions. Loosening discovery later is easy; tightening would
   force migration.
@@ -116,36 +116,36 @@ Promote to `DECISIONS.md` when stable.
   process and context). Archived the original `PROJECT_BRIEF.md` and
   pulled the still-relevant pieces into `DECISIONS.md`.
 - **2026-05-30** — Extension discovery model corrected. Original
-  commit `3606296` put `trellis-core` under `src/extensions/` as a
-  first-party Trellis extension. That was a category mistake:
+  commit `3606296` put `uix-core` under `src/extensions/` as a
+  first-party UIX extension. That was a category mistake:
   extensions are _user-installed_ (project-local or global), and
-  what `trellis-core` actually does (orientation + doc map + cockpit
+  what `uix-core` actually does (orientation + doc map + cockpit
   tools) is _embedded-pi config_ — the way the cockpit configures
   its own pi instance, not a feature users opt into.
 
   Corrected model (matches pi's directory layout):
   - **Discovery roots** (extensions only):
-    - `<project>/.trellis/extensions/` — project-local, the common case.
-    - `~/.trellis/extensions/` — global, optional.
-    - No app-shipped first-party root. Trellis ships zero extensions.
+    - `<project>/.uix/extensions/` — project-local, the common case.
+    - `~/.uix/extensions/` — global, optional.
+    - No app-shipped first-party root. UIX ships zero extensions.
   - **Embedded-pi config** lives in the cockpit's own source
     (`src/main/embedded-pi/`, path TBD). Will be filled in when
     milestone 4 lands.
-  - The trellis repo itself dogfoods extensions via
-    `<repo>/.trellis/extensions/` (gitignored), the same way pi's
+  - The uix repo itself dogfoods extensions via
+    `<repo>/.uix/extensions/` (gitignored), the same way pi's
     own dev workflow uses `<repo>/.pi/extensions/`.
 
 - **2026-05-30** — Extension package layout decided ahead of building
   the loader (milestone 1):
   - First-party packages live under `src/extensions/<name>/`.
     _(Superseded by the discovery-model correction above.)_
-  - Each package's `package.json` has optional `pi` and `trellis`
+  - Each package's `package.json` has optional `pi` and `uix`
     fields (each side independent).
-  - `trellis-core` moves from the previously-documented
-    `src/pi-package/extensions/trellis-core/` to
-    `src/extensions/trellis-core/`. It's pi-only — the canonical
+  - `uix-core` moves from the previously-documented
+    `src/pi-package/extensions/uix-core/` to
+    `src/extensions/uix-core/`. It's pi-only — the canonical
     example of a package with only a `pi` field.
-  - **No version gate in v0.** Originally planned a `trellisApi`
+  - **No version gate in v0.** Originally planned a `uixApi`
     field in `package.json` (mirroring VS Code's `engines.vscode`),
     but pi doesn't gate its extensions and the precondition for the
     gate to pay off — user-installed extensions outliving substrate
@@ -161,17 +161,17 @@ Promote to `DECISIONS.md` when stable.
     object; extensions never import cockpit internals. That keeps
     a future swap to `worker_threads` or `utilityProcess`
     per-extension isolation a transport change, not an API change.
-  - **Extension shape mirrors pi exactly.** A trellis manifest
+  - **Extension shape mirrors pi exactly.** A uix manifest
     default-exports a factory function that receives an
     `ExtensionAPI` object — same pattern as pi's
     `export default function (pi: ExtensionAPI) { ... }`. Type
     name (`ExtensionAPI`), export shape (default function), and
     parameter convention (named for the injected system: `pi` or
-    `trellis`) all match. Reason: keep humans and LLMs in one
+    `uix`) all match. Reason: keep humans and LLMs in one
     pattern across both systems. Disambiguation happens at the
-    import site (`@trellis/api` vs `@earendil-works/pi-coding-agent`).
+    import site (`@uix/api` vs `@earendil-works/pi-coding-agent`).
     Earlier sketches in our design chat used `activate` / `ctx` /
-    `TrellisExtensionContext`; those are superseded.
+    `UIXExtensionContext`; those are superseded.
 - **2026-05-30** — TypeBox everywhere, not split with Zod. Pi forces
   TypeBox at the agent boundary; using it across IPC, channels, and
   on-disk schemas too removes a translation layer and a second mental
@@ -187,17 +187,17 @@ Promote to `DECISIONS.md` when stable.
   through their code for things they registered through the API.
   (For their _own_ resources — file watchers, external
   subscriptions, intervals — they still need cleanup discipline;
-  TBD whether we expose a `trellis.subscriptions` bag for that
+  TBD whether we expose a `uix.subscriptions` bag for that
   case. Pi doesn't, and we don't yet need to.)
-- **2026-05-30** — Extension-facing types live behind `@trellis/api`,
+- **2026-05-30** — Extension-facing types live behind `@uix/api`,
   implemented as a tsconfig path alias to
   `src/shared/extension-types.ts`. Mirrors the eventual published
   package name from day 1 so extension code never has to be
   rewritten. No npm publish is needed yet because the only thing
   exported is _types_ — extensions never `import` a runtime value
-  from `@trellis/api` (the `trellis` object is constructed by the
+  from `@uix/api` (the `uix` object is constructed by the
   loader and handed to the factory), so `import type` erasure at
-  compile means nothing has to resolve `@trellis/api` at runtime.
+  compile means nothing has to resolve `@uix/api` at runtime.
   Upgrade path when external extensions arrive: move the file to
   `packages/api/src/index.ts`, add a `package.json`, declare
   workspaces. The alias goes away, the import shape doesn't change.
@@ -215,7 +215,7 @@ Promote to `DECISIONS.md` when stable.
   - `defaultRoots()` returns `string[]` — just absolute paths, no
     interface wrapping them. Configured paths will append to the
     same list when they land.
-  - `DiscoveredExtension` is `{ displayName, dir, hasPi, hasTrellis,
+  - `DiscoveredExtension` is `{ displayName, dir, hasPi, hasUIX,
 packageJson }`. `dir` is the identifier; `displayName` is the
     directory name, used for log readability.
   - `LoadedExtension` (the loader's output) is
@@ -294,8 +294,8 @@ packageJson }`. `dir` is the identifier; `displayName` is the
     `FailedExtension.error` and the process handlers both wrap
     non-Errors in `new Error(String(thrown))` so `.message` and
     `.stack` are always available downstream.
-  - **Dogfood canary.** `.trellis/extensions/broken/` (gitignored,
-    like the rest of `.trellis/`) deliberately throws on
+  - **Dogfood canary.** `.uix/extensions/broken/` (gitignored,
+    like the rest of `.uix/`) deliberately throws on
     activation. It exists so every `npm run dev` exercises the
     isolation path: hello still loads, broken lands in `failed[]`,
     the window comes up. Will graduate to a real test fixture when

@@ -1,6 +1,6 @@
-// Trellis cockpit — conversation pane.
+// UIX cockpit — conversation pane.
 //
-// Subscribes to `window.trellis.onAgentEvent` and renders the running
+// Subscribes to `window.uix.onAgentEvent` and renders the running
 // transcript as plain text. Three message kinds today: user prompts,
 // assistant text (streamed), and errors. Tool calls and other lifecycle
 // events get their own affordances when we need them; for now we just
@@ -24,7 +24,7 @@ export function Conversation() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    return window.trellis.onAgentEvent((event: AgentEvent) => {
+    return window.uix.onAgentEvent((event: AgentEvent) => {
       setMessages((prev) => reduce(prev, event));
       if (event.type === "assistant_end" || event.type === "error") {
         setPending(false);
@@ -44,7 +44,7 @@ export function Conversation() {
     setDraft("");
     setPending(true);
     try {
-      await window.trellis.sendPrompt({ text });
+      await window.uix.sendPrompt({ text });
     } catch (err) {
       setPending(false);
       setMessages((prev) => [

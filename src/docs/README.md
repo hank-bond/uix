@@ -1,13 +1,13 @@
-# Trellis substrate documentation
+# UIX substrate documentation
 
-User-facing documentation for the Trellis substrate. Audience: someone (human
-or agent) building on Trellis — writing an extension, contributing a pane,
+User-facing documentation for the UIX substrate. Audience: someone (human
+or agent) building on UIX — writing an extension, contributing a pane,
 defining a channel, integrating with the pi agent session.
 
 If a doc here is wrong, either the doc or the code it describes is broken.
 Update them together.
 
-For the vision, see [`../../TRELLIS.md`](../../TRELLIS.md).
+For the vision, see [`../../AGENTS.md`](../../AGENTS.md).
 For decisions and rationale, see [`../../DECISIONS.md`](../../DECISIONS.md).
 For dev-facing architecture state, see
 [`../../docs/architecture.md`](../../docs/architecture.md).

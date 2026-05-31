@@ -1,7 +1,7 @@
-// Trellis cockpit — preload.
+// UIX cockpit — preload.
 //
 // Sandboxed + contextIsolated. The renderer never sees `ipcRenderer`
-// directly; it gets a typed surface on `window.trellis` mirroring the
+// directly; it gets a typed surface on `window.uix` mirroring the
 // contract in src/shared/ipc.ts.
 
 import { contextBridge, ipcRenderer } from "electron";
@@ -10,10 +10,10 @@ import {
   type AgentEvent,
   Channels,
   type PromptRequest,
-  type TrellisBridge,
+  type UIXBridge,
 } from "../shared/ipc";
 
-const bridge: TrellisBridge = {
+const bridge: UIXBridge = {
   sendPrompt: (req: PromptRequest) => ipcRenderer.invoke(Channels.prompt, req),
 
   onAgentEvent: (handler) => {
@@ -26,4 +26,4 @@ const bridge: TrellisBridge = {
   },
 };
 
-contextBridge.exposeInMainWorld("trellis", bridge);
+contextBridge.exposeInMainWorld("uix", bridge);

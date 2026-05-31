@@ -1,9 +1,9 @@
 # Decisions
 
-A log of the load-bearing decisions behind Trellis: _why_ it exists, _why_ it's
+A log of the load-bearing decisions behind UIX: _why_ it exists, _why_ it's
 shaped as a substrate rather than an app, and _why_ the stack is what it is.
 
-For the current architecture, see [`TRELLIS.md`](./TRELLIS.md). For in-flight
+For the current architecture, see [`AGENTS.md`](./AGENTS.md). For in-flight
 work and open questions, see [`docs/architecture.md`](./docs/architecture.md).
 
 ---
@@ -14,20 +14,20 @@ work and open questions, see [`docs/architecture.md`](./docs/architecture.md).
 > Normally the harness is tools you give to the agent, but I mostly want **tools
 > you give to the human to work with the agent**."
 
-This frame is the single most important design constraint. Trellis is not
+This frame is the single most important design constraint. UIX is not
 adding agent capabilities. It is adding **pilot capabilities**: displays the
 human sees, controls the human's hands operate, and memory aids that mean the
 human doesn't have to hold everything in their head.
 
 Every feature decision passes the test: _does this help the pilot see, decide,
-or act?_ If it's "make the agent smarter," it belongs in pi, not Trellis.
+or act?_ If it's "make the agent smarter," it belongs in pi, not UIX.
 
 ## Why it's a substrate, not an app
 
-Early framing treated Trellis as a single tailor-made IDE for coding agents —
+Early framing treated UIX as a single tailor-made IDE for coding agents —
 conversation pane, tree pane, structured "reports" as the central artifact,
 SQLite-backed reflection queue, side-quest workflow gesture. All of that is
-still wanted, but as _applications built on Trellis_. The substrate split
+still wanted, but as _applications built on UIX_. The substrate split
 happened once a second application surfaced — a knowledge-base / wiki manager
 sharing nearly all of the same primitives (panes, channels, file watchers,
 agent session, lifetime-scoped extensions) with none of the same UI.

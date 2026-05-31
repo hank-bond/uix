@@ -1,9 +1,9 @@
-// Declares the bridge that the preload exposes on `window.trellis`.
-import type { TrellisBridge } from "../shared/ipc";
+// Declares the bridge that the preload exposes on `window.uix`.
+import type { UIXBridge } from "../shared/ipc";
 
 declare global {
   interface Window {
-    trellis: TrellisBridge;
+    uix: UIXBridge;
   }
 }
 

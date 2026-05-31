@@ -1,7 +1,7 @@
 # Channels
 
 > **Stub.** Populated when the typed channel substrate lands (milestone 3 in
-> [`TRELLIS.md`](../../TRELLIS.md#near-term-milestones)).
+> [`AGENTS.md`](../../AGENTS.md#near-term-milestones)).
 
 Will cover:
 

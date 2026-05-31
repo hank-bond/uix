@@ -1,4 +1,4 @@
-// Trellis cockpit — agent driver.
+// UIX cockpit — agent driver.
 //
 // Wraps `createAgentSession` from `@earendil-works/pi-coding-agent` and
 // translates the subset of pi's event stream we currently render into

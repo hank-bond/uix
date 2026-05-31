@@ -1,6 +1,6 @@
 node_modules
 out
 dist
-.trellis
+.uix
 *.tsbuildinfo
 package-lock.json

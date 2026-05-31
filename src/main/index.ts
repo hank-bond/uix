@@ -1,4 +1,4 @@
-// Trellis cockpit — main process.
+// UIX cockpit — main process.
 //
 // Owns app lifecycle, creates the BrowserWindow, and registers the IPC
 // channels declared in src/shared/ipc.ts.
@@ -17,7 +17,7 @@ import { type AgentEvent, Channels, type PromptRequest } from "../shared/ipc";
 
 import { createAgentDriver } from "./agent";
 import { discoverExtensions } from "./extensions/discovery";
-import { activateTrellisExtensions } from "./extensions/loader";
+import { activateUIXExtensions } from "./extensions/loader";
 import { defaultRoots } from "./extensions/roots";
 import {
   DisposableBag,
@@ -34,7 +34,7 @@ function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
     width: 1100,
     height: 720,
-    title: "Trellis",
+    title: "UIX",
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       sandbox: true,
@@ -70,7 +70,7 @@ void app.whenReady().then(async () => {
   // They go in early so they're armed before any user code runs.
   appBag.add(installProcessHandlers(createLogger("main")));
 
-  // Discover extensions, then activate the trellis side of each.
+  // Discover extensions, then activate the uix side of each.
   // Per-extension bags enroll into appBag so will-quit tears
   // everything down with one dispose.
   const extLog = createLogger("extensions");
@@ -87,15 +87,12 @@ void app.whenReady().then(async () => {
         displayName: ext.displayName,
         dir: ext.dir,
         hasPi: ext.hasPi,
-        hasTrellis: ext.hasTrellis,
+        hasUIX: ext.hasUIX,
       },
       "found",
     );
   }
-  const { loaded, failed } = await activateTrellisExtensions(
-    discovered,
-    appBag,
-  );
+  const { loaded, failed } = await activateUIXExtensions(discovered, appBag);
   extLog.info(
     { loaded: loaded.length, failed: failed.length },
     "activation_complete",

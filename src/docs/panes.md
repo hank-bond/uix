@@ -1,7 +1,7 @@
 # Panes
 
 > **Stub.** Populated when the pane host + slot registry lands (milestone 2
-> in [`TRELLIS.md`](../../TRELLIS.md#near-term-milestones)).
+> in [`AGENTS.md`](../../AGENTS.md#near-term-milestones)).
 
 Will cover:
 

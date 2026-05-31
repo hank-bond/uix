@@ -1,8 +1,8 @@
-# Trellis — Project Brief (archived)
+# UIX — Project Brief (archived)
 
 > **Archived 2026-05-30.** This is the original handoff document, written when
-> Trellis was framed as a single tailor-made coding-agent IDE with reports as
-> the central artifact. Trellis has since pivoted to a _substrate_ shape that
+> UIX was framed as a single tailor-made coding-agent IDE with reports as
+> the central artifact. UIX has since pivoted to a _substrate_ shape that
 > hosts multiple applications (a code-reviewer being one, a knowledge-base
 > manager being another). The still-current pieces — Gundam framing, motivating
 > problems, stack landings, design principles — have moved to
@@ -15,15 +15,15 @@
 
 ## 1. What we're building
 
-**Trellis is a tailor-made desktop IDE for working with coding agents.** It is not an agent — the agent is [pi](https://github.com/earendil-works/pi-mono) (`@earendil-works/pi-coding-agent`). Trellis is the **cockpit** around pi.
+**UIX is a tailor-made desktop IDE for working with coding agents.** It is not an agent — the agent is [pi](https://github.com/earendil-works/pi-mono) (`@earendil-works/pi-coding-agent`). UIX is the **cockpit** around pi.
 
 ### The Gundam metaphor (load-bearing)
 
 > "I am basically just creating a UI to hook [pi] into like a human in a Gundam. Normally the harness is tools you give to the agent, but I mostly want **tools you give to the human to work with the agent**."
 
-This frame is the single most important design constraint. Trellis is not adding agent capabilities. It is adding **pilot capabilities**: displays the human sees, controls the human's hands operate, and memory aids that mean the human doesn't have to hold everything in their head.
+This frame is the single most important design constraint. UIX is not adding agent capabilities. It is adding **pilot capabilities**: displays the human sees, controls the human's hands operate, and memory aids that mean the human doesn't have to hold everything in their head.
 
-Every feature decision should pass the test: _does this help the pilot see, decide, or act?_ If it's "make the agent smarter," it belongs in pi, not Trellis.
+Every feature decision should pass the test: _does this help the pilot see, decide, or act?_ If it's "make the agent smarter," it belongs in pi, not UIX.
 
 ---
 
@@ -47,7 +47,7 @@ The user's stated problems with current agent UX:
 
 ### 3.1 Conversation pane (the linear chat)
 
-Standard chat with the agent. Linear, persistent, one per task. Streaming input/output. This is the normal pi experience, just rendered in Trellis.
+Standard chat with the agent. Linear, persistent, one per task. Streaming input/output. This is the normal pi experience, just rendered in UIX.
 
 ### 3.2 Reports (the killer feature)
 
@@ -55,7 +55,7 @@ Reports are **separate, structured artifacts the agent generates by writing file
 
 Key decisions:
 
-- **Reports are markdown files on disk** (probably `<project>/.trellis/reports/<id>.md`). The agent doesn't get a custom tool to manipulate them — it uses its existing file edit tools.
+- **Reports are markdown files on disk** (probably `<project>/.uix/reports/<id>.md`). The agent doesn't get a custom tool to manipulate them — it uses its existing file edit tools.
 - **The app renders the file richly** in a report pane. File watcher + debounced reparse + re-render. Streaming "for free" because each agent edit triggers a re-render.
 - **Custom block vocabulary.** Reports contain regular markdown plus fenced custom blocks (`question`, `diff`, `code`, `table`, `callout`, `tldr`, `call_tree`, etc.). The user controls the vocabulary; the agent writes structured payloads into it. This is closer to Notion blocks than to "agent writes JSX."
 - **Format**: fenced markdown with YAML headers in the fence is the working hypothesis. Readable on disk, easy for the model to produce, easy to parse.
@@ -78,7 +78,7 @@ Naturally turn-based. The agent writes during its turn; the user writes (into an
 
 ### 3.5 Deep tree navigation
 
-Pi already stores sessions as trees (`id` / `parentId`, leaf-tracked, with branch summaries, labels, custom entries). The TUI exposes `/tree`, but Trellis renders this far more richly:
+Pi already stores sessions as trees (`id` / `parentId`, leaf-tracked, with branch summaries, labels, custom entries). The TUI exposes `/tree`, but UIX renders this far more richly:
 
 - A real tree pane (not a popup), always available.
 - Multiple rendering modes possible: linear timeline with branch indicators, full graph, swimlane per branch, etc.
@@ -127,7 +127,7 @@ Things the pilot should see without asking:
 - "You have 3 entries labeled needs-reflection across all sessions."
 - "This branch has retried 2 times."
 
-These all derive from data pi already exposes. Trellis is the HUD that surfaces them.
+These all derive from data pi already exposes. UIX is the HUD that surfaces them.
 
 ### 3.9 Other ideas surfaced (not yet detailed)
 
@@ -148,7 +148,7 @@ Main process (Electron, Node):
   - Subscribes to AgentSession events; forwards typed deltas to renderer via IPC.
   - Exposes IPC commands for: prompt, navigate tree, fork, label,
     append custom entry, etc.
-  - Watches report files in <project>/.trellis/reports/; forwards changes.
+  - Watches report files in <project>/.uix/reports/; forwards changes.
   - Maintains a SQLite index over sessions for cross-cutting queries.
 
 Renderer (React + …):
@@ -160,8 +160,8 @@ Renderer (React + …):
 
 Files on disk:
   - ~/.pi/agent/sessions/...       ← pi's session JSONL (canonical conversation tree)
-  - <project>/.trellis/reports/    ← reports (canonical artifacts)
-  - <project>/.trellis/index.db    ← SQLite cross-session index (derived, rebuildable)
+  - <project>/.uix/reports/    ← reports (canonical artifacts)
+  - <project>/.uix/index.db    ← SQLite cross-session index (derived, rebuildable)
   - App-specific state tied to tree positions lives in pi's custom entries
     inside the session JSONL — *not* in sibling files.
 ```
@@ -178,7 +178,7 @@ Subprocess via `--mode rpc` is the _wrong_ choice here because we want type safe
 
 ### 4.3 What pi gives us for free
 
-Pi's primitives map directly onto what Trellis needs. Things the cockpit consumes rather than reimplements:
+Pi's primitives map directly onto what UIX needs. Things the cockpit consumes rather than reimplements:
 
 - **Tree structure**: `SessionManager.getTree()`, `getChildren()`, `getEntry()`, `getBranch()`.
 - **In-place tree navigation**: `session.navigateTree(targetId, { summarize, customInstructions, label })`.
@@ -191,7 +191,7 @@ Pi's primitives map directly onto what Trellis needs. Things the cockpit consume
 
 ### 4.4 Reports are not in pi's state
 
-Reports are files in the project directory, watched and rendered by the app. They are linked to session entries via custom entries (e.g., `customType: "trellis:report-link"` with `data: { reportPath, blockId? }`) so the tree view can show "📄 report-42" next to relevant entries, but the report content lives on disk separately.
+Reports are files in the project directory, watched and rendered by the app. They are linked to session entries via custom entries (e.g., `customType: "uix:report-link"` with `data: { reportPath, blockId? }`) so the tree view can show "📄 report-42" next to relevant entries, but the report content lives on disk separately.
 
 ---
 
@@ -263,7 +263,7 @@ These came up but weren't fully resolved:
 - **Tree view rendering choices.** Linear-with-branches vs. real graph vs. swimlane. Probably linear first, real graph as a power-user view later.
 - **Cost / token HUD details.** What's surfaced where. Pi emits enough data; the question is presentation.
 - **Call-path tree block.** Real but ambitious. Build the simpler "callers/callees one level" version before attempting the call-graph-diff version.
-- **Agent prompt for the report workflow.** A short addendum to the system prompt explaining the report file convention and the question-block contract. This is the one place where the agent needs to know Trellis exists.
+- **Agent prompt for the report workflow.** A short addendum to the system prompt explaining the report file convention and the question-block contract. This is the one place where the agent needs to know UIX exists.
 - **Skill effectiveness ledger.** Defined conceptually; mechanics not yet specified.
 
 ---
@@ -279,4 +279,4 @@ These came up but weren't fully resolved:
 
 ## 9. The shape of the project, in one sentence
 
-**Trellis is an Electron + React cockpit around pi that turns pi's already-rich session tree and file-editing primitives into a 2D workspace for reviewing, navigating, and steering coding agents — with structured reports as the central artifact and tree-based side-quest workflows as the central interaction pattern.**
+**UIX is an Electron + React cockpit around pi that turns pi's already-rich session tree and file-editing primitives into a 2D workspace for reviewing, navigating, and steering coding agents — with structured reports as the central artifact and tree-based side-quest workflows as the central interaction pattern.**

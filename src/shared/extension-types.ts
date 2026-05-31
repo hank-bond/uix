@@ -1,17 +1,17 @@
 // Public types for extension authors.
 //
-// Imported by extensions as `@trellis/api` (a tsconfig path alias).
+// Imported by extensions as `@uix/api` (a tsconfig path alias).
 // When external extensions exist and we publish, this file moves to
 // `packages/api/src/index.ts`, the alias goes away, and the
 // extension-facing import shape stays identical. See
 // docs/architecture.md ("extension-facing types live behind
-// `@trellis/api`").
+// `@uix/api`").
 //
 // IMPORTANT: only types live here. Extensions never `import` a
-// runtime value from `@trellis/api` — the `trellis` object passed
+// runtime value from `@uix/api` — the `uix` object passed
 // to the factory is constructed by the loader and handed in. That's
 // why a tsconfig alias is sufficient: `import type` is erased at
-// compile, so nothing ever has to resolve `@trellis/api` at runtime.
+// compile, so nothing ever has to resolve `@uix/api` at runtime.
 
 /**
  * Context object passed to a command handler when it's invoked.
@@ -33,7 +33,7 @@ export interface CommandOptions {
 }
 
 /**
- * Surface an extension uses to contribute to Trellis.
+ * Surface an extension uses to contribute to UIX.
  *
  * All `register*` methods return `void`. Cleanup is tied to the
  * extension's lifecycle: the substrate disposes everything an
@@ -58,10 +58,10 @@ export interface ExtensionAPI {
  *
  * @example
  * ```ts
- * import type { ExtensionFactory } from "@trellis/api";
+ * import type { ExtensionFactory } from "@uix/api";
  *
- * const activate: ExtensionFactory = (trellis) => {
- *   trellis.registerCommand("hello.say-hi", {
+ * const activate: ExtensionFactory = (uix) => {
+ *   uix.registerCommand("hello.say-hi", {
  *     description: "Say hi from hello",
  *     handler: () => console.log("hi"),
  *   });
@@ -72,4 +72,4 @@ export interface ExtensionAPI {
  * Async factories are supported so extensions can `await` during
  * activation (dynamic imports, async config load, etc.).
  */
-export type ExtensionFactory = (trellis: ExtensionAPI) => void | Promise<void>;
+export type ExtensionFactory = (uix: ExtensionAPI) => void | Promise<void>;

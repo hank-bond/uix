@@ -1,4 +1,4 @@
-// Trellis lint config (ESLint flat config).
+// UIX lint config (ESLint flat config).
 //
 // Two layers of rules:
 //
@@ -31,7 +31,7 @@ export default tseslint.config(
       "out/**",
       "dist/**",
       "node_modules/**",
-      ".trellis/**",
+      ".uix/**",
       "*.tsbuildinfo",
     ],
   },

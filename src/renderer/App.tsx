@@ -1,4 +1,4 @@
-// Trellis cockpit — top-level layout.
+// UIX cockpit — top-level layout.
 //
 // Two panes, side by side: the conversation (left, live) and the canvas
 // (right, still placeholder). The layout itself is plain CSS grid in
@@ -18,7 +18,7 @@ export function App() {
       <section className="pane pane--canvas" aria-label="Canvas">
         <header className="pane__header">canvas</header>
         <div className="pane__body pane__body--placeholder">
-          .trellis/canvas/main.html will render here
+          .uix/canvas/main.html will render here
         </div>
       </section>
     </div>

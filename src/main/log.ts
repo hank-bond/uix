@@ -15,7 +15,7 @@ import pino, { type Logger } from "pino";
 const isDev = process.env["NODE_ENV"] !== "production";
 
 const base = pino({
-  level: process.env["TRELLIS_LOG_LEVEL"] ?? "info",
+  level: process.env["UIX_LOG_LEVEL"] ?? "info",
   ...(isDev && {
     transport: {
       target: "pino-pretty",

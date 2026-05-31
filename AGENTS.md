@@ -1,14 +1,14 @@
-# Trellis
+# UIX
 
-Trellis is a local Electron cockpit for building bidirectional human-agent surfaces on top of pi.
+UIX is a local Electron cockpit for building bidirectional human-agent surfaces on top of pi.
 
-Pi is the agent framework: sessions, tools, prompts, skills, extensions, model providers, and agent events. Trellis is the UI substrate: panes, channels, contribution points, and the bridge between agent tool calls and frontend state.
+Pi is the agent framework: sessions, tools, prompts, skills, extensions, model providers, and agent events. UIX is the UI substrate: panes, channels, contribution points, and the bridge between agent tool calls and frontend state.
 
 The goal is not to build one fixed app. The goal is to provide the wiring primitives needed to build many local agent-facing apps: reports, dashboards, knowledge tools, design-system-backed deliverables, and interactive canvases.
 
 ## Core idea
 
-The atomic Trellis unit is a pane.
+The atomic UIX unit is a pane.
 
 A pane is:
 
@@ -25,20 +25,20 @@ Everything else is layered on top.
 pi
   agent sessions, tools, prompts, skills, extensions, model providers
 
-Trellis main process
+UIX main process
   extension loading, lifetimes, agent session ownership, file watching
 
-Trellis renderer shell
+UIX renderer shell
   slots, pane host, chrome, layout, channel routing
 
-Trellis extensions
+UIX extensions
   panes, tools, declarative contributions, state schemas, docs
 
 Pane content
-  React components, iframe-rendered HTML, or declarative UI rendered by Trellis
+  React components, iframe-rendered HTML, or declarative UI rendered by UIX
 ```
 
-Pi and Trellis are separate systems. A Trellis-loadable package may contribute to either or both:
+Pi and UIX are separate systems. A UIX-loadable package may contribute to either or both:
 
 ```json
 {
@@ -47,15 +47,15 @@ Pi and Trellis are separate systems. A Trellis-loadable package may contribute t
     "extensions": ["./pi/index.ts"],
     "skills": ["./pi/skills"]
   },
-  "trellis": {
-    "extension": "./trellis/manifest.ts"
+  "uix": {
+    "extension": "./uix/manifest.ts"
   }
 }
 ```
 
-Both `pi` and `trellis` are optional. A package can be pi-only (wrapping an existing pi extension so it gets discovered through Trellis), trellis-only (pure cockpit UI), or both.
+Both `pi` and `uix` are optional. A package can be pi-only (wrapping an existing pi extension so it gets discovered through UIX), uix-only (pure cockpit UI), or both.
 
-The `pi` field teaches the agent new backend capabilities. The `trellis` field teaches the cockpit new frontend capabilities.
+The `pi` field teaches the agent new backend capabilities. The `uix` field teaches the cockpit new frontend capabilities.
 
 ## Substrate primitives
 
@@ -74,7 +74,7 @@ The cockpit shell (window, slot layout, error boundaries) sits underneath these 
 
 ## Extension model
 
-Trellis extensions are trusted local code. Like pi extensions, they are installed intentionally and run with the permissions of the local app.
+UIX extensions are trusted local code. Like pi extensions, they are installed intentionally and run with the permissions of the local app.
 
 An extension can contribute:
 
@@ -90,13 +90,13 @@ An extension can contribute:
 Each extension receives an activation context and a lifetime bag. Anything it registers goes into that bag. Deactivation disposes the bag.
 
 ```ts
-import type { ExtensionAPI } from "@trellis/api";
+import type { ExtensionAPI } from "@uix/api";
 
-export default function (trellis: ExtensionAPI) {
-  trellis.registerPane({
+export default function (uix: ExtensionAPI) {
+  uix.registerPane({
     /* ... */
   });
-  trellis.registerChannel({
+  uix.registerChannel({
     /* ... */
   });
 }
@@ -112,7 +112,7 @@ export default function (pi: ExtensionAPI) {
 }
 ```
 
-The shared shape is intentional. A developer (or LLM) writing both pi and Trellis extensions sees one pattern: import a type, export a factory, register contributions through the injected API. The `ExtensionAPI` symbol is disambiguated by its import source.
+The shared shape is intentional. A developer (or LLM) writing both pi and UIX extensions sees one pattern: import a type, export a factory, register contributions through the injected API. The `ExtensionAPI` symbol is disambiguated by its import source.
 
 The package's `id` comes from `package.json` (the `name` field), so the loader can identify a package before loading any of its code. Factories may be `async`.
 
@@ -122,24 +122,24 @@ _Version gating_ (refusing to load extensions targeting an incompatible substrat
 
 ## Pane types
 
-Trellis supports three pane contribution shapes.
+UIX supports three pane contribution shapes.
 
 ### React pane
 
-The default for first-party or trusted extension UI. The extension contributes a React component. Trellis renders it in the cockpit React tree and wraps it in an error boundary.
+The default for first-party or trusted extension UI. The extension contributes a React component. UIX renders it in the cockpit React tree and wraps it in an error boundary.
 
 Use for:
 
 - conversation panes
 - settings panes
 - status-heavy UI
-- panes that should share Trellis design tokens and keyboard behavior
+- panes that should share UIX design tokens and keyboard behavior
 
 Tradeoff: React panes are fast and ergonomic, but share the renderer process. A broken pane can still cause performance issues even if render errors are caught.
 
 ### Iframe pane
 
-The escape hatch for content Trellis should not own directly. The extension contributes HTML or a URL. Trellis renders it in an iframe and wires the same typed channel over `postMessage`.
+The escape hatch for content UIX should not own directly. The extension contributes HTML or a URL. UIX renders it in an iframe and wires the same typed channel over `postMessage`.
 
 Use for:
 
@@ -153,7 +153,7 @@ Iframe panes are not the only first-class pane type, but they are the natural ho
 
 ### Declarative contribution
 
-For small UI surfaces where Trellis should own the rendering. The extension contributes data, not a component.
+For small UI surfaces where UIX should own the rendering. The extension contributes data, not a component.
 
 Use for:
 
@@ -218,7 +218,7 @@ Use for:
 - cross-extension shared state
 - content too large to fit in entries
 
-Pattern: extensions define their own on-disk schemas under a project directory (e.g. `knowledge/`, `dashboards/`, `.trellis/<extension-id>/`). Panes render from those files. The cockpit watches relevant files and notifies panes.
+Pattern: extensions define their own on-disk schemas under a project directory (e.g. `knowledge/`, `dashboards/`, `.uix/<extension-id>/`). Panes render from those files. The cockpit watches relevant files and notifies panes.
 
 ### Hybrid: entry references file
 
@@ -230,49 +230,49 @@ Most non-trivial extensions use a mix of all three.
 
 ## Agent integration
 
-Trellis owns the pi `AgentSession` for the cockpit. Extensions can contribute pi tools to that session.
+UIX owns the pi `AgentSession` for the cockpit. Extensions can contribute pi tools to that session.
 
-Agent integration is opt-in. A Trellis extension can be a pure local UI extension with no agent tools, or it can expose a rich agent-facing API.
+Agent integration is opt-in. A UIX extension can be a pure local UI extension with no agent tools, or it can expose a rich agent-facing API.
 
 The important boundary:
 
 - pi tools let the agent act
-- Trellis panes let the human see and manipulate state
+- UIX panes let the human see and manipulate state
 - channels connect pane events to extension logic and, when appropriate, to agent turns
 
 A generated report does not require the agent to code everything from scratch. Extensions can provide templates, design-system primitives, and registered object types. The agent can call higher-level tools that create structured objects, and panes render those objects.
 
 ## Documentation and self-modification
 
-Trellis follows pi's documentation pattern.
+UIX follows pi's documentation pattern.
 
 Pi does not preload all docs into context. The system prompt contains a small documentation map with absolute paths and topic routing. When the user asks about pi, the agent reads the relevant docs with the `read` tool and follows markdown cross-references.
 
-Trellis does the same. **No markdown is in the agent's context until the agent reads it.** Only the small orientation block and the topic→path map are pinned in the system prompt.
+UIX does the same. **No markdown is in the agent's context until the agent reads it.** Only the small orientation block and the topic→path map are pinned in the system prompt.
 
-The cockpit applies a baseline pi configuration to its embedded agent — an orientation block, a Trellis documentation map, and a small set of cockpit-aware tools. This is _embedded-pi config_ (lives in the cockpit's source under `src/main/embedded-pi/`, exact path TBD), **not** a Trellis extension. The user can't uninstall it; it's part of how the cockpit talks to pi at all.
+The cockpit applies a baseline pi configuration to its embedded agent — an orientation block, a UIX documentation map, and a small set of cockpit-aware tools. This is _embedded-pi config_ (lives in the cockpit's source under `src/main/embedded-pi/`, exact path TBD), **not** a UIX extension. The user can't uninstall it; it's part of how the cockpit talks to pi at all.
 
 The orientation block appended to the system prompt:
 
 ```text
-You are operating inside the Trellis cockpit, an Electron app that hosts a pi
+You are operating inside the UIX cockpit, an Electron app that hosts a pi
 agent session and exposes structured UI surfaces to the user.
 
 pi is the backend agent framework: sessions, tools, prompts, skills,
 extensions, providers, and agent events.
 
-Trellis is the frontend/UI substrate: panes, channels, contribution points,
+UIX is the frontend/UI substrate: panes, channels, contribution points,
 file watching, and the bridge between agent tool calls and cockpit UI.
 
-When working on pi topics, read pi docs. When working on Trellis topics, read
-Trellis docs and follow markdown cross-references before implementing.
+When working on pi topics, read pi docs. When working on UIX topics, read
+UIX docs and follow markdown cross-references before implementing.
 ```
 
-It also appends a Trellis documentation map:
+It also appends a UIX documentation map:
 
 ```text
-Trellis documentation:
-- Main documentation: <repo>/TRELLIS.md
+UIX documentation:
+- Main documentation: <repo>/AGENTS.md
 - Additional docs: <repo>/src/docs
 - Examples: <repo>/examples
 - Extensions: src/docs/extensions.md
@@ -288,13 +288,13 @@ Trellis documentation:
 dev-facing documentation (architecture state, open questions, archived
 thinking) and is not pinned in the agent's system prompt.
 
-The docs are plain markdown. They should be small, cross-linked, and written so the agent can traverse them with `read` when asked to modify Trellis or a Trellis extension.
+The docs are plain markdown. They should be small, cross-linked, and written so the agent can traverse them with `read` when asked to modify UIX or a UIX extension.
 
 Skills are not the primary self-modification documentation mechanism. Skills are for adding capabilities. Docs are for explaining the architecture.
 
 ## Lifetime model
 
-Trellis uses named lifetime scopes.
+UIX uses named lifetime scopes.
 
 A `DisposableBag` owns cleanup-requiring registrations. Every listener, IPC handler, watcher, subscription, or child resource goes into a bag. Disposing the bag tears down the subtree.
 
@@ -319,7 +319,7 @@ Completed:
 Next:
 
 1. Extension loader
-   - discover Trellis extensions
+   - discover UIX extensions
    - activate/deactivate with a lifetime bag
    - hot reload = dispose the bag + re-activate (sub-second, no cockpit restart). This is the test that lifetime boundaries are right.
 
@@ -336,8 +336,8 @@ Next:
    - in-process and iframe transports (one API, two transports)
 
 4. Embedded-pi config
-   - cockpit applies a baseline pi configuration to its embedded agent (orientation block, Trellis doc map, smoke-test cockpit tools)
-   - lives in the cockpit's own source (`src/main/embedded-pi/`, exact path TBD); not an installable Trellis extension
+   - cockpit applies a baseline pi configuration to its embedded agent (orientation block, UIX doc map, smoke-test cockpit tools)
+   - lives in the cockpit's own source (`src/main/embedded-pi/`, exact path TBD); not an installable UIX extension
    - rationale: the orientation/doc map/cockpit tools are how the cockpit talks to pi at all; modelling them as an extension was a category mistake (extensions are user-installed, this is core)
 
 5. Agent tool contribution

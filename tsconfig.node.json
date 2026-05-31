@@ -14,7 +14,7 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "@trellis/api": ["./src/shared/extension-types.ts"]
+      "@uix/api": ["./src/shared/extension-types.ts"]
     }
   },
   "include": [
