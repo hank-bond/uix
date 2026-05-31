@@ -16,15 +16,21 @@
 // Predictable log order; tiny extension can't be slowed down by a
 // slow neighbor activating in parallel because there is no parallel.
 //
-// Error isolation is NOT here yet. A broken extension factory will
-// throw and stop the loop. The next commit adds try/catch with
-// attribution, process-level uncaughtException + unhandledRejection
-// handlers, and a `failed` state we surface in the registry.
+// Error isolation: each factory call is wrapped in try/catch. If
+// the factory throws, the partially-built per-extension bag is
+// disposed (so anything the factory got far enough to register is
+// torn down) and we move on. The broken extension lands in the
+// `failed` array with a normalized Error. Process-level error
+// handlers (installed separately, in lifecycle.ts) catch the
+// async-after-activation case where an extension's interval or
+// promise throws after the loader has moved on — those log as
+// `unhandled_exception` / `unhandled_rejection` without attribution
+// (best-effort attribution can be layered on later if needed).
 //
-// TypeScript extensions aren't supported yet either. Pi uses jiti
-// to transpile TS at runtime; we'll add the same when there's a
-// real TS extension to load. For now, entry files are `.js` /
-// `.mjs` only.
+// TypeScript extensions aren't supported yet. Pi uses jiti to
+// transpile TS at runtime; we'll add the same when there's a real
+// TS extension to load. For now, entry files are `.js` / `.mjs`
+// only.
 
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -40,7 +46,7 @@ import type { DiscoveredExtension } from "./discovery";
 
 const log = createLogger("extensions");
 
-/** A single activated entry file. */
+/** A single activated entry file that loaded successfully. */
 export interface LoadedExtension {
   /** Human-readable label, taken from the package directory name. */
   displayName: string;
@@ -49,6 +55,33 @@ export interface LoadedExtension {
   /** Per-extension bag; disposing it removes all the extension's contributions. */
   bag: DisposableBag;
 }
+
+/**
+ * A single entry file whose activation threw. Separate type from
+ * `LoadedExtension` because the use cases diverge — loaded
+ * extensions feed the registry and contribute behavior; failed
+ * ones are inert, surfaced in logs and (eventually) a status
+ * panel. Keeping them in different arrays means callers don't
+ * have to narrow a discriminator and can't accidentally treat a
+ * failed extension as if it had a bag.
+ */
+export interface FailedExtension {
+  /** Human-readable label, taken from the package directory name. */
+  displayName: string;
+  /** Absolute path to the entry file. */
+  entry: string;
+  /** The thrown value, normalized to an Error instance. */
+  error: Error;
+}
+
+/** Result of `activateTrellisExtensions`. */
+export interface ActivationResult {
+  loaded: LoadedExtension[];
+  failed: FailedExtension[];
+}
+
+const normalize = (thrown: unknown): Error =>
+  thrown instanceof Error ? thrown : new Error(String(thrown));
 
 interface TrellisManifest {
   /** Relative paths to entry files inside the extension's directory. */
@@ -81,8 +114,9 @@ const readTrellisManifest = (
 export const activateTrellisExtensions = async (
   extensions: DiscoveredExtension[],
   parentBag: DisposableBag,
-): Promise<LoadedExtension[]> => {
+): Promise<ActivationResult> => {
   const loaded: LoadedExtension[] = [];
+  const failed: FailedExtension[] = [];
 
   for (const ext of extensions) {
     if (!ext.hasTrellis) continue;
@@ -103,29 +137,48 @@ export const activateTrellisExtensions = async (
 
       elog.info({}, "activating");
 
-      const moduleUrl = pathToFileURL(entry).href;
-      const mod = (await import(moduleUrl)) as {
-        default?: ExtensionFactory;
-      };
-      const factory = mod.default;
-      if (typeof factory !== "function") {
-        elog.warn({}, "no_default_export");
-        continue;
-      }
-
+      // The per-extension bag is built early so the factory's
+      // registrations land somewhere disposable. We only enroll
+      // it in the parent bag after the factory succeeds — a
+      // failed extension's bag is disposed immediately and never
+      // becomes part of app-shutdown teardown.
       const bag = new DisposableBag();
-      parentBag.add(bag);
       const api = createExtensionAPI(
         { displayName: ext.displayName, entry },
         bag,
       );
-      await factory(api);
 
-      elog.info({}, "activated");
+      try {
+        const moduleUrl = pathToFileURL(entry).href;
+        const mod = (await import(moduleUrl)) as {
+          default?: ExtensionFactory;
+        };
+        const factory = mod.default;
+        if (typeof factory !== "function") {
+          elog.warn({}, "no_default_export");
+          bag[Symbol.dispose]();
+          continue;
+        }
 
-      loaded.push({ displayName: ext.displayName, entry, bag });
+        await factory(api);
+
+        parentBag.add(bag);
+        loaded.push({ displayName: ext.displayName, entry, bag });
+        elog.info({}, "activation_succeeded");
+      } catch (thrown) {
+        const error = normalize(thrown);
+        // Tear down anything the factory managed to register
+        // before it threw — partial activation shouldn't leak
+        // half-wired contributions.
+        bag[Symbol.dispose]();
+        failed.push({ displayName: ext.displayName, entry, error });
+        elog.error(
+          { err: error.message, stack: error.stack },
+          "activation_failed",
+        );
+      }
     }
   }
 
-  return loaded;
+  return { loaded, failed };
 };

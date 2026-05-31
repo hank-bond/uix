@@ -11,6 +11,7 @@
 import { app, BrowserWindow } from "electron";
 import fs from "node:fs";
 import { join } from "node:path";
+import process from "node:process";
 
 import { type AgentEvent, Channels, type PromptRequest } from "../shared/ipc";
 
@@ -18,7 +19,13 @@ import { createAgentDriver } from "./agent";
 import { discoverExtensions } from "./extensions/discovery";
 import { activateTrellisExtensions } from "./extensions/loader";
 import { defaultRoots } from "./extensions/roots";
-import { DisposableBag, handle, onApp, onWindow } from "./lifecycle";
+import {
+  DisposableBag,
+  handle,
+  installProcessHandlers,
+  onApp,
+  onWindow,
+} from "./lifecycle";
 import { createLogger } from "./log";
 
 const isDev = !app.isPackaged;
@@ -57,6 +64,12 @@ app.whenReady().then(async () => {
   // Anything we register goes in here; `will-quit` disposes it.
   const appBag = new DisposableBag();
 
+  // Process-level error handlers are the catch-all for anything
+  // that escapes the synchronous call stack — an extension's
+  // interval throwing, a stray promise rejection in cockpit code.
+  // They go in early so they're armed before any user code runs.
+  appBag.add(installProcessHandlers(createLogger("main")));
+
   // Discover extensions, then activate the trellis side of each.
   // Per-extension bags enroll into appBag so will-quit tears
   // everything down with one dispose.
@@ -79,8 +92,14 @@ app.whenReady().then(async () => {
       "found",
     );
   }
-  const loaded = await activateTrellisExtensions(discovered, appBag);
-  extLog.info({ count: loaded.length }, "activation_complete");
+  const { loaded, failed } = await activateTrellisExtensions(
+    discovered,
+    appBag,
+  );
+  extLog.info(
+    { loaded: loaded.length, failed: failed.length },
+    "activation_complete",
+  );
 
   let mainWindow: BrowserWindow | null = createWindow();
   appBag.add(

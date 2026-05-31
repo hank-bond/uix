@@ -107,6 +107,38 @@ log.error({ extension: id, err: e.message }, "activate_failed");
   (enable with `TRELLIS_LOG_LEVEL=debug`) for high-volume diagnostic
   trails.
 
+## Imports
+
+**Rule.** Import Node built-ins explicitly with the `node:`
+prefix, even the ones that are technically available as globals
+(`process`, `Buffer`, `__dirname`, `__filename`).
+
+```ts
+import process from "node:process";  // not: just use the global
+import path from "node:path";
+import fs from "node:fs";
+```
+
+**Why.**
+
+- **Visibility.** The import list is where a reader scans to see
+  what a module touches. A module that reads `process.env` or
+  `process.cwd()` has a real dependency on the runtime environment;
+  surfacing it at the top of the file makes that legible.
+- **Consistency.** We already import `path`, `fs`, `os` etc. as
+  modules. Treating `process` the same way removes a special case.
+- **Future lint enforcement.** This makes it easy to add a
+  `no-restricted-globals` rule later — the rule has zero
+  cleanup cost because we're already importing everywhere.
+
+**Scope.** In practice, very few modules should need direct
+`process` access at all. Things that read env / cwd / platform
+should either be in the main module (`src/main/index.ts`) or be
+utilities that the main module wires together (`log.ts`,
+`lifecycle.ts`, `extensions/roots.ts`). Extension code never
+imports `process` directly — anything it needs about the runtime
+environment comes through the injected API surface.
+
 ## When to add a new lifecycle helper
 
 When you need to register something cleanup-requiring and the call site

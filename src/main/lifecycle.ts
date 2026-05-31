@@ -19,7 +19,11 @@
 //     live for the driver's lifetime, or the app's. For those, we need
 //     a container we explicitly dispose later. That's the Bag.
 
+import process from "node:process";
+
 import { app, BrowserWindow, ipcMain } from "electron";
+
+import type { Logger } from "./log";
 
 /**
  * A collection of Disposables that are torn down together, in LIFO
@@ -139,4 +143,47 @@ export function subscribe<E>(
 ): Disposable {
   const unsubscribe = target.subscribe(listener);
   return disposable(unsubscribe);
+}
+
+/**
+ * Install global process-level error handlers.
+ *
+ * `uncaughtException` and `unhandledRejection` cover errors that
+ * escape the synchronous and asynchronous call stacks respectively.
+ * Without these handlers, an unhandled rejection inside an
+ * extension's timer (or a stray async/await anywhere in the main
+ * process) would either silently kill the process or print to
+ * stderr with no structured attribution.
+ *
+ * We don't try to attribute errors to a specific extension here —
+ * that would require parsing stack traces for entry-file URLs,
+ * which is fragile (paths get transformed, third-party frames
+ * dominate the top of the stack). Logs go out as
+ * `unhandled_exception` / `unhandled_rejection` from the logger
+ * you pass in. If we ever need real attribution, we'll layer it
+ * on top of these handlers, not redesign them.
+ *
+ * Returns a Disposable that unregisters the handlers. In practice
+ * the bag lives for the whole app, so the unregister path mostly
+ * matters for tests.
+ */
+export function installProcessHandlers(log: Logger): Disposable {
+  const normalize = (thrown: unknown): Error =>
+    thrown instanceof Error ? thrown : new Error(String(thrown));
+
+  const onException = (err: unknown): void => {
+    const e = normalize(err);
+    log.error({ err: e.message, stack: e.stack }, "unhandled_exception");
+  };
+  const onRejection = (reason: unknown): void => {
+    const e = normalize(reason);
+    log.error({ err: e.message, stack: e.stack }, "unhandled_rejection");
+  };
+
+  process.on("uncaughtException", onException);
+  process.on("unhandledRejection", onRejection);
+  return disposable(() => {
+    process.off("uncaughtException", onException);
+    process.off("unhandledRejection", onRejection);
+  });
 }

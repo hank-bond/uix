@@ -256,3 +256,51 @@ Promote to `DECISIONS.md` when stable.
     the loop. The next commit adds try/catch with attribution,
     process-level `uncaughtException` + `unhandledRejection`
     handlers, and a `failed` state we surface in the registry.
+- **2026-05-30** — Extension error isolation, v0 posture:
+  - **Per-factory try/catch in the loader.** A throw during
+    activation no longer halts the loop. The broken entry lands in
+    `failed: FailedExtension[]`; siblings keep activating. The
+    return type went from `LoadedExtension[]` to
+    `{ loaded, failed }` — two arrays, separate types — because
+    the use cases diverge (successful loads feed the registry;
+    failed loads are inert and surface in logs / a future status
+    panel). A discriminated union would force every consumer to
+    narrow; two arrays let the common cases pass straight through.
+  - **Partial-activation cleanup.** The per-extension `DisposableBag`
+    is built before the factory runs and only enrolled in the
+    parent bag *after* the factory succeeds. On failure the bag is
+    disposed locally — anything the factory got far enough to
+    register through `registerCommand` (etc.) is torn back down
+    immediately, and the dead bag never becomes part of app-
+    shutdown teardown.
+  - **Process-level handlers** for `uncaughtException` and
+    `unhandledRejection` live in `lifecycle.ts`
+    (`installProcessHandlers`) and are installed before any
+    extension code runs. They cover async-after-activation
+    failures (e.g. an extension's `setInterval` callback throws
+    minutes after loading) and any unhandled rejection in cockpit
+    code itself. They log via the `main` component, not
+    `extensions`, because they can't tell the difference between
+    cockpit-origin and extension-origin errors.
+  - **No attribution attempted.** Stack traces *could* be parsed
+    for known entry-file paths and matched back to a loaded
+    extension, but: paths get transformed by bundlers, top-of-stack
+    frames are usually third-party libraries the extension calls,
+    and false negatives are common. Pi doesn't attempt this either.
+    If extension authors keep throwing async errors and we get
+    sick of debugging them without attribution, we layer it on top
+    of the existing handlers as a pure addition — no API change.
+  - **Errors normalized to `Error`.** JS lets you `throw` anything;
+    `FailedExtension.error` and the process handlers both wrap
+    non-Errors in `new Error(String(thrown))` so `.message` and
+    `.stack` are always available downstream.
+  - **Dogfood canary.** `.trellis/extensions/broken/` (gitignored,
+    like the rest of `.trellis/`) deliberately throws on
+    activation. It exists so every `npm run dev` exercises the
+    isolation path: hello still loads, broken lands in `failed[]`,
+    the window comes up. Will graduate to a real test fixture when
+    we add a test framework.
+  - **Out of scope here**: per-handler isolation (catching errors
+    thrown *inside* a registered command/event handler when the
+    registry invokes it) — that lands when the registry that
+    invokes them lands, around commit 7+.

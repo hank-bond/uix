@@ -8,6 +8,8 @@
 //
 // Conventions live in docs/conventions.md (logging section).
 
+import process from "node:process";
+
 import pino, { type Logger } from "pino";
 
 const isDev = process.env["NODE_ENV"] !== "production";
