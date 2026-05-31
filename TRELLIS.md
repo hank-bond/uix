@@ -246,7 +246,9 @@ Pi does not preload all docs into context. The system prompt contains a small do
 
 Trellis does the same. **No markdown is in the agent's context until the agent reads it.** Only the small orientation block and the topic→path map are pinned in the system prompt.
 
-A preloaded `trellis-core` pi extension appends an orientation block to the agent system prompt:
+The cockpit applies a baseline pi configuration to its embedded agent — an orientation block, a Trellis documentation map, and a small set of cockpit-aware tools. This is *embedded-pi config* (lives in the cockpit's source under `src/main/embedded-pi/`, exact path TBD), **not** a Trellis extension. The user can't uninstall it; it's part of how the cockpit talks to pi at all.
+
+The orientation block appended to the system prompt:
 
 ```text
 You are operating inside the Trellis cockpit, an Electron app that hosts a pi
@@ -329,11 +331,10 @@ Next:
    - local/silent/turn event modes
    - in-process and iframe transports (one API, two transports)
 
-4. `trellis-core` pi extension
-   - append system-prompt orientation
-   - append Trellis doc map
-   - register smoke-test cockpit tools
-   - lives under `src/extensions/trellis-core/` with its own `package.json` declaring `pi.extensions` (a pi-only Trellis package)
+4. Embedded-pi config
+   - cockpit applies a baseline pi configuration to its embedded agent (orientation block, Trellis doc map, smoke-test cockpit tools)
+   - lives in the cockpit's own source (`src/main/embedded-pi/`, exact path TBD); not an installable Trellis extension
+   - rationale: the orientation/doc map/cockpit tools are how the cockpit talks to pi at all; modelling them as an extension was a category mistake (extensions are user-installed, this is core)
 
 5. Agent tool contribution
    - extensions declare pi tools

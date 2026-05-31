@@ -69,6 +69,18 @@ milestone when it becomes blocking.
 - **Hot-reload semantics for in-flight agent turns.** If an extension
   reloads mid-turn and contributed tools the agent is using, what's
   the correct behavior — pause, abort, finish then reload?
+- **Extension shapes — package.json always, or lighter shapes too?**
+  Discovery currently requires `<root>/<name>/package.json` with a
+  `pi` or `trellis` field. Pi is more flexible: bare
+  `~/.pi/agent/extensions/<name>.ts`, folder-with-index, or full
+  package — only the last needs `package.json`. We picked the strict
+  shape because we need to disambiguate which side(s) an extension
+  targets (pi-only, trellis-only, both), which pi doesn't. A file/
+  folder-name convention could carry that disambiguation instead
+  (e.g. `notify.pi.ts`, `notify/{pi.ts, trellis.ts}`). Decide when
+  ceremony cost is actually felt — likely after 3–5 dogfood
+  extensions. Loosening discovery later is easy; tightening would
+  force migration.
 
 ### Documentation
 
@@ -103,9 +115,30 @@ Promote to `DECISIONS.md` when stable.
   what the code is and how to use it) and `/docs/` (dev-facing,
   process and context). Archived the original `PROJECT_BRIEF.md` and
   pulled the still-relevant pieces into `DECISIONS.md`.
+- **2026-05-30** — Extension discovery model corrected. Original
+  commit `3606296` put `trellis-core` under `src/extensions/` as a
+  first-party Trellis extension. That was a category mistake:
+  extensions are *user-installed* (project-local or global), and
+  what `trellis-core` actually does (orientation + doc map + cockpit
+  tools) is *embedded-pi config* — the way the cockpit configures
+  its own pi instance, not a feature users opt into.
+
+  Corrected model (matches pi's directory layout):
+  - **Discovery roots** (extensions only):
+    - `<project>/.trellis/extensions/` — project-local, the common case.
+    - `~/.trellis/extensions/` — global, optional.
+    - No app-shipped first-party root. Trellis ships zero extensions.
+  - **Embedded-pi config** lives in the cockpit's own source
+    (`src/main/embedded-pi/`, path TBD). Will be filled in when
+    milestone 4 lands.
+  - The trellis repo itself dogfoods extensions via
+    `<repo>/.trellis/extensions/` (gitignored), the same way pi's
+    own dev workflow uses `<repo>/.pi/extensions/`.
+
 - **2026-05-30** — Extension package layout decided ahead of building
   the loader (milestone 1):
   - First-party packages live under `src/extensions/<name>/`.
+    *(Superseded by the discovery-model correction above.)*
   - Each package's `package.json` has optional `pi` and `trellis`
     fields (each side independent).
   - `trellis-core` moves from the previously-documented

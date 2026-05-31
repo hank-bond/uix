@@ -9,12 +9,16 @@
 // See docs/conventions.md.
 
 import { app, BrowserWindow } from "electron";
+import fs from "node:fs";
 import { join } from "node:path";
 
 import { type AgentEvent, Channels, type PromptRequest } from "../shared/ipc";
 
 import { createAgentDriver } from "./agent";
+import { discoverPackages } from "./extensions/discovery";
+import { defaultRoots } from "./extensions/roots";
 import { DisposableBag, handle, onApp, onWindow } from "./lifecycle";
+import { createLogger } from "./log";
 
 const isDev = !app.isPackaged;
 
@@ -51,6 +55,32 @@ app.whenReady().then(() => {
   // One bag for everything that lives as long as the app does.
   // Anything we register goes in here; `will-quit` disposes it.
   const appBag = new DisposableBag();
+
+  // Discover extensions. No activation yet — that lands in a later
+  // commit. For now this proves the cockpit can see what's on disk.
+  const extLog = createLogger("extensions");
+  const roots = defaultRoots();
+  extLog.info({ count: roots.length }, "scanning_roots");
+  for (const r of roots) {
+    extLog.info(
+      { dir: r.dir, label: r.label, present: fs.existsSync(r.dir) },
+      "root",
+    );
+  }
+  const discovered = discoverPackages(roots);
+  extLog.info({ count: discovered.length }, "discovered");
+  for (const p of discovered) {
+    extLog.info(
+      {
+        id: p.id,
+        dir: p.dir,
+        rootLabel: p.rootLabel,
+        hasPi: p.hasPi,
+        hasTrellis: p.hasTrellis,
+      },
+      "package",
+    );
+  }
 
   let mainWindow: BrowserWindow | null = createWindow();
   appBag.add(
