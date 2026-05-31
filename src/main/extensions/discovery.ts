@@ -56,9 +56,7 @@ export interface DiscoveredExtension {
   packageJson: Record<string, unknown>;
 }
 
-export const discoverExtensions = (
-  roots: string[],
-): DiscoveredExtension[] => {
+export const discoverExtensions = (roots: string[]): DiscoveredExtension[] => {
   const out: DiscoveredExtension[] = [];
 
   for (const root of roots) {
@@ -68,10 +66,7 @@ export const discoverExtensions = (
     try {
       entries = fs.readdirSync(root);
     } catch (err) {
-      log.warn(
-        { dir: root, err: (err as Error).message },
-        "root_unreadable",
-      );
+      log.warn({ dir: root, err: (err as Error).message }, "root_unreadable");
       continue;
     }
     // Deterministic intra-root order so logs are stable across

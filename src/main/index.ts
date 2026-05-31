@@ -59,7 +59,7 @@ function sendEvent(win: BrowserWindow | null, event: AgentEvent): void {
   }
 }
 
-app.whenReady().then(async () => {
+void app.whenReady().then(async () => {
   // One bag for everything that lives as long as the app does.
   // Anything we register goes in here; `will-quit` disposes it.
   const appBag = new DisposableBag();
@@ -134,14 +134,19 @@ app.whenReady().then(async () => {
     }),
   );
 
+  appBag.add(
+    onApp("window-all-closed", () => {
+      if (process.platform !== "darwin") app.quit();
+    }),
+  );
+
   // Dispose the whole tree on shutdown. Registered raw (not via
-  // onApp) because this is a one-shot process-end event with no
-  // useful moment to remove it.
+  // onApp) because the listener's job IS to dispose appBag — putting
+  // it in the bag would make teardown circular. The handler is a
+  // one-shot process-end event with no useful moment to remove it
+  // anyway, so the lack of cleanup is fine.
+  // eslint-disable-next-line no-restricted-syntax -- documented exception
   app.on("will-quit", () => {
     appBag[Symbol.dispose]();
   });
-});
-
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
 });

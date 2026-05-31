@@ -27,7 +27,7 @@ substrate lives in `src/docs/`.
 
 ### In flight
 
-*(none — between milestones)*
+_(none — between milestones)_
 
 ### Next
 
@@ -108,7 +108,7 @@ milestone when it becomes blocking.
 
 ## Recent decisions (delta log)
 
-A running record of decisions made *after* `DECISIONS.md` was written.
+A running record of decisions made _after_ `DECISIONS.md` was written.
 Promote to `DECISIONS.md` when stable.
 
 - **2026-05-30** — Split documentation into `src/docs/` (user-facing,
@@ -118,9 +118,9 @@ Promote to `DECISIONS.md` when stable.
 - **2026-05-30** — Extension discovery model corrected. Original
   commit `3606296` put `trellis-core` under `src/extensions/` as a
   first-party Trellis extension. That was a category mistake:
-  extensions are *user-installed* (project-local or global), and
+  extensions are _user-installed_ (project-local or global), and
   what `trellis-core` actually does (orientation + doc map + cockpit
-  tools) is *embedded-pi config* — the way the cockpit configures
+  tools) is _embedded-pi config_ — the way the cockpit configures
   its own pi instance, not a feature users opt into.
 
   Corrected model (matches pi's directory layout):
@@ -138,7 +138,7 @@ Promote to `DECISIONS.md` when stable.
 - **2026-05-30** — Extension package layout decided ahead of building
   the loader (milestone 1):
   - First-party packages live under `src/extensions/<name>/`.
-    *(Superseded by the discovery-model correction above.)*
+    _(Superseded by the discovery-model correction above.)_
   - Each package's `package.json` has optional `pi` and `trellis`
     fields (each side independent).
   - `trellis-core` moves from the previously-documented
@@ -185,7 +185,7 @@ Promote to `DECISIONS.md` when stable.
   call, and the bag is disposed when the extension unloads.
   Consequence: extension authors never thread `Disposable` values
   through their code for things they registered through the API.
-  (For their *own* resources — file watchers, external
+  (For their _own_ resources — file watchers, external
   subscriptions, intervals — they still need cleanup discipline;
   TBD whether we expose a `trellis.subscriptions` bag for that
   case. Pi doesn't, and we don't yet need to.)
@@ -194,7 +194,7 @@ Promote to `DECISIONS.md` when stable.
   `src/shared/extension-types.ts`. Mirrors the eventual published
   package name from day 1 so extension code never has to be
   rewritten. No npm publish is needed yet because the only thing
-  exported is *types* — extensions never `import` a runtime value
+  exported is _types_ — extensions never `import` a runtime value
   from `@trellis/api` (the `trellis` object is constructed by the
   loader and handed to the factory), so `import type` erasure at
   compile means nothing has to resolve `@trellis/api` at runtime.
@@ -216,7 +216,7 @@ Promote to `DECISIONS.md` when stable.
     interface wrapping them. Configured paths will append to the
     same list when they land.
   - `DiscoveredExtension` is `{ displayName, dir, hasPi, hasTrellis,
-    packageJson }`. `dir` is the identifier; `displayName` is the
+packageJson }`. `dir` is the identifier; `displayName` is the
     directory name, used for log readability.
   - `LoadedExtension` (the loader's output) is
     `{ displayName, entry, bag }`. `entry` is the absolute path to
@@ -224,7 +224,7 @@ Promote to `DECISIONS.md` when stable.
     each becomes its own `LoadedExtension` with its own bag,
     matching pi's "entry is the unit of loading" model).
   - **Vocabulary**: we use "extension" everywhere — for the on-disk
-    thing *and* for the activated thing. Pi does the same.
+    thing _and_ for the activated thing. Pi does the same.
     `package.json` is a file format, not a separate conceptual
     layer. If multi-entry semantics ever become important enough
     to need a distinct word, we'll introduce "extension entry";
@@ -246,7 +246,7 @@ Promote to `DECISIONS.md` when stable.
     global roots contain a `hello/`, both activate as independent
     extensions — they have different `dir`s, so different
     identities. Pi handles this the same way; collisions inside a
-    *registry* (two extensions registering the same command name)
+    _registry_ (two extensions registering the same command name)
     will be the registry's problem to resolve, not the loader's.
   - **Per-extension `DisposableBag` enrolled into the parent bag.**
     One dispose at app shutdown tears every extension's
@@ -268,7 +268,7 @@ Promote to `DECISIONS.md` when stable.
     narrow; two arrays let the common cases pass straight through.
   - **Partial-activation cleanup.** The per-extension `DisposableBag`
     is built before the factory runs and only enrolled in the
-    parent bag *after* the factory succeeds. On failure the bag is
+    parent bag _after_ the factory succeeds. On failure the bag is
     disposed locally — anything the factory got far enough to
     register through `registerCommand` (etc.) is torn back down
     immediately, and the dead bag never becomes part of app-
@@ -282,7 +282,7 @@ Promote to `DECISIONS.md` when stable.
     code itself. They log via the `main` component, not
     `extensions`, because they can't tell the difference between
     cockpit-origin and extension-origin errors.
-  - **No attribution attempted.** Stack traces *could* be parsed
+  - **No attribution attempted.** Stack traces _could_ be parsed
     for known entry-file paths and matched back to a loaded
     extension, but: paths get transformed by bundlers, top-of-stack
     frames are usually third-party libraries the extension calls,
@@ -301,6 +301,53 @@ Promote to `DECISIONS.md` when stable.
     the window comes up. Will graduate to a real test fixture when
     we add a test framework.
   - **Out of scope here**: per-handler isolation (catching errors
-    thrown *inside* a registered command/event handler when the
+    thrown _inside_ a registered command/event handler when the
     registry invokes it) — that lands when the registry that
     invokes them lands, around commit 7+.
+- **2026-05-30** — Lint + format infrastructure landed. ESLint
+  flat config (`eslint.config.mjs`) with three layers:
+  - **Hygiene from upstream presets**: `@eslint/js`'s recommended
+    plus `typescript-eslint`'s `recommendedTypeChecked`. The
+    type-aware variant earns its keep with `no-floating-promises`
+    and `no-misused-promises` — the rules that catch the
+    fire-and-forget Promise bugs that otherwise hit our
+    `unhandledRejection` handler.
+  - **Project conventions as enforced rules**:
+    `no-restricted-globals` for `process` and `Buffer` (forcing
+    `node:` imports per the Imports section of conventions.md);
+    `no-restricted-syntax` for raw `app.on`, `ipcMain.handle`, and
+    `process.on` calls outside `lifecycle.ts` (forcing the
+    lifecycle helpers); `no-console` in the main process (forcing
+    pino via `createLogger`).
+  - **Targeted overrides** for the places where the rules would
+    fight reality: `lifecycle.ts` is allowed to use the raw APIs
+    it wraps; renderer + preload are excused from `no-console` and
+    Node-global restrictions until they have a logging story;
+    config files (`eslint.config.mjs`, `*.config.*`) sit outside
+    the tsconfig project graph so type-aware rules are disabled
+    there. `__dirname`/`__filename` were dropped from
+    restricted-globals because they're CJS module-level bindings
+    (not importable), and banning them fights the bundle format.
+  - **Prettier** lives alongside, with `eslint-config-prettier`
+    layered last to disable stylistic rules that would conflict.
+    Two-space indent, double-quotes, trailing commas, 80-col
+    print width. Format is a hard check, not a guideline.
+  - **Scripts**: `lint`, `lint:fix`, `format`, `format:check`,
+    plus a `check` script that runs `typecheck && lint &&
+format:check` for a single gate.
+  - **Folded-in cleanup**: the `AppEvent` overload errors in
+    `lifecycle.ts` (deferred since the early commits) are fixed,
+    because `npm run check` couldn't pass while they were live
+    and that defeats the point of the new gate. `onApp` now
+    accepts a uniform `() => void` listener for any `AppEvent`
+    via a single typed cast on `app.on`/`app.off`; the
+    `window-all-closed` listener in `index.ts` migrated to
+    `onApp` as a result. The `will-quit` listener stays raw with
+    a documented inline disable: its job IS to dispose appBag, so
+    enrolling it in the bag would be circular.
+  - **Real bugs the new rules caught on first run**: a floating
+    Promise on `app.whenReady().then(...)` in `index.ts`; an
+    async function passed directly to `<form onSubmit={...}>` in
+    Conversation.tsx (React expects sync handlers). Both are
+    fixed in this commit — evidence the type-checked ruleset
+    earns its slower cost.

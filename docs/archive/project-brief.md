@@ -2,7 +2,7 @@
 
 > **Archived 2026-05-30.** This is the original handoff document, written when
 > Trellis was framed as a single tailor-made coding-agent IDE with reports as
-> the central artifact. Trellis has since pivoted to a *substrate* shape that
+> the central artifact. Trellis has since pivoted to a _substrate_ shape that
 > hosts multiple applications (a code-reviewer being one, a knowledge-base
 > manager being another). The still-current pieces — Gundam framing, motivating
 > problems, stack landings, design principles — have moved to
@@ -23,7 +23,7 @@
 
 This frame is the single most important design constraint. Trellis is not adding agent capabilities. It is adding **pilot capabilities**: displays the human sees, controls the human's hands operate, and memory aids that mean the human doesn't have to hold everything in their head.
 
-Every feature decision should pass the test: *does this help the pilot see, decide, or act?* If it's "make the agent smarter," it belongs in pi, not Trellis.
+Every feature decision should pass the test: _does this help the pilot see, decide, or act?_ If it's "make the agent smarter," it belongs in pi, not Trellis.
 
 ---
 
@@ -64,7 +64,7 @@ Key decisions:
 
 ### 3.3 Inline question blocks (the scroll-fix)
 
-A `question` block has a text input *inline at the location of the question*, plus a local submit button. The user fills in answers wherever the questions appear in the document and can submit answers per-block or in batch.
+A `question` block has a text input _inline at the location of the question_, plus a local submit button. The user fills in answers wherever the questions appear in the document and can submit answers per-block or in batch.
 
 - The user types into the input fields in the report. The app writes those answers back into the same file (probably into the same block's `answer:` field).
 - When the user clicks submit, the **app** posts a message into the conversation pane (on the user's behalf) along the lines of "Submitted answers in `report-42.md`: q1, q3, q5. Skipped q2, q4." The agent reads the file for details.
@@ -170,7 +170,7 @@ Files on disk:
 
 Pi is a Node package. Electron's main process is Node. Use `createAgentSessionRuntime()` directly. No JSON-RPC, no stdio parsing. Typed events, direct access to `session.agent.state.messages`, full `SessionManager` tree API.
 
-Subprocess via `--mode rpc` is the *wrong* choice here because we want type safety, in-process access to agent state, and programmatic customization of tools/extensions.
+Subprocess via `--mode rpc` is the _wrong_ choice here because we want type safety, in-process access to agent state, and programmatic customization of tools/extensions.
 
 **Caveat**: when `runtime.session` is replaced (after new/fork/switch/clone), re-subscribe and re-`bindExtensions`. Wrap in a controller that handles this transparently.
 
@@ -217,7 +217,7 @@ Not picking:     router, async query lib, CSS-in-JS, big component library
 
 - **Electron over Tauri**: shipping speed wins. The user prioritized building over learning Rust. Electron + discipline gets VS Code–class performance; the 150MB installer cost is paid once on a dev machine.
 - **React over Solid**: with React Compiler in the picture, the auto-memoization eliminates the main perf-tuning tax that would have favored Solid. React keeps the bigger ecosystem and stronger LLM training coverage.
-- **shadcn/Radix/Tailwind over Mantine**: matches the project's stated philosophy of *small primitives, maximal composition, code you own*. Mantine is a fine component library but the user explicitly wants pi-shaped tooling.
+- **shadcn/Radix/Tailwind over Mantine**: matches the project's stated philosophy of _small primitives, maximal composition, code you own_. Mantine is a fine component library but the user explicitly wants pi-shaped tooling.
 - **Zustand**: tiny API, no ceremony, composes by importing slices, persists trivially.
 - **Zod**: one source of truth for block schemas, IPC contracts, and agent-output validation; converts to JSON Schema for prompting.
 - **Monaco**: the philosophical exception. Large surface area but does too much of what's needed (code editing, completions API, decorations, themes) to justify rebuilding. CodeMirror 6 would be more pi-shaped but costs feature parity and LLM corpus. Isolate behind one `<Editor mode="..." />` component so it's swappable.

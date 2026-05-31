@@ -61,14 +61,14 @@ The `pi` field teaches the agent new backend capabilities. The `trellis` field t
 
 The cockpit provides exactly these primitives. Anything not in this list is an extension responsibility.
 
-| Primitive | Purpose |
-|---|---|
-| **Extension loader** | Discover, load, activate, hot-reload extensions. |
-| **Pane host + slot registry** | Mount React, iframe, or declarative render surfaces into named slots. |
-| **Typed channel** | Bidirectional bus carrying validated events between panes and the agent. |
-| **Lifetime bags** | Per-extension `DisposableBag`. Disposes everything an extension registered. |
-| **Agent session manager** | Owns the pi session, collects tool contributions, routes channel events to pi. |
-| **File watcher service** | Cockpit-owned watcher; extensions register glob → callback. |
+| Primitive                     | Purpose                                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------ |
+| **Extension loader**          | Discover, load, activate, hot-reload extensions.                               |
+| **Pane host + slot registry** | Mount React, iframe, or declarative render surfaces into named slots.          |
+| **Typed channel**             | Bidirectional bus carrying validated events between panes and the agent.       |
+| **Lifetime bags**             | Per-extension `DisposableBag`. Disposes everything an extension registered.    |
+| **Agent session manager**     | Owns the pi session, collects tool contributions, routes channel events to pi. |
+| **File watcher service**      | Cockpit-owned watcher; extensions register glob → callback.                    |
 
 The cockpit shell (window, slot layout, error boundaries) sits underneath these primitives but is not itself extensible.
 
@@ -93,8 +93,12 @@ Each extension receives an activation context and a lifetime bag. Anything it re
 import type { ExtensionAPI } from "@trellis/api";
 
 export default function (trellis: ExtensionAPI) {
-  trellis.registerPane({ /* ... */ });
-  trellis.registerChannel({ /* ... */ });
+  trellis.registerPane({
+    /* ... */
+  });
+  trellis.registerChannel({
+    /* ... */
+  });
 }
 ```
 
@@ -114,7 +118,7 @@ The package's `id` comes from `package.json` (the `name` field), so the loader c
 
 The exact API shape will evolve, but the invariant is stable: extensions register contributions through the injected API object instead of reaching into cockpit internals. **All extension ↔ cockpit traffic flows through the API object** — extensions never import cockpit internals. This is what makes a future move to worker-thread or utility-process isolation a mechanical swap rather than an API break.
 
-*Version gating* (refusing to load extensions targeting an incompatible substrate version, like VS Code's `engines.vscode`) is deliberately not done in v0. Pre-1.0 with one author, the gate would mostly be noise. We can add it later, in package.json, when external extensions become a real scenario.
+_Version gating_ (refusing to load extensions targeting an incompatible substrate version, like VS Code's `engines.vscode`) is deliberately not done in v0. Pre-1.0 with one author, the gate would mostly be noise. We can add it later, in package.json, when external extensions become a real scenario.
 
 ## Pane types
 
@@ -246,7 +250,7 @@ Pi does not preload all docs into context. The system prompt contains a small do
 
 Trellis does the same. **No markdown is in the agent's context until the agent reads it.** Only the small orientation block and the topic→path map are pinned in the system prompt.
 
-The cockpit applies a baseline pi configuration to its embedded agent — an orientation block, a Trellis documentation map, and a small set of cockpit-aware tools. This is *embedded-pi config* (lives in the cockpit's source under `src/main/embedded-pi/`, exact path TBD), **not** a Trellis extension. The user can't uninstall it; it's part of how the cockpit talks to pi at all.
+The cockpit applies a baseline pi configuration to its embedded agent — an orientation block, a Trellis documentation map, and a small set of cockpit-aware tools. This is _embedded-pi config_ (lives in the cockpit's source under `src/main/embedded-pi/`, exact path TBD), **not** a Trellis extension. The user can't uninstall it; it's part of how the cockpit talks to pi at all.
 
 The orientation block appended to the system prompt:
 

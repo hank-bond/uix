@@ -16,7 +16,10 @@
 // DisposableBag, and disposing the driver tears everything down at
 // once.
 
-import type { AgentSession, AgentSessionEvent } from "@earendil-works/pi-coding-agent";
+import type {
+  AgentSession,
+  AgentSessionEvent,
+} from "@earendil-works/pi-coding-agent";
 
 import type { AgentEvent } from "../shared/ipc";
 

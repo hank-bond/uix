@@ -23,11 +23,7 @@ body,
 #root {
   margin: 0;
   height: 100%;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    system-ui,
-    sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   background: var(--bg);
   color: var(--fg);
 }

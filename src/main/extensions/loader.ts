@@ -93,7 +93,9 @@ const readTrellisManifest = (
 ): TrellisManifest | null => {
   const raw = ext.packageJson["trellis"];
   if (!raw || typeof raw !== "object") return null;
-  return raw as TrellisManifest;
+  // `TrellisManifest` only has optional fields, so the narrowed
+  // `object` type already satisfies it structurally — no cast.
+  return raw;
 };
 
 /**

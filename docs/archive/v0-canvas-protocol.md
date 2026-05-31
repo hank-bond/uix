@@ -37,7 +37,7 @@ It ships as two halves connected by a small file/URL contract:
 - A set of **pi extensions** (agent-facing): a system-prompt addendum, turn-boundary hooks, custom entry types, and (eventually) tools.
 - An **Electron cockpit** (human-facing): panes, an in-iframe bridge, a URL resolver, file watchers, snapshot lookup.
 
-Everything richer — design systems, component libraries, specific HUD recipes, viz tools, code-review flows — is meant to be built on top by users.  a batteries included version would look like the same relationship oh-my-pi has to pi.  we want to focus on the scaffolding that enables others to build the interface they want.
+Everything richer — design systems, component libraries, specific HUD recipes, viz tools, code-review flows — is meant to be built on top by users. a batteries included version would look like the same relationship oh-my-pi has to pi. we want to focus on the scaffolding that enables others to build the interface they want.
 
 ---
 
@@ -53,14 +53,14 @@ Then the three adjectives that describe the protocol's job:
 
 - **Efficient** — token-thrift everywhere. Tight per-element diffs. Lean on concepts like hash-anchor edits (see https://dirac.run/posts/hash-anchors-myers-diff-single-token). Don't make the agent retype things to communicate them.
 - **Expressive** — HTML + URL schemes give the agent a huge surface with no DSL to learn. Anything from a quiz to a call tree to a chart is just a file the agent writes.
-- **Reliable** — state continuity, snapshot-per-turn, no silently-lost user input. Pi's tree *is* the canvas history.
+- **Reliable** — state continuity, snapshot-per-turn, no silently-lost user input. Pi's tree _is_ the canvas history.
 
 Inclusion test for any proposed base feature:
 
-1. Does this enable a use case otherwise impossible? — *maybe base.*
-2. Does it make the protocol more efficient, expressive, or reliable? — *maybe base.*
-3. Does it make an existing workflow nicer / faster / prettier? — *oh-my-trellis.*
-4. Does it ship opinions about look, structure, or recipe? — *oh-my-trellis.*
+1. Does this enable a use case otherwise impossible? — _maybe base._
+2. Does it make the protocol more efficient, expressive, or reliable? — _maybe base._
+3. Does it make an existing workflow nicer / faster / prettier? — _oh-my-trellis._
+4. Does it ship opinions about look, structure, or recipe? — _oh-my-trellis._
 
 When in doubt: out.
 
@@ -106,26 +106,26 @@ The contract has four parts: URL schemes, canvas files, snapshots, state diffs. 
 
 **Noun schemes** (resources; default action is "show/navigate"):
 
-| Scheme | Addresses |
-|---|---|
+| Scheme              | Addresses                   |
+| ------------------- | --------------------------- |
 | `file://path[#Lnn]` | a location in a source file |
-| `entry://<id>` | a turn in the session tree |
-| `report://<name>` | a canvas |
-| `skill://<name>` | a skill |
-| `session://<id>` | a whole session |
+| `entry://<id>`      | a turn in the session tree  |
+| `report://<name>`   | a canvas                    |
+| `skill://<name>`    | a skill                     |
+| `session://<id>`    | a whole session             |
 
 Adding new noun schemes is an extension concern — `pr://`, `issue://`, etc. follow the oh-my-pi pattern.
 
 **Verb scheme** (commands; never auto-fire):
 
-| URL | Meaning |
-|---|---|
-| `trellis://submit/<id>?...` | submit a form payload |
-| `trellis://run/<action>?...` | trigger a named action |
-| `trellis://fork/<entry-id>` | pi tree fork |
-| `trellis://label/<label>?entry=<id>` | apply a label |
+| URL                                  | Meaning                |
+| ------------------------------------ | ---------------------- |
+| `trellis://submit/<id>?...`          | submit a form payload  |
+| `trellis://run/<action>?...`         | trigger a named action |
+| `trellis://fork/<entry-id>`          | pi tree fork           |
+| `trellis://label/<label>?entry=<id>` | apply a label          |
 
-The split rule: **schemes are nouns or `trellis://`.** If you want the user to be able to *trigger* a thing, use `trellis://`. If you want to *point at* a thing, use a noun scheme.
+The split rule: **schemes are nouns or `trellis://`.** If you want the user to be able to _trigger_ a thing, use `trellis://`. If you want to _point at_ a thing, use a noun scheme.
 
 ### 4.2 Canvas files
 
@@ -151,7 +151,7 @@ At each agent turn boundary, the **pi-extension hook** does:
    session.appendCustomEntry({
      type: "trellis:canvas",
      canvas: "<name>",
-     contentHash: "<hash>"
+     contentHash: "<hash>",
    });
    ```
 
@@ -163,7 +163,7 @@ When the **cockpit** resolves which snapshot to show for a canvas:
 
 Consequences:
 
-- Pi's tree *is* the canvas history. No parallel timeline.
+- Pi's tree _is_ the canvas history. No parallel timeline.
 - Navigate back → canvas rolls back. Fork → canvas forks with the branch.
 - 10-turn conversation that updates the canvas twice stores two snapshots, not ten.
 - Snapshots are content-addressed → easily garbage-collected against the live set of custom entries.
@@ -189,7 +189,7 @@ When the user sends a message in the conversation pane, the bridge:
 5. Writes the user's current input values back into the canvas HTML file in-place (`value=`, `checked`, `selected` attribute updates on existing tags — done with `parse5` or equivalent so structure isn't disturbed).
 6. Prepends the delta block to the user's message before forwarding to pi.
 
-**Important:** the diff captures *user changes since the last agent turn snapshot*. Agent edits between turns aren't diffed in — the agent did them, it knows.
+**Important:** the diff captures _user changes since the last agent turn snapshot_. Agent edits between turns aren't diffed in — the agent did them, it knows.
 
 ### 4.5 Stream URL detection
 

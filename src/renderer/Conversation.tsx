@@ -65,12 +65,19 @@ export function Conversation() {
           messages.map((m) => (
             <div key={m.id} className={`msg msg--${m.role}`}>
               <div className="msg__role">{m.role}</div>
-              <div className="msg__text">{m.text || (m.role === "assistant" ? "…" : "")}</div>
+              <div className="msg__text">
+                {m.text || (m.role === "assistant" ? "…" : "")}
+              </div>
             </div>
           ))
         )}
       </div>
-      <form className="composer" onSubmit={onSubmit}>
+      <form
+        className="composer"
+        onSubmit={(e) => {
+          void onSubmit(e);
+        }}
+      >
         <textarea
           className="composer__input"
           placeholder="say something…"
@@ -84,7 +91,11 @@ export function Conversation() {
           }}
           rows={2}
         />
-        <button className="composer__send" type="submit" disabled={pending || !draft.trim()}>
+        <button
+          className="composer__send"
+          type="submit"
+          disabled={pending || !draft.trim()}
+        >
           {pending ? "…" : "send"}
         </button>
       </form>

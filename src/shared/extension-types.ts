@@ -20,11 +20,10 @@
  * pane, modifier keys, args, etc.). Adding fields here is
  * non-breaking — extensions that don't use them are unaffected.
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- placeholder; will grow as commands gain affordances (see docstring)
 export interface CommandContext {}
 
-export type CommandHandler = (
-  ctx: CommandContext,
-) => void | Promise<void>;
+export type CommandHandler = (ctx: CommandContext) => void | Promise<void>;
 
 export interface CommandOptions {
   /** Human-readable description, shown in command palette / docs. */
@@ -73,6 +72,4 @@ export interface ExtensionAPI {
  * Async factories are supported so extensions can `await` during
  * activation (dynamic imports, async config load, etc.).
  */
-export type ExtensionFactory = (
-  trellis: ExtensionAPI,
-) => void | Promise<void>;
+export type ExtensionFactory = (trellis: ExtensionAPI) => void | Promise<void>;

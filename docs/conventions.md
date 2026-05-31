@@ -13,7 +13,7 @@ listened for.
 
 **Why.** Registration without un-registration is the most common leak
 pattern in Electron and observable-style code. The helpers return a
-`Disposable`; the bag enforces that you have *somewhere* for the
+`Disposable`; the bag enforces that you have _somewhere_ for the
 disposable to live. You can't register without picking a lifetime, and
 disposing the lifetime is one call.
 
@@ -111,10 +111,14 @@ log.error({ extension: id, err: e.message }, "activate_failed");
 
 **Rule.** Import Node built-ins explicitly with the `node:`
 prefix, even the ones that are technically available as globals
-(`process`, `Buffer`, `__dirname`, `__filename`).
+(`process`, `Buffer`).
+
+(`__dirname` and `__filename` are _not_ covered — they're CJS
+module-level bindings, not importable values. Use them as-is in
+the main-process bundle, which electron-vite emits as CJS.)
 
 ```ts
-import process from "node:process";  // not: just use the global
+import process from "node:process"; // not: just use the global
 import path from "node:path";
 import fs from "node:fs";
 ```

@@ -103,15 +103,24 @@ export function handle<Req, Res>(
 }
 
 /**
- * Listen for an `app` event. Typed against the small union of events we
- * actually use — extend `AppEvent` as we adopt more.
+ * Listen for an `app` event. Typed against the small union of events
+ * we actually use — extend `AppEvent` as we adopt more.
+ *
+ * The cast on `app.on`/`app.off` is intentional. Electron types each
+ * event with a specific listener signature (e.g. `activate` expects
+ * `(event, hasVisibleWindows) => void`), so passing our uniform
+ * `() => void` listener fails strict overload resolution even though
+ * it's runtime-safe — Node's EventEmitter ignores extra args. The
+ * cast widens to a single shape we can satisfy without forcing every
+ * caller to spell the event-specific listener signature.
  */
 type AppEvent = "activate" | "will-quit" | "window-all-closed";
+type OnApp = (event: AppEvent, listener: () => void) => Electron.App;
 
 export function onApp(event: AppEvent, listener: () => void): Disposable {
-  app.on(event, listener);
+  (app.on as OnApp)(event, listener);
   return disposable(() => {
-    app.off(event, listener);
+    (app.off as OnApp)(event, listener);
   });
 }
 
