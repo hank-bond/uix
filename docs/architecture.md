@@ -201,3 +201,58 @@ Promote to `DECISIONS.md` when stable.
   Upgrade path when external extensions arrive: move the file to
   `packages/api/src/index.ts`, add a `package.json`, declare
   workspaces. The alias goes away, the import shape doesn't change.
+- **2026-05-30** — Extension identity is the entry file's absolute
+  path. Mirrors pi (`Extension.resolvedPath` is its identifier).
+  Pulled out of an earlier sketch that put a composite
+  `"<rootLabel>/<name>"` id on packages and tagged each one with a
+  `"project" | "global"` kind. Both are categories that don't
+  survive contact with pi's third discovery source
+  (settings.json `packages:`, the "git-clone a repo full of
+  extensions and import them by path" mechanism that harness uses):
+  configured paths aren't "project" or "global" in any meaningful
+  sense, so the enum would either lie or grow indefinitely.
+  Concrete shape (commit 4):
+  - `defaultRoots()` returns `string[]` — just absolute paths, no
+    interface wrapping them. Configured paths will append to the
+    same list when they land.
+  - `DiscoveredExtension` is `{ displayName, dir, hasPi, hasTrellis,
+    packageJson }`. `dir` is the identifier; `displayName` is the
+    directory name, used for log readability.
+  - `LoadedExtension` (the loader's output) is
+    `{ displayName, entry, bag }`. `entry` is the absolute path to
+    the actual entry file (a manifest can list multiple entries;
+    each becomes its own `LoadedExtension` with its own bag,
+    matching pi's "entry is the unit of loading" model).
+  - **Vocabulary**: we use "extension" everywhere — for the on-disk
+    thing *and* for the activated thing. Pi does the same.
+    `package.json` is a file format, not a separate conceptual
+    layer. If multi-entry semantics ever become important enough
+    to need a distinct word, we'll introduce "extension entry";
+    until then, one extension contributes one entry by convention.
+  - Bare `name` is avoided as a field name (pino-pretty hijacks
+    it, and it's ambiguous anyway). Use `displayName` for the
+    human label; see docs/conventions.md.
+- **2026-05-30** — Extension activation policy:
+  - **Sequential `await`** over the discovered list. Mirrors pi.
+    Predictable log order; the cost of one slow extension blocking
+    the rest only matters if extensions do heavy work during
+    activation, which is a thing we'd want to discourage anyway.
+  - **Intra-root order is sorted alphabetically by directory name.**
+    Small divergence from pi, which iterates raw `readdir` order.
+    Pi's docs claim "extension load order" semantics; sorting
+    strengthens that guarantee at zero cost and removes a class of
+    "logs differ between devs" surprises.
+  - **No same-name shadowing across roots.** If both project and
+    global roots contain a `hello/`, both activate as independent
+    extensions — they have different `dir`s, so different
+    identities. Pi handles this the same way; collisions inside a
+    *registry* (two extensions registering the same command name)
+    will be the registry's problem to resolve, not the loader's.
+  - **Per-extension `DisposableBag` enrolled into the parent bag.**
+    One dispose at app shutdown tears every extension's
+    contributions down cleanly. Reload (later commit) disposes
+    just the affected per-extension bags and re-activates.
+  - **No error isolation yet** — a broken factory throws and stops
+    the loop. The next commit adds try/catch with attribution,
+    process-level `uncaughtException` + `unhandledRejection`
+    handlers, and a `failed` state we surface in the registry.

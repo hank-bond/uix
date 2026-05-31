@@ -89,6 +89,16 @@ log.error({ extension: id, err: e.message }, "activate_failed");
   things of the same kind (extensions, sessions, panes), make a child:
   `const elog = log.child({ extension: id })`. Every line from `elog`
   carries the id automatically.
+- **Don't use bare `name` as a field.** Pino-pretty interprets `name`
+  as the logger's display name and pulls it into the rendered
+  header, causing confusing output like
+  `INFO (hello): (extensions) package` when you meant `name: "hello"`
+  as a regular field. More generally, prefer specific descriptive
+  field names — `displayName` for human-readable labels,
+  `packageName` / `commandName` / `toolName` for kind-specific ids,
+  `extension` (key) + the id (value) for child-logger attribution
+  (`{ extension: "hello" }`). Bare `name` is also ambiguous (whose
+  name?) and worse for grepping than a specific term.
 - **`err` field for errors.** Pass the error message string
   (`err: e.message`) or the Error object itself (pino serializes it).
   Don't stringify into the message.

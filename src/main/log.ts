@@ -20,7 +20,7 @@ const base = pino({
       options: {
         colorize: true,
         translateTime: "HH:MM:ss.l",
-        ignore: "pid,hostname",
+        ignore: "pid,hostname,component",
         messageFormat: "({component}) {msg}",
       },
     },

@@ -15,7 +15,8 @@ import { join } from "node:path";
 import { type AgentEvent, Channels, type PromptRequest } from "../shared/ipc";
 
 import { createAgentDriver } from "./agent";
-import { discoverPackages } from "./extensions/discovery";
+import { discoverExtensions } from "./extensions/discovery";
+import { activateTrellisExtensions } from "./extensions/loader";
 import { defaultRoots } from "./extensions/roots";
 import { DisposableBag, handle, onApp, onWindow } from "./lifecycle";
 import { createLogger } from "./log";
@@ -51,36 +52,35 @@ function sendEvent(win: BrowserWindow | null, event: AgentEvent): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // One bag for everything that lives as long as the app does.
   // Anything we register goes in here; `will-quit` disposes it.
   const appBag = new DisposableBag();
 
-  // Discover extensions. No activation yet — that lands in a later
-  // commit. For now this proves the cockpit can see what's on disk.
+  // Discover extensions, then activate the trellis side of each.
+  // Per-extension bags enroll into appBag so will-quit tears
+  // everything down with one dispose.
   const extLog = createLogger("extensions");
   const roots = defaultRoots();
   extLog.info({ count: roots.length }, "scanning_roots");
-  for (const r of roots) {
-    extLog.info(
-      { dir: r.dir, label: r.label, present: fs.existsSync(r.dir) },
-      "root",
-    );
+  for (const dir of roots) {
+    extLog.info({ dir, present: fs.existsSync(dir) }, "root");
   }
-  const discovered = discoverPackages(roots);
+  const discovered = discoverExtensions(roots);
   extLog.info({ count: discovered.length }, "discovered");
-  for (const p of discovered) {
+  for (const ext of discovered) {
     extLog.info(
       {
-        id: p.id,
-        dir: p.dir,
-        rootLabel: p.rootLabel,
-        hasPi: p.hasPi,
-        hasTrellis: p.hasTrellis,
+        displayName: ext.displayName,
+        dir: ext.dir,
+        hasPi: ext.hasPi,
+        hasTrellis: ext.hasTrellis,
       },
-      "package",
+      "found",
     );
   }
+  const loaded = await activateTrellisExtensions(discovered, appBag);
+  extLog.info({ count: loaded.length }, "activation_complete");
 
   let mainWindow: BrowserWindow | null = createWindow();
   appBag.add(
