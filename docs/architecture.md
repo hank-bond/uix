@@ -177,3 +177,27 @@ Promote to `DECISIONS.md` when stable.
   on-disk schemas too removes a translation layer and a second mental
   model. Extensions are free to use Zod for purely internal state. See
   `DECISIONS.md` “Schemas: why not split.”
+- **2026-05-30** — Extension `register*` methods return `void`, not
+  `Disposable`. Mirrors pi. The substrate ties each registration's
+  cleanup to the extension's lifecycle automatically — the loader
+  keeps a per-extension `DisposableBag`, `createExtensionAPI()`
+  enrolls disposables into it as a side effect of each `register*`
+  call, and the bag is disposed when the extension unloads.
+  Consequence: extension authors never thread `Disposable` values
+  through their code for things they registered through the API.
+  (For their *own* resources — file watchers, external
+  subscriptions, intervals — they still need cleanup discipline;
+  TBD whether we expose a `trellis.subscriptions` bag for that
+  case. Pi doesn't, and we don't yet need to.)
+- **2026-05-30** — Extension-facing types live behind `@trellis/api`,
+  implemented as a tsconfig path alias to
+  `src/shared/extension-types.ts`. Mirrors the eventual published
+  package name from day 1 so extension code never has to be
+  rewritten. No npm publish is needed yet because the only thing
+  exported is *types* — extensions never `import` a runtime value
+  from `@trellis/api` (the `trellis` object is constructed by the
+  loader and handed to the factory), so `import type` erasure at
+  compile means nothing has to resolve `@trellis/api` at runtime.
+  Upgrade path when external extensions arrive: move the file to
+  `packages/api/src/index.ts`, add a `package.json`, declare
+  workspaces. The alias goes away, the import shape doesn't change.

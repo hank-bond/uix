@@ -11,7 +11,11 @@
     "isolatedModules": true,
     "noEmit": true,
     "lib": ["ES2022", "ESNext.Disposable"],
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@trellis/api": ["./src/shared/extension-types.ts"]
+    }
   },
   "include": [
     "src/main/**/*.ts",
