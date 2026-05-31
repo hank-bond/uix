@@ -87,7 +87,14 @@ An extension can contribute:
 - documentation
 - examples
 
-Each extension receives an activation context and a lifetime bag. Anything it registers goes into that bag. Deactivation disposes the bag.
+UIX currently discovers packages from `.uix/extensions/*` (project-local,
+rooted at the cockpit process cwd) and `~/.uix/extensions/*` (user/global).
+Entries listed in `package.json` under `uix.extensions` are loaded with
+[jiti](https://github.com/unjs/jiti), so extension authors can edit `.ts` files
+and trigger reload without rebuilding the Electron app. `@uix/api` is type-only
+for now; extensions should use `import type`.
+
+Each extension receives an activation context and a lifetime bag. Anything it registers goes into that bag. Deactivation disposes the bag. Cockpit reload re-runs discovery, clears the reusable `extensionsBag`, and re-activates all UIX extensions. It also delegates to pi's `session.reload()` when a pi session already exists, so the user-facing reload action is cockpit-level even though the UIX and pi reload mechanisms stay separate internally.
 
 ```ts
 import type { ExtensionAPI } from "@uix/api";
@@ -315,48 +322,49 @@ Completed:
 - typed IPC scaffold
 - pi `createAgentSession` driver
 - lifetime-scoped disposables
+- Extension loader
+  - discover UIX extensions from project/user roots
+  - activate/deactivate with lifetime bags
+  - jiti-backed TypeScript extension loading
+  - cockpit reload = clear the extension subtree + re-activate without restarting Electron; also reload pi resources if a pi session already exists
 
 Next:
 
-1. Extension loader
-   - discover UIX extensions
-   - activate/deactivate with a lifetime bag
-   - hot reload = dispose the bag + re-activate (sub-second, no cockpit restart). This is the test that lifetime boundaries are right.
-
-2. Pane host and slot registry
+1. Pane host and slot registry
    - slots in the renderer shell
-   - React pane support with error boundaries
-   - iframe pane support with `postMessage` channel
+   - static HTML/iframe pane support first
+   - iframe `postMessage` channel bridge after mounting works
+   - React pane support for first-party/trusted panes later
    - basic declarative contribution shape
 
-3. Typed channel substrate
+2. Typed channel substrate
    - TypeBox schemas
    - runtime validation
    - local/silent/turn event modes
    - in-process and iframe transports (one API, two transports)
 
-4. Embedded-pi config
+3. Embedded-pi config
    - cockpit applies a baseline pi configuration to its embedded agent (orientation block, UIX doc map, smoke-test cockpit tools)
    - lives in the cockpit's own source (`src/main/embedded-pi/`, exact path TBD); not an installable UIX extension
    - rationale: the orientation/doc map/cockpit tools are how the cockpit talks to pi at all; modelling them as an extension was a category mistake (extensions are user-installed, this is core)
 
-5. Agent tool contribution
+4. Agent tool contribution
    - extensions declare pi tools
    - cockpit contributes them to the active pi session
    - channel `turn` events can trigger prompts
    - channel `silent` events can update context/state
 
-6. File watcher service
+5. File watcher service
    - extension-owned glob watchers
    - disposable registrations
    - file events routed through channels
 
-7. Default conversation extension
+6. Default conversation extension
    - port current conversation pane into extension model
    - load by default
    - allow disabling
 
-8. Docs and examples
+7. Docs and examples
    - `src/docs/extensions.md`
    - `src/docs/panes.md`
    - `src/docs/channels.md`
