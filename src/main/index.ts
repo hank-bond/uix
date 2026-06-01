@@ -14,12 +14,16 @@ import process from "node:process";
 
 import {
   type AgentEvent,
+  type CanvasChanged,
   Channels,
   type PromptRequest,
   type ReloadResult,
 } from "../shared/ipc";
+import { assertCanvasKey } from "../shared/canvas";
 
-import { createAgentDriver } from "./agent";
+import { createAgentDriver } from "./agent/driver";
+import { createCanvasAgentBinding } from "./canvas/agent-binding";
+import { registerCanvasProtocol } from "./canvas/protocol";
 import { loadExtensions } from "./extensions/loader";
 import { defaultRoots } from "./extensions/roots";
 import {
@@ -56,9 +60,18 @@ function createWindow(): BrowserWindow {
   return win;
 }
 
-function sendEvent(win: BrowserWindow | null, event: AgentEvent): void {
+function sendAgentEvent(win: BrowserWindow | null, event: AgentEvent): void {
   if (win && !win.isDestroyed()) {
     win.webContents.send(Channels.agentEvent, event);
+  }
+}
+
+function sendCanvasChanged(key: string): void {
+  createLogger("canvas").info({ key }, "canvas_changed");
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) {
+      win.webContents.send(Channels.canvasChanged, { key });
+    }
   }
 }
 
@@ -72,6 +85,8 @@ void app.whenReady().then(async () => {
   // interval throwing, a stray promise rejection in cockpit code.
   // They go in early so they're armed before any user code runs.
   appBag.add(installProcessHandlers(createLogger("main")));
+
+  appBag.add(registerCanvasProtocol());
 
   // Extensions live under their own child scope so reload can tear
   // down the extension subtree without touching app-lifetime process
@@ -92,7 +107,12 @@ void app.whenReady().then(async () => {
   );
 
   const driver = createAgentDriver({
-    onEvent: (event) => sendEvent(mainWindow, event),
+    onEvent: (event) => sendAgentEvent(mainWindow, event),
+    agentBindings: [
+      createCanvasAgentBinding({
+        onCanvasChanged: sendCanvasChanged,
+      }),
+    ],
   });
   appBag.add(driver);
 
@@ -101,6 +121,13 @@ void app.whenReady().then(async () => {
       // Fire and forget — the renderer subscribes to the event stream,
       // and `invoke` resolves once the prompt has been accepted.
       void driver.prompt(req.text);
+    }),
+  );
+
+  appBag.add(
+    handle<CanvasChanged, void>(Channels.canvasRefresh, (req) => {
+      assertCanvasKey(req.key);
+      sendCanvasChanged(req.key);
     }),
   );
 

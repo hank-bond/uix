@@ -257,7 +257,7 @@ Pi does not preload all docs into context. The system prompt contains a small do
 
 UIX does the same. **No markdown is in the agent's context until the agent reads it.** Only the small orientation block and the topic→path map are pinned in the system prompt.
 
-The cockpit applies a baseline pi configuration to its embedded agent — an orientation block, a UIX documentation map, and a small set of cockpit-aware tools. This is _embedded-pi config_ (lives in the cockpit's source under `src/main/embedded-pi/`, exact path TBD), **not** a UIX extension. The user can't uninstall it; it's part of how the cockpit talks to pi at all.
+The cockpit applies a baseline configuration to its UIX-owned agent — an orientation block, a UIX documentation map, and a small set of cockpit-aware tools. This is implemented through **core agent bindings** (internal code under `src/main/agent/`, with feature-owned bindings such as `src/main/canvas/agent-binding.ts`), **not** a UIX extension. The user can't uninstall it; it's part of how the cockpit talks to the agent at all.
 
 The orientation block appended to the system prompt:
 
@@ -327,12 +327,17 @@ Completed:
   - activate/deactivate with lifetime bags
   - jiti-backed TypeScript extension loading
   - cockpit reload = clear the extension subtree + re-activate without restarting Electron; also reload pi resources if a pi session already exists
+- Raw HTML canvas Stage 1
+  - key-addressed local canvas store (`.uix/canvas/<key>.html` as adapter detail)
+  - own-origin `uix-canvas://` protocol, never `srcdoc`
+  - core agent binding with `uix_canvas_read` / `uix_canvas_write`
+  - hardcoded `<Canvas canvasKey="main" />` with whole-document iframe refresh on `canvasChanged`
 
 Next:
 
 1. Pane host and slot registry
    - slots in the renderer shell
-   - static HTML/iframe pane support first
+   - general registered iframe pane support (the hardcoded canvas proves the protocol/render path first)
    - iframe `postMessage` channel bridge after mounting works
    - React pane support for first-party/trusted panes later
    - basic declarative contribution shape
@@ -343,10 +348,10 @@ Next:
    - local/silent/turn event modes
    - in-process and iframe transports (one API, two transports)
 
-3. Embedded-pi config
-   - cockpit applies a baseline pi configuration to its embedded agent (orientation block, UIX doc map, smoke-test cockpit tools)
-   - lives in the cockpit's own source (`src/main/embedded-pi/`, exact path TBD); not an installable UIX extension
-   - rationale: the orientation/doc map/cockpit tools are how the cockpit talks to pi at all; modelling them as an extension was a category mistake (extensions are user-installed, this is core)
+3. Core agent bindings
+   - cockpit applies baseline agent configuration (orientation block, UIX doc map, smoke-test cockpit tools)
+   - lives in the cockpit's own source (`src/main/agent/` plus feature-owned bindings); not an installable UIX extension
+   - rationale: the orientation/doc map/cockpit tools are how the cockpit talks to the agent at all; modelling them as an extension was a category mistake (extensions are user-installed, this is core)
 
 4. Agent tool contribution
    - extensions declare pi tools

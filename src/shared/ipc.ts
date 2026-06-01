@@ -12,6 +12,10 @@ export const Channels = {
   prompt: "uix:prompt",
   /** Main → renderer. webContents.send. Stream of agent events. */
   agentEvent: "uix:agent-event",
+  /** Main → renderer. webContents.send. Canvas invalidation signal. */
+  canvasChanged: "uix:canvas-changed",
+  /** Renderer → main. invoke-style. Dev-only canvas refresh trigger. */
+  canvasRefresh: "uix:canvas-refresh",
   /** Renderer → main. invoke-style. Reloads cockpit resources in place. */
   reload: "uix:reload",
 } as const;
@@ -26,6 +30,11 @@ export interface ReloadResult {
   extensionsFailed: number;
   /** True when a pi session already existed and pi's reload path ran. */
   piReloaded: boolean;
+}
+
+/** Payload for `uix:canvas-changed` and `uix:canvas-refresh`. */
+export interface CanvasChanged {
+  key: string;
 }
 
 /**
@@ -45,6 +54,9 @@ export type AgentEvent =
 export interface UIXBridge {
   sendPrompt: (req: PromptRequest) => Promise<void>;
   onAgentEvent: (handler: (event: AgentEvent) => void) => () => void;
+  onCanvasChanged: (handler: (event: CanvasChanged) => void) => () => void;
+  /** Dev/dogfood hook for hand-edited canvas files. */
+  refreshCanvas: (req: CanvasChanged) => Promise<void>;
   /** Programmatic hook for future command palette/menu/chat /reload. */
   reload: () => Promise<ReloadResult>;
 }

@@ -20,7 +20,7 @@ substrate lives in `src/docs/`.
   `src/main`, `src/preload`, `src/renderer`).
 - Typed IPC scaffold (`src/shared/ipc.ts`, preload bridge).
 - Pi `createAgentSession` driver wired into the main process
-  (`src/main/agent.ts`).
+  (`src/main/agent/driver.ts`).
 - Lifetime-scoped disposables and lifecycle helpers
   (`src/main/lifecycle.ts`). See [`conventions.md`](./conventions.md).
 - Basic conversation pane (`src/renderer/Conversation.tsx`).
@@ -110,6 +110,22 @@ milestone when it becomes blocking.
 
 A running record of decisions made _after_ `DECISIONS.md` was written.
 Promote to `DECISIONS.md` when stable.
+
+- **2026-05-31** — Stage-1 canvas pane direction landed:
+  - Canvases are addressed by slash-namespaced keys, not paths. The local
+    `.uix/canvas/<key>.html` mapping is only the store adapter.
+  - Agent writes go through dedicated `uix_canvas_read` /
+    `uix_canvas_write` tools bound into the UIX-owned agent session via
+    internal `AgentBinding`s. We do not infer canvas updates from generic
+    filesystem tool events.
+  - Canvas HTML is served from a stable own-origin `uix-canvas://` URL, not
+    `srcdoc`. Key segments are reversed into the host so each key has its
+    own origin while the URL path remains available for future fragments.
+  - Refresh is a whole-document iframe swap driven by `canvasChanged { key }`
+    invalidation events. Main broadcasts invalidations to live Electron
+    `BrowserWindow`s; panes opt in and filter by key. No `fs.watch`.
+  - The pane remains hardcoded as `<Canvas canvasKey="main" />` until the
+    pane host and public `registerPane` API land.
 
 - **2026-05-30** — Split documentation into `src/docs/` (user-facing,
   what the code is and how to use it) and `/docs/` (dev-facing,

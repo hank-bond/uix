@@ -21,9 +21,11 @@ import type {
   AgentSessionEvent,
 } from "@earendil-works/pi-coding-agent";
 
-import type { AgentEvent } from "../shared/ipc";
+import type { AgentEvent } from "../../shared/ipc";
 
-import { disposable, DisposableBag, subscribe } from "./lifecycle";
+import { disposable, DisposableBag, subscribe } from "../lifecycle";
+
+import { type AgentBinding, collectAgentBindingTools } from "./bindings";
 
 /**
  * The driver itself is a Disposable so callers can hand it to a Bag
@@ -38,6 +40,8 @@ export interface AgentDriver extends Disposable {
 export interface AgentDriverOptions {
   /** Forwarded to the renderer (over IPC). */
   onEvent: (event: AgentEvent) => void;
+  /** Core UIX capabilities bound into the pi-backed session. */
+  agentBindings?: readonly AgentBinding[];
 }
 
 export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
@@ -63,6 +67,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       sessionManager: sdk.SessionManager.inMemory(),
       authStorage,
       modelRegistry,
+      customTools: collectAgentBindingTools(opts.agentBindings ?? []),
     });
 
     // Both registrations land in the bag, so a single dispose tears

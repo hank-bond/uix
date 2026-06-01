@@ -1,9 +1,10 @@
 // UIX cockpit — top-level layout.
 //
 // Two panes, side by side: the conversation (left, live) and the canvas
-// (right, still placeholder). The layout itself is plain CSS grid in
+// (right, hardcoded Stage-1 iframe). The layout itself is plain CSS grid in
 // styles.css so we don't take on a styling system before we need one.
 
+import { Canvas } from "./Canvas";
 import { Conversation } from "./Conversation";
 
 export function App() {
@@ -17,8 +18,8 @@ export function App() {
       </section>
       <section className="pane pane--canvas" aria-label="Canvas">
         <header className="pane__header">canvas</header>
-        <div className="pane__body pane__body--placeholder">
-          .uix/canvas/main.html will render here
+        <div className="pane__body pane__body--canvas">
+          <Canvas canvasKey="main" />
         </div>
       </section>
     </div>
