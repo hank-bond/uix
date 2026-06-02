@@ -6,7 +6,7 @@
 //   - dev gets pretty-printed colorized output; prod gets JSON
 //   - extensions get attributed loggers via child(): `log.child({ extension: id })`
 //
-// Conventions live in docs/conventions.md (logging section).
+// Conventions live in docs/architecture/conventions.md (logging section).
 
 import process from "node:process";
 

@@ -1,0 +1,27 @@
+#!/bin/sh
+# Pre-commit: keep generated doc indexes current and Prettier-format staged
+# files. Tracked in-repo and wired via core.hooksPath (see package.json
+# "prepare"), so it's shared and needs no extra dependencies.
+#
+# Caveat: a partially-staged file is formatted as a whole and re-staged, so
+# unstaged hunks in that file get pulled in. Stage whole files, or reach for
+# lint-staged if partial staging becomes common.
+set -e
+
+cd "$(git rev-parse --show-toplevel)"
+
+files=$(git diff --cached --name-only --diff-filter=ACMR)
+[ -z "$files" ] && exit 0
+
+# Regenerate doc indexes from frontmatter when any doc changed, and re-stage
+# the index files. (They're Prettier-ignored, so the format step skips them.)
+if printf '%s\n' "$files" | grep -Eq '^(docs|src/docs)/.*\.md$'; then
+  node scripts/docs-index.mjs >/dev/null
+  git add docs/decisions/AGENTS.md docs/design/AGENTS.md \
+    docs/architecture/AGENTS.md docs/plans/AGENTS.md src/docs/AGENTS.md \
+    2>/dev/null || true
+fi
+
+# Format the staged files in place (respects .prettierignore), then re-stage.
+printf '%s\n' "$files" | xargs ./node_modules/.bin/prettier --write --ignore-unknown
+printf '%s\n' "$files" | xargs git add

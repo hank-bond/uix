@@ -4,7 +4,7 @@
 // When external extensions exist and we publish, this file moves to
 // `packages/api/src/index.ts`, the alias goes away, and the
 // extension-facing import shape stays identical. See
-// docs/architecture.md ("extension-facing types live behind
+// docs/decisions/2026-05-30-extension-api-type-alias.md ("extension-facing types live behind
 // `@uix/api`").
 //
 // IMPORTANT: only types live here. Extensions never `import` a
@@ -41,7 +41,7 @@ export interface CommandOptions {
  * authors don't track per-registration disposables.
  *
  * Mirrors pi's `ExtensionAPI` shape deliberately. See
- * docs/architecture.md.
+ * docs/decisions/2026-05-30-extension-api-type-alias.md.
  */
 export interface ExtensionAPI {
   /**

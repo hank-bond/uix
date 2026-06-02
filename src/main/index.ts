@@ -6,7 +6,7 @@
 // All registrations (IPC handlers, app events, window events) flow
 // through the helpers in src/main/lifecycle.ts and land in a single
 // `appBag`. One dispose on `will-quit` tears the whole tree down.
-// See docs/conventions.md.
+// See docs/architecture/conventions.md.
 
 import { app, BrowserWindow } from "electron";
 import { join } from "node:path";

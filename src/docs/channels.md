@@ -1,15 +1,22 @@
+---
+summary: "Current channel state in UIX: no public typed pane/channel API is implemented yet; the shipped cross-boundary surface is the typed Electron IPC bridge for prompts, agent events, canvas invalidation, manual canvas refresh, and reload. Read before depending on channel behavior."
+status: stub
+---
+
 # Channels
 
-> **Stub.** Populated when the typed channel substrate lands (milestone 3 in
-> [`AGENTS.md`](../../AGENTS.md#near-term-milestones)).
+UIX does not currently ship a public typed pane/channel API.
 
-Will cover:
+The current cross-boundary communication surface is the Electron IPC bridge declared in `src/shared/ipc.ts` and exposed by `src/preload/index.ts` as `window.uix`:
 
-- TypeBox schemas and runtime validation.
-- Event modes: `local`, `silent`, `turn`.
-- In-process transport vs. iframe `postMessage` transport — one API, two
-  transports.
-- Pattern: small structured diffs for high-frequency UI, turn-triggering
-  events only when the agent should respond.
+- `sendPrompt({ text })`
+- `onAgentEvent(handler)`
+- `onCanvasChanged(handler)`
+- `refreshCanvas({ key })`
+- `reload()`
+
+Canvas invalidation is currently a one-way main-to-renderer event: main broadcasts `canvasChanged { key }`, and the hardcoded canvas pane filters by key before reloading its iframe URL.
+
+There is no current public API for extension-defined channel schemas, pane-to-pane events, iframe `postMessage` routing, or channel-triggered agent turns.
 
 See [`panes.md`](./panes.md), [`agent.md`](./agent.md).

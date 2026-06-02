@@ -1,0 +1,22 @@
+# Decisions
+
+A dated, append-only log of load-bearing decisions: what we chose, what we rejected, and why. One file per decision, slugged `YYYY-MM-DD-slug` so the directory sorts chronologically and two branches never collide on a number.
+
+**Write-once.** A decision records what we believed at that date — don't edit the body or summary later. Only `status` changes: an outdated decision becomes `superseded` and links to the decision that replaced it. The reasoning behind a decision (alternatives weighed in the moment) belongs in a [`../design/`](../design/) note; this layer records the conclusion.
+
+<!-- INDEX:START -->
+
+- **[canvas-stage-one](./2026-05-31-canvas-stage-one.md)** _(accepted)_ — The shipped stage-1 canvas pane: key-addressed store, own-origin uix-canvas:// protocol (not srcdoc), dedicated agent read/write tools, whole-document refresh. Read when working on the canvas pane or its agent tools.
+- **[hosting-compatible-by-default](./2026-05-31-hosting-compatible-by-default.md)** _(accepted)_ — Prefer designs that survive a future hosted/VM architecture by keeping the filesystem behind content-store and change-feed interfaces. Read before any feature touching storage, document identity, writers, or conflict handling.
+- **[manual-reload-extensionsbag](./2026-05-31-manual-reload-extensionsbag.md)** _(accepted)_ — How cockpit reload tears down and re-activates extensions via an extensionsBag child scope without restarting Electron, delegating to pi's session.reload(). Read when touching reload, lifetime scoping, or jiti loading.
+- **[documentation-split](./2026-05-30-documentation-split.md)** _(accepted)_ — Docs split by audience: src/docs/ ships and must track code; the repo-root docs/ tree is dev-facing and may lag. Read before adding or moving documentation.
+- **[extension-activation-and-isolation](./2026-05-30-extension-activation-and-isolation.md)** _(accepted)_ — How extensions activate (sequential, per-extension DisposableBag) and how cleanup and error isolation work in v0. Read when changing the loader or extension lifecycle.
+- **[extension-api-type-alias](./2026-05-30-extension-api-type-alias.md)** _(accepted)_ — Extension types live behind the @uix/api path alias, and the extension shape mirrors pi (a default-exported factory taking an injected API). Read when changing the extension API surface or its packaging.
+- **[extension-discovery-and-identity](./2026-05-30-extension-discovery-and-identity.md)** _(accepted)_ — How extensions are discovered (project/global .uix/extensions with a pi/uix package.json) and identified (the entry file's absolute path); UIX ships none of its own. Read when touching extension discovery or loading.
+- **[lint-format-infrastructure](./2026-05-30-lint-format-infrastructure.md)** _(accepted)_ — The ESLint flat config + Prettier setup and the conventions it enforces (node: imports, lifecycle helpers, pino logging). Read when adjusting lint/format rules or the check gate.
+- **[no-agent-ui-manipulation](./2026-05-30-no-agent-ui-manipulation.md)** _(accepted)_ — The agent mutates artifacts through ordinary file-edit tools, not bespoke UI or RPC tools; channels carry validated events, not an agent-side UI API. Read before giving the agent any UI-manipulation capability.
+- **[stack-landings](./2026-05-30-stack-landings.md)** _(accepted)_ — The technology stack and the alternative each piece beat (Electron, React + Compiler, Zustand, TypeBox, Monaco, SQLite-as-index, in-process pi). Read when choosing or questioning a dependency.
+- **[typebox-not-zod](./2026-05-30-typebox-not-zod.md)** _(accepted)_ — Why TypeBox is used for every substrate schema surface instead of splitting with Zod. Read when adding schemas for IPC, channels, config, or on-disk data.
+- **[uix-is-a-pilot-substrate](./2026-05-30-uix-is-a-pilot-substrate.md)** _(accepted)_ — Why UIX exists and its shape: it adds pilot capabilities for the human, not agent capabilities, and is a reusable substrate rather than a single app. Read for the framing test behind feature decisions.
+
+<!-- INDEX:END -->

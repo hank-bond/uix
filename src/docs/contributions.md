@@ -1,20 +1,29 @@
+---
+summary: "Current contribution surface in UIX: extension entry files can call registerCommand only, and that command registration is logged/lifetime-scoped but not invokable through a command registry yet. Read before adding or relying on contribution points."
+status: active
+---
+
 # Contributions
 
-> **Stub.** Populated alongside the extension loader and pane host
-> (milestones 1–2 in
-> [`AGENTS.md`](../../AGENTS.md#near-term-milestones)).
+The current public UIX extension contribution surface has one method:
 
-Will cover the full list of contribution points an extension can register:
+```ts
+uix.registerCommand(name, {
+  description: "Optional human-readable description",
+  handler: async () => {
+    // not currently invoked by UIX
+  },
+});
+```
 
-- panes (React, iframe, declarative)
-- pi tools
-- typed channels
-- file watchers
-- commands
-- status / palette entries
-- documentation
-- examples
+Current behavior:
 
-Each entry: shape, lifetime, examples.
+- registration is accepted from a loaded UIX extension entry;
+- the registration is logged by `src/main/extensions/context.ts`;
+- a cleanup callback is enrolled in the extension activation's `DisposableBag`;
+- reload/deactivation logs command cleanup;
+- there is no command registry, command palette, keybinding path, or invocation path yet.
 
-See [`extensions.md`](./extensions.md).
+No other public contribution points are currently implemented for UIX extensions. In particular, UIX extensions cannot currently register panes, channels, file watchers, status items, palette entries, documentation, examples, or agent-facing tools through `@uix/api`.
+
+See [`extensions.md`](./extensions.md), [`lifetimes.md`](./lifetimes.md).

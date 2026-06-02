@@ -8,7 +8,7 @@
 //      class of bugs without us having to enumerate them.
 //
 //   2. Project-specific enforcement of conventions documented in
-//      docs/conventions.md:
+//      docs/architecture/conventions.md:
 //        - lifecycle helpers are mandatory (no raw `app.on`,
 //          `ipcMain.handle`, `process.on` outside `lifecycle.ts`)
 //        - logging goes through `createLogger`, not `console.*`
@@ -72,7 +72,7 @@ export default tseslint.config(
         {
           name: "process",
           message:
-            "Import process from 'node:process' instead of using the global. See docs/conventions.md > Imports.",
+            "Import process from 'node:process' instead of using the global. See docs/architecture/conventions.md > Imports.",
         },
         {
           name: "Buffer",
@@ -92,19 +92,19 @@ export default tseslint.config(
           selector:
             "CallExpression[callee.object.name='app'][callee.property.name=/^(on|off|once|addListener|removeListener|prependListener|prependOnceListener)$/]",
           message:
-            "Use onApp() from src/main/lifecycle.ts instead of app.on / app.off. See docs/conventions.md.",
+            "Use onApp() from src/main/lifecycle.ts instead of app.on / app.off. See docs/architecture/conventions.md.",
         },
         {
           selector:
             "CallExpression[callee.object.name='ipcMain'][callee.property.name=/^(handle|handleOnce|on|once|removeHandler|removeListener)$/]",
           message:
-            "Use handle() from src/main/lifecycle.ts instead of ipcMain.handle / ipcMain.on. See docs/conventions.md.",
+            "Use handle() from src/main/lifecycle.ts instead of ipcMain.handle / ipcMain.on. See docs/architecture/conventions.md.",
         },
         {
           selector:
             "CallExpression[callee.object.name='process'][callee.property.name=/^(on|off|once|addListener|removeListener|prependListener|prependOnceListener)$/]",
           message:
-            "Use installProcessHandlers() from src/main/lifecycle.ts instead of process.on directly. See docs/conventions.md.",
+            "Use installProcessHandlers() from src/main/lifecycle.ts instead of process.on directly. See docs/architecture/conventions.md.",
         },
       ],
 
@@ -157,7 +157,14 @@ export default tseslint.config(
   // both the rule-disables and the parser settings) and merge our
   // own loosenings on top.
   {
-    files: ["eslint.config.mjs", "*.config.ts", "*.config.mjs", "*.config.js"],
+    files: [
+      "eslint.config.mjs",
+      "*.config.ts",
+      "*.config.mjs",
+      "*.config.js",
+      "scripts/**/*.mjs",
+      "scripts/**/*.js",
+    ],
     ...tseslint.configs.disableTypeChecked,
     rules: {
       ...tseslint.configs.disableTypeChecked.rules,

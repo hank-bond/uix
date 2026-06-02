@@ -16,7 +16,10 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run typecheck && npm run lint && npm run format:check"
+    "docs:index": "node scripts/docs-index.mjs",
+    "docs:check": "node scripts/docs-index.mjs --check",
+    "prepare": "git config core.hooksPath .githooks || true",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run docs:check"
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "^0.77.0",
