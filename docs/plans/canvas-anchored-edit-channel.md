@@ -15,13 +15,13 @@ The ordering principle and the full unit map (P0–U7) live in the design note's
 
 ## P0 — Anchor pool (prerequisite asset)
 
-**Goal.** A committed list of single-token anchor IDs the runtime loads; not generated in the harness.
+**Goal.** A committed pool of compact anchor IDs the runtime loads; not generated in the harness.
 
-**Build.** An out-of-band repo tool that **enumerates** the anchor pool from a public vocabulary (start with OpenAI tiktoken/o200k — trivial, and pi runs OpenAI without forcing the Codex harness). Verify single-token-ness **in the actual gutter format** (`anchor§line`), not in isolation. Emit a committed asset the core loads.
+**Build.** A committed static anchor pool asset that the runtime loads. The current pool is vendored from Dirac's Apache-2.0 `src/utils/.hash_anchors` list and attributed in `src/main/anchors/assets/README.md`; it is not fetched or regenerated during install.
 
-**Boundary / deferred.** `count_tokens`-only providers (Anthropic, Gemini) get **probed**, not enumerated — later. The architecture is tokenizer-independent (fallback = short 1–2-token anchors), so no provider is ever locked out. Parallelizable with U1 if stubbed.
+**Boundary / deferred.** Provider-specific token probing is not part of P0. UIX uses the same committed anchor pool for every model; token efficiency is nice-to-have, not a model support gate. Parallelizable with U1 if stubbed.
 
-**Open:** anchor encoding — gutter format, delimiter, pool size (design Q3).
+**Landing choices.** Gutter delimiter is `§`. The committed pool is `src/main/anchors/assets/anchor-pool.txt`, copied from Dirac's anchor list and kept as a newline-delimited static asset; runtime loads the small pool into memory and allocation advances a per-document allocation index. After the single-word pool is exhausted, allocation composes two pool words using naive row-major pair indexes; the pool asset is pre-sorted so early two-word anchors stay compact. The pool is model-agnostic and used for every model.
 
 ## U1 — Anchored editing core (one plain doc, no UI, no history)
 

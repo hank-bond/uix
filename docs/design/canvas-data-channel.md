@@ -22,7 +22,7 @@ status: exploring
 
 **The anchored edit model** (adopt Dirac's shape wholesale — see [the Dirac post](https://dirac.run/posts/hash-anchors-myers-diff-single-token)):
 
-- **Assigned single-token anchors**, not content hashes. Content hashes can't be coerced to one token, collide on duplicate lines, and are ephemeral; assigned IDs are drawn from a curated single-token pool, are collision-free, and stay stable across content edits. The tradeoff (a stateful, session-scoped anchor→line map) is acceptable because the map is regenerable from the doc, not persisted — so it doesn't make the filesystem load-bearing.
+- **Assigned compact anchors**, not content hashes. Content hashes are long, collide on duplicate lines when truncated, and are ephemeral; assigned IDs are drawn from a curated anchor pool, are collision-free, and stay stable across content edits. The pool is model-agnostic; token efficiency is nice-to-have, not a support gate. The tradeoff (a stateful, session-scoped anchor→line map) is acceptable because the map is regenerable from the doc, not persisted — so it doesn't make the filesystem load-bearing.
 - **A Myers reconciler** reassigns anchors only to changed lines after each edit, and runs identically for human pane edits and filesystem external changes. The state manager keeps the last observed text as the diff base; if `bash`/editor/git mutates a normal file, the next anchored `read`/`edit` reconciles against disk and can report changed hunks with fresh anchors.
 - **Edit op** = `{ start_anchor, end_anchor, replacement }` (the model emits only new content); **every write/edit/read result returns fresh anchors for touched lines**, so the agent never re-reads to learn current anchors. Validate by string-match. Decide insert semantics (zero-width range vs `insert_before`/`insert_after`).
 
@@ -30,7 +30,7 @@ status: exploring
 
 **Human pane changes.** Human edits go through the same `commit` path and arrive over **internal eventing, not a filesystem watcher** — so the agent's own writes never echo back as phantom human changes (echo-suppression is a non-issue here precisely because nothing rides `fs.watch`). Case-1 panes are fully hydrated documents: clicking a UI control that adds an element changes the document itself; when the user next talks to the agent, UIX commits pending pane changes and computes the anchored human-diff. For the first cut the diff is surfaced to the agent through the **tool-result channel** (a `changes`/read result), which keeps the channel on `customTools` — _rewriting the user turn_ is what would force the lower-level path, so that's deferred to Half B. The agent pane can show pending diffs in a collapsible area above the user input (UI only; independent of how the agent is told).
 
-**Anchor pool = out-of-band repo tool, cached asset** (not in the harness; the harness loads a committed list). **Enumerate** when the vocab is public (OpenAI tiktoken/o200k, open-weights); **probe** `count_tokens`-only providers (Anthropic, Gemini). **Start OpenAI** (trivial enumerate; pi runs OpenAI without forcing the Codex harness). The architecture is tokenizer-independent — fallback is short 1–2-token anchors, so no provider is ever locked out. Verify single-token in the actual gutter format (`anchor§line`), not in isolation.
+**Anchor pool = committed static asset** (not in the harness; the harness loads a committed pool). The first landed pool is vendored from Dirac's Apache-2.0 `src/utils/.hash_anchors` list and attributed in `src/main/anchors/assets/README.md`. The runtime pool is model-agnostic: UIX uses the same anchors for every model and does not gate by tokenizer support; because the pool is small, runtime keeps it in memory, and each managed document stores an allocation index. Allocation uses single words first, then composes two-word anchors with naive row-major pair indexes after the single-word pool is exhausted; the pool asset is pre-sorted so early two-word anchors stay compact. Provider-specific probing can be added later as an optimization, but no provider is locked out.
 
 **Context efficiency, two halves:**
 
@@ -46,7 +46,7 @@ status: exploring
 
 1. Confirm `createAgentSessionFromServices` (or the runtime factory) accepts an in-process `ExtensionFactory` — the Half-B landing spot. (`createAgentSession` only exposes `customTools`.)
 2. Confirm pi's `context`-hook message edits are **send-only**, not persisted, and that deterministic truncation holds the cache prefix.
-3. Pin the anchor encoding: gutter format, delimiter, pool size, single-token verification.
+3. Decide whether provider-specific anchor pools are ever worth adding as an optimization beyond the landed model-agnostic pool.
 4. Edit-tool insert semantics.
 5. Stage-2 shim injection mechanism — deferred; replan against real friction.
 
