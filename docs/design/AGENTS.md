@@ -6,6 +6,7 @@ Each note is slugged by the **problem**, not the solution (so it survives pivots
 
 <!-- INDEX:START -->
 
-- **[canvas-data-channel](./canvas-data-channel.md)** _(exploring)_ — Design thread for the bidirectional canvas data channel. Read before working on canvas edit tools, anchoring/token efficiency, pane writeback, or the case-1/case-2 canvas split.
+- **[canvas-data-channel](./canvas-data-channel.md)** _(exploring)_ — Design thread for the bidirectional canvas/document data channel: the anchored edit grammar, pane tools, writeback/user diffs, and the content-store seam. Read before working on anchored edit tools, pane tools, filesystem-tool parity, or the case-1/case-2 canvas split. Versioning, history, and rollback are a sibling thread (pane-and-file-versioning).
+- **[pane-and-file-versioning](./pane-and-file-versioning.md)** _(exploring)_ — Design thread for versioning, history, and rollback of pane documents and (optionally) the user's working tree, both backed by git and linked to pi's conversation tree. Read before working on the .uix object store, conversation-node restore points, per-run file snapshots, or the rollback UI. The anchored edit channel that sits in front of this is a sibling thread (canvas-data-channel).
 
 <!-- INDEX:END -->
