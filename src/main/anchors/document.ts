@@ -5,28 +5,17 @@
 // unchanged nodes — there is no positional index to keep in sync, because
 // the anchored grammar addresses lines by anchor, not by line number.
 //
-// Range edits (`edit({ start, end, replacement })`) run Myers diff against
-// the range only, so cost is O(range + replacement). Full-document writes
-// (`write(text)`) run Myers against the whole list, so cost is O(N + D); the
-// linked-list splice still avoids any work on unchanged nodes after the
-// diff.
+// Range edits (`edit`) run Myers diff against the range only, so cost is
+// O(range + replacement). `reconcile(text)` runs Myers against the whole list
+// to preserve unchanged anchors and report a diff, so cost is O(N + D).
+// `write(text)` is a clobber — it rebuilds from scratch with fresh anchors and
+// no diff, so cost is O(new line count).
 
-import {
-  ANCHOR_GUTTER_DELIMITER,
-  type AnchorAllocation,
-  getDefaultAnchorPool,
-} from "./pool";
+import { type AnchorAllocation, getDefaultAnchorPool } from "./pool";
 
 export interface AnchoredLine {
   readonly anchor: string;
   readonly text: string;
-}
-
-export interface AnchoredMaterialization {
-  readonly text: string;
-  readonly anchoredText: string;
-  readonly lines: readonly AnchoredLine[];
-  readonly nextAnchorIndex: number;
 }
 
 export interface AnchoredChange {
@@ -34,13 +23,15 @@ export interface AnchoredChange {
   readonly newLines: readonly AnchoredLine[];
 }
 
-export interface AnchoredResult extends AnchoredMaterialization {
-  readonly changes: readonly AnchoredChange[];
-}
-
 export interface AnchorRangeEdit {
-  readonly startLine: string;
-  readonly endLine: string;
+  // Boundaries are structured lines (anchor + the text the caller believes is
+  // there), not rendered strings — the §-gutter wire format is parsed at the
+  // tool layer before it reaches the core. The text half is a verbatim guard:
+  // `edit` rejects the call unless the live line behind the anchor still
+  // matches, the same way an edit tool requires the old text to match before
+  // replacing it.
+  readonly start: AnchoredLine;
+  readonly end: AnchoredLine;
   readonly replacement: string;
 }
 
@@ -100,46 +91,67 @@ export class AnchoredDocument {
       opts.allocate ?? ((index) => getDefaultAnchorPool().allocate(index));
     this.#nextAnchorIndex = opts.nextAnchorIndex ?? 0;
 
-    this.#head.next = this.#tail;
-    this.#tail.prev = this.#head;
-
-    for (const lineText of splitText(text)) {
-      this.#insertBefore(this.#createNode(lineText), this.#tail);
-    }
+    this.#load(text);
   }
 
-  materialize(): AnchoredMaterialization {
-    return this.#materialize();
+  // Pool allocation cursor — internal session state, not part of any
+  // agent-facing result. Exposed only so persistence can round-trip it back
+  // through the constructor.
+  get nextAnchorIndex(): number {
+    return this.#nextAnchorIndex;
   }
 
-  read(): AnchoredResult {
-    const materialized = this.#materialize();
-    return {
-      ...materialized,
-      changes: [{ oldLines: [], newLines: materialized.lines }],
-    };
+  read(): readonly AnchoredLine[] {
+    return this.#snapshot();
   }
 
-  write(text: string): AnchoredResult {
-    const oldNodes = this.#collectNodes();
-    const { newNodes, changes } = this.#applyDiff(oldNodes, splitText(text));
-    this.#spliceRange(this.#head, this.#tail, oldNodes, newNodes);
-    return { ...this.#materialize(), changes };
+  // Clobber: discard the whole document and rebuild from `text`. Anchors are
+  // never reused — allocation continues from the current index, so the new
+  // version shares no anchor with the version it replaced (the two can coexist
+  // in one chat without an anchor ever naming two different lines). No diff: a
+  // clobber doesn't claim to preserve anything, so there are no change hunks.
+  write(text: string): readonly AnchoredLine[] {
+    this.#load(text);
+    return this.#snapshot();
   }
 
-  edit(edit: AnchoredEdit): AnchoredResult {
-    const startNode = this.#requireLine(edit.startLine);
-    const endNode = this.#requireLine(edit.endLine);
+  // Replace an inclusive anchor range, diffing only the range so unchanged
+  // lines inside it keep their anchors.
+  edit(edit: AnchoredEdit): readonly AnchoredChange[] {
+    const startNode = this.#requireMatchingLine(edit.start);
+    const endNode = this.#requireMatchingLine(edit.end);
     const rangeNodes = this.#collectRange(startNode, endNode);
     const { newNodes, changes } = this.#applyDiff(
       rangeNodes,
       splitText(edit.replacement),
     );
     this.#spliceRange(startNode.prev, endNode.next, rangeNodes, newNodes);
-    return { ...this.#materialize(), changes };
+    return changes;
+  }
+
+  // Reconcile the whole document against new `text`, diffing to preserve the
+  // anchors of unchanged lines and report what changed. This is the human
+  // writeback path (the pane flushes new content; the agent must see a stable
+  // anchored diff) — unlike `write`, it is not a clobber.
+  reconcile(text: string): readonly AnchoredChange[] {
+    const oldNodes = this.#collectNodes();
+    const { newNodes, changes } = this.#applyDiff(oldNodes, splitText(text));
+    this.#spliceRange(this.#head, this.#tail, oldNodes, newNodes);
+    return changes;
   }
 
   // --- internals ---
+
+  // Reset to an empty list and build it from `text`. Allocation continues from
+  // the current #nextAnchorIndex, so a rebuild never reuses a prior anchor.
+  #load(text: string): void {
+    this.#nodes.clear();
+    this.#head.next = this.#tail;
+    this.#tail.prev = this.#head;
+    for (const lineText of splitText(text)) {
+      this.#insertBefore(this.#createNode(lineText), this.#tail);
+    }
+  }
 
   // Diff oldNodes against newTexts; produce a sequence of nodes that should
   // occupy the (now-vacant) slot in the list, reusing nodes for equal steps
@@ -239,14 +251,13 @@ export class AnchoredDocument {
     return node;
   }
 
-  #requireLine(line: string): LineNode {
-    const { anchor, text } = parseAnchoredLine(line);
-    const node = this.#requireNode(anchor);
-    if (node.text !== text) {
+  #requireMatchingLine(line: AnchoredLine): LineNode {
+    const node = this.#requireNode(line.anchor);
+    if (node.text !== line.text) {
       throw new Error(
-        `Anchor ${anchor} text mismatch: document has ${JSON.stringify(
+        `Anchor ${line.anchor} text mismatch: document has ${JSON.stringify(
           node.text,
-        )} but edit referenced ${JSON.stringify(text)}`,
+        )} but edit referenced ${JSON.stringify(line.text)}`,
       );
     }
     return node;
@@ -260,26 +271,15 @@ export class AnchoredDocument {
     return nodes;
   }
 
-  // Single pass over the list: build the line list and both string
-  // renderings (plain `text` and gutter `anchoredText`) at once, instead of
-  // walking the document once to collect lines and twice more to map each
-  // rendering.
-  #materialize(): AnchoredMaterialization {
+  // Snapshot the live list into an immutable structured line array. Callers
+  // that need a rendering (the agent's gutter view, the store's plain text)
+  // project it themselves at their own layer.
+  #snapshot(): AnchoredLine[] {
     const lines: AnchoredLine[] = [];
-    const textParts: string[] = [];
-    const anchoredParts: string[] = [];
     for (let cur = this.#head.next; cur !== this.#tail; cur = cur.next) {
-      const line: AnchoredLine = { anchor: cur.anchor, text: cur.text };
-      lines.push(line);
-      textParts.push(cur.text);
-      anchoredParts.push(formatAnchoredLine(line));
+      lines.push({ anchor: cur.anchor, text: cur.text });
     }
-    return {
-      text: textParts.join("\n"),
-      anchoredText: anchoredParts.join("\n"),
-      lines,
-      nextAnchorIndex: this.#nextAnchorIndex,
-    };
+    return lines;
   }
 
   #collectRange(startNode: LineNode, endNode: LineNode): LineNode[] {
@@ -296,26 +296,6 @@ export class AnchoredDocument {
       cur = cur.next;
     }
   }
-}
-
-export function formatAnchoredText(lines: readonly AnchoredLine[]): string {
-  return lines.map(formatAnchoredLine).join("\n");
-}
-
-export function formatAnchoredLine(line: AnchoredLine): string {
-  return `${line.anchor}${ANCHOR_GUTTER_DELIMITER}${line.text}`;
-}
-
-// Inverse of formatAnchoredLine: "A§one" -> { anchor: "A", text: "one" }.
-export function parseAnchoredLine(line: string): AnchoredLine {
-  const gutterIdx = line.indexOf(ANCHOR_GUTTER_DELIMITER);
-  if (gutterIdx === -1) {
-    throw new Error(`Malformed anchored line: ${JSON.stringify(line)}`);
-  }
-  return {
-    anchor: line.slice(0, gutterIdx),
-    text: line.slice(gutterIdx + ANCHOR_GUTTER_DELIMITER.length),
-  };
 }
 
 export function splitText(text: string): string[] {

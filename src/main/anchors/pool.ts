@@ -6,8 +6,6 @@
 
 import anchorPoolText from "./assets/anchor-pool.txt?raw";
 
-export const ANCHOR_GUTTER_DELIMITER = "§";
-
 let defaultPool: AnchorPool | undefined;
 
 export interface AnchorAllocation {
