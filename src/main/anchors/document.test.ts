@@ -269,4 +269,77 @@ describe("AnchoredDocument", () => {
       ]);
     });
   });
+
+  describe("read range", () => {
+    // A=a B=b C=c D=d E=e F=f
+    const sixLines = () =>
+      new AnchoredDocument("a\nb\nc\nd\ne\nf", { allocate: testAllocate() });
+
+    it("reads the whole document with no bounds", () => {
+      expect(sixLines().read()).toEqual([
+        { anchor: "A", text: "a" },
+        { anchor: "B", text: "b" },
+        { anchor: "C", text: "c" },
+        { anchor: "D", text: "d" },
+        { anchor: "E", text: "e" },
+        { anchor: "F", text: "f" },
+      ]);
+    });
+
+    it("reads [:end] (front-half, seeks from head)", () => {
+      expect(sixLines().read(undefined, 2)).toEqual([
+        { anchor: "A", text: "a" },
+        { anchor: "B", text: "b" },
+      ]);
+    });
+
+    it("reads a front-half window forward", () => {
+      expect(sixLines().read(1, 3)).toEqual([
+        { anchor: "B", text: "b" },
+        { anchor: "C", text: "c" },
+      ]);
+    });
+
+    it("reads [start:] spanning into the back half (seeks from tail)", () => {
+      // forward-ordered even though collected backward from the tail
+      expect(sixLines().read(2)).toEqual([
+        { anchor: "C", text: "c" },
+        { anchor: "D", text: "d" },
+        { anchor: "E", text: "e" },
+        { anchor: "F", text: "f" },
+      ]);
+    });
+
+    it("reads a back-half window forward (seeks from tail)", () => {
+      expect(sixLines().read(4, 6)).toEqual([
+        { anchor: "E", text: "e" },
+        { anchor: "F", text: "f" },
+      ]);
+    });
+
+    it("clamps out-of-range bounds and returns [] for an empty/inverted range", () => {
+      const doc = sixLines();
+      expect(doc.read(0, 100)).toHaveLength(6);
+      expect(doc.read(10, 20)).toEqual([]);
+      expect(doc.read(3, 1)).toEqual([]);
+    });
+
+    it("tracks lineCount across load, edit, write, and reconcile", () => {
+      const doc = sixLines();
+      expect(doc.lineCount).toBe(6);
+
+      doc.edit({
+        start: { anchor: "B", text: "b" },
+        end: { anchor: "C", text: "c" },
+        replacement: "x",
+      });
+      expect(doc.lineCount).toBe(5);
+
+      doc.reconcile("one\ntwo\nthree");
+      expect(doc.lineCount).toBe(3);
+
+      doc.write("only\ntwo");
+      expect(doc.lineCount).toBe(2);
+    });
+  });
 });

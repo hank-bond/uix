@@ -10,6 +10,11 @@
 // to preserve unchanged anchors and report a diff, so cost is O(N + D).
 // `write(text)` is a clobber — it rebuilds from scratch with fresh anchors and
 // no diff, so cost is O(new line count).
+//
+// `read(start, end)` slices by line position (the one positional operation —
+// the first read has no anchors yet). A linked list has no random seek, so it
+// walks to the window; using the tracked line count it enters from whichever
+// document end is nearer, making cost O(min(start, N - end) + window).
 
 import { type AnchorAllocation, getDefaultAnchorPool } from "./pool";
 
@@ -77,6 +82,9 @@ export class AnchoredDocument {
   readonly #tail = createSentinel();
   // anchor -> node. Sentinels are not in this map.
   readonly #nodes = new Map<string, LineNode>();
+  // Live line count, maintained on every mutation so range reads can pick the
+  // nearer end to seek from without an O(N) walk just to learn the length.
+  #lineCount = 0;
   #nextAnchorIndex: number;
   readonly #allocate: (index: number) => AnchorAllocation;
 
@@ -101,8 +109,24 @@ export class AnchoredDocument {
     return this.#nextAnchorIndex;
   }
 
-  read(): readonly AnchoredLine[] {
-    return this.#snapshot();
+  // Total line count — the "of N" for paged head/tail reads.
+  get lineCount(): number {
+    return this.#lineCount;
+  }
+
+  // Read a half-open line range `[start, end)`, Python-slice style: omit both
+  // for the whole document, omit `end` for `[start:]`, omit `start` for
+  // `[:end]`. Indices are clamped into range; an empty or inverted range
+  // returns []. Seeks from whichever document end is nearer the window.
+  read(start?: number, end?: number): readonly AnchoredLine[] {
+    const count = this.#lineCount;
+    const from = clamp(start ?? 0, 0, count);
+    const to = clamp(end ?? count, from, count);
+    const len = to - from;
+    if (len === 0) return [];
+    return from <= count - to
+      ? this.#sliceFromHead(from, len)
+      : this.#sliceFromTail(count - to, len);
   }
 
   // Clobber: discard the whole document and rebuild from `text`. Anchors are
@@ -112,7 +136,7 @@ export class AnchoredDocument {
   // clobber doesn't claim to preserve anything, so there are no change hunks.
   write(text: string): readonly AnchoredLine[] {
     this.#load(text);
-    return this.#snapshot();
+    return this.read();
   }
 
   // Replace an inclusive anchor range, diffing only the range so unchanged
@@ -148,9 +172,11 @@ export class AnchoredDocument {
     this.#nodes.clear();
     this.#head.next = this.#tail;
     this.#tail.prev = this.#head;
-    for (const lineText of splitText(text)) {
+    const lines = splitText(text);
+    for (const lineText of lines) {
       this.#insertBefore(this.#createNode(lineText), this.#tail);
     }
+    this.#lineCount = lines.length;
   }
 
   // Diff oldNodes against newTexts; produce a sequence of nodes that should
@@ -243,6 +269,9 @@ export class AnchoredDocument {
     }
     prev.next = after;
     after.prev = prev;
+
+    // The spliced region went from oldNodes.length to newNodes.length lines.
+    this.#lineCount += newNodes.length - oldNodes.length;
   }
 
   #requireNode(anchor: string): LineNode {
@@ -271,15 +300,32 @@ export class AnchoredDocument {
     return nodes;
   }
 
-  // Snapshot the live list into an immutable structured line array. Callers
-  // that need a rendering (the agent's gutter view, the store's plain text)
-  // project it themselves at their own layer.
-  #snapshot(): AnchoredLine[] {
-    const lines: AnchoredLine[] = [];
-    for (let cur = this.#head.next; cur !== this.#tail; cur = cur.next) {
-      lines.push({ anchor: cur.anchor, text: cur.text });
+  // Collect `len` lines starting at index `seek`, walking forward from the
+  // head. Caller guarantees `seek + len <= lineCount`, so we never hit the
+  // tail sentinel mid-collection.
+  #sliceFromHead(seek: number, len: number): AnchoredLine[] {
+    let cur = this.#head.next;
+    for (let i = 0; i < seek; i += 1) cur = cur.next;
+    const out = new Array<AnchoredLine>(len);
+    for (let i = 0; i < len; i += 1) {
+      out[i] = { anchor: cur.anchor, text: cur.text };
+      cur = cur.next;
     }
-    return lines;
+    return out;
+  }
+
+  // Collect `len` lines ending `seek` lines before the tail, walking backward.
+  // We fill a pre-sized array from the back so the result is forward-ordered
+  // with no reverse and no front-insertion. Caller guarantees the window fits.
+  #sliceFromTail(seek: number, len: number): AnchoredLine[] {
+    let cur = this.#tail.prev;
+    for (let i = 0; i < seek; i += 1) cur = cur.prev;
+    const out = new Array<AnchoredLine>(len);
+    for (let i = len - 1; i >= 0; i -= 1) {
+      out[i] = { anchor: cur.anchor, text: cur.text };
+      cur = cur.prev;
+    }
+    return out;
   }
 
   #collectRange(startNode: LineNode, endNode: LineNode): LineNode[] {
@@ -301,6 +347,10 @@ export class AnchoredDocument {
 export function splitText(text: string): string[] {
   if (text === "") return [];
   return text.split("\n");
+}
+
+function clamp(value: number, lo: number, hi: number): number {
+  return Math.min(Math.max(value, lo), hi);
 }
 
 function createSentinel(): LineNode {
