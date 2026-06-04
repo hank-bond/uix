@@ -24,7 +24,7 @@ status: exploring
 
 - **Assigned compact anchors**, not content hashes. Content hashes are long, collide on duplicate lines when truncated, and are ephemeral; assigned IDs are drawn from a curated anchor pool, are collision-free, and stay stable across content edits. The pool is model-agnostic; token efficiency is nice-to-have, not a support gate. The tradeoff (a stateful, session-scoped anchor→line map) is acceptable because the map is regenerable from the doc, not persisted — so it doesn't make the filesystem load-bearing.
 - **A Myers reconciler** reassigns anchors only to changed lines after each edit, and runs identically for human pane edits and filesystem external changes. The state manager keeps the last observed text as the diff base; if `bash`/editor/git mutates a normal file, the next anchored `read`/`edit` reconciles against disk and can report changed hunks with fresh anchors.
-- **Edit op** = `{ start_anchor, end_anchor, replacement }` (the model emits only new content); **every write/edit/read result returns fresh anchors for touched lines**, so the agent never re-reads to learn current anchors. Validate by string-match. Decide insert semantics (zero-width range vs `insert_before`/`insert_after`).
+- **Edit op** = `{ start_anchor, end_anchor, replacement }` with an inclusive line range (`n,n` replaces one line; `n,n+1` replaces two); the model emits only replacement content. **Every write/edit/read result returns fresh anchors for touched lines**, so the agent never re-reads to learn current anchors. Validate by string-match. There are no zero-width ranges and no `insert_before`/`insert_after`; insertions are expressed by replacing an adjacent inclusive range with replacement content that includes retained line(s) plus inserted line(s).
 
 **Tool surface.** The anchored core should back both pane tools and normal filesystem tools so the model does not bounce between editing styles. Pane tools operate on document ids and current checkout (`uix_doc_read`/`write`/`edit`, or canvas aliases) with internal commit tracking; the model likely does not need to pass pane revisions. Filesystem tools can override pi's normal `read`/`write`/`edit` under the hood, use internal generations rather than model-visible versions, and add a `changes`/sync read mode for "show me what changed since the last anchored snapshot" after bash edits. If an edit target intersects stale changed lines, reject and return the fresh anchored hunk; if stale changes are unrelated, reconcile and apply.
 
@@ -47,8 +47,7 @@ status: exploring
 1. Confirm `createAgentSessionFromServices` (or the runtime factory) accepts an in-process `ExtensionFactory` — the Half-B landing spot. (`createAgentSession` only exposes `customTools`.)
 2. Confirm pi's `context`-hook message edits are **send-only**, not persisted, and that deterministic truncation holds the cache prefix.
 3. Decide whether provider-specific anchor pools are ever worth adding as an optimization beyond the landed model-agnostic pool.
-4. Edit-tool insert semantics.
-5. Stage-2 shim injection mechanism — deferred; replan against real friction.
+4. Stage-2 shim injection mechanism — deferred; replan against real friction.
 
 (Versioning-specific questions — commit metadata shape, pane-revision conflict handling — moved to [pane-and-file-versioning](./pane-and-file-versioning.md).)
 

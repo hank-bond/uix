@@ -30,10 +30,10 @@ The ordering principle and the full unit map (P0–U7) live in the design note's
 **Build.**
 
 - **Reconciler.** Myers diff that reassigns anchors **only to changed lines** after each edit. Session-scoped state: the anchor↔line map + the last-observed text as diff base. The map is **regenerable from content, never persisted** (so the filesystem stays non-load-bearing).
-- **Edit-op grammar.** `{ start_anchor, end_anchor, replacement }` — the model emits only new content. Validate by string-match. **Every write/edit/read result returns fresh anchors for touched lines** (this is the "Half A" payload — canonical anchored doc/excerpt in the tool result).
+- **Edit-op grammar.** `{ start_line, end_line, replacement }` — each boundary is the **full rendered line** (`<anchor>§<text>`), not a bare anchor, so the text half is a verbatim guard: the edit is rejected unless the live line behind the anchor still matches (the same confirmation an edit tool gets from requiring the old text). The range is inclusive (one line for a single boundary; two boundaries span a range), and the model emits only the replacement content. This is the "validate by string-match". **Every write/edit/read result returns fresh anchors for touched lines** (this is the "Half A" payload — canonical anchored doc/excerpt in the tool result).
 - Exercise through a plain tool over an in-memory / single-file document. Golden tests on the reconciler.
 
-**Open:** insert semantics — zero-width range vs `insert_before`/`insert_after` (design Q4).
+**Landing choice:** no zero-width ranges or `insert_before`/`insert_after` op. Insertions are expressed by replacing an adjacent inclusive range with replacement content that includes the retained line(s) plus the inserted line(s).
 
 **Boundary.** No panes, no UI, no history, no FS overrides, no pi integration.
 

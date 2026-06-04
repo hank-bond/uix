@@ -28,7 +28,7 @@ export class AnchorPool {
   }
 
   get maxAllocations(): number {
-    return this.anchors.length + this.anchors.length * this.anchors.length;
+    return this.anchors.length + this.anchors.length ** 2;
   }
 
   allocate(index: number): AnchorAllocation {
