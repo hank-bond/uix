@@ -12,9 +12,13 @@ import { resolve } from "node:path";
 // out/main/index.js. Necessary for packages that load their own
 // internal files via runtime paths (pino's worker_threads, native
 // modules, etc.) — bundling breaks those path lookups.
+//
+// parse5 is excluded (i.e. bundled) because it is ESM-only: left external it
+// would emit `require("parse5")`, which throws under the CJS main bundle. It is
+// pure JS with no runtime path lookups, so bundling it is safe.
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: ["parse5"] })],
     build: {
       outDir: "out/main",
       rollupOptions: {

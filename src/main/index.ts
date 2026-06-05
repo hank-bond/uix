@@ -22,8 +22,8 @@ import {
 import { assertCanvasKey } from "../shared/canvas";
 
 import { createAgentDriver } from "./agent/driver";
-import { createCanvasAgentBinding } from "./canvas/agent-binding";
 import { registerCanvasProtocol } from "./canvas/protocol";
+import { createCanvasAgentBinding } from "./content/binding";
 import { loadExtensions } from "./extensions/loader";
 import { defaultRoots } from "./extensions/roots";
 import {
