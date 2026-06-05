@@ -17,10 +17,36 @@ function shimScript(key: string): string {
   if (self) self.remove();
   var KEY = "${key}";
   var timer;
+  // outerHTML serializes attributes, not live form state — reflect each
+  // control's current property onto the clone so a selection/typed value is
+  // captured, not just the markup it was parsed from.
+  function reflectFormState(live, copy) {
+    var from = live.querySelectorAll("input, textarea, select option");
+    var to = copy.querySelectorAll("input, textarea, select option");
+    for (var i = 0; i < from.length; i++) {
+      var l = from[i];
+      var c = to[i];
+      if (l.tagName === "OPTION") {
+        if (l.selected) c.setAttribute("selected", "");
+        else c.removeAttribute("selected");
+      } else if (l.tagName === "TEXTAREA") {
+        c.textContent = l.value;
+      } else {
+        var type = (l.getAttribute("type") || "").toLowerCase();
+        if (type === "checkbox" || type === "radio") {
+          if (l.checked) c.setAttribute("checked", "");
+          else c.removeAttribute("checked");
+        } else {
+          c.setAttribute("value", l.value);
+        }
+      }
+    }
+  }
   function serialize() {
     var clone = document.documentElement.cloneNode(true);
     var body = clone.querySelector("body");
     if (body) body.removeAttribute("contenteditable");
+    reflectFormState(document.documentElement, clone);
     return clone.outerHTML;
   }
   function flush() {
@@ -36,6 +62,7 @@ function shimScript(key: string): string {
   function init() {
     document.body.contentEditable = "true";
     document.body.addEventListener("input", schedule);
+    document.body.addEventListener("change", schedule);
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
