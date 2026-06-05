@@ -28,13 +28,14 @@ export class DocumentChannel {
     this.#store = store;
   }
 
-  // Read an optionally sliced anchored snapshot. Loads the document from the
-  // store on first touch; never mutates or commits.
+  // Syncs to the store first so a read never returns content a human edit has
+  // superseded.
   async read(
     docId: string,
     start?: number,
     end?: number,
   ): Promise<readonly AnchoredLine[]> {
+    await this.#sync(docId);
     const doc = await this.#load(docId);
     return doc.read(start, end);
   }
@@ -48,13 +49,15 @@ export class DocumentChannel {
     return lines;
   }
 
-  // Replace an inclusive anchor range, preserving the anchors of unchanged
-  // lines, and persist the result. Returns the changed hunks with fresh anchors
-  // for the touched lines.
+  // Syncs to the store first: an edit computed against a stale cache would
+  // re-commit the agent's whole view and silently revert a concurrent human edit
+  // to an untouched line. If the human touched the line being edited, the core's
+  // match-guard rejects it.
   async edit(
     docId: string,
     edit: AnchoredEdit,
   ): Promise<readonly AnchoredChange[]> {
+    await this.#sync(docId);
     const doc = await this.#load(docId);
     const changes = doc.edit({
       ...edit,
@@ -62,6 +65,32 @@ export class DocumentChannel {
     });
     await this.#store.commit(docId, plainText(doc.read()));
     return changes;
+  }
+
+  // Drives the per-turn context injection (see content/binding.ts). Only
+  // touched documents are in scope: the agent has no anchors for the rest and
+  // reads them fresh when needed.
+  async collectChanges(): Promise<
+    ReadonlyMap<string, readonly AnchoredChange[]>
+  > {
+    const result = new Map<string, readonly AnchoredChange[]>();
+    for (const docId of this.#docs.keys()) {
+      const changes = await this.#sync(docId);
+      if (changes.length) result.set(docId, changes);
+    }
+    return result;
+  }
+
+  // No commit — the content came *from* the store. Returns [] when already in
+  // sync, so it is cheap to call on every read/edit. Canonicalizing before the
+  // compare keeps a human's non-canonical HTML from registering as a spurious
+  // diff.
+  async #sync(docId: string): Promise<readonly AnchoredChange[]> {
+    const doc = await this.#load(docId);
+    const current = await this.#store.getCurrent(docId);
+    const canonical = current === null ? "" : canonicalizeHtml(current);
+    if (plainText(doc.read()) === canonical) return [];
+    return doc.reconcile(canonical);
   }
 
   async #load(docId: string): Promise<AnchoredDocument> {

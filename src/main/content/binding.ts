@@ -82,6 +82,11 @@ export function createCanvasAgentBinding(
       createWriteTool(channel, opts),
       createEditTool(channel, opts),
     ],
+    // Surface human edits the agent hasn't seen as turn context, not a tool the
+    // agent must remember to call. The channel reconciles each touched canvas
+    // against its current stored content; we render the diff with fresh anchors
+    // so the agent can act on it without a re-read.
+    contextForTurn: () => channel.collectChanges().then(formatCanvasChanges),
   };
 }
 
@@ -164,7 +169,10 @@ function createEditTool(
       opts.onCanvasChanged(params.key);
       return {
         content: [
-          { type: "text", text: formatEditResult(params.key, changes) },
+          {
+            type: "text",
+            text: formatChangeHunks(`Edited ${params.key}`, changes),
+          },
         ],
         details: {},
       };
@@ -172,15 +180,31 @@ function createEditTool(
   };
 }
 
-// Surface the touched lines with their fresh anchors so the agent can keep
-// editing without re-reading. New lines render in wire format; the counts make
-// pure deletions legible (no new lines to show).
-function formatEditResult(
-  key: string,
+function formatChangeHunks(
+  label: string,
   changes: readonly AnchoredChange[],
 ): string {
   const removed = changes.flatMap((change) => change.oldLines);
   const added = changes.flatMap((change) => change.newLines);
-  const header = `Edited ${key} (−${removed.length}/+${added.length}).`;
+  const header = `${label} (−${removed.length}/+${added.length})`;
   return added.length ? `${header}\n${formatAnchoredText(added)}` : header;
+}
+
+function formatCanvasChanges(
+  changes: ReadonlyMap<string, readonly AnchoredChange[]>,
+): string | null {
+  if (changes.size === 0) return null;
+
+  const sections: string[] = [];
+  for (const [key, hunks] of changes) {
+    sections.push(formatChangeHunks(`## ${key}`, hunks));
+  }
+
+  return [
+    "<canvas-changes>",
+    "The human edited these canvases since your last turn; the anchors below are current.",
+    "",
+    sections.join("\n\n"),
+    "</canvas-changes>",
+  ].join("\n");
 }

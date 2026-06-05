@@ -25,7 +25,11 @@ import type { AgentEvent } from "../../shared/ipc";
 
 import { disposable, DisposableBag, subscribe } from "../lifecycle";
 
-import { type AgentBinding, collectAgentBindingTools } from "./bindings";
+import {
+  type AgentBinding,
+  collectAgentBindingContext,
+  collectAgentBindingTools,
+} from "./bindings";
 
 /**
  * The driver itself is a Disposable so callers can hand it to a Bag
@@ -108,7 +112,13 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
           throw err;
         });
         const session = await sessionPromise;
-        await session.prompt(text);
+        // Prepend any binding-contributed turn context (e.g. the canvas
+        // human-writeback diff) to the outgoing prompt. The user_message event
+        // above carries the human's original text
+        const context = await collectAgentBindingContext(
+          opts.agentBindings ?? [],
+        );
+        await session.prompt(context ? `${context}\n\n${text}` : text);
       } catch (err) {
         opts.onEvent({
           type: "error",

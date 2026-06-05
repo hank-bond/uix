@@ -97,4 +97,81 @@ describe("DocumentChannel", () => {
 
     expect(read.some((line) => line.text.includes("<div>x</div>"))).toBe(true);
   });
+
+  it("reports an out-of-band (human) edit as changes, preserving untouched anchors", async () => {
+    const store = memoryStore();
+    const channel = new DocumentChannel(store);
+    const lines = await channel.write(
+      "main",
+      "<body>\n<p>a</p>\n<p>b</p>\n<p>c</p>\n</body>",
+    );
+    const aAnchor = lines.find((l) => l.text === "<p>a</p>")!.anchor;
+
+    // A human edits line b directly in the store (raw HTML, same whitespace).
+    await store.commit(
+      "main",
+      store.dump("main")!.replace("<p>b</p>", "<p>B</p>"),
+    );
+
+    const changes = await channel.collectChanges();
+    const hunks = changes.get("main")!;
+    expect(hunks.flatMap((h) => h.oldLines).map((l) => l.text)).toContain(
+      "<p>b</p>",
+    );
+    expect(hunks.flatMap((h) => h.newLines).map((l) => l.text)).toContain(
+      "<p>B</p>",
+    );
+    // Untouched line keeps its anchor across the reconcile.
+    const read = await channel.read("main");
+    expect(read.find((l) => l.text === "<p>a</p>")!.anchor).toBe(aAnchor);
+  });
+
+  it("collectChanges is idempotent once synced", async () => {
+    const store = memoryStore();
+    const channel = new DocumentChannel(store);
+    await channel.write("main", "<body>\n<p>a</p>\n</body>");
+    await store.commit(
+      "main",
+      store.dump("main")!.replace("<p>a</p>", "<p>A</p>"),
+    );
+
+    expect((await channel.collectChanges()).size).toBe(1);
+    expect((await channel.collectChanges()).size).toBe(0);
+  });
+
+  it("an agent edit does not clobber a concurrent human edit to another line", async () => {
+    const store = memoryStore();
+    const channel = new DocumentChannel(store);
+    const lines = await channel.write(
+      "main",
+      "<body>\n<p>a</p>\n<p>b</p>\n<p>c</p>\n</body>",
+    );
+    const a = lines.find((l) => l.text === "<p>a</p>")!;
+
+    // Human changes c out of band; agent then edits a against its stale view.
+    await store.commit(
+      "main",
+      store.dump("main")!.replace("<p>c</p>", "<p>C</p>"),
+    );
+    await channel.edit("main", { start: a, end: a, replacement: "<p>A</p>" });
+
+    const committed = store.dump("main")!;
+    expect(committed).toContain("<p>A</p>"); // agent's edit applied
+    expect(committed).toContain("<p>C</p>"); // human's edit survived
+    expect(committed).not.toContain("<p>c</p>");
+  });
+
+  it("ignores a purely cosmetic out-of-band rewrite", async () => {
+    const store = memoryStore();
+    const channel = new DocumentChannel(store);
+    await channel.write("main", "<body>\n<p>x</p>\n</body>");
+
+    // Same content, non-canonical casing — canonicalization absorbs it.
+    await store.commit(
+      "main",
+      store.dump("main")!.replace("<p>x</p>", "<P>x</P>"),
+    );
+
+    expect((await channel.collectChanges()).size).toBe(0);
+  });
 });
