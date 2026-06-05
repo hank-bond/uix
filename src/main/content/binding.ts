@@ -19,6 +19,8 @@ import type { AgentBinding } from "../agent/bindings";
 import type { AnchoredChange } from "../anchors/document";
 import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
 
+import { createLogger } from "../log";
+
 import { DocumentChannel } from "./channel";
 import type { ContentStore } from "./content-store";
 
@@ -75,6 +77,7 @@ interface CanvasAgentBindingOptions {
 export function createCanvasAgentBinding(
   opts: CanvasAgentBindingOptions,
   store: ContentStore,
+  openCanvasKeys: readonly string[],
 ): AgentBinding {
   const channel = new DocumentChannel(store);
   return {
@@ -83,11 +86,21 @@ export function createCanvasAgentBinding(
       createWriteTool(channel, opts),
       createEditTool(channel, opts),
     ],
-    // Surface human edits the agent hasn't seen as turn context, not a tool the
-    // agent must remember to call. The channel reconciles each touched canvas
-    // against its current stored content; we render the diff with fresh anchors
-    // so the agent can act on it without a re-read.
-    contextForTurn: () => channel.collectChanges().then(formatCanvasChanges),
+    // Each turn: name the canvases open in the pane (so the agent knows the keys
+    // exist and can read them) and surface diffs of human edits to any it has
+    // already engaged with — both as context, not tools it must remember to call.
+    contextForTurn: async () => {
+      const parts = [
+        formatOpenCanvases(openCanvasKeys),
+        formatCanvasChanges(await channel.collectChanges()),
+      ].filter((part): part is string => part !== null);
+      const block = parts.length ? parts.join("\n\n") : null;
+      createLogger("canvas").info(
+        { block: block ?? "(nothing in scope)" },
+        "writeback_context",
+      );
+      return block;
+    },
   };
 }
 
@@ -189,6 +202,18 @@ function formatChangeHunks(
   const added = changes.flatMap((change) => change.newLines);
   const header = `${label} (−${removed.length}/+${added.length})`;
   return added.length ? `${header}\n${formatAnchoredText(added)}` : header;
+}
+
+// Awareness only: the agent pulls contents with uix_canvas_read. Edit diffs
+// flow through formatCanvasChanges once a canvas is in scope.
+function formatOpenCanvases(keys: readonly string[]): string | null {
+  if (keys.length === 0) return null;
+  return [
+    "<canvases-open>",
+    "Open in the pane now. Read with uix_canvas_read to see contents.",
+    keys.join("\n"),
+    "</canvases-open>",
+  ].join("\n");
 }
 
 function formatCanvasChanges(

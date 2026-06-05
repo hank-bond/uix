@@ -116,9 +116,12 @@ void app.whenReady().then(async () => {
   const driver = createAgentDriver({
     onEvent: (event) => sendAgentEvent(mainWindow, event),
     agentBindings: [
+      // Open canvases are hardcoded to match the stage-1 pane (Canvas.tsx);
+      // swap for pane-reported keys when the pane host lands.
       createCanvasAgentBinding(
         { onCanvasChanged: sendCanvasChanged },
         canvasStore,
+        ["main"],
       ),
     ],
   });
@@ -142,6 +145,10 @@ void app.whenReady().then(async () => {
   appBag.add(
     handle<CanvasWriteback, void>(Channels.canvasWriteback, async (req) => {
       assertCanvasKey(req.key);
+      createLogger("canvas").info(
+        { key: req.key, bytes: req.html.length },
+        "canvas_writeback",
+      );
       // No broadcast: the pane already shows the human's edit, and the channel
       // pulls from the store on its next turn.
       await canvasStore.commit(req.key, req.html);
