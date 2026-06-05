@@ -16,6 +16,8 @@ export const Channels = {
   canvasChanged: "uix:canvas-changed",
   /** Renderer → main. invoke-style. Dev-only canvas refresh trigger. */
   canvasRefresh: "uix:canvas-refresh",
+  /** Renderer → main. invoke-style. Human pane edit flushed back to the store. */
+  canvasWriteback: "uix:canvas-writeback",
   /** Renderer → main. invoke-style. Reloads cockpit resources in place. */
   reload: "uix:reload",
 } as const;
@@ -35,6 +37,12 @@ export interface ReloadResult {
 /** Payload for `uix:canvas-changed` and `uix:canvas-refresh`. */
 export interface CanvasChanged {
   key: string;
+}
+
+/** Payload for `uix:canvas-writeback`. */
+export interface CanvasWriteback {
+  key: string;
+  html: string;
 }
 
 /**
@@ -57,6 +65,8 @@ export interface UIXBridge {
   onCanvasChanged: (handler: (event: CanvasChanged) => void) => () => void;
   /** Dev/dogfood hook for hand-edited canvas files. */
   refreshCanvas: (req: CanvasChanged) => Promise<void>;
+  /** Flush a human pane edit back to the store. */
+  writebackCanvas: (req: CanvasWriteback) => Promise<void>;
   /** Programmatic hook for future command palette/menu/chat /reload. */
   reload: () => Promise<ReloadResult>;
 }

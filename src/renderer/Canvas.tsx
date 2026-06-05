@@ -5,7 +5,11 @@
 
 import { useEffect, useState } from "react";
 
-import { canvasUrl } from "../shared/canvas";
+import {
+  CanvasProtocolScheme,
+  canvasKeyToHost,
+  canvasUrl,
+} from "../shared/canvas";
 
 export interface CanvasProps {
   canvasKey: string;
@@ -20,6 +24,22 @@ export function Canvas({ canvasKey }: CanvasProps) {
         setToken((prev) => prev + 1);
       }
     });
+  }, [canvasKey]);
+
+  useEffect(() => {
+    // The shim postMessages human edits up from the sandboxed canvas frame.
+    // Trust only this canvas's own origin and its own key.
+    const origin = `${CanvasProtocolScheme}://${canvasKeyToHost(canvasKey)}`;
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== origin) return;
+      const msg = event.data as { type?: string; key?: string; html?: string };
+      if (msg?.type !== "uix:canvas-writeback" || msg.key !== canvasKey) return;
+      // Guard against a malformed message blanking the stored canvas.
+      if (typeof msg.html !== "string" || msg.html === "") return;
+      void window.uix.writebackCanvas({ key: canvasKey, html: msg.html });
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
   }, [canvasKey]);
 
   return (

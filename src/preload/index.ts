@@ -9,6 +9,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import {
   type AgentEvent,
   type CanvasChanged,
+  type CanvasWriteback,
   Channels,
   type PromptRequest,
   type UIXBridge,
@@ -18,6 +19,8 @@ const bridge: UIXBridge = {
   sendPrompt: (req: PromptRequest) => ipcRenderer.invoke(Channels.prompt, req),
   refreshCanvas: (req: CanvasChanged) =>
     ipcRenderer.invoke(Channels.canvasRefresh, req),
+  writebackCanvas: (req: CanvasWriteback) =>
+    ipcRenderer.invoke(Channels.canvasWriteback, req),
   reload: () => ipcRenderer.invoke(Channels.reload),
 
   onAgentEvent: (handler) => {

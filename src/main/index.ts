@@ -15,6 +15,7 @@ import process from "node:process";
 import {
   type AgentEvent,
   type CanvasChanged,
+  type CanvasWriteback,
   Channels,
   type PromptRequest,
   type ReloadResult,
@@ -24,6 +25,7 @@ import { assertCanvasKey } from "../shared/canvas";
 import { createAgentDriver } from "./agent/driver";
 import { registerCanvasProtocol } from "./canvas/protocol";
 import { createCanvasAgentBinding } from "./content/binding";
+import { createCanvasContentStore } from "./content/content-store";
 import { loadExtensions } from "./extensions/loader";
 import { defaultRoots } from "./extensions/roots";
 import {
@@ -106,12 +108,18 @@ void app.whenReady().then(async () => {
     }),
   );
 
+  // One canvas store shared by the agent's channel and the human-writeback
+  // handler, so both commit through the same seam — and pick up versioning
+  // together once the store gains it.
+  const canvasStore = createCanvasContentStore();
+
   const driver = createAgentDriver({
     onEvent: (event) => sendAgentEvent(mainWindow, event),
     agentBindings: [
-      createCanvasAgentBinding({
-        onCanvasChanged: sendCanvasChanged,
-      }),
+      createCanvasAgentBinding(
+        { onCanvasChanged: sendCanvasChanged },
+        canvasStore,
+      ),
     ],
   });
   appBag.add(driver);
@@ -128,6 +136,15 @@ void app.whenReady().then(async () => {
     handle<CanvasChanged, void>(Channels.canvasRefresh, (req) => {
       assertCanvasKey(req.key);
       sendCanvasChanged(req.key);
+    }),
+  );
+
+  appBag.add(
+    handle<CanvasWriteback, void>(Channels.canvasWriteback, async (req) => {
+      assertCanvasKey(req.key);
+      // No broadcast: the pane already shows the human's edit, and the channel
+      // pulls from the store on its next turn.
+      await canvasStore.commit(req.key, req.html);
     }),
   );
 

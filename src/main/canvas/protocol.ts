@@ -12,6 +12,7 @@ import { CanvasProtocolScheme, canvasHostToKey } from "../../shared/canvas";
 import { disposable } from "../lifecycle";
 import { createLogger } from "../log";
 
+import { injectCanvasShim } from "./shim";
 import { readCanvas } from "./store";
 
 const log = createLogger("canvas");
@@ -35,7 +36,7 @@ export function registerCanvasProtocol(): Disposable {
 
     if (key && html !== null) {
       log.info({ key }, "canvas_served");
-      return htmlResponse(html, 200);
+      return htmlResponse(injectCanvasShim(html, key), 200);
     }
 
     log.info({ key: key ?? url.hostname }, "canvas_not_found");

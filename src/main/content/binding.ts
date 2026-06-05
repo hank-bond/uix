@@ -20,7 +20,7 @@ import type { AnchoredChange } from "../anchors/document";
 import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
 
 import { DocumentChannel } from "./channel";
-import { createCanvasContentStore } from "./content-store";
+import type { ContentStore } from "./content-store";
 
 const keyDescription = `Canvas key (not a filesystem path): ${CanvasKeyDescription}, e.g. main or reports/security-review.`;
 
@@ -74,8 +74,9 @@ interface CanvasAgentBindingOptions {
 
 export function createCanvasAgentBinding(
   opts: CanvasAgentBindingOptions,
+  store: ContentStore,
 ): AgentBinding {
-  const channel = new DocumentChannel(createCanvasContentStore());
+  const channel = new DocumentChannel(store);
   return {
     tools: [
       createReadTool(channel),
