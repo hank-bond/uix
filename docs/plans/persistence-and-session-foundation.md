@@ -50,13 +50,13 @@ Persistence is the phase that ties the conversation tree, canvas versions, and a
 
 **Boundary.** Store-only; no session linkage yet.
 
-## C3 — Per-turn canvas pointers as `CustomEntry`
+## C3 — Per-turn state pointers as `CustomEntry`
 
-**Goal.** Each turn records which canvas versions were live; the record rides the tree.
+**Goal.** Each turn records which canvas versions **and which agent cwd** were live; the record rides the tree.
 
-**Build.** At the submit-boundary hook (C1's `input` hook), after committing pending human edits: `pi.appendEntry("uix.canvas-versions", { panes: { [docId]: versionId } })` — auto-parented to the leaf. On resume/navigation, walk `parentId` from the node up to the nearest such entry to know which versions were current. Resolves [pane-and-file-versioning](../design/pane-and-file-versioning.md) open-Q #3.
+**Build.** At the submit-boundary hook (C1's `input` hook), after committing pending human edits: `pi.appendEntry("uix.turn-state", { panes: { [docId]: versionId }, cwd })` — auto-parented to the leaf. On resume/navigation, walk `parentId` from the node up to the nearest such entry to know which versions were current and which cwd the agent was at; reopen at that cwd (fall back to the home root + notice if the path is gone). Resolves [pane-and-file-versioning](../design/pane-and-file-versioning.md) open-Q #3 and carries the per-turn cwd that [project-root-vs-agent-cwd](../decisions/2026-06-06-project-root-vs-agent-cwd.md) depends on.
 
-**Boundary.** Record + read; restore UI is C5.
+**Boundary.** Record + read; restore UI is C5. The agent `changeCwd` capability and standardized worktree creation are their own work, gated on an app needing the move.
 
 ## C4 — Anchor-state continuity
 
