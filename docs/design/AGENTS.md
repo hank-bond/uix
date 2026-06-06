@@ -7,6 +7,7 @@ Each note is slugged by the **problem**, not the solution (so it survives pivots
 <!-- INDEX:START -->
 
 - **[canvas-data-channel](./canvas-data-channel.md)** _(exploring)_ — Design thread for the bidirectional canvas/document data channel: the anchored edit grammar, pane tools, writeback/user diffs, and the content-store seam. Read before working on anchored edit tools, pane tools, filesystem-tool parity, or the case-1/case-2 canvas split. Versioning, history, and rollback are a sibling thread (pane-and-file-versioning).
+- **[conversation-render-primitives](./conversation-render-primitives.md)** _(exploring)_ — How the conversation pane renders typed blocks extensibly by porting pi's render architecture from TUI to React: a forwarded event stream plus two render registries (tool renderers keyed by tool name; message renderers keyed by customType) and pi's content/display/details block split. Read before adding conversation block types, agent-triggerable UI components, or the frontend-extension render API.
 - **[pane-and-file-versioning](./pane-and-file-versioning.md)** _(exploring)_ — Design thread for versioning, history, and rollback of pane documents and (optionally) the user's working tree, both backed by git and linked to pi's conversation tree. Read before working on the .uix object store, conversation-node restore points, per-run file snapshots, or the rollback UI. The anchored edit channel that sits in front of this is a sibling thread (canvas-data-channel).
 
 <!-- INDEX:END -->

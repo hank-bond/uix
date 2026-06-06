@@ -19,5 +19,6 @@ Short seeds. Promote one to its own file the moment it grows past a line, and de
 <!-- INDEX:START -->
 
 - **[canvas-anchored-edit-channel](./canvas-anchored-edit-channel.md)** _(active)_ — Build spec for the value-first canvas data channel: the anchor pool (P0), the anchored editing core (U1), and the live bidirectional canvas channel (U2) on customTools. Read when implementing the anchored read/write/edit grammar, the reconciler, or pane writeback. Later units (pi refactor, FS parity, versioning) are out of scope here.
+- **[persistence-and-session-foundation](./persistence-and-session-foundation.md)** _(active)_ — Build spec for persistence on pi's session file: file-backed session + history rehydration (C0) and promoting UIX-core bindings to an in-process pi extension (C1) are the foundation to lay before resuming conversation-render work; versioned content store (C2), per-turn canvas pointers as CustomEntry (C3), anchor-state continuity (C4), and tree preview/restore (C5) are specified here for later. Read before touching session construction, the content-store seam, or conversation-tree navigation.
 
 <!-- INDEX:END -->

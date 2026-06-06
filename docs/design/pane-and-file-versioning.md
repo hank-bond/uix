@@ -45,7 +45,7 @@ conversationNode.uix = {
 
 1. git library vs shelling out — prefer in-process (isomorphic-git or a libgit2 binding) so it runs identically local + hosted and doesn't fork per commit. Spike both stores against it.
 2. Owned store: a **ref per doc** vs a **path-in-tree** per doc. Refs branch more naturally with the conversation tree; paths give simpler multi-doc atomic commits.
-3. Exact commit metadata shape (`docId`, parents, author, optional summary) and precisely where conversation nodes store the pointers in UIX-owned pi sessions.
+3. ~~Exact commit metadata shape (`docId`, parents, author, optional summary) and precisely where conversation nodes store the pointers in UIX-owned pi sessions.~~ **Resolved 2026-06-06:** pointers live as a `CustomEntry` (`uix.canvas-versions`, `{ panes: { docId: versionId } }`) parent-linked into pi's session tree — we annotate pi's tree, not a parallel one. See [session-file-as-state-substrate](../decisions/2026-06-06-session-file-as-state-substrate.md). Commit metadata shape for the git-backed store (spike 1 below) is still open.
 4. User-file store: do we plant `refs/uix/...` for _auto_ (unlabeled) per-run snapshots to survive the user's gc, or accept that auto snapshots are ephemeral and only _labeled_ ones get durable refs? (Lean: ephemeral auto, durable on label — minimal footprint in the user's repo.)
 5. Rollback UI: how the conversation-only / pane-only / files / all actions are presented, and whether restore offers in-place vs into-a-worktree.
 6. Pane-revision conflict handling: results expose commit ids for observability; do conflict-sensitive calls also accept an optional expected commit id, or is reject-on-stale-anchor-intersection enough?
@@ -57,6 +57,10 @@ conversationNode.uix = {
 - Plan: build units U5–U6 (pane versioning + rollback) and U7 (opt-in user-file rollback), sequenced _after_ the P0–U2 channel proof per the value-first ordering.
 
 ## Log
+
+### 2026-06-06 — session file resolves the pointer-home question
+
+Researched pi's session file format: an append-only JSONL tree where every entry has `{id, parentId}` and pi ships `CustomEntry`/`CustomMessageEntry` for arbitrary extension state. This **is** the conversation-node meta slot — `{docId: sha/versionId}` pointers ride pi's tree as `CustomEntry` (resolving open-Q #3), so the "emergent branching off conversation nodes" model needs no parallel tree. Write access requires holding pi's `ExtensionAPI` (`appendEntry`), which forces promoting UIX-core bindings from `customTools` to an in-process pi extension — captured in [session-file-as-state-substrate](../decisions/2026-06-06-session-file-as-state-substrate.md). The git-backed owned-pane store from this thread stays the impl behind the versioned `ContentStore` seam (plan C2); spikes 1–6 above (git library, ref-per-doc vs path-in-tree, etc.) are still open and gate that store specifically. Build sequencing now lives in [persistence-and-session-foundation](../plans/persistence-and-session-foundation.md) (C2 store, C3 pointers, C4 anchor continuity, C5 rollback = this thread's U5–U6).
 
 ### 2026-06-02 — split out from canvas-data-channel
 
