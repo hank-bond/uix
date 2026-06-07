@@ -21,16 +21,17 @@ export interface ContentStore {
 
 // Single-version store mapping document ids onto the canvas files the canvas://
 // protocol reads. A docId is a canvas key here, so commits land exactly where
-// the protocol serves from and the pane reflects committed content.
-export function createCanvasContentStore(): ContentStore {
+// the protocol serves from and the pane reflects committed content. Bound to the
+// workspace state root so canvases stay put across a worktree shift.
+export function createCanvasContentStore(stateRoot: string): ContentStore {
   return {
     async getCurrent(docId) {
       assertCanvasKey(docId);
-      return readCanvas(docId);
+      return readCanvas(stateRoot, docId);
     },
     async commit(docId, content) {
       assertCanvasKey(docId);
-      await writeCanvas(docId, content);
+      await writeCanvas(stateRoot, docId, content);
     },
   };
 }

@@ -20,6 +20,8 @@ export const Channels = {
   canvasWriteback: "uix:canvas-writeback",
   /** Renderer → main. invoke-style. Reloads cockpit resources in place. */
   reload: "uix:reload",
+  /** Renderer → main. invoke-style. Prior transcript for rehydration on mount. */
+  history: "uix:history",
 } as const;
 
 /** Payload for `uix:prompt`. */
@@ -58,6 +60,21 @@ export type AgentEvent =
   | { type: "assistant_end" }
   | { type: "error"; message: string };
 
+/**
+ * A complete, already-finished message from the persisted session, replayed
+ * into the transcript on startup. The renderer's *second* input shape: live
+ * `AgentEvent` deltas stream the current turn; these seed prior turns whole.
+ * Tool calls/results join this once the render registries exist.
+ */
+export interface HistoryMessage {
+  role: "user" | "assistant";
+  text: string;
+}
+
+export interface HistorySnapshot {
+  messages: HistoryMessage[];
+}
+
 /** Shape exposed on `window.uix` by the preload. */
 export interface UIXBridge {
   sendPrompt: (req: PromptRequest) => Promise<void>;
@@ -69,4 +86,6 @@ export interface UIXBridge {
   writebackCanvas: (req: CanvasWriteback) => Promise<void>;
   /** Programmatic hook for future command palette/menu/chat /reload. */
   reload: () => Promise<ReloadResult>;
+  /** Pull the prior transcript to seed the pane on mount. */
+  getHistory: () => Promise<HistorySnapshot>;
 }

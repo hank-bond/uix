@@ -28,11 +28,11 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
-export function registerCanvasProtocol(): Disposable {
+export function registerCanvasProtocol(stateRoot: string): Disposable {
   protocol.handle(CanvasProtocolScheme, async (request) => {
     const url = new URL(request.url);
     const key = canvasHostToKey(url.hostname);
-    const html = key ? await readCanvas(key) : null;
+    const html = key ? await readCanvas(stateRoot, key) : null;
 
     if (key && html !== null) {
       log.info({ key }, "canvas_served");

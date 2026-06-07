@@ -17,6 +17,7 @@ import {
   type CanvasChanged,
   type CanvasWriteback,
   Channels,
+  type HistorySnapshot,
   type PromptRequest,
   type ReloadResult,
 } from "../shared/ipc";
@@ -28,6 +29,7 @@ import { createCanvasAgentBinding } from "./content/binding";
 import { createCanvasContentStore } from "./content/content-store";
 import { loadExtensions } from "./extensions/loader";
 import { defaultRoots } from "./extensions/roots";
+import { resolveWorkspace } from "./workspace";
 import {
   DisposableBag,
   handle,
@@ -88,7 +90,11 @@ void app.whenReady().then(async () => {
   // They go in early so they're armed before any user code runs.
   appBag.add(installProcessHandlers(createLogger("main")));
 
-  appBag.add(registerCanvasProtocol());
+  // One resolved workspace: stateRoot pins canvases + the session file; agentCwd
+  // is what the agent's tools operate against (see ./workspace.ts).
+  const workspace = resolveWorkspace();
+
+  appBag.add(registerCanvasProtocol(workspace.stateRoot));
 
   // Extensions live under their own child scope so reload can tear
   // down the extension subtree without touching app-lifetime process
@@ -111,10 +117,11 @@ void app.whenReady().then(async () => {
   // One canvas store shared by the agent's channel and the human-writeback
   // handler, so both commit through the same seam — and pick up versioning
   // together once the store gains it.
-  const canvasStore = createCanvasContentStore();
+  const canvasStore = createCanvasContentStore(workspace.stateRoot);
 
   const driver = createAgentDriver({
     onEvent: (event) => sendAgentEvent(mainWindow, event),
+    workspace,
     agentBindings: [
       // Open canvases are hardcoded to match the stage-1 pane (Canvas.tsx);
       // swap for pane-reported keys when the pane host lands.
@@ -126,6 +133,9 @@ void app.whenReady().then(async () => {
     ],
   });
   appBag.add(driver);
+  // Eager, off the boot path: loads the session file so getHistory() resolves
+  // fast. The auth-bearing live agent stays lazy until the first prompt.
+  driver.init();
 
   appBag.add(
     handle<PromptRequest, void>(Channels.prompt, (req) => {
@@ -133,6 +143,10 @@ void app.whenReady().then(async () => {
       // and `invoke` resolves once the prompt has been accepted.
       void driver.prompt(req.text);
     }),
+  );
+
+  appBag.add(
+    handle<void, HistorySnapshot>(Channels.history, () => driver.history()),
   );
 
   appBag.add(

@@ -1,14 +1,14 @@
 // UIX cockpit — conversation pane.
 //
-// Subscribes to `window.uix.onAgentEvent` and renders the running
-// transcript as plain text. Three message kinds today: user prompts,
-// assistant text (streamed), and errors. Tool calls and other lifecycle
-// events get their own affordances when we need them; for now we just
-// want to see text flow.
+// Two input shapes feed the transcript. Live `AgentEvent`s stream the *current*
+// turn (user prompt, assistant text deltas, errors). A startup history pull
+// seeds *prior* turns whole — already-finished messages, no deltas to replay.
+// Tool calls and other lifecycle events get their own affordances when we need
+// them; for now we just want to see text flow.
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import type { AgentEvent } from "../shared/ipc";
+import type { AgentEvent, HistoryMessage } from "../shared/ipc";
 
 type Message =
   | { id: number; role: "user"; text: string }
@@ -21,6 +21,8 @@ export function Conversation() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+  const seededRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -30,6 +32,30 @@ export function Conversation() {
         setPending(false);
       }
     });
+  }, []);
+
+  // Pull the prior transcript once and prepend it. Prepend (not replace) so any
+  // live event that arrived during the await stays after the resumed history;
+  // the ref guards against React StrictMode's double-mount.
+  useEffect(() => {
+    if (seededRef.current) return;
+    seededRef.current = true;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const snapshot = await window.uix.getHistory();
+        if (cancelled) return;
+        setMessages((prev) => [
+          ...snapshot.messages.map(historyToMessage),
+          ...prev,
+        ]);
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -59,7 +85,9 @@ export function Conversation() {
       <div className="conversation__scroll" ref={scrollRef}>
         {messages.length === 0 ? (
           <div className="pane__body--placeholder">
-            send a prompt — main echoes it back
+            {hydrated
+              ? "send a prompt — main echoes it back"
+              : "loading transcript…"}
           </div>
         ) : (
           messages.map((m) => (
@@ -101,6 +129,14 @@ export function Conversation() {
       </form>
     </>
   );
+}
+
+// A resumed entry is already complete: assistant text is final (done), never a
+// streaming delta. This is the seed path; reduce() below is the live path.
+function historyToMessage(message: HistoryMessage): Message {
+  return message.role === "user"
+    ? { id: nextId++, role: "user", text: message.text }
+    : { id: nextId++, role: "assistant", text: message.text, done: true };
 }
 
 function reduce(prev: Message[], event: AgentEvent): Message[] {

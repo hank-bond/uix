@@ -22,6 +22,7 @@ const bridge: UIXBridge = {
   writebackCanvas: (req: CanvasWriteback) =>
     ipcRenderer.invoke(Channels.canvasWriteback, req),
   reload: () => ipcRenderer.invoke(Channels.reload),
+  getHistory: () => ipcRenderer.invoke(Channels.history),
 
   onAgentEvent: (handler) => {
     const listener = (_e: Electron.IpcRendererEvent, event: AgentEvent) =>
