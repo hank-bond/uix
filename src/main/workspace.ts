@@ -8,9 +8,8 @@
 //     session file would be orphaned.
 //   agentCwd  — what pi's coding tools (bash/read/edit/grep) operate against,
 //     and what the session header records. This is the single mutable seam a
-//     future worktree shift moves (see docs/architecture/open-questions.md,
-//     "Reactive agent cwd"); keeping it distinct from stateRoot is the only
-//     pre-payment C0 makes for that.
+//     future worktree shift moves; keeping it distinct from stateRoot is what
+//     lets that shift leave the canvases and session file in place.
 //
 // Resolved once at boot. A future project-picker replaces process.cwd() here.
 

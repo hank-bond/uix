@@ -24,7 +24,7 @@ What's *next* lives in the plans backlog ([`../plans/`](../plans/)); per-decisio
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
 
-- **[conventions](./conventions.md)** _(active)_ — Main-process code conventions for lifetimes, module exports, validation, logging, imports, and lifecycle helpers. Read when writing or reviewing cockpit internals.
+- **[conventions](./conventions.md)** _(active)_ — Code conventions for the cockpit: lifetimes, naming, comments, module exports, validation, logging, imports, and lifecycle helpers. Most are main-process; naming and comments apply to all UIX code. Read when writing or reviewing UIX code.
 - **[open-questions](./open-questions.md)** _(active)_ — Parking lot for named but unresolved substrate, documentation, and future-app questions. Read before turning an open question into a decision or build plan.
 
 <!-- INDEX:END -->

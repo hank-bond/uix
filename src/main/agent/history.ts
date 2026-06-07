@@ -4,9 +4,9 @@
 // list the renderer seeds with on startup. Kept separate from the driver so the
 // behavior (what the resumed transcript shows) is testable without pi or IPC.
 //
-// C0 scope: user + assistant text only. Tool calls/results and other entry
-// kinds (thinking/model-change/custom) are dropped here and reintroduced when
-// the conversation render registries land.
+// Maps user + assistant text only. Tool calls/results and other entry kinds
+// (thinking/model-change/custom) are intentionally dropped — the transcript
+// renders plain text.
 
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 

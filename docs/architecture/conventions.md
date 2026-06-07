@@ -1,11 +1,11 @@
 ---
-summary: "Main-process code conventions for lifetimes, module exports, validation, logging, imports, and lifecycle helpers. Read when writing or reviewing cockpit internals."
+summary: "Code conventions for the cockpit: lifetimes, naming, comments, module exports, validation, logging, imports, and lifecycle helpers. Most are main-process; naming and comments apply to all UIX code. Read when writing or reviewing UIX code."
 status: active
 ---
 
 # Conventions
 
-Short, opinionated rules. Each one buys back review effort by making a class of bugs hard to write.
+Short, opinionated rules. Each one buys back review effort by making a class of bugs hard to write. Most are main-process specifics (lifetimes, logging, imports); **Naming** and **Comments** apply to all UIX code — renderer, shared, and extensions included.
 
 ## Lifetime management (main process)
 
@@ -37,6 +37,16 @@ bag[Symbol.dispose]();
 - A `DisposableBag` that owns registrations is named after the lifetime it tracks: `appBag`, `windowBag`, `sessionBag`.
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
 - Anything implementing `Disposable` is fine to add to a bag — no ceremony needed.
+
+## Comments
+
+**Rule.** A comment explains _why_ this code is here, not _what_ it does. If a comment is needed to follow what the code does, that is a naming problem — rename until the code reads on its own, then delete the comment.
+
+**No planning artifacts.** Plan phases (`C3`), stage numbers, ticket ids, `v0` — none belong in code. They are a parallel vocabulary that means nothing to a later reader and goes stale the moment the plan moves on. The same applies to links to dated decision/design/plan docs: the rationale they hold churns independently of the code, so a citation becomes a re-validation cost (open the doc, check it still applies) rather than a help. A pointer to a living style doc (this file) is the exception — it tracks a stable convention, not a point-in-time decision.
+
+**Only stable placement context.** Keep a comment only when its context is both (a) necessary to place the code in the system and (b) unlikely to change across revisions. If a reader could rediscover the context ad-hoc — who calls this, how it is wired — leave it out; rediscovery is cheaper than keeping a comment honest. Comments that narrate _future_ intentions ("a `diff` method joins here when versioning lands") are the most expensive kind: unverifiable, and they rot silently.
+
+**What earns a comment.** A warning or an explanation the code cannot carry itself: "this must not move or the session file is orphaned," "read defensively because pi may add block kinds," "order is load-bearing — pi has no priority field." Each saves a reader from a wrong assumption.
 
 ## Module API surface
 

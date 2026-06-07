@@ -123,7 +123,7 @@ void app.whenReady().then(async () => {
     onEvent: (event) => sendAgentEvent(mainWindow, event),
     workspace,
     agentBindings: [
-      // Open canvases are hardcoded to match the stage-1 pane (Canvas.tsx);
+      // Open canvases are hardcoded to match the single pane (Canvas.tsx);
       // swap for pane-reported keys when the pane host lands.
       createCanvasAgentBinding(
         { onCanvasChanged: sendCanvasChanged },

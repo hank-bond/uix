@@ -1,22 +1,20 @@
 // Public types for extension authors.
 //
-// Imported by extensions as `@uix/api` (a tsconfig path alias).
-// When external extensions exist and we publish, this file moves to
-// `packages/api/src/index.ts`, the alias goes away, and the
-// extension-facing import shape stays identical. See
-// docs/decisions/2026-05-30-extension-api-type-alias.md ("extension-facing types live behind
-// `@uix/api`").
+// Imported by extensions as `@uix/api` (a tsconfig path alias). When external
+// extensions exist and we publish, this file moves to
+// `packages/api/src/index.ts`, the alias goes away, and the extension-facing
+// import shape stays identical.
 //
-// IMPORTANT: only types live here. Extensions never `import` a
-// runtime value from `@uix/api` — the `uix` object passed
-// to the factory is constructed by the loader and handed in. That's
-// why a tsconfig alias is sufficient: `import type` is erased at
-// compile, so nothing ever has to resolve `@uix/api` at runtime.
+// IMPORTANT: only types live here. Extensions never `import` a runtime value
+// from `@uix/api` — the `uix` object passed to the factory is constructed by
+// the loader and handed in. That's why a tsconfig alias is sufficient:
+// `import type` is erased at compile, so nothing ever has to resolve
+// `@uix/api` at runtime.
 
 /**
  * Context object passed to a command handler when it's invoked.
  *
- * Empty for v0; will grow as commands gain affordances (calling
+ * Empty today; will grow as commands gain affordances (calling
  * pane, modifier keys, args, etc.). Adding fields here is
  * non-breaking — extensions that don't use them are unaffected.
  */
@@ -40,8 +38,7 @@ export interface CommandOptions {
  * extension registered when the extension unloads. Extension
  * authors don't track per-registration disposables.
  *
- * Mirrors pi's `ExtensionAPI` shape deliberately. See
- * docs/decisions/2026-05-30-extension-api-type-alias.md.
+ * Mirrors pi's `ExtensionAPI` shape deliberately.
  */
 export interface ExtensionAPI {
   /**

@@ -2,11 +2,8 @@
 //
 // A document is addressed by id behind getCurrent/commit; the backing store is
 // hidden so it can later become a versioned or remote store without touching the
-// channel above it (see docs/design/pane-and-file-versioning.md). The first cut
-// is the trivial single-version store below, backed by the local canvas files
-// the canvas:// protocol already serves. A `diff` method and commit metadata
-// join this seam when human writeback and versioning land — not before (we don't
-// grow the interface ahead of a caller).
+// channel above it. The only backing today is the local canvas files the
+// canvas:// protocol already serves.
 
 import { assertCanvasKey } from "../../shared/canvas";
 
