@@ -1,37 +1,36 @@
 import { describe, expect, it } from "vitest";
 
-import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-import {
-  collectAgentBindingContext,
-  collectAgentBindingTools,
-} from "./bindings";
+import { type AgentBinding, createUixCoreExtension } from "./bindings";
 
-describe("collectAgentBindingTools", () => {
-  it("throws on a duplicate tool name across bindings", () => {
-    const tool = { name: "dup" } as unknown as ToolDefinition;
-    expect(() =>
-      collectAgentBindingTools([{ tools: [tool] }, { tools: [tool] }]),
-    ).toThrow(/Duplicate/);
-  });
-});
+const pi = {} as ExtensionAPI;
 
-describe("collectAgentBindingContext", () => {
-  it("joins contributed blocks in binding order", async () => {
-    const context = await collectAgentBindingContext([
-      { contextForTurn: () => Promise.resolve("first") },
-      { contextForTurn: () => Promise.resolve(null) },
-      { contextForTurn: () => Promise.resolve("second") },
-    ]);
-    expect(context).toBe("first\n\nsecond");
+describe("createUixCoreExtension", () => {
+  it("runs bindings in list order, each handed the same pi", async () => {
+    const seen: string[] = [];
+    const binding =
+      (id: string): AgentBinding =>
+      (handle) => {
+        expect(handle).toBe(pi);
+        seen.push(id);
+      };
+    await createUixCoreExtension([binding("a"), binding("b"), binding("c")])(
+      pi,
+    );
+    expect(seen).toEqual(["a", "b", "c"]);
   });
 
-  it("returns null when nothing contributes", async () => {
-    expect(
-      await collectAgentBindingContext([
-        {},
-        { contextForTurn: () => Promise.resolve(null) },
-      ]),
-    ).toBeNull();
+  it("awaits an async binding before running the next", async () => {
+    const seen: string[] = [];
+    const slow: AgentBinding = async () => {
+      await Promise.resolve();
+      seen.push("slow");
+    };
+    const fast: AgentBinding = () => {
+      seen.push("fast");
+    };
+    await createUixCoreExtension([slow, fast])(pi);
+    expect(seen).toEqual(["slow", "fast"]);
   });
 });

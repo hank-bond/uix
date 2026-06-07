@@ -30,11 +30,7 @@ import { join } from "node:path";
 import { disposable, DisposableBag, subscribe } from "../lifecycle";
 import { createLogger } from "../log";
 
-import {
-  type AgentBinding,
-  collectAgentBindingContext,
-  collectAgentBindingTools,
-} from "./bindings";
+import { type AgentBinding, createUixCoreExtension } from "./bindings";
 import { entriesToMessages } from "./history";
 
 /**
@@ -57,7 +53,7 @@ export interface AgentDriver extends Disposable {
 export interface AgentDriverOptions {
   /** Forwarded to the renderer (over IPC). */
   onEvent: (event: AgentEvent) => void;
-  /** Core UIX capabilities bound into the pi-backed session. */
+  /** UIX-core agent bindings composed into the in-process pi extension. */
   agentBindings?: readonly AgentBinding[];
   /** State root (pins the session dir) + agent cwd. */
   workspace: Workspace;
@@ -110,12 +106,23 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     const authStorage = sdk.AuthStorage.create();
     const modelRegistry = sdk.ModelRegistry.create(authStorage);
 
+    // UIX-core agent contributions (tools + the per-turn context hook) ride a
+    // single in-process pi extension. Load it through a DefaultResourceLoader
+    // with the same cwd/agentDir createAgentSession would default to, so user
+    // pi resources still discover and our factory holds the live ExtensionAPI.
+    const resourceLoader = new sdk.DefaultResourceLoader({
+      cwd: opts.workspace.agentCwd,
+      agentDir: sdk.getAgentDir(),
+      extensionFactories: [createUixCoreExtension(opts.agentBindings ?? [])],
+    });
+    await resourceLoader.reload();
+
     const { session } = await sdk.createAgentSession({
       cwd: opts.workspace.agentCwd,
       sessionManager,
       authStorage,
       modelRegistry,
-      customTools: collectAgentBindingTools(opts.agentBindings ?? []),
+      resourceLoader,
     });
 
     // Both registrations land in the bag, so a single dispose tears
@@ -175,13 +182,12 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
           throw err;
         });
         const session = await sessionPromise;
-        // Prepend any binding-contributed turn context (e.g. the canvas
-        // human-writeback diff) to the outgoing prompt. The user_message event
-        // above carries the human's original text
-        const context = await collectAgentBindingContext(
-          opts.agentBindings ?? [],
-        );
-        await session.prompt(context ? `${context}\n\n${text}` : text);
+        // Send the human's text verbatim. Binding-contributed turn context
+        // (e.g. the canvas human-writeback diff) is prepended to the
+        // model-bound text inside the UIX-core extension's "input" hook, so the
+        // stored user entry stays clean. The user_message event above already
+        // carries the human's original text to the renderer.
+        await session.prompt(text);
       } catch (err) {
         opts.onEvent({
           type: "error",

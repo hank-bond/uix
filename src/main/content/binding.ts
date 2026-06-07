@@ -11,7 +11,10 @@
 // and ContentStore (a later case-2 surface could store non-HTML state docs
 // there without HTML canonicalization).
 
-import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type {
+  InputEventResult,
+  ToolDefinition,
+} from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
 import { assertCanvasKey, CanvasKeyDescription } from "../../shared/canvas";
@@ -74,22 +77,26 @@ interface CanvasAgentBindingOptions {
   onCanvasChanged: (key: string) => void;
 }
 
+// The canvas subsection's agent binding: handed the live pi handle, it
+// registers its content tools and the per-turn context hook itself. Position in
+// the composition root decides where its "input" transform sits in pi's chain.
 export function createCanvasAgentBinding(
   opts: CanvasAgentBindingOptions,
   store: ContentStore,
   openCanvasKeys: readonly string[],
 ): AgentBinding {
   const channel = new DocumentChannel(store);
-  return {
-    tools: [
-      createReadTool(channel),
-      createWriteTool(channel, opts),
-      createEditTool(channel, opts),
-    ],
+  return (pi) => {
+    pi.registerTool(createReadTool(channel));
+    pi.registerTool(createWriteTool(channel, opts));
+    pi.registerTool(createEditTool(channel, opts));
+
     // Each turn: name the canvases open in the pane (so the agent knows the keys
     // exist and can read them) and surface diffs of human edits to any it has
-    // already engaged with — both as context, not tools it must remember to call.
-    contextForTurn: async () => {
+    // already engaged with — context, not tools it must remember to call. The
+    // "input" hook prepends to the model-bound text only; the human's stored
+    // message entry stays verbatim.
+    pi.on("input", async (event): Promise<InputEventResult> => {
       const parts = [
         formatOpenCanvases(openCanvasKeys),
         formatCanvasChanges(await channel.collectChanges()),
@@ -99,8 +106,9 @@ export function createCanvasAgentBinding(
         { block: block ?? "(nothing in scope)" },
         "writeback_context",
       );
-      return block;
-    },
+      if (!block) return { action: "continue" };
+      return { action: "transform", text: `${block}\n\n${event.text}` };
+    });
   };
 }
 

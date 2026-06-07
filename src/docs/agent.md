@@ -13,7 +13,7 @@ Current behavior:
 - renderer prompts call `window.uix.sendPrompt({ text })`, which invokes the main-process driver;
 - the renderer receives `user_message`, `assistant_delta`, `assistant_end`, and `error` events over typed Electron IPC;
 - `window.uix.reload()` reloads UIX extensions and delegates to `session.reload()` only if a pi session already exists;
-- core substrate tools are bound through internal `AgentBinding`s, not through the public UIX extension API.
+- core substrate tools are registered through internal agent bindings (`AgentBinding`), not through the public UIX extension API.
 
 The only current core agent binding is the canvas binding in `src/main/content/binding.ts`, which contributes the anchored canvas channel:
 

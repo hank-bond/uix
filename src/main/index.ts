@@ -122,6 +122,8 @@ void app.whenReady().then(async () => {
   const driver = createAgentDriver({
     onEvent: (event) => sendAgentEvent(mainWindow, event),
     workspace,
+    // The composition root's ordered binding list. Order is the agent-surface
+    // registration order; one binding today.
     agentBindings: [
       // Open canvases are hardcoded to match the single pane (Canvas.tsx);
       // swap for pane-reported keys when the pane host lands.
