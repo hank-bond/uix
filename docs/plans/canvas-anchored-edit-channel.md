@@ -1,5 +1,5 @@
 ---
-summary: "Build spec for the value-first canvas data channel: the anchor pool (P0), the anchored editing core (U1), and the live bidirectional canvas channel (U2) on customTools. Read when implementing the anchored read/write/edit grammar, the reconciler, or pane writeback. Later units (pi refactor, FS parity, versioning) are out of scope here."
+summary: "Build spec for the value-first canvas anchored edit channel: the anchor pool (P0), the anchored editing core (U1), and the live bidirectional canvas channel (U2) on customTools — later units (pi refactor, FS parity, versioning) are out of scope here."
 status: active
 ---
 

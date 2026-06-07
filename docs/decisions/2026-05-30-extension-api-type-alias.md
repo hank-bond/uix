@@ -1,5 +1,5 @@
 ---
-summary: "Extension types live behind the @uix/api path alias, and the extension shape mirrors pi (a default-exported factory taking an injected API). Read when changing the extension API surface or its packaging."
+summary: "Extension types live behind the @uix/api path alias, and the extension shape mirrors pi: a default-exported factory that takes the injected API."
 status: accepted
 ---
 

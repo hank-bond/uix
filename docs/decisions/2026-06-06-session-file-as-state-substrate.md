@@ -1,5 +1,5 @@
 ---
-summary: "Pi's session file (an append-only JSONL entry tree) is UIX's persistence substrate: all arbitrary state — canvas version pointers, anchor state — rides it as CustomEntry/CustomMessageEntry, parent-linked into the conversation tree. To get write access (appendEntry/sendMessage), UIX-core canvas/agent bindings move from createAgentSession customTools to an in-process pi ExtensionFactory loaded via DefaultResourceLoader.extensionFactories. Read before building any persistence, or touching how the agent session is constructed."
+summary: "Pi's append-only session JSONL is UIX's persistence substrate — all state (canvas pointers, anchor state) rides it as parent-linked custom entries, which is why UIX-core bindings run as an in-process pi extension to get write access."
 status: accepted
 ---
 

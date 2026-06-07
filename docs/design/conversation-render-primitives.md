@@ -1,5 +1,5 @@
 ---
-summary: "How the conversation pane renders typed blocks extensibly by porting pi's render architecture from TUI to React: a forwarded event stream plus two render registries (tool renderers keyed by tool name; message renderers keyed by customType) and pi's content/display/details block split. Read before adding conversation block types, agent-triggerable UI components, or the frontend-extension render API."
+summary: "Exploring extensible rendering of typed conversation blocks by porting pi's render architecture from TUI to React: a forwarded event stream plus two registries (tool renderers by tool name, message renderers by customType) and pi's content/display/details split."
 status: exploring
 ---
 

@@ -1,5 +1,5 @@
 ---
-summary: "How UIX-core contributes to its owned pi session and how UIX is structured as composable concepts: the composition root, the facet and override models, the communication topology, and the concept vocabulary. Read before adding a UIX-core agent tool, hook, or transform, standing up a pane or conversation block, or wiring a cross-surface channel."
+summary: "Exploring how UIX-core composes its pi contributions and how UIX is structured as composable concepts: the composition root, the facet and override models, the communication topology, and the concept vocabulary."
 status: exploring
 ---
 

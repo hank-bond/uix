@@ -1,5 +1,5 @@
 ---
-summary: "Docs split by audience: src/docs/ ships and must track code; the repo-root docs/ tree is dev-facing and may lag. Read before adding or moving documentation."
+summary: "src/docs/ ships with the app and must track code; the repo-root docs/ tree is dev-facing meta and may lag."
 status: accepted
 ---
 

@@ -1,5 +1,5 @@
 ---
-summary: "Code conventions for the cockpit: lifetimes, naming, comments, module exports, validation, logging, imports, and lifecycle helpers. Most are main-process; naming and comments apply to all UIX code. Read when writing or reviewing UIX code."
+summary: "Code conventions for the cockpit — lifetimes, naming, comments, module exports, validation, logging, imports, lifecycle helpers; most are main-process, but naming and comments apply to all UIX code."
 status: active
 ---
 

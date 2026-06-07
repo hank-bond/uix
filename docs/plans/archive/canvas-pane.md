@@ -1,3 +1,9 @@
+---
+summary: "Archived build spec for the raw HTML canvas pane."
+read_when: "Read only for historical context on the canvas pane stages superseded by later decisions and design threads."
+status: archived
+---
+
 # Spec: raw HTML canvas pane (archived)
 
 > **Archived 2026-06-02.** Stage 1 shipped and is recorded in [`../decisions/2026-05-31-canvas-stage-one.md`](../../decisions/2026-05-31-canvas-stage-one.md). The Stage 2–3 material below is retained as historical planning context only; the current bidirectional follow-on is tracked in [`../../design/canvas-data-channel.md`](../../design/canvas-data-channel.md) and should get a fresh plan before implementation.

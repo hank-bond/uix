@@ -1,5 +1,5 @@
 ---
-summary: "Design thread for versioning, history, and rollback of pane documents and (optionally) the user's working tree, both backed by git and linked to pi's conversation tree. Read before working on the .uix object store, conversation-node restore points, per-run file snapshots, or the rollback UI. The anchored edit channel that sits in front of this is a sibling thread (canvas-data-channel)."
+summary: "Exploring versioning, history, and rollback of pane documents and optionally the user's working tree — both git-backed and linked to pi's conversation tree (the anchored edit channel in front of this is the sibling canvas-data-channel thread)."
 status: exploring
 ---
 

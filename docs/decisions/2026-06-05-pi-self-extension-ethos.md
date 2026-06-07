@@ -1,5 +1,5 @@
 ---
-summary: "Pi ships the tools to customize itself and little else (no subagents, permissions, or MCP) — you build those through its integration points. UIX mirrors this ethos one layer up for visual UI: ship composable primitives and a thin default chrome, not fixed features. Read before adding any built-in UI feature."
+summary: "UIX mirrors pi's self-extension ethos one layer up for visual UI: ship composable primitives and thin default chrome, not fixed features — when tempted to hardcode a feature, make it something extensions register or compose."
 status: accepted
 ---
 

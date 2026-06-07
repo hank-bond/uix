@@ -1,5 +1,5 @@
 ---
-summary: "Two separate locations: the UIX project root (stable per app instance — holds the pi/uix session history and the canvas doc store) and the agent cwd (where the agent happens to be working, free to change turn to turn). Not scoped to worktrees — the agent cwd is a free pointer to any path (IDE model). cwd changes are agent-initiated, recorded per turn, and reopen the same history under a new cwd; they are NOT history branches. Read before touching session construction, cwd handling, or the per-turn state entry (C3)."
+summary: "The stable UIX project root (session history + canvas store, one per app instance) is separate from the mutable agent cwd — a free pointer the agent moves per turn, recorded per turn, and NOT a history branch."
 status: accepted
 ---
 

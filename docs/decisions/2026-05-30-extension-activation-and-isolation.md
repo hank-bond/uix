@@ -1,5 +1,5 @@
 ---
-summary: "How extensions activate (sequential, per-extension DisposableBag) and how cleanup and error isolation work in v0. Read when changing the loader or extension lifecycle."
+summary: "Extensions activate sequentially, each under its own DisposableBag, with errors isolated per extension so one failure doesn't abort the rest (v0)."
 status: accepted
 ---
 

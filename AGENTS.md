@@ -1,8 +1,34 @@
+---
+summary: "Project orientation for UIX, its substrate model, invariants, layers, and documentation routing."
+read_when: "Read first when entering the repo or deciding whether a change belongs in UIX or pi."
+status: active
+---
+
 # UIX
 
 UIX is a local Electron cockpit for building bidirectional human-agent surfaces on top of pi. Pi is the agent framework (sessions, tools, prompts, skills, extensions, model providers, agent events); UIX is the UI substrate (panes, channels, contribution points, and the bridge between agent tool calls and frontend state). The goal is not one fixed app but the wiring to build many local agent-facing apps: reports, dashboards, knowledge tools, design-system deliverables, interactive canvases.
 
 This file is the always-loaded orientation — the core model, the load-bearing invariants, and a routing map. Everything else lives one level down and is read on demand; nothing below this file is pinned into the agent's context.
+
+## Working with the documentation graph
+
+The repository documentation is a **graph you traverse on demand**, not a corpus to read up front. The root [`AGENTS.md`](./AGENTS.md) is always in your context; everything else is reached by following links down from it.
+
+Each node carries a one-line **summary** (what it establishes — its thesis) and, only when the trigger isn't obvious from that summary, a **read_when** (when to open it). Use these to decide what to open: descend only into what's relevant to the task in front of you.
+
+**Traverse regularly, in both modes:**
+
+- **When thinking** (planning, designing, weighing options) — pull in the decisions, design threads, and open questions that bound the choice _before_ committing to an approach.
+- **When doing** (writing or changing code) — pull in the architecture record, the relevant `src/docs/` reference, and any plan or decision that constrains the change.
+
+**Rules:**
+
+- Start at the root `AGENTS.md` and follow its routing map down through the dir-level `AGENTS.md` indexes to the leaf docs.
+- Open a doc when its summary (or `read_when`) matches your task; skip the rest.
+- **Do not re-read what is already in your context window** — if a file's content is already loaded, use it in place.
+- Follow inline cross-links between docs: sibling threads and the decisions/plans a doc spawned are linked in prose, not in the index.
+
+For now this is pure on-demand traversal. Preloading the top ~100 summaries breadth-first (a project-wide bird's-eye map) is a later optimization, not yet in effect.
 
 ## Core idea
 
@@ -49,9 +75,16 @@ The rules that constrain every change — hold these before reaching for detail:
 
 ## Where to read
 
-- **Building on UIX** — extensions, panes, channels, agent integration, state, lifetimes → [`src/docs/`](src/docs/AGENTS.md), the user-facing substrate reference.
-- **Why things are the way they are** — decisions, design threads, architecture state, plans → [`docs/`](docs/AGENTS.md), the dev-facing meta docs.
-- **Examples** → `examples/`.
+Two doc trees — `src/docs/` is the user-facing substrate reference (building on UIX); `docs/` is the dev-facing meta tree (why things are the way they are). Runnable examples live in `examples/`.
+
+<!-- INDEX:START -->
+
+<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
+
+- **[src/docs/](./src/docs/AGENTS.md)** _(active)_ — The shipped, user-facing substrate reference for building on UIX — panes, channels, agent, extensions, lifetimes, state — kept in lockstep with current code.
+- **[docs/](./docs/AGENTS.md)** _(active)_ — Dev-facing meta docs — decisions, design threads, architecture records, and plans — and the map for routing into them.
+
+<!-- INDEX:END -->
 
 The cockpit injects this same orientation plus the doc map into its UIX-owned agent through core agent bindings (`src/main/agent/`) — not an extension; it's how the cockpit talks to the agent at all. Skills add capabilities; docs explain the architecture.
 

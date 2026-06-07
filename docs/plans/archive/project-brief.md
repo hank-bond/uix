@@ -1,3 +1,9 @@
+---
+summary: "Archived original UIX project brief from before the substrate pivot."
+read_when: "Read only for historical context on the original code-reviewer-app framing."
+status: archived
+---
+
 # UIX — Project Brief (archived)
 
 > **Archived 2026-05-30.** This is the original handoff document, written when UIX was framed as a single tailor-made coding-agent IDE with reports as the central artifact. UIX has since pivoted to a _substrate_ shape that hosts multiple applications (a code-reviewer being one, a knowledge-base manager being another). The still-current pieces — Gundam framing, motivating problems, stack landings, design principles — have moved to [the decisions log](../../decisions/). The rest is preserved here as the design source for the eventual code-reviewer extension.

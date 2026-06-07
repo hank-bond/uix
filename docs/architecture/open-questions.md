@@ -1,5 +1,5 @@
 ---
-summary: "Parking lot for named but unresolved substrate, documentation, and future-app questions. Read before turning an open question into a decision or build plan."
+summary: "Parking lot for named but unresolved questions across the UIX substrate, documentation, and future apps."
 status: active
 ---
 

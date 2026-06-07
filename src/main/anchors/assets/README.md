@@ -1,3 +1,9 @@
+---
+summary: "Attribution note for the vendored static anchor-word pool asset."
+read_when: "Read when updating the anchor pool asset or checking its provenance."
+status: active
+---
+
 # Anchor pool
 
 `anchor-pool.txt` is a vendored static anchor-word pool copied from Dirac's `src/utils/.hash_anchors`.

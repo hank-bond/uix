@@ -1,5 +1,5 @@
 ---
-summary: "Build spec for persistence on pi's session file: file-backed session + history rehydration (C0) and promoting UIX-core bindings to an in-process pi extension (C1) are the foundation to lay before resuming conversation-render work; versioned content store (C2), per-turn canvas pointers as CustomEntry (C3), anchor-state continuity (C4), and tree preview/restore (C5) are specified here for later. Read before touching session construction, the content-store seam, or conversation-tree navigation."
+summary: "Build spec for persistence on pi's session file: file-backed session + history rehydration (C0) and promoting UIX-core bindings to an in-process pi extension (C1) are the foundation; versioned content store (C2), per-turn canvas pointers (C3), anchor-state continuity (C4), and tree preview/restore (C5) are specified for later."
 status: active
 ---
 

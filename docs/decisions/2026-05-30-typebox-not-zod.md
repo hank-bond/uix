@@ -1,5 +1,5 @@
 ---
-summary: "Why TypeBox is used for every substrate schema surface instead of splitting with Zod. Read when adding schemas for IPC, channels, config, or on-disk data."
+summary: "TypeBox for every schema surface (IPC, channels, config, on-disk data) instead of splitting validation with Zod."
 status: accepted
 ---
 

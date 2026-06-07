@@ -1,5 +1,5 @@
 ---
-summary: "Why UIX exists and its shape: it adds pilot capabilities for the human, not agent capabilities, and is a reusable substrate rather than a single app. Read for the framing test behind feature decisions."
+summary: "UIX adds capabilities for the human piloting the agent, not for the agent, and is a reusable substrate rather than a single app — the framing test behind feature decisions."
 status: accepted
 ---
 

@@ -1,5 +1,5 @@
 ---
-summary: "Current contribution surface in UIX: extension entry files can call registerCommand only, and that command registration is logged/lifetime-scoped but not invokable through a command registry yet. Read before adding or relying on contribution points."
+summary: "Extension entry files can call registerCommand only; the registration is logged and lifetime-scoped but not yet invokable through a command registry."
 status: active
 ---
 

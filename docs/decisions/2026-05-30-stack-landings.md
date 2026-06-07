@@ -1,5 +1,5 @@
 ---
-summary: "The technology stack and the alternative each piece beat (Electron, React + Compiler, Zustand, TypeBox, Monaco, SQLite-as-index, in-process pi). Read when choosing or questioning a dependency."
+summary: "The initial stack and the alternative each piece beat: Electron, React + Compiler, Zustand, TypeBox, Monaco, SQLite-as-index, and in-process pi."
 status: accepted
 ---
 

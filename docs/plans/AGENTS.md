@@ -1,26 +1,18 @@
+---
+summary: "Active build specs for what's about to be built — deliverables and their units — plus a backlog of seeds not yet promoted to their own spec."
+status: active
+---
+
 # Plans
 
-Specs for things we intend to build — slugged by deliverable. A plan only needs to be **valid**, not actively worked. Tiny ideas live as one-liners in the backlog below; once an idea accretes real detail it graduates to its own file (and the index picks up its summary); shipped plans move to [`archive/`](./archive/). Plans cite the [`../decisions/`](../decisions/) they assume and the [`../design/`](../design/) thread they came from.
-
-## Backlog
-
-Short seeds. Promote one to its own file the moment it grows past a line, and delete the seed here (it lives in the index then, not in both places).
-
-- **Pane host + slot registry** — mount React / iframe / declarative panes into named slots; turns the hardcoded canvas pane into a registered one.
-- **Typed channel substrate** — TypeBox schemas, `local` / `silent` / `turn` modes, one API over in-process + iframe `postMessage` transports.
-- **`uix-core` embedded-pi config** — orientation block + doc map + smoke-test tools injected into the cockpit's agent.
-- **Agent tool contribution from extensions** — extensions register pi tools into the owned session.
-- **File watcher service** — cockpit-owned watcher; extensions register glob → callback.
-- **Default conversation extension** — port the current conversation pane into the extension model.
-- **Docs + examples** — flesh out `src/docs/` stubs and seed `examples/` as primitives land.
-
-## Active plans
+Specs for things we intend to build — slugged by deliverable. A plan only needs to be **valid**, not actively worked. Shipped plans move to [`archive/`](./archive/). Plans cite the [`../decisions/`](../decisions/) they assume and the [`../design/`](../design/) thread they came from.
 
 <!-- INDEX:START -->
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
 
-- **[canvas-anchored-edit-channel](./canvas-anchored-edit-channel.md)** _(active)_ — Build spec for the value-first canvas data channel: the anchor pool (P0), the anchored editing core (U1), and the live bidirectional canvas channel (U2) on customTools. Read when implementing the anchored read/write/edit grammar, the reconciler, or pane writeback. Later units (pi refactor, FS parity, versioning) are out of scope here.
-- **[persistence-and-session-foundation](./persistence-and-session-foundation.md)** _(active)_ — Build spec for persistence on pi's session file: file-backed session + history rehydration (C0) and promoting UIX-core bindings to an in-process pi extension (C1) are the foundation to lay before resuming conversation-render work; versioned content store (C2), per-turn canvas pointers as CustomEntry (C3), anchor-state continuity (C4), and tree preview/restore (C5) are specified here for later. Read before touching session construction, the content-store seam, or conversation-tree navigation.
+- **[backlog](./backlog.md)** _(active)_ — Short seeds for planned UIX deliverables that aren't standalone specs yet; promoted to their own file once they grow past a line.
+- **[canvas-anchored-edit-channel](./canvas-anchored-edit-channel.md)** _(active)_ — Build spec for the value-first canvas anchored edit channel: the anchor pool (P0), the anchored editing core (U1), and the live bidirectional canvas channel (U2) on customTools — later units (pi refactor, FS parity, versioning) are out of scope here.
+- **[persistence-and-session-foundation](./persistence-and-session-foundation.md)** _(active)_ — Build spec for persistence on pi's session file: file-backed session + history rehydration (C0) and promoting UIX-core bindings to an in-process pi extension (C1) are the foundation; versioned content store (C2), per-turn canvas pointers (C3), anchor-state continuity (C4), and tree preview/restore (C5) are specified for later.
 
 <!-- INDEX:END -->

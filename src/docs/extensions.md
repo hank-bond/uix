@@ -1,5 +1,5 @@
 ---
-summary: "How current UIX extensions load: trusted local TypeScript/JavaScript package entries default-export a factory that receives the injected type-only @uix/api surface; packages are discovered from .uix/extensions and ~/.uix/extensions, loaded with jiti, and lifetime-scoped across reloads. Read when authoring or loading an extension today."
+summary: "Trusted local TS/JS packages default-export a factory that receives the injected type-only @uix/api; entries are discovered from .uix/extensions and ~/.uix/extensions, loaded with jiti, and lifetime-scoped across reloads."
 status: active
 ---
 

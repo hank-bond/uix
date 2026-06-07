@@ -1,5 +1,5 @@
 ---
-summary: "Current pane behavior in UIX: the renderer has a hardcoded conversation pane and a hardcoded canvas iframe pane; the canvas is key-addressed, served over own-origin uix-canvas:// URLs, sandboxed, and refreshed by whole-document iframe reload. Read when working on current panes or canvas rendering."
+summary: "The renderer ships a hardcoded conversation pane and a hardcoded canvas iframe pane; the canvas is key-addressed, served over own-origin uix-canvas:// URLs, sandboxed, and refreshed by whole-document iframe reload."
 status: active
 ---
 

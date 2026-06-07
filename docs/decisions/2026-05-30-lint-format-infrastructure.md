@@ -1,5 +1,5 @@
 ---
-summary: "The ESLint flat config + Prettier setup and the conventions it enforces (node: imports, lifecycle helpers, pino logging). Read when adjusting lint/format rules or the check gate."
+summary: "ESLint flat config plus Prettier, enforcing node: imports, the lifecycle helpers, and pino logging through the check gate."
 status: accepted
 ---
 

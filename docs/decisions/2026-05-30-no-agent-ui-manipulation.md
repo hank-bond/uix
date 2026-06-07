@@ -1,5 +1,6 @@
 ---
-summary: "The agent mutates artifacts through ordinary file-edit tools, not bespoke UI or RPC tools; channels carry validated events, not an agent-side UI API. Read before giving the agent any UI-manipulation capability."
+summary: "The agent mutates artifacts through ordinary file-edit tools, never bespoke UI or RPC tools; channels carry validated events, not an agent-side UI API."
+read_when: "Read before giving the agent any tool that manipulates the UI or panes directly."
 status: accepted
 ---
 

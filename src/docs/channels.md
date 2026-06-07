@@ -1,5 +1,5 @@
 ---
-summary: "Current channel state in UIX: no public typed pane/channel API is implemented yet; the shipped cross-boundary surface is the typed Electron IPC bridge for prompts, agent events, canvas invalidation, manual canvas refresh, and reload. Read before depending on channel behavior."
+summary: "No public typed pane/channel API ships yet; the current cross-boundary surface is the typed Electron IPC bridge (prompts, agent events, canvas invalidation, manual refresh, reload)."
 status: stub
 ---
 

@@ -1,3 +1,9 @@
+---
+summary: "Archived original v0 canvas protocol spec."
+read_when: "Read only for historical context on early canvas protocol ideas that may inform future extensions."
+status: archived
+---
+
 # v0 Canvas Protocol (archived)
 
 This is the original v0 canvas protocol spec. Most of it is superseded by [`AGENTS.md`](../../AGENTS.md) (the current substrate spec). It is preserved here because parts remain useful as design notes for whoever eventually builds the canvas extension:

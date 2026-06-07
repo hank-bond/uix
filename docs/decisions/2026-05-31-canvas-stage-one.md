@@ -1,5 +1,5 @@
 ---
-summary: "The shipped stage-1 canvas pane: key-addressed store, own-origin uix-canvas:// protocol (not srcdoc), dedicated agent read/write tools, whole-document refresh. Read when working on the canvas pane or its agent tools."
+summary: "Stage-one canvas is a key-addressed store served over an own-origin uix-canvas:// protocol (not srcdoc), with dedicated agent read/write tools and whole-document refresh."
 status: accepted
 ---
 

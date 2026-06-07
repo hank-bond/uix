@@ -1,5 +1,5 @@
 ---
-summary: "Current state persistence in UIX: the cockpit uses an in-memory pi session, stores canvas HTML by key under .uix/canvas, and exposes no public UIX-extension state API beyond lifetime-scoped registerCommand cleanup. Read before storing state through UIX today."
+summary: "The cockpit uses an in-memory pi session and stores canvas HTML by key under .uix/canvas; there is no public UIX-extension state API yet beyond lifetime-scoped registerCommand cleanup."
 status: active
 ---
 

@@ -1,5 +1,5 @@
 ---
-summary: "How extensions are discovered (project/global .uix/extensions with a pi/uix package.json) and identified (the entry file's absolute path); UIX ships none of its own. Read when touching extension discovery or loading."
+summary: "Extensions are discovered from project/global .uix/extensions (a package.json with pi/uix fields) and identified by the entry file's absolute path; UIX ships none of its own."
 status: accepted
 ---
 

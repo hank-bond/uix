@@ -1,5 +1,5 @@
 ---
-summary: "Design thread for the bidirectional canvas/document data channel: the anchored edit grammar, pane tools, writeback/user diffs, and the content-store seam. Read before working on anchored edit tools, pane tools, filesystem-tool parity, or the case-1/case-2 canvas split. Versioning, history, and rollback are a sibling thread (pane-and-file-versioning)."
+summary: "Exploring the bidirectional canvas/document data channel: the anchored edit grammar, pane tools, writeback/user diffs, and the content-store seam (versioning is the sibling pane-and-file-versioning thread)."
 status: exploring
 ---
 

@@ -1,5 +1,5 @@
 ---
-summary: "Current agent integration in UIX: the cockpit lazily owns an in-memory pi AgentSession, forwards a small event stream to the renderer, supports reload delegation, and binds the core anchored document read/write/edit tools. Read when working with the current agent driver or document tools."
+summary: "How the cockpit drives the agent today: it lazily owns an in-memory pi AgentSession, forwards a small event stream to the renderer, delegates reload, and binds the core anchored document read/write/edit tools."
 status: active
 ---
 

@@ -1,3 +1,9 @@
+---
+summary: "Top-level pointer page for UIX and its primary documentation entry points."
+read_when: "Read when you need the shortest route into the project docs."
+status: active
+---
+
 # UIX
 
 Minimal protocol + cockpit for agent ↔ HTML ↔ human interfaces.

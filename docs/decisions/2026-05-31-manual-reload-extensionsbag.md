@@ -1,5 +1,6 @@
 ---
-summary: "How cockpit reload tears down and re-activates extensions via an extensionsBag child scope without restarting Electron, delegating to pi's session.reload(). Read when touching reload, lifetime scoping, or jiti loading."
+summary: "Cockpit reload tears down and re-activates extensions through an extensionsBag child lifetime without restarting Electron, delegating to pi's session.reload()."
+read_when: "Read when touching reload, lifetime scoping, or jiti module loading."
 status: accepted
 ---
 

@@ -1,5 +1,5 @@
 ---
-summary: "Current lifetime model in UIX: DisposableBag owns cleanup for app, extension reload, window registrations, and the agent driver; extension authors receive cleanup only through registrations made on the injected API. Read when checking cleanup/reload behavior."
+summary: "DisposableBag owns cleanup for the app, extension reload, window registrations, and the agent driver; extension authors get cleanup only through registrations made on the injected API."
 status: active
 ---
 

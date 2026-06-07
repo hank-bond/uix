@@ -1,5 +1,5 @@
 ---
-summary: "UIX-core's agent contributions (tools, hooks, transforms) register through one in-process pi extension at a single central root that fixes their order explicitly, rather than scattered across modules. Scope is the ordering conclusion only; the facet generalization and vocabulary are explored, not committed, in design/uix-core-composition. Read before adding any UIX-core agent tool, hook, or transform."
+summary: "UIX-core's agent contributions (tools, hooks, transforms) register through one in-process pi extension at a single root that fixes their order explicitly, rather than scattered across modules."
 status: accepted
 ---
 
