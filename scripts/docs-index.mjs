@@ -32,6 +32,11 @@ const layers = [
 
 const START = "<!-- INDEX:START -->";
 const END = "<!-- INDEX:END -->";
+// Stamped as the first line of every managed block so the warning lives where
+// someone would be tempted to hand-edit. Part of the generated body, so --check
+// stays consistent.
+const NOTE =
+  "<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->";
 
 // "2026-05-31-foo.md" -> { date: "2026-05-31", slug: "foo" }
 // "conventions.md"    -> { date: null, slug: "conventions" }
@@ -101,7 +106,7 @@ function applyIndex(agentsPath, body) {
   if (s === -1 || e === -1) {
     throw new Error(`${agentsPath}: missing ${START}/${END} markers`);
   }
-  const next = `${text.slice(0, s + START.length)}\n\n${body}\n\n${text.slice(e)}`;
+  const next = `${text.slice(0, s + START.length)}\n\n${NOTE}\n\n${body}\n\n${text.slice(e)}`;
   return { text, next };
 }
 

@@ -32,6 +32,8 @@ The summary is a **routing aid, not an abstract**. Its only job is to help a rea
 
 A useful length is 1–3 sentences. This applies to every layer, decisions included — a decision summary names the decision and when it's relevant, it does not reproduce the rationale. The only per-layer difference is that **decisions freeze the summary at acceptance** (only `status` may later change, e.g. `superseded`), while **living docs keep it current** — and even then it _routes to_ the doc's synthesis rather than duplicating it, so the same prose isn't maintained twice.
 
+**Shape.** A reliable template: `<one clause naming what the doc covers, optionally a short colon-list of its parts>. Read [before|when] <the task or query that should open it>.` Name the parts as bare labels — do not explain them; the moment a clause says _why_ or _how_, it belongs in the body. Calibrate length by eye against the existing entries in the sibling index: a summary visibly longer than its neighbors is doing too much. (The summary is copied verbatim into the index, so its bloat shows up there first.)
+
 Cross-link between docs with ordinary inline markdown links, not a frontmatter field.
 
 ## Formatting
@@ -49,7 +51,7 @@ npm run docs:index     # regenerate the index blocks
 npm run docs:check     # CI: fail if any index is stale or frontmatter is missing
 ```
 
-Prose outside the markers is yours; the block between them is derived. A small idea can live as a line in the overview prose; when it grows past a line, promote it to its own file — the index then carries it — and delete the prose line, so it's never maintained in both places.
+Prose outside the markers is yours; the block between them is derived — **never hand-edit it.** Do not add, reword, reorder, or delete entries inside the markers: the block is regenerated from frontmatter, so a manual edit is either silently overwritten by `npm run docs:index` or fails `npm run docs:check` when it drifts. To change an entry, edit the doc's frontmatter `summary`/`status` (or rename the file) and regenerate. A small idea can live as a line in the overview prose; when it grows past a line, promote it to its own file — the index then carries it — and delete the prose line, so it's never maintained in both places.
 
 ## Design notes are living threads
 

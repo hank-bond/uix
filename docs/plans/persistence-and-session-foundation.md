@@ -16,7 +16,7 @@ Persistence is the phase that ties the conversation tree, canvas versions, and a
 
 ---
 
-## C0 — File-backed session + history rehydration · _foundation, do first_
+## C0 — File-backed session + history rehydration · _foundation, do first_ · **landed**
 
 **Goal.** The conversation survives restart.
 
@@ -29,18 +29,20 @@ Persistence is the phase that ties the conversation tree, canvas versions, and a
 
 **Boundary.** No versioning, no custom entries, no extension promotion. Pure pi read + file-backed session. Lands before any render improvement, or the renderers get retrofit when history rehydration arrives.
 
-## C1 — Promote UIX-core bindings to an in-process pi extension · _foundation, do first · = canvas-plan U3_
+## C1 — Promote UIX-core bindings to an in-process pi extension · _foundation, do first · = canvas-plan U3_ · **landed 2026-06-07**
 
 **Goal.** Hold pi's `ExtensionAPI` — write access to the session tree, hooks, and the message-transform seam.
 
 **Build.**
 
-- Author a **UIX-core pi `ExtensionFactory`**. Move the canvas read/write/edit tools off `createAgentSession({ customTools })` into the factory via `pi.registerTool(...)` (they can technically stay `customTools`, but moving them keeps the API handle and tools together).
-- Migrate `contextForTurn` (today a manual prepend in `driver.ts`) to `pi.on("input", ...)` returning `{ action: "transform", text }` — the native submit-boundary hook. The human-writeback diff prepend becomes a transform; the human's original message entry is untouched.
-- Wire `DefaultResourceLoader({ extensionFactories: [uixCore] })` into session construction; preserve reload semantics via `resourceLoader.reload()` + `session.reload()`.
-- Bridge the `pi` `ExtensionAPI` handle out to the cockpit code that will need `appendEntry`/`sendMessage` (the store/driver), so C3+ can write entries.
+- Author a **UIX-core pi `ExtensionFactory`**. Move the canvas read/write/edit tools off `createAgentSession({ customTools })` into the factory via `pi.registerTool(...)` (they can technically stay `customTools`, but moving them keeps the API handle and tools together). _Landed as `createUixCoreExtension` in `src/main/agent/bindings.ts`; it wraps the existing `collectAgentBinding*` helpers._
+- Migrate `contextForTurn` (today a manual prepend in `driver.ts`) to `pi.on("input", ...)` returning `{ action: "transform", text }` — the native submit-boundary hook. The human-writeback diff prepend becomes a transform; the human's original message entry is untouched. _Landed: the driver now sends the human's text verbatim and the hook prepends context for the model._
+- Wire `DefaultResourceLoader({ extensionFactories: [uixCore] })` into session construction; preserve reload semantics via `resourceLoader.reload()` + `session.reload()`. _Landed in `driver.ts` `openSession()`. **Deviation:** `session.reload()` already reloads the resource loader internally (`agent-session.js`), so the cockpit `reload()` was left calling `session.reload()` alone — no separate `resourceLoader.reload()` needed._
+- Bridge the `pi` `ExtensionAPI` handle out to the cockpit code that will need `appendEntry`/`sendMessage` (the store/driver), so C3+ can write entries. _**Deferred to C3.** Exposing the handle now would be a consumer-less accessor (dead code against the repo's "build the contract, not speculation" ethos); the factory will capture it the moment C3's `uix.turn-state` write needs it — the first real consumer._
 
 **Boundary.** Substrate swap + `contextForTurn` migration only. No new persisted state yet (that is C3+). No user-visible change. Keep `session.subscribe` as the renderer's event source — the `on(...)` hooks are an addition, not a replacement.
+
+> **Scope note.** What landed here is the _narrow_ substrate swap — a single `createUixCoreExtension` factory. The intended _structure_ of that extension — a central composition root running ordered per-subsection facet functions, order load-bearing because pi has no priority field — is **not** scoped into C1 and is documented separately: decision [uix-core-composition-root](../decisions/2026-06-07-uix-core-composition-root.md) and design thread [uix-core-composition](../design/uix-core-composition.md). Read those before adding a _second_ UIX-core agent contribution; this single-factory landing does not by itself establish the pattern.
 
 ## C2 — Versioned content store
 

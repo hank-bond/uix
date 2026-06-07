@@ -10,6 +10,8 @@ Pages marked _(stub)_ are placeholders that fill in as the corresponding primiti
 
 <!-- INDEX:START -->
 
+<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
+
 - **[agent](./agent.md)** _(active)_ — Current agent integration in UIX: the cockpit lazily owns an in-memory pi AgentSession, forwards a small event stream to the renderer, supports reload delegation, and binds the core anchored document read/write/edit tools. Read when working with the current agent driver or document tools.
 - **[channels](./channels.md)** _(stub)_ — Current channel state in UIX: no public typed pane/channel API is implemented yet; the shipped cross-boundary surface is the typed Electron IPC bridge for prompts, agent events, canvas invalidation, manual canvas refresh, and reload. Read before depending on channel behavior.
 - **[contributions](./contributions.md)** _(active)_ — Current contribution surface in UIX: extension entry files can call registerCommand only, and that command registration is logged/lifetime-scoped but not invokable through a command registry yet. Read before adding or relying on contribution points.
