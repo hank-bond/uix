@@ -22,7 +22,6 @@ export function Conversation() {
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const seededRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,11 +34,10 @@ export function Conversation() {
   }, []);
 
   // Pull the prior transcript once and prepend it. Prepend (not replace) so any
-  // live event that arrived during the await stays after the resumed history;
-  // the ref guards against React StrictMode's double-mount.
+  // live event that arrived during the await stays after the resumed history.
+  // In React StrictMode the first effect setup is immediately cleaned up and
+  // re-run; let the second setup issue its own request so hydration can finish.
   useEffect(() => {
-    if (seededRef.current) return;
-    seededRef.current = true;
     let cancelled = false;
     void (async () => {
       try {
