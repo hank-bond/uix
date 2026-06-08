@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { canonicalizeFragment, canonicalizeHtml } from "./normalize";
+import { canonicalizeHtml } from "./normalize";
 
 describe("canonicalizeHtml", () => {
   it("normalizes tag case, attribute quoting, and entities", () => {
@@ -20,11 +20,5 @@ describe("canonicalizeHtml", () => {
     const out = canonicalizeHtml("<body>\n<p>a</p>\n<p>b</p>\n</body>");
     expect(out.split("\n")).toContain("<p>a</p>");
     expect(out.split("\n")).toContain("<p>b</p>");
-  });
-});
-
-describe("canonicalizeFragment", () => {
-  it("normalizes a snippet without injecting a document skeleton", () => {
-    expect(canonicalizeFragment("<P CLASS=a>x</P>")).toBe('<p class="a">x</p>');
   });
 });

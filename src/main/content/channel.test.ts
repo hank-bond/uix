@@ -74,6 +74,42 @@ describe("DocumentChannel", () => {
     expect(store.dump("main")).toContain("<p>A</p>");
   });
 
+  it("keeps a retained closing tag when the edit replacement is only valid in document context", async () => {
+    const store = memoryStore();
+    const channel = new DocumentChannel(store);
+    const lines = await channel.write(
+      "main",
+      [
+        "<!doctype html>",
+        "<html>",
+        "<body>",
+        '<select id="wordA">',
+        '<option value="bunny">🐰 bunny</option>',
+        "</select>",
+        "</body>",
+        "</html>",
+      ].join("\n"),
+    );
+    const closingSelect = lines.find((line) => line.text === "</select>")!;
+
+    const changes = await channel.edit("main", {
+      start: closingSelect,
+      end: closingSelect,
+      replacement: '<option value="rainbow">🌈 rainbow</option>\n</select>',
+    });
+
+    expect(changes.flatMap((c) => c.newLines).map((l) => l.text)).toContain(
+      '<option value="rainbow">🌈 rainbow</option>',
+    );
+    const read = await channel.read("main");
+    expect(read.find((line) => line.text === "</select>")!.anchor).toBe(
+      closingSelect.anchor,
+    );
+    expect(store.dump("main")).toContain(
+      '<option value="rainbow">🌈 rainbow</option>\n</select>',
+    );
+  });
+
   it("rejects an edit whose boundary no longer matches", async () => {
     const channel = new DocumentChannel(memoryStore());
     const lines = await channel.write("main", "<body>\n<p>a</p>\n</body>");

@@ -18,7 +18,7 @@ import {
 } from "../anchors/document";
 
 import type { ContentStore } from "./content-store";
-import { canonicalizeFragment, canonicalizeHtml } from "./normalize";
+import { canonicalizeHtml } from "./normalize";
 
 export class DocumentChannel {
   readonly #store: ContentStore;
@@ -51,18 +51,29 @@ export class DocumentChannel {
 
   // Syncs to the store first: an edit computed against a stale cache would
   // re-commit the agent's whole view and silently revert a concurrent human edit
-  // to an untouched line. If the human touched the line being edited, the core's
-  // match-guard rejects it.
+  // to an untouched line. If the human touched the line being edited, the
+  // boundary match-guard rejects it.
+  //
+  // Replacement text is spliced first and the resulting whole document is then
+  // canonicalized. Canonicalizing the replacement as a standalone fragment is
+  // not equivalent for HTML: a replacement like
+  // `<option>…</option>\n</select>` is valid in document context when replacing
+  // a `</select>` line, but a fragment parser drops the unmatched closing tag.
   async edit(
     docId: string,
     edit: AnchoredEdit,
   ): Promise<readonly AnchoredChange[]> {
     await this.#sync(docId);
     const doc = await this.#load(docId);
-    const changes = doc.edit({
-      ...edit,
-      replacement: canonicalizeFragment(edit.replacement),
-    });
+    const currentLines = doc.read();
+    const { startIndex, endIndex } = findMatchingRange(currentLines, edit);
+    const replacementLines = splitText(edit.replacement);
+    const nextText = [
+      ...currentLines.slice(0, startIndex).map((line) => line.text),
+      ...replacementLines,
+      ...currentLines.slice(endIndex + 1).map((line) => line.text),
+    ].join("\n");
+    const changes = doc.reconcile(canonicalizeHtml(nextText));
     await this.#store.commit(docId, plainText(doc.read()));
     return changes;
   }
@@ -106,6 +117,42 @@ export class DocumentChannel {
   }
 }
 
+function findMatchingRange(
+  lines: readonly AnchoredLine[],
+  edit: AnchoredEdit,
+): { readonly startIndex: number; readonly endIndex: number } {
+  const startIndex = findMatchingLine(lines, edit.start);
+  const endIndex = findMatchingLine(lines, edit.end);
+  if (endIndex < startIndex) {
+    throw new Error(
+      `Invalid anchor range: ${edit.start.anchor} does not precede ${edit.end.anchor}`,
+    );
+  }
+  return { startIndex, endIndex };
+}
+
+function findMatchingLine(
+  lines: readonly AnchoredLine[],
+  target: AnchoredLine,
+): number {
+  const index = lines.findIndex((line) => line.anchor === target.anchor);
+  if (index === -1) throw new Error(`Unknown anchor: ${target.anchor}`);
+  const live = lines[index];
+  if (live.text !== target.text) {
+    throw new Error(
+      `Anchor ${target.anchor} text mismatch: document has ${JSON.stringify(
+        live.text,
+      )} but edit referenced ${JSON.stringify(target.text)}`,
+    );
+  }
+  return index;
+}
+
 function plainText(lines: readonly AnchoredLine[]): string {
   return lines.map((line) => line.text).join("\n");
+}
+
+function splitText(text: string): readonly string[] {
+  if (text === "") return [];
+  return text.split("\n");
 }
