@@ -15,8 +15,8 @@ The current state of the system: what's built, how the code is shaped, and the o
 - Lifetime-scoped disposables and lifecycle helpers (`src/main/lifecycle.ts`). See [conventions](./conventions.md).
 - Basic conversation pane (`src/renderer/Conversation.tsx`).
 - Sequential extension loader with per-entry lifetimes, error isolation, and manual hot reload (`src/main/extensions/`). See [extension-activation-and-isolation](../decisions/2026-05-30-extension-activation-and-isolation.md) and [manual-reload-extensionsbag](../decisions/2026-05-31-manual-reload-extensionsbag.md).
-- Stage-1 canvas pane: own-origin `uix-canvas://` protocol, key-addressed store, dedicated agent tools, whole-document refresh (`src/main/canvas/`, `src/renderer/Canvas.tsx`). See [canvas-stage-one](../decisions/2026-05-31-canvas-stage-one.md).
+- Canvas pane: own-origin `uix-canvas://` protocol, key-addressed store, anchored canvas tools, whole-document refresh, and an injected writeback shim for form/control and explicit `contenteditable` edits (`src/main/canvas/`, `src/main/content/`, `src/renderer/Canvas.tsx`). See [canvas-stage-one](../decisions/2026-05-31-canvas-stage-one.md) and [canvas-data-channel](../design/canvas-data-channel.md).
 
-**In flight:** the bidirectional canvas data channel — anchored edits and pane→agent writeback — is in design ([canvas-data-channel](../design/canvas-data-channel.md)); the next concrete build unit is seeded in the [plans backlog](../plans/backlog.md) and should get a fresh spec before implementation.
+**In flight:** lower-level pi integration for native input/context hooks, filesystem-tool parity, and pane versioning/rollback are tracked in [persistence-and-session-foundation](../plans/persistence-and-session-foundation.md), [canvas-data-channel](../design/canvas-data-channel.md), and [pane-and-file-versioning](../design/pane-and-file-versioning.md).
 
 What's _next_ lives in the plans backlog ([`../plans/backlog.md`](../plans/backlog.md)); per-decision history is in [`../decisions/`](../decisions/).
