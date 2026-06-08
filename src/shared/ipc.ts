@@ -58,6 +58,30 @@ export type AgentEvent =
   | { type: "user_message"; text: string }
   | { type: "assistant_delta"; delta: string }
   | { type: "assistant_end" }
+  | { type: "agent_start" }
+  | { type: "turn_start" }
+  | { type: "turn_end" }
+  | { type: "message_start"; role: string }
+  | { type: "message_end"; role: string }
+  | {
+      type: "tool_start";
+      toolCallId: string;
+      toolName: string;
+      args: unknown;
+    }
+  | {
+      type: "tool_update";
+      toolCallId: string;
+      toolName: string;
+      partialResult: unknown;
+    }
+  | {
+      type: "tool_end";
+      toolCallId: string;
+      toolName: string;
+      result: unknown;
+      isError: boolean;
+    }
   | { type: "error"; message: string };
 
 /**

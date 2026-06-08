@@ -1,5 +1,5 @@
 ---
-summary: "How the cockpit drives the agent today: it lazily owns an in-memory pi AgentSession, forwards a small event stream to the renderer, delegates reload, and binds the core anchored document read/write/edit tools."
+summary: "How the cockpit drives the agent today: it lazily owns a persisted pi AgentSession, forwards a UIX-shaped event stream to the renderer, delegates reload, and binds the core anchored document read/write/edit tools."
 status: active
 ---
 
@@ -9,9 +9,9 @@ UIX owns one pi `AgentSession` for the cockpit, created lazily the first time th
 
 Current behavior:
 
-- the session uses `SessionManager.inMemory()`;
+- the session is resumed or created under the workspace state root;
 - renderer prompts call `window.uix.sendPrompt({ text })`, which invokes the main-process driver;
-- the renderer receives `user_message`, `assistant_delta`, `assistant_end`, and `error` events over typed Electron IPC;
+- the renderer receives a UIX-shaped event stream over typed Electron IPC: user messages, assistant deltas/end, basic lifecycle markers, tool execution start/update/end, and errors;
 - `window.uix.reload()` reloads UIX extensions and delegates to `session.reload()` only if a pi session already exists;
 - core substrate tools are registered through internal agent bindings (`AgentBinding`), not through the public UIX extension API.
 

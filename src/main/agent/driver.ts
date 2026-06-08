@@ -212,6 +212,22 @@ function forwardEvent(
   emit: (e: AgentEvent) => void,
 ): void {
   switch (event.type) {
+    case "agent_start":
+      emit({ type: "agent_start" });
+      return;
+
+    case "turn_start":
+      emit({ type: "turn_start" });
+      return;
+
+    case "turn_end":
+      emit({ type: "turn_end" });
+      return;
+
+    case "message_start":
+      emit({ type: "message_start", role: messageRole(event.message) });
+      return;
+
     case "message_update": {
       const inner = event.assistantMessageEvent;
       if (inner.type === "text_delta") {
@@ -219,12 +235,61 @@ function forwardEvent(
       }
       return;
     }
+
+    case "message_end":
+      emit({ type: "message_end", role: messageRole(event.message) });
+      return;
+
+    case "tool_execution_start":
+      emit({
+        type: "tool_start",
+        toolCallId: event.toolCallId,
+        toolName: event.toolName,
+        args: ipcValue(event.args),
+      });
+      return;
+
+    case "tool_execution_update":
+      emit({
+        type: "tool_update",
+        toolCallId: event.toolCallId,
+        toolName: event.toolName,
+        partialResult: ipcValue(event.partialResult),
+      });
+      return;
+
+    case "tool_execution_end":
+      emit({
+        type: "tool_end",
+        toolCallId: event.toolCallId,
+        toolName: event.toolName,
+        result: ipcValue(event.result),
+        isError: event.isError,
+      });
+      return;
+
     case "agent_end":
       emit({ type: "assistant_end" });
       return;
+
     default:
-      // Tool execution, turn lifecycle, queue updates, compaction, etc.
-      // get surfaced when we have UI for them.
+      // Queue updates, compaction, retries, and model changes get their own
+      // renderer vocabulary when the conversation pane needs to display them.
       return;
+  }
+}
+
+function messageRole(message: unknown): string {
+  if (typeof message !== "object" || message === null) return "unknown";
+  const role = (message as { role?: unknown }).role;
+  return typeof role === "string" ? role : "custom";
+}
+
+function ipcValue(value: unknown): unknown {
+  try {
+    const json = JSON.stringify(value);
+    return json === undefined ? undefined : JSON.parse(json);
+  } catch {
+    return String(value);
   }
 }

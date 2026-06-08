@@ -95,14 +95,17 @@ body,
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .msg {
   display: grid;
-  grid-template-columns: 5rem 1fr;
+  grid-template-columns: 5rem minmax(0, 1fr);
   gap: 0.5rem;
   font-size: 0.9rem;
   line-height: 1.45;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .msg__role {
@@ -115,8 +118,10 @@ body,
 
 .msg__text {
   white-space: pre-wrap;
-  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   min-width: 0;
+  max-width: 100%;
 }
 
 .msg--user .msg__text {
@@ -127,6 +132,16 @@ body,
   color: var(--fg);
 }
 
+.msg--tool .msg__text {
+  color: var(--fg-dim);
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  font-size: 0.82rem;
+}
+
+.msg--tool-error .msg__role,
+.msg--tool-error .msg__text,
 .msg--error .msg__role,
 .msg--error .msg__text {
   color: var(--error);
