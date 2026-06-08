@@ -4,8 +4,8 @@
 // flow back to the store. The canvas frame is sandboxed off `window.uix` (see
 // preload), so the only channel out is postMessage to the cockpit parent, which
 // forwards over IPC. The shim is added at serve time and never persisted: it
-// removes its own <script> node before serializing, and strips the
-// contenteditable attribute it sets, so neither leaks into stored content.
+// removes its own <script> node before serializing, so it never leaks into
+// stored content.
 
 import { assertCanvasKey } from "../../shared/canvas";
 
@@ -44,8 +44,6 @@ function shimScript(key: string): string {
   }
   function serialize() {
     var clone = document.documentElement.cloneNode(true);
-    var body = clone.querySelector("body");
-    if (body) body.removeAttribute("contenteditable");
     reflectFormState(document.documentElement, clone);
     return clone.outerHTML;
   }
@@ -60,9 +58,8 @@ function shimScript(key: string): string {
     timer = setTimeout(flush, 400);
   }
   function init() {
-    document.body.contentEditable = "true";
-    document.body.addEventListener("input", schedule);
-    document.body.addEventListener("change", schedule);
+    document.addEventListener("input", schedule, true);
+    document.addEventListener("change", schedule, true);
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
