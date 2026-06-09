@@ -4,6 +4,18 @@
  * their own local vocabulary without inheriting chat-specific block styles.
  */
 
+@font-face {
+  font-family: "UIX Iosevka";
+  src: url("./assets/fonts/Iosevka-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+[data-uix-pane="chat"] {
+  --uix-chat-code-font: "UIX Iosevka";
+}
+
 [data-uix-pane="chat"] .pane__body--chat {
   padding: 0;
   display: grid;
@@ -93,8 +105,8 @@
   overflow-wrap: anywhere;
   word-break: break-word;
   font-family:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-    monospace;
+    var(--uix-chat-code-font), ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, "Liberation Mono", monospace;
   font-size: 0.8rem;
   line-height: 1.45;
 }
@@ -103,6 +115,26 @@
   cursor: pointer;
   color: var(--fg-faint);
   font-size: 0.78rem;
+}
+
+[data-uix-pane="chat"] .canvas-tool-block__payload {
+  display: grid;
+  gap: 0.2rem;
+}
+
+[data-uix-pane="chat"] .canvas-tool-block__toggle {
+  justify-self: start;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--fg-faint);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+[data-uix-pane="chat"] .canvas-tool-block__toggle:hover {
+  color: var(--accent);
 }
 
 [data-uix-pane="chat"] .msg--tool-error .tool-block__status {

@@ -5,7 +5,7 @@
 // styles.css so we don't take on a styling system before we need one.
 
 import { Canvas } from "./Canvas";
-import { Chat } from "./Chat";
+import { Chat } from "./chat/Chat";
 
 export function App() {
   return (

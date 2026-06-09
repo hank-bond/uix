@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import type { AgentEvent, TranscriptItem } from "../shared/ipc";
+import type { AgentEvent, TranscriptItem } from "../../shared/ipc";
 import { ChatBlock } from "./blocks/ChatBlock";
 
 export function Chat() {

@@ -1,0 +1,11 @@
+# Chat font assets
+
+`Iosevka-Regular.woff2` is extracted from the official Iosevka webfont release:
+
+- Source: https://github.com/be5invis/Iosevka/releases/download/v34.6.1/PkgWebFont-Iosevka-34.6.1.zip
+- Archive path: `WOFF2/Iosevka-Regular.woff2`
+- SHA-256: `7801b0f48ef952cc9992f42da4aeb4a3abe6d7dba532a60ef8f9fc31da347960`
+- Copyright: Copyright (c) 2015-2026, Renzhi Li (aka. Belleve Invis, belleve@typeof.net)
+- License: SIL Open Font License 1.1 (`third_party/licenses/OFL.txt`)
+
+Only the referenced WOFF2 file is vendored here; the full upstream webfont archive is not committed.
