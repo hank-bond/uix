@@ -16,6 +16,16 @@ Current behavior:
 - `window.uix.reload()` reloads UIX extensions and delegates to `session.reload()` only if a pi session already exists;
 - core substrate tools are registered through internal agent bindings (`AgentBinding`), not through the public UIX extension API.
 
+## Transcript projection
+
+UIX keeps three related units distinct:
+
+1. **Pi session entries** are the durable history/tree substrate. They are persisted by pi with `id`/`parentId` and represent conversation/state-machine steps such as user messages, assistant messages, tool results, custom messages, custom entries, model changes, and compactions. From the UI's point of view these are the branchable history units, not necessarily the smallest visible UI units.
+2. **`TranscriptItem`s** are UIX's renderer wire shape. Main projects live pi events and replayed durable session entries into this one shape so the conversation pane consumes the same model for streaming deltas and startup history. Live updates replace one `TranscriptItem` by id; they do not replace a whole turn or whole transcript.
+3. **Conversation blocks** are renderer units. A block is the smallest rendered conversation-stream unit and is a view over the transcript projection. Today each `TranscriptItem` renders as one block, but the model intentionally allows one session entry to project to many transcript items and one transcript item to render as many blocks later.
+
+This separation keeps pi's durable tree, UIX's streaming/replay normalization, and React rendering independent enough to evolve without re-keying the session format.
+
 The only current core agent binding is the canvas binding in `src/main/content/binding.ts`, which contributes the anchored canvas channel:
 
 - `uix_canvas_read({ key, start?, end? })`

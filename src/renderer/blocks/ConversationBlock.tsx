@@ -1,34 +1,40 @@
 import type { TranscriptItem } from "../../shared/ipc";
 
-export interface TranscriptItemViewProps {
+export interface ConversationBlockProps {
   item: TranscriptItem;
 }
 
 /**
- * First-pass transcript item dispatch.
+ * First-pass conversation block dispatch.
  *
  * This intentionally preserves the old markup/classes so the first slice only
  * changes the rendering unit from "string helper" to "React component". The
  * dispatch shape is the seam that later grows exact tool/custom renderers.
  */
-export function TranscriptItemView({ item }: TranscriptItemViewProps) {
+export function ConversationBlock({ item }: ConversationBlockProps) {
   switch (item.kind) {
     case "user":
-      return <MessageItemView item={item} label="user" className="user" />;
+      return (
+        <MessageConversationBlock item={item} label="user" className="user" />
+      );
     case "assistant":
       return (
-        <MessageItemView item={item} label="assistant" className="assistant" />
+        <MessageConversationBlock
+          item={item}
+          label="assistant"
+          className="assistant"
+        />
       );
     case "tool":
-      return <ToolItemView item={item} />;
+      return <ToolConversationBlock item={item} />;
     case "custom":
-      return <CustomMessageItemView item={item} />;
+      return <CustomMessageConversationBlock item={item} />;
     case "error":
-      return <ErrorItemView item={item} />;
+      return <ErrorConversationBlock item={item} />;
   }
 }
 
-function MessageItemView({
+function MessageConversationBlock({
   item,
   label,
   className,
@@ -38,57 +44,106 @@ function MessageItemView({
   className: string;
 }) {
   const text = item.text || (item.kind === "assistant" ? "…" : "");
-  return <TranscriptRow className={className} label={label} body={text} />;
+  return (
+    <ConversationBlockFrame
+      className={className}
+      kind={item.kind}
+      label={label}
+      body={text}
+    />
+  );
 }
 
-function ToolItemView({
+function ToolConversationBlock({
   item,
 }: {
   item: Extract<TranscriptItem, { kind: "tool" }>;
 }) {
   return (
-    <TranscriptRow
+    <ConversationBlockFrame
       className={item.isError ? "tool-error" : "tool"}
+      kind="tool"
+      state={toToolState(item)}
+      toolName={item.toolName}
       label={item.isError ? "tool error" : "tool"}
       body={toToolText(item)}
     />
   );
 }
 
-function CustomMessageItemView({
+function CustomMessageConversationBlock({
   item,
 }: {
   item: Extract<TranscriptItem, { kind: "custom" }>;
 }) {
   const body = truncateText(item.content) ?? truncateText(item.details) ?? "";
   return (
-    <TranscriptRow className="custom" label={item.customType} body={body} />
+    <ConversationBlockFrame
+      className="custom"
+      kind="custom"
+      customType={item.customType}
+      label={item.customType}
+      body={body}
+    />
   );
 }
 
-function ErrorItemView({
+function ErrorConversationBlock({
   item,
 }: {
   item: Extract<TranscriptItem, { kind: "error" }>;
 }) {
-  return <TranscriptRow className="error" label="error" body={item.message} />;
+  return (
+    <ConversationBlockFrame
+      className="error"
+      kind="error"
+      state="error"
+      label="error"
+      body={item.message}
+    />
+  );
 }
 
-function TranscriptRow({
+function ConversationBlockFrame({
   className,
+  kind,
+  state,
+  toolName,
+  customType,
   label,
   body,
 }: {
   className: string;
+  kind: TranscriptItem["kind"];
+  state?: "running" | "success" | "error";
+  toolName?: string;
+  customType?: string;
   label: string;
   body: string;
 }) {
   return (
-    <div className={`msg msg--${className}`}>
-      <div className="msg__role">{label}</div>
-      <div className="msg__text">{body}</div>
+    <div
+      className={`msg msg--${className}`}
+      data-uix-conversation-block={kind}
+      data-uix-state={state}
+      data-uix-tool-name={toolName}
+      data-uix-custom-type={customType}
+    >
+      <div className="msg__role" data-uix-part="label">
+        {label}
+      </div>
+      <div className="msg__text" data-uix-part="content">
+        {body}
+      </div>
     </div>
   );
+}
+
+function toToolState(
+  item: Extract<TranscriptItem, { kind: "tool" }>,
+): "running" | "success" | "error" {
+  if (!item.complete) return "running";
+  return item.isError ? "error" : "success";
 }
 
 function toToolText(item: Extract<TranscriptItem, { kind: "tool" }>): string {

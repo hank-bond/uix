@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import type { AgentEvent, TranscriptItem } from "../shared/ipc";
-import { TranscriptItemView } from "./blocks/TranscriptItemView";
+import { ConversationBlock } from "./blocks/ConversationBlock";
 
 export function Conversation() {
   const [items, setItems] = useState<TranscriptItem[]>([]);
@@ -81,7 +81,7 @@ export function Conversation() {
               : "loading transcript…"}
           </div>
         ) : (
-          items.map((item) => <TranscriptItemView key={item.id} item={item} />)
+          items.map((item) => <ConversationBlock key={item.id} item={item} />)
         )}
       </div>
       <form
