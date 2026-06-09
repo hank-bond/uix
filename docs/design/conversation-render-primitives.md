@@ -39,6 +39,24 @@ Both pi render paths return `Component` from `@earendil-works/pi-tui` — termin
 
 The full vision — a dropped-in package whose `uix` field contributes a tool (main process) _and_ a renderer (renderer process) — pulls in unbuilt substrate: frontend extension loading, the pane-host slot registry, and the tool-half/renderer-half IPC crossing. Build the **contract, not the delivery**: the registries + the render-from-typed-event primitive, proven with built-in renderers plus one agent-triggered component (`rich-diff`), all in-process and first-party. The loader becomes "discover a package and call the same `register*` API" later — the same sequencing that proved the canvas channel on `customTools` before any lower-level refactor.
 
+### User-space interactive custom-message shape
+
+The target user-space proof is an extension-owned interactive prompt with no core-special path:
+
+```text
+UIX extension registers a pi tool + chat renderer
+  -> agent calls the tool
+  -> tool emits a displayed CustomMessage via pi.sendMessage({ customType, content, display, details })
+  -> chat pane renders details with the registered customType renderer
+  -> human clicks/submits inside that chat block
+  -> renderer sends a typed block action to main, keyed by the opaque block/item id
+  -> main validates and converts the action into pi.sendUserMessage(...)
+     or another explicit pi-side continuation
+  -> the agent may get a new turn even if the normal chat input is empty/unchanged
+```
+
+The custom message's `content` is what the model sees; `details` are typed props for the React renderer; the submitted human choice is an ephemeral renderer action until main converts it into a user message, tool result, or custom entry. The renderer never talks directly to the agent and never mutates session state. This is the concrete shape we want before treating custom-message fallback UI as a first-class product surface.
+
 ### Durable identity before interactive blocks
 
 Durable transcript identity is a gate for **interactive or stateful** blocks, not for every richer rendering. A static rich block can be a React component today if it renders only from the current `TranscriptItem` payload (`toolName`/`args`/`result`/`partialResult`, or `customType`/`content`/`details`) and treats `item.id` as an opaque React key. Live provisional ids and replay canonical ids may differ, but a stateless view has nothing durable to migrate.
