@@ -1,5 +1,5 @@
 ---
-summary: "The renderer ships a hardcoded conversation pane and a hardcoded canvas iframe pane; the canvas is key-addressed, served over own-origin uix-canvas:// URLs, sandboxed, refreshed by whole-document iframe reload, and served with a writeback shim for form/contenteditable edits."
+summary: "The renderer ships a hardcoded chat pane and a hardcoded canvas iframe pane; the chat pane renders TranscriptItems as scoped chat blocks, and the canvas is key-addressed, served over own-origin uix-canvas:// URLs, sandboxed, refreshed by whole-document iframe reload, and served with a writeback shim."
 status: active
 ---
 
@@ -7,10 +7,20 @@ status: active
 
 UIX currently has two hardcoded renderer panes in `src/renderer/App.tsx`:
 
-- a conversation pane (`src/renderer/Conversation.tsx`);
+- a chat pane (`src/renderer/chat/Chat.tsx`);
 - a canvas iframe pane (`src/renderer/Canvas.tsx`) hardcoded to `canvasKey="main"`.
 
 There is no public pane host, slot registry, or `registerPane` extension API in the current code.
+
+## Chat pane
+
+The chat pane is a scoped renderer feature under `src/renderer/chat/`. Its pane root carries `data-uix-pane="chat"`, and `src/renderer/chat/chat.css` scopes chat-specific block and composer styles under that attribute so future panes do not inherit chat styling by accident.
+
+Main sends `TranscriptItem` appends/replacements over IPC; the chat pane renders them as chat blocks. A chat block is the smallest rendered chat-stream unit, not necessarily a pi session entry. The DOM exposes stable styling hooks such as `data-uix-chat-block`, `data-uix-part`, `data-uix-tool-name`, and `data-uix-custom-type`.
+
+Default chat blocks are first-party defaults, not a public renderer API yet. Tool blocks have a generic fallback plus exact first-party renderers for the canvas tools. The canvas tool renderers extract the text payload, strip anchor gutters from the human-facing display, show the first five lines, and expand the rest inline. The agent-facing tool result still carries anchored lines so the agent can edit safely.
+
+The chat code font is a local Iosevka Regular WOFF2 asset under `src/renderer/chat/assets/fonts/`, applied through `--uix-chat-code-font`. This is hardcoded along the future asset/style contribution shape: a later font/style pack should be able to override the token without replacing block behavior.
 
 ## Canvas iframe pane
 

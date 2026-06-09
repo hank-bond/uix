@@ -24,7 +24,7 @@ UIX keeps three related units distinct:
 2. **`TranscriptItem`s** are UIX's renderer wire shape. Main projects live pi events and replayed durable session entries into this one shape so the chat pane consumes the same model for streaming deltas and startup history. Live updates replace one `TranscriptItem` by id; they do not replace a whole turn or whole transcript.
 3. **Chat blocks** are renderer units. A block is the smallest rendered chat-stream unit and is a view over the transcript projection. Today each `TranscriptItem` renders as one block, but the model intentionally allows one session entry to project to many transcript items and one transcript item to render as many blocks later.
 
-This separation keeps pi's durable tree, UIX's streaming/replay normalization, and React rendering independent enough to evolve without re-keying the session format.
+This separation keeps pi's durable tree, UIX's streaming/replay normalization, and React rendering independent enough to evolve without re-keying the session format. Chat block renderers may also present a human-facing projection of an agent-facing payload: for example, canvas tool results keep anchored lines in the transcript item so the agent can edit safely, while the chat block hides the anchors from the human display.
 
 The only current core agent binding is the canvas binding in `src/main/content/binding.ts`, which contributes the anchored canvas channel:
 
