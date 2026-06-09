@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import type { AgentEvent, TranscriptItem } from "../shared/ipc";
+import { TranscriptItemView } from "./blocks/TranscriptItemView";
 
 export function Conversation() {
   const [items, setItems] = useState<TranscriptItem[]>([]);
@@ -80,12 +81,7 @@ export function Conversation() {
               : "loading transcript…"}
           </div>
         ) : (
-          items.map((item) => (
-            <div key={item.id} className={`msg msg--${messageClass(item)}`}>
-              <div className="msg__role">{messageLabel(item)}</div>
-              <div className="msg__text">{itemText(item)}</div>
-            </div>
-          ))
+          items.map((item) => <TranscriptItemView key={item.id} item={item} />)
         )}
       </div>
       <form
@@ -160,54 +156,4 @@ function syncItem(
 
 function isVisible(item: TranscriptItem): boolean {
   return item.kind !== "custom" || item.display;
-}
-
-function itemText(item: TranscriptItem): string {
-  switch (item.kind) {
-    case "user":
-    case "assistant":
-      return item.text || (item.kind === "assistant" ? "…" : "");
-    case "tool":
-      return toolText(item);
-    case "custom":
-      return truncateText(item.content) ?? truncateText(item.details) ?? "";
-    case "error":
-      return item.message;
-  }
-}
-
-function toolText(item: Extract<TranscriptItem, { kind: "tool" }>): string {
-  const status = !item.complete
-    ? "running"
-    : item.isError
-      ? "failed"
-      : "finished";
-  const summary = truncateText(
-    !item.complete ? (item.partialResult ?? item.args) : item.result,
-  );
-  return summary
-    ? `${status} ${item.toolName}\n${summary}`
-    : `${status} ${item.toolName}`;
-}
-
-function truncateText(
-  value: unknown,
-  charLimit: number = 600,
-): string | undefined {
-  if (value === undefined || value === null) return undefined;
-  const text =
-    typeof value === "string" ? value : JSON.stringify(value, undefined, 2);
-  if (!text) return undefined;
-  return text.length > charLimit ? `${text.slice(0, charLimit)}…` : text;
-}
-
-function messageClass(item: TranscriptItem): string {
-  if (item.kind === "tool" && item.isError) return "tool-error";
-  return item.kind;
-}
-
-function messageLabel(item: TranscriptItem): string {
-  if (item.kind === "tool" && item.isError) return "tool error";
-  if (item.kind === "custom") return item.customType;
-  return item.kind;
 }
