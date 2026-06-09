@@ -23,7 +23,7 @@ The conversation pane is UIX's first React-path surface. The bare-bones move is 
 
 ### The one divergence
 
-Both pi render paths return `Component` from `@earendil-works/pi-tui` — terminal cells, useless in Chromium. We keep the architecture and swap `Component` → `ReactNode`, `Theme` → our CSS. We get the _event stream_ for free (the driver today forwards only `message_update` text + `agent_end`, dropping the rest in its default case, `src/main/agent/driver.ts`); we do **not** get rendering for free — the React renderers are net-new.
+Both pi render paths return `Component` from `@earendil-works/pi-tui` — terminal cells, useless in Chromium. We keep the architecture and swap `Component` → `ReactNode`, `Theme` → our CSS. We get the _event stream_ for free; the driver now normalizes pi live events and persisted session entries into UIX transcript items, but React renderers are still net-new.
 
 ### UIX design
 
@@ -38,6 +38,10 @@ Both pi render paths return `Component` from `@earendil-works/pi-tui` — termin
 
 The full vision — a dropped-in package whose `uix` field contributes a tool (main process) _and_ a renderer (renderer process) — pulls in unbuilt substrate: frontend extension loading, the pane-host slot registry, and the tool-half/renderer-half IPC crossing. Build the **contract, not the delivery**: the registries + the render-from-typed-event primitive, proven with built-in renderers plus one agent-triggered component (`rich-diff`), all in-process and first-party. The loader becomes "discover a package and call the same `register*` API" later — the same sequencing that proved the canvas channel on `customTools` before any lower-level refactor.
 
+### Durable identity before interactive blocks
+
+Rendered blocks need stable ids before they can safely own expanded state, pending input, action routing, or cross-pane backlinks. The renderer should see opaque item ids only; main owns provisional live ids, canonical pi-session-derived ids, and durable display/block state keyed by canonical id. The concrete build is [durable-transcript-identity](../plans/durable-transcript-identity.md); land it before the choice/input-block proof.
+
 ### Deferred decisions
 
 - **Flat per component vs grouped tools.** Flat per component for now; models may dislike many always-present tools — revisit grouping (e.g. by pane) once there are enough to feel it. A performance question, not a correctness one.
@@ -48,11 +52,15 @@ The full vision — a dropped-in package whose `uix` field contributes a tool (m
 
 ## Log
 
+### 2026-06-07 — durable transcript ids before rich blocks
+
+While reviewing normalized transcript items, we separated row transport identity from durable block identity. For current flat rendering, provisional live ids are enough; for rich blocks they are not. The chosen direction: renderer sees one opaque id and sends display/actions to main; main resolves provisional ids to canonical pi-session-derived ids, persists display/block state server-side, and joins that state back into transcript items. A `WeakMap` keyed by the in-process pi message object can correlate current `message_end` objects with `SessionManager.appendMessage(message)` as a local adapter; a future pi post-persist entry event would replace the adapter. This spawned [durable-transcript-identity](../plans/durable-transcript-identity.md).
+
 ### 2026-06-07 — consumer-side selection + the inbound interaction round-trip
 
 Two additions from the composition walk ([uix-core-composition](./uix-core-composition.md)), extending the render axis with its missing inbound half:
 
-- **Destination-agnostic entries, consumer-side selection.** An entry is typed by _what it is_ (`uix.input_button`), never addressed to a pane. A pane subscribes to the **whole** forwarded feed and renders the entry types it has a renderer for — the render `switch` _is_ the filter; unknown types are skipped. A new entry type forces no pane to change; a pane opts in by adding a renderer (so a new block "modifies, not replaces" the pane). The one plumbing piece: a generic `custom_entry` passthrough lane in the driver / `AgentEvent` union — the driver still forwards only the fixed text vocabulary (`message_update` + `agent_end`) and drops the rest, so custom entries have no lane to the renderer today. Paid once; new block types are then a `case` in a `renderBlock(type, data)` dispatch and nothing else. Collapsing the typed text events _into_ that lane (renderer = pure function over the entry stream) is the deferred cleanup.
+- **Destination-agnostic entries, consumer-side selection.** An entry is typed by _what it is_ (`uix.input_button`), never addressed to a pane. A pane subscribes to the **whole** forwarded feed and renders the entry types it has a renderer for — the render `switch` _is_ the filter; unknown types are skipped. A new entry type forces no pane to change; a pane opts in by adding a renderer (so a new block "modifies, not replaces" the pane). The one plumbing piece: a generic `custom_entry` passthrough lane in the driver / `AgentEvent` union. The current transcript model forwards displayed `custom_message` items, but arbitrary non-message `CustomEntry` state still has no transcript lane by design. Paid once; new block types are then a `case` in a `renderBlock(type, data)` dispatch and nothing else. Collapsing the typed text events _into_ that lane (renderer = pure function over the entry stream) is the deferred cleanup.
 
 - **Durable entries vs ephemeral signals — the interactive block.** An agent-emitted block is a durable session entry; a human _click_ is an ephemeral signal, meaningless until a main-side handler converts it. Round-trip for e.g. a `uix_ask` button: the tool's `execute` `appendEntry`s `uix.input_button` → the block renders → a click dispatches a renderer→main message (`blockAction`) keyed by pi's own `toolCallId` → the handler either **(A)** resolves the pending tool result so the agent continues the _same_ turn (best when the agent asked a question; needs no return-listener, since pi already routes tool results back), or **(B)** `pi.sendUserMessage(...)` to start a _new_ turn (ambient buttons not tied to a pending question). Lead with A. This reconciles with [no-agent-ui-manipulation](../decisions/2026-05-30-no-agent-ui-manipulation.md): the agent emits a typed entry into its own transcript, and the human's interaction returns through a validated channel keyed by `toolCallId` — not a UI handle, not another pane's state. The broader topology (hub via main; tap/message/shared-store) is in [uix-core-composition](./uix-core-composition.md).
 
@@ -60,7 +68,7 @@ Two additions from the composition walk ([uix-core-composition](./uix-core-compo
 
 Persistence work landed ahead of this thread in the dev order. Two consequences for the render build, both captured in [persistence-and-session-foundation](../plans/persistence-and-session-foundation.md) (C0/C1):
 
-- **C0 changes the renderer's input shape.** A file-backed session rehydrates history on startup as _complete_ entries (full messages, tool calls/results), not just live streaming deltas. The block renderers must consume both shapes — so build them after C0, or retrofit.
+- **C0 changed the renderer's input shape.** A file-backed session rehydrates history on startup as _complete_ entries (full messages, tool calls/results). The current pane normalizes both history and live events into one transcript item model; block renderers should build on that normalized shape.
 - **C1 puts this work on the final substrate.** Promoting UIX-core bindings to an in-process pi extension hands us `sendMessage` / `registerMessageRenderer` / message-transforms. Host-authored blocks (the pending human-diff strip, lifecycle markers) can then be real `CustomMessageEntry` session entries from day one instead of ephemeral React state we later migrate. The agent-authored tool path (`details` → registered component) is unaffected and still works on either substrate.
 
 Net: **resume this thread after C0 + C1.** The two-registry design and the `rich-diff` proof are unchanged; they just build on a persisted, extension-backed base. See [session-file-as-state-substrate](../decisions/2026-06-06-session-file-as-state-substrate.md).

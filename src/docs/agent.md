@@ -11,7 +11,8 @@ Current behavior:
 
 - the session is resumed or created under the workspace state root;
 - renderer prompts call `window.uix.sendPrompt({ text })`, which invokes the main-process driver;
-- the renderer receives a UIX-shaped event stream over typed Electron IPC: user messages, assistant deltas/end, basic lifecycle markers, tool execution start/update/end, and errors;
+- the renderer receives a UIX-shaped event stream over typed Electron IPC: transcript item appends/replacements plus basic lifecycle markers; live in-flight tool partials are discarded when the final item arrives;
+- `window.uix.getHistory()` replays the same durable transcript item shape from pi's persisted session branch;
 - `window.uix.reload()` reloads UIX extensions and delegates to `session.reload()` only if a pi session already exists;
 - core substrate tools are registered through internal agent bindings (`AgentBinding`), not through the public UIX extension API.
 

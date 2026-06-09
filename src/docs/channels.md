@@ -17,7 +17,7 @@ The current cross-boundary communication surface is the Electron IPC bridge decl
 - `reload()`
 - `getHistory()`
 
-Agent events are main-to-renderer only. The main process subscribes to pi's session stream, maps pi events into UIX-owned `AgentEvent` variants, and sends those over IPC. The renderer does not import pi types or receive mutable extension hooks.
+Agent events are main-to-renderer only. The main process subscribes to pi's session stream, normalizes pi events into UIX-owned transcript item appends/replacements plus lifecycle markers, and sends those over IPC. The history endpoint replays the same durable transcript item shape from persisted pi session entries. The renderer does not import pi types or receive mutable extension hooks.
 
 Canvas invalidation is currently a one-way main-to-renderer event: main broadcasts `canvasChanged { key }`, and the hardcoded canvas pane filters by key before reloading its iframe URL.
 

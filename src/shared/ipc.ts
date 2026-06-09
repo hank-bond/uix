@@ -48,55 +48,51 @@ export interface CanvasWriteback {
 }
 
 /**
- * Agent events sent main → renderer.
- *
- * Today we only forward the bits the conversation pane needs to render
- * plain text streaming. Richer event types (tool calls, turn/agent
- * lifecycle, queue updates) get added as the cockpit grows into them.
+ * Durable transcript items rendered by the conversation pane. Live events may
+ * carry in-flight fields on the same item shape; history replay only returns
+ * completed durable items.
  */
+export type TranscriptItem =
+  | { id: string; kind: "user"; text: string }
+  | {
+      id: string;
+      kind: "assistant";
+      text: string;
+      complete: boolean;
+    }
+  | {
+      id: string;
+      kind: "tool";
+      toolCallId: string;
+      toolName: string;
+      complete: boolean;
+      args?: unknown;
+      result?: unknown;
+      /** Live-only progress payload; discarded when the tool completes. */
+      partialResult?: unknown;
+      isError?: boolean;
+    }
+  | {
+      id: string;
+      kind: "custom";
+      customType: string;
+      content: unknown;
+      details?: unknown;
+      display: boolean;
+    }
+  | { id: string; kind: "error"; message: string };
+
 export type AgentEvent =
-  | { type: "user_message"; text: string }
-  | { type: "assistant_delta"; delta: string }
-  | { type: "assistant_end" }
+  | { type: "transcript_append"; item: TranscriptItem }
+  | { type: "transcript_replace"; item: TranscriptItem }
   | { type: "agent_start" }
+  | { type: "agent_end" }
   | { type: "turn_start" }
-  | { type: "turn_end" }
-  | { type: "message_start"; role: string }
-  | { type: "message_end"; role: string }
-  | {
-      type: "tool_start";
-      toolCallId: string;
-      toolName: string;
-      args: unknown;
-    }
-  | {
-      type: "tool_update";
-      toolCallId: string;
-      toolName: string;
-      partialResult: unknown;
-    }
-  | {
-      type: "tool_end";
-      toolCallId: string;
-      toolName: string;
-      result: unknown;
-      isError: boolean;
-    }
-  | { type: "error"; message: string };
+  | { type: "turn_end" };
 
-/**
- * A complete, already-finished message from the persisted session, replayed
- * into the transcript on startup. The renderer's *second* input shape: live
- * `AgentEvent` deltas stream the current turn; these seed prior turns whole.
- * Tool calls/results join this once the render registries exist.
- */
-export interface HistoryMessage {
-  role: "user" | "assistant";
-  text: string;
-}
-
-export interface HistorySnapshot {
-  messages: HistoryMessage[];
+/** Complete, durable transcript items replayed from the persisted session. */
+export interface TranscriptSnapshot {
+  items: TranscriptItem[];
 }
 
 /** Shape exposed on `window.uix` by the preload. */
@@ -111,5 +107,5 @@ export interface UIXBridge {
   /** Programmatic hook for future command palette/menu/chat /reload. */
   reload: () => Promise<ReloadResult>;
   /** Pull the prior transcript to seed the pane on mount. */
-  getHistory: () => Promise<HistorySnapshot>;
+  getHistory: () => Promise<TranscriptSnapshot>;
 }

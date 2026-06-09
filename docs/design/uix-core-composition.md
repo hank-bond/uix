@@ -84,7 +84,7 @@ Three relationships, not three transports:
 
 ### Destination-agnostic selection
 
-Entries are typed by **what they are** (`uix.input_button`), not addressed to a pane. A pane subscribes to the **whole feed** and renders the entry types it has a renderer for — **consumer-side selection** ("I render the types I have a block for, ignore the rest"; the render `switch` _is_ the filter). A new entry type forces no pane to change; a pane opts in by adding a renderer. The one plumbing piece this needs: a generic `custom_entry` passthrough lane in the driver / `AgentEvent` union, because the driver today forwards only a fixed text vocabulary and drops the rest. Detail and the interactive round-trip live in [conversation-render-primitives](./conversation-render-primitives.md).
+Entries are typed by **what they are** (`uix.input_button`), not addressed to a pane. A pane subscribes to the **whole feed** and renders the entry types it has a renderer for — **consumer-side selection** ("I render the types I have a block for, ignore the rest"; the render `switch` _is_ the filter). A new entry type forces no pane to change; a pane opts in by adding a renderer. The one plumbing piece this still needs: a generic `custom_entry` passthrough lane in the driver / `AgentEvent` union. The current driver normalizes durable transcript messages/tools/displayed custom messages, but arbitrary non-message `CustomEntry` state is intentionally not rendered as chat. Detail and the interactive round-trip live in [conversation-render-primitives](./conversation-render-primitives.md).
 
 ### Concept vocabulary (best-effort)
 

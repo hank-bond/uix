@@ -17,7 +17,7 @@ import {
   type CanvasChanged,
   type CanvasWriteback,
   Channels,
-  type HistorySnapshot,
+  type TranscriptSnapshot,
   type PromptRequest,
   type ReloadResult,
 } from "../shared/ipc";
@@ -148,7 +148,7 @@ void app.whenReady().then(async () => {
   );
 
   appBag.add(
-    handle<void, HistorySnapshot>(Channels.history, () => driver.history()),
+    handle<void, TranscriptSnapshot>(Channels.history, () => driver.history()),
   );
 
   appBag.add(

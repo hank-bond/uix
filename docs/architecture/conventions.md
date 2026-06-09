@@ -36,6 +36,16 @@ bag[Symbol.dispose]();
 
 - A `DisposableBag` that owns registrations is named after the lifetime it tracks: `appBag`, `windowBag`, `sessionBag`.
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
+- Private helper functions should generally be operation-shaped so the call site says what operation is happening. Prefer:
+  - `parseX` for unknown input that may fail and return `undefined`;
+  - `extractX` for pulling data out of a larger value;
+  - `getX` for cheap property lookup with no I/O;
+  - `asX` for safe cast/view helpers that return `X | undefined`;
+  - `toX` for conventional conversions;
+  - `isX` / `hasX` for predicates and type guards;
+  - `createX` / `buildX` for construction from known inputs;
+  - `readX` only for real reads from disk, stores, streams, or similarly I/O-shaped sources.
+- React components are the exception: keep PascalCase noun names such as `Conversation` or `ChoiceButton`.
 - Anything implementing `Disposable` is fine to add to a bag — no ceremony needed.
 
 ## Comments

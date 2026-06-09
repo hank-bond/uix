@@ -1,8 +1,8 @@
 // UIX cockpit — agent driver.
 //
 // Wraps `createAgentSession` from `@earendil-works/pi-coding-agent` and
-// translates the subset of pi's event stream we currently render into
-// the flat `AgentEvent` shape declared in src/shared/ipc.ts.
+// normalizes pi's live event stream into the same transcript item model used
+// for persisted history replay in src/shared/ipc.ts.
 //
 // Why dynamic `import()`: pi is an ESM-only package and the main bundle
 // is CJS. A static `import` would be rewritten to `require()` by the
@@ -22,7 +22,11 @@ import type {
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 
-import type { AgentEvent, HistorySnapshot } from "../../shared/ipc";
+import type {
+  AgentEvent,
+  TranscriptItem,
+  TranscriptSnapshot,
+} from "../../shared/ipc";
 import type { Workspace } from "../workspace";
 
 import { join } from "node:path";
@@ -31,7 +35,13 @@ import { disposable, DisposableBag, subscribe } from "../lifecycle";
 import { createLogger } from "../log";
 
 import { type AgentBinding, createUixCoreExtension } from "./bindings";
-import { entriesToMessages } from "./history";
+import {
+  extractTranscriptText,
+  parseCustomTranscriptItem,
+  getMessageRole,
+  toIpcValue,
+  toTranscriptItems,
+} from "./transcript";
 
 /**
  * The driver itself is a Disposable so callers can hand it to a Bag
@@ -47,7 +57,7 @@ export interface AgentDriver extends Disposable {
    */
   init(): void;
   /** Prior transcript for renderer rehydration. Needs only the manager tier. */
-  history(): Promise<HistorySnapshot>;
+  history(): Promise<TranscriptSnapshot>;
 }
 
 export interface AgentDriverOptions {
@@ -129,8 +139,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     // them down in LIFO order: the subscription first, then the
     // session itself.
     bag.add(
-      subscribe<AgentSessionEvent>(session, (event) =>
-        forwardEvent(event, opts.onEvent),
+      subscribe<AgentSessionEvent>(
+        session,
+        createLiveTranscriptForwarder(opts.onEvent),
       ),
     );
     bag.add(disposable(() => session.dispose()));
@@ -148,13 +159,13 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     async history() {
       try {
         const sessionManager = await manager();
-        return { messages: entriesToMessages(sessionManager.getBranch()) };
+        return { items: toTranscriptItems(sessionManager.getBranch()) };
       } catch (err) {
         createLogger("agent").warn(
           { err: err instanceof Error ? err.message : String(err) },
           "history_load_failed",
         );
-        return { messages: [] };
+        return { items: [] };
       }
     },
 
@@ -170,7 +181,10 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     },
 
     async prompt(text) {
-      opts.onEvent({ type: "user_message", text });
+      opts.onEvent({
+        type: "transcript_append",
+        item: { id: liveId("user"), kind: "user", text },
+      });
       try {
         // If openSession rejects (e.g. missing auth), clear the cache
         // so the next prompt tries fresh instead of replaying the
@@ -185,17 +199,21 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         // Send the human's text verbatim. Binding-contributed turn context
         // (e.g. the canvas human-writeback diff) is prepended to the
         // model-bound text inside the UIX-core extension's "input" hook, so the
-        // stored user entry stays clean. The user_message event above already
+        // stored user entry stays clean. The transcript append above already
         // carries the human's original text to the renderer.
         await session.prompt(text);
       } catch (err) {
         opts.onEvent({
-          type: "error",
-          message: err instanceof Error ? err.message : String(err),
+          type: "transcript_append",
+          item: {
+            id: liveId("error"),
+            kind: "error",
+            message: errorMessage(err),
+          },
         });
-        // Renderer treats assistant_end as "you can send again" — emit
-        // it on error so the composer unlocks.
-        opts.onEvent({ type: "assistant_end" });
+        // Renderer treats agent_end as "you can send again" — emit it on error
+        // so the composer unlocks.
+        opts.onEvent({ type: "agent_end" });
       }
     },
 
@@ -207,89 +225,151 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   };
 }
 
-function forwardEvent(
-  event: AgentSessionEvent,
-  emit: (e: AgentEvent) => void,
-): void {
-  switch (event.type) {
-    case "agent_start":
-      emit({ type: "agent_start" });
-      return;
+function createLiveTranscriptForwarder(emit: (e: AgentEvent) => void) {
+  let assistant: Extract<TranscriptItem, { kind: "assistant" }> | undefined;
+  const tools = new Map<string, Extract<TranscriptItem, { kind: "tool" }>>();
 
-    case "turn_start":
-      emit({ type: "turn_start" });
-      return;
+  function append(item: TranscriptItem): void {
+    emit({ type: "transcript_append", item });
+  }
 
-    case "turn_end":
-      emit({ type: "turn_end" });
-      return;
+  function replace(item: TranscriptItem): void {
+    emit({ type: "transcript_replace", item });
+  }
 
-    case "message_start":
-      emit({ type: "message_start", role: messageRole(event.message) });
-      return;
+  function ensureAssistant(): Extract<TranscriptItem, { kind: "assistant" }> {
+    if (assistant) return assistant;
+    assistant = {
+      id: liveId("assistant"),
+      kind: "assistant",
+      text: "",
+      complete: false,
+    };
+    append(assistant);
+    return assistant;
+  }
 
-    case "message_update": {
-      const inner = event.assistantMessageEvent;
-      if (inner.type === "text_delta") {
-        emit({ type: "assistant_delta", delta: inner.delta });
+  return (event: AgentSessionEvent): void => {
+    switch (event.type) {
+      case "agent_start":
+        emit({ type: "agent_start" });
+        return;
+
+      case "turn_start":
+        emit({ type: "turn_start" });
+        return;
+
+      case "turn_end":
+        emit({ type: "turn_end" });
+        return;
+
+      case "message_start":
+        if (getMessageRole(event.message) === "assistant") ensureAssistant();
+        return;
+
+      case "message_update": {
+        const inner = event.assistantMessageEvent;
+        if (inner.type === "text_delta") {
+          const current = ensureAssistant();
+          assistant = { ...current, text: current.text + inner.delta };
+          replace(assistant);
+        }
+        return;
       }
-      return;
+
+      case "message_end": {
+        const role = getMessageRole(event.message);
+        if (role === "assistant") {
+          const current = ensureAssistant();
+          const finalText =
+            extractTranscriptText(event.message) || current.text;
+          assistant = {
+            ...current,
+            text: finalText,
+            complete: true,
+          };
+          replace(assistant);
+          assistant = undefined;
+          return;
+        }
+
+        const custom = parseCustomTranscriptItem(
+          liveId("custom"),
+          event.message,
+        );
+        if (custom) append(custom);
+        return;
+      }
+
+      case "tool_execution_start": {
+        const item = {
+          id: liveId("tool"),
+          kind: "tool" as const,
+          toolCallId: event.toolCallId,
+          toolName: event.toolName,
+          args: toIpcValue(event.args),
+          complete: false,
+        };
+        tools.set(event.toolCallId, item);
+        append(item);
+        return;
+      }
+
+      case "tool_execution_update": {
+        const current = tools.get(event.toolCallId);
+        if (!current) return;
+        const item = {
+          ...current,
+          toolName: event.toolName,
+          partialResult: toIpcValue(event.partialResult),
+        };
+        tools.set(event.toolCallId, item);
+        replace(item);
+        return;
+      }
+
+      case "tool_execution_end": {
+        const existing = tools.get(event.toolCallId);
+        const current =
+          existing ??
+          ({
+            id: liveId("tool"),
+            kind: "tool" as const,
+            toolCallId: event.toolCallId,
+            toolName: event.toolName,
+            complete: false,
+          } satisfies Extract<TranscriptItem, { kind: "tool" }>);
+        const item: Extract<TranscriptItem, { kind: "tool" }> = {
+          id: current.id,
+          kind: "tool",
+          toolCallId: current.toolCallId,
+          toolName: event.toolName,
+          complete: true,
+          args: current.args,
+          result: toIpcValue(event.result),
+          isError: event.isError,
+        };
+        tools.delete(event.toolCallId);
+        if (existing) replace(item);
+        else append(item);
+        return;
+      }
+
+      case "agent_end":
+        emit({ type: "agent_end" });
+        return;
+
+      default:
+        return;
     }
-
-    case "message_end":
-      emit({ type: "message_end", role: messageRole(event.message) });
-      return;
-
-    case "tool_execution_start":
-      emit({
-        type: "tool_start",
-        toolCallId: event.toolCallId,
-        toolName: event.toolName,
-        args: ipcValue(event.args),
-      });
-      return;
-
-    case "tool_execution_update":
-      emit({
-        type: "tool_update",
-        toolCallId: event.toolCallId,
-        toolName: event.toolName,
-        partialResult: ipcValue(event.partialResult),
-      });
-      return;
-
-    case "tool_execution_end":
-      emit({
-        type: "tool_end",
-        toolCallId: event.toolCallId,
-        toolName: event.toolName,
-        result: ipcValue(event.result),
-        isError: event.isError,
-      });
-      return;
-
-    case "agent_end":
-      emit({ type: "assistant_end" });
-      return;
-
-    default:
-      // Queue updates, compaction, retries, and model changes get their own
-      // renderer vocabulary when the conversation pane needs to display them.
-      return;
-  }
+  };
 }
 
-function messageRole(message: unknown): string {
-  if (typeof message !== "object" || message === null) return "unknown";
-  const role = (message as { role?: unknown }).role;
-  return typeof role === "string" ? role : "custom";
+let nextLiveId = 1;
+function liveId(kind: string): string {
+  return `live:${kind}:${nextLiveId++}`;
 }
 
-function ipcValue(value: unknown): unknown {
-  try {
-    const json = JSON.stringify(value);
-    return json === undefined ? undefined : JSON.parse(json);
-  } catch {
-    return String(value);
-  }
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
