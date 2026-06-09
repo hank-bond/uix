@@ -1,4 +1,4 @@
-// UIX cockpit — conversation pane.
+// UIX cockpit — chat pane.
 //
 // One transcript item shape feeds the pane. Startup history supplies completed
 // durable items; live events append or replace the same items while the current
@@ -7,9 +7,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import type { AgentEvent, TranscriptItem } from "../shared/ipc";
-import { ConversationBlock } from "./blocks/ConversationBlock";
+import { ChatBlock } from "./blocks/ChatBlock";
 
-export function Conversation() {
+export function Chat() {
   const [items, setItems] = useState<TranscriptItem[]>([]);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
@@ -73,7 +73,7 @@ export function Conversation() {
 
   return (
     <>
-      <div className="conversation__scroll" ref={scrollRef}>
+      <div className="chat__scroll" ref={scrollRef}>
         {items.length === 0 ? (
           <div className="pane__body--placeholder">
             {hydrated
@@ -81,7 +81,7 @@ export function Conversation() {
               : "loading transcript…"}
           </div>
         ) : (
-          items.map((item) => <ConversationBlock key={item.id} item={item} />)
+          items.map((item) => <ChatBlock key={item.id} item={item} />)
         )}
       </div>
       <form

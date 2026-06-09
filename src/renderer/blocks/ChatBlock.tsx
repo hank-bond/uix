@@ -1,40 +1,36 @@
+import type { ReactNode } from "react";
+
 import type { TranscriptItem } from "../../shared/ipc";
 
-export interface ConversationBlockProps {
+export interface ChatBlockProps {
   item: TranscriptItem;
 }
 
 /**
- * First-pass conversation block dispatch.
+ * First-pass chat block dispatch.
  *
  * This intentionally preserves the old markup/classes so the first slice only
  * changes the rendering unit from "string helper" to "React component". The
  * dispatch shape is the seam that later grows exact tool/custom renderers.
  */
-export function ConversationBlock({ item }: ConversationBlockProps) {
+export function ChatBlock({ item }: ChatBlockProps) {
   switch (item.kind) {
     case "user":
-      return (
-        <MessageConversationBlock item={item} label="user" className="user" />
-      );
+      return <MessageChatBlock item={item} label="user" className="user" />;
     case "assistant":
       return (
-        <MessageConversationBlock
-          item={item}
-          label="assistant"
-          className="assistant"
-        />
+        <MessageChatBlock item={item} label="assistant" className="assistant" />
       );
     case "tool":
-      return <ToolConversationBlock item={item} />;
+      return <ToolChatBlock item={item} />;
     case "custom":
-      return <CustomMessageConversationBlock item={item} />;
+      return <CustomMessageChatBlock item={item} />;
     case "error":
-      return <ErrorConversationBlock item={item} />;
+      return <ErrorChatBlock item={item} />;
   }
 }
 
-function MessageConversationBlock({
+function MessageChatBlock({
   item,
   label,
   className,
@@ -45,7 +41,7 @@ function MessageConversationBlock({
 }) {
   const text = item.text || (item.kind === "assistant" ? "…" : "");
   return (
-    <ConversationBlockFrame
+    <ChatBlockFrame
       className={className}
       kind={item.kind}
       label={label}
@@ -54,31 +50,32 @@ function MessageConversationBlock({
   );
 }
 
-function ToolConversationBlock({
+function ToolChatBlock({
   item,
 }: {
   item: Extract<TranscriptItem, { kind: "tool" }>;
 }) {
+  const state = toToolState(item);
   return (
-    <ConversationBlockFrame
+    <ChatBlockFrame
       className={item.isError ? "tool-error" : "tool"}
       kind="tool"
-      state={toToolState(item)}
+      state={state}
       toolName={item.toolName}
       label={item.isError ? "tool error" : "tool"}
-      body={toToolText(item)}
+      body={<ToolContent item={item} state={state} />}
     />
   );
 }
 
-function CustomMessageConversationBlock({
+function CustomMessageChatBlock({
   item,
 }: {
   item: Extract<TranscriptItem, { kind: "custom" }>;
 }) {
   const body = truncateText(item.content) ?? truncateText(item.details) ?? "";
   return (
-    <ConversationBlockFrame
+    <ChatBlockFrame
       className="custom"
       kind="custom"
       customType={item.customType}
@@ -88,13 +85,13 @@ function CustomMessageConversationBlock({
   );
 }
 
-function ErrorConversationBlock({
+function ErrorChatBlock({
   item,
 }: {
   item: Extract<TranscriptItem, { kind: "error" }>;
 }) {
   return (
-    <ConversationBlockFrame
+    <ChatBlockFrame
       className="error"
       kind="error"
       state="error"
@@ -104,7 +101,7 @@ function ErrorConversationBlock({
   );
 }
 
-function ConversationBlockFrame({
+function ChatBlockFrame({
   className,
   kind,
   state,
@@ -119,12 +116,12 @@ function ConversationBlockFrame({
   toolName?: string;
   customType?: string;
   label: string;
-  body: string;
+  body: ReactNode;
 }) {
   return (
     <div
       className={`msg msg--${className}`}
-      data-uix-conversation-block={kind}
+      data-uix-chat-block={kind}
       data-uix-state={state}
       data-uix-tool-name={toolName}
       data-uix-custom-type={customType}
@@ -146,18 +143,58 @@ function toToolState(
   return item.isError ? "error" : "success";
 }
 
-function toToolText(item: Extract<TranscriptItem, { kind: "tool" }>): string {
-  const status = !item.complete
-    ? "running"
-    : item.isError
-      ? "failed"
-      : "finished";
-  const summary = truncateText(
+function ToolContent({
+  item,
+  state,
+}: {
+  item: Extract<TranscriptItem, { kind: "tool" }>;
+  state: "running" | "success" | "error";
+}) {
+  const payload = toToolPayloadText(item);
+  const args = item.complete ? truncateText(item.args) : undefined;
+
+  return (
+    <div className="tool-block" data-uix-part="tool">
+      <div className="tool-block__header" data-uix-part="tool-header">
+        <span className="tool-block__status" data-uix-part="tool-status">
+          {toToolStatusLabel(state)}
+        </span>
+        <span className="tool-block__name" data-uix-part="tool-name">
+          {item.toolName}
+        </span>
+      </div>
+      {payload ? (
+        <pre className="tool-block__payload" data-uix-part="tool-payload">
+          {payload}
+        </pre>
+      ) : null}
+      {args ? (
+        <details className="tool-block__details" data-uix-part="tool-details">
+          <summary>arguments</summary>
+          <pre>{args}</pre>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+function toToolPayloadText(
+  item: Extract<TranscriptItem, { kind: "tool" }>,
+): string | undefined {
+  return truncateText(
     !item.complete ? (item.partialResult ?? item.args) : item.result,
   );
-  return summary
-    ? `${status} ${item.toolName}\n${summary}`
-    : `${status} ${item.toolName}`;
+}
+
+function toToolStatusLabel(state: "running" | "success" | "error"): string {
+  switch (state) {
+    case "running":
+      return "running";
+    case "success":
+      return "finished";
+    case "error":
+      return "failed";
+  }
 }
 
 function truncateText(

@@ -1,0 +1,164 @@
+/* UIX cockpit — chat pane defaults.
+ *
+ * Chat styling is scoped to the pane root so future panes can define
+ * their own local vocabulary without inheriting chat-specific block styles.
+ */
+
+[data-uix-pane="chat"] .pane__body--chat {
+  padding: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+}
+
+[data-uix-pane="chat"] .chat__scroll {
+  overflow: auto;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+[data-uix-pane="chat"] .msg {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  min-width: 0;
+  max-width: 100%;
+}
+
+[data-uix-pane="chat"] .msg__role {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  padding-top: 0.15rem;
+}
+
+[data-uix-pane="chat"] .msg__text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+  max-width: 100%;
+}
+
+[data-uix-pane="chat"] .msg--user .msg__text,
+[data-uix-pane="chat"] .msg--assistant .msg__text {
+  color: var(--fg);
+}
+
+[data-uix-pane="chat"] .msg--tool .msg__text {
+  color: var(--fg-dim);
+}
+
+[data-uix-pane="chat"] .tool-block {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  font-size: 0.86rem;
+}
+
+[data-uix-pane="chat"] .tool-block__header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+[data-uix-pane="chat"] .tool-block__status {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  color: var(--fg-dim);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+[data-uix-pane="chat"] .tool-block__name {
+  color: var(--fg);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-uix-pane="chat"] .tool-block__payload,
+[data-uix-pane="chat"] .tool-block__details pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+[data-uix-pane="chat"] .tool-block__details summary {
+  cursor: pointer;
+  color: var(--fg-faint);
+  font-size: 0.78rem;
+}
+
+[data-uix-pane="chat"] .msg--tool-error .tool-block__status {
+  border-color: color-mix(in srgb, var(--error), transparent 45%);
+  color: var(--error);
+}
+
+[data-uix-pane="chat"] .msg--tool-error .msg__role,
+[data-uix-pane="chat"] .msg--tool-error .msg__text,
+[data-uix-pane="chat"] .msg--error .msg__role,
+[data-uix-pane="chat"] .msg--error .msg__text {
+  color: var(--error);
+}
+
+[data-uix-pane="chat"] .composer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-pane);
+}
+
+[data-uix-pane="chat"] .composer__input {
+  background: var(--bg-input);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+  font-size: 0.9rem;
+  resize: none;
+  outline: none;
+}
+
+[data-uix-pane="chat"] .composer__input:focus {
+  border-color: var(--accent);
+}
+
+[data-uix-pane="chat"] .composer__send {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 0.9rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+[data-uix-pane="chat"] .composer__send:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+[data-uix-pane="chat"] .composer__send:disabled {
+  color: var(--fg-faint);
+  cursor: not-allowed;
+}
