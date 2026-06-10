@@ -15,7 +15,8 @@ status: exploring
 
 - **Emergent branching, not a mirrored tree.** Conversation nodes hold `{docId: sha}` pointers; pi's conversation tree is the _only_ place branch structure lives. A new edit after a rollback commits with the selected node's sha as parent — two children of one commit _is_ a branch in the DAG, drawn by parent links. We never maintain git branches that mirror the conversation tree (that would be two trees to keep in sync). Copy-on-write falls out: unchanged panes just carry the same sha to the next node.
 - **gc off.** pi never deletes conversation branches, so the graph is append-only and permanent; set `gc.auto=0` and let `.uix/objects` grow monotonically (small text). Per-tip refs become optional — the conversation nodes are the index — though a thin ref namespace is cheap if enumeration wants it.
-- **Restore is free/safe** because we own every write; the channel's editor re-derives anchors from whatever content the store hands back.
+- **Commit meta carries the editor's anchor state.** A version is commit-like — content ref plus `{anchorMap, allocIndex}` meta — because anchor state is a function of the document's edit history up to that commit (see Log 2026-06-09). Git's commit object is the natural home; blobs stay content-addressed and deduped underneath, and the version id names the commit, not the content hash.
+- **Restore is free/safe** because we own every write; checkout hands the channel's editor content **and** anchors as one consistent unit, and the editor re-derives anchors from content only as the degraded fallback (renumbered; the edit match-guard catches stale historical anchors).
 
 **Opt-in user-file store (the project's own repo).** Configurable, off by default. Requires the project be a git repo; **no rollback for out-of-project files**.
 
@@ -57,6 +58,10 @@ conversationNode.uix = {
 - Plan: build units U5–U6 (pane versioning + rollback) and U7 (opt-in user-file rollback), sequenced _after_ the P0–U2 channel proof per the value-first ordering.
 
 ## Log
+
+### 2026-06-09 — anchor state moves into commit meta; restore confirmed at turn boundaries
+
+Out of the durable-identity walk ([conversation-render-primitives](./conversation-render-primitives.md) log of the same date): the anchored editor's state (anchor↔line map + allocation index) homes in the **version's commit meta**, not a session `CustomEntry` (the earlier C4 idea) and not a loose sidecar. Rationale: anchor state is a function of the document's edit history up to a commit, so storing them together makes rewind/restore atomic and necessarily consistent — the C3 `uix.turn-state` pointer stitches turn → version → `{content, anchors}` with no second lookup. This partially answers the open commit-metadata-shape question (spike 1/open-Q 3 residue): meta includes `{anchorMap, allocIndex}` at minimum. It also revises the "editor re-derives anchors from whatever the store hands back" line — re-derivation is now the _fallback_ (renumbered, match-guard as last resort, cost = re-injecting the doc into context), not the restore path. Restore granularity is confirmed at **turn boundaries** (matching pi CLI): the store versions every modification, but pointers — and therefore preview/rollback targets — are per-turn. Diff/delta compression stays explicitly deferred to the git-backed store (packfiles); the trivial store keeps full per-version meta and blobs.
 
 ### 2026-06-06 — session file resolves the pointer-home question
 

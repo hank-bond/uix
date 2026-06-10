@@ -1,5 +1,5 @@
 ---
-summary: "Build spec for persistence on pi's session file: file-backed session + history rehydration (C0) and promoting UIX-core bindings to an in-process pi extension (C1) are the foundation; versioned content store (C2), per-turn canvas pointers (C3), anchor-state continuity (C4), and tree preview/restore (C5) are specified for later."
+summary: "Build spec for persistence on pi's session file: file-backed session + history rehydration (C0) and promoting UIX-core bindings to an in-process pi extension (C1) are landed foundation; versioned content store with anchor state in commit meta (C2), submit-boundary entries — turn-state pointers, the agent-visible human canvas diff, change-only pane visibility (C3), anchor rehydration from version meta (C4), and tree preview/restore (C5) are specified for later."
 status: active
 ---
 
@@ -38,7 +38,7 @@ Persistence is the phase that ties the conversation tree, canvas versions, and a
 - Author a **UIX-core pi `ExtensionFactory`**. Move the canvas read/write/edit tools off `createAgentSession({ customTools })` into the factory via `pi.registerTool(...)` (they can technically stay `customTools`, but moving them keeps the API handle and tools together). _Landed: `createUixCoreExtension` in `src/main/agent/bindings.ts` composes an ordered list of `AgentBinding` functions, each handed the live `pi`; the canvas binding (`createCanvasAgentBinding`) registers its read/write/edit tools via `pi.registerTool`._
 - Migrate `contextForTurn` (today a manual prepend in `driver.ts`) to `pi.on("input", ...)` returning `{ action: "transform", text }` — the native submit-boundary hook. The human-writeback diff prepend becomes a transform; the human's original message entry is untouched. _Landed: the driver now sends the human's text verbatim and the canvas binding's `input` hook prepends context for the model._
 - Wire `DefaultResourceLoader({ extensionFactories: [uixCore] })` into session construction; preserve reload semantics via `resourceLoader.reload()` + `session.reload()`. _Landed in `driver.ts` `openSession()`. **Deviation:** `session.reload()` already reloads the resource loader internally (`agent-session.js`), so the cockpit `reload()` was left calling `session.reload()` alone — no separate `resourceLoader.reload()` needed._
-- Bridge the `pi` `ExtensionAPI` handle out to the cockpit code that will need `appendEntry`/`sendMessage` (the store/driver), so C3+ can write entries. _**Deferred to C3.** Exposing the handle now would be a consumer-less accessor (dead code against the repo's "build the contract, not speculation" ethos); the factory will capture it the moment C3's `uix.turn-state` write needs it — the first real consumer._
+- Bridge the `pi` `ExtensionAPI` handle out to the cockpit code that will need `appendEntry`/`sendMessage` (the store/driver), so C3+ can write entries. _**Deferred until the first real consumer.** Exposing the handle now would be a consumer-less accessor (dead code against the repo's "build the contract, not speculation" ethos); the factory captures it the moment the first `uix.*` entry write needs it — [durable-transcript-identity](./durable-transcript-identity.md) D2's block state or C3's `uix.turn-state`, whichever lands first._
 
 **Boundary.** Substrate swap + `contextForTurn` migration only. No new persisted state yet (that is C3+). No user-visible change. Keep `session.subscribe` as the renderer's event source — the `on(...)` hooks are an addition, not a replacement.
 
@@ -46,25 +46,33 @@ Persistence is the phase that ties the conversation tree, canvas versions, and a
 
 ## C2 — Versioned content store
 
-**Goal.** Every canvas commit yields a retrievable version id.
+**Goal.** Every canvas commit yields a retrievable version id, and a version restores the editor whole — content **and** anchor state together.
 
-**Build.** Evolve `ContentStore` (`src/main/content/content-store.ts`): `commit` returns a version id; add `getVersion(id)` alongside `getCurrent`. Simplest durable impl behind the seam (content-addressed blobs under `.uix`). The git-plumbing owned-pane store ([pane-and-file-versioning](../design/pane-and-file-versioning.md)) slots in later behind the same seam without touching callers.
+**Build.** Evolve `ContentStore` (`src/main/content/content-store.ts`): `commit` returns a version id; add `getVersion(id)` alongside `getCurrent`. A version is **commit-like, not a bare blob**: `{ contentRef, meta: { anchorMap, allocIndex } }` — content blobs stay content-addressed and deduped underneath; the version id names the commit object, **not** the content hash, because two identical contents can carry different anchor states. Anchor state rides the version because it is a function of the document's edit history up to that commit; restoring a version is therefore atomic and necessarily consistent (see revised C4). Simplest durable impl behind the seam (objects under `.uix`); the git-plumbing owned-pane store ([pane-and-file-versioning](../design/pane-and-file-versioning.md)) slots in later behind the same seam — conveniently the same commit-object shape — and diff/delta compression is explicitly an optimization deferred to that store (packfiles), never a semantic.
 
 **Boundary.** Store-only; no session linkage yet.
 
-## C3 — Per-turn state pointers as `CustomEntry`
+## C3 — Submit-boundary entries: turn-state pointers, human canvas diff, pane visibility
 
-**Goal.** Each turn records which canvas versions **and which agent cwd** were live; the record rides the tree.
+**Goal.** Each turn records which canvas versions **and which agent cwd** were live; the human's pending canvas edits reach the agent as a durable non-user message; the agent knows which panes the human is looking at — all as entries riding the tree, written at one boundary.
 
-**Build.** At the submit-boundary hook (C1's `input` hook), after committing pending human edits: `pi.appendEntry("uix.turn-state", { panes: { [docId]: versionId }, cwd })` — auto-parented to the leaf. On resume/navigation, walk `parentId` from the node up to the nearest such entry to know which versions were current and which cwd the agent was at; reopen at that cwd (fall back to the home root + notice if the path is gone). Resolves [pane-and-file-versioning](../design/pane-and-file-versioning.md) open-Q #3 and carries the per-turn cwd that [project-root-vs-agent-cwd](../decisions/2026-06-06-project-root-vs-agent-cwd.md) depends on.
+**Build.** At the submit-boundary hook (C1's `input` hook), after committing pending human edits, in order:
+
+- **`uix.canvas-diff` as a `CustomMessageEntry`** — the anchored human-diff, today an ephemeral `input`-hook text transform, becomes a durable custom message the agent sees as its own non-user message: `content` = the anchored diff block, `details` = structured hunks for a rich chat block, `display` controls the human-facing "you changed these lines" rendering. Appended **before** the user message lands, so context order reads diff-then-question, and the stored user entry stays exactly what the human typed. The `collectChanges()` consuming-read landmine still applies ([canvas-data-channel](../design/canvas-data-channel.md) log 2026-06-06): this is the single consuming read; pending-diff UI peeks non-mutatingly.
+- **`uix.pane-visibility`, change-only.** The renderer emits visibility signals ephemerally; main latches current visibility in RAM and, at this boundary, appends a small `CustomMessageEntry` **only when it differs from the last persisted visibility on this branch** — so the agent knows what the human is probably talking about, without repeating an unchanged fact every message. The latch is re-seeded from the branch walk after navigation (D3 rehydrator, nearest-wins) so changes are neither suppressed nor duplicated.
+- **`uix.turn-state` pointer:** `pi.appendEntry("uix.turn-state", { panes: { [docId]: versionId }, cwd })` — auto-parented to the leaf. On resume/navigation, the nearest such entry up the branch says which versions were current and which cwd the agent was at; reopen at that cwd (fall back to the home root + notice if the path is gone). Restore granularity is **turn boundaries** — matching pi CLI's model — which is why pointers are per-turn even though the store versions every modification. Resolves [pane-and-file-versioning](../design/pane-and-file-versioning.md) open-Q #3 and carries the per-turn cwd that [project-root-vs-agent-cwd](../decisions/2026-06-06-project-root-vs-agent-cwd.md) depends on.
+
+All three rehydrate through the one branch-walk rehydrator ([durable-transcript-identity](./durable-transcript-identity.md) D3); each entry's reducer registers beside the binding that writes it.
 
 **Boundary.** Record + read; restore UI is C5. The agent `changeCwd` capability and standardized worktree creation are their own work, gated on an app needing the move.
 
-## C4 — Anchor-state continuity
+## C4 — Anchor rehydration from version meta
 
 **Goal.** Resumed/navigated sessions keep anchor identity, so historical anchors in the transcript still resolve and the edit match-guard works without forcing a re-read.
 
-**Build.** Persist the anchor↔line map + allocation index per doc as a `CustomEntry` (`uix.anchor-state`), or fold it into the C3 entry. **Droppable:** rehydrate on resume; if absent/stale, regenerate from content (consistent but renumbered). This homes the anchor-persistence-sidecar idea inside the session file instead of a loose cache.
+**Build.** Anchor state (anchor↔line map + allocation index) is **stored in the version's commit meta (C2), not as a session entry** — it is a function of the document's edit history up to that commit, so checkout restores content and anchors as one atomic, necessarily-consistent unit; the C3 turn-state pointer alone stitches turn → version → `{content, anchors}`. C4 reduces to the rehydration wiring: on resume/branch navigation, seed the reconciler from the checked-out version's meta. This supersedes both the earlier `uix.anchor-state` entry idea and the loose sidecar cache.
+
+**Droppability is the safety story, not the mechanism.** If meta is missing/stale, regenerate from content — consistent but **renumbered**, which dangles every anchor quoted in historical tool results; the edit match-guard then rejects rather than corrupts and the agent re-reads. That re-read dumps the document (or requested section) back into context — the cost that makes anchor continuity worth engineering and the guard a last resort.
 
 **Boundary.** Continuity only.
 
