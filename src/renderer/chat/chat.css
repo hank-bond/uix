@@ -62,6 +62,12 @@
   color: var(--fg);
 }
 
+/* Optimistic pending row: dimmed until main confirms it with the canonical
+   born-keyed row. */
+[data-uix-pane="chat"] .msg[data-uix-unconfirmed] .msg__text {
+  color: var(--fg-dim);
+}
+
 [data-uix-pane="chat"] .msg--tool .msg__text {
   color: var(--fg-dim);
 }

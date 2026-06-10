@@ -84,7 +84,17 @@ export type TranscriptItem =
 
 export type AgentEvent =
   | { type: "transcript_append"; item: TranscriptItem }
-  | { type: "transcript_replace"; item: TranscriptItem }
+  | {
+      type: "transcript_replace";
+      item: TranscriptItem;
+      /**
+       * Set when the row was rekeyed: the pre-key transport handle the item
+       * was previously delivered under. The renderer swaps the id in place
+       * (position preserved). See
+       * docs/decisions/2026-06-09-transcript-keyed-on-persist.md.
+       */
+      previousId?: string;
+    }
   | { type: "agent_start" }
   | { type: "agent_end" }
   | { type: "turn_start" }

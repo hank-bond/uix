@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import type { AgentEvent, TranscriptItem } from "../../shared/ipc";
 import { ChatBlock } from "./blocks/ChatBlock";
+import { isPendingUserId, pendingUserId } from "./pending";
 
 export function Chat() {
   const [items, setItems] = useState<TranscriptItem[]>([]);
@@ -56,6 +57,11 @@ export function Chat() {
     if (!text || pending) return;
     setDraft("");
     setPending(true);
+    // Optimistic echo: show the message instantly as an unconfirmed pending
+    // row. Main emits the authoritative born-keyed row once pi persists it,
+    // and the reducer swaps this row out (eventual consistency — display
+    // first, confirm via the canonical record).
+    setItems((prev) => [...prev, { id: pendingUserId(), kind: "user", text }]);
     try {
       await window.uix.sendPrompt({ text });
     } catch (err) {
@@ -118,10 +124,10 @@ export function Chat() {
 function reduce(prev: TranscriptItem[], event: AgentEvent): TranscriptItem[] {
   switch (event.type) {
     case "transcript_append":
-      return isVisible(event.item) ? [...prev, event.item] : prev;
+      return isVisible(event.item) ? appendItem(prev, event.item) : prev;
 
     case "transcript_replace":
-      return syncItem(prev, event.item);
+      return syncItem(prev, event.item, event.previousId);
 
     case "agent_start":
     case "agent_end":
@@ -131,16 +137,48 @@ function reduce(prev: TranscriptItem[], event: AgentEvent): TranscriptItem[] {
   }
 }
 
+// Append, or confirm an optimistic pending user row in place: main's
+// authoritative born-keyed user row replaces the composer's unconfirmed echo.
+// Text equality is the match guard so an unrelated user message (e.g.
+// extension-injected via sendUserMessage) appends normally instead of
+// consuming someone else's pending row; today the persisted user entry is
+// the human's text verbatim, so equality holds. If input enrichment ever
+// changes the canonical text, relax this to confirm the oldest pending row
+// and let the canonical version win.
+function appendItem(
+  items: TranscriptItem[],
+  item: TranscriptItem,
+): TranscriptItem[] {
+  if (item.kind === "user") {
+    const index = items.findIndex(
+      (existing) =>
+        existing.kind === "user" &&
+        isPendingUserId(existing.id) &&
+        existing.text === item.text,
+    );
+    if (index !== -1) {
+      return [...items.slice(0, index), item, ...items.slice(index + 1)];
+    }
+  }
+  return [...items, item];
+}
+
 // Reconcile an item's presence in the list to match its visibility: a visible
-// item is replaced in place (kept current), an invisible one is removed. The
-// driver only replaces ids it already appended, so a net-new insert here means
-// a replace outran or lost its append — recover gracefully but warn, since that
+// item is replaced in place (kept current), an invisible one is removed. A
+// rekey replace carries previousId (the pre-key transport handle); matching
+// the new id first keeps a re-delivered rekey idempotent. The driver only
+// replaces ids it already appended, so a net-new insert here means a replace
+// outran or lost its append — recover gracefully but warn, since that
 // ordering invariant is load-bearing for durable transcript identity.
 function syncItem(
   items: TranscriptItem[],
   item: TranscriptItem,
+  previousId?: string,
 ): TranscriptItem[] {
-  const index = items.findIndex((existing) => existing.id === item.id);
+  let index = items.findIndex((existing) => existing.id === item.id);
+  if (index === -1 && previousId !== undefined) {
+    index = items.findIndex((existing) => existing.id === previousId);
+  }
 
   if (!isVisible(item)) {
     return index === -1

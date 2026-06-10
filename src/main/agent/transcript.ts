@@ -9,6 +9,13 @@ import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 
 import type { TranscriptItem } from "../../shared/ipc";
 
+// The single definition of a tool row's durable id. Live rows (identity.ts)
+// and history replay (below) must derive byte-identical ids or state keyed
+// against one would miss the other.
+export function toolItemId(entryId: string, toolCallId: string): string {
+  return `${entryId}:tool:${toolCallId}`;
+}
+
 export function toTranscriptItems(
   entries: readonly SessionEntry[],
 ): TranscriptItem[] {
@@ -53,7 +60,7 @@ export function toTranscriptItems(
         asRecord(entry.message)?.["content"],
       )) {
         const item: TranscriptItem = {
-          id: `${entry.id}:tool:${toolCall.id}`,
+          id: toolItemId(entry.id, toolCall.id),
           kind: "tool",
           toolCallId: toolCall.id,
           toolName: toolCall.name,
@@ -135,7 +142,7 @@ interface ToolCallBlock {
   arguments: unknown;
 }
 
-function extractToolCalls(content: unknown): ToolCallBlock[] {
+export function extractToolCalls(content: unknown): ToolCallBlock[] {
   if (!Array.isArray(content)) return [];
   const calls: ToolCallBlock[] = [];
   for (const block of content) {
@@ -184,7 +191,7 @@ function extractTextContent(content: unknown): string {
     .join("");
 }
 
-function asRecord(value: unknown): Record<string, unknown> | undefined {
+export function asRecord(value: unknown): Record<string, unknown> | undefined {
   return typeof value === "object" && value !== null
     ? (value as Record<string, unknown>)
     : undefined;

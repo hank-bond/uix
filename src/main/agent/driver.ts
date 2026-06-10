@@ -35,6 +35,7 @@ import { disposable, DisposableBag, subscribe } from "../lifecycle";
 import { createLogger } from "../log";
 
 import { type AgentBinding, createUixCoreExtension } from "./bindings";
+import { createTranscriptIdentity, type TranscriptIdentity } from "./identity";
 import {
   extractTranscriptText,
   parseCustomTranscriptItem,
@@ -75,6 +76,24 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   // session itself.
   const bag = new DisposableBag();
 
+  // Keyed-on-persist transcript identity: correlates live rows with the
+  // durable session entry ids pi mints at append time. Created with the
+  // driver, installed on the manager in openManager().
+  const identity = createTranscriptIdentity();
+
+  // The renderer shows its own optimistic pending row at submit (composer
+  // state); the authoritative user row is emitted here, born keyed, when pi
+  // persists the message. Same empty-text filter as history replay, so live
+  // and replayed transcripts stay congruent.
+  identity.onUserMessage((durableId, message) => {
+    const text = extractTranscriptText(message);
+    if (!text) return;
+    opts.onEvent({
+      type: "transcript_append",
+      item: { id: durableId, kind: "user", text },
+    });
+  });
+
   // Two tiers, cached as *promises* so concurrent first-callers share one init.
   //
   //   manager — cheap, auth-free: just loads the session file. Eager (init()),
@@ -103,11 +122,17 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     // Resume the most recent session for this cwd; create one only when none
     // exists. File-backing alone would start empty every launch — "survives
     // restart" means resume.
+    let manager: SessionManager;
     try {
-      return sdk.SessionManager.continueRecent(agentCwd, sessionDir);
+      manager = sdk.SessionManager.continueRecent(agentCwd, sessionDir);
     } catch {
-      return sdk.SessionManager.create(agentCwd, sessionDir);
+      manager = sdk.SessionManager.create(agentCwd, sessionDir);
     }
+    // Must happen before pi ever holds the manager: the append wrapper is the
+    // only place durable entry ids are observable (pi persists *after* the
+    // message_end listeners run and emits no post-persist event).
+    identity.observe(manager);
+    return manager;
   }
 
   async function openSession(): Promise<AgentSession> {
@@ -141,7 +166,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     bag.add(
       subscribe<AgentSessionEvent>(
         session,
-        createLiveTranscriptForwarder(opts.onEvent),
+        createLiveTranscriptForwarder(opts.onEvent, identity),
       ),
     );
     bag.add(disposable(() => session.dispose()));
@@ -181,10 +206,11 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     },
 
     async prompt(text) {
-      opts.onEvent({
-        type: "transcript_append",
-        item: { id: liveId("user"), kind: "user", text },
-      });
+      // No echo here: the renderer already shows its optimistic pending row,
+      // and the authoritative keyed row is emitted by the onUserMessage
+      // observer when pi persists. A prompt that fails before persistence
+      // truthfully contributes no user row to the feed — the renderer's
+      // unconfirmed row plus the error item below are the whole record.
       try {
         // If openSession rejects (e.g. missing auth), clear the cache
         // so the next prompt tries fresh instead of replaying the
@@ -225,7 +251,10 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   };
 }
 
-function createLiveTranscriptForwarder(emit: (e: AgentEvent) => void) {
+function createLiveTranscriptForwarder(
+  emit: (e: AgentEvent) => void,
+  identity: TranscriptIdentity,
+) {
   let assistant: Extract<TranscriptItem, { kind: "assistant" }> | undefined;
   const tools = new Map<string, Extract<TranscriptItem, { kind: "tool" }>>();
 
@@ -283,27 +312,42 @@ function createLiveTranscriptForwarder(emit: (e: AgentEvent) => void) {
           const current = ensureAssistant();
           const finalText =
             extractTranscriptText(event.message) || current.text;
-          assistant = {
-            ...current,
-            text: finalText,
-            complete: true,
-          };
-          replace(assistant);
+          // Final content lands under the pre-key handle first, so display
+          // never depends on the append wrapper; the rekey replace follows
+          // in the same tick when pi persists this exact message object.
+          const final = { ...current, text: finalText, complete: true };
+          replace(final);
           assistant = undefined;
+          identity.expectMessageKey(event.message, (durableId) => {
+            emit({
+              type: "transcript_replace",
+              item: { ...final, id: durableId },
+              previousId: final.id,
+            });
+          });
           return;
         }
 
-        const custom = parseCustomTranscriptItem(
-          liveId("custom"),
-          event.message,
-        );
-        if (custom) append(custom);
+        // Displayed custom messages don't stream, so hold the row one tick
+        // and append it already keyed when pi persists the entry (pi never
+        // hands the manager the CustomMessage object, so there is no handle
+        // path to correlate a rekey through).
+        const custom = parseCustomTranscriptItem("pending", event.message);
+        if (custom) {
+          identity.expectCustomEntry((durableId) => {
+            append({ ...custom, id: durableId });
+          });
+        }
         return;
       }
 
       case "tool_execution_start": {
+        // Born keyed: pi persisted the assistant message (with this row's
+        // toolCall block) before execution started, so the durable replay
+        // derivation is already known. The liveId fallback only fires if pi
+        // reorders persistence, degrading to a pre-key row.
         const item = {
-          id: liveId("tool"),
+          id: identity.toolRowId(event.toolCallId) ?? liveId("tool"),
           kind: "tool" as const,
           toolCallId: event.toolCallId,
           toolName: event.toolName,
@@ -333,7 +377,7 @@ function createLiveTranscriptForwarder(emit: (e: AgentEvent) => void) {
         const current =
           existing ??
           ({
-            id: liveId("tool"),
+            id: identity.toolRowId(event.toolCallId) ?? liveId("tool"),
             kind: "tool" as const,
             toolCallId: event.toolCallId,
             toolName: event.toolName,

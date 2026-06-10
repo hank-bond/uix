@@ -1,4 +1,5 @@
 import type { TranscriptItem } from "../../../shared/ipc";
+import { isPendingUserId } from "../pending";
 import { ChatBlockFrame } from "./ChatBlockFrame";
 
 export function MessageChatBlock({
@@ -17,6 +18,7 @@ export function MessageChatBlock({
       kind={item.kind}
       label={label}
       body={text}
+      unconfirmed={item.kind === "user" && isPendingUserId(item.id)}
     />
   );
 }

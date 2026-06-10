@@ -10,6 +10,8 @@ export interface ChatBlockFrameProps {
   customType?: string;
   label: string;
   body: ReactNode;
+  /** Optimistic row awaiting its canonical counterpart from main. */
+  unconfirmed?: boolean;
 }
 
 export function ChatBlockFrame({
@@ -20,6 +22,7 @@ export function ChatBlockFrame({
   customType,
   label,
   body,
+  unconfirmed,
 }: ChatBlockFrameProps) {
   return (
     <div
@@ -28,6 +31,7 @@ export function ChatBlockFrame({
       data-uix-state={state}
       data-uix-tool-name={toolName}
       data-uix-custom-type={customType}
+      data-uix-unconfirmed={unconfirmed ? "" : undefined}
     >
       <div className="msg__role" data-uix-part="label">
         {label}
