@@ -21,7 +21,7 @@
 
 import process from "node:process";
 
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow } from "electron";
 
 import type { Logger } from "./log";
 
@@ -97,19 +97,8 @@ export function disposable(cleanup: () => void): Disposable {
 // Each helper performs the registration and returns a Disposable that
 // undoes it. Project policy (enforced by convention for now, eslint
 // later): code that needs to register a listener uses these helpers
-// instead of calling `ipcMain.handle`, `app.on`, etc. directly.
-
-/**
- * Register an `ipcMain.handle` invoke endpoint. Returns a Disposable
- * that removes the handler when disposed.
- */
-export function handle<Req, Res>(
-  channel: string,
-  fn: (req: Req) => Res | Promise<Res>,
-): Disposable {
-  ipcMain.handle(channel, (_event, req: Req) => fn(req));
-  return disposable(() => ipcMain.removeHandler(channel));
-}
+// instead of calling `app.on`, `win.on`, etc. directly. The IPC boundary
+// (`handle`/`send`) lives in ./ipc.ts, which follows the same convention.
 
 /**
  * Listen for an `app` event. Typed against the small union of events

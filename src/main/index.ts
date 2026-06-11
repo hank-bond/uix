@@ -4,9 +4,9 @@
 // channels declared in src/shared/ipc.ts.
 //
 // All registrations (IPC handlers, app events, window events) flow
-// through the helpers in src/main/lifecycle.ts and land in a single
-// `appBag`. One dispose on `will-quit` tears the whole tree down.
-// See docs/architecture/conventions.md.
+// through the helpers in src/main/ipc.ts and src/main/lifecycle.ts and
+// land in a single `appBag`. One dispose on `will-quit` tears the whole
+// tree down. See docs/architecture/conventions.md.
 
 import { app, BrowserWindow } from "electron";
 import { join } from "node:path";
@@ -30,9 +30,9 @@ import { createCanvasContentStore } from "./content/content-store";
 import { loadExtensions } from "./extensions/loader";
 import { defaultRoots } from "./extensions/roots";
 import { resolveWorkspace } from "./workspace";
+import * as ipc from "./ipc";
 import {
   DisposableBag,
-  handle,
   installProcessHandlers,
   onApp,
   onWindow,
@@ -65,17 +65,32 @@ function createWindow(): BrowserWindow {
 }
 
 function sendAgentEvent(win: BrowserWindow | null, event: AgentEvent): void {
-  if (win && !win.isDestroyed()) {
-    win.webContents.send(Channels.agentEvent, event);
+  if (win) {
+    ipc.send(
+      win,
+      Channels.agentEvent,
+      event,
+      isTranscriptReplacePartial(event),
+    );
   }
+}
+
+// A transcript_replace carrying partial content (no rekey, item incomplete)
+// repeats per token/chunk, so it logs at trace; everything else is a one-off
+// worth seeing at debug.
+function isTranscriptReplacePartial(event: AgentEvent): boolean {
+  return (
+    event.type === "transcript_replace" &&
+    event.previousId === undefined &&
+    (event.item.kind === "assistant" || event.item.kind === "tool") &&
+    !event.item.complete
+  );
 }
 
 function sendCanvasChanged(key: string): void {
   createLogger("canvas").info({ key }, "canvas_changed");
   for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.isDestroyed()) {
-      win.webContents.send(Channels.canvasChanged, { key });
-    }
+    ipc.send(win, Channels.canvasChanged, { key });
   }
 }
 
@@ -93,6 +108,10 @@ void app.whenReady().then(async () => {
   // One resolved workspace: stateRoot pins canvases + the session file; agentCwd
   // is what the agent's tools operate against (see ./workspace.ts).
   const workspace = resolveWorkspace();
+
+  // Raw IPC payloads spill to a per-run file under the state root; path is
+  // logged as `ipc_log_file` when armed.
+  ipc.initLogFile(workspace.stateRoot);
 
   appBag.add(registerCanvasProtocol(workspace.stateRoot));
 
@@ -140,7 +159,7 @@ void app.whenReady().then(async () => {
   driver.init();
 
   appBag.add(
-    handle<PromptRequest, void>(Channels.prompt, (req) => {
+    ipc.handle<PromptRequest, void>(Channels.prompt, (req) => {
       // Fire and forget — the renderer subscribes to the event stream,
       // and `invoke` resolves once the prompt has been accepted.
       void driver.prompt(req.text);
@@ -148,18 +167,29 @@ void app.whenReady().then(async () => {
   );
 
   appBag.add(
-    handle<void, TranscriptSnapshot>(Channels.history, () => driver.history()),
+    ipc.handle<void, TranscriptSnapshot>(
+      Channels.history,
+      () => driver.history(),
+      {
+        // A snapshot is the entire persisted transcript, already on disk — the
+        // wire log records a pointer instead of duplicating it.
+        describeResult: (snap) => ({
+          items: snap.items.length,
+          ref: driver.sessionFile(),
+        }),
+      },
+    ),
   );
 
   appBag.add(
-    handle<CanvasChanged, void>(Channels.canvasRefresh, (req) => {
+    ipc.handle<CanvasChanged, void>(Channels.canvasRefresh, (req) => {
       assertCanvasKey(req.key);
       sendCanvasChanged(req.key);
     }),
   );
 
   appBag.add(
-    handle<CanvasWriteback, void>(Channels.canvasWriteback, async (req) => {
+    ipc.handle<CanvasWriteback, void>(Channels.canvasWriteback, async (req) => {
       assertCanvasKey(req.key);
       createLogger("canvas").info(
         { key: req.key, bytes: req.html.length },
@@ -172,7 +202,7 @@ void app.whenReady().then(async () => {
   );
 
   appBag.add(
-    handle<void, ReloadResult>(Channels.reload, async () => {
+    ipc.handle<void, ReloadResult>(Channels.reload, async () => {
       const reloadLog = createLogger("main");
       reloadLog.info({}, "reload_started");
 

@@ -59,6 +59,11 @@ export interface AgentDriver extends Disposable {
   init(): void;
   /** Prior transcript for renderer rehydration. Needs only the manager tier. */
   history(): Promise<TranscriptSnapshot>;
+  /**
+   * Where pi persists this driver's transcript. Undefined until the manager
+   * is open — and, for a fresh session, until pi first persists an entry.
+   */
+  sessionFile(): string | undefined;
 }
 
 export interface AgentDriverOptions {
@@ -103,6 +108,11 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   let managerPromise: Promise<SessionManager> | undefined;
   let sessionPromise: Promise<AgentSession> | undefined;
 
+  // Resolved value of managerPromise, stashed because a settled promise can't
+  // be read synchronously — and sessionFile() must be sync (it's peeked from
+  // inside the wire log's describeResult, which can't await the driver).
+  let openedManager: SessionManager | undefined;
+
   // Single accessor so both tiers share one manager. On failure, clear the
   // cache so the next caller retries instead of replaying a stale rejection.
   function manager(): Promise<SessionManager> {
@@ -132,6 +142,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     // only place durable entry ids are observable (pi persists *after* the
     // message_end listeners run and emits no post-persist event).
     identity.observe(manager);
+    openedManager = manager;
     return manager;
   }
 
@@ -175,6 +186,10 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   }
 
   return {
+    // Read through to the manager rather than caching at open time, so a
+    // fresh session's path appears as soon as pi mints the file.
+    sessionFile: () => openedManager?.getSessionFile(),
+
     init() {
       // Fire the eager manager load; swallow rejection here so an early failure
       // doesn't surface as an unhandled rejection. prompt()/history() retry.

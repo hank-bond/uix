@@ -9,20 +9,23 @@ Short, opinionated rules. Each one buys back review effort by making a class of 
 
 ## Lifetime management (main process)
 
-**Rule.** Don't call `ipcMain.handle`, `app.on`, `BrowserWindow.on`, or anything that follows the "register a listener and forget it" shape directly. Use the helpers in `src/main/lifecycle.ts`, and put what they return into a `DisposableBag` whose lifetime matches the thing being listened for.
+**Rule.** Don't call `ipcMain.handle`, `webContents.send`, `app.on`, `BrowserWindow.on`, or anything that follows the "register a listener and forget it" shape directly. IPC crossings go through `src/main/ipc.ts` — `handle()` for invoke endpoints, `send()` for pushes to a window — so every crossing lands in the wire log. Everything else uses the helpers in `src/main/lifecycle.ts`. Put what the registration helpers return into a `DisposableBag` whose lifetime matches the thing being listened for.
 
 **Why.** Registration without un-registration is the most common leak pattern in Electron and observable-style code. The helpers return a `Disposable`; the bag enforces that you have _somewhere_ for the disposable to live. You can't register without picking a lifetime, and disposing the lifetime is one call.
 
 **Pattern.**
 
 ```ts
-import { DisposableBag, handle, onApp, subscribe } from "./lifecycle";
+import * as ipc from "./ipc";
+import { DisposableBag, onApp, subscribe } from "./lifecycle";
 
 const bag = new DisposableBag();
 
-bag.add(handle("uix:prompt", (req) => { ... }));
+bag.add(ipc.handle("uix:prompt", (req) => { ... }));
 bag.add(onApp("activate", () => { ... }));
 bag.add(subscribe(session, (event) => { ... }));
+
+ipc.send(win, "uix:agentEvent", event); // push, not a registration — no bag
 
 // later, when this lifetime ends:
 bag[Symbol.dispose]();

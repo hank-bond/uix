@@ -10,7 +10,9 @@
 //   2. Project-specific enforcement of conventions documented in
 //      docs/architecture/conventions.md:
 //        - lifecycle helpers are mandatory (no raw `app.on`,
-//          `ipcMain.handle`, `process.on` outside `lifecycle.ts`)
+//          `process.on` outside `lifecycle.ts`), and the IPC boundary
+//          is mandatory (no raw `ipcMain.handle`, `webContents.send`
+//          outside `ipc.ts`)
 //        - logging goes through `createLogger`, not `console.*`
 //          (in the main process only — renderer/preload don't have
 //          a logging story yet)
@@ -81,11 +83,12 @@ export default tseslint.config(
         },
       ],
 
-      // Force lifecycle helpers for known event-emitter APIs.
-      // Selectors detect named bindings; instance-method calls on a
+      // Force the lifecycle helpers and the ipc boundary for known
+      // event-emitter APIs. Selectors detect named bindings (plus the
+      // `*.webContents.send` shape); other instance-method calls on a
       // window or driver variable aren't catchable from AST alone, so
       // those rely on review + the helper-is-easier-than-disabling
-      // pattern. lifecycle.ts itself is excepted below.
+      // pattern. lifecycle.ts and ipc.ts are excepted below.
       "no-restricted-syntax": [
         "error",
         {
@@ -98,7 +101,13 @@ export default tseslint.config(
           selector:
             "CallExpression[callee.object.name='ipcMain'][callee.property.name=/^(handle|handleOnce|on|once|removeHandler|removeListener)$/]",
           message:
-            "Use handle() from src/main/lifecycle.ts instead of ipcMain.handle / ipcMain.on. See docs/architecture/conventions.md.",
+            "Use handle() from src/main/ipc.ts instead of ipcMain.handle / ipcMain.on. See docs/architecture/conventions.md.",
+        },
+        {
+          selector:
+            "CallExpression[callee.object.property.name='webContents'][callee.property.name=/^(send|postMessage)$/]",
+          message:
+            "Use send() from src/main/ipc.ts instead of webContents.send, so the crossing lands in the wire log. See docs/architecture/conventions.md.",
         },
         {
           selector:
@@ -132,10 +141,10 @@ export default tseslint.config(
     },
   },
 
-  // lifecycle.ts IS the helper layer; it's allowed to call the raw
-  // APIs the rules above ban for everyone else.
+  // lifecycle.ts and ipc.ts ARE the helper layer; they're allowed to
+  // call the raw APIs the rules above ban for everyone else.
   {
-    files: ["src/main/lifecycle.ts"],
+    files: ["src/main/lifecycle.ts", "src/main/ipc.ts"],
     rules: {
       "no-restricted-syntax": "off",
     },
