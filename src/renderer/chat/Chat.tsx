@@ -1,8 +1,8 @@
 // UIX cockpit — chat pane.
 //
 // One transcript item shape feeds the pane. Startup history supplies completed
-// durable items; live events append or replace the same items while the current
-// turn streams.
+// durable items; live events append the same items, stream compact partials
+// into them, and replace them whole at completion.
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
@@ -129,6 +129,9 @@ function reduce(prev: TranscriptItem[], event: AgentEvent): TranscriptItem[] {
     case "transcript_replace":
       return syncItem(prev, event.item, event.previousId);
 
+    case "transcript_partial":
+      return applyPartial(prev, event);
+
     case "agent_start":
     case "agent_end":
     case "turn_start":
@@ -175,9 +178,9 @@ function syncItem(
   item: TranscriptItem,
   previousId?: string,
 ): TranscriptItem[] {
-  let index = items.findIndex((existing) => existing.id === item.id);
+  let index = lastIndexById(items, item.id);
   if (index === -1 && previousId !== undefined) {
-    index = items.findIndex((existing) => existing.id === previousId);
+    index = lastIndexById(items, previousId);
   }
 
   if (!isVisible(item)) {
@@ -190,6 +193,43 @@ function syncItem(
     return [...items, item];
   }
   return [...items.slice(0, index), item, ...items.slice(index + 1)];
+}
+
+// Merge an in-flight partial into its row: streamed text appends (the
+// renderer is the accumulator), a tool's partialResult overwrites (pi tool
+// updates are replacement snapshots). The append always precedes its
+// partials and a full replace lands at completion, so an unmatched partial
+// means ordering broke — warn and drop; nothing durable is lost.
+function applyPartial(
+  items: TranscriptItem[],
+  event: Extract<AgentEvent, { type: "transcript_partial" }>,
+): TranscriptItem[] {
+  const index = lastIndexById(items, event.id);
+  if (index === -1) {
+    console.warn("transcript_partial for unknown item", event.id);
+    return items;
+  }
+  const item = items[index];
+  let next: TranscriptItem;
+  if (item.kind === "assistant" && event.text !== undefined) {
+    next = { ...item, text: item.text + event.text };
+  } else if (item.kind === "tool") {
+    next = { ...item, partialResult: event.partialResult };
+  } else {
+    return items;
+  }
+  return [...items.slice(0, index), next, ...items.slice(index + 1)];
+}
+
+// Ids are unique, so scan direction is purely a performance choice: live
+// updates (per-token partials, completion/rekey replaces) target rows at or
+// near the tail, while a front scan walks the whole resumed history first.
+// (ES2022 lib, so no Array#findLastIndex.)
+function lastIndexById(items: TranscriptItem[], id: string): number {
+  for (let i = items.length - 1; i >= 0; i--) {
+    if (items[i].id === id) return i;
+  }
+  return -1;
 }
 
 function isVisible(item: TranscriptItem): boolean {

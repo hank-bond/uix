@@ -44,9 +44,10 @@ export function initLogFile(stateRoot: string): void {
   // SIGKILL). Going buffered (`sync: false, minLength: 4096`) is purely a
   // perf knob — pino auto-flushes its buffer on any exit that runs handlers,
   // including uncaught exceptions, so buffering only loses the hard-kill
-  // class. Flip it if armed-mode streaming drags before transcript deltas
-  // (docs/plans/backlog.md) collapse the per-token write volume; soften this
-  // comment's guarantee to "JS crashes" if you do.
+  // class. Streaming now crosses as compact transcript_partial events, so the
+  // per-crossing payload is small; flip this only if armed-mode streaming
+  // still drags, and soften this comment's guarantee to "JS crashes" if you
+  // do.
   fileLog = pino(
     { base: undefined },
     pino.destination({ dest: path, mkdir: true, sync: true }),
@@ -91,22 +92,31 @@ export function handle<Req, Res>(
   return disposable(() => ipcMain.removeHandler(channel));
 }
 
-/**
- * Push one message to a window. `trace` demotes lines that repeat at
- * per-token cadence.
- */
+/** Per-send wire-log policy. The boundary itself is payload-agnostic. */
+export interface SendOptions {
+  /**
+   * The payload is an in-flight partial that repeats at streaming cadence
+   * (per token / per progress tick). Consequence today: the terminal line
+   * logs at trace instead of debug, always — even small partials are noise
+   * at that rate. Whatever else partial-ness implies later hangs off this
+   * flag, not off new parameters.
+   */
+  partial?: boolean;
+}
+
+/** Push one message to a window. */
 export function send(
   win: BrowserWindow,
   channel: string,
   payload: unknown,
-  trace = false,
+  opts?: SendOptions,
 ): void {
   if (win.isDestroyed()) return;
-  record(`out:${channel}`, payload, trace);
+  record(`out:${channel}`, payload, opts?.partial ?? false);
   win.webContents.send(channel, payload);
 }
 
-function record(msg: string, payload: unknown, trace = false): void {
+function record(msg: string, payload: unknown, partial = false): void {
   fileLog?.info({ payload }, msg);
-  log[trace ? "trace" : "debug"]({ payload }, msg);
+  log[partial ? "trace" : "debug"]({ payload }, msg);
 }

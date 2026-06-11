@@ -66,25 +66,12 @@ function createWindow(): BrowserWindow {
 
 function sendAgentEvent(win: BrowserWindow | null, event: AgentEvent): void {
   if (win) {
-    ipc.send(
-      win,
-      Channels.agentEvent,
-      event,
-      isTranscriptReplacePartial(event),
-    );
+    // Partials repeat at per-token/per-tick cadence; flagging them lets the
+    // boundary demote that noise regardless of payload size.
+    ipc.send(win, Channels.agentEvent, event, {
+      partial: event.type === "transcript_partial",
+    });
   }
-}
-
-// A transcript_replace carrying partial content (no rekey, item incomplete)
-// repeats per token/chunk, so it logs at trace; everything else is a one-off
-// worth seeing at debug.
-function isTranscriptReplacePartial(event: AgentEvent): boolean {
-  return (
-    event.type === "transcript_replace" &&
-    event.previousId === undefined &&
-    (event.item.kind === "assistant" || event.item.kind === "tool") &&
-    !event.item.complete
-  );
 }
 
 function sendCanvasChanged(key: string): void {

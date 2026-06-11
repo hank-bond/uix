@@ -95,6 +95,20 @@ export type AgentEvent =
        */
       previousId?: string;
     }
+  | {
+      /**
+       * Compact in-flight update to an already-appended item. The renderer is
+       * the accumulator: `text` appends to a streaming assistant row's text;
+       * `partialResult` overwrites a tool row's live progress payload (pi
+       * tool updates are replacement snapshots, not increments). A full
+       * `transcript_replace` still lands at completion, so partials are pure
+       * display traffic — dropping one loses nothing durable.
+       */
+      type: "transcript_partial";
+      id: string;
+      text?: string;
+      partialResult?: unknown;
+    }
   | { type: "agent_start" }
   | { type: "agent_end" }
   | { type: "turn_start" }

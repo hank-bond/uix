@@ -11,7 +11,7 @@ Current behavior:
 
 - the session is resumed or created under the workspace state root;
 - renderer prompts call `window.uix.sendPrompt({ text })`, which invokes the main-process driver;
-- the renderer receives a UIX-shaped event stream over typed Electron IPC: transcript item appends/replacements plus basic lifecycle markers; live in-flight tool partials are discarded when the final item arrives;
+- the renderer receives a UIX-shaped event stream over typed Electron IPC: transcript item appends, compact in-flight partials (`transcript_partial`: streamed assistant text appends, tool progress snapshots overwrite), whole-item replacements at completion, plus basic lifecycle markers; live in-flight tool partials are discarded when the final item arrives;
 - `window.uix.getHistory()` replays the same durable transcript item shape from pi's persisted session branch;
 - `window.uix.reload()` reloads UIX extensions and delegates to `session.reload()` only if a pi session already exists;
 - core substrate tools are registered through internal agent bindings (`AgentBinding`), not through the public UIX extension API.
@@ -21,7 +21,7 @@ Current behavior:
 UIX keeps three related units distinct:
 
 1. **Pi session entries** are the durable history/tree substrate. They are persisted by pi with `id`/`parentId` and represent conversation/state-machine steps such as user messages, assistant messages, tool results, custom messages, custom entries, model changes, and compactions. From the UI's point of view these are the branchable history units, not necessarily the smallest visible UI units.
-2. **`TranscriptItem`s** are UIX's renderer wire shape. Main projects live pi events and replayed durable session entries into this one shape so the chat pane consumes the same model for streaming deltas and startup history. Live updates replace one `TranscriptItem` by id; they do not replace a whole turn or whole transcript.
+2. **`TranscriptItem`s** are UIX's renderer wire shape. Main projects live pi events and replayed durable session entries into this one shape so the chat pane consumes the same model for live streaming and startup history. While an item streams, compact `transcript_partial` events update it by id (the renderer accumulates streamed text; tool progress payloads are replacement snapshots); a full replace of that one item lands at completion. Nothing ever replaces a whole turn or whole transcript.
 3. **Chat blocks** are renderer units. A block is the smallest rendered chat-stream unit and is a view over the transcript projection. Today each `TranscriptItem` renders as one block, but the model intentionally allows one session entry to project to many transcript items and one transcript item to render as many blocks later.
 
 This separation keeps pi's durable tree, UIX's streaming/replay normalization, and React rendering independent enough to evolve without re-keying the session format. Chat block renderers may also present a human-facing projection of an agent-facing payload: for example, canvas tool results keep anchored lines in the transcript item so the agent can edit safely, while the chat block hides the anchors from the human display.

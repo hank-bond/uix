@@ -314,9 +314,16 @@ function createLiveTranscriptForwarder(
       case "message_update": {
         const inner = event.assistantMessageEvent;
         if (inner.type === "text_delta") {
+          // Accumulate locally (message_end falls back to this text when the
+          // final message extracts empty) but ship only the increment; the
+          // renderer accumulates its copy from partials.
           const current = ensureAssistant();
           assistant = { ...current, text: current.text + inner.delta };
-          replace(assistant);
+          emit({
+            type: "transcript_partial",
+            id: current.id,
+            text: inner.delta,
+          });
         }
         return;
       }
@@ -375,15 +382,17 @@ function createLiveTranscriptForwarder(
       }
 
       case "tool_execution_update": {
+        // Tool partials are tool-defined replacement snapshots (e.g. bash
+        // ships its bounded output tail every ~100ms), so forward the payload
+        // alone — no point resending the row's args on every tick. The stored
+        // row stays as appended; the completion replace discards partials.
         const current = tools.get(event.toolCallId);
         if (!current) return;
-        const item = {
-          ...current,
-          toolName: event.toolName,
+        emit({
+          type: "transcript_partial",
+          id: current.id,
           partialResult: toIpcValue(event.partialResult),
-        };
-        tools.set(event.toolCallId, item);
-        replace(item);
+        });
         return;
       }
 
