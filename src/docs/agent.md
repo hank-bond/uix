@@ -1,5 +1,5 @@
 ---
-summary: "How the cockpit drives the agent today: it lazily owns a persisted pi AgentSession, forwards a UIX-shaped event stream to the renderer, delegates reload, and binds the core anchored document read/write/edit tools."
+summary: "How the cockpit drives the agent today: it lazily owns a persisted pi AgentSession, forwards a UIX-shaped event stream to the renderer, delegates reload, binds the core anchored document read/write/edit tools, and flushes registered state messages as display-hidden custom entries at each turn boundary."
 status: active
 ---
 
@@ -34,6 +34,12 @@ The only current core agent binding is the canvas binding in `src/main/content/b
 
 Canvases are addressed by key through a content-store seam (`src/main/content/content-store.ts`), edited via the anchored core (`src/main/anchors/`), and canonicalized at the core boundary (`src/main/content/normalize.ts`). The tools are canvas-named because every HTML document edited through them is a canvas; the general document/content abstraction lives underneath in the channel and store. Every result returns the affected lines in the `<anchor>§<text>` wire format so the agent never re-reads to learn current anchors.
 
-There is no public UIX-extension API today for contributing pi tools or triggering agent turns from pane/channel events.
+## State messages
+
+Cockpit state reaches the agent through **state messages** (`src/main/agent/state-messages.ts`), never by rewriting the human's prompt text. A binding registers a customType with a TypeBox schema, a vocabulary line, and a send policy, then either `emit`s payloads as state changes (latched, flushed at the next turn boundary) or supplies an `atTurnBoundary` callback for state that must be computed exactly once at submit. The assembler binding — ordered last in the composition root — appends one vocabulary section to the system prompt (payloads must be self-identifying; pi strips customType from LLM context) and flushes each pending message as a `display: false` custom message: hidden from the chat, model-visible, persisted as a session entry. `change-only` policy suppresses a flush when the content matches the nearest persisted entry of that customType on the branch, so unchanged facts are not repeated and the behavior survives restart and branch navigation with no in-memory seeding.
+
+The canvas binding registers two: `uix.pane-visibility` (`{"canvases_open": [...]}`, change-only) and `uix.canvas-diff` (the anchored human-edit hunks, a consuming read computed at the boundary).
+
+There is no public UIX-extension API today for contributing pi tools, state messages, or agent-turn triggers from pane/channel events.
 
 See [`panes.md`](./panes.md), [`extensions.md`](./extensions.md).
