@@ -35,11 +35,11 @@ export function registerCanvasProtocol(stateRoot: string): Disposable {
     const html = key ? await readCanvas(stateRoot, key) : null;
 
     if (key && html !== null) {
-      log.info({ key }, "canvas_served");
+      log.debug({ key }, "canvas_served");
       return htmlResponse(injectCanvasShim(html, key), 200);
     }
 
-    log.info({ key: key ?? url.hostname }, "canvas_not_found");
+    log.debug({ key: key ?? url.hostname }, "canvas_not_found");
     return htmlResponse(notFoundHtml(key ?? url.hostname), 404);
   });
 

@@ -65,6 +65,7 @@ function createWindow(): BrowserWindow {
 }
 
 function sendAgentEvent(win: BrowserWindow | null, event: AgentEvent): void {
+  logChatContent(event);
   if (win) {
     // Partials repeat at per-token/per-tick cadence; flagging them lets the
     // boundary demote that noise regardless of payload size.
@@ -74,8 +75,32 @@ function sendAgentEvent(win: BrowserWindow | null, event: AgentEvent): void {
   }
 }
 
+// Level policy: what the chat displays is info; plumbing is debug; partials
+// are trace. The IPC boundary already records every crossing at debug/trace,
+// so these info lines exist purely to keep the human-visible conversation
+// readable in the default log.
+function logChatContent(event: AgentEvent): void {
+  if (event.type !== "transcript_append" && event.type !== "transcript_replace")
+    return;
+  const item = event.item;
+  if (item.kind === "user") {
+    createLogger("chat").info({ text: item.text }, "user_message");
+    return;
+  }
+  // The completion replace logs once; the same-text rekey replace (carries
+  // previousId) and streaming partials do not.
+  if (
+    item.kind === "assistant" &&
+    item.complete &&
+    event.type === "transcript_replace" &&
+    event.previousId === undefined
+  ) {
+    createLogger("chat").info({ text: item.text }, "assistant_message");
+  }
+}
+
 function sendCanvasChanged(key: string): void {
-  createLogger("canvas").info({ key }, "canvas_changed");
+  createLogger("canvas").debug({ key }, "canvas_changed");
   for (const win of BrowserWindow.getAllWindows()) {
     ipc.send(win, Channels.canvasChanged, { key });
   }
@@ -108,7 +133,7 @@ void app.whenReady().then(async () => {
   const roots = defaultRoots();
   const extensionsBag = appBag.add(new DisposableBag());
   const { loaded, failed } = await loadExtensions(roots, extensionsBag);
-  createLogger("extensions").info(
+  createLogger("extensions").debug(
     { loaded: loaded.length, failed: failed.length },
     "activation_complete",
   );
@@ -178,7 +203,7 @@ void app.whenReady().then(async () => {
   appBag.add(
     ipc.handle<CanvasWriteback, void>(Channels.canvasWriteback, async (req) => {
       assertCanvasKey(req.key);
-      createLogger("canvas").info(
+      createLogger("canvas").debug(
         { key: req.key, bytes: req.html.length },
         "canvas_writeback",
       );
@@ -191,12 +216,12 @@ void app.whenReady().then(async () => {
   appBag.add(
     ipc.handle<void, ReloadResult>(Channels.reload, async () => {
       const reloadLog = createLogger("main");
-      reloadLog.info({}, "reload_started");
+      reloadLog.debug({}, "reload_started");
 
       try {
         const extensionResult = await loadExtensions(roots, extensionsBag);
         const piReloaded = await driver.reload();
-        reloadLog.info(
+        reloadLog.debug(
           {
             extensionsLoaded: extensionResult.loaded.length,
             extensionsFailed: extensionResult.failed.length,

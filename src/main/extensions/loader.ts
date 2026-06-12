@@ -126,15 +126,15 @@ const loadExtensionFactory = async (
 export const discoverUIXExtensions = (
   roots: string[],
 ): DiscoveredExtension[] => {
-  log.info({ count: roots.length }, "scanning_roots");
+  log.debug({ count: roots.length }, "scanning_roots");
   for (const dir of roots) {
-    log.info({ dir, present: fs.existsSync(dir) }, "root");
+    log.debug({ dir, present: fs.existsSync(dir) }, "root");
   }
 
   const discovered = discoverExtensions(roots);
-  log.info({ count: discovered.length }, "discovered");
+  log.debug({ count: discovered.length }, "discovered");
   for (const ext of discovered) {
-    log.info(
+    log.debug(
       {
         displayName: ext.displayName,
         dir: ext.dir,
@@ -188,7 +188,7 @@ export const activateUIXExtensions = async (
         entry,
       });
 
-      elog.info({}, "activating");
+      elog.debug({}, "activating");
 
       // The per-extension bag is built early so the factory's
       // registrations land somewhere disposable. We only enroll
@@ -213,7 +213,7 @@ export const activateUIXExtensions = async (
 
         parentBag.add(bag);
         loaded.push({ displayName: ext.displayName, entry, bag });
-        elog.info({}, "activation_succeeded");
+        elog.debug({}, "activation_succeeded");
       } catch (thrown) {
         const error = normalize(thrown);
         // Tear down anything the factory managed to register

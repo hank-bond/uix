@@ -52,7 +52,7 @@ export function createExtensionAPI(
 
   return {
     registerCommand(name, options) {
-      elog.info(
+      elog.debug(
         { command: name, description: options.description },
         "command_registered",
       );
@@ -62,7 +62,7 @@ export function createExtensionAPI(
       // day 1.
       bag.add(
         disposable(() => {
-          elog.info({ command: name }, "command_unregistered");
+          elog.debug({ command: name }, "command_unregistered");
         }),
       );
     },
