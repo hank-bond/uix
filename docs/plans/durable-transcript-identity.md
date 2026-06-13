@@ -23,6 +23,7 @@ This follows the transcript normalization work in [conversation-render-primitive
 - Pi emits `message_end` to listeners **before** calling `sessionManager.appendMessage(event.message)`, synchronously after they return, **with the same object** — so object identity correlates live messages to appends, and the append (the only place the durable id is minted) is observable in the same tick.
 - The assistant message containing the toolCall blocks is persisted **before** `tool_execution_start` fires — so tool rows can be born keyed.
 - Custom messages persist via `appendCustomMessageEntry(customType, content, display, details)` — the `CustomMessage` object never reaches the manager, so generic third-party customs cannot correlate by identity; UIX-authored blocks carry an instance id in `details`, and a future pi post-persist event would close the gap properly.
+- _(2026-06-11)_ **Only `content` reaches the model.** `convertToLlm` (`messages.js`, wired at `sdk.js` → run per LLM call at `agent-loop.js`) renders a custom message as a plain user-role text message; `customType`, `details`, and `display` are dropped. Any custom message the model must differentiate needs its kind **in the content text** — the state-message substrate's `<uix-state>`/inner-tag envelope plus system-prompt vocabulary is the established pattern ([agent-state-messages](../design/agent-state-messages.md)).
 
 ## D0 — Session append observation
 
