@@ -81,7 +81,7 @@ export class DocumentChannel {
   // Drives the per-turn context injection (see content/binding.ts). Only
   // touched documents are in scope: the agent has no anchors for the rest and
   // reads them fresh when needed.
-  async collectChanges(): Promise<
+  async consumeChanges(): Promise<
     ReadonlyMap<string, readonly AnchoredChange[]>
   > {
     const result = new Map<string, readonly AnchoredChange[]>();

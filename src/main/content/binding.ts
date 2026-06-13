@@ -11,14 +11,12 @@
 // and ContentStore (a later case-2 surface could store non-HTML state docs
 // there without HTML canonicalization).
 
-import type {
-  InputEventResult,
-  ToolDefinition,
-} from "@earendil-works/pi-coding-agent";
+import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
 import { assertCanvasKey, CanvasKeyDescription } from "../../shared/canvas";
 import type { AgentBinding } from "../agent/bindings";
+import type { StateMessages } from "../agent/state-messages";
 import type { AnchoredChange } from "../anchors/document";
 import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
 
@@ -78,37 +76,59 @@ interface CanvasAgentBindingOptions {
 }
 
 // The canvas subsection's agent binding: handed the live pi handle, it
-// registers its content tools and the per-turn context hook itself. Position in
-// the composition root decides where its "input" transform sits in pi's chain.
+// registers its content tools and declares its state messages. Turn context
+// rides state messages, not an "input" transform — pi persists transformed
+// text as the user's own entry, so a transform would put cockpit context
+// inside the human's message (see src/main/agent/state-messages.ts).
 export function createCanvasAgentBinding(
   opts: CanvasAgentBindingOptions,
   store: ContentStore,
   openCanvasKeys: readonly string[],
+  stateMessages: StateMessages,
 ): AgentBinding {
   const channel = new DocumentChannel(store);
+
+  // Change-only: the open set is re-announced only when it differs from the
+  // last persisted report on the branch. Today the keys are fixed at startup,
+  // so this one emit is the whole signal; the pane host will re-emit on
+  // open/close when panes become dynamic.
+  stateMessages.register({
+    customType: "uix.pane-visibility",
+    description:
+      'JSON `{"canvases_open": [...]}` — the canvas keys currently open in the pane. Sent only when the set changes. Keys are not filesystem paths; read contents with uix_canvas_read when relevant.',
+    schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
+    policy: "change-only",
+  });
+  stateMessages.emit("uix.pane-visibility", {
+    canvases_open: [...openCanvasKeys].sort(),
+  });
+
+  // Human-writeback diff: anchored hunks for canvases the agent has touched,
+  // edited by the human since its last turn. consumeChanges() is the single
+  // consuming read (canvas-data-channel log 2026-06-06), so this computes at
+  // the turn boundary rather than emitting ahead of it.
+  stateMessages.register({
+    customType: "uix.canvas-diff",
+    description:
+      "anchored hunks the human edited in open canvases since your last turn, grouped by `## <canvas key>`. The anchors shown are current.",
+    atTurnBoundary: async () => {
+      const changes = await channel.consumeChanges();
+      if (changes.size === 0) return undefined;
+      const content = formatCanvasChanges(changes);
+      // Human edits are conversation content (level policy: chat-visible is
+      // info), even though the message itself is display-hidden.
+      createLogger("canvas").info({ diff: content }, "canvas_diff");
+      return {
+        content,
+        details: { changes: Object.fromEntries(changes) },
+      };
+    },
+  });
+
   return (pi) => {
     pi.registerTool(createReadTool(channel));
     pi.registerTool(createWriteTool(channel, opts));
     pi.registerTool(createEditTool(channel, opts));
-
-    // Each turn: name the canvases open in the pane (so the agent knows the keys
-    // exist and can read them) and surface diffs of human edits to any it has
-    // already engaged with — context, not tools it must remember to call. The
-    // "input" hook prepends to the model-bound text only; the human's stored
-    // message entry stays verbatim.
-    pi.on("input", async (event): Promise<InputEventResult> => {
-      const parts = [
-        formatOpenCanvases(openCanvasKeys),
-        formatCanvasChanges(await channel.collectChanges()),
-      ].filter((part): part is string => part !== null);
-      const block = parts.length ? parts.join("\n\n") : null;
-      createLogger("canvas").info(
-        { block: block ?? "(nothing in scope)" },
-        "writeback_context",
-      );
-      if (!block) return { action: "continue" };
-      return { action: "transform", text: `${block}\n\n${event.text}` };
-    });
   };
 }
 
@@ -212,33 +232,14 @@ function formatChangeHunks(
   return added.length ? `${header}\n${formatAnchoredText(added)}` : header;
 }
 
-// Awareness only: the agent pulls contents with uix_canvas_read. Edit diffs
-// flow through formatCanvasChanges once a canvas is in scope.
-function formatOpenCanvases(keys: readonly string[]): string | null {
-  if (keys.length === 0) return null;
-  return [
-    "<canvases-open>",
-    "Open in the pane now. Read with uix_canvas_read to see contents.",
-    keys.join("\n"),
-    "</canvases-open>",
-  ].join("\n");
-}
-
+// Section body only — the state-message substrate owns the <canvas-diff>
+// tag and the <uix-state> envelope around it.
 function formatCanvasChanges(
   changes: ReadonlyMap<string, readonly AnchoredChange[]>,
-): string | null {
-  if (changes.size === 0) return null;
-
+): string {
   const sections: string[] = [];
   for (const [key, hunks] of changes) {
     sections.push(formatChangeHunks(`## ${key}`, hunks));
   }
-
-  return [
-    "<canvas-changes>",
-    "The human edited these canvases since your last turn; the anchors below are current.",
-    "",
-    sections.join("\n\n"),
-    "</canvas-changes>",
-  ].join("\n");
+  return sections.join("\n\n");
 }

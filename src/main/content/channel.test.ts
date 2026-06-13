@@ -149,7 +149,7 @@ describe("DocumentChannel", () => {
       store.dump("main")!.replace("<p>b</p>", "<p>B</p>"),
     );
 
-    const changes = await channel.collectChanges();
+    const changes = await channel.consumeChanges();
     const hunks = changes.get("main")!;
     expect(hunks.flatMap((h) => h.oldLines).map((l) => l.text)).toContain(
       "<p>b</p>",
@@ -162,7 +162,7 @@ describe("DocumentChannel", () => {
     expect(read.find((l) => l.text === "<p>a</p>")!.anchor).toBe(aAnchor);
   });
 
-  it("collectChanges is idempotent once synced", async () => {
+  it("consumeChanges is idempotent once synced", async () => {
     const store = memoryStore();
     const channel = new DocumentChannel(store);
     await channel.write("main", "<body>\n<p>a</p>\n</body>");
@@ -171,8 +171,8 @@ describe("DocumentChannel", () => {
       store.dump("main")!.replace("<p>a</p>", "<p>A</p>"),
     );
 
-    expect((await channel.collectChanges()).size).toBe(1);
-    expect((await channel.collectChanges()).size).toBe(0);
+    expect((await channel.consumeChanges()).size).toBe(1);
+    expect((await channel.consumeChanges()).size).toBe(0);
   });
 
   it("an agent edit does not clobber a concurrent human edit to another line", async () => {
@@ -208,6 +208,6 @@ describe("DocumentChannel", () => {
       store.dump("main")!.replace("<p>x</p>", "<P>x</P>"),
     );
 
-    expect((await channel.collectChanges()).size).toBe(0);
+    expect((await channel.consumeChanges()).size).toBe(0);
   });
 });

@@ -238,10 +238,10 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         });
         const session = await sessionPromise;
         // Send the human's text verbatim. Binding-contributed turn context
-        // (e.g. the canvas human-writeback diff) is prepended to the
-        // model-bound text inside the UIX-core extension's "input" hook, so the
-        // stored user entry stays clean. The transcript append above already
-        // carries the human's original text to the renderer.
+        // (open canvases, the human-writeback diff) rides display-hidden
+        // custom messages flushed at "before_agent_start" (see
+        // agent/state-messages.ts), so the stored user entry is exactly what
+        // the human typed.
         await session.prompt(text);
       } catch (err) {
         opts.onEvent({
