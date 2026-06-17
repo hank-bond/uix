@@ -8,9 +8,12 @@ import type {
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 
-import { createStateMessages } from "../agent/state-messages";
+import {
+  createStateMessages,
+  createStateMessageAssembler,
+} from "../agent/state-messages";
 
-import { createCanvasAgentBinding } from "./binding";
+import { createCanvasAgentFacet } from "./agent-facet";
 import type { ContentStore } from "./content-store";
 
 function memoryStore(): ContentStore {
@@ -29,12 +32,12 @@ type Handler = (
   ctx: ExtensionContext,
 ) => Promise<BeforeAgentStartEventResult>;
 
-// The canvas binding + the state-message assembler wired the way index.ts
-// composes them, against an in-memory store and a fake pi handle.
+// The canvas facet + the driver-installed state-message assembler wired
+// against an in-memory store and a fake pi handle.
 function setup() {
   const store = memoryStore();
   const stateMessages = createStateMessages();
-  const canvasBinding = createCanvasAgentBinding(
+  const canvasFacet = createCanvasAgentFacet(
     { onCanvasChanged: () => {} },
     store,
     ["main"],
@@ -49,8 +52,8 @@ function setup() {
       if (event === "before_agent_start") handlers.push(handler);
     },
   } as unknown as ExtensionAPI;
-  void canvasBinding(pi);
-  void stateMessages.binding(pi);
+  void canvasFacet(pi);
+  void createStateMessageAssembler(stateMessages)(pi);
 
   const turnBoundary = async () =>
     handlers[0](
@@ -68,7 +71,7 @@ function setup() {
   return { store, tools, turnBoundary };
 }
 
-describe("createCanvasAgentBinding state messages", () => {
+describe("createCanvasAgentFacet state messages", () => {
   it("teaches both canvas tags in the system prompt vocabulary", async () => {
     const { turnBoundary } = setup();
     const result = await turnBoundary();
@@ -105,7 +108,7 @@ describe("createCanvasAgentBinding state messages", () => {
     expect(first).toContain("goodbye");
 
     // The diff was consumed; an untouched canvas contributes no section (and
-    // visibility was already flushed against an empty branch each run, so the
+    // visibility has not been branch-confirmed in this fake setup, so the
     // second run still carries it — assert on the diff only).
     const second = (await turnBoundary()).message?.content as
       | string

@@ -1,4 +1,4 @@
-// UIX cockpit — anchored canvas agent binding.
+// UIX cockpit — anchored canvas agent facet.
 //
 // The agent reads, clobbers, and range-edits canvases by key through these
 // tools, always in the anchored §-gutter wire format, and gets fresh anchors
@@ -15,8 +15,8 @@ import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
 import { assertCanvasKey, CanvasKeyDescription } from "../../shared/canvas";
-import type { AgentBinding } from "../agent/bindings";
-import type { StateMessages } from "../agent/state-messages";
+import type { AgentFacet } from "../agent/facets";
+import type { StateMessageRegistry } from "../agent/state-messages";
 import type { AnchoredChange } from "../anchors/document";
 import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
 
@@ -71,57 +71,55 @@ type ReadParams = Static<typeof readParams>;
 type WriteParams = Static<typeof writeParams>;
 type EditParams = Static<typeof editParams>;
 
-interface CanvasAgentBindingOptions {
+interface CanvasAgentFacetOptions {
   onCanvasChanged: (key: string) => void;
 }
 
-// The canvas subsection's agent binding: handed the live pi handle, it
+// The canvas subsection's agent facet: handed the live pi handle, it
 // registers its content tools and declares its state messages. Turn context
 // rides state messages, not an "input" transform — pi persists transformed
 // text as the user's own entry, so a transform would put cockpit context
 // inside the human's message (see src/main/agent/state-messages.ts).
-export function createCanvasAgentBinding(
-  opts: CanvasAgentBindingOptions,
+export function createCanvasAgentFacet(
+  opts: CanvasAgentFacetOptions,
   store: ContentStore,
   openCanvasKeys: readonly string[],
-  stateMessages: StateMessages,
-): AgentBinding {
+  stateMessages: StateMessageRegistry,
+): AgentFacet {
   const channel = new DocumentChannel(store);
 
-  // Change-only: the open set is re-announced only when it differs from the
-  // last persisted report on the branch. Today the keys are fixed at startup,
-  // so this one emit is the whole signal; the pane host will re-emit on
-  // open/close when panes become dynamic.
-  stateMessages.register({
-    customType: "uix.pane-visibility",
+  // Update buffer: the open set is retained as current truth and re-announced
+  // only when its materialized body differs from the last persisted report on
+  // the branch. Today the keys are fixed at startup, so this one update is the
+  // whole signal; the pane host will update the same handle on open/close when
+  // panes become dynamic.
+  const visibility = stateMessages.register({
+    messageType: "uix.pane-visibility",
     description:
       'JSON `{"canvases_open": [...]}` — the canvas keys currently open in the pane. Sent only when the set changes. Keys are not filesystem paths; read contents with uix_canvas_read when relevant.',
-    schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
-    policy: "change-only",
+    buffer: {
+      kind: "update",
+      schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
+    },
   });
-  stateMessages.emit("uix.pane-visibility", {
-    canvases_open: [...openCanvasKeys].sort(),
-  });
+  visibility.update({ canvases_open: [...openCanvasKeys].sort() });
 
-  // Human-writeback diff: anchored hunks for canvases the agent has touched,
-  // edited by the human since its last turn. consumeChanges() is the single
-  // consuming read (canvas-data-channel log 2026-06-06), so this computes at
-  // the turn boundary rather than emitting ahead of it.
+  // Materialized at agent-run prep: anchored hunks the human edited in touched
+  // canvases since the agent's last run. consumeChanges() is a consuming read
+  // (canvas-data-channel log 2026-06-06), so the agent-facing payload is not
+  // materialized until UIX is preparing the state message.
   stateMessages.register({
-    customType: "uix.canvas-diff",
+    messageType: "uix.canvas-diff",
     description:
       "anchored hunks the human edited in open canvases since your last turn, grouped by `## <canvas key>`. The anchors shown are current.",
-    atTurnBoundary: async () => {
+    materialize: async () => {
       const changes = await channel.consumeChanges();
       if (changes.size === 0) return undefined;
       const content = formatCanvasChanges(changes);
       // Human edits are conversation content (level policy: chat-visible is
       // info), even though the message itself is display-hidden.
       createLogger("canvas").info({ diff: content }, "canvas_diff");
-      return {
-        content,
-        details: { changes: Object.fromEntries(changes) },
-      };
+      return { content, details: { changes: Object.fromEntries(changes) } };
     },
   });
 
@@ -162,7 +160,7 @@ function createReadTool(
 
 function createWriteTool(
   channel: DocumentChannel,
-  opts: CanvasAgentBindingOptions,
+  opts: CanvasAgentFacetOptions,
 ): ToolDefinition<typeof writeParams> {
   return {
     name: "uix_canvas_write",
@@ -191,7 +189,7 @@ function createWriteTool(
 
 function createEditTool(
   channel: DocumentChannel,
-  opts: CanvasAgentBindingOptions,
+  opts: CanvasAgentFacetOptions,
 ): ToolDefinition<typeof editParams> {
   return {
     name: "uix_canvas_edit",

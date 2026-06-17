@@ -26,7 +26,7 @@ import { assertCanvasKey } from "../shared/canvas";
 import { createAgentDriver } from "./agent/driver";
 import { createStateMessages } from "./agent/state-messages";
 import { registerCanvasProtocol } from "./canvas/protocol";
-import { createCanvasAgentBinding } from "./content/binding";
+import { createCanvasAgentFacet } from "./content/agent-facet";
 import { createCanvasContentStore } from "./content/content-store";
 import { loadExtensions } from "./extensions/loader";
 import { defaultRoots } from "./extensions/roots";
@@ -151,26 +151,23 @@ void app.whenReady().then(async () => {
   // together once the store gains it.
   const canvasStore = createCanvasContentStore(workspace.stateRoot);
 
-  // The cockpit→agent state channel; bindings register their customTypes
-  // against it and the assembler flushes at each turn boundary.
+  // The cockpit→agent state channel; contributions register their messageType
+  // against it and the driver flushes them while preparing each agent run.
   const stateMessages = createStateMessages();
 
   const driver = createAgentDriver({
     onEvent: (event) => sendAgentEvent(mainWindow, event),
     workspace,
-    // The composition root's ordered binding list. Order is the agent-surface
-    // registration order; the state-message assembler runs last so every
-    // earlier binding's registrations are in by the time it installs.
-    agentBindings: [
+    stateMessages,
+    agentFacets: [
       // Open canvases are hardcoded to match the single pane (Canvas.tsx);
       // swap for pane-reported keys when the pane host lands.
-      createCanvasAgentBinding(
+      createCanvasAgentFacet(
         { onCanvasChanged: sendCanvasChanged },
         canvasStore,
         ["main"],
         stateMessages,
       ),
-      stateMessages.binding,
     ],
   });
   appBag.add(driver);

@@ -78,7 +78,7 @@ export class DocumentChannel {
     return changes;
   }
 
-  // Drives the per-turn context injection (see content/binding.ts). Only
+  // Drives the per-turn context injection (see content/agent-facet.ts). Only
   // touched documents are in scope: the agent has no anchors for the rest and
   // reads them fresh when needed.
   async consumeChanges(): Promise<

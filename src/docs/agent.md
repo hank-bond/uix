@@ -1,5 +1,5 @@
 ---
-summary: "How the cockpit drives the agent today: it lazily owns a persisted pi AgentSession, forwards a UIX-shaped event stream to the renderer, delegates reload, binds the core anchored document read/write/edit tools, and flushes registered state messages as display-hidden custom entries at each turn boundary."
+summary: "How the cockpit drives the agent today: it lazily owns a persisted pi AgentSession, forwards a UIX-shaped event stream to the renderer, delegates reload, binds the core anchored document read/write/edit tools, and flushes registered state-message contributions as display-hidden custom entries at agent-run prep."
 status: active
 ---
 
@@ -14,7 +14,7 @@ Current behavior:
 - the renderer receives a UIX-shaped event stream over typed Electron IPC: transcript item appends, compact in-flight partials (`transcript_partial`: streamed assistant text appends, tool progress snapshots overwrite), whole-item replacements at completion, plus basic lifecycle markers; live in-flight tool partials are discarded when the final item arrives;
 - `window.uix.getHistory()` replays the same durable transcript item shape from pi's persisted session branch;
 - `window.uix.reload()` reloads UIX extensions and delegates to `session.reload()` only if a pi session already exists;
-- core substrate tools are registered through internal agent bindings (`AgentBinding`), not through the public UIX extension API.
+- core substrate tools are registered through internal agent facets (`AgentFacet`), not through the public UIX extension API.
 
 ## Transcript projection
 
@@ -26,7 +26,7 @@ UIX keeps three related units distinct:
 
 This separation keeps pi's durable tree, UIX's streaming/replay normalization, and React rendering independent enough to evolve without re-keying the session format. Chat block renderers may also present a human-facing projection of an agent-facing payload: for example, canvas tool results keep anchored lines in the transcript item so the agent can edit safely, while the chat block hides the anchors from the human display.
 
-The only current core agent binding is the canvas binding in `src/main/content/binding.ts`, which contributes the anchored canvas channel:
+The only current core agent facet is the canvas facet in `src/main/content/agent-facet.ts`, which contributes the anchored canvas channel:
 
 - `uix_canvas_read({ key, start?, end? })`
 - `uix_canvas_write({ key, html })`
@@ -36,9 +36,9 @@ Canvases are addressed by key through a content-store seam (`src/main/content/co
 
 ## State messages
 
-Cockpit state reaches the agent through **state messages** (`src/main/agent/state-messages.ts`), never by rewriting the human's prompt text. A binding registers a customType with a TypeBox schema, a vocabulary line, and a send policy, then either `emit`s payloads as state changes (latched, flushed at the next turn boundary) or supplies an `atTurnBoundary` callback for state that must be computed exactly once at submit. The assembler binding — ordered last in the composition root — appends one vocabulary section to the system prompt and, when anything flushed, ships **one combined `display: false` custom message per turn**: a single `<uix-state>` envelope containing one tagged section per type (`<pane-visibility>`, `<canvas-diff>`, …), persisted as one `uix.state` session entry — hidden from the chat, model-visible. The inner tags carry "what kind" on the wire because pi strips customType from LLM context; section bodies are freeform per type (JSON for state payloads, anchored lines for diffs). `change-only` policy suppresses a section when its body matches the nearest persisted `uix.state` entry carrying that tag on the branch, so unchanged facts are not repeated and the behavior survives restart and branch navigation with no in-memory seeding.
+Cockpit state reaches the agent through **state messages** (`src/main/agent/state-messages.ts`), never by rewriting the human's prompt text. `register(contribution)` declares a `messageType` with a vocabulary line and optional buffer semantics: an **update** buffer carries a TypeBox schema and returns a handle with `update(payload)`; UIX retains the latest value and flushes it only when its post-materialized body differs from the nearest persisted section on the branch. An **append** buffer returns a handle with `append(payload)`; UIX queues values, materializes the pending list, and clears the confirmed batch only after the branch shows it was persisted. A contribution with no buffer supplies `materialize()`, called while UIX prepares an agent run, for state that must be created from the owner's live store at that boundary. The driver installs the assembler into pi at extension activation; on activation it captures the installed registrations and computes the vocabulary section once (a byte-stable prefix). When anything flushed, it ships **one combined `display: false` custom message per run**: a single `<uix-state>` envelope containing one tagged section per type (`<pane-visibility>`, `<canvas-diff>`, …), persisted as one `uix.state` session entry — hidden from the chat, model-visible. The inner tags carry "what kind" on the wire because pi strips customType from LLM context; section bodies are freeform per type (default JSON for buffered payloads, anchored lines for diffs), and `details` carries any structured sidecar. Update buffers are **change-only**; append buffers are **pending-event queues**; no-buffer materializers decide whether to send by returning a message or `undefined`.
 
-The canvas binding registers two: `uix.pane-visibility` (`{"canvases_open": [...]}`, change-only) and `uix.canvas-diff` (the anchored human-edit hunks, a consuming read computed at the boundary, always sent when present).
+The canvas facet registers two: `uix.pane-visibility` (`{"canvases_open": [...]}`, change-only) and `uix.canvas-diff` (the anchored human-edit hunks, a consuming read computed at the boundary, always sent when present).
 
 There is no public UIX-extension API today for contributing pi tools, state messages, or agent-turn triggers from pane/channel events.
 

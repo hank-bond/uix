@@ -34,8 +34,12 @@ import { join } from "node:path";
 import { disposable, DisposableBag, subscribe } from "../lifecycle";
 import { createLogger } from "../log";
 
-import { type AgentBinding, createUixCoreExtension } from "./bindings";
+import { type AgentFacet, createUixCoreExtension } from "./facets";
 import { createTranscriptIdentity, type TranscriptIdentity } from "./identity";
+import {
+  createStateMessageAssembler,
+  type StateMessages,
+} from "./state-messages";
 import {
   extractTranscriptText,
   parseCustomTranscriptItem,
@@ -69,8 +73,10 @@ export interface AgentDriver extends Disposable {
 export interface AgentDriverOptions {
   /** Forwarded to the renderer (over IPC). */
   onEvent: (event: AgentEvent) => void;
-  /** UIX-core agent bindings composed into the in-process pi extension. */
-  agentBindings?: readonly AgentBinding[];
+  /** UIX-core agent facets composed into the in-process pi extension. */
+  agentFacets?: readonly AgentFacet[];
+  /** Cockpit→agent state-message registry, installed by the driver. */
+  stateMessages?: StateMessages;
   /** State root (pins the session dir) + agent cwd. */
   workspace: Workspace;
 }
@@ -152,14 +158,19 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     const authStorage = sdk.AuthStorage.create();
     const modelRegistry = sdk.ModelRegistry.create(authStorage);
 
-    // UIX-core agent contributions (tools + the per-turn context hook) ride a
-    // single in-process pi extension. Load it through a DefaultResourceLoader
+    // UIX-core agent facets (tools + run-prep hooks) ride a single in-process
+    // pi extension. Load it through a DefaultResourceLoader
     // with the same cwd/agentDir createAgentSession would default to, so user
     // pi resources still discover and our factory holds the live ExtensionAPI.
+    const agentFacets = [...(opts.agentFacets ?? [])];
+    if (opts.stateMessages) {
+      agentFacets.push(createStateMessageAssembler(opts.stateMessages));
+    }
+
     const resourceLoader = new sdk.DefaultResourceLoader({
       cwd: opts.workspace.agentCwd,
       agentDir: sdk.getAgentDir(),
-      extensionFactories: [createUixCoreExtension(opts.agentBindings ?? [])],
+      extensionFactories: [createUixCoreExtension(agentFacets)],
     });
     await resourceLoader.reload();
 
@@ -237,8 +248,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
           throw err;
         });
         const session = await sessionPromise;
-        // Send the human's text verbatim. Binding-contributed turn context
-        // (open canvases, the human-writeback diff) rides display-hidden
+        // Send the human's text verbatim. Agent-run context (open canvases,
+        // the human-writeback diff) rides display-hidden
         // custom messages flushed at "before_agent_start" (see
         // agent/state-messages.ts), so the stored user entry is exactly what
         // the human typed.

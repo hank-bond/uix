@@ -86,7 +86,7 @@ Two doc trees — `src/docs/` is the user-facing substrate reference (building o
 
 <!-- INDEX:END -->
 
-The cockpit injects this same orientation plus the doc map into its UIX-owned agent through core agent bindings (`src/main/agent/`) — not an extension; it's how the cockpit talks to the agent at all. Skills add capabilities; docs explain the architecture.
+The cockpit injects this same orientation plus the doc map into its UIX-owned agent through core agent facets (`src/main/agent/`) — not an extension; it's how the cockpit talks to the agent at all. Skills add capabilities; docs explain the architecture.
 
 ## Non-goals
 

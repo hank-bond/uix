@@ -9,16 +9,17 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
-import { createStateMessages, type StateMessages } from "./state-messages";
+import {
+  createStateMessages,
+  createStateMessageAssembler,
+  type StateMessages,
+} from "./state-messages";
 
 type Handler = (
   event: BeforeAgentStartEvent,
   ctx: ExtensionContext,
 ) => Promise<BeforeAgentStartEventResult>;
 
-// Captures the assembler's single before_agent_start handler and exposes a
-// run() that fires it the way pi would at a turn boundary, against a branch
-// of fake session entries.
 function install(stateMessages: StateMessages) {
   const handlers: Handler[] = [];
   const pi = {
@@ -26,7 +27,7 @@ function install(stateMessages: StateMessages) {
       if (event === "before_agent_start") handlers.push(handler);
     },
   } as unknown as ExtensionAPI;
-  void stateMessages.binding(pi);
+  void createStateMessageAssembler(stateMessages)(pi);
   expect(handlers).toHaveLength(1);
 
   return async (entries: SessionEntry[] = []) =>
@@ -55,13 +56,14 @@ describe("createStateMessages", () => {
   it("appends one vocabulary section with a bullet per registered tag", async () => {
     const sm = createStateMessages();
     sm.register({
-      customType: "uix.pane-visibility",
+      messageType: "uix.pane-visibility",
       description: "open keys",
+      buffer: { kind: "update", schema: Type.Object({ open: Type.Boolean() }) },
     });
     sm.register({
-      customType: "uix.canvas-diff",
+      messageType: "uix.canvas-diff",
       description: "human hunks",
-      atTurnBoundary: () => undefined,
+      materialize: () => undefined,
     });
     const run = install(sm);
 
@@ -78,10 +80,17 @@ describe("createStateMessages", () => {
     expect(await run()).toEqual({});
   });
 
-  it("flushes emitted state as one tagged section inside one uix.state envelope", async () => {
+  it("flushes updated state as one tagged section inside one uix.state envelope", async () => {
     const sm = createStateMessages();
-    sm.register({ customType: "uix.pane-visibility", description: "d" });
-    sm.emit("uix.pane-visibility", { canvases_open: ["main"] });
+    const visibility = sm.register({
+      messageType: "uix.pane-visibility",
+      description: "d",
+      buffer: {
+        kind: "update",
+        schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
+      },
+    });
+    visibility.update({ canvases_open: ["main"] });
     const run = install(sm);
 
     const result = await run();
@@ -95,77 +104,78 @@ describe("createStateMessages", () => {
         "</pane-visibility>",
         "</uix-state>",
       ].join("\n"),
-      details: undefined,
+      details: { "uix.pane-visibility": { canvases_open: ["main"] } },
       display: false,
     });
   });
 
-  it("suppresses a change-only section whose body matches the nearest persisted tag", async () => {
+  it("suppresses an update section whose materialized body matches the nearest persisted tag", async () => {
     const sm = createStateMessages();
-    sm.register({ customType: "uix.pane-visibility", description: "d" });
-    sm.emit("uix.pane-visibility", { canvases_open: ["main"] });
+    const visibility = sm.register({
+      messageType: "uix.pane-visibility",
+      description: "d",
+      buffer: {
+        kind: "update",
+        schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
+      },
+    });
+    visibility.update({ canvases_open: ["main"] });
     const run = install(sm);
 
     const persisted = (await run()).message;
     expect(persisted).toBeDefined();
 
-    // Same latched value, now on the branch: nothing to say.
     const next = await run([stateEntry(persisted!.content as string)]);
     expect(next.message).toBeUndefined();
 
-    // Value changes: flushes again.
-    sm.emit("uix.pane-visibility", { canvases_open: [] });
+    visibility.update({ canvases_open: [] });
     const changed = await run([stateEntry(persisted!.content as string)]);
     expect(changed.message?.content).toContain('{"canvases_open":[]}');
   });
 
   it("walks past uix.state entries that do not carry the tag", async () => {
     const sm = createStateMessages();
-    sm.register({ customType: "uix.pane-visibility", description: "d" });
-    sm.emit("uix.pane-visibility", { canvases_open: ["main"] });
+    const visibility = sm.register({
+      messageType: "uix.pane-visibility",
+      description: "d",
+      buffer: {
+        kind: "update",
+        schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
+      },
+    });
+    visibility.update({ canvases_open: ["main"] });
     const run = install(sm);
 
-    const visibility = (await run()).message!.content as string;
-    // A later turn flushed only some other section; the visibility fact in the
-    // older entry still counts as the last persisted value.
+    const visible = (await run()).message!.content as string;
     const other = "<uix-state>\n<other>\nx\n</other>\n</uix-state>";
-    const result = await run([stateEntry(visibility), stateEntry(other)]);
+    const result = await run([stateEntry(visible), stateEntry(other)]);
     expect(result.message).toBeUndefined();
   });
 
-  it("keeps the change-only latch so an unpersisted flush self-heals", async () => {
+  it("keeps the update value so an unpersisted flush resends", async () => {
     const sm = createStateMessages();
-    sm.register({ customType: "uix.pane-visibility", description: "d" });
-    sm.emit("uix.pane-visibility", { canvases_open: ["main"] });
-    const run = install(sm);
-
-    // Flushed twice against an empty branch (the first message never
-    // persisted): both send.
-    expect((await run()).message).toBeDefined();
-    expect((await run()).message).toBeDefined();
-  });
-
-  it("consumes the latch under the always policy", async () => {
-    const sm = createStateMessages();
-    sm.register({
-      customType: "uix.pane-visibility",
+    const visibility = sm.register({
+      messageType: "uix.pane-visibility",
       description: "d",
-      policy: "always",
+      buffer: {
+        kind: "update",
+        schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
+      },
     });
-    sm.emit("uix.pane-visibility", { canvases_open: ["main"] });
+    visibility.update({ canvases_open: ["main"] });
     const run = install(sm);
 
     expect((await run()).message).toBeDefined();
-    expect((await run()).message).toBeUndefined();
+    expect((await run()).message).toBeDefined();
   });
 
-  it("always flushes a boundary callback's payload, even when identical to the persisted one", async () => {
+  it("materializes a manual section every run when it returns content", async () => {
     let reads = 0;
     const sm = createStateMessages();
     sm.register({
-      customType: "uix.canvas-diff",
+      messageType: "uix.canvas-diff",
       description: "d",
-      atTurnBoundary: () => {
+      materialize: () => {
         reads++;
         return { content: "same hunks", details: { hunks: 1 } };
       },
@@ -175,19 +185,17 @@ describe("createStateMessages", () => {
     const first = (await run()).message!;
     expect(first.details).toEqual({ "uix.canvas-diff": { hunks: 1 } });
 
-    // Identical payload already on the branch: an event must not be lost to
-    // change-only suppression.
     const again = await run([stateEntry(first.content as string)]);
     expect(again.message?.content).toContain("same hunks");
     expect(reads).toBe(2);
   });
 
-  it("sends nothing when a boundary callback returns undefined", async () => {
+  it("sends nothing when manual materialization returns undefined", async () => {
     const sm = createStateMessages();
     sm.register({
-      customType: "uix.canvas-diff",
+      messageType: "uix.canvas-diff",
       description: "d",
-      atTurnBoundary: () => undefined,
+      materialize: () => undefined,
     });
     const run = install(sm);
     expect((await run()).message).toBeUndefined();
@@ -195,13 +203,20 @@ describe("createStateMessages", () => {
 
   it("combines sections from multiple registrations in registration order", async () => {
     const sm = createStateMessages();
-    sm.register({ customType: "uix.pane-visibility", description: "d" });
-    sm.register({
-      customType: "uix.canvas-diff",
+    const visibility = sm.register({
+      messageType: "uix.pane-visibility",
       description: "d",
-      atTurnBoundary: () => ({ content: "## main\nhunks" }),
+      buffer: {
+        kind: "update",
+        schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
+      },
     });
-    sm.emit("uix.pane-visibility", { canvases_open: ["main"] });
+    sm.register({
+      messageType: "uix.canvas-diff",
+      description: "d",
+      materialize: () => ({ content: "## main\nhunks" }),
+    });
+    visibility.update({ canvases_open: ["main"] });
     const run = install(sm);
 
     const content = (await run()).message!.content as string;
@@ -212,39 +227,113 @@ describe("createStateMessages", () => {
     expect(content.endsWith("\n</uix-state>")).toBe(true);
   });
 
-  it("validates emitted payloads against the registration schema", () => {
+  it("validates update payloads against the registration schema", () => {
     const sm = createStateMessages();
-    sm.register({
-      customType: "uix.pane-visibility",
+    const visibility = sm.register({
+      messageType: "uix.pane-visibility",
       description: "d",
-      schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
+      buffer: {
+        kind: "update",
+        schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
+      },
     });
     expect(() =>
-      sm.emit("uix.pane-visibility", { canvases_open: [1] }),
+      visibility.update({ canvases_open: [1] } as unknown as {
+        canvases_open: string[];
+      }),
     ).toThrow(/Invalid uix.pane-visibility payload/);
+    expect(() => visibility.update({ canvases_open: ["main"] })).not.toThrow();
+  });
+
+  it("appends pending values and confirms drain from the branch", async () => {
+    const sm = createStateMessages();
+    const moves = sm.register({
+      messageType: "game.moves",
+      description: "moves",
+      buffer: { kind: "append", schema: Type.Object({ move: Type.String() }) },
+    });
+    moves.append({ move: "e4" });
+    moves.append({ move: "e5" });
+    const run = install(sm);
+
+    const first = (await run()).message!;
+    expect(first.content).toContain('[{"move":"e4"},{"move":"e5"}]');
+
+    // Not persisted yet: the same pending events are retried.
+    expect((await run()).message?.content).toContain("e4");
+
+    // Persisted: the confirmed batch drains, so there is nothing left to send.
+    expect(
+      (await run([stateEntry(first.content as string)])).message,
+    ).toBeUndefined();
+
+    moves.append({ move: "Nf3" });
+    const next = await run([stateEntry(first.content as string)]);
+    expect(next.message?.content).not.toContain("e4");
+    expect(next.message?.content).toContain("Nf3");
+  });
+
+  it("custom materialization runs before update dedupe", async () => {
+    const sm = createStateMessages();
+    const value = sm.register({
+      messageType: "uix.value",
+      description: "d",
+      buffer: { kind: "update", schema: Type.Object({ count: Type.Number() }) },
+      materialize: ({ value: payload }) => ({
+        content: `count=${payload.count}`,
+        details: payload,
+      }),
+    });
+    value.update({ count: 1 });
+    const run = install(sm);
+
+    const first = (await run()).message!;
+    expect(first.content).toContain("count=1");
+    expect(
+      (await run([stateEntry(first.content as string)])).message,
+    ).toBeUndefined();
+  });
+
+  it("stops flushing a section once its handle is disposed, and frees the tag", async () => {
+    const sm = createStateMessages();
+    const visibility = sm.register({
+      messageType: "uix.pane-visibility",
+      description: "d",
+      buffer: {
+        kind: "update",
+        schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
+      },
+    });
+    visibility.update({ canvases_open: ["main"] });
+    const run = install(sm);
+
+    expect((await run()).message?.content).toContain("<pane-visibility>");
+
+    visibility[Symbol.dispose]();
+    expect((await run()).message).toBeUndefined();
+
     expect(() =>
-      sm.emit("uix.pane-visibility", { canvases_open: ["main"] }),
+      sm.register({
+        messageType: "uix.pane-visibility",
+        description: "d",
+        materialize: () => undefined,
+      }),
     ).not.toThrow();
   });
 
-  it("rejects misuse at the registration boundary", () => {
+  it("rejects a second active registration of the same messageType", () => {
     const sm = createStateMessages();
-    sm.register({ customType: "uix.a", description: "d" });
     sm.register({
-      customType: "uix.b",
+      messageType: "uix.a",
       description: "d",
-      atTurnBoundary: () => undefined,
+      materialize: () => undefined,
     });
-
-    expect(() => sm.emit("uix.unknown", {})).toThrow(/Unregistered/);
-    expect(() => sm.emit("uix.b", {})).toThrow(/turn boundary/);
     expect(() =>
-      sm.register({ customType: "uix.a", description: "again" }),
+      sm.register({
+        messageType: "uix.a",
+        description: "again",
+        materialize: () => undefined,
+      }),
     ).toThrow(/already registered/);
-
-    install(sm);
-    expect(() =>
-      sm.register({ customType: "uix.late", description: "d" }),
-    ).toThrow(/after the assembler/);
   });
 });
