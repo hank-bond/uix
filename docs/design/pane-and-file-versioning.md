@@ -16,6 +16,7 @@ status: exploring
 - **Emergent branching, not a mirrored tree.** Conversation nodes hold `{docId: sha}` pointers; pi's conversation tree is the _only_ place branch structure lives. A new edit after a rollback commits with the selected node's sha as parent — two children of one commit _is_ a branch in the DAG, drawn by parent links. We never maintain git branches that mirror the conversation tree (that would be two trees to keep in sync). Copy-on-write falls out: unchanged panes just carry the same sha to the next node.
 - **gc off.** pi never deletes conversation branches, so the graph is append-only and permanent; set `gc.auto=0` and let `.uix/objects` grow monotonically (small text). Per-tip refs become optional — the conversation nodes are the index — though a thin ref namespace is cheap if enumeration wants it.
 - **Commit meta carries the editor's anchor state.** A version is commit-like — content ref plus `{anchorMap, allocIndex}` meta — because anchor state is a function of the document's edit history up to that commit (see Log 2026-06-09). Git's commit object is the natural home; blobs stay content-addressed and deduped underneath, and the version id names the commit, not the content hash.
+- **Latest is separate from snapshots.** The rendered canvas opens from the mutable latest working file, which every iframe writeback and canvas tool updates. Snapshots are immutable git versions; they become durable branch state only when a `uix.turn-state` session entry points at them. If implementation creates git objects for intermediate writebacks, they are ephemeral until referenced, so undo/rollback history stays run-boundary-sized rather than keystroke-sized.
 - **Restore is free/safe** because we own every write; checkout hands the channel's editor content **and** anchors as one consistent unit, and the editor re-derives anchors from content only as the degraded fallback (renumbered; the edit match-guard catches stale historical anchors).
 
 **Opt-in user-file store (the project's own repo).** Configurable, off by default. Requires the project be a git repo; **no rollback for out-of-project files**.
@@ -36,7 +37,7 @@ conversationNode.uix = {
 }
 ```
 
-**User-submit is the single sync boundary** for both stores. At submit, before the run dispatches: pending _human_ pane edits commit, the file snapshot is taken, and the node's `{panes, userSnapshot}` pointers are written — one coherent moment. (Pane _agent_ edits commit continuously during the run; only the human-side pending edits and the per-run file snapshot wait for this boundary. The other snapshot trigger, rollback-initiation, is symmetric: capture-before-you-leave.)
+**Run boundaries are the durable sync points** for both stores. At user submit, before the user message is appended: pending _human_ pane edits are already in latest, latest is snapshotted, the file snapshot is taken, the node's `{panes, userSnapshot}` pointers are written, and any model-visible hidden context derived from that state is appended before the user message — one coherent moment. Pane _agent_ edits update latest continuously during the run, but become branch-visible as a post-run pane snapshot at `agent_end` (if anything changed). The other snapshot trigger, rollback-initiation, is symmetric: capture-before-you-leave.
 
 **Rollback model.** Stepping the conversation tree is a transient _preview_ (shows the panes/files for a node so the user picks a restore point visually). Rollback is one graph interaction with append-only actions, each optionally summarized: **conversation-only** (new pi branch from the node, don't commit previewed pane/file state); **pane-only** (stay at current head, copy the node's pane content into a new commit); **files** (snapshot-then-restore the working tree from the node's `userSnapshot`); **both/all** (new pi branch + check out the node's pointers). No action mutates old conversation nodes or commits.
 
@@ -58,6 +59,12 @@ conversationNode.uix = {
 - Plan: build units U5–U6 (pane versioning + rollback) and U7 (opt-in user-file rollback), sequenced _after_ the P0–U2 channel proof per the value-first ordering.
 
 ## Log
+
+### 2026-06-13 — mutable latest plus durable run-boundary snapshots
+
+Refined the owned pane store around two layers. **Latest** is a mutable working file: the app always loads it on startup, iframe writebacks overwrite it, and agent tools update it during a run. **Snapshots** are immutable git versions carrying content plus anchor metadata. A snapshot becomes part of UIX history only when a `uix.turn-state` `CustomEntry` points at it; unreferenced git objects created as an implementation detail are ephemeral, not rollback nodes.
+
+Durable cadence is run-boundary, not per writeback. At user submit, before the user message is added, UIX snapshots latest and records the pointer; the agent-visible canvas diff is derived from the nearest upstream turn-state snapshot to this new snapshot. At `agent_end`, if the agent changed latest through canvas tools, UIX snapshots final latest and records a post-run pointer. This gives the next user turn a baseline matching what the agent observed through tool results, while avoiding noisy per-keystroke/per-tool durable history. Richer undo stacks can later add more referenced snapshots without changing the branch-pointer model.
 
 ### 2026-06-09 — anchor state moves into commit meta; restore confirmed at turn boundaries
 
