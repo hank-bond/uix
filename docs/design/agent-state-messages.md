@@ -28,6 +28,8 @@ With `display: false` the message is hidden from the chat (renderer already gate
 
 **Landed 2026-06-11** as `createStateMessages()` in `src/main/agent/state-messages.ts` with the canvas's two messages as first consumer; **refined 2026-06-13** to contribution vocabulary (`messageType`, update/append buffers, `materialize`) and driver-owned install (no assembler/facet on the registrant-facing object).
 
+**State messages are a phase of the broader state lifecycle, not their own lifecycle.** The current module assembles hidden `uix.state` messages, but the target owner is the central UIX state domain: side-effectful prep creates stable refs (canvas snapshot ids, hosted checkpoints, retrieved context ids), the private `uix.turn-state` entry records those refs, the model-visible state message renders from the same prepared facts, then the user message is appended. Keeping those phases together is what makes rollback/branch preview possible: the contribution that writes a state slice also knows how to restore it.
+
 **Agent → app structured output is a tool, not a third mechanism.** A registered tool whose parameter schema _is_ the output contract gives schema enforcement and retry natively: structural mismatches are rejected at the tool boundary, semantic failures return an `isError` result with a precise message, and the model retrying a failed call is the existing agent loop. The tool's execute **commits the validated payload to the content store and the pane hydrates from the store** — agent writes an artifact, UI renders it, preserving [no-agent-ui-manipulation](../decisions/2026-05-30-no-agent-ui-manipulation.md). This is the canvas pattern with a schema'd state doc substituted for HTML — the bridge to a case-2 (lit/signals-style) canvas that passes state instead of raw HTML diffs ([canvas-data-channel](./canvas-data-channel.md)). If a future case truly cannot be a tool (output as the model's final text), design that against the concrete consumer.
 
 **Extension packaging is the direction of travel.** The canvas (tools + pane + state messages + vocabulary) becomes a comes-with, replaceable extension contributing via the `pi` and `uix` fields; the conversation pane likewise (existing backlog seed). The pane host and shell stay substrate — like pi's TUI, which is host library, not extension. Shaping `registerStateMessage` so it moves to `@uix/api` verbatim is the dogfooding test that the API is sufficient. **The agent session is substrate; the conversation is one view of it** — a shipped app may have no chat pane at all (dropdowns assemble prompts behind the scenes), which makes state messages the _input primitive_ for non-chat apps, not a canvas nicety. The conversation pane doubles as the dev-mode **inspector**: a menu toggle rendering `display: false` customs (and other hidden entry streams) is a renderer-only change on the existing transcript items.
@@ -44,6 +46,10 @@ With `display: false` the message is hidden from the chat (renderer already gate
 - Leaf discipline for concurrent appends (fan-out mode, multi-pane action logs) — needs pi cooperation (`parentId` on append) or a manager-per-fork pattern.
 
 ## Log
+
+### 2026-06-17 — fold state messages into central state lifecycle
+
+Canvas snapshot review clarified that `uix.turn-state`, `uix.state`, and the user message must be coordinated by one state substrate, not by independent feature hooks. A state-message contribution is still the right vocabulary for a model-visible section, but delivery is one phase of a larger state contribution lifecycle: prepare side effects and refs, persist private refs, materialize message sections from those refs, submit the human message, then use the same state slices for preview/rollback restore. This preserves the branch-navigation invariant and keeps future hosted/document/app-state contributors on the same hooks as canvas.
 
 ### 2026-06-13 — pre-user submit ordering and canvas snapshot pairing
 

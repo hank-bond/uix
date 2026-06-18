@@ -57,6 +57,12 @@ A UIX **feature** (a subsection: canvas, an interactive button, a viz pane) may 
 
 The generalization into a single `Feature` interface carrying these facets is **deferred** (see hardcode-along-the-grain). Most of the roadmap (background services, sqlite, button→pane→main) lands in the _net-new_ facets, not the forwarded one — pi's ports are rich on the agent-logic side and thin-to-absent on the app/service/persistence side.
 
+### State lifecycle is a substrate subdomain
+
+State orchestration is broader than the agent facet. UIX needs a central `src/main/state/` domain that coordinates every contribution participating in app state lifecycle: side-effectful preparation (snapshot a pane document, checkpoint externally hosted state, retrieve/cache context), persisting the stable reference/outcome as a private session entry, rendering any model-visible state message that belongs beside it, submitting the user message, post-agent state capture, and later preview/rollback restore. The linear chat turn is today's optimized lifecycle, not the only future shape; non-chat/fan-out apps and hosted state still need the same central state hooks.
+
+This means `uix.turn-state` `CustomEntry`, hidden `uix.state` `CustomMessageEntry`, and the user message boundary are one substrate-owned transaction, not independent feature calls. Contributions should return slices/intents to the state domain; the state domain owns pi append/send order. A contribution that persists branch state should also provide the restore/preview counterpart for branch navigation. Canvas is the first concrete contributor (snapshot current canvas docs, render `<canvas-diff>`, restore versions later); a JSON application-state pane or externally hosted document should plug into the same lifecycle with different store/channel mechanics.
+
 ### Override model, mirrored from pi
 
 pi has no single extension mechanism; it has **four layered override granularities**, and UIX-core units should ship the same way so userspace can override them (the [pi-self-extension-ethos](../decisions/2026-06-05-pi-self-extension-ethos.md) one layer up):
@@ -116,6 +122,10 @@ The concepts are a thinking tool, not a build order. Today everything is **relat
 Everything else, hardcode freely. The deferred extractions are already seeded in the [plans backlog](../plans/AGENTS.md) (pane host + slot registry, agent-tool contribution from extensions, default conversation extension, file-watcher service); each earns its place at the second or third instance, or the first userspace contribution.
 
 ## Log
+
+### 2026-06-17 — state lifecycle as a substrate domain
+
+Canvas snapshots exposed that the agent facet is the wrong long-term owner for state lifecycle. The current slice can snapshot canvases and append `uix.turn-state`, but the design target is broader: UIX core owns a `src/main/state/` domain where contributions prepare side effects, return stable refs/slices, render model-visible state sections, and define restore hooks. This keeps `CustomEntry`, `CustomMessageEntry`, and the user-message boundary ordered as one transaction, and makes rollback/branch preview the mirror of submit prep. The chat pane remains a pane over the agent session, not the agent session primitive; canvas and future JSON/app-state panes become state contributors plus pane/tool contributions.
 
 ### 2026-06-07 — thread opened
 

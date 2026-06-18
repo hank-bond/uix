@@ -28,14 +28,16 @@ status: exploring
 - **Async labels.** Snapshots are auto-created unlabeled; the user clicks any snapshot in the UI and names it whenever (labels are mutable app/meta state, never baked into git ref or object names). A labeled snapshot signals "keep this" → promote it to a durable `refs/uix/checkpoints/<name>`; unlabeled per-run snapshots stay thin/prunable. Labels are what the branch/rollback picker shows (prompt text isn't memorable).
 - **Manual checkpoint = a pinned per-run snapshot.** Same objects; "checkpoint now / review the delta since" is just labeling, plus `git diff <snapshot>` (working tree vs mark) or `git diff <a> <b>` (between marks).
 
-**Shared contract — the conversation-node meta slot.** The single coupling between the two stores. Each subsystem reads/writes only its slice:
+**Shared contract — the conversation-node meta slot.** The single coupling between stores. Each subsystem reads/writes only its slice, owned by a central UIX state lifecycle rather than by ad-hoc facet hooks:
 
 ```
-conversationNode.uix = {
+uix.turn-state = {
   panes:        { "canvas/main": <sha>, ... },   // always present (owned store)
   userSnapshot?: { sha, label? }                  // present only if user-file mgmt enabled
 }
 ```
+
+The concrete key layout may become more contribution-namespaced as more state owners arrive; the invariant is that session entries hold stable refs, not payload copies, and the same contribution that writes a slice provides the restore/preview hook for it.
 
 **Run boundaries are the durable sync points** for both stores. At user submit, before the user message is appended: pending _human_ pane edits are already in latest, latest is snapshotted, the file snapshot is taken, the node's `{panes, userSnapshot}` pointers are written, and any model-visible hidden context derived from that state is appended before the user message — one coherent moment. Pane _agent_ edits update latest continuously during the run, but become branch-visible as a post-run pane snapshot at `agent_end` (if anything changed). The other snapshot trigger, rollback-initiation, is symmetric: capture-before-you-leave.
 
@@ -59,6 +61,10 @@ conversationNode.uix = {
 - Plan: build units U5–U6 (pane versioning + rollback) and U7 (opt-in user-file rollback), sequenced _after_ the P0–U2 channel proof per the value-first ordering.
 
 ## Log
+
+### 2026-06-17 — snapshot refs belong to central state lifecycle
+
+After the first canvas snapshot implementation, refined the ownership model: latest/version storage is generic, anchor metadata is channel-owned, and run-boundary orchestration belongs to a central `src/main/state/` substrate. Canvas should contribute state slices (snapshot ids and prepared diffs), not directly own the whole `uix.turn-state` append path forever. The same pattern is needed for JSON app-state documents and externally hosted state: perform the side effect in the owning store, persist the stable ref in the session tree, render any model-visible state from that prepared ref, and restore through the contribution's counterpart hook during branch preview/rollback.
 
 ### 2026-06-13 — mutable latest plus durable run-boundary snapshots
 
