@@ -13,12 +13,17 @@
 import {
   type AnchoredChange,
   type AnchoredEdit,
+  type AnchoredDocumentSnapshot,
   type AnchoredLine,
   AnchoredDocument,
 } from "../anchors/document";
 
-import type { ContentStore } from "./content-store";
+import type { ContentStore, ContentVersion } from "./content-store";
 import { canonicalizeHtml } from "./normalize";
+
+export interface DocumentVersionMeta {
+  readonly anchors: AnchoredDocumentSnapshot;
+}
 
 export class DocumentChannel {
   readonly #store: ContentStore;
@@ -76,6 +81,37 @@ export class DocumentChannel {
     const changes = doc.reconcile(canonicalizeHtml(nextText));
     await this.#store.commit(docId, plainText(doc.read()));
     return changes;
+  }
+
+  // Persist current content plus the exact anchor state as immutable versions.
+  // Callers pass the document ids that are durable at this run boundary (open
+  // canvases today; dynamic pane ids once the pane host lands).
+  async snapshotCurrent(
+    docIds: Iterable<string>,
+  ): Promise<ReadonlyMap<string, ContentVersion<DocumentVersionMeta>>> {
+    const result = new Map<string, ContentVersion<DocumentVersionMeta>>();
+    for (const docId of new Set(docIds)) {
+      await this.#sync(docId);
+      const doc = await this.#load(docId);
+      // Make the mutable latest byte-match the anchor state we are about to
+      // store. This canonicalizes cosmetic iframe/file rewrites at the durable
+      // boundary instead of snapshotting content/meta that disagree.
+      await this.#store.commit(docId, plainText(doc.read()));
+      result.set(
+        docId,
+        await this.#store.snapshotCurrent<DocumentVersionMeta>(docId, {
+          anchors: doc.toSnapshot(),
+        }),
+      );
+    }
+    return result;
+  }
+
+  async getVersion(
+    docId: string,
+    versionId: string,
+  ): Promise<ContentVersion<DocumentVersionMeta> | null> {
+    return this.#store.getVersion<DocumentVersionMeta>(docId, versionId);
   }
 
   // Drives the per-turn context injection (see content/agent-facet.ts). Only

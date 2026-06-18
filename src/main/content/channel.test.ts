@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { AnchoredDocument } from "../anchors/document";
+
 import { DocumentChannel } from "./channel";
-import type { ContentStore } from "./content-store";
+import type { ContentStore, ContentVersion } from "./content-store";
 
 // In-memory store standing in for the file-backed one, plus a dump() peek so
 // tests can assert what was committed.
@@ -9,6 +11,7 @@ function memoryStore(
   initial: Record<string, string> = {},
 ): ContentStore & { dump(docId: string): string | null } {
   const map = new Map<string, string>(Object.entries(initial));
+  const versions = new Map<string, ContentVersion>();
   return {
     getCurrent(docId) {
       return Promise.resolve(map.get(docId) ?? null);
@@ -16,6 +19,24 @@ function memoryStore(
     commit(docId, content) {
       map.set(docId, content);
       return Promise.resolve();
+    },
+    snapshotCurrent(docId, meta) {
+      const version: ContentVersion<typeof meta> = {
+        id: `v${versions.size + 1}`,
+        docId,
+        content: map.get(docId) ?? "",
+        meta,
+        createdAt: new Date(0).toISOString(),
+      };
+      versions.set(`${docId}:${version.id}`, version);
+      return Promise.resolve(version);
+    },
+    getVersion<TMeta>(docId: string, versionId: string) {
+      return Promise.resolve(
+        (versions.get(`${docId}:${versionId}`) as
+          | ContentVersion<TMeta>
+          | undefined) ?? null,
+      );
     },
     dump(docId) {
       return map.get(docId) ?? null;
@@ -209,5 +230,19 @@ describe("DocumentChannel", () => {
     );
 
     expect((await channel.consumeChanges()).size).toBe(0);
+  });
+
+  it("snapshots current content with restorable anchor state", async () => {
+    const store = memoryStore();
+    const channel = new DocumentChannel(store);
+    const lines = await channel.write("main", "<body>\n<p>a</p>\n</body>");
+
+    const snapshots = await channel.snapshotCurrent(["main"]);
+    const version = snapshots.get("main")!;
+
+    expect(version.content).toBe(store.dump("main"));
+    expect(version.meta.anchors.lines).toEqual(lines);
+    const restored = new AnchoredDocument(version.meta.anchors);
+    expect(restored.read()).toEqual(lines);
   });
 });

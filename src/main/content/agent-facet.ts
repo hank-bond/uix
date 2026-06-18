@@ -11,7 +11,10 @@
 // and ContentStore (a later case-2 surface could store non-HTML state docs
 // there without HTML canonicalization).
 
-import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type {
+  ExtensionAPI,
+  ToolDefinition,
+} from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
 import { assertCanvasKey, CanvasKeyDescription } from "../../shared/canvas";
@@ -71,6 +74,8 @@ type ReadParams = Static<typeof readParams>;
 type WriteParams = Static<typeof writeParams>;
 type EditParams = Static<typeof editParams>;
 
+const TurnStateEntryType = "uix.turn-state";
+
 interface CanvasAgentFacetOptions {
   onCanvasChanged: (key: string) => void;
 }
@@ -87,6 +92,7 @@ export function createCanvasAgentFacet(
   stateMessages: StateMessageRegistry,
 ): AgentFacet {
   const channel = new DocumentChannel(store);
+  const agentChangedCanvasKeys = new Set<string>();
 
   // Update buffer: the open set is retained as current truth and re-announced
   // only when its materialized body differs from the last persisted report on
@@ -125,9 +131,54 @@ export function createCanvasAgentFacet(
 
   return (pi) => {
     pi.registerTool(createReadTool(channel));
-    pi.registerTool(createWriteTool(channel, opts));
-    pi.registerTool(createEditTool(channel, opts));
+    pi.registerTool(createWriteTool(channel, opts, agentChangedCanvasKeys));
+    pi.registerTool(createEditTool(channel, opts, agentChangedCanvasKeys));
+
+    // Submit-boundary snapshot pointer. This is the UIX-private sibling to the
+    // model-visible state message: the content store keeps immutable canvas
+    // versions, and the pi session tree records which versions were current at
+    // this branch point.
+    pi.on("input", async (_event, ctx) => {
+      await appendCanvasTurnState(pi, channel, openCanvasKeys, ctx.cwd);
+    });
+
+    // Agent tools update mutable latest during the run; once the run settles,
+    // add one post-run pointer so the next human diff starts from the canvas
+    // state the agent already observed through its tool results.
+    pi.on("agent_end", async (_event, ctx) => {
+      if (agentChangedCanvasKeys.size === 0) return;
+      await appendCanvasTurnState(
+        pi,
+        channel,
+        new Set([...openCanvasKeys, ...agentChangedCanvasKeys]),
+        ctx.cwd,
+      );
+      agentChangedCanvasKeys.clear();
+    });
   };
+}
+
+async function appendCanvasTurnState(
+  pi: ExtensionAPI,
+  channel: DocumentChannel,
+  canvasKeys: Iterable<string>,
+  cwd: string,
+): Promise<void> {
+  const versions = await channel.snapshotCurrent(canvasKeys);
+  if (versions.size === 0) return;
+  pi.appendEntry(TurnStateEntryType, {
+    panes: Object.fromEntries(
+      [...versions].map(([canvasKey, version]) => [
+        canvasPaneId(canvasKey),
+        version.id,
+      ]),
+    ),
+    cwd,
+  });
+}
+
+function canvasPaneId(canvasKey: string): string {
+  return `canvas/${canvasKey}`;
 }
 
 function createReadTool(
@@ -161,6 +212,7 @@ function createReadTool(
 function createWriteTool(
   channel: DocumentChannel,
   opts: CanvasAgentFacetOptions,
+  agentChangedCanvasKeys: Set<string>,
 ): ToolDefinition<typeof writeParams> {
   return {
     name: "uix_canvas_write",
@@ -178,6 +230,7 @@ function createWriteTool(
     async execute(_toolCallId, params: WriteParams) {
       assertCanvasKey(params.key);
       const lines = await channel.write(params.key, params.html);
+      agentChangedCanvasKeys.add(params.key);
       opts.onCanvasChanged(params.key);
       return {
         content: [{ type: "text", text: formatAnchoredText(lines) }],
@@ -190,6 +243,7 @@ function createWriteTool(
 function createEditTool(
   channel: DocumentChannel,
   opts: CanvasAgentFacetOptions,
+  agentChangedCanvasKeys: Set<string>,
 ): ToolDefinition<typeof editParams> {
   return {
     name: "uix_canvas_edit",
@@ -206,6 +260,7 @@ function createEditTool(
         end: parseAnchoredLine(params.end_line),
         replacement: params.replacement,
       });
+      agentChangedCanvasKeys.add(params.key);
       opts.onCanvasChanged(params.key);
       return {
         content: [

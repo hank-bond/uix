@@ -28,6 +28,11 @@ export interface AnchoredChange {
   readonly newLines: readonly AnchoredLine[];
 }
 
+export interface AnchoredDocumentSnapshot {
+  readonly lines: readonly AnchoredLine[];
+  readonly nextAnchorIndex: number;
+}
+
 export interface AnchorRangeEdit {
   // Boundaries are structured lines (anchor + the text the caller believes is
   // there), not rendered strings — the §-gutter wire format is parsed at the
@@ -89,17 +94,31 @@ export class AnchoredDocument {
   readonly #allocate: (index: number) => AnchorAllocation;
 
   constructor(
-    text = "",
+    text?: string,
+    opts?: {
+      readonly nextAnchorIndex?: number;
+      readonly allocate?: (index: number) => AnchorAllocation;
+    },
+  );
+  constructor(snapshot: AnchoredDocumentSnapshot);
+  constructor(
+    input: string | AnchoredDocumentSnapshot = "",
     opts: {
       readonly nextAnchorIndex?: number;
       readonly allocate?: (index: number) => AnchorAllocation;
     } = {},
   ) {
-    this.#allocate =
-      opts.allocate ?? ((index) => getDefaultAnchorPool().allocate(index));
-    this.#nextAnchorIndex = opts.nextAnchorIndex ?? 0;
+    if (typeof input === "string") {
+      this.#allocate =
+        opts.allocate ?? ((index) => getDefaultAnchorPool().allocate(index));
+      this.#nextAnchorIndex = opts.nextAnchorIndex ?? 0;
+      this.#load(input);
+      return;
+    }
 
-    this.#load(text);
+    this.#allocate = (index) => getDefaultAnchorPool().allocate(index);
+    this.#nextAnchorIndex = 0;
+    this.#loadSnapshot(input);
   }
 
   // Pool allocation cursor — internal session state, not part of any
@@ -112,6 +131,16 @@ export class AnchoredDocument {
   // Total line count — the "of N" for paged head/tail reads.
   get lineCount(): number {
     return this.#lineCount;
+  }
+
+  // Exact anchor-state image for durable canvas versions. Restoring this keeps
+  // historical transcript anchors addressable after resume or branch preview;
+  // losing it degrades to rebuilding from plain content.
+  toSnapshot(): AnchoredDocumentSnapshot {
+    return {
+      lines: this.read(),
+      nextAnchorIndex: this.#nextAnchorIndex,
+    };
   }
 
   // Read a half-open line range `[start, end)`, Python-slice style: omit both
@@ -177,6 +206,22 @@ export class AnchoredDocument {
       this.#insertBefore(this.#createNode(lineText), this.#tail);
     }
     this.#lineCount = lines.length;
+  }
+
+  #loadSnapshot(snapshot: AnchoredDocumentSnapshot): void {
+    this.#nodes.clear();
+    this.#head.next = this.#tail;
+    this.#tail.prev = this.#head;
+    this.#nextAnchorIndex = snapshot.nextAnchorIndex;
+    const seen = new Set<string>();
+    for (const line of snapshot.lines) {
+      if (seen.has(line.anchor)) {
+        throw new Error(`Duplicate anchor in snapshot: ${line.anchor}`);
+      }
+      seen.add(line.anchor);
+      this.#insertBefore(new LineNode(line.anchor, line.text), this.#tail);
+    }
+    this.#lineCount = snapshot.lines.length;
   }
 
   // Diff oldNodes against newTexts; produce a sequence of nodes that should
