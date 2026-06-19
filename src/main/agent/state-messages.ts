@@ -29,7 +29,7 @@ import { Value } from "typebox/value";
 
 import { createLogger } from "../log";
 
-import type { AgentFacet } from "./facets";
+import type { AgentInstaller } from "./installers";
 
 export interface StateMessageMaterialization {
   /** Body rendered inside this contribution's state tag; this is what the model sees. */
@@ -208,7 +208,7 @@ export function createStateMessages(): StateMessages {
 
 export function createStateMessageAssembler(
   stateMessages: StateMessages,
-): AgentFacet {
+): AgentInstaller {
   if (!(stateMessages instanceof StateMessagesStore)) {
     throw new Error(
       "createStateMessageAssembler requires createStateMessages()",

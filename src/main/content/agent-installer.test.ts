@@ -13,7 +13,7 @@ import {
   createStateMessageAssembler,
 } from "../agent/state-messages";
 
-import { createCanvasAgentFacet } from "./agent-facet";
+import { createCanvasAgentInstaller } from "./agent-installer";
 import type { ContentStore, ContentVersion } from "./content-store";
 
 function memoryStore(): ContentStore {
@@ -53,12 +53,12 @@ type Handler = (
 
 type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
 
-// The canvas facet + the driver-installed state-message assembler wired
+// The canvas agent installer + the driver-installed state-message assembler wired
 // against an in-memory store and a fake pi handle.
 function setup() {
   const store = memoryStore();
   const stateMessages = createStateMessages();
-  const canvasFacet = createCanvasAgentFacet(
+  const canvasFacet = createCanvasAgentInstaller(
     { onCanvasChanged: () => {} },
     store,
     ["main"],
@@ -113,7 +113,7 @@ function setup() {
   };
 }
 
-describe("createCanvasAgentFacet state messages", () => {
+describe("createCanvasAgentInstaller state messages", () => {
   it("teaches both canvas tags in the system prompt vocabulary", async () => {
     const { turnBoundary } = setup();
     const result = await turnBoundary();

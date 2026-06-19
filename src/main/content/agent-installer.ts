@@ -1,4 +1,4 @@
-// UIX cockpit — anchored canvas agent facet.
+// UIX cockpit — anchored canvas agent installer.
 //
 // The agent reads, clobbers, and range-edits canvases by key through these
 // tools, always in the anchored §-gutter wire format, and gets fresh anchors
@@ -18,7 +18,7 @@ import type {
 import { type Static, Type } from "typebox";
 
 import { assertCanvasKey, CanvasKeyDescription } from "../../shared/canvas";
-import type { AgentFacet } from "../agent/facets";
+import type { AgentInstaller } from "../agent/installers";
 import type { StateMessageRegistry } from "../agent/state-messages";
 import type { AnchoredChange } from "../anchors/document";
 import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
@@ -76,21 +76,21 @@ type EditParams = Static<typeof editParams>;
 
 const TurnStateEntryType = "uix.turn-state";
 
-interface CanvasAgentFacetOptions {
+interface CanvasAgentInstallerOptions {
   onCanvasChanged: (key: string) => void;
 }
 
-// The canvas subsection's agent facet: handed the live pi handle, it
+// The canvas subsection's agent installer: handed the live pi handle, it
 // registers its content tools and declares its state messages. Turn context
 // rides state messages, not an "input" transform — pi persists transformed
 // text as the user's own entry, so a transform would put cockpit context
 // inside the human's message (see src/main/agent/state-messages.ts).
-export function createCanvasAgentFacet(
-  opts: CanvasAgentFacetOptions,
+export function createCanvasAgentInstaller(
+  opts: CanvasAgentInstallerOptions,
   store: ContentStore,
   openCanvasKeys: readonly string[],
   stateMessages: StateMessageRegistry,
-): AgentFacet {
+): AgentInstaller {
   const channel = new DocumentChannel(store);
   const agentChangedCanvasKeys = new Set<string>();
 
@@ -211,7 +211,7 @@ function createReadTool(
 
 function createWriteTool(
   channel: DocumentChannel,
-  opts: CanvasAgentFacetOptions,
+  opts: CanvasAgentInstallerOptions,
   agentChangedCanvasKeys: Set<string>,
 ): ToolDefinition<typeof writeParams> {
   return {
@@ -242,7 +242,7 @@ function createWriteTool(
 
 function createEditTool(
   channel: DocumentChannel,
-  opts: CanvasAgentFacetOptions,
+  opts: CanvasAgentInstallerOptions,
   agentChangedCanvasKeys: Set<string>,
 ): ToolDefinition<typeof editParams> {
   return {

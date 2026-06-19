@@ -26,7 +26,7 @@ import { assertCanvasKey } from "../shared/canvas";
 import { createAgentDriver } from "./agent/driver";
 import { createStateMessages } from "./agent/state-messages";
 import { registerCanvasProtocol } from "./canvas/protocol";
-import { createCanvasAgentFacet } from "./content/agent-facet";
+import { createCanvasAgentInstaller } from "./content/agent-installer";
 import { createCanvasContentStore } from "./content/content-store";
 import { loadExtensions } from "./extensions/loader";
 import { defaultRoots } from "./extensions/roots";
@@ -159,10 +159,10 @@ void app.whenReady().then(async () => {
     onEvent: (event) => sendAgentEvent(mainWindow, event),
     workspace,
     stateMessages,
-    agentFacets: [
+    agentInstallers: [
       // Open canvases are hardcoded to match the single pane (Canvas.tsx);
       // swap for pane-reported keys when the pane host lands.
-      createCanvasAgentFacet(
+      createCanvasAgentInstaller(
         { onCanvasChanged: sendCanvasChanged },
         canvasStore,
         ["main"],
