@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UIX</title>
+  <link rel="icon" href="logo-l3.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- One brandmark. Front-and-center, then scroll snaps it L1->L2->L3 while it
+       resizes and lands centered in the top bar. -->
+  <a class="brand" href="#top" aria-label="UIX">
+    <svg class="brand__mark" viewBox="0 0 9 5" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true">
+      <g class="mark-center">
+        <g id="u"><rect x="0" y="1" width="1" height="2"/><rect x="2" y="1" width="1" height="2"/><rect x="0" y="3" width="3" height="1"/></g>
+        <g id="stem"><rect x="4" y="1" width="1" height="3"/></g>
+        <g id="x"><rect x="6" y="1" width="1" height="1"/><rect x="8" y="1" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="8" y="3" width="1" height="1"/></g>
+      </g>
+    </svg>
+  </a>
+
+  <header class="topbar"></header>
+
+  <main id="top">
+    <!-- panel 1: full-screen runway for the brandmark morph + dock -->
+    <section class="hero">
+      <a class="scroll-cue" href="#stage" aria-label="Scroll to the cockpit">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </a>
+    </section>
+
+    <!-- panel 2: live mock cockpit: chat left, canvas right, themeable -->
+    <section class="stage" id="stage">
+      <div class="mock" data-theme="dusk" id="mock">
+        <div class="mock__chrome">
+          <span class="mock__dots"><i></i><i></i><i></i></span>
+          <span class="mock__themes" role="group" aria-label="Theme">
+            <button type="button" data-set-theme="dusk" aria-pressed="true">dusk</button>
+            <button type="button" data-set-theme="paper" aria-pressed="false">paper</button>
+            <button type="button" data-set-theme="mono" aria-pressed="false">mono</button>
+          </span>
+        </div>
+        <div class="mock__body">
+          <div class="mock__chat">
+            <div class="msg msg--user">make a bar chart of last week's runs</div>
+            <div class="msg msg--agent">writing <code>runs.html</code> and rendering it →</div>
+            <div class="mock__composer"><span>Message your agent…</span><kbd>⏎</kbd></div>
+          </div>
+          <div class="mock__canvas">
+            <div class="mock__canvasbar">runs.html</div>
+            <div class="mock__chart" aria-hidden="true">
+              <span style="height:40%"></span><span style="height:65%"></span>
+              <span style="height:30%"></span><span style="height:80%"></span>
+              <span style="height:55%"></span><span style="height:95%"></span>
+              <span style="height:70%"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="mock.js"></script>
+</body>
+</html>
