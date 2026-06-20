@@ -28,18 +28,35 @@
   --bar-h: 56px;         /* sticky bar height */
   --mark-h: 26vmin;      /* brand full size */
   --mark-dock-h: 52px;   /* brand docked / header size */
+  --mark-bar-y: 4px;     /* in-bar mark vertical nudge: + lowers, - raises (~2px headroom) */
 
   /* Motion-only: scroll-progress timing, measured from page top.
      Tune these to repace the morph + dock; nothing else needs touching. */
   --morph-end: 90vh;     /* L1->L2->L3 finishes assembling around here */
   --l3-hold: 20vh;       /* how long L3 sits still before it starts to rise */
   --dock-start: calc(var(--morph-end) + var(--l3-hold));
-  --rise-len: 32vh;      /* full-size rise to just under the bar (~page speed) */
+  /* rise scroll length == the top edge's travel distance, so the logo rises at
+     exactly native scroll speed (1px of top per 1px of scroll), any aspect ratio */
+  --rise-len: calc(50vh - var(--mark-h) / 2 - var(--bar-h));
   --shrink-len: 12vh;    /* top-aligned shrink (bottom + sides come in) */
   --slide-len: 8vh;      /* slide up into the bar */
   --rise-end: calc(var(--dock-start) + var(--rise-len));
   --shrink-end: calc(var(--rise-end) + var(--shrink-len));
   --dock-end: calc(var(--shrink-end) + var(--slide-len));
+  --dock-tail: 40vh;      /* empty runway after docking. 0 = mock scrolls in DURING
+                            the rise; raise it for a settle after the dock instead */
+}
+
+/* Mobile retune. Only override the BASE inputs — the derived --dock-*/
+/* runway recompute from these automatically. (Starting values; tweak to taste.) */
+@media (max-width: 640px) {
+  :root {
+    --mark-h: 34vmin;    /* logo reads small on narrow screens — bump it up */
+    --morph-end: 60vh;   /* shorter morph so it isn't a marathon scroll */
+    --l3-hold: 14vh;
+    --shrink-len: 12vh;
+    --slide-len: 8vh;
+  }
 }
 
 /* ---------- 2. reset ---------- */
@@ -69,10 +86,11 @@ body {
   background: color-mix(in srgb, var(--bg) 86%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line);
 }
 .topbar__brand {
   color: var(--fg);
-  margin-top: calc(var(--mark-dock-h) * -0.09); /* optical "center by weight" nudge */
+  margin-top: var(--mark-bar-y); /* shared in-bar vertical nudge (see :root) */
 }
 .topbar__brand svg { display: block; height: var(--mark-dock-h); width: auto; }
 
@@ -102,7 +120,9 @@ body {
 
 /* mock cockpit (theme demo) */
 .stage {
-  min-height: 100vh; display: flex; align-items: center;
+  /* top-aligned so the mock window itself (not its empty centering space) is what
+     scrolls into view as the brand rises */
+  min-height: 100vh; display: flex; align-items: flex-start;
   max-width: 64rem; margin: 0 auto; padding: 4rem 1.25rem;
   scroll-margin-top: var(--bar-h);
 }
@@ -167,7 +187,7 @@ body {
     .topbar__brand { display: none; }
 
     /* expand the hero into a scroll runway */
-    .hero { min-height: calc(var(--dock-end) + 30vh); }
+    .hero { min-height: calc(var(--dock-end) + var(--dock-tail)); }
 
     /* SVG parts transform around their own boxes, not the SVG origin */
     .brand g { transform-box: fill-box; }
@@ -241,7 +261,7 @@ body {
 /* dock: step 1 rise (top), step 2 shrink (height), step 3 slide (margin-top) */
 @keyframes brand-rise  { to { top: var(--bar-h); } }
 @keyframes brand-shrink { to { height: var(--mark-dock-h); } }
-@keyframes brand-slide { to { margin-top: calc((var(--bar-h) + var(--mark-dock-h)) / -2); } }
+@keyframes brand-slide { to { margin-top: calc((var(--bar-h) + var(--mark-dock-h)) / -2 + var(--mark-bar-y)); } }
 
 /* scroll-cue */
 @keyframes cue-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
