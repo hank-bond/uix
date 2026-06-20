@@ -82,6 +82,8 @@ await window.uix.reload();
 
 Today this reloads UIX extensions and, if a pi session already exists, delegates to pi's native `session.reload()` path.
 
+Extension reload is separate from Electron/Vite development hot reload. UIX extension reload is bag-driven in the main process: dispose old extension registrations, activate entries again, and let registries become the source of truth. As UI-visible contribution points land, the renderer shell will update from main-sent registry payloads rather than discovering extension files itself.
+
 ## Current API surface
 
 The current UIX extension API has one method:

@@ -15,53 +15,68 @@ Separately, UIX is becoming "a collection of concepts the way pi is" — panes, 
 
 ### One in-process pi extension, composed at a central root
 
-UIX-core's agent surface is a **single in-process pi `ExtensionFactory`** (`(pi: ExtensionAPI) => void`), loaded with no file discovery and no sandbox via `DefaultResourceLoader({ extensionFactories: [...] })` — substrate-owned code holding the live handle. This is pi's extension system, **not** UIX's frontend extension path (`src/main/extensions/`, `@uix/api`). Its interior is a **composition root**: an ordered list of per-subsection **facet functions**, each `(pi) => void`, run in sequence.
+UIX-core's agent surface is a **single in-process pi `ExtensionFactory`** (`(pi: ExtensionAPI) => void`), loaded with no file discovery and no sandbox via `DefaultResourceLoader({ extensionFactories: [...] })` — substrate-owned code holding the live handle. This is pi's extension system, **not** UIX's frontend extension path (`src/main/extensions/`, `@uix/api`). Its interior is a **composition root**: an ordered list of per-subsection **agent installers**, each `(pi) => void`, run in sequence.
 
 ```ts
-// each subsection exports an agent facet
-export function canvasAgent(pi: ExtensionAPI) {
+// each subsection exports an agent installer
+export function installCanvasAgent(pi: ExtensionAPI) {
   pi.registerTool({ name: "uix_canvas_write" /* … */ });
-  pi.on("input" /* transform */);
+  pi.on("input" /* hook */);
 }
 
 // the composition root — the one place order is decided
-const AGENT_FEATURES = [
-  sqliteBusAgent, // ← position = dependency: bus before the tap that publishes to it
-  messageTapAgent,
-  canvasAgent,
-  inputButtonAgent,
+const AGENT_INSTALLERS = [
+  installSqliteBusAgent, // ← position = dependency: bus before the tap that publishes to it
+  installMessageTapAgent,
+  installCanvasAgent,
+  installInputButtonAgent,
 ];
 
 export function buildUixExtension(pi: ExtensionAPI) {
-  for (const feature of AGENT_FEATURES) feature(pi); // registration order
+  for (const installer of AGENT_INSTALLERS) installer(pi); // registration order
 }
 ```
 
-`AGENT_FEATURES` is the single authority on composition order, and it doubles as the dependency graph (list index = resolution order — a hand-rolled DI container). The conclusion that this ordering must be central is recorded in [uix-core-composition-root](../decisions/2026-06-07-uix-core-composition-root.md). It builds on [session-file-as-state-substrate](../decisions/2026-06-06-session-file-as-state-substrate.md) (which chose the in-process extension) and is the agent-surface companion to the render-axis thread [conversation-render-primitives](./conversation-render-primitives.md).
+`AGENT_INSTALLERS` is the single authority on composition order, and it doubles as the dependency graph (list index = resolution order — a hand-rolled DI container). The conclusion that this ordering must be central is recorded in [uix-core-composition-root](../decisions/2026-06-07-uix-core-composition-root.md). It builds on [session-file-as-state-substrate](../decisions/2026-06-06-session-file-as-state-substrate.md) (which chose the in-process extension) and is the agent-surface companion to the render-axis thread [conversation-render-primitives](./conversation-render-primitives.md).
 
-**Why a facet function and not the alternatives.** A purely declarative binding (a bag of `tools` + a `contextForTurn` string, like the pre-C1 `customTools` shape) hits a wall the moment a subsection needs `appendEntry` / `sendMessage` — those are imperative, stateful calls made at a specific boundary, not static data. So a subsection must get the live `pi` handle in hand; the question is only the unit. We keep the **subsection-as-unit, handed `pi`** (the facet function) over **dropping the unit for free-floating install calls**, because the unit preserves a single inventory of what UIX-core contributes and keeps ordering/dedup logic UIX-owned and pi-free (unit-testable), at the cost of one thin layer of indirection.
+**Why an installer and not the alternatives.** A purely declarative binding (a bag of `tools` + a `contextForTurn` string, like the pre-C1 `customTools` shape) hits a wall the moment a subsection needs `appendEntry` / `sendMessage` — those are imperative, stateful calls made at a specific boundary, not static data. So a subsection must get the live `pi` handle in hand; the question is only the unit. We keep the **subsection-as-unit, handed `pi`** (the agent installer) over **dropping the unit for free-floating install calls**, because the unit preserves a single inventory of what UIX-core contributes and keeps ordering/dedup logic UIX-owned and pi-free (unit-testable), at the cost of one thin layer of indirection.
 
 ### Why central, not scattered — forced by pi, not stylistic
 
 Order is **semantic** for every _mutating_ hook, not cosmetic. `input` transforms chain (each sees the prior's `currentText`); `before_agent_start` system-prompt edits "are chained"; `tool_call` mutations are visible to later handlers; `context` / `tool_result` / `message_end` rewrite in sequence. With no priority field, the registration sequence _is_ the composition semantics. The central array is the only place that sequence is legible and controllable. (Tools and pure observers are order-independent — for those the central list is legibility, not correctness; namespacing carries the rest, see below.)
 
-### The facet model (tentative)
+### Facets, features, and extensions
 
-A UIX **feature** (a subsection: canvas, an interactive button, a viz pane) may contribute to several substrates at once. Only the first flows through `buildUixExtension`; the others wire to their own substrates at the same composition root:
+A UIX **facet** is a substrate slice/contribution axis: state management, state messages, panes, channels, transcript rendering, extension loading. A UIX **feature** is the capability being added: canvas, chat, an interactive button, a viz pane. A UIX **extension package** is the concrete loadable/lifetime unit that installs one or more features.
 
-- **agent facet** — the `(pi) => void` above: tools, hooks, `appendEntry`. **Forwarded** pi ports.
-- **block** — a React renderer keyed by entry type, in the conversation pane. **Net-new** (pi's renderers return TUI components — see [conversation-render-primitives](./conversation-render-primitives.md)).
-- **pane** — a top-level cockpit surface. **Net-new.**
-- **service** — a long-lived main-side process with teardown on `session_shutdown`. **Net-new.**
-- **main handler** — bridges inbound renderer messages back to the agent.
+A feature may contribute to several facets at once:
 
-The generalization into a single `Feature` interface carrying these facets is **deferred** (see hardcode-along-the-grain). Most of the roadmap (background services, sqlite, button→pane→main) lands in the _net-new_ facets, not the forwarded one — pi's ports are rich on the agent-logic side and thin-to-absent on the app/service/persistence side.
+- an **agent installer** — the `(pi) => void` above: tools, hooks, `appendEntry`. **Forwarded** pi ports.
+- a **block renderer** — a React renderer keyed by entry type, in the conversation pane. **Net-new** (pi's renderers return TUI components — see [conversation-render-primitives](./conversation-render-primitives.md)).
+- a **pane contribution** — a top-level cockpit surface. **Net-new.**
+- a **service** — a long-lived main-side process with teardown on `session_shutdown`. **Net-new.**
+- a **main handler/channel contribution** — bridges inbound renderer messages back to main-owned stores or the agent.
+
+The framework does not need a concrete `Feature` abstraction before it earns one. Extension installers can register directly into facet registries. “Feature” remains the friendly conceptual word for the thing a human/agent is building; “extension” is the package/activation boundary.
 
 ### State lifecycle is a substrate subdomain
 
-State orchestration is broader than the agent facet. UIX needs a central `src/main/state/` domain that coordinates every contribution participating in app state lifecycle: side-effectful preparation (snapshot a pane document, checkpoint externally hosted state, retrieve/cache context), persisting the stable reference/outcome as a private session entry, rendering any model-visible state message that belongs beside it, submitting the user message, post-agent state capture, and later preview/rollback restore. The linear chat turn is today's optimized lifecycle, not the only future shape; non-chat/fan-out apps and hosted state still need the same central state hooks.
+State orchestration is broader than an agent installer. UIX needs a central `src/main/state/` domain that coordinates every contribution participating in app state lifecycle: side-effectful preparation (snapshot a pane document, checkpoint externally hosted state, retrieve/cache context), persisting the stable reference/outcome as a private session entry, rendering any model-visible state message that belongs beside it, submitting the user message, post-agent state capture, and later preview/rollback restore. The linear chat turn is today's optimized lifecycle, not the only future shape; non-chat/fan-out apps and hosted state still need the same central state hooks.
 
 This means `uix.turn-state` `CustomEntry`, hidden `uix.state` `CustomMessageEntry`, and the user message boundary are one substrate-owned transaction, not independent feature calls. Contributions should return slices/intents to the state domain; the state domain owns pi append/send order. A contribution that persists branch state should also provide the restore/preview counterpart for branch navigation. Canvas is the first concrete contributor (snapshot current canvas docs, render `<canvas-diff>`, restore versions later); a JSON application-state pane or externally hosted document should plug into the same lifecycle with different store/channel mechanics.
+
+### Drivers, bags, and reload reconciliation
+
+A **driver** owns a runtime/lifecycle boundary. The agent driver owns the Pi session boundary; the extension driver owns extension activation and per-extension bags. Installers attach behavior. Registries track live contributions. Bags decide when registration disposables run.
+
+Extension reload has two reconciliations:
+
+1. **Disk → UIX memory.** The extension driver discovers packages, clears the old extension bags, activates entries again, and the current extension installers register contributions into facet registries. This is where extension source changes become a new in-memory contribution graph.
+2. **UIX memory → Pi runtime.** Pi tools/hooks are snapshot-based: most `ExtensionAPI` registration methods return no per-registration disposable, so removing or changing Pi-installed behavior means reloading Pi with the installer/contribution absent or changed. UIX-owned registration surfaces that compile to Pi install-time behavior should mark the agent install surface dirty on register/unregister. The agent driver reconciles by reloading Pi before the next agent turn starts; it may do so earlier while idle to hide latency.
+
+The dirty marker is not a disk watcher. It is the statement “Pi's installed runtime does not match UIX's current contribution graph.” Facets that are local to UIX do not mark it: bag disposal plus registry notification is enough.
+
+UI reload follows the same source-of-truth line. Main owns extension activation and facet registries. The renderer shell does not discover extension code; it receives registry snapshots/change payloads from main and reconciles React surfaces by unmounting removed contributions, mounting new ones, and updating changed ones. Electron/Vite hot reload remains development tooling for UIX source, not the extension reload mechanism.
 
 ### Override model, mirrored from pi
 
@@ -123,9 +138,13 @@ Everything else, hardcode freely. The deferred extractions are already seeded in
 
 ## Log
 
+### 2026-06-18 — drivers, extension reload, and Pi reconciliation
+
+We sharpened the vocabulary around extension loading and reload. “Host” and “meta facet” both described part of the shape, but the reusable concept is **driver**: a lifecycle owner that runs installers, owns bags, and controls teardown/reload ordering. The extension driver reconciles disk to UIX memory by clearing per-extension bags and re-running extension installers. Facet registries are responsible for marking the agent install surface dirty when their contributions compile to Pi install-time behavior; the agent driver then reloads Pi before the next agent turn. The renderer shell is likewise registry-driven: main sends registry state/change payloads, React reconciles surfaces. Vite/Electron hot reload is only dev tooling.
+
 ### 2026-06-17 — state lifecycle as a substrate domain
 
-Canvas snapshots exposed that the agent facet is the wrong long-term owner for state lifecycle. The current slice can snapshot canvases and append `uix.turn-state`, but the design target is broader: UIX core owns a `src/main/state/` domain where contributions prepare side effects, return stable refs/slices, render model-visible state sections, and define restore hooks. This keeps `CustomEntry`, `CustomMessageEntry`, and the user-message boundary ordered as one transaction, and makes rollback/branch preview the mirror of submit prep. The chat pane remains a pane over the agent session, not the agent session primitive; canvas and future JSON/app-state panes become state contributors plus pane/tool contributions.
+Canvas snapshots exposed that the canvas agent installer is the wrong long-term owner for state lifecycle. The current slice can snapshot canvases and append `uix.turn-state`, but the design target is broader: UIX core owns a `src/main/state/` domain where contributions prepare side effects, return stable refs/slices, render model-visible state sections, and define restore hooks. This keeps `CustomEntry`, `CustomMessageEntry`, and the user-message boundary ordered as one transaction, and makes rollback/branch preview the mirror of submit prep. The chat pane remains a pane over the agent session, not the agent session primitive; canvas and future JSON/app-state panes become state contributors plus pane/tool contributions.
 
 ### 2026-06-07 — thread opened
 
