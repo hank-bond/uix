@@ -6,6 +6,8 @@
   --muted: #9a9aa2;
   --line: #2a2b2f;
   --bar-h: 56px;
+  --mark-h: 26vmin;      /* brand full size */
+  --mark-dock-h: 52px;   /* brand docked/header size */
 
   /* scroll-progress timing (all measured from page top) */
   --morph-end: 90vh;     /* L1->L2->L3 finishes assembling around here */
@@ -36,16 +38,22 @@ body {
 /* ---- sticky top bar (dock target) ---- */
 .topbar {
   position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: center;
   height: var(--bar-h);
   background: color-mix(in srgb, var(--bg) 86%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
 }
+/* compact mark in the bar: hidden in normal motion (the animated brand docks
+   here instead); revealed only in the reduced-motion path below */
+.topbar__brand {
+  display: none; color: var(--fg);
+  margin-top: calc(var(--mark-dock-h) * -0.09); /* optical "center by weight" nudge (~-0.3em) */
+}
+.topbar__brand svg { display: block; height: var(--mark-dock-h); width: auto; }
 
 /* ---- the single brandmark: one SVG, three persistent parts (#u #stem #x) ---- */
 .brand {
-  --mark-h: 26vmin;     /* full size */
-  --mark-dock-h: 52px;  /* docked size */
   display: block; color: var(--fg); text-decoration: none;
   /* fallback (no scroll-driven animations): static, centered, shows L1 pose */
   width: max-content; margin: 18vh auto 0;
@@ -68,7 +76,7 @@ body {
       animation-range: var(--dock-start) var(--rise-end), var(--shrink-end) var(--dock-end);
     }
     .brand__mark {
-      animation: brand-shrink linear both;
+      animation: brand-shrink cubic-bezier(0.54, 0.29, 0.47, 0.73) both;
       animation-timeline: scroll(root);
       animation-range: var(--rise-end) var(--shrink-end);
     }
@@ -207,4 +215,43 @@ body {
 @media (max-width: 640px) {
   .mock__body { grid-template-columns: 1fr; }
   .mock__chat { border-right: 0; border-bottom: 1px solid var(--m-line); }
+}
+
+/* ============================================================
+   REDUCED-MOTION EXPERIENCE
+   No fixed overlay, no morph, no invented runway. The full-size
+   brand is real content that just scrolls up under the bar; the
+   compact mark wipe-reveals in the bar, paced to the big one
+   passing beneath it.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  /* collapse the runway: brand is a normal hero, centered in the space below the
+     sticky bar (subtract its height so it doesn't sit low / overflow the fold) */
+  .hero {
+    min-height: calc(100svh - var(--bar-h));
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .brand { margin: 0; }
+
+  /* arrow fades as you leave the hero, not over the (unused) dock window */
+  .scroll-cue { animation-range: 0 45svh; }
+
+  /* the compact mark now lives in the bar */
+  .topbar__brand { display: block; }
+
+  @supports (animation-timeline: view()) {
+    /* timeline tied to the big brand's own position; inset the top by the bar
+       so "exit" spans exactly the brand passing under the header */
+    .brand { view-timeline-name: --bigmark; view-timeline-inset: var(--bar-h) 0; }
+    .topbar__brand {
+      animation: brand-wipe linear both;
+      animation-timeline: --bigmark;
+      animation-range: exit; /* same duration as the brand sliding under the bar */
+    }
+  }
+}
+/* reveal bottom-to-top, mirroring the brand's upward exit */
+@keyframes brand-wipe {
+  from { clip-path: inset(100% 0 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
 }

@@ -9,23 +9,29 @@
 </head>
 <body>
 
-  <!-- One brandmark. Front-and-center, then scroll snaps it L1->L2->L3 while it
-       resizes and lands centered in the top bar. -->
-  <a class="brand" href="#top" aria-label="UIX">
-    <svg class="brand__mark" viewBox="0 0 9 5" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true">
-      <g class="mark-center">
-        <g id="u"><rect x="0" y="1" width="1" height="2"/><rect x="2" y="1" width="1" height="2"/><rect x="0" y="3" width="3" height="1"/></g>
-        <g id="stem"><rect x="4" y="1" width="1" height="3"/></g>
-        <g id="x"><rect x="6" y="1" width="1" height="1"/><rect x="8" y="1" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="8" y="3" width="1" height="1"/></g>
-      </g>
-    </svg>
-  </a>
-
-  <header class="topbar"></header>
+  <!-- sticky top bar. Reduced-motion: wipe-reveals this compact mark as the big
+       brand scrolls under it. Normal motion: the animated brand docks here instead. -->
+  <header class="topbar">
+    <a class="topbar__brand" href="#top" aria-label="UIX">
+      <svg viewBox="0 0 7 6" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true"><rect x="2" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="3" y="3" width="2" height="1"/><rect x="1" y="4" width="3" height="1"/><rect x="5" y="4" width="1" height="1"/></svg>
+    </a>
+  </header>
 
   <main id="top">
     <!-- panel 1: full-screen runway for the brandmark morph + dock -->
     <section class="hero">
+      <!-- the brandmark. Normal motion: position:fixed (so this DOM spot doesn't
+           matter) and it morphs/docks on scroll. Reduced motion: it stays in flow
+           here, full size, and simply scrolls up under the bar. -->
+      <a class="brand" href="#top" aria-label="UIX">
+        <svg class="brand__mark" viewBox="0 0 9 5" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true">
+          <g class="mark-center">
+            <g id="u"><rect x="0" y="1" width="1" height="2"/><rect x="2" y="1" width="1" height="2"/><rect x="0" y="3" width="3" height="1"/></g>
+            <g id="stem"><rect x="4" y="1" width="1" height="3"/></g>
+            <g id="x"><rect x="6" y="1" width="1" height="1"/><rect x="8" y="1" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="8" y="3" width="1" height="1"/></g>
+          </g>
+        </svg>
+      </a>
       <a class="scroll-cue" href="#stage" aria-label="Scroll to the cockpit">
         <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
       </a>
