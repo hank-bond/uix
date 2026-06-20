@@ -3,60 +3,63 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>UIX</title>
+  <title>UIX — a local cockpit for working with your agent</title>
+  <meta name="description" content="UIX is a small, local cockpit for talking to your agent, watching it work, and building your own visual tools on top of it." />
   <link rel="icon" href="logo-l3.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-  <!-- sticky top bar. Reduced-motion: wipe-reveals this compact mark as the big
-       brand scrolls under it. Normal motion: the animated brand docks here instead. -->
+  <!-- Sticky bar. Static/reduced-motion: shows the compact mark (a home link).
+       Motion: this mark is hidden and the big brand animates/docks here instead. -->
   <header class="topbar">
-    <a class="topbar__brand" href="#top" aria-label="UIX">
+    <a class="topbar__brand" href="#top" aria-label="UIX — back to top">
       <svg viewBox="0 0 7 6" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true"><rect x="2" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="3" y="2" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="1" y="3" width="1" height="1"/><rect x="3" y="3" width="2" height="1"/><rect x="1" y="4" width="3" height="1"/><rect x="5" y="4" width="1" height="1"/></svg>
     </a>
   </header>
 
   <main id="top">
-    <!-- panel 1: full-screen runway for the brandmark morph + dock -->
-    <section class="hero">
-      <!-- the brandmark. Normal motion: position:fixed (so this DOM spot doesn't
-           matter) and it morphs/docks on scroll. Reduced motion: it stays in flow
-           here, full size, and simply scrolls up under the bar. -->
+    <h1 class="u-visually-hidden">UIX — a local cockpit for working with your agent</h1>
+
+    <!-- Hero. Motion: the brand is position:fixed (so its DOM spot is irrelevant)
+         and morphs L1->L2->L3 then docks. Static: it stays in flow, full size,
+         and simply scrolls up under the bar. -->
+    <section class="hero" aria-label="UIX">
       <a class="brand" href="#top" aria-label="UIX">
         <svg class="brand__mark" viewBox="0 0 9 5" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true">
-          <g class="mark-center">
-            <g id="u"><rect x="0" y="1" width="1" height="2"/><rect x="2" y="1" width="1" height="2"/><rect x="0" y="3" width="3" height="1"/></g>
-            <g id="stem"><rect x="4" y="1" width="1" height="3"/></g>
-            <g id="x"><rect x="6" y="1" width="1" height="1"/><rect x="8" y="1" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="8" y="3" width="1" height="1"/></g>
+          <g class="brand__center">
+            <g class="brand__u"><rect x="0" y="1" width="1" height="2"/><rect x="2" y="1" width="1" height="2"/><rect x="0" y="3" width="3" height="1"/></g>
+            <g class="brand__stem"><rect x="4" y="1" width="1" height="3"/></g>
+            <g class="brand__x"><rect x="6" y="1" width="1" height="1"/><rect x="8" y="1" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="6" y="3" width="1" height="1"/><rect x="8" y="3" width="1" height="1"/></g>
           </g>
         </svg>
       </a>
-      <a class="scroll-cue" href="#stage" aria-label="Scroll to the cockpit">
+      <a class="scroll-cue" href="#stage" aria-label="Scroll to the cockpit preview">
         <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
       </a>
     </section>
 
-    <!-- panel 2: live mock cockpit: chat left, canvas right, themeable -->
-    <section class="stage" id="stage">
+    <!-- Mock cockpit: an interactive illustration. The chat/canvas panels are
+         decorative (aria-hidden); the theme switcher is a real control. -->
+    <section class="stage" id="stage" aria-label="Live preview of the UIX cockpit">
       <div class="mock" data-theme="dusk" id="mock">
         <div class="mock__chrome">
-          <span class="mock__dots"><i></i><i></i><i></i></span>
-          <span class="mock__themes" role="group" aria-label="Theme">
+          <span class="mock__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span class="mock__themes" role="group" aria-label="Cockpit theme">
             <button type="button" data-set-theme="dusk" aria-pressed="true">dusk</button>
             <button type="button" data-set-theme="paper" aria-pressed="false">paper</button>
             <button type="button" data-set-theme="mono" aria-pressed="false">mono</button>
           </span>
         </div>
         <div class="mock__body">
-          <div class="mock__chat">
+          <div class="mock__chat" aria-hidden="true">
             <div class="msg msg--user">make a bar chart of last week's runs</div>
             <div class="msg msg--agent">writing <code>runs.html</code> and rendering it →</div>
             <div class="mock__composer"><span>Message your agent…</span><kbd>⏎</kbd></div>
           </div>
-          <div class="mock__canvas">
+          <div class="mock__canvas" aria-hidden="true">
             <div class="mock__canvasbar">runs.html</div>
-            <div class="mock__chart" aria-hidden="true">
+            <div class="mock__chart">
               <span style="height:40%"></span><span style="height:65%"></span>
               <span style="height:30%"></span><span style="height:80%"></span>
               <span style="height:55%"></span><span style="height:95%"></span>

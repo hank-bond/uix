@@ -1,20 +1,39 @@
-/* UIX site — structural/placeholder only. Design comes later. */
+/* =============================================================================
+   UIX landing site
+   -----------------------------------------------------------------------------
+   Order (and the architecture — see AGENTS.md):
+     1. tokens            design + animation-timing custom properties
+     2. reset
+     3. a11y utilities
+     4. base / static     the ACCESSIBLE DEFAULT. This is what reduced-motion
+                          users get, and also the fallback when scroll-driven
+                          animations aren't supported.
+     5. motion            ALL animation lives behind
+                          @media (prefers-reduced-motion: no-preference).
+                          You physically cannot ship motion a user didn't opt
+                          into, because it only exists inside that block.
+     6. keyframes         grouped (they're global regardless of placement)
 
+   Naming: BEM (block__element--modifier). The brand's SVG parts are
+   .brand__u / .brand__stem / .brand__x, wrapped in .brand__center.
+   ============================================================================= */
+
+/* ---------- 1. tokens ---------- */
 :root {
   --bg: #0f1012;
   --fg: #e8e8ea;
   --muted: #9a9aa2;
   --line: #2a2b2f;
-  --bar-h: 56px;
+
+  --bar-h: 56px;         /* sticky bar height */
   --mark-h: 26vmin;      /* brand full size */
-  --mark-dock-h: 52px;   /* brand docked/header size */
+  --mark-dock-h: 52px;   /* brand docked / header size */
 
-  /* scroll-progress timing (all measured from page top) */
+  /* Motion-only: scroll-progress timing, measured from page top.
+     Tune these to repace the morph + dock; nothing else needs touching. */
   --morph-end: 90vh;     /* L1->L2->L3 finishes assembling around here */
-  --l3-hold: 20vh;       /* scroll length L3 sits still before it starts to rise */
+  --l3-hold: 20vh;       /* how long L3 sits still before it starts to rise */
   --dock-start: calc(var(--morph-end) + var(--l3-hold));
-
-  /* dock broken into named steps; each is a scroll length you can tune freely */
   --rise-len: 32vh;      /* full-size rise to just under the bar (~page speed) */
   --shrink-len: 12vh;    /* top-aligned shrink (bottom + sides come in) */
   --slide-len: 8vh;      /* slide up into the bar */
@@ -23,10 +42,9 @@
   --dock-end: calc(var(--shrink-end) + var(--slide-len));
 }
 
+/* ---------- 2. reset ---------- */
 * { box-sizing: border-box; }
-
 html { scroll-behavior: smooth; } /* anchor clicks animate-scroll instead of jumping */
-
 body {
   margin: 0;
   background: var(--bg);
@@ -35,7 +53,15 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---- sticky top bar (dock target) ---- */
+/* ---------- 3. a11y utilities ---------- */
+.u-visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ---------- 4. base / static (the accessible default) ---------- */
+
+/* sticky bar */
 .topbar {
   position: sticky; top: 0; z-index: 40;
   display: flex; align-items: center; justify-content: center;
@@ -44,124 +70,37 @@ body {
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
 }
-/* compact mark in the bar: hidden in normal motion (the animated brand docks
-   here instead); revealed only in the reduced-motion path below */
 .topbar__brand {
-  display: none; color: var(--fg);
-  margin-top: calc(var(--mark-dock-h) * -0.09); /* optical "center by weight" nudge (~-0.3em) */
+  color: var(--fg);
+  margin-top: calc(var(--mark-dock-h) * -0.09); /* optical "center by weight" nudge */
 }
 .topbar__brand svg { display: block; height: var(--mark-dock-h); width: auto; }
 
-/* ---- the single brandmark: one SVG, three persistent parts (#u #stem #x) ---- */
-.brand {
-  display: block; color: var(--fg); text-decoration: none;
-  /* fallback (no scroll-driven animations): static, centered, shows L1 pose */
-  width: max-content; margin: 18vh auto 0;
+/* hero: the brand centered in the viewport below the bar; mock right after */
+.hero {
+  min-height: calc(100svh - var(--bar-h));
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
+.brand { display: block; color: var(--fg); text-decoration: none; }
 .brand__mark { display: block; height: var(--mark-h); width: auto; }
-/* each part scales/rotates around its own box, not the SVG origin */
-.brand g { transform-box: fill-box; }
-#stem { transform-origin: center top; }     /* collapse the I downward into a dot */
 
-@supports (animation-timeline: scroll()) {
-  @media (prefers-reduced-motion: no-preference) {
-    /* PHASE 2: after the morph finishes, dock to the top bar */
-    /* top-edge anchored, horizontally centered */
-    .brand {
-      position: fixed; z-index: 50; margin: 0;
-      left: 50%; top: calc(50vh - var(--mark-h) / 2); translate: -50% 0;
-      /* rise (top) and slide (translate) use different props so they don't conflict */
-      animation: brand-rise linear both, brand-slide linear both;
-      animation-timeline: scroll(root), scroll(root);
-      animation-range: var(--dock-start) var(--rise-end), var(--shrink-end) var(--dock-end);
-    }
-    .brand__mark {
-      animation: brand-shrink cubic-bezier(0.54, 0.29, 0.47, 0.73) both;
-      animation-timeline: scroll(root);
-      animation-range: var(--rise-end) var(--shrink-end);
-    }
-    /* PHASE 1: morph in place, centered & full-size */
-    #stem, #x {
-      animation: linear both;
-      animation-timeline: scroll(root);
-      animation-range: 0 var(--morph-end);
-      animation-timing-function: cubic-bezier(.6, 0, .2, 1);
-    }
-    #stem { animation-name: morph-stem; }
-    #x { animation-name: morph-x; }
-    /* counter-shift so the compacting mark stays visually centered (whole px) */
-    .mark-center {
-      animation: morph-center linear both;
-      animation-timeline: scroll(root);
-      animation-range: 0 var(--morph-end);
-      animation-timing-function: cubic-bezier(.6, 0, .2, 1);
-    }
-  }
-}
-
-@keyframes morph-center {
-  0%   { transform: none; }            /* L1 centered (art fills the width-9 box) */
-  12%  { transform: none; }            /* match the morph holds so centering tracks in sync */
-  45%  { transform: translateX(1px); } /* L2 recentered */
-  55%  { transform: translateX(1px); }
-  88%  { transform: translateX(2px); } /* L3 recentered */
-  100% { transform: translateX(2px); }
-}
-
-/* whole mark rises to the vertical center of the top bar + resizes */
-/* step 1: full-size top edge travels down to the bottom of the nav bar */
-@keyframes brand-rise { to { top: var(--bar-h); } }
-/* step 2: shrink with the top edge pinned -> bottom rises, sides come in */
-@keyframes brand-shrink { to { height: var(--mark-dock-h); } }
-/* step 3: slide the small mark up into the bar (margin-top, so it never touches
-   the static `translate: -50% 0` that keeps it horizontally centered) */
-@keyframes brand-slide { to { margin-top: calc((var(--bar-h) + var(--mark-dock-h)) / -2); } }
-
-/* L1 (0%) -> L2 (50%) -> L3 (100%) */
-/* longer, even transitions: L1 hold 0-12 | snap 12-45 | L2 hold 45-55 | snap 55-88 | L3 hold 88-100 */
-@keyframes morph-stem {
-  0%   { transform: none; }                                 /* full I bar (L1) */
-  12%  { transform: none; }
-  45%  { transform: translate(-1px, -1px) scaleY(.3334); }  /* dot, slid left (L2) */
-  55%  { transform: translate(-1px, -1px) scaleY(.3334); }
-  88%  { transform: translate(-3px, -1px) scaleY(.3334); }  /* dot over U's center (L3) */
-  100% { transform: translate(-3px, -1px) scaleY(.3334); }
-}
-@keyframes morph-x {
-  0%   { transform: none; }                /* X out at the right (L1) */
-  12%  { transform: none; }
-  45%  { transform: translate(-2px, 0); }  /* slides in toward U (L2, exact) */
-  55%  { transform: translate(-2px, 0); }
-  88%  { transform: translate(-4px, 0); }  /* left column hides inside the U -> L3, exact */
-  100% { transform: translate(-4px, 0); }
-}
-
-/* ---- panel 1: full-screen runway (morph phase + dock phase) ---- */
-.hero { position: relative; min-height: calc(var(--dock-end) + 30vh); }
-
-/* down arrow fixed to the viewport bottom; stays put through panel 1,
-   then fades out as the dock animation finishes */
+/* scroll hint, fixed to the viewport bottom */
 .scroll-cue {
   position: fixed; z-index: 45; left: 50%; bottom: 1.5rem; translate: -50% 0;
   color: var(--muted); line-height: 0; padding: .5rem;
 }
 .scroll-cue:hover { color: var(--fg); }
 .scroll-cue svg { display: block; }
-@media (prefers-reduced-motion: no-preference) {
-  .scroll-cue svg { animation: cue-bounce 1.6s ease-in-out infinite; }
-}
-@keyframes cue-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
-
+/* opacity fade is fine under reduced motion, so it's gated on support only */
 @supports (animation-timeline: scroll()) {
   .scroll-cue {
     animation: cue-fade linear both;
     animation-timeline: scroll(root);
-    animation-range: var(--dock-start) var(--dock-end); /* fade across the dock phase */
+    animation-range: 0 50svh; /* static page: fade out as you leave the hero */
   }
 }
-@keyframes cue-fade { 0% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
 
-/* ---- panel 2: mock cockpit (theme demo), full screen ---- */
+/* mock cockpit (theme demo) */
 .stage {
   min-height: 100vh; display: flex; align-items: center;
   max-width: 64rem; margin: 0 auto; padding: 4rem 1.25rem;
@@ -217,41 +156,93 @@ body {
   .mock__chat { border-right: 0; border-bottom: 1px solid var(--m-line); }
 }
 
-/* ============================================================
-   REDUCED-MOTION EXPERIENCE
-   No fixed overlay, no morph, no invented runway. The full-size
-   brand is real content that just scrolls up under the bar; the
-   compact mark wipe-reveals in the bar, paced to the big one
-   passing beneath it.
-   ============================================================ */
-@media (prefers-reduced-motion: reduce) {
-  /* collapse the runway: brand is a normal hero, centered in the space below the
-     sticky bar (subtract its height so it doesn't sit low / overflow the fold) */
-  .hero {
-    min-height: calc(100svh - var(--bar-h));
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-  }
-  .brand { margin: 0; }
+/* ---------- 5. motion (only for users who haven't asked to reduce it) ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  /* time-based bounce: works without scroll-timeline support */
+  .scroll-cue svg { animation: cue-bounce 1.6s ease-in-out infinite; }
 
-  /* arrow fades as you leave the hero, not over the (unused) dock window */
-  .scroll-cue { animation-range: 0 45svh; }
+  /* scroll-driven morph + dock: needs animation-timeline support */
+  @supports (animation-timeline: scroll()) {
+    /* the animated brand owns the bar now; hide the static header mark */
+    .topbar__brand { display: none; }
 
-  /* the compact mark now lives in the bar */
-  .topbar__brand { display: block; }
+    /* expand the hero into a scroll runway */
+    .hero { min-height: calc(var(--dock-end) + 30vh); }
 
-  @supports (animation-timeline: view()) {
-    /* timeline tied to the big brand's own position; inset the top by the bar
-       so "exit" spans exactly the brand passing under the header */
-    .brand { view-timeline-name: --bigmark; view-timeline-inset: var(--bar-h) 0; }
-    .topbar__brand {
-      animation: brand-wipe linear both;
-      animation-timeline: --bigmark;
-      animation-range: exit; /* same duration as the brand sliding under the bar */
+    /* SVG parts transform around their own boxes, not the SVG origin */
+    .brand g { transform-box: fill-box; }
+    .brand__stem { transform-origin: center top; } /* collapse the I into a dot */
+
+    /* brand becomes a fixed overlay: PHASE 1 morph in place, then PHASE 2 dock.
+       rise (top) + slide (margin-top) use different props so they never fight
+       the static `translate: -50% 0` that keeps it horizontally centered. */
+    .brand {
+      position: fixed; z-index: 50;
+      left: 50%; top: calc(50vh - var(--mark-h) / 2); translate: -50% 0;
+      animation: brand-rise linear both, brand-slide linear both;
+      animation-timeline: scroll(root), scroll(root);
+      animation-range: var(--dock-start) var(--rise-end), var(--shrink-end) var(--dock-end);
     }
+    .brand__mark {
+      animation: brand-shrink cubic-bezier(0.54, 0.29, 0.47, 0.73) both;
+      animation-timeline: scroll(root);
+      animation-range: var(--rise-end) var(--shrink-end);
+    }
+    .brand__stem, .brand__x {
+      animation: linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 var(--morph-end);
+      animation-timing-function: cubic-bezier(.6, 0, .2, 1);
+    }
+    .brand__stem { animation-name: morph-stem; }
+    .brand__x { animation-name: morph-x; }
+    .brand__center {
+      animation: morph-center linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 var(--morph-end);
+      animation-timing-function: cubic-bezier(.6, 0, .2, 1);
+    }
+
+    /* fade the arrow across the (long) dock instead of the short static range */
+    .scroll-cue { animation-range: var(--dock-start) var(--dock-end); }
   }
 }
-/* reveal bottom-to-top, mirroring the brand's upward exit */
-@keyframes brand-wipe {
-  from { clip-path: inset(100% 0 0 0); }
-  to   { clip-path: inset(0 0 0 0); }
+
+/* ---------- 6. keyframes ---------- */
+
+/* morph: L1 (full) -> L2 (merging) -> L3 (abstract), anchored on the U.
+   timeline: L1 hold 0-12 | snap 12-45 | L2 hold 45-55 | snap 55-88 | L3 hold 88-100 */
+@keyframes morph-stem {
+  0%   { transform: none; }                                 /* full I bar (L1) */
+  12%  { transform: none; }
+  45%  { transform: translate(-1px, -1px) scaleY(.3334); }  /* dot, slid left (L2) */
+  55%  { transform: translate(-1px, -1px) scaleY(.3334); }
+  88%  { transform: translate(-3px, -1px) scaleY(.3334); }  /* dot over U's center (L3) */
+  100% { transform: translate(-3px, -1px) scaleY(.3334); }
 }
+@keyframes morph-x {
+  0%   { transform: none; }                /* X out at the right (L1) */
+  12%  { transform: none; }
+  45%  { transform: translate(-2px, 0); }  /* slides in toward U (L2, exact) */
+  55%  { transform: translate(-2px, 0); }
+  88%  { transform: translate(-4px, 0); }  /* left column hides inside the U -> L3, exact */
+  100% { transform: translate(-4px, 0); }
+}
+/* counter-shift so the compacting mark stays visually centered (whole px) */
+@keyframes morph-center {
+  0%   { transform: none; }
+  12%  { transform: none; }
+  45%  { transform: translateX(1px); }
+  55%  { transform: translateX(1px); }
+  88%  { transform: translateX(2px); }
+  100% { transform: translateX(2px); }
+}
+
+/* dock: step 1 rise (top), step 2 shrink (height), step 3 slide (margin-top) */
+@keyframes brand-rise  { to { top: var(--bar-h); } }
+@keyframes brand-shrink { to { height: var(--mark-dock-h); } }
+@keyframes brand-slide { to { margin-top: calc((var(--bar-h) + var(--mark-dock-h)) / -2); } }
+
+/* scroll-cue */
+@keyframes cue-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
+@keyframes cue-fade { 0% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
