@@ -11,10 +11,12 @@ import type {
 import {
   createStateMessages,
   createStateMessageAssembler,
+  registerStateMessageContributions,
 } from "../agent/state-messages";
 import { createStateCoordinator, createStateRegistry } from "../state/registry";
 
 import { createCanvasAgentInstaller } from "./agent-installer";
+import { createCanvasStateMessageContributions } from "./contributions/state-messages";
 import { CanvasDocumentBuffer } from "./document-buffer";
 import type { ContentStore, ContentVersion } from "./content-store";
 import { registerCanvasState } from "./state";
@@ -56,8 +58,9 @@ type Handler = (
 
 type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
 
-// The canvas agent installer + the driver-installed state-message assembler wired
-// against an in-memory store and a fake pi handle.
+// The canvas agent installer, canvas state-message contribution, and the
+// driver-installed state-message assembler wired against an in-memory store and
+// a fake pi handle.
 function setup() {
   const store = memoryStore();
   const state = createStateRegistry();
@@ -70,12 +73,14 @@ function setup() {
     ["main"],
     agentChangedCanvasKeys,
   );
+  const canvasStateMessages = registerStateMessageContributions(
+    stateMessages,
+    createCanvasStateMessageContributions(buffer, ["main"]),
+  );
   const canvasInstaller = createCanvasAgentInstaller(
     { onCanvasChanged: () => {} },
     buffer,
     agentChangedCanvasKeys,
-    ["main"],
-    stateMessages,
   );
 
   const tools = new Map<string, ToolDefinition>();
@@ -126,6 +131,7 @@ function setup() {
       await agentEndHandlers[0]({}, ctx as unknown as ExtensionContext);
     },
     disposeCanvasState: () => canvasState[Symbol.dispose](),
+    disposeCanvasStateMessages: () => canvasStateMessages[Symbol.dispose](),
   };
 }
 

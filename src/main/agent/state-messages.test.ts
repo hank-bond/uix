@@ -12,6 +12,7 @@ import { Type } from "typebox";
 import {
   createStateMessages,
   createStateMessageAssembler,
+  registerStateMessageContributions,
   type StateMessages,
 } from "./state-messages";
 
@@ -78,6 +79,35 @@ describe("createStateMessages", () => {
   it("leaves the system prompt alone with no registrations", async () => {
     const run = install(createStateMessages());
     expect(await run()).toEqual({});
+  });
+
+  it("bulk-registers contributions, applies initial update values, and disposes them together", async () => {
+    const sm = createStateMessages();
+    const registrations = registerStateMessageContributions(sm, [
+      {
+        messageType: "uix.pane-visibility",
+        description: "d",
+        buffer: {
+          kind: "update",
+          schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
+        },
+        initialValue: { canvases_open: ["main"] },
+      },
+      {
+        messageType: "uix.canvas-diff",
+        description: "diffs",
+        materialize: () => ({ content: "changed" }),
+      },
+    ]);
+    const run = install(sm);
+
+    const result = await run();
+    expect(result.message?.content).toContain("<pane-visibility>");
+    expect(result.message?.content).toContain('{"canvases_open":["main"]}');
+    expect(result.message?.content).toContain("<canvas-diff>\nchanged");
+
+    registrations[Symbol.dispose]();
+    expect((await run()).message).toBeUndefined();
   });
 
   it("flushes updated state as one tagged section inside one uix.state envelope", async () => {

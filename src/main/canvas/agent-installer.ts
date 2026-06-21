@@ -17,13 +17,10 @@ import { type Static, Type } from "typebox";
 
 import { assertCanvasKey, CanvasKeyDescription } from "../../shared/canvas";
 import type { AgentInstaller } from "../agent/installers";
-import type { StateMessageRegistry } from "../agent/state-messages";
-import type { AnchoredChange } from "../anchors/document";
 import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
 
-import { createLogger } from "../log";
-
 import { CanvasDocumentBuffer } from "./document-buffer";
+import { formatChangeHunks } from "./anchored-format";
 
 const keyDescription = `Canvas key (not a filesystem path): ${CanvasKeyDescription}, e.g. main or reports/security-review.`;
 
@@ -83,44 +80,7 @@ export function createCanvasAgentInstaller(
   opts: CanvasAgentInstallerOptions,
   buffer: CanvasDocumentBuffer,
   agentChangedCanvasKeys: Set<string>,
-  openCanvasKeys: readonly string[],
-  stateMessages: StateMessageRegistry,
 ): AgentInstaller {
-  // Update buffer: the open set is retained as current truth and re-announced
-  // only when its materialized body differs from the last persisted report on
-  // the branch. Today the keys are fixed at startup, so this one update is the
-  // whole signal; the pane host will update the same handle on open/close when
-  // panes become dynamic.
-  const visibility = stateMessages.register({
-    messageType: "uix.pane-visibility",
-    description:
-      'JSON `{"canvases_open": [...]}` — the canvas keys currently open in the pane. Sent only when the set changes. Keys are not filesystem paths; read contents with uix_canvas_read when relevant.',
-    buffer: {
-      kind: "update",
-      schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
-    },
-  });
-  visibility.update({ canvases_open: [...openCanvasKeys].sort() });
-
-  // Materialized at agent-run prep: anchored hunks the human edited in touched
-  // canvases since the agent's last run. consumeChanges() is a consuming read
-  // (canvas-data-channel log 2026-06-06), so the agent-facing payload is not
-  // materialized until UIX is preparing the state message.
-  stateMessages.register({
-    messageType: "uix.canvas-diff",
-    description:
-      "anchored hunks the human edited in open canvases since your last turn, grouped by `## <canvas key>`. The anchors shown are current.",
-    materialize: async () => {
-      const changes = await buffer.consumeChanges();
-      if (changes.size === 0) return undefined;
-      const content = formatCanvasChanges(changes);
-      // Human edits are conversation content (level policy: chat-visible is
-      // info), even though the message itself is display-hidden.
-      createLogger("canvas").info({ diff: content }, "canvas_diff");
-      return { content, details: { changes: Object.fromEntries(changes) } };
-    },
-  });
-
   return (pi) => {
     pi.registerTool(createReadTool(buffer));
     pi.registerTool(createWriteTool(buffer, opts, agentChangedCanvasKeys));
@@ -220,26 +180,4 @@ function createEditTool(
       };
     },
   };
-}
-
-function formatChangeHunks(
-  label: string,
-  changes: readonly AnchoredChange[],
-): string {
-  const removed = changes.flatMap((change) => change.oldLines);
-  const added = changes.flatMap((change) => change.newLines);
-  const header = `${label} (−${removed.length}/+${added.length})`;
-  return added.length ? `${header}\n${formatAnchoredText(added)}` : header;
-}
-
-// Section body only — the state-message substrate owns the <canvas-diff>
-// tag and the <uix-state> envelope around it.
-function formatCanvasChanges(
-  changes: ReadonlyMap<string, readonly AnchoredChange[]>,
-): string {
-  const sections: string[] = [];
-  for (const [key, hunks] of changes) {
-    sections.push(formatChangeHunks(`## ${key}`, hunks));
-  }
-  return sections.join("\n\n");
 }

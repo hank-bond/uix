@@ -27,6 +27,7 @@ import type {
 import type { Static, TSchema } from "typebox";
 import { Value } from "typebox/value";
 
+import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
 
 import type { AgentInstaller } from "./installers";
@@ -63,6 +64,8 @@ export interface UpdateContribution<
   T extends TSchema,
 > extends BaseContribution {
   buffer: UpdateBuffer<T>;
+  /** Optional initial update applied by bulk contribution registration. */
+  initialValue?: Static<T>;
   /** Optional formatter; default is JSON.stringify(value) with value as details. */
   materialize?: (input: {
     value: Static<T>;
@@ -85,6 +88,11 @@ export interface MaterializedContribution extends BaseContribution {
   materialize: () => MaybePromise<StateMessageMaterialization | undefined>;
 }
 
+export type StateMessageContribution =
+  | UpdateContribution<TSchema>
+  | AppendContribution<TSchema>
+  | MaterializedContribution;
+
 export interface StateMessageUpdater<T extends TSchema> extends Disposable {
   update(payload: Static<T>): void;
 }
@@ -105,6 +113,45 @@ export interface StateMessageRegistry {
 }
 
 export type StateMessages = StateMessageRegistry;
+
+export function registerStateMessageContributions(
+  registry: StateMessageRegistry,
+  contributions: readonly StateMessageContribution[],
+): Disposable {
+  const bag = new DisposableBag();
+
+  for (const contribution of contributions) {
+    if (isUpdateContribution(contribution)) {
+      const handle = registry.register(contribution);
+      if (contribution.initialValue !== undefined) {
+        handle.update(contribution.initialValue);
+      }
+      bag.add(handle);
+      continue;
+    }
+
+    if (isAppendContribution(contribution)) {
+      bag.add(registry.register(contribution));
+      continue;
+    }
+
+    bag.add(registry.register(contribution));
+  }
+
+  return bag;
+}
+
+function isUpdateContribution(
+  contribution: StateMessageContribution,
+): contribution is UpdateContribution<TSchema> {
+  return contribution.buffer?.kind === "update";
+}
+
+function isAppendContribution(
+  contribution: StateMessageContribution,
+): contribution is AppendContribution<TSchema> {
+  return contribution.buffer?.kind === "append";
+}
 
 type RegisteredContribution =
   | RegisteredUpdateContribution

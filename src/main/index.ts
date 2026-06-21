@@ -24,13 +24,17 @@ import {
 import { assertCanvasKey } from "../shared/canvas";
 
 import { createAgentDriver } from "./agent/driver";
-import { createStateMessages } from "./agent/state-messages";
+import {
+  createStateMessages,
+  registerStateMessageContributions,
+} from "./agent/state-messages";
 import { createStateRegistry } from "./state/registry";
 import { registerCanvasProtocol } from "./canvas/protocol";
 import { createCanvasAgentInstaller } from "./canvas/agent-installer";
 import { CanvasDocumentBuffer } from "./canvas/document-buffer";
 import { createCanvasContentStore } from "./canvas/content-store";
 import { registerCanvasState } from "./canvas/state";
+import { createCanvasStateMessageContributions } from "./canvas/contributions/state-messages";
 import { loadExtensions } from "./extensions/loader";
 import { defaultRoots } from "./extensions/roots";
 import { resolveWorkspace } from "./workspace";
@@ -165,6 +169,12 @@ void app.whenReady().then(async () => {
   // The cockpit→agent state pathway; contributions register their messageType
   // against it and the driver flushes them while preparing each agent run.
   const stateMessages = createStateMessages();
+  appBag.add(
+    registerStateMessageContributions(
+      stateMessages,
+      createCanvasStateMessageContributions(canvasBuffer, ["main"]),
+    ),
+  );
 
   const driver = createAgentDriver({
     onEvent: (event) => sendAgentEvent(mainWindow, event),
@@ -178,8 +188,6 @@ void app.whenReady().then(async () => {
         { onCanvasChanged: sendCanvasChanged },
         canvasBuffer,
         agentChangedCanvasKeys,
-        ["main"],
-        stateMessages,
       ),
     ],
   });
