@@ -67,6 +67,16 @@ The spine — **P0 anchor pool → U1 anchored editing core → U2 live canvas c
 
 ## Log
 
+### 2026-06-21 — `DocumentChannel` → `DocumentBuffer`; buffer/store/anchoring layering
+
+Renamed `DocumentChannel` to `DocumentBuffer` (`src/main/content/buffer.ts`): the content-editing layer is a live working copy over the store — read/write/edit + sync + diffs — not a message conduit, so "channel" is now reserved for real transports (IPC, the pane↔agent bus). The rename clarified a three-way layering that the earlier "content store, not filesystem" and "editor state vs versioning" sections only implied:
+
+- **Content store** (substrate, shared): id→bytes + versions + opaque `meta`; path-unaware; the git backend slots in behind it later. Heavy use _outside_ the snapshot flow — the live `read`/`commit` editing path and the `uix-canvas://` render path dominate; snapshot/`getVersion` is the minority.
+- **Buffer** (feature-owned): composes the store with the feature's own validate/format pre-store step (`canonicalizeHtml` for canvas) plus change detection; the store never calls feature code.
+- **Anchoring** (reusable _text_ library, opt-in): not universal. A case-2 React/JSON state pane skips anchors entirely and brings schema-validate + stable-stringify, sharing only the content store — so it writes its own buffer, not a generalized `DocumentBuffer`. Whatever turns out genuinely shared between two buffers gets lifted then, with two real consumers, not guessed now.
+
+Conduit inventory note: the cockpit↔agent channels (state-messages, turn-state, the transcript stream) are generalized substrate, but the pane↔agent **typed channel** AGENTS.md promises is still only the canvas-specific iframe trio (`uix-canvas://` render down, the shim's `postMessage`→`uix:canvas-writeback` up, `uix:canvas-changed` invalidate). The "one channel API, two transports" invariant is half-built: only the iframe `postMessage` transport exists; the in-process transport a directly-mounted React pane needs does not. Generalizing that transport is the sibling of the content-store generalization — independent of it, and the canvas currently fuses both.
+
 ### 2026-06-13 — latest-vs-snapshot model and pre-user submit state
 
 Settled the snapshot model that fixes the current "diffs only exist after the agent has touched the canvas" hole without turning every writeback into durable history. There are two stores conceptually: **latest** is the mutable working HTML file updated by every iframe writeback and agent canvas tool; **snapshots** are immutable versions containing content plus anchor state. A snapshot becomes part of the branch only when a UIX-private `uix.turn-state` `CustomEntry` points at it. The diff sent to the agent is derived, not authoritative: nearest upstream turn-state snapshot → newly-created submit snapshot, rendered with anchors into the hidden `uix.state` custom message.

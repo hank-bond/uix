@@ -28,16 +28,20 @@ status: exploring
 - **Async labels.** Snapshots are auto-created unlabeled; the user clicks any snapshot in the UI and names it whenever (labels are mutable app/meta state, never baked into git ref or object names). A labeled snapshot signals "keep this" → promote it to a durable `refs/uix/checkpoints/<name>`; unlabeled per-run snapshots stay thin/prunable. Labels are what the branch/rollback picker shows (prompt text isn't memorable).
 - **Manual checkpoint = a pinned per-run snapshot.** Same objects; "checkpoint now / review the delta since" is just labeling, plus `git diff <snapshot>` (working tree vs mark) or `git diff <a> <b>` (between marks).
 
-**Shared contract — the conversation-node meta slot.** The single coupling between stores. Each subsystem reads/writes only its slice, owned by a central UIX state lifecycle rather than by ad-hoc facet hooks:
+**Shared contract — the conversation-node meta slot.** The single coupling between stores, owned by the central UIX state coordinator (`src/main/state/`) rather than by ad-hoc facet hooks. Each contribution reads/writes **only its own opaque slice**, keyed by contribution id; the coordinator never interprets a slice:
 
 ```
 uix.turn-state = {
-  panes:        { "canvas/main": <sha>, ... },   // always present (owned store)
-  userSnapshot?: { sha, label? }                  // present only if user-file mgmt enabled
+  cwd,                                   // substrate-owned: the agent cwd at this turn
+  slices: {                              // one opaque, JSON-serializable slice per contribution
+    "uix.canvas":  { "canvas/main": <versionId>, ... },  // the canvas contribution's own shape
+    "uix.files"?:  { sha, label? },                      // user-file contribution, when enabled
+    ...
+  }
 }
 ```
 
-The concrete key layout may become more contribution-namespaced as more state owners arrive; the invariant is that session entries hold stable refs, not payload copies, and the same contribution that writes a slice provides the restore/preview hook for it.
+Two invariants: slices hold **stable refs, not payload copies** (a beefy doc rides a `versionId` into the content store, never inlined — that is what keeps the session JSONL thin and lets the git store stay sufficient), and the **same contribution that writes a slice provides the restore/preview hook** for it. The coordinator is store-blind; only the contribution resolves its refs. `cwd` is substrate-owned because the content store is id-addressed and path-unaware, so the destination mapping for a path-bound restore needs the turn's cwd coordinate. See Log 2026-06-21.
 
 **Run boundaries are the durable sync points** for both stores. At user submit, before the user message is appended: pending _human_ pane edits are already in latest, latest is snapshotted, the file snapshot is taken, the node's `{panes, userSnapshot}` pointers are written, and any model-visible hidden context derived from that state is appended before the user message — one coherent moment. Pane _agent_ edits update latest continuously during the run, but become branch-visible as a post-run pane snapshot at `agent_end` (if anything changed). The other snapshot trigger, rollback-initiation, is symmetric: capture-before-you-leave.
 
@@ -61,6 +65,15 @@ The concrete key layout may become more contribution-namespaced as more state ow
 - Plan: build units U5–U6 (pane versioning + rollback) and U7 (opt-in user-file rollback), sequenced _after_ the P0–U2 channel proof per the value-first ordering.
 
 ## Log
+
+### 2026-06-21 — central coordinator lands; contribution-keyed opaque slices; channel-vs-store split
+
+The central state lifecycle from the 2026-06-17 entry landed as `src/main/state/` — a thin `StateRegistry` + `createStateCoordinator` that appends `uix.turn-state` at the submit and agent-end boundaries; the canvas no longer owns that append, it registers a `StateContribution` (`src/main/content/state.ts`). Several refinements settled while scoping the next step (the restore half):
+
+- **Key by contribution id; slices are opaque.** The coordinator must not know any slice's shape — it persists and routes an opaque, JSON-serializable slice per contribution id, never a flat `panes` map. "Pane" is the pane-host's vocabulary (mounting/slots), not the snapshot substrate's; the two meet at the docId, so pane coordination needs no pane-keying in `uix.turn-state`. This deletes the `panes` shape and the duplicate-pane merge guard (collisions become structurally impossible). A `kind` tag is deferred until a substrate consumer actually needs to treat a class of slices uniformly.
+- **Restore is the contribution's job, and it _is_ the generalization.** Each contribution owns both halves — prepare (write a ref) and restore (resolve the ref and apply it). Adding the restore half is what forces the slice opaque: the coordinator stops interpreting `panes` and just hands a contribution back its own slice. So we don't generalize `PreparedState` as a speculative step and then bolt restore on; building restore against the real canvas consumer _produces_ the generalization. C4 anchor rehydration folds into the canvas restore hook (it resolves `getVersion` content + anchor meta together as one unit).
+- **cwd is substrate-owned.** The content store stays purely id-addressed and path-unaware (hosting invariant), so the "where do restored bytes land" mapping cannot live in the store; it lives in the contribution (semantics) plus the turn's cwd coordinate, which the coordinator records. Path-bound restores (the user-file store) resolve destinations against it.
+- **Channel vs store split, and the rename.** `DocumentChannel` → `DocumentBuffer`: it is a live working copy over the store (read/write/edit + sync + diffs), not a transport — "channel" now names only message conduits (IPC, the pane↔agent bus). The content store is the shared substrate primitive (id→bytes + versions + opaque meta); each feature owns a thin buffer that composes it with its own validate/format pre-store step. Anchoring is a reusable _text_ concern, not universal — a React/JSON state pane would skip anchors entirely and bring schema-validate + stable-stringify instead, sharing only the store. The coordinator stays store-blind, and the store has heavy use outside the snapshot flow (live editing, the `uix-canvas://` render path).
 
 ### 2026-06-17 — snapshot refs belong to central state lifecycle
 
