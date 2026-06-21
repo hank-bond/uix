@@ -1,8 +1,12 @@
+---
+summary: "The public uix.sh marketing site — a zero-build static landing page (plain HTML/CSS/JS) whose centerpiece is a scroll-driven brandmark morph, with all motion gated behind prefers-reduced-motion."
+read_when: "Read when editing the public landing page at uix.sh — its markup, the scroll-driven logo animation/CSS, or the favicon."
+status: active
+---
+
 # UIX marketing site
 
-The public landing page for UIX, served at **uix.sh** via GitHub Pages. It is a
-**zero-build static site** — plain HTML/CSS/JS, no framework, no bundler. Edit the
-files; that's the whole pipeline.
+The public landing page for UIX, served at **uix.sh** via GitHub Pages. It is a **zero-build static site** — plain HTML/CSS/JS, no framework, no bundler. Edit the files; that's the whole pipeline.
 
 ## Files
 
@@ -11,72 +15,20 @@ files; that's the whole pipeline.
 | `index.html` | Markup. One page: sticky bar, hero (the brandmark), mock cockpit. |
 | `styles.css` | All styling + the scroll-driven animation. Sectioned; read its header comment. |
 | `mock.js` | Two small jobs: theme toggle on the mock, and a slower click-scroll for the arrow. No other JS, and **nothing touches the user's own scroll** (no scroll-jacking) — keep it that way. |
-| `logo-l3.svg` | Favicon (the abstract mark). The brandmark on the page is inlined in `index.html`. |
+| `uix-logo-white.svg` | Favicon. The brandmark on the page is inlined in `index.html`. |
 | `CNAME` | `uix.sh` for Pages. |
 
-Deploy: `../.github/workflows/pages.yml` publishes `website/` to Pages on push to
-the `website` branch. (This `AGENTS.md` ships with it — harmless; the repo is public.)
+Deploy: [`../.github/workflows/pages.yml`](../.github/workflows/pages.yml) publishes `website/` to Pages on push to the `website` branch. (This `AGENTS.md` and the docs below ship with it — harmless; the repo is public.)
 
-## The brandmark (the centerpiece)
+## Pages
 
-One inline SVG, `viewBox="0 0 9 5"`, built from **persistent parts** so it can morph
-rather than crossfade:
+<!-- INDEX:START -->
 
-- `.brand__u` — the U. The fixed anchor; never moves.
-- `.brand__stem` — the I. Collapses (`scaleY`) into a dot and slides left.
-- `.brand__x` — the X. Translates left; its left column hides *inside* the U.
-- `.brand__center` — wraps all three; counter-shifts in whole px so the compacting
-  mark stays visually centered.
+<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
 
-You interpolate **transforms of these parts**, never pixel grids. Keyframe
-percentages can't be CSS variables, so the morph timing lives literally in the
-`@keyframes` (`morph-stem`/`morph-x`/`morph-center` share one timeline — keep their
-stops aligned or they desync). Pixel-art stays crisp only on **whole-pixel**
-transforms; half-pixels blur.
+- **[accessibility](./accessibility.md)** _(active)_ — Reduced motion is a first-class path, not a fallback: a visually-hidden h1, aria-hidden decorative SVGs and mock panes (the theme switch stays operable), and under prefers-reduced-motion only opacity fades are acceptable — never translate/scale/parallax.
+- **[brandmark](./brandmark.md)** _(active)_ — The hero brandmark is one inline SVG built from persistent named parts (U / stem / x / center) that morph by interpolating their transforms — never pixel grids — on a shared keyframe timeline, and stays crisp only on whole-pixel transforms.
+- **[css-architecture](./css-architecture.md)** _(active)_ — styles.css is ordered tokens→reset→a11y→base→motion→keyframes, with the load-bearing rule that ALL motion lives inside the prefers-reduced-motion:no-preference block (scroll-driven bits further under @supports), so the static version is the base; sizes and the dock's scroll timeline are tuned via :root knobs, and named scroll/view timelines are element-scoped. _Read before adding or changing any animation, timeline, or :root sizing/timing variable in styles.css._
+- **[development](./development.md)** _(active)_ — Preview the site by opening index.html over file:// (the scroll animation works there) and test reduced motion via DevTools rendering emulation; run npm install once in the worktree so the pre-commit hook (Prettier + docs:index) works. _Read before previewing, testing, or committing changes to the site._
 
-## CSS architecture — read this before editing
-
-`styles.css` is ordered: **tokens → reset → a11y utils → static base → motion → keyframes.**
-
-The load-bearing rule: **the static/accessible version is the base default; ALL
-motion lives inside `@media (prefers-reduced-motion: no-preference)`** (with
-scroll-driven bits further nested under `@supports (animation-timeline: scroll())`).
-So:
-
-- Reduced-motion users and browsers without scroll-timeline support get the static
-  experience for free — the brand just scrolls under the bar, and the compact mark
-  sits in the header.
-- You cannot accidentally ship un-gated motion, because motion only exists in that
-  one block. **Add new animation there, never in the base.**
-
-## Tuning knobs (`:root`)
-
-Sizes: `--bar-h`, `--mark-h` (full), `--mark-dock-h` (docked/header). Header mark and
-docked mark share `--mark-dock-h`, so they stay identical.
-
-Motion timing (scroll progress from page top): `--morph-end` → `--l3-hold` →
-`--dock-start`, then the dock steps `--rise-len` / `--shrink-len` / `--slide-len`
-(derived into `--rise-end`/`--shrink-end`/`--dock-end`). The dock is three
-independent steps on **different properties** — rise=`top`, shrink=`height`,
-slide=`margin-top` — so they never collide with the static `translate: -50% 0`
-that centers the mark. The hero is `--dock-end + 30vh` of runway in motion mode.
-
-## Accessibility stance
-
-- Reduced motion is a **first-class path**, not a fallback afterthought.
-- There's a visually-hidden `<h1>`; decorative SVGs are `aria-hidden`; the mock's
-  chat/canvas are decorative (`aria-hidden`) while the theme switcher stays operable.
-- Honour `prefers-reduced-motion` for anything new. Opacity fades are acceptable
-  there; translate/scale/parallax are not.
-
-## Preview & gotchas
-
-- Preview: open `index.html` (scroll-driven animation works over `file://`).
-- Test reduced motion: DevTools → Rendering → "Emulate prefers-reduced-motion: reduce".
-- **Named timelines are scoped.** A `view-timeline-name`/`scroll-timeline-name` is
-  only visible to the defining element, its descendants, and following siblings. To
-  reference one across subtrees (e.g. header ↔ hero) you need `timeline-scope` on a
-  common ancestor. (A header wipe was dropped for this reason.)
-- **Commits:** a repo pre-commit hook runs prettier from `./node_modules`, which
-  doesn't exist in this worktree — commits here need `--no-verify` (or run prettier
-  from the main checkout / `npm install` in the worktree first).
+<!-- INDEX:END -->

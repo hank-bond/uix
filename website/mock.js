@@ -10,14 +10,20 @@ if (cue && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
     const target = document.querySelector(cue.getAttribute("href"));
     if (!target) return;
     e.preventDefault();
-    const barH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--bar-h")) || 0;
+    const barH =
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue("--bar-h"),
+      ) || 0;
     const startY = window.scrollY;
     const endY = target.getBoundingClientRect().top + startY - barH;
     const dist = endY - startY;
     const t0 = performance.now();
     const step = (now) => {
       const p = Math.min(1, (now - t0) / DURATION);
-      window.scrollTo({ top: startY + dist * easeInOutCubic(p), behavior: "instant" });
+      window.scrollTo({
+        top: startY + dist * easeInOutCubic(p),
+        behavior: "instant",
+      });
       if (p < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);

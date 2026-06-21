@@ -25,25 +25,25 @@
   --muted: #9a9aa2;
   --line: #2a2b2f;
 
-  --bar-h: 56px;         /* sticky bar height */
-  --mark-h: 26vmin;      /* brand full size */
-  --mark-dock-h: 52px;   /* brand docked / header size */
-  --mark-bar-y: 4px;     /* in-bar mark vertical nudge: + lowers, - raises (~2px headroom) */
+  --bar-h: 56px; /* sticky bar height */
+  --mark-h: 26vmin; /* brand full size */
+  --mark-dock-h: 52px; /* brand docked / header size */
+  --mark-bar-y: 4px; /* in-bar mark vertical nudge: + lowers, - raises (~2px headroom) */
 
   /* Motion-only: scroll-progress timing, measured from page top.
      Tune these to repace the morph + dock; nothing else needs touching. */
-  --morph-end: 90vh;     /* L1->L2->L3 finishes assembling around here */
-  --l3-hold: 20vh;       /* how long L3 sits still before it starts to rise */
+  --morph-end: 90vh; /* L1->L2->L3 finishes assembling around here */
+  --l3-hold: 20vh; /* how long L3 sits still before it starts to rise */
   --dock-start: calc(var(--morph-end) + var(--l3-hold));
   /* rise scroll length == the top edge's travel distance, so the logo rises at
      exactly native scroll speed (1px of top per 1px of scroll), any aspect ratio */
   --rise-len: calc(50vh - var(--mark-h) / 2 - var(--bar-h));
-  --shrink-len: 12vh;    /* top-aligned shrink (bottom + sides come in) */
-  --slide-len: 8vh;      /* slide up into the bar */
+  --shrink-len: 12vh; /* top-aligned shrink (bottom + sides come in) */
+  --slide-len: 8vh; /* slide up into the bar */
   --rise-end: calc(var(--dock-start) + var(--rise-len));
   --shrink-end: calc(var(--rise-end) + var(--shrink-len));
   --dock-end: calc(var(--shrink-end) + var(--slide-len));
-  --dock-tail: 40vh;      /* empty runway after docking. 0 = mock scrolls in DURING
+  --dock-tail: 40vh; /* empty runway after docking. 0 = mock scrolls in DURING
                             the rise; raise it for a settle after the dock instead */
 }
 
@@ -51,8 +51,8 @@
 /* runway recompute from these automatically. (Starting values; tweak to taste.) */
 @media (max-width: 640px) {
   :root {
-    --mark-h: 34vmin;    /* logo reads small on narrow screens — bump it up */
-    --morph-end: 60vh;   /* shorter morph so it isn't a marathon scroll */
+    --mark-h: 34vmin; /* logo reads small on narrow screens — bump it up */
+    --morph-end: 60vh; /* shorter morph so it isn't a marathon scroll */
     --l3-hold: 14vh;
     --shrink-len: 12vh;
     --slide-len: 8vh;
@@ -60,28 +60,46 @@
 }
 
 /* ---------- 2. reset ---------- */
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; } /* anchor clicks animate-scroll instead of jumping */
+* {
+  box-sizing: border-box;
+}
+html {
+  scroll-behavior: smooth;
+} /* anchor clicks animate-scroll instead of jumping */
 body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font: 16px/1.55 ui-sans-serif, system-ui, sans-serif;
+  font:
+    16px/1.55 ui-sans-serif,
+    system-ui,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
 /* ---------- 3. a11y utilities ---------- */
 .u-visually-hidden {
-  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ---------- 4. base / static (the accessible default) ---------- */
 
 /* sticky bar */
 .topbar {
-  position: sticky; top: 0; z-index: 40;
-  display: flex; align-items: center; justify-content: center;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   height: var(--bar-h);
   background: color-mix(in srgb, var(--bg) 86%, transparent);
   backdrop-filter: blur(8px);
@@ -92,23 +110,48 @@ body {
   color: var(--fg);
   margin-top: var(--mark-bar-y); /* shared in-bar vertical nudge (see :root) */
 }
-.topbar__brand svg { display: block; height: var(--mark-dock-h); width: auto; }
+.topbar__brand svg {
+  display: block;
+  height: var(--mark-dock-h);
+  width: auto;
+}
 
 /* hero: the brand centered in the viewport below the bar; mock right after */
 .hero {
   min-height: calc(100svh - var(--bar-h));
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
-.brand { display: block; color: var(--fg); text-decoration: none; }
-.brand__mark { display: block; height: var(--mark-h); width: auto; }
+.brand {
+  display: block;
+  color: var(--fg);
+  text-decoration: none;
+}
+.brand__mark {
+  display: block;
+  height: var(--mark-h);
+  width: auto;
+}
 
 /* scroll hint, fixed to the viewport bottom */
 .scroll-cue {
-  position: fixed; z-index: 45; left: 50%; bottom: 1.5rem; translate: -50% 0;
-  color: var(--muted); line-height: 0; padding: .5rem;
+  position: fixed;
+  z-index: 45;
+  left: 50%;
+  bottom: 1.5rem;
+  translate: -50% 0;
+  color: var(--muted);
+  line-height: 0;
+  padding: 0.5rem;
 }
-.scroll-cue:hover { color: var(--fg); }
-.scroll-cue svg { display: block; }
+.scroll-cue:hover {
+  color: var(--fg);
+}
+.scroll-cue svg {
+  display: block;
+}
 /* opacity fade is fine under reduced motion, so it's gated on support only */
 @supports (animation-timeline: scroll()) {
   .scroll-cue {
@@ -122,109 +165,245 @@ body {
 .stage {
   /* top-aligned so the mock window itself (not its empty centering space) is what
      scrolls into view as the brand rises */
-  min-height: 100vh; display: flex; align-items: flex-start;
-  max-width: 64rem; margin: 0 auto; padding: 4rem 1.25rem;
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 4rem 1.25rem;
   scroll-margin-top: var(--bar-h);
 }
-.stage > .mock { width: 100%; }
+.stage > .mock {
+  width: 100%;
+}
 .mock {
-  --m-bg: #16181d; --m-panel: #1d2026; --m-fg: #e9ebf0; --m-muted: #8b909c;
-  --m-line: #2c2f37; --m-user: #2a3b55; --m-accent: #7aa2f7;
-  background: var(--m-bg); color: var(--m-fg);
-  border: 1px solid var(--m-line); border-radius: 10px; overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0,0,0,.4);
+  --m-bg: #16181d;
+  --m-panel: #1d2026;
+  --m-fg: #e9ebf0;
+  --m-muted: #8b909c;
+  --m-line: #2c2f37;
+  --m-user: #2a3b55;
+  --m-accent: #7aa2f7;
+  background: var(--m-bg);
+  color: var(--m-fg);
+  border: 1px solid var(--m-line);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
 }
 .mock[data-theme="paper"] {
-  --m-bg: #f4f1ea; --m-panel: #fbfaf6; --m-fg: #24221d; --m-muted: #7c776c;
-  --m-line: #ddd7c9; --m-user: #e3dcca; --m-accent: #b5651d;
+  --m-bg: #f4f1ea;
+  --m-panel: #fbfaf6;
+  --m-fg: #24221d;
+  --m-muted: #7c776c;
+  --m-line: #ddd7c9;
+  --m-user: #e3dcca;
+  --m-accent: #b5651d;
 }
 .mock[data-theme="mono"] {
-  --m-bg: #0a0a0a; --m-panel: #111; --m-fg: #f0f0f0; --m-muted: #777;
-  --m-line: #2a2a2a; --m-user: #1f1f1f; --m-accent: #f0f0f0;
+  --m-bg: #0a0a0a;
+  --m-panel: #111;
+  --m-fg: #f0f0f0;
+  --m-muted: #777;
+  --m-line: #2a2a2a;
+  --m-user: #1f1f1f;
+  --m-accent: #f0f0f0;
 }
 .mock__chrome {
-  display: flex; align-items: center; gap: .75rem;
-  padding: .55rem .8rem; border-bottom: 1px solid var(--m-line); background: var(--m-panel);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid var(--m-line);
+  background: var(--m-panel);
 }
-.mock__dots { display: flex; gap: .35rem; }
-.mock__dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--m-line); }
-.mock__themes { margin-left: auto; display: flex; gap: .3rem; }
+.mock__dots {
+  display: flex;
+  gap: 0.35rem;
+}
+.mock__dots i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--m-line);
+}
+.mock__themes {
+  margin-left: auto;
+  display: flex;
+  gap: 0.3rem;
+}
 .mock__themes button {
-  font: inherit; font-size: .78rem; cursor: pointer;
-  padding: .2rem .55rem; border-radius: 999px;
-  background: transparent; color: var(--m-muted); border: 1px solid var(--m-line);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--m-muted);
+  border: 1px solid var(--m-line);
 }
-.mock__themes button[aria-pressed="true"] { color: var(--m-bg); background: var(--m-accent); border-color: var(--m-accent); }
-.mock__body { display: grid; grid-template-columns: 1fr 1fr; min-height: 320px; }
-.mock__chat { display: flex; flex-direction: column; gap: .6rem; padding: 1rem; border-right: 1px solid var(--m-line); }
-.msg { max-width: 85%; padding: .55rem .75rem; border-radius: 10px; font-size: .9rem; }
-.msg--user { align-self: flex-end; background: var(--m-user); }
-.msg--agent { align-self: flex-start; background: var(--m-panel); border: 1px solid var(--m-line); }
-.msg code { font-family: ui-monospace, monospace; font-size: .85em; }
+.mock__themes button[aria-pressed="true"] {
+  color: var(--m-bg);
+  background: var(--m-accent);
+  border-color: var(--m-accent);
+}
+.mock__body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 320px;
+}
+.mock__chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem;
+  border-right: 1px solid var(--m-line);
+}
+.msg {
+  max-width: 85%;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+.msg--user {
+  align-self: flex-end;
+  background: var(--m-user);
+}
+.msg--agent {
+  align-self: flex-start;
+  background: var(--m-panel);
+  border: 1px solid var(--m-line);
+}
+.msg code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+}
 .mock__composer {
-  margin-top: auto; display: flex; align-items: center; justify-content: space-between;
-  padding: .55rem .75rem; border: 1px solid var(--m-line); border-radius: 10px; color: var(--m-muted); font-size: .9rem;
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--m-line);
+  border-radius: 10px;
+  color: var(--m-muted);
+  font-size: 0.9rem;
 }
-.mock__composer kbd { border: 1px solid var(--m-line); border-radius: 4px; padding: 0 .35rem; }
-.mock__canvas { display: flex; flex-direction: column; background: var(--m-panel); }
-.mock__canvasbar { padding: .5rem .8rem; border-bottom: 1px solid var(--m-line); color: var(--m-muted); font: .8rem ui-monospace, monospace; }
-.mock__chart { flex: 1; display: flex; align-items: flex-end; gap: .5rem; padding: 1.2rem; }
-.mock__chart span { flex: 1; background: var(--m-accent); border-radius: 3px 3px 0 0; min-height: 4px; }
+.mock__composer kbd {
+  border: 1px solid var(--m-line);
+  border-radius: 4px;
+  padding: 0 0.35rem;
+}
+.mock__canvas {
+  display: flex;
+  flex-direction: column;
+  background: var(--m-panel);
+}
+.mock__canvasbar {
+  padding: 0.5rem 0.8rem;
+  border-bottom: 1px solid var(--m-line);
+  color: var(--m-muted);
+  font:
+    0.8rem ui-monospace,
+    monospace;
+}
+.mock__chart {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  padding: 1.2rem;
+}
+.mock__chart span {
+  flex: 1;
+  background: var(--m-accent);
+  border-radius: 3px 3px 0 0;
+  min-height: 4px;
+}
 
 @media (max-width: 640px) {
-  .mock__body { grid-template-columns: 1fr; }
-  .mock__chat { border-right: 0; border-bottom: 1px solid var(--m-line); }
+  .mock__body {
+    grid-template-columns: 1fr;
+  }
+  .mock__chat {
+    border-right: 0;
+    border-bottom: 1px solid var(--m-line);
+  }
 }
 
 /* ---------- 5. motion (only for users who haven't asked to reduce it) ---------- */
 @media (prefers-reduced-motion: no-preference) {
   /* time-based bounce: works without scroll-timeline support */
-  .scroll-cue svg { animation: cue-bounce 1.6s ease-in-out infinite; }
+  .scroll-cue svg {
+    animation: cue-bounce 1.6s ease-in-out infinite;
+  }
 
   /* scroll-driven morph + dock: needs animation-timeline support */
   @supports (animation-timeline: scroll()) {
     /* the animated brand owns the bar now; hide the static header mark */
-    .topbar__brand { display: none; }
+    .topbar__brand {
+      display: none;
+    }
 
     /* expand the hero into a scroll runway */
-    .hero { min-height: calc(var(--dock-end) + var(--dock-tail)); }
+    .hero {
+      min-height: calc(var(--dock-end) + var(--dock-tail));
+    }
 
     /* SVG parts transform around their own boxes, not the SVG origin */
-    .brand g { transform-box: fill-box; }
-    .brand__stem { transform-origin: center top; } /* collapse the I into a dot */
+    .brand g {
+      transform-box: fill-box;
+    }
+    .brand__stem {
+      transform-origin: center top;
+    } /* collapse the I into a dot */
 
     /* brand becomes a fixed overlay: PHASE 1 morph in place, then PHASE 2 dock.
        rise (top) + slide (margin-top) use different props so they never fight
        the static `translate: -50% 0` that keeps it horizontally centered. */
     .brand {
-      position: fixed; z-index: 50;
-      left: 50%; top: calc(50vh - var(--mark-h) / 2); translate: -50% 0;
-      animation: brand-rise linear both, brand-slide linear both;
+      position: fixed;
+      z-index: 50;
+      left: 50%;
+      top: calc(50vh - var(--mark-h) / 2);
+      translate: -50% 0;
+      animation:
+        brand-rise linear both,
+        brand-slide linear both;
       animation-timeline: scroll(root), scroll(root);
-      animation-range: var(--dock-start) var(--rise-end), var(--shrink-end) var(--dock-end);
+      animation-range:
+        var(--dock-start) var(--rise-end),
+        var(--shrink-end) var(--dock-end);
     }
     .brand__mark {
       animation: brand-shrink cubic-bezier(0.54, 0.29, 0.47, 0.73) both;
       animation-timeline: scroll(root);
       animation-range: var(--rise-end) var(--shrink-end);
     }
-    .brand__stem, .brand__x {
+    .brand__stem,
+    .brand__x {
       animation: linear both;
       animation-timeline: scroll(root);
       animation-range: 0 var(--morph-end);
-      animation-timing-function: cubic-bezier(.6, 0, .2, 1);
+      animation-timing-function: cubic-bezier(0.6, 0, 0.2, 1);
     }
-    .brand__stem { animation-name: morph-stem; }
-    .brand__x { animation-name: morph-x; }
+    .brand__stem {
+      animation-name: morph-stem;
+    }
+    .brand__x {
+      animation-name: morph-x;
+    }
     .brand__center {
       animation: morph-center linear both;
       animation-timeline: scroll(root);
       animation-range: 0 var(--morph-end);
-      animation-timing-function: cubic-bezier(.6, 0, .2, 1);
+      animation-timing-function: cubic-bezier(0.6, 0, 0.2, 1);
     }
 
     /* fade the arrow across the (long) dock instead of the short static range */
-    .scroll-cue { animation-range: var(--dock-start) var(--dock-end); }
+    .scroll-cue {
+      animation-range: var(--dock-start) var(--dock-end);
+    }
   }
 }
 
@@ -233,36 +412,102 @@ body {
 /* morph: L1 (full) -> L2 (merging) -> L3 (abstract), anchored on the U.
    timeline: L1 hold 0-12 | snap 12-45 | L2 hold 45-55 | snap 55-88 | L3 hold 88-100 */
 @keyframes morph-stem {
-  0%   { transform: none; }                                 /* full I bar (L1) */
-  12%  { transform: none; }
-  45%  { transform: translate(-1px, -1px) scaleY(.3334); }  /* dot, slid left (L2) */
-  55%  { transform: translate(-1px, -1px) scaleY(.3334); }
-  88%  { transform: translate(-3px, -1px) scaleY(.3334); }  /* dot over U's center (L3) */
-  100% { transform: translate(-3px, -1px) scaleY(.3334); }
+  0% {
+    transform: none;
+  } /* full I bar (L1) */
+  12% {
+    transform: none;
+  }
+  45% {
+    transform: translate(-1px, -1px) scaleY(0.3334);
+  } /* dot, slid left (L2) */
+  55% {
+    transform: translate(-1px, -1px) scaleY(0.3334);
+  }
+  88% {
+    transform: translate(-3px, -1px) scaleY(0.3334);
+  } /* dot over U's center (L3) */
+  100% {
+    transform: translate(-3px, -1px) scaleY(0.3334);
+  }
 }
 @keyframes morph-x {
-  0%   { transform: none; }                /* X out at the right (L1) */
-  12%  { transform: none; }
-  45%  { transform: translate(-2px, 0); }  /* slides in toward U (L2, exact) */
-  55%  { transform: translate(-2px, 0); }
-  88%  { transform: translate(-4px, 0); }  /* left column hides inside the U -> L3, exact */
-  100% { transform: translate(-4px, 0); }
+  0% {
+    transform: none;
+  } /* X out at the right (L1) */
+  12% {
+    transform: none;
+  }
+  45% {
+    transform: translate(-2px, 0);
+  } /* slides in toward U (L2, exact) */
+  55% {
+    transform: translate(-2px, 0);
+  }
+  88% {
+    transform: translate(-4px, 0);
+  } /* left column hides inside the U -> L3, exact */
+  100% {
+    transform: translate(-4px, 0);
+  }
 }
 /* counter-shift so the compacting mark stays visually centered (whole px) */
 @keyframes morph-center {
-  0%   { transform: none; }
-  12%  { transform: none; }
-  45%  { transform: translateX(1px); }
-  55%  { transform: translateX(1px); }
-  88%  { transform: translateX(2px); }
-  100% { transform: translateX(2px); }
+  0% {
+    transform: none;
+  }
+  12% {
+    transform: none;
+  }
+  45% {
+    transform: translateX(1px);
+  }
+  55% {
+    transform: translateX(1px);
+  }
+  88% {
+    transform: translateX(2px);
+  }
+  100% {
+    transform: translateX(2px);
+  }
 }
 
 /* dock: step 1 rise (top), step 2 shrink (height), step 3 slide (margin-top) */
-@keyframes brand-rise  { to { top: var(--bar-h); } }
-@keyframes brand-shrink { to { height: var(--mark-dock-h); } }
-@keyframes brand-slide { to { margin-top: calc((var(--bar-h) + var(--mark-dock-h)) / -2 + var(--mark-bar-y)); } }
+@keyframes brand-rise {
+  to {
+    top: var(--bar-h);
+  }
+}
+@keyframes brand-shrink {
+  to {
+    height: var(--mark-dock-h);
+  }
+}
+@keyframes brand-slide {
+  to {
+    margin-top: calc(
+      (var(--bar-h) + var(--mark-dock-h)) / -2 + var(--mark-bar-y)
+    );
+  }
+}
 
 /* scroll-cue */
-@keyframes cue-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
-@keyframes cue-fade { 0% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+@keyframes cue-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(6px);
+  }
+}
+@keyframes cue-fade {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}

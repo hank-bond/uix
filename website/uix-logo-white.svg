@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+    <rect id="Rectangle" width="128" height="128" rx="24" fill="#000000"/>
+    <path id="path1" fill="#ffffff" fill-rule="evenodd" stroke="none" d="M 30 36 L 53 36 L 53 13 L 30 13 Z"/>
+    <path id="path2" fill="#ffffff" fill-rule="evenodd" stroke="none" d="M 75 88 L 75 36 L 53 36 L 53 82 L 30 82 L 30 36 L 7 36 L 7 104 L 30 104 L 75 104 Z M 75 82 L 98 82 L 98 59 L 75 59 Z"/>
+    <path id="path3" fill="#ffffff" fill-rule="evenodd" stroke="none" d="M 98 59 L 121 59 L 121 36 L 98 36 Z"/>
+    <path id="path4" fill="#ffffff" fill-rule="evenodd" stroke="none" d="M 98 104 L 121 104 L 121 82 L 98 82 Z"/>
+</svg>

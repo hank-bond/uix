@@ -15,10 +15,11 @@ files=$(git diff --cached --name-only --diff-filter=ACMR)
 
 # Regenerate doc indexes from frontmatter when any doc changed, and re-stage
 # the index files. (They're Prettier-ignored, so the format step skips them.)
-if printf '%s\n' "$files" | grep -Eq '^(docs|src/docs)/.*\.md$'; then
+if printf '%s\n' "$files" | grep -Eq '^(docs|src/docs|website)/.*\.md$'; then
   node scripts/docs-index.mjs >/dev/null
-  git add docs/decisions/AGENTS.md docs/design/AGENTS.md \
+  git add AGENTS.md docs/decisions/AGENTS.md docs/design/AGENTS.md \
     docs/architecture/AGENTS.md docs/plans/AGENTS.md src/docs/AGENTS.md \
+    website/AGENTS.md \
     2>/dev/null || true
 fi
 

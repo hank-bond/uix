@@ -75,7 +75,7 @@ The rules that constrain every change — hold these before reaching for detail:
 
 ## Where to read
 
-Two doc trees — `src/docs/` is the user-facing substrate reference (building on UIX); `docs/` is the dev-facing meta tree (why things are the way they are). Runnable examples live in `examples/`.
+Two doc trees — `src/docs/` is the user-facing substrate reference (building on UIX); `docs/` is the dev-facing meta tree (why things are the way they are). Runnable examples live in `examples/`, and `website/` is the public marketing site served at uix.sh.
 
 <!-- INDEX:START -->
 
@@ -83,6 +83,7 @@ Two doc trees — `src/docs/` is the user-facing substrate reference (building o
 
 - **[src/docs/](./src/docs/AGENTS.md)** _(active)_ — The shipped, user-facing substrate reference for building on UIX — panes, channels, agent, extensions, lifetimes, state — kept in lockstep with current code.
 - **[docs/](./docs/AGENTS.md)** _(active)_ — Dev-facing meta docs — decisions, design threads, architecture records, and plans — and the map for routing into them.
+- **[website/](./website/AGENTS.md)** _(active)_ — The public uix.sh marketing site — a zero-build static landing page (plain HTML/CSS/JS) whose centerpiece is a scroll-driven brandmark morph, with all motion gated behind prefers-reduced-motion. _Read when editing the public landing page at uix.sh — its markup, the scroll-driven logo animation/CSS, or the favicon._
 
 <!-- INDEX:END -->
 
