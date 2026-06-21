@@ -5,7 +5,7 @@
 // back in every result so it never re-reads to learn current anchors. Content
 // is canonicalized at the core boundary and the local file store is hidden
 // behind the content-store seam (see ./content-store.ts and
-// ./canvas-document-buffer.ts).
+// ./document-buffer.ts).
 //
 // Every HTML document edited here is a canvas, so these tools are canvas-named;
 // the canvas document runtime lives underneath in CanvasDocumentBuffer and
@@ -23,7 +23,7 @@ import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
 
 import { createLogger } from "../log";
 
-import { CanvasDocumentBuffer } from "./canvas-document-buffer";
+import { CanvasDocumentBuffer } from "./document-buffer";
 
 const keyDescription = `Canvas key (not a filesystem path): ${CanvasKeyDescription}, e.g. main or reports/security-review.`;
 

@@ -26,13 +26,13 @@ UIX keeps three related units distinct:
 
 This separation keeps pi's durable tree, UIX's streaming/replay normalization, and React rendering independent enough to evolve without re-keying the session format. Chat block renderers may also present a human-facing projection of an agent-facing payload: for example, canvas tool results keep anchored lines in the transcript item so the agent can edit safely, while the chat block hides the anchors from the human display.
 
-The only current core agent installer is the canvas agent installer in `src/main/content/agent-installer.ts`, which contributes the anchored canvas channel:
+The only current core agent installer is the canvas agent installer in `src/main/canvas/agent-installer.ts`, which contributes the anchored canvas channel:
 
 - `uix_canvas_read({ key, start?, end? })`
 - `uix_canvas_write({ key, html })`
 - `uix_canvas_edit({ key, start_line, end_line, replacement })`
 
-Canvases are addressed by key through a content-store seam (`src/main/content/content-store.ts`), edited via the anchored core (`src/main/anchors/`), and canonicalized at the core boundary (`src/main/content/normalize.ts`). The tools are canvas-named because every HTML document edited through them is a canvas; the general document/content abstraction lives underneath in the channel and store. Every result returns the affected lines in the `<anchor>§<text>` wire format so the agent never re-reads to learn current anchors.
+Canvases are addressed by key through a content-store seam (`src/main/canvas/content-store.ts`), edited via the anchored core (`src/main/anchors/`), and canonicalized at the core boundary (`src/main/canvas/normalize.ts`). The tools are canvas-named because every HTML document edited through them is a canvas; the general document/content abstraction lives underneath in the channel and store. Every result returns the affected lines in the `<anchor>§<text>` wire format so the agent never re-reads to learn current anchors.
 
 ## State messages
 

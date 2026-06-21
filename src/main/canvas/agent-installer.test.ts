@@ -15,7 +15,7 @@ import {
 import { createStateCoordinator, createStateRegistry } from "../state/registry";
 
 import { createCanvasAgentInstaller } from "./agent-installer";
-import { CanvasDocumentBuffer } from "./canvas-document-buffer";
+import { CanvasDocumentBuffer } from "./document-buffer";
 import type { ContentStore, ContentVersion } from "./content-store";
 import { registerCanvasState } from "./state";
 
@@ -145,11 +145,11 @@ describe("createCanvasAgentInstaller state messages", () => {
     );
   });
 
-  it("surfaces human store edits as a canvas-diff section, consumed once", async () => {
+  it("surfaces pane writebacks as a canvas-diff section, consumed once", async () => {
     const { tools, turnBoundary, writebackCanvas } = setup();
 
-    // Agent writes the canvas (so it has anchors), then the human edits the
-    // store behind it — the writeback path.
+    // Agent writes the canvas (so it has anchors), then the human edits through
+    // the pane writeback path.
     const write = tools.get("uix_canvas_write")!;
     await write.execute(
       "t1",
@@ -172,6 +172,37 @@ describe("createCanvasAgentInstaller state messages", () => {
       | string
       | undefined;
     expect(second ?? "").not.toContain("<canvas-diff>");
+  });
+
+  it("keeps pane writeback diff available after input snapshots turn state", async () => {
+    const { tools, entries, inputBoundary, turnBoundary, writebackCanvas } =
+      setup();
+
+    const write = tools.get("uix_canvas_write")!;
+    await write.execute(
+      "t1",
+      { key: "main", html: "<p>hello</p>" },
+      undefined,
+      undefined,
+      {} as never,
+    );
+    await writebackCanvas("main", "<p>goodbye</p>");
+
+    await inputBoundary();
+    expect(entries).toEqual([
+      {
+        customType: "uix.turn-state",
+        data: {
+          state: { canvas: { "doc://canvas/main": "v1" } },
+          cwd: "/work",
+        },
+      },
+    ]);
+
+    const content = (await turnBoundary()).message!.content as string;
+    expect(content).toContain("<canvas-diff>");
+    expect(content).toContain("## main");
+    expect(content).toContain("goodbye");
   });
 
   it("records canvas snapshot pointers before input and after agent writes", async () => {

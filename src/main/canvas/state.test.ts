@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { StateContribution, StateRegistry } from "../state/registry";
 
-import { CanvasDocumentBuffer } from "./canvas-document-buffer";
+import { CanvasDocumentBuffer } from "./document-buffer";
 import type { ContentStore, ContentVersion } from "./content-store";
 import { registerCanvasState } from "./state";
 

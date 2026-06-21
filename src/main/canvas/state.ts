@@ -6,7 +6,7 @@
 
 import type { StateRegistry, PreparedState } from "../state/registry";
 
-import { CanvasDocumentBuffer } from "./canvas-document-buffer";
+import { CanvasDocumentBuffer } from "./document-buffer";
 
 export function registerCanvasState(
   state: StateRegistry,

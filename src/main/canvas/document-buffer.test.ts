@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { AnchoredDocument } from "../anchors/document";
 
-import { CanvasDocumentBuffer } from "./canvas-document-buffer";
+import { CanvasDocumentBuffer } from "./document-buffer";
 import type { ContentStore, ContentVersion } from "./content-store";
 
 // In-memory store standing in for the file-backed one, plus a dump() peek so
