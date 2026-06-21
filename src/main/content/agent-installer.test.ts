@@ -169,7 +169,10 @@ describe("createCanvasAgentInstaller state messages", () => {
     expect(entries).toEqual([
       {
         customType: "uix.turn-state",
-        data: { panes: { "canvas/main": "v1" }, cwd: "/work" },
+        data: {
+          state: { canvas: { "doc://canvas/main": "v1" } },
+          cwd: "/work",
+        },
       },
     ]);
 
@@ -185,7 +188,10 @@ describe("createCanvasAgentInstaller state messages", () => {
 
     expect(entries[1]).toEqual({
       customType: "uix.turn-state",
-      data: { panes: { "canvas/main": "v2" }, cwd: "/work" },
+      data: {
+        state: { canvas: { "doc://canvas/main": "v2" } },
+        cwd: "/work",
+      },
     });
   });
 });

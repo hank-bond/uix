@@ -25,13 +25,17 @@ Use **feature** when naming the user-facing capability. Use **extension** when y
 
 UIX uses two id grammars for different things.
 
-**Dotted ids** name owners, facets, contributions, kinds, sources, messages, and actions:
+**Dotted ids** name globally visible sources, kinds, messages, and actions:
 
 ```text
-<owner>.<facet>[.<capability-or-action>...]
+<namespace>.<origin-facet>[.<contribution-or-action>...]
 ```
 
-`owner` is either a feature id (`canvas`, `chat`, `acme.report`) or `uix` for substrate-owned ids. The next segment is usually the facet or surface being contributed to (`pane`, `agent`, `document`, `state`, `channel`, `command`). Later segments are facet-local stable names, not throwaway strings. Examples: `canvas.state`, `canvas.document.html`, `canvas.pane.writeback`, `canvas.agent.anchor_edit`, `uix.document.restore`, `uix.turn-state`.
+`namespace` is either a feature id (`canvas`, `chat`, `acme.report`) or `uix` for substrate-owned ids. The middle segment names the contribution surface where the capability/action originates (`pane`, `agent`, `document`, `state`, `channel`, `command`), not necessarily the facet that emits a later event. Later segments are facet-local stable names, not throwaway strings. Examples: `canvas.document.html`, `canvas.pane.writeback`, `canvas.agent.anchor_edit`, `uix.document.restore`, `uix.turn-state`.
+
+Event payload shapes are defined by the emitting substrate facet. If a pane-originated write causes a document event, `sourceId: "canvas.pane.writeback"` is provenance, but the payload is still the document facet's `DocumentWriteEvent` shape. A contribution in one facet may call another facet; `eventType`/channel tells you what happened, and `sourceId` tells you which contribution caused it.
+
+Inside a typed registry, the registry supplies the facet context, so contribution ids can be simpler when uniqueness is scoped by that registry. For example, the state registry can persist the canvas state contribution under `canvas`; global source ids still use self-describing dotted ids such as `canvas.pane.writeback`.
 
 **Resource ids** name addressable things. URI schemes identify substrate resource managers: `doc://canvas/main` is a document-engine resource in the canvas namespace; `workspace://src/main.ts` is a workspace file interpreted relative to the turn's recorded cwd. Feature/facet organization does not appear inside resource paths — the same resource may be read by a pane, edited by an agent tool, snapshotted by state, and restored by the coordinator.
 
@@ -179,7 +183,7 @@ The current example is the private state coordinator:
 
 - installs Pi `input` and `agent_end` hooks;
 - asks live state contributions to prepare private turn state;
-- persists contribution-keyed opaque refs;
+- persists contribution-keyed opaque state;
 - appends one `uix.turn-state` session entry when there is state to persist.
 
 A coordinator owns timing and cross-contribution mechanics. The contributing feature owns the data it prepares.

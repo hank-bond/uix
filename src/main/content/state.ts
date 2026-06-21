@@ -1,8 +1,8 @@
 // UIX cockpit — canvas private state contribution.
 //
 // Canvas tools mutate the latest document store during a run. This contribution
-// snapshots the relevant canvases at UIX turn boundaries and returns pane refs
-// for the substrate-owned `uix.turn-state` entry.
+// snapshots the relevant canvases at UIX turn boundaries and returns resource
+// refs for the substrate-owned `uix.turn-state` entry.
 
 import type { StateRegistry, PreparedState } from "../state/registry";
 
@@ -15,7 +15,7 @@ export function registerCanvasState(
   agentChangedCanvasKeys: Set<string>,
 ): Disposable {
   return state.register({
-    id: "uix.canvas",
+    id: "canvas",
     prepareUserSubmitState: async () =>
       snapshotCanvasPanes(buffer, openCanvasKeys),
     prepareAgentEndState: async () => {
@@ -37,15 +37,15 @@ async function snapshotCanvasPanes(
   const versions = await buffer.snapshotCurrent(canvasKeys);
   if (versions.size === 0) return undefined;
   return {
-    panes: Object.fromEntries(
+    state: Object.fromEntries(
       [...versions].map(([canvasKey, version]) => [
-        canvasPaneId(canvasKey),
+        canvasResourceId(canvasKey),
         version.id,
       ]),
     ),
   };
 }
 
-function canvasPaneId(canvasKey: string): string {
-  return `canvas/${canvasKey}`;
+function canvasResourceId(canvasKey: string): string {
+  return `doc://canvas/${canvasKey}`;
 }

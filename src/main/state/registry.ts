@@ -17,7 +17,7 @@ export interface StatePreparationContext {
 }
 
 export interface PreparedState {
-  panes?: Record<string, unknown>;
+  state: unknown;
 }
 
 export interface StateContribution {
@@ -104,33 +104,17 @@ async function appendPreparedTurnState(
     ) => StateContribution["prepareUserSubmitState"];
   },
 ): Promise<void> {
-  const panes: Record<string, unknown> = {};
+  const preparedState: Record<string, unknown> = {};
 
   for (const contribution of opts.contributions) {
     const prepare = opts.select(contribution);
     if (!prepare) continue;
 
     const prepared = await prepare({ cwd: opts.cwd });
-    mergePanes(panes, prepared?.panes, contribution.id);
+    if (!prepared) continue;
+    preparedState[contribution.id] = prepared.state;
   }
 
-  if (Object.keys(panes).length === 0) return;
-  pi.appendEntry(TurnStateEntryType, { panes, cwd: opts.cwd });
-}
-
-function mergePanes(
-  target: Record<string, unknown>,
-  panes: Record<string, unknown> | undefined,
-  contributionId: string,
-): void {
-  if (!panes) return;
-
-  for (const [paneId, value] of Object.entries(panes)) {
-    if (Object.hasOwn(target, paneId)) {
-      throw new Error(
-        `State contribution ${contributionId} prepared duplicate pane state: ${paneId}`,
-      );
-    }
-    target[paneId] = value;
-  }
+  if (Object.keys(preparedState).length === 0) return;
+  pi.appendEntry(TurnStateEntryType, { state: preparedState, cwd: opts.cwd });
 }
