@@ -18,11 +18,11 @@ Separately, UIX is becoming "a collection of concepts the way pi is" — panes, 
 UIX-core's agent surface is a **single in-process pi `ExtensionFactory`** (`(pi: ExtensionAPI) => void`), loaded with no file discovery and no sandbox via `DefaultResourceLoader({ extensionFactories: [...] })` — substrate-owned code holding the live handle. This is pi's extension system, **not** UIX's frontend extension path (`src/main/extensions/`, `@uix/api`). Its interior is a **composition root**: an ordered list of per-subsection **agent installers**, each `(pi) => void`, run in sequence.
 
 ```ts
-// each subsection exports an agent installer
-export function installCanvasAgent(pi: ExtensionAPI) {
-  pi.registerTool({ name: "uix_canvas_write" /* … */ });
-  pi.on("input" /* hook */);
-}
+// features contribute facet data; substrate installers own pi registration
+agentTools.register({
+  id: "canvas.anchor_write",
+  tool: { name: "canvas__anchor_write" /* … */ },
+});
 
 // the composition root — the one place order is decided
 const AGENT_INSTALLERS = [

@@ -16,7 +16,7 @@ export function createCanvasStateMessageContributions(
     {
       messageType: "uix.pane-visibility",
       description:
-        'JSON `{"canvases_open": [...]}` — the canvas keys currently open in the pane. Sent only when the set changes. Keys are not filesystem paths; read contents with uix_canvas_read when relevant.',
+        'JSON `{"canvases_open": [...]}` — the canvas keys currently open in the pane. Sent only when the set changes. Keys are not filesystem paths; read contents with canvas__anchor_read when relevant.',
       buffer: {
         kind: "update",
         schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),

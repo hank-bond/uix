@@ -131,7 +131,7 @@ export class CanvasDocumentBuffer {
     return this.#store.getVersion<DocumentVersionMeta>(docId, versionId);
   }
 
-  // Drives the per-turn context injection (see canvas/agent-installer.ts). Only
+  // Drives the per-turn context injection (see canvas/contributions/agent-tools.ts). Only
   // touched documents are in scope: the agent has no anchors for the rest and
   // reads them fresh when needed.
   async consumeChanges(): Promise<

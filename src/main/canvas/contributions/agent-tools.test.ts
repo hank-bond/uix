@@ -12,18 +12,24 @@ import {
   createStateMessages,
   createStateMessageAssembler,
   registerStateMessageContributions,
-} from "../agent/state-messages";
+} from "../../agent/state-messages";
+import {
+  createAgentToolInstaller,
+  createAgentToolRegistry,
+  registerAgentToolContributions,
+} from "../../agent/tools";
 import {
   createStateCoordinator,
   createStateRegistry,
   registerStateContributions,
-} from "../state/registry";
+} from "../../state/registry";
 
-import { createCanvasAgentInstaller } from "./agent-installer";
-import { createCanvasStateContributions } from "./contributions/state";
-import { createCanvasStateMessageContributions } from "./contributions/state-messages";
-import { CanvasDocumentBuffer } from "./document-buffer";
-import type { ContentStore, ContentVersion } from "./content-store";
+import { CanvasDocumentBuffer } from "../document-buffer";
+import type { ContentStore, ContentVersion } from "../content-store";
+
+import { createCanvasAgentToolContributions } from "./agent-tools";
+import { createCanvasStateContributions } from "./state";
+import { createCanvasStateMessageContributions } from "./state-messages";
 
 function memoryStore(): ContentStore {
   const map = new Map<string, string>();
@@ -62,13 +68,14 @@ type Handler = (
 
 type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
 
-// The canvas agent installer, canvas state-message contribution, and the
-// driver-installed state-message assembler wired against an in-memory store and
-// a fake pi handle.
+// The canvas agent tool/state/state-message contributions and the
+// driver-installed substrate installers wired against an in-memory store and a
+// fake pi handle.
 function setup() {
   const store = memoryStore();
   const state = createStateRegistry();
   const stateMessages = createStateMessages();
+  const agentTools = createAgentToolRegistry();
   const buffer = new CanvasDocumentBuffer(store);
   const agentChangedCanvasKeys = new Set<string>();
   const canvasState = registerStateContributions(
@@ -79,10 +86,13 @@ function setup() {
     stateMessages,
     createCanvasStateMessageContributions(buffer, ["main"]),
   );
-  const canvasInstaller = createCanvasAgentInstaller(
-    { onCanvasChanged: () => {} },
-    buffer,
-    agentChangedCanvasKeys,
+  const canvasAgentTools = registerAgentToolContributions(
+    agentTools,
+    createCanvasAgentToolContributions(
+      { onCanvasChanged: () => {} },
+      buffer,
+      agentChangedCanvasKeys,
+    ),
   );
 
   const tools = new Map<string, ToolDefinition>();
@@ -101,7 +111,7 @@ function setup() {
       if (event === "agent_end") agentEndHandlers.push(handler as VoidHandler);
     },
   } as unknown as ExtensionAPI;
-  void canvasInstaller(pi);
+  void createAgentToolInstaller(agentTools)(pi);
   void createStateCoordinator(state)(pi);
   void createStateMessageAssembler(stateMessages)(pi);
 
@@ -134,10 +144,11 @@ function setup() {
     },
     disposeCanvasState: () => canvasState[Symbol.dispose](),
     disposeCanvasStateMessages: () => canvasStateMessages[Symbol.dispose](),
+    disposeCanvasAgentTools: () => canvasAgentTools[Symbol.dispose](),
   };
 }
 
-describe("createCanvasAgentInstaller state messages", () => {
+describe("canvas agent tool contributions", () => {
   it("teaches both canvas tags in the system prompt vocabulary", async () => {
     const { turnBoundary } = setup();
     const result = await turnBoundary();
@@ -158,7 +169,7 @@ describe("createCanvasAgentInstaller state messages", () => {
 
     // Agent writes the canvas (so it has anchors), then the human edits through
     // the pane writeback path.
-    const write = tools.get("uix_canvas_write")!;
+    const write = tools.get("canvas__anchor_write")!;
     await write.execute(
       "t1",
       { key: "main", html: "<p>hello</p>" },
@@ -186,7 +197,7 @@ describe("createCanvasAgentInstaller state messages", () => {
     const { tools, entries, inputBoundary, turnBoundary, writebackCanvas } =
       setup();
 
-    const write = tools.get("uix_canvas_write")!;
+    const write = tools.get("canvas__anchor_write")!;
     await write.execute(
       "t1",
       { key: "main", html: "<p>hello</p>" },
@@ -227,7 +238,7 @@ describe("createCanvasAgentInstaller state messages", () => {
       },
     ]);
 
-    const write = tools.get("uix_canvas_write")!;
+    const write = tools.get("canvas__anchor_write")!;
     await write.execute(
       "t1",
       { key: "main", html: "<p>agent</p>" },

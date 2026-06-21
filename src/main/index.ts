@@ -29,13 +29,18 @@ import {
   registerStateMessageContributions,
 } from "./agent/state-messages";
 import {
+  createAgentToolInstaller,
+  createAgentToolRegistry,
+  registerAgentToolContributions,
+} from "./agent/tools";
+import {
   createStateRegistry,
   registerStateContributions,
 } from "./state/registry";
 import { registerCanvasProtocol } from "./canvas/protocol";
-import { createCanvasAgentInstaller } from "./canvas/agent-installer";
 import { CanvasDocumentBuffer } from "./canvas/document-buffer";
 import { createCanvasContentStore } from "./canvas/content-store";
+import { createCanvasAgentToolContributions } from "./canvas/contributions/agent-tools";
 import { createCanvasStateContributions } from "./canvas/contributions/state";
 import { createCanvasStateMessageContributions } from "./canvas/contributions/state-messages";
 import { loadExtensions } from "./extensions/loader";
@@ -176,6 +181,20 @@ void app.whenReady().then(async () => {
     ),
   );
 
+  // Agent tools are contributed as data; the substrate installer registers
+  // them into pi when the agent session opens.
+  const agentTools = createAgentToolRegistry();
+  appBag.add(
+    registerAgentToolContributions(
+      agentTools,
+      createCanvasAgentToolContributions(
+        { onCanvasChanged: sendCanvasChanged },
+        canvasBuffer,
+        agentChangedCanvasKeys,
+      ),
+    ),
+  );
+
   // The cockpit→agent state pathway; contributions register their messageType
   // against it and the driver flushes them while preparing each agent run.
   const stateMessages = createStateMessages();
@@ -191,15 +210,7 @@ void app.whenReady().then(async () => {
     workspace,
     state,
     stateMessages,
-    agentInstallers: [
-      // Open canvases are hardcoded to match the single pane (Canvas.tsx);
-      // swap for pane-reported keys when the pane host lands.
-      createCanvasAgentInstaller(
-        { onCanvasChanged: sendCanvasChanged },
-        canvasBuffer,
-        agentChangedCanvasKeys,
-      ),
-    ],
+    agentInstallers: [createAgentToolInstaller(agentTools)],
   });
   appBag.add(driver);
   // Eager, off the boot path: loads the session file so getHistory() resolves

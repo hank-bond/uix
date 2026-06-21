@@ -1,11 +1,11 @@
-// UIX cockpit — anchored canvas agent installer.
+// UIX cockpit — canvas agent tool contributions.
 //
 // The agent reads, clobbers, and range-edits canvases by key through these
 // tools, always in the anchored §-gutter wire format, and gets fresh anchors
 // back in every result so it never re-reads to learn current anchors. Content
 // is canonicalized at the core boundary and the local file store is hidden
-// behind the content-store seam (see ./content-store.ts and
-// ./document-buffer.ts).
+// behind the content-store seam (see ../content-store.ts and
+// ../document-buffer.ts).
 //
 // Every HTML document edited here is a canvas, so these tools are canvas-named;
 // the canvas document runtime lives underneath in CanvasDocumentBuffer and
@@ -15,12 +15,12 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
-import { assertCanvasKey, CanvasKeyDescription } from "../../shared/canvas";
-import type { AgentInstaller } from "../agent/installers";
-import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
+import { assertCanvasKey, CanvasKeyDescription } from "../../../shared/canvas";
+import type { AgentToolContribution } from "../../agent/tools";
+import { formatAnchoredText, parseAnchoredLine } from "../../anchors/wire";
 
-import { CanvasDocumentBuffer } from "./document-buffer";
-import { formatChangeHunks } from "./anchored-format";
+import { formatChangeHunks } from "../anchored-format";
+import { CanvasDocumentBuffer } from "../document-buffer";
 
 const keyDescription = `Canvas key (not a filesystem path): ${CanvasKeyDescription}, e.g. main or reports/security-review.`;
 
@@ -68,35 +68,37 @@ type ReadParams = Static<typeof readParams>;
 type WriteParams = Static<typeof writeParams>;
 type EditParams = Static<typeof editParams>;
 
-interface CanvasAgentInstallerOptions {
+interface CanvasAgentToolOptions {
   onCanvasChanged: (key: string) => void;
 }
 
-// The canvas subsection's agent installer: handed the live pi handle, it
-// registers content tools. Model-visible context rides state messages, not an
-// "input" transform — pi persists transformed text as the user's own entry,
-// so a transform would put cockpit context inside the human's message.
-export function createCanvasAgentInstaller(
-  opts: CanvasAgentInstallerOptions,
+export function createCanvasAgentToolContributions(
+  opts: CanvasAgentToolOptions,
   buffer: CanvasDocumentBuffer,
   agentChangedCanvasKeys: Set<string>,
-): AgentInstaller {
-  return (pi) => {
-    pi.registerTool(createReadTool(buffer));
-    pi.registerTool(createWriteTool(buffer, opts, agentChangedCanvasKeys));
-    pi.registerTool(createEditTool(buffer, opts, agentChangedCanvasKeys));
-  };
+): readonly AgentToolContribution[] {
+  return [
+    { id: "canvas.anchor_read", tool: createReadTool(buffer) },
+    {
+      id: "canvas.anchor_write",
+      tool: createWriteTool(buffer, opts, agentChangedCanvasKeys),
+    },
+    {
+      id: "canvas.anchor_edit",
+      tool: createEditTool(buffer, opts, agentChangedCanvasKeys),
+    },
+  ];
 }
 
 function createReadTool(
   buffer: CanvasDocumentBuffer,
 ): ToolDefinition<typeof readParams> {
   return {
-    name: "uix_canvas_read",
+    name: "canvas__anchor_read",
     label: "read canvas",
     description:
-      "Read a UIX canvas as anchored lines (`<anchor>§<text>`). Each line is addressable by its anchor in uix_canvas_edit. The key is not a filesystem path.",
-    promptSnippet: "Read a UIX canvas as anchored lines.",
+      "Read a canvas as anchored lines (`<anchor>§<text>`). Each line is addressable by its anchor in canvas__anchor_edit. The key is not a filesystem path.",
+    promptSnippet: "Read a canvas as anchored lines.",
     parameters: readParams,
     async execute(_toolCallId, params: ReadParams) {
       assertCanvasKey(params.key);
@@ -118,17 +120,17 @@ function createReadTool(
 
 function createWriteTool(
   buffer: CanvasDocumentBuffer,
-  opts: CanvasAgentInstallerOptions,
+  opts: CanvasAgentToolOptions,
   agentChangedCanvasKeys: Set<string>,
 ): ToolDefinition<typeof writeParams> {
   return {
-    name: "uix_canvas_write",
+    name: "canvas__anchor_write",
     label: "write canvas",
     description:
-      "Replace a UIX canvas with a full authored HTML body and get anchored lines back. Use this and uix_canvas_edit, not filesystem tools, for UIX canvases.",
-    promptSnippet: "Replace a UIX canvas with full authored HTML.",
+      "Replace a canvas with a full authored HTML body and get anchored lines back. Use this and canvas__anchor_edit, not filesystem tools, for canvases.",
+    promptSnippet: "Replace a canvas with full authored HTML.",
     promptGuidelines: [
-      "Use uix_canvas_write/uix_canvas_edit, not filesystem tools, when creating or updating UIX canvases.",
+      "Use canvas__anchor_write/canvas__anchor_edit, not filesystem tools, when creating or updating canvases.",
       "Write one block-level element per line so edits address fine-grained anchors.",
       "Canvas keys are lowercase slug segments separated by /, such as main or reports/security-review.",
     ],
@@ -149,15 +151,15 @@ function createWriteTool(
 
 function createEditTool(
   buffer: CanvasDocumentBuffer,
-  opts: CanvasAgentInstallerOptions,
+  opts: CanvasAgentToolOptions,
   agentChangedCanvasKeys: Set<string>,
 ): ToolDefinition<typeof editParams> {
   return {
-    name: "uix_canvas_edit",
+    name: "canvas__anchor_edit",
     label: "edit canvas",
     description:
-      "Replace an inclusive anchor range in a UIX canvas. Boundaries are full `<anchor>§<text>` lines from a previous result; the live lines must still match. Returns fresh anchors for the changed lines.",
-    promptSnippet: "Replace an anchor range in a UIX canvas.",
+      "Replace an inclusive anchor range in a canvas. Boundaries are full `<anchor>§<text>` lines from a previous result; the live lines must still match. Returns fresh anchors for the changed lines.",
+    promptSnippet: "Replace an anchor range in a canvas.",
     parameters: editParams,
     executionMode: "sequential",
     async execute(_toolCallId, params: EditParams) {

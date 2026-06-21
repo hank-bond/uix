@@ -60,8 +60,8 @@ describe("createTranscriptIdentity", () => {
     const message = {
       role: "assistant",
       content: [
-        { type: "toolCall", id: "call-1", name: "uix_canvas_edit" },
-        { type: "toolCall", id: "call-2", name: "uix_canvas_read" },
+        { type: "toolCall", id: "call-1", name: "canvas__anchor_edit" },
+        { type: "toolCall", id: "call-2", name: "canvas__anchor_read" },
       ],
     };
     const entryId = manager.appendMessage(message as never);
