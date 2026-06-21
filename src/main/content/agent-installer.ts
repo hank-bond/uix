@@ -11,15 +11,13 @@
 // and ContentStore (a later case-2 surface could store non-HTML state docs
 // there without HTML canonicalization).
 
-import type {
-  ExtensionAPI,
-  ToolDefinition,
-} from "@earendil-works/pi-coding-agent";
+import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
 import { assertCanvasKey, CanvasKeyDescription } from "../../shared/canvas";
 import type { AgentInstaller } from "../agent/installers";
 import type { StateMessageRegistry } from "../agent/state-messages";
+import type { StateRegistry } from "../state/registry";
 import type { AnchoredChange } from "../anchors/document";
 import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
 
@@ -27,6 +25,7 @@ import { createLogger } from "../log";
 
 import { DocumentBuffer } from "./buffer";
 import type { ContentStore } from "./content-store";
+import { registerCanvasState } from "./state";
 
 const keyDescription = `Canvas key (not a filesystem path): ${CanvasKeyDescription}, e.g. main or reports/security-review.`;
 
@@ -74,25 +73,24 @@ type ReadParams = Static<typeof readParams>;
 type WriteParams = Static<typeof writeParams>;
 type EditParams = Static<typeof editParams>;
 
-const TurnStateEntryType = "uix.turn-state";
-
 interface CanvasAgentInstallerOptions {
   onCanvasChanged: (key: string) => void;
 }
 
 // The canvas subsection's agent installer: handed the live pi handle, it
-// registers its content tools and declares its state messages. Turn context
-// rides state messages, not an "input" transform — pi persists transformed
-// text as the user's own entry, so a transform would put cockpit context
-// inside the human's message (see src/main/agent/state-messages.ts).
+// registers content tools. Model-visible context rides state messages, not an
+// "input" transform — pi persists transformed text as the user's own entry,
+// so a transform would put cockpit context inside the human's message.
 export function createCanvasAgentInstaller(
   opts: CanvasAgentInstallerOptions,
   store: ContentStore,
   openCanvasKeys: readonly string[],
   stateMessages: StateMessageRegistry,
+  state: StateRegistry,
 ): AgentInstaller {
   const buffer = new DocumentBuffer(store);
   const agentChangedCanvasKeys = new Set<string>();
+  registerCanvasState(state, buffer, openCanvasKeys, agentChangedCanvasKeys);
 
   // Update buffer: the open set is retained as current truth and re-announced
   // only when its materialized body differs from the last persisted report on
@@ -133,52 +131,7 @@ export function createCanvasAgentInstaller(
     pi.registerTool(createReadTool(buffer));
     pi.registerTool(createWriteTool(buffer, opts, agentChangedCanvasKeys));
     pi.registerTool(createEditTool(buffer, opts, agentChangedCanvasKeys));
-
-    // Submit-boundary snapshot pointer. This is the UIX-private sibling to the
-    // model-visible state message: the content store keeps immutable canvas
-    // versions, and the pi session tree records which versions were current at
-    // this branch point.
-    pi.on("input", async (_event, ctx) => {
-      await appendCanvasTurnState(pi, buffer, openCanvasKeys, ctx.cwd);
-    });
-
-    // Agent tools update mutable latest during the run; once the run settles,
-    // add one post-run pointer so the next human diff starts from the canvas
-    // state the agent already observed through its tool results.
-    pi.on("agent_end", async (_event, ctx) => {
-      if (agentChangedCanvasKeys.size === 0) return;
-      await appendCanvasTurnState(
-        pi,
-        buffer,
-        new Set([...openCanvasKeys, ...agentChangedCanvasKeys]),
-        ctx.cwd,
-      );
-      agentChangedCanvasKeys.clear();
-    });
   };
-}
-
-async function appendCanvasTurnState(
-  pi: ExtensionAPI,
-  buffer: DocumentBuffer,
-  canvasKeys: Iterable<string>,
-  cwd: string,
-): Promise<void> {
-  const versions = await buffer.snapshotCurrent(canvasKeys);
-  if (versions.size === 0) return;
-  pi.appendEntry(TurnStateEntryType, {
-    panes: Object.fromEntries(
-      [...versions].map(([canvasKey, version]) => [
-        canvasPaneId(canvasKey),
-        version.id,
-      ]),
-    ),
-    cwd,
-  });
-}
-
-function canvasPaneId(canvasKey: string): string {
-  return `canvas/${canvasKey}`;
 }
 
 function createReadTool(

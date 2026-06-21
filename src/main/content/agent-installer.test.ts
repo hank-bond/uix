@@ -12,6 +12,7 @@ import {
   createStateMessages,
   createStateMessageAssembler,
 } from "../agent/state-messages";
+import { createStateCoordinator, createStateRegistry } from "../state/registry";
 
 import { createCanvasAgentInstaller } from "./agent-installer";
 import type { ContentStore, ContentVersion } from "./content-store";
@@ -57,12 +58,14 @@ type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
 // against an in-memory store and a fake pi handle.
 function setup() {
   const store = memoryStore();
+  const state = createStateRegistry();
   const stateMessages = createStateMessages();
-  const canvasFacet = createCanvasAgentInstaller(
+  const canvasInstaller = createCanvasAgentInstaller(
     { onCanvasChanged: () => {} },
     store,
     ["main"],
     stateMessages,
+    state,
   );
 
   const tools = new Map<string, ToolDefinition>();
@@ -81,7 +84,8 @@ function setup() {
       if (event === "agent_end") agentEndHandlers.push(handler as VoidHandler);
     },
   } as unknown as ExtensionAPI;
-  void canvasFacet(pi);
+  void canvasInstaller(pi);
+  void createStateCoordinator(state)(pi);
   void createStateMessageAssembler(stateMessages)(pi);
 
   const turnBoundary = async () =>

@@ -33,6 +33,7 @@ import { join } from "node:path";
 
 import { disposable, DisposableBag, subscribe } from "../lifecycle";
 import { createLogger } from "../log";
+import { createStateCoordinator, type StateRegistry } from "../state/registry";
 
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { createTranscriptIdentity, type TranscriptIdentity } from "./identity";
@@ -75,6 +76,8 @@ export interface AgentDriverOptions {
   onEvent: (event: AgentEvent) => void;
   /** UIX-core agent installers composed into the in-process pi extension. */
   agentInstallers?: readonly AgentInstaller[];
+  /** Cockpit-private turn-state registry, installed by the driver. */
+  state?: StateRegistry;
   /** Cockpit→agent state-message registry, installed by the driver. */
   stateMessages?: StateMessages;
   /** State root (pins the session dir) + agent cwd. */
@@ -163,6 +166,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     // with the same cwd/agentDir createAgentSession would default to, so user
     // pi resources still discover and our factory holds the live ExtensionAPI.
     const agentInstallers = [...(opts.agentInstallers ?? [])];
+    if (opts.state) {
+      agentInstallers.push(createStateCoordinator(opts.state));
+    }
     if (opts.stateMessages) {
       agentInstallers.push(createStateMessageAssembler(opts.stateMessages));
     }

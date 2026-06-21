@@ -25,6 +25,7 @@ import { assertCanvasKey } from "../shared/canvas";
 
 import { createAgentDriver } from "./agent/driver";
 import { createStateMessages } from "./agent/state-messages";
+import { createStateRegistry } from "./state/registry";
 import { registerCanvasProtocol } from "./canvas/protocol";
 import { createCanvasAgentInstaller } from "./content/agent-installer";
 import { createCanvasContentStore } from "./content/content-store";
@@ -151,6 +152,9 @@ void app.whenReady().then(async () => {
   // together once the store gains it.
   const canvasStore = createCanvasContentStore(workspace.stateRoot);
 
+  // The cockpit-private state pathway records durable refs at turn boundaries.
+  const state = createStateRegistry();
+
   // The cockpit→agent state pathway; contributions register their messageType
   // against it and the driver flushes them while preparing each agent run.
   const stateMessages = createStateMessages();
@@ -158,6 +162,7 @@ void app.whenReady().then(async () => {
   const driver = createAgentDriver({
     onEvent: (event) => sendAgentEvent(mainWindow, event),
     workspace,
+    state,
     stateMessages,
     agentInstallers: [
       // Open canvases are hardcoded to match the single pane (Canvas.tsx);
@@ -167,6 +172,7 @@ void app.whenReady().then(async () => {
         canvasStore,
         ["main"],
         stateMessages,
+        state,
       ),
     ],
   });
