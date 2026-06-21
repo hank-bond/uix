@@ -1,4 +1,4 @@
-// UIX cockpit — anchored document channel (session state).
+// UIX cockpit — anchored document buffer (session state).
 //
 // Holds one AnchoredDocument per document id for the life of the agent session.
 // The anchor<->line map inside each document is regenerable from content and is
@@ -25,7 +25,7 @@ export interface DocumentVersionMeta {
   readonly anchors: AnchoredDocumentSnapshot;
 }
 
-export class DocumentChannel {
+export class DocumentBuffer {
   readonly #store: ContentStore;
   readonly #docs = new Map<string, AnchoredDocument>();
 

@@ -2,7 +2,7 @@
 //
 // A document is addressed by id behind getCurrent/commit; the backing store is
 // hidden so it can later become a versioned or remote store without touching the
-// channel above it. The only backing today is the local canvas files the
+// buffer above it. The only backing today is the local canvas files the
 // canvas:// protocol already serves.
 
 import { createHash } from "node:crypto";

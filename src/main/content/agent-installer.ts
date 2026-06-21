@@ -4,10 +4,10 @@
 // tools, always in the anchored §-gutter wire format, and gets fresh anchors
 // back in every result so it never re-reads to learn current anchors. Content
 // is canonicalized at the core boundary and the local file store is hidden
-// behind the content-store seam (see ./content-store.ts, ./channel.ts).
+// behind the content-store seam (see ./content-store.ts, ./buffer.ts).
 //
 // Every HTML document edited here is a canvas, so these tools are canvas-named;
-// the general document/content abstraction lives underneath in DocumentChannel
+// the general document/content abstraction lives underneath in DocumentBuffer
 // and ContentStore (a later case-2 surface could store non-HTML state docs
 // there without HTML canonicalization).
 
@@ -25,7 +25,7 @@ import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
 
 import { createLogger } from "../log";
 
-import { DocumentChannel } from "./channel";
+import { DocumentBuffer } from "./buffer";
 import type { ContentStore } from "./content-store";
 
 const keyDescription = `Canvas key (not a filesystem path): ${CanvasKeyDescription}, e.g. main or reports/security-review.`;
@@ -91,7 +91,7 @@ export function createCanvasAgentInstaller(
   openCanvasKeys: readonly string[],
   stateMessages: StateMessageRegistry,
 ): AgentInstaller {
-  const channel = new DocumentChannel(store);
+  const buffer = new DocumentBuffer(store);
   const agentChangedCanvasKeys = new Set<string>();
 
   // Update buffer: the open set is retained as current truth and re-announced
@@ -119,7 +119,7 @@ export function createCanvasAgentInstaller(
     description:
       "anchored hunks the human edited in open canvases since your last turn, grouped by `## <canvas key>`. The anchors shown are current.",
     materialize: async () => {
-      const changes = await channel.consumeChanges();
+      const changes = await buffer.consumeChanges();
       if (changes.size === 0) return undefined;
       const content = formatCanvasChanges(changes);
       // Human edits are conversation content (level policy: chat-visible is
@@ -130,16 +130,16 @@ export function createCanvasAgentInstaller(
   });
 
   return (pi) => {
-    pi.registerTool(createReadTool(channel));
-    pi.registerTool(createWriteTool(channel, opts, agentChangedCanvasKeys));
-    pi.registerTool(createEditTool(channel, opts, agentChangedCanvasKeys));
+    pi.registerTool(createReadTool(buffer));
+    pi.registerTool(createWriteTool(buffer, opts, agentChangedCanvasKeys));
+    pi.registerTool(createEditTool(buffer, opts, agentChangedCanvasKeys));
 
     // Submit-boundary snapshot pointer. This is the UIX-private sibling to the
     // model-visible state message: the content store keeps immutable canvas
     // versions, and the pi session tree records which versions were current at
     // this branch point.
     pi.on("input", async (_event, ctx) => {
-      await appendCanvasTurnState(pi, channel, openCanvasKeys, ctx.cwd);
+      await appendCanvasTurnState(pi, buffer, openCanvasKeys, ctx.cwd);
     });
 
     // Agent tools update mutable latest during the run; once the run settles,
@@ -149,7 +149,7 @@ export function createCanvasAgentInstaller(
       if (agentChangedCanvasKeys.size === 0) return;
       await appendCanvasTurnState(
         pi,
-        channel,
+        buffer,
         new Set([...openCanvasKeys, ...agentChangedCanvasKeys]),
         ctx.cwd,
       );
@@ -160,11 +160,11 @@ export function createCanvasAgentInstaller(
 
 async function appendCanvasTurnState(
   pi: ExtensionAPI,
-  channel: DocumentChannel,
+  buffer: DocumentBuffer,
   canvasKeys: Iterable<string>,
   cwd: string,
 ): Promise<void> {
-  const versions = await channel.snapshotCurrent(canvasKeys);
+  const versions = await buffer.snapshotCurrent(canvasKeys);
   if (versions.size === 0) return;
   pi.appendEntry(TurnStateEntryType, {
     panes: Object.fromEntries(
@@ -182,7 +182,7 @@ function canvasPaneId(canvasKey: string): string {
 }
 
 function createReadTool(
-  channel: DocumentChannel,
+  buffer: DocumentBuffer,
 ): ToolDefinition<typeof readParams> {
   return {
     name: "uix_canvas_read",
@@ -193,7 +193,7 @@ function createReadTool(
     parameters: readParams,
     async execute(_toolCallId, params: ReadParams) {
       assertCanvasKey(params.key);
-      const lines = await channel.read(params.key, params.start, params.end);
+      const lines = await buffer.read(params.key, params.start, params.end);
       return {
         content: [
           {
@@ -210,7 +210,7 @@ function createReadTool(
 }
 
 function createWriteTool(
-  channel: DocumentChannel,
+  buffer: DocumentBuffer,
   opts: CanvasAgentInstallerOptions,
   agentChangedCanvasKeys: Set<string>,
 ): ToolDefinition<typeof writeParams> {
@@ -229,7 +229,7 @@ function createWriteTool(
     executionMode: "sequential",
     async execute(_toolCallId, params: WriteParams) {
       assertCanvasKey(params.key);
-      const lines = await channel.write(params.key, params.html);
+      const lines = await buffer.write(params.key, params.html);
       agentChangedCanvasKeys.add(params.key);
       opts.onCanvasChanged(params.key);
       return {
@@ -241,7 +241,7 @@ function createWriteTool(
 }
 
 function createEditTool(
-  channel: DocumentChannel,
+  buffer: DocumentBuffer,
   opts: CanvasAgentInstallerOptions,
   agentChangedCanvasKeys: Set<string>,
 ): ToolDefinition<typeof editParams> {
@@ -255,7 +255,7 @@ function createEditTool(
     executionMode: "sequential",
     async execute(_toolCallId, params: EditParams) {
       assertCanvasKey(params.key);
-      const changes = await channel.edit(params.key, {
+      const changes = await buffer.edit(params.key, {
         start: parseAnchoredLine(params.start_line),
         end: parseAnchoredLine(params.end_line),
         replacement: params.replacement,

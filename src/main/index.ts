@@ -146,12 +146,12 @@ void app.whenReady().then(async () => {
     }),
   );
 
-  // One canvas store shared by the agent's channel and the human-writeback
+  // One canvas store shared by the agent's buffer and the human-writeback
   // handler, so both commit through the same seam — and pick up versioning
   // together once the store gains it.
   const canvasStore = createCanvasContentStore(workspace.stateRoot);
 
-  // The cockpit→agent state channel; contributions register their messageType
+  // The cockpit→agent state pathway; contributions register their messageType
   // against it and the driver flushes them while preparing each agent run.
   const stateMessages = createStateMessages();
 
