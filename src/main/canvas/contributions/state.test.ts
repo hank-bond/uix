@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { StateContribution, StateRegistry } from "../state/registry";
+import { CanvasDocumentBuffer } from "../document-buffer";
+import type { ContentStore, ContentVersion } from "../content-store";
 
-import { CanvasDocumentBuffer } from "./document-buffer";
-import type { ContentStore, ContentVersion } from "./content-store";
-import { registerCanvasState } from "./state";
+import { createCanvasStateContributions } from "./state";
 
 function memoryStore(initial: Record<string, string> = {}): ContentStore {
   const latest = new Map<string, string>(Object.entries(initial));
@@ -42,27 +41,18 @@ function captureCanvasState(opts: {
   openCanvasKeys?: readonly string[];
   agentChangedCanvasKeys?: Set<string>;
 }) {
-  let contribution: StateContribution | undefined;
-  const state: StateRegistry = {
-    register(next) {
-      contribution = next;
-      return { [Symbol.dispose]: () => {} };
-    },
-  };
-
   const agentChangedCanvasKeys = opts.agentChangedCanvasKeys ?? new Set();
-  registerCanvasState(
-    state,
+  const [contribution] = createCanvasStateContributions(
     new CanvasDocumentBuffer(opts.store ?? memoryStore()),
     opts.openCanvasKeys ?? [],
     agentChangedCanvasKeys,
   );
 
-  if (!contribution) throw new Error("Canvas state was not registered");
+  if (!contribution) throw new Error("Canvas state was not created");
   return { contribution, agentChangedCanvasKeys };
 }
 
-describe("registerCanvasState", () => {
+describe("createCanvasStateContributions", () => {
   it("registers the canvas state contribution id", () => {
     const { contribution } = captureCanvasState({});
 

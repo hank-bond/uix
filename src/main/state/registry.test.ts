@@ -5,7 +5,11 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 
-import { createStateCoordinator, createStateRegistry } from "./registry";
+import {
+  createStateCoordinator,
+  createStateRegistry,
+  registerStateContributions,
+} from "./registry";
 
 type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
 
@@ -57,6 +61,36 @@ describe("StateRegistry", () => {
     await fire("input");
 
     expect(entries).toEqual([]);
+  });
+
+  it("bulk-registers contributions and disposes them together", async () => {
+    const state = createStateRegistry();
+    const registrations = registerStateContributions(state, [
+      {
+        id: "canvas",
+        prepareUserSubmitState: () => ({ state: { main: "v1" } }),
+      },
+      {
+        id: "chat",
+        prepareUserSubmitState: () => ({ state: { selected: "c1" } }),
+      },
+    ]);
+    const { entries, fire } = setupCoordinator(state);
+
+    await fire("input");
+    expect(entries).toEqual([
+      {
+        customType: "uix.turn-state",
+        data: {
+          cwd: "/work",
+          state: { canvas: { main: "v1" }, chat: { selected: "c1" } },
+        },
+      },
+    ]);
+
+    registrations[Symbol.dispose]();
+    await fire("input");
+    expect(entries).toHaveLength(1);
   });
 
   it("aggregates user-submit state by contribution id", async () => {

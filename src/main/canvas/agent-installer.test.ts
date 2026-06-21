@@ -13,13 +13,17 @@ import {
   createStateMessageAssembler,
   registerStateMessageContributions,
 } from "../agent/state-messages";
-import { createStateCoordinator, createStateRegistry } from "../state/registry";
+import {
+  createStateCoordinator,
+  createStateRegistry,
+  registerStateContributions,
+} from "../state/registry";
 
 import { createCanvasAgentInstaller } from "./agent-installer";
+import { createCanvasStateContributions } from "./contributions/state";
 import { createCanvasStateMessageContributions } from "./contributions/state-messages";
 import { CanvasDocumentBuffer } from "./document-buffer";
 import type { ContentStore, ContentVersion } from "./content-store";
-import { registerCanvasState } from "./state";
 
 function memoryStore(): ContentStore {
   const map = new Map<string, string>();
@@ -67,11 +71,9 @@ function setup() {
   const stateMessages = createStateMessages();
   const buffer = new CanvasDocumentBuffer(store);
   const agentChangedCanvasKeys = new Set<string>();
-  const canvasState = registerCanvasState(
+  const canvasState = registerStateContributions(
     state,
-    buffer,
-    ["main"],
-    agentChangedCanvasKeys,
+    createCanvasStateContributions(buffer, ["main"], agentChangedCanvasKeys),
   );
   const canvasStateMessages = registerStateMessageContributions(
     stateMessages,

@@ -6,6 +6,7 @@
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
+import { DisposableBag } from "../lifecycle";
 import type { AgentInstaller } from "../agent/installers";
 
 const TurnStateEntryType = "uix.turn-state";
@@ -57,6 +58,17 @@ class RegisteredStateContributions implements StateRegistry {
 
 export function createStateRegistry(): StateRegistry {
   return new RegisteredStateContributions();
+}
+
+export function registerStateContributions(
+  registry: StateRegistry,
+  contributions: readonly StateContribution[],
+): Disposable {
+  const bag = new DisposableBag();
+  for (const contribution of contributions) {
+    bag.add(registry.register(contribution));
+  }
+  return bag;
 }
 
 export function createStateCoordinator(state: StateRegistry): AgentInstaller {

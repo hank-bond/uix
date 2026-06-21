@@ -28,12 +28,15 @@ import {
   createStateMessages,
   registerStateMessageContributions,
 } from "./agent/state-messages";
-import { createStateRegistry } from "./state/registry";
+import {
+  createStateRegistry,
+  registerStateContributions,
+} from "./state/registry";
 import { registerCanvasProtocol } from "./canvas/protocol";
 import { createCanvasAgentInstaller } from "./canvas/agent-installer";
 import { CanvasDocumentBuffer } from "./canvas/document-buffer";
 import { createCanvasContentStore } from "./canvas/content-store";
-import { registerCanvasState } from "./canvas/state";
+import { createCanvasStateContributions } from "./canvas/contributions/state";
 import { createCanvasStateMessageContributions } from "./canvas/contributions/state-messages";
 import { loadExtensions } from "./extensions/loader";
 import { defaultRoots } from "./extensions/roots";
@@ -163,7 +166,14 @@ void app.whenReady().then(async () => {
   // The cockpit-private state pathway records durable refs at turn boundaries.
   const state = createStateRegistry();
   appBag.add(
-    registerCanvasState(state, canvasBuffer, ["main"], agentChangedCanvasKeys),
+    registerStateContributions(
+      state,
+      createCanvasStateContributions(
+        canvasBuffer,
+        ["main"],
+        agentChangedCanvasKeys,
+      ),
+    ),
   );
 
   // The cockpit→agent state pathway; contributions register their messageType
