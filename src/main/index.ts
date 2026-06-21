@@ -28,7 +28,9 @@ import { createStateMessages } from "./agent/state-messages";
 import { createStateRegistry } from "./state/registry";
 import { registerCanvasProtocol } from "./canvas/protocol";
 import { createCanvasAgentInstaller } from "./content/agent-installer";
+import { DocumentBuffer } from "./content/buffer";
 import { createCanvasContentStore } from "./content/content-store";
+import { registerCanvasState } from "./content/state";
 import { loadExtensions } from "./extensions/loader";
 import { defaultRoots } from "./extensions/roots";
 import { resolveWorkspace } from "./workspace";
@@ -151,9 +153,14 @@ void app.whenReady().then(async () => {
   // handler, so both commit through the same seam — and pick up versioning
   // together once the store gains it.
   const canvasStore = createCanvasContentStore(workspace.stateRoot);
+  const canvasBuffer = new DocumentBuffer(canvasStore);
+  const agentChangedCanvasKeys = new Set<string>();
 
   // The cockpit-private state pathway records durable refs at turn boundaries.
   const state = createStateRegistry();
+  appBag.add(
+    registerCanvasState(state, canvasBuffer, ["main"], agentChangedCanvasKeys),
+  );
 
   // The cockpit→agent state pathway; contributions register their messageType
   // against it and the driver flushes them while preparing each agent run.
@@ -169,10 +176,10 @@ void app.whenReady().then(async () => {
       // swap for pane-reported keys when the pane host lands.
       createCanvasAgentInstaller(
         { onCanvasChanged: sendCanvasChanged },
-        canvasStore,
+        canvasBuffer,
+        agentChangedCanvasKeys,
         ["main"],
         stateMessages,
-        state,
       ),
     ],
   });

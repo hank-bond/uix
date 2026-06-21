@@ -15,7 +15,9 @@ import {
 import { createStateCoordinator, createStateRegistry } from "../state/registry";
 
 import { createCanvasAgentInstaller } from "./agent-installer";
+import { DocumentBuffer } from "./buffer";
 import type { ContentStore, ContentVersion } from "./content-store";
+import { registerCanvasState } from "./state";
 
 function memoryStore(): ContentStore {
   const map = new Map<string, string>();
@@ -60,12 +62,20 @@ function setup() {
   const store = memoryStore();
   const state = createStateRegistry();
   const stateMessages = createStateMessages();
+  const buffer = new DocumentBuffer(store);
+  const agentChangedCanvasKeys = new Set<string>();
+  const canvasState = registerCanvasState(
+    state,
+    buffer,
+    ["main"],
+    agentChangedCanvasKeys,
+  );
   const canvasInstaller = createCanvasAgentInstaller(
     { onCanvasChanged: () => {} },
-    store,
+    buffer,
+    agentChangedCanvasKeys,
     ["main"],
     stateMessages,
-    state,
   );
 
   const tools = new Map<string, ToolDefinition>();
@@ -114,6 +124,7 @@ function setup() {
     agentEnd: async () => {
       await agentEndHandlers[0]({}, ctx as unknown as ExtensionContext);
     },
+    disposeCanvasState: () => canvasState[Symbol.dispose](),
   };
 }
 

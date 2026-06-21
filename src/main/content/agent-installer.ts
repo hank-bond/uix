@@ -17,15 +17,12 @@ import { type Static, Type } from "typebox";
 import { assertCanvasKey, CanvasKeyDescription } from "../../shared/canvas";
 import type { AgentInstaller } from "../agent/installers";
 import type { StateMessageRegistry } from "../agent/state-messages";
-import type { StateRegistry } from "../state/registry";
 import type { AnchoredChange } from "../anchors/document";
 import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
 
 import { createLogger } from "../log";
 
 import { DocumentBuffer } from "./buffer";
-import type { ContentStore } from "./content-store";
-import { registerCanvasState } from "./state";
 
 const keyDescription = `Canvas key (not a filesystem path): ${CanvasKeyDescription}, e.g. main or reports/security-review.`;
 
@@ -83,15 +80,11 @@ interface CanvasAgentInstallerOptions {
 // so a transform would put cockpit context inside the human's message.
 export function createCanvasAgentInstaller(
   opts: CanvasAgentInstallerOptions,
-  store: ContentStore,
+  buffer: DocumentBuffer,
+  agentChangedCanvasKeys: Set<string>,
   openCanvasKeys: readonly string[],
   stateMessages: StateMessageRegistry,
-  state: StateRegistry,
 ): AgentInstaller {
-  const buffer = new DocumentBuffer(store);
-  const agentChangedCanvasKeys = new Set<string>();
-  registerCanvasState(state, buffer, openCanvasKeys, agentChangedCanvasKeys);
-
   // Update buffer: the open set is retained as current truth and re-announced
   // only when its materialized body differs from the last persisted report on
   // the branch. Today the keys are fixed at startup, so this one update is the
