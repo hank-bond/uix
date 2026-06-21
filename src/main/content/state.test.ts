@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { StateContribution, StateRegistry } from "../state/registry";
 
-import { DocumentBuffer } from "./buffer";
+import { CanvasDocumentBuffer } from "./canvas-document-buffer";
 import type { ContentStore, ContentVersion } from "./content-store";
 import { registerCanvasState } from "./state";
 
@@ -12,7 +12,7 @@ function memoryStore(initial: Record<string, string> = {}): ContentStore {
 
   return {
     getCurrent: (docId) => Promise.resolve(latest.get(docId) ?? null),
-    commit: (docId, content) => {
+    setCurrent: (docId, content) => {
       latest.set(docId, content);
       return Promise.resolve();
     },
@@ -53,7 +53,7 @@ function captureCanvasState(opts: {
   const agentChangedCanvasKeys = opts.agentChangedCanvasKeys ?? new Set();
   registerCanvasState(
     state,
-    new DocumentBuffer(opts.store ?? memoryStore()),
+    new CanvasDocumentBuffer(opts.store ?? memoryStore()),
     opts.openCanvasKeys ?? [],
     agentChangedCanvasKeys,
   );

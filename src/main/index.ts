@@ -28,7 +28,7 @@ import { createStateMessages } from "./agent/state-messages";
 import { createStateRegistry } from "./state/registry";
 import { registerCanvasProtocol } from "./canvas/protocol";
 import { createCanvasAgentInstaller } from "./content/agent-installer";
-import { DocumentBuffer } from "./content/buffer";
+import { CanvasDocumentBuffer } from "./content/canvas-document-buffer";
 import { createCanvasContentStore } from "./content/content-store";
 import { registerCanvasState } from "./content/state";
 import { loadExtensions } from "./extensions/loader";
@@ -150,10 +150,10 @@ void app.whenReady().then(async () => {
   );
 
   // One canvas store shared by the agent's buffer and the human-writeback
-  // handler, so both commit through the same seam — and pick up versioning
-  // together once the store gains it.
+  // handler, so both update current content through the same seam — and pick up
+  // versioning together once the store gains it.
   const canvasStore = createCanvasContentStore(workspace.stateRoot);
-  const canvasBuffer = new DocumentBuffer(canvasStore);
+  const canvasBuffer = new CanvasDocumentBuffer(canvasStore);
   const agentChangedCanvasKeys = new Set<string>();
 
   // The cockpit-private state pathway records durable refs at turn boundaries.
@@ -226,8 +226,8 @@ void app.whenReady().then(async () => {
         "canvas_writeback",
       );
       // No broadcast: the pane already shows the human's edit, and the channel
-      // pulls from the store on its next turn.
-      await canvasStore.commit(req.key, req.html);
+      // pulls from the canvas document buffer on its next turn.
+      await canvasBuffer.writeback(req.key, req.html);
     }),
   );
 

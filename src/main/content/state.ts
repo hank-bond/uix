@@ -6,11 +6,11 @@
 
 import type { StateRegistry, PreparedState } from "../state/registry";
 
-import { DocumentBuffer } from "./buffer";
+import { CanvasDocumentBuffer } from "./canvas-document-buffer";
 
 export function registerCanvasState(
   state: StateRegistry,
-  buffer: DocumentBuffer,
+  buffer: CanvasDocumentBuffer,
   openCanvasKeys: readonly string[],
   agentChangedCanvasKeys: Set<string>,
 ): Disposable {
@@ -31,7 +31,7 @@ export function registerCanvasState(
 }
 
 async function snapshotCanvasPanes(
-  buffer: DocumentBuffer,
+  buffer: CanvasDocumentBuffer,
   canvasKeys: Iterable<string>,
 ): Promise<PreparedState | undefined> {
   const versions = await buffer.snapshotCurrent(canvasKeys);

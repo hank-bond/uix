@@ -1,6 +1,6 @@
-// UIX cockpit — anchored document buffer (session state).
+// UIX cockpit — canvas document buffer (session state).
 //
-// Holds one AnchoredDocument per document id for the life of the agent session.
+// Holds one AnchoredDocument per canvas document id for the life of the agent session.
 // The anchor<->line map inside each document is regenerable from content and is
 // never persisted (so the filesystem stays non-load-bearing): a document is
 // (re)built by canonicalizing the store's current content the first time the
@@ -25,9 +25,10 @@ export interface DocumentVersionMeta {
   readonly anchors: AnchoredDocumentSnapshot;
 }
 
-export class DocumentBuffer {
+export class CanvasDocumentBuffer {
   readonly #store: ContentStore;
   readonly #docs = new Map<string, AnchoredDocument>();
+  readonly #pendingChanges = new Map<string, readonly AnchoredChange[]>();
 
   constructor(store: ContentStore) {
     this.#store = store;
@@ -50,12 +51,28 @@ export class DocumentBuffer {
   async write(docId: string, html: string): Promise<readonly AnchoredLine[]> {
     const doc = await this.#load(docId);
     const lines = doc.write(canonicalizeHtml(html));
-    await this.#store.commit(docId, plainText(lines));
+    await this.#store.setCurrent(docId, plainText(lines));
     return lines;
   }
 
+  // Apply a pane-originated whole-document writeback. If the agent has an
+  // active anchor projection for this document, reconcile instead of clobbering
+  // so the next canvas-diff can report stable anchored hunks.
+  async writeback(docId: string, html: string): Promise<void> {
+    const canonical = canonicalizeHtml(html);
+    const doc = this.#docs.get(docId);
+    if (!doc) {
+      await this.#store.setCurrent(docId, canonical);
+      return;
+    }
+
+    const changes = doc.reconcile(canonical);
+    if (changes.length) this.#appendPendingChanges(docId, changes);
+    await this.#store.setCurrent(docId, plainText(doc.read()));
+  }
+
   // Syncs to the store first: an edit computed against a stale cache would
-  // re-commit the agent's whole view and silently revert a concurrent human edit
+  // re-save the agent's whole view and silently revert a concurrent human edit
   // to an untouched line. If the human touched the line being edited, the
   // boundary match-guard rejects it.
   //
@@ -79,7 +96,7 @@ export class DocumentBuffer {
       ...currentLines.slice(endIndex + 1).map((line) => line.text),
     ].join("\n");
     const changes = doc.reconcile(canonicalizeHtml(nextText));
-    await this.#store.commit(docId, plainText(doc.read()));
+    await this.#store.setCurrent(docId, plainText(doc.read()));
     return changes;
   }
 
@@ -96,7 +113,7 @@ export class DocumentBuffer {
       // Make the mutable latest byte-match the anchor state we are about to
       // store. This canonicalizes cosmetic iframe/file rewrites at the durable
       // boundary instead of snapshotting content/meta that disagree.
-      await this.#store.commit(docId, plainText(doc.read()));
+      await this.#store.setCurrent(docId, plainText(doc.read()));
       result.set(
         docId,
         await this.#store.snapshotCurrent<DocumentVersionMeta>(docId, {
@@ -122,13 +139,25 @@ export class DocumentBuffer {
   > {
     const result = new Map<string, readonly AnchoredChange[]>();
     for (const docId of this.#docs.keys()) {
-      const changes = await this.#sync(docId);
+      const pending = this.#pendingChanges.get(docId) ?? [];
+      const changes = [...pending, ...(await this.#sync(docId))];
+      this.#pendingChanges.delete(docId);
       if (changes.length) result.set(docId, changes);
     }
     return result;
   }
 
-  // No commit — the content came *from* the store. Returns [] when already in
+  #appendPendingChanges(
+    docId: string,
+    changes: readonly AnchoredChange[],
+  ): void {
+    this.#pendingChanges.set(docId, [
+      ...(this.#pendingChanges.get(docId) ?? []),
+      ...changes,
+    ]);
+  }
+
+  // No setCurrent — the content came *from* the store. Returns [] when already in
   // sync, so it is cheap to call on every read/edit. Canonicalizing before the
   // compare keeps a human's non-canonical HTML from registering as a spurious
   // diff.

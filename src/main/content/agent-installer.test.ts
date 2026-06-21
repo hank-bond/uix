@@ -15,7 +15,7 @@ import {
 import { createStateCoordinator, createStateRegistry } from "../state/registry";
 
 import { createCanvasAgentInstaller } from "./agent-installer";
-import { DocumentBuffer } from "./buffer";
+import { CanvasDocumentBuffer } from "./canvas-document-buffer";
 import type { ContentStore, ContentVersion } from "./content-store";
 import { registerCanvasState } from "./state";
 
@@ -24,7 +24,7 @@ function memoryStore(): ContentStore {
   const versions = new Map<string, ContentVersion>();
   return {
     getCurrent: (docId) => Promise.resolve(map.get(docId) ?? null),
-    commit: (docId, content) => {
+    setCurrent: (docId, content) => {
       map.set(docId, content);
       return Promise.resolve();
     },
@@ -62,7 +62,7 @@ function setup() {
   const store = memoryStore();
   const state = createStateRegistry();
   const stateMessages = createStateMessages();
-  const buffer = new DocumentBuffer(store);
+  const buffer = new CanvasDocumentBuffer(store);
   const agentChangedCanvasKeys = new Set<string>();
   const canvasState = registerCanvasState(
     state,
@@ -118,6 +118,7 @@ function setup() {
     tools,
     turnBoundary,
     entries,
+    writebackCanvas: (key: string, html: string) => buffer.writeback(key, html),
     inputBoundary: async () => {
       await inputHandlers[0]({}, ctx as unknown as ExtensionContext);
     },
@@ -145,7 +146,7 @@ describe("createCanvasAgentInstaller state messages", () => {
   });
 
   it("surfaces human store edits as a canvas-diff section, consumed once", async () => {
-    const { store, tools, turnBoundary } = setup();
+    const { tools, turnBoundary, writebackCanvas } = setup();
 
     // Agent writes the canvas (so it has anchors), then the human edits the
     // store behind it — the writeback path.
@@ -157,7 +158,7 @@ describe("createCanvasAgentInstaller state messages", () => {
       undefined,
       {} as never,
     );
-    await store.commit("main", "<p>goodbye</p>");
+    await writebackCanvas("main", "<p>goodbye</p>");
 
     const first = (await turnBoundary()).message!.content as string;
     expect(first).toContain("<canvas-diff>");

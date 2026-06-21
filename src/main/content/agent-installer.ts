@@ -4,12 +4,13 @@
 // tools, always in the anchored §-gutter wire format, and gets fresh anchors
 // back in every result so it never re-reads to learn current anchors. Content
 // is canonicalized at the core boundary and the local file store is hidden
-// behind the content-store seam (see ./content-store.ts, ./buffer.ts).
+// behind the content-store seam (see ./content-store.ts and
+// ./canvas-document-buffer.ts).
 //
 // Every HTML document edited here is a canvas, so these tools are canvas-named;
-// the general document/content abstraction lives underneath in DocumentBuffer
-// and ContentStore (a later case-2 surface could store non-HTML state docs
-// there without HTML canonicalization).
+// the canvas document runtime lives underneath in CanvasDocumentBuffer and
+// ContentStore (a later case-2 surface could store non-HTML state docs there
+// with its own purpose-specific buffer).
 
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
@@ -22,7 +23,7 @@ import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
 
 import { createLogger } from "../log";
 
-import { DocumentBuffer } from "./buffer";
+import { CanvasDocumentBuffer } from "./canvas-document-buffer";
 
 const keyDescription = `Canvas key (not a filesystem path): ${CanvasKeyDescription}, e.g. main or reports/security-review.`;
 
@@ -80,7 +81,7 @@ interface CanvasAgentInstallerOptions {
 // so a transform would put cockpit context inside the human's message.
 export function createCanvasAgentInstaller(
   opts: CanvasAgentInstallerOptions,
-  buffer: DocumentBuffer,
+  buffer: CanvasDocumentBuffer,
   agentChangedCanvasKeys: Set<string>,
   openCanvasKeys: readonly string[],
   stateMessages: StateMessageRegistry,
@@ -128,7 +129,7 @@ export function createCanvasAgentInstaller(
 }
 
 function createReadTool(
-  buffer: DocumentBuffer,
+  buffer: CanvasDocumentBuffer,
 ): ToolDefinition<typeof readParams> {
   return {
     name: "uix_canvas_read",
@@ -156,7 +157,7 @@ function createReadTool(
 }
 
 function createWriteTool(
-  buffer: DocumentBuffer,
+  buffer: CanvasDocumentBuffer,
   opts: CanvasAgentInstallerOptions,
   agentChangedCanvasKeys: Set<string>,
 ): ToolDefinition<typeof writeParams> {
@@ -187,7 +188,7 @@ function createWriteTool(
 }
 
 function createEditTool(
-  buffer: DocumentBuffer,
+  buffer: CanvasDocumentBuffer,
   opts: CanvasAgentInstallerOptions,
   agentChangedCanvasKeys: Set<string>,
 ): ToolDefinition<typeof editParams> {

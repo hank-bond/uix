@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { AnchoredDocument } from "../anchors/document";
 
-import { DocumentBuffer } from "./buffer";
+import { CanvasDocumentBuffer } from "./canvas-document-buffer";
 import type { ContentStore, ContentVersion } from "./content-store";
 
 // In-memory store standing in for the file-backed one, plus a dump() peek so
-// tests can assert what was committed.
+// tests can assert current content.
 function memoryStore(
   initial: Record<string, string> = {},
 ): ContentStore & { dump(docId: string): string | null } {
@@ -16,7 +16,7 @@ function memoryStore(
     getCurrent(docId) {
       return Promise.resolve(map.get(docId) ?? null);
     },
-    commit(docId, content) {
+    setCurrent(docId, content) {
       map.set(docId, content);
       return Promise.resolve();
     },
@@ -44,22 +44,22 @@ function memoryStore(
   };
 }
 
-describe("DocumentBuffer", () => {
+describe("CanvasDocumentBuffer", () => {
   it("writes canonical content and returns anchored lines", async () => {
     const store = memoryStore();
-    const buffer = new DocumentBuffer(store);
+    const buffer = new CanvasDocumentBuffer(store);
 
     const lines = await buffer.write("main", "<body>\n<P>hi</P>\n</body>");
 
     expect(lines.some((line) => line.text === "<p>hi</p>")).toBe(true);
     expect(lines.every((line) => line.anchor.length > 0)).toBe(true);
-    // Committed content is plain canonical HTML — no anchors leak to the store.
+    // Current content is plain canonical HTML — no anchors leak to the store.
     expect(store.dump("main")).toContain("<p>hi</p>");
     expect(store.dump("main")).not.toContain("§");
   });
 
   it("reads back exactly what it wrote", async () => {
-    const buffer = new DocumentBuffer(memoryStore());
+    const buffer = new CanvasDocumentBuffer(memoryStore());
 
     const written = await buffer.write(
       "main",
@@ -72,7 +72,7 @@ describe("DocumentBuffer", () => {
 
   it("edits only the target range and preserves untouched anchors", async () => {
     const store = memoryStore();
-    const buffer = new DocumentBuffer(store);
+    const buffer = new CanvasDocumentBuffer(store);
     const lines = await buffer.write(
       "main",
       "<body>\n<p>a</p>\n<p>b</p>\n</body>",
@@ -97,7 +97,7 @@ describe("DocumentBuffer", () => {
 
   it("keeps a retained closing tag when the edit replacement is only valid in document context", async () => {
     const store = memoryStore();
-    const buffer = new DocumentBuffer(store);
+    const buffer = new CanvasDocumentBuffer(store);
     const lines = await buffer.write(
       "main",
       [
@@ -132,7 +132,7 @@ describe("DocumentBuffer", () => {
   });
 
   it("rejects an edit whose boundary no longer matches", async () => {
-    const buffer = new DocumentBuffer(memoryStore());
+    const buffer = new CanvasDocumentBuffer(memoryStore());
     const lines = await buffer.write("main", "<body>\n<p>a</p>\n</body>");
     const target = lines.find((line) => line.text === "<p>a</p>")!;
 
@@ -146,7 +146,7 @@ describe("DocumentBuffer", () => {
   });
 
   it("loads existing store content canonically on first touch", async () => {
-    const buffer = new DocumentBuffer(
+    const buffer = new CanvasDocumentBuffer(
       memoryStore({ main: "<body><DIV>x</DIV></body>" }),
     );
 
@@ -155,17 +155,16 @@ describe("DocumentBuffer", () => {
     expect(read.some((line) => line.text.includes("<div>x</div>"))).toBe(true);
   });
 
-  it("reports an out-of-band (human) edit as changes, preserving untouched anchors", async () => {
+  it("reports a pane writeback as changes, preserving untouched anchors", async () => {
     const store = memoryStore();
-    const buffer = new DocumentBuffer(store);
+    const buffer = new CanvasDocumentBuffer(store);
     const lines = await buffer.write(
       "main",
       "<body>\n<p>a</p>\n<p>b</p>\n<p>c</p>\n</body>",
     );
     const aAnchor = lines.find((l) => l.text === "<p>a</p>")!.anchor;
 
-    // A human edits line b directly in the store (raw HTML, same whitespace).
-    await store.commit(
+    await buffer.writeback(
       "main",
       store.dump("main")!.replace("<p>b</p>", "<p>B</p>"),
     );
@@ -185,9 +184,9 @@ describe("DocumentBuffer", () => {
 
   it("consumeChanges is idempotent once synced", async () => {
     const store = memoryStore();
-    const buffer = new DocumentBuffer(store);
+    const buffer = new CanvasDocumentBuffer(store);
     await buffer.write("main", "<body>\n<p>a</p>\n</body>");
-    await store.commit(
+    await store.setCurrent(
       "main",
       store.dump("main")!.replace("<p>a</p>", "<p>A</p>"),
     );
@@ -198,7 +197,7 @@ describe("DocumentBuffer", () => {
 
   it("an agent edit does not clobber a concurrent human edit to another line", async () => {
     const store = memoryStore();
-    const buffer = new DocumentBuffer(store);
+    const buffer = new CanvasDocumentBuffer(store);
     const lines = await buffer.write(
       "main",
       "<body>\n<p>a</p>\n<p>b</p>\n<p>c</p>\n</body>",
@@ -206,25 +205,25 @@ describe("DocumentBuffer", () => {
     const a = lines.find((l) => l.text === "<p>a</p>")!;
 
     // Human changes c out of band; agent then edits a against its stale view.
-    await store.commit(
+    await store.setCurrent(
       "main",
       store.dump("main")!.replace("<p>c</p>", "<p>C</p>"),
     );
     await buffer.edit("main", { start: a, end: a, replacement: "<p>A</p>" });
 
-    const committed = store.dump("main")!;
-    expect(committed).toContain("<p>A</p>"); // agent's edit applied
-    expect(committed).toContain("<p>C</p>"); // human's edit survived
-    expect(committed).not.toContain("<p>c</p>");
+    const current = store.dump("main")!;
+    expect(current).toContain("<p>A</p>"); // agent's edit applied
+    expect(current).toContain("<p>C</p>"); // human's edit survived
+    expect(current).not.toContain("<p>c</p>");
   });
 
   it("ignores a purely cosmetic out-of-band rewrite", async () => {
     const store = memoryStore();
-    const buffer = new DocumentBuffer(store);
+    const buffer = new CanvasDocumentBuffer(store);
     await buffer.write("main", "<body>\n<p>x</p>\n</body>");
 
     // Same content, non-canonical casing — canonicalization absorbs it.
-    await store.commit(
+    await store.setCurrent(
       "main",
       store.dump("main")!.replace("<p>x</p>", "<P>x</P>"),
     );
@@ -234,7 +233,7 @@ describe("DocumentBuffer", () => {
 
   it("snapshots current content with restorable anchor state", async () => {
     const store = memoryStore();
-    const buffer = new DocumentBuffer(store);
+    const buffer = new CanvasDocumentBuffer(store);
     const lines = await buffer.write("main", "<body>\n<p>a</p>\n</body>");
 
     const snapshots = await buffer.snapshotCurrent(["main"]);

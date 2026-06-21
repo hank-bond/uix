@@ -1,9 +1,9 @@
-// UIX cockpit — content-store seam for anchored documents.
+// UIX cockpit — content-store seam for canvas documents.
 //
-// A document is addressed by id behind getCurrent/commit; the backing store is
-// hidden so it can later become a versioned or remote store without touching the
-// buffer above it. The only backing today is the local canvas files the
-// canvas:// protocol already serves.
+// A document is addressed by id behind getCurrent/setCurrent; the backing store
+// is hidden so it can later become a versioned or remote store without touching
+// the canvas document buffer above it. The only backing today is the local
+// canvas files the canvas:// protocol already serves.
 
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -25,7 +25,7 @@ export interface ContentStore {
   // Current plain content for a document, or null if it does not exist yet.
   getCurrent(docId: string): Promise<string | null>;
   // Replace the current mutable latest content.
-  commit(docId: string, content: string): Promise<void>;
+  setCurrent(docId: string, content: string): Promise<void>;
   // Persist the current content plus caller-owned metadata as an immutable version.
   snapshotCurrent<TMeta>(
     docId: string,
@@ -39,9 +39,8 @@ export interface ContentStore {
 }
 
 // Mutable-latest plus immutable snapshots over the local canvas files the
-// canvas:// protocol reads. A docId is a canvas key here, so commits land
-// exactly where the protocol serves from and the pane reflects committed
-// content. Snapshots live beside the latest files under .uix; this simple JSON
+// canvas:// protocol reads. A docId is a canvas key here, so current writes land
+// exactly where the protocol serves from and the pane reflects current content. Snapshots live beside the latest files under .uix; this simple JSON
 // object store is the C2 seam that a git-backed store can replace later.
 export function createCanvasContentStore(stateRoot: string): ContentStore {
   return {
@@ -49,7 +48,7 @@ export function createCanvasContentStore(stateRoot: string): ContentStore {
       assertCanvasKey(docId);
       return readCanvas(stateRoot, docId);
     },
-    async commit(docId, content) {
+    async setCurrent(docId, content) {
       assertCanvasKey(docId);
       await writeCanvas(stateRoot, docId, content);
     },
