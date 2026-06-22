@@ -3,6 +3,7 @@ import type { FeatureContributions } from "../../features/contributions";
 import { CanvasDocumentBuffer } from "../document-buffer";
 
 import { createCanvasAgentToolContributions } from "./agent-tools";
+import { createCanvasChannelContributions } from "./channels";
 import { createCanvasStateContributions } from "./state";
 import { createCanvasStateMessageContributions } from "./state-messages";
 
@@ -18,6 +19,10 @@ export function createCanvasContributions(
 ): FeatureContributions {
   return {
     id: "canvas",
+    channels: createCanvasChannelContributions(
+      { onCanvasChanged: opts.onCanvasChanged },
+      opts.buffer,
+    ),
     agentTools: createCanvasAgentToolContributions(
       { onCanvasChanged: opts.onCanvasChanged },
       opts.buffer,

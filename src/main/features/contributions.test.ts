@@ -4,6 +4,7 @@ import { Type } from "typebox";
 
 import { createStateMessages } from "../agent/state-messages";
 import { createAgentToolRegistry } from "../agent/tools";
+import { createChannelRegistry } from "../channels/registry";
 import { createStateRegistry } from "../state/registry";
 
 import { registerFeatureContributions } from "./contributions";
@@ -25,14 +26,24 @@ function agentTool(name: string) {
 
 describe("registerFeatureContributions", () => {
   it("registers all contribution groups and disposes them together", () => {
+    const channels = createChannelRegistry(() => ({
+      [Symbol.dispose]() {},
+    }));
     const agentTools = createAgentToolRegistry();
     const state = createStateRegistry();
     const stateMessages = createStateMessages();
 
     const registration = registerFeatureContributions(
-      { agentTools, state, stateMessages },
+      { channels, agentTools, state, stateMessages },
       {
         id: "canvas",
+        channels: [
+          {
+            id: "canvas.channel.refresh",
+            channel: "uix:canvas-refresh",
+            handle: () => undefined,
+          },
+        ],
         agentTools: [agentTool("anchor_read")],
         state: [
           { id: "canvas", prepareUserSubmitState: () => ({ state: {} }) },
@@ -47,6 +58,21 @@ describe("registerFeatureContributions", () => {
       },
     );
 
+    expect(() =>
+      registerFeatureContributions(
+        { channels },
+        {
+          id: "other",
+          channels: [
+            {
+              id: "other.channel.refresh",
+              channel: "uix:canvas-refresh",
+              handle: () => undefined,
+            },
+          ],
+        },
+      ),
+    ).toThrow("Channel already registered: uix:canvas-refresh");
     expect(() =>
       registerFeatureContributions(
         { agentTools },
@@ -87,9 +113,16 @@ describe("registerFeatureContributions", () => {
 
     expect(() =>
       registerFeatureContributions(
-        { agentTools, state, stateMessages },
+        { channels, agentTools, state, stateMessages },
         {
           id: "canvas",
+          channels: [
+            {
+              id: "canvas.channel.refresh",
+              channel: "uix:canvas-refresh",
+              handle: () => undefined,
+            },
+          ],
           agentTools: [agentTool("anchor_read")],
           state: [{ id: "canvas" }],
           stateMessages: [
@@ -105,6 +138,24 @@ describe("registerFeatureContributions", () => {
   });
 
   it("rejects contribution groups when the matching registry is missing", () => {
+    expect(() =>
+      registerFeatureContributions(
+        {},
+        {
+          id: "canvas",
+          channels: [
+            {
+              id: "canvas.channel.refresh",
+              channel: "uix:canvas-refresh",
+              handle: () => undefined,
+            },
+          ],
+        },
+      ),
+    ).toThrow(
+      "Feature canvas contributes channels but no channel registry was provided",
+    );
+
     expect(() =>
       registerFeatureContributions(
         {},

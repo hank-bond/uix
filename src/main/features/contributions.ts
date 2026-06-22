@@ -11,18 +11,25 @@ import type {
 import { registerStateMessageContributions } from "../agent/state-messages";
 import type { AgentToolContribution, AgentToolRegistry } from "../agent/tools";
 import { registerAgentToolContributions } from "../agent/tools";
+import type {
+  ChannelContribution,
+  ChannelRegistry,
+} from "../channels/registry";
+import { registerChannelContributions } from "../channels/registry";
 import { DisposableBag } from "../lifecycle";
 import type { StateContribution, StateRegistry } from "../state/registry";
 import { registerStateContributions } from "../state/registry";
 
 export interface FeatureContributions {
   id: string;
+  channels?: readonly ChannelContribution[];
   agentTools?: readonly AgentToolContribution[];
   state?: readonly StateContribution[];
   stateMessages?: readonly StateMessageContribution[];
 }
 
 export interface FeatureContributionRegistries {
+  channels?: ChannelRegistry;
   agentTools?: AgentToolRegistry;
   state?: StateRegistry;
   stateMessages?: StateMessageRegistry;
@@ -33,6 +40,17 @@ export function registerFeatureContributions(
   feature: FeatureContributions,
 ): Disposable {
   const bag = new DisposableBag();
+
+  if (feature.channels?.length) {
+    if (!registries.channels) {
+      throw new Error(
+        `Feature ${feature.id} contributes channels but no channel registry was provided`,
+      );
+    }
+    bag.add(
+      registerChannelContributions(registries.channels, feature.channels),
+    );
+  }
 
   if (feature.agentTools?.length) {
     if (!registries.agentTools) {

@@ -14,8 +14,6 @@ import process from "node:process";
 
 import {
   type AgentEvent,
-  type CanvasChanged,
-  type CanvasWriteback,
   Channels,
   type TranscriptSnapshot,
   type PromptRequest,
@@ -29,6 +27,7 @@ import {
   createAgentToolInstaller,
   createAgentToolRegistry,
 } from "./agent/tools";
+import { createChannelRegistry } from "./channels/registry";
 import { createStateRegistry } from "./state/registry";
 import { registerCanvasProtocol } from "./canvas/protocol";
 import { CanvasDocumentBuffer } from "./canvas/document-buffer";
@@ -167,13 +166,14 @@ void app.whenReady().then(async () => {
 
   // Facet registries. Features contribute data into these; substrate installers
   // adapt the registries to pi when the agent session opens.
+  const channels = createChannelRegistry();
   const state = createStateRegistry();
   const agentTools = createAgentToolRegistry();
   const stateMessages = createStateMessages();
 
   appBag.add(
     registerFeatureContributions(
-      { agentTools, state, stateMessages },
+      { channels, agentTools, state, stateMessages },
       createCanvasContributions({
         buffer: canvasBuffer,
         openCanvasKeys: ["main"],
@@ -216,26 +216,6 @@ void app.whenReady().then(async () => {
         }),
       },
     ),
-  );
-
-  appBag.add(
-    ipc.handle<CanvasChanged, void>(Channels.canvasRefresh, (req) => {
-      assertCanvasKey(req.key);
-      sendCanvasChanged(req.key);
-    }),
-  );
-
-  appBag.add(
-    ipc.handle<CanvasWriteback, void>(Channels.canvasWriteback, async (req) => {
-      assertCanvasKey(req.key);
-      createLogger("canvas").debug(
-        { key: req.key, bytes: req.html.length },
-        "canvas_writeback",
-      );
-      // No broadcast: the pane already shows the human's edit, and the channel
-      // pulls from the canvas document buffer on its next turn.
-      await canvasBuffer.writeback(req.key, req.html);
-    }),
   );
 
   appBag.add(
