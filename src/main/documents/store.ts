@@ -39,6 +39,18 @@ export interface LocalDocumentStoreOptions {
   validateDocumentId?: (documentId: string) => void;
 }
 
+export interface DocumentStoreProvider {
+  createStore(opts: LocalDocumentStoreOptions): DocumentStore;
+}
+
+export function createLocalDocumentStoreProvider(
+  stateRoot: string,
+): DocumentStoreProvider {
+  return {
+    createStore: (opts) => createLocalDocumentStore(stateRoot, opts),
+  };
+}
+
 export function createLocalDocumentStore(
   stateRoot: string,
   opts: LocalDocumentStoreOptions,

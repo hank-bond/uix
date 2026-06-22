@@ -1,5 +1,6 @@
-import type { ChannelPublisher } from "../../channels/registry";
+import { assertCanvasKey } from "../../../shared/canvas";
 import type { FeatureContributions } from "../../features/contributions";
+import type { FeatureContext } from "../../features/context";
 
 import { CanvasDocumentBuffer } from "../document-buffer";
 
@@ -8,35 +9,37 @@ import { createCanvasChannelContributions } from "./channels";
 import { createCanvasStateContributions } from "./state";
 import { createCanvasStateMessageContributions } from "./state-messages";
 
-export interface CanvasContributionOptions {
-  buffer: CanvasDocumentBuffer;
-  openCanvasKeys: readonly string[];
-  agentChangedCanvasKeys: Set<string>;
-  channels: ChannelPublisher;
-}
-
 export function createCanvasContributions(
-  opts: CanvasContributionOptions,
+  ctx: FeatureContext,
 ): FeatureContributions {
+  const documents = ctx.documents.createStore({
+    namespace: "canvas",
+    extension: "html",
+    validateDocumentId: assertCanvasKey,
+  });
+  const buffer = new CanvasDocumentBuffer(documents);
+  const openCanvasKeys = ["main"];
+  const agentChangedCanvasKeys = new Set<string>();
+
   return {
     id: "canvas",
     channels: createCanvasChannelContributions(
-      { channels: opts.channels },
-      opts.buffer,
+      { channels: ctx.channels },
+      buffer,
     ),
     agentTools: createCanvasAgentToolContributions(
-      { channels: opts.channels },
-      opts.buffer,
-      opts.agentChangedCanvasKeys,
+      { channels: ctx.channels },
+      buffer,
+      agentChangedCanvasKeys,
     ),
     state: createCanvasStateContributions(
-      opts.buffer,
-      opts.openCanvasKeys,
-      opts.agentChangedCanvasKeys,
+      buffer,
+      openCanvasKeys,
+      agentChangedCanvasKeys,
     ),
     stateMessages: createCanvasStateMessageContributions(
-      opts.buffer,
-      opts.openCanvasKeys,
+      buffer,
+      openCanvasKeys,
     ),
   };
 }

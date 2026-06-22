@@ -30,8 +30,7 @@ import {
 import { createChannelRegistry } from "./channels/registry";
 import { createStateRegistry } from "./state/registry";
 import { registerCanvasProtocol } from "./canvas/protocol";
-import { CanvasDocumentBuffer } from "./canvas/document-buffer";
-import { createLocalDocumentStore } from "./documents/store";
+import { createLocalDocumentStoreProvider } from "./documents/store";
 import { createCanvasContributions } from "./canvas/contributions";
 import { loadExtensions } from "./extensions/loader";
 import { registerFeatureContributions } from "./features/contributions";
@@ -125,7 +124,9 @@ void app.whenReady().then(async () => {
   // logged as `ipc_log_file` when armed.
   ipc.initLogFile(workspace.stateRoot);
 
-  const canvasDocuments = createLocalDocumentStore(workspace.stateRoot, {
+  const documents = createLocalDocumentStoreProvider(workspace.stateRoot);
+
+  const canvasDocuments = documents.createStore({
     namespace: "canvas",
     extension: "html",
     validateDocumentId: assertCanvasKey,
@@ -151,12 +152,6 @@ void app.whenReady().then(async () => {
     }),
   );
 
-  // One canvas store shared by the agent's buffer and the human-writeback
-  // handler, so both update current content through the same seam — and pick up
-  // versioning together once the store gains it.
-  const canvasBuffer = new CanvasDocumentBuffer(canvasDocuments);
-  const agentChangedCanvasKeys = new Set<string>();
-
   // Facet registries. Features contribute data into these; substrate installers
   // adapt the registries to pi when the agent session opens.
   const channels = createChannelRegistry({
@@ -173,12 +168,7 @@ void app.whenReady().then(async () => {
   appBag.add(
     registerFeatureContributions(
       { channels, agentTools, state, stateMessages },
-      createCanvasContributions({
-        buffer: canvasBuffer,
-        openCanvasKeys: ["main"],
-        agentChangedCanvasKeys,
-        channels,
-      }),
+      createCanvasContributions({ documents, channels }),
     ),
   );
 
