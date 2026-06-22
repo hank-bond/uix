@@ -89,7 +89,7 @@ function setup() {
   const canvasAgentTools = registerAgentToolContributions(
     agentTools,
     createCanvasAgentToolContributions(
-      { onCanvasChanged: () => {} },
+      { channels: { publish: () => undefined } },
       buffer,
       agentChangedCanvasKeys,
     ),

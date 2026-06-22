@@ -1,3 +1,4 @@
+import type { ChannelPublisher } from "../../channels/registry";
 import type { FeatureContributions } from "../../features/contributions";
 
 import { CanvasDocumentBuffer } from "../document-buffer";
@@ -11,7 +12,7 @@ export interface CanvasContributionOptions {
   buffer: CanvasDocumentBuffer;
   openCanvasKeys: readonly string[];
   agentChangedCanvasKeys: Set<string>;
-  onCanvasChanged: (key: string) => void;
+  channels: ChannelPublisher;
 }
 
 export function createCanvasContributions(
@@ -20,11 +21,11 @@ export function createCanvasContributions(
   return {
     id: "canvas",
     channels: createCanvasChannelContributions(
-      { onCanvasChanged: opts.onCanvasChanged },
+      { channels: opts.channels },
       opts.buffer,
     ),
     agentTools: createCanvasAgentToolContributions(
-      { onCanvasChanged: opts.onCanvasChanged },
+      { channels: opts.channels },
       opts.buffer,
       opts.agentChangedCanvasKeys,
     ),

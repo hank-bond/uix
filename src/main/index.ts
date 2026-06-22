@@ -106,13 +106,6 @@ function logChatContent(event: AgentEvent): void {
   }
 }
 
-function sendCanvasChanged(key: string): void {
-  createLogger("canvas").debug({ key }, "canvas_changed");
-  for (const win of BrowserWindow.getAllWindows()) {
-    ipc.send(win, Channels.canvasChanged, { key });
-  }
-}
-
 void app.whenReady().then(async () => {
   // One bag for everything that lives as long as the app does.
   // Anything we register goes in here; `will-quit` disposes it.
@@ -166,7 +159,13 @@ void app.whenReady().then(async () => {
 
   // Facet registries. Features contribute data into these; substrate installers
   // adapt the registries to pi when the agent session opens.
-  const channels = createChannelRegistry();
+  const channels = createChannelRegistry({
+    publish(channel, payload) {
+      for (const win of BrowserWindow.getAllWindows()) {
+        ipc.send(win, channel, payload);
+      }
+    },
+  });
   const state = createStateRegistry();
   const agentTools = createAgentToolRegistry();
   const stateMessages = createStateMessages();
@@ -178,7 +177,7 @@ void app.whenReady().then(async () => {
         buffer: canvasBuffer,
         openCanvasKeys: ["main"],
         agentChangedCanvasKeys,
-        onCanvasChanged: sendCanvasChanged,
+        channels,
       }),
     ),
   );

@@ -26,9 +26,11 @@ function agentTool(name: string) {
 
 describe("registerFeatureContributions", () => {
   it("registers all contribution groups and disposes them together", () => {
-    const channels = createChannelRegistry(() => ({
-      [Symbol.dispose]() {},
-    }));
+    const channels = createChannelRegistry({
+      handle: () => ({
+        [Symbol.dispose]() {},
+      }),
+    });
     const agentTools = createAgentToolRegistry();
     const state = createStateRegistry();
     const stateMessages = createStateMessages();

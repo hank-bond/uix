@@ -6,13 +6,24 @@ import {
   Channels,
 } from "../../../shared/ipc";
 import { assertCanvasKey } from "../../../shared/canvas";
-import type { ChannelContribution } from "../../channels/registry";
+import type {
+  ChannelContribution,
+  ChannelPublisher,
+} from "../../channels/registry";
 import { createLogger } from "../../log";
 
 import { CanvasDocumentBuffer } from "../document-buffer";
 
 export interface CanvasChannelContributionOptions {
-  onCanvasChanged: (key: string) => void;
+  channels: ChannelPublisher;
+}
+
+export function publishCanvasChanged(
+  channels: ChannelPublisher,
+  key: string,
+): void {
+  createLogger("canvas").debug({ key }, "canvas_changed");
+  channels.publish(Channels.canvasChanged, { key } satisfies CanvasChanged);
 }
 
 export function createCanvasChannelContributions(
@@ -26,7 +37,7 @@ export function createCanvasChannelContributions(
       handle(req: unknown) {
         const payload = req as CanvasChanged;
         assertCanvasKey(payload.key);
-        opts.onCanvasChanged(payload.key);
+        publishCanvasChanged(opts.channels, payload.key);
       },
     },
     {

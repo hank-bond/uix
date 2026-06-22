@@ -22,18 +22,37 @@ export type ChannelTransportHandle = (
   logOpts?: HandleLogOptions<unknown>,
 ) => Disposable;
 
-export interface ChannelRegistry {
+export type ChannelTransportPublish = (
+  channel: string,
+  payload: unknown,
+) => void;
+
+export interface ChannelPublisher {
+  publish(channel: string, payload: unknown): void;
+}
+
+export interface ChannelRegistry extends ChannelPublisher {
   register<Req, Res>(contribution: ChannelContribution<Req, Res>): Disposable;
 }
 
+export interface ChannelRegistryOptions {
+  handle?: ChannelTransportHandle;
+  publish?: ChannelTransportPublish;
+}
+
 export function createChannelRegistry(
-  handle: ChannelTransportHandle = (channel, fn, logOpts) =>
-    ipc.handle<unknown, unknown>(channel, fn, logOpts),
+  opts: ChannelRegistryOptions = {},
 ): ChannelRegistry {
+  const handle =
+    opts.handle ??
+    ((channel, fn, logOpts) =>
+      ipc.handle<unknown, unknown>(channel, fn, logOpts));
+  const publish = opts.publish ?? (() => undefined);
   const ids = new Set<string>();
   const channels = new Set<string>();
 
   return {
+    publish,
     register<Req, Res>(contribution: ChannelContribution<Req, Res>) {
       if (ids.has(contribution.id)) {
         throw new Error(

@@ -18,9 +18,12 @@ import { type Static, Type } from "typebox";
 import { assertCanvasKey, CanvasKeyDescription } from "../../../shared/canvas";
 import type { AgentToolContribution } from "../../agent/tools";
 import { formatAnchoredText, parseAnchoredLine } from "../../anchors/wire";
+import type { ChannelPublisher } from "../../channels/registry";
 
 import { formatChangeHunks } from "../anchored-format";
 import { CanvasDocumentBuffer } from "../document-buffer";
+
+import { publishCanvasChanged } from "./channels";
 
 const keyDescription = `Canvas key (not a filesystem path): ${CanvasKeyDescription}, e.g. main or reports/security-review.`;
 
@@ -69,7 +72,7 @@ type WriteParams = Static<typeof writeParams>;
 type EditParams = Static<typeof editParams>;
 
 interface CanvasAgentToolOptions {
-  onCanvasChanged: (key: string) => void;
+  channels: ChannelPublisher;
 }
 
 export function createCanvasAgentToolContributions(
@@ -140,7 +143,7 @@ function createWriteTool(
       assertCanvasKey(params.key);
       const lines = await buffer.write(params.key, params.html);
       agentChangedCanvasKeys.add(params.key);
-      opts.onCanvasChanged(params.key);
+      publishCanvasChanged(opts.channels, params.key);
       return {
         content: [{ type: "text", text: formatAnchoredText(lines) }],
         details: {},
@@ -170,7 +173,7 @@ function createEditTool(
         replacement: params.replacement,
       });
       agentChangedCanvasKeys.add(params.key);
-      opts.onCanvasChanged(params.key);
+      publishCanvasChanged(opts.channels, params.key);
       return {
         content: [
           {

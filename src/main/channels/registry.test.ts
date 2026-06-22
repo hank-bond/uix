@@ -8,10 +8,12 @@ import {
 function fakeTransport() {
   const handlers = new Map<string, (req: unknown) => Promise<unknown>>();
   const disposed: string[] = [];
+  const published: Array<{ channel: string; payload: unknown }> = [];
 
   return {
     handlers,
     disposed,
+    published,
     handle(channel: string, fn: (req: unknown) => Promise<unknown>) {
       handlers.set(channel, fn);
       return {
@@ -21,15 +23,18 @@ function fakeTransport() {
         },
       };
     },
+    publish(channel: string, payload: unknown) {
+      published.push({ channel, payload });
+    },
   };
 }
 
 describe("ChannelRegistry", () => {
   it("registers request handlers and disposes them", async () => {
     const transport = fakeTransport();
-    const registry = createChannelRegistry((channel, fn) =>
-      transport.handle(channel, fn),
-    );
+    const registry = createChannelRegistry({
+      handle: (channel, fn) => transport.handle(channel, fn),
+    });
 
     const registration = registry.register({
       id: "canvas.channel.writeback",
@@ -49,9 +54,9 @@ describe("ChannelRegistry", () => {
 
   it("rejects duplicate ids and channels until disposed", () => {
     const transport = fakeTransport();
-    const registry = createChannelRegistry((channel, fn) =>
-      transport.handle(channel, fn),
-    );
+    const registry = createChannelRegistry({
+      handle: (channel, fn) => transport.handle(channel, fn),
+    });
 
     const registration = registry.register({
       id: "canvas.channel.refresh",
@@ -87,11 +92,25 @@ describe("ChannelRegistry", () => {
     ).not.toThrow();
   });
 
+  it("publishes through the configured transport", () => {
+    const transport = fakeTransport();
+    const registry = createChannelRegistry({
+      handle: (channel, fn) => transport.handle(channel, fn),
+      publish: (channel, payload) => transport.publish(channel, payload),
+    });
+
+    registry.publish("uix:canvas-changed", { key: "main" });
+
+    expect(transport.published).toEqual([
+      { channel: "uix:canvas-changed", payload: { key: "main" } },
+    ]);
+  });
+
   it("registers contribution groups and disposes them together", () => {
     const transport = fakeTransport();
-    const registry = createChannelRegistry((channel, fn) =>
-      transport.handle(channel, fn),
-    );
+    const registry = createChannelRegistry({
+      handle: (channel, fn) => transport.handle(channel, fn),
+    });
 
     const registration = registerChannelContributions(registry, [
       {
