@@ -18,7 +18,7 @@ import {
   AnchoredDocument,
 } from "../anchors/document";
 
-import type { ContentStore, ContentVersion } from "./content-store";
+import type { DocumentStore, DocumentVersion } from "../documents/store";
 import { canonicalizeHtml } from "./normalize";
 
 export interface DocumentVersionMeta {
@@ -26,11 +26,11 @@ export interface DocumentVersionMeta {
 }
 
 export class CanvasDocumentBuffer {
-  readonly #store: ContentStore;
+  readonly #store: DocumentStore;
   readonly #docs = new Map<string, AnchoredDocument>();
   readonly #pendingChanges = new Map<string, readonly AnchoredChange[]>();
 
-  constructor(store: ContentStore) {
+  constructor(store: DocumentStore) {
     this.#store = store;
   }
 
@@ -105,8 +105,8 @@ export class CanvasDocumentBuffer {
   // canvases today; dynamic pane ids once the pane host lands).
   async snapshotCurrent(
     docIds: Iterable<string>,
-  ): Promise<ReadonlyMap<string, ContentVersion<DocumentVersionMeta>>> {
-    const result = new Map<string, ContentVersion<DocumentVersionMeta>>();
+  ): Promise<ReadonlyMap<string, DocumentVersion<DocumentVersionMeta>>> {
+    const result = new Map<string, DocumentVersion<DocumentVersionMeta>>();
     for (const docId of new Set(docIds)) {
       await this.#sync(docId);
       const doc = await this.#load(docId);
@@ -127,7 +127,7 @@ export class CanvasDocumentBuffer {
   async getVersion(
     docId: string,
     versionId: string,
-  ): Promise<ContentVersion<DocumentVersionMeta> | null> {
+  ): Promise<DocumentVersion<DocumentVersionMeta> | null> {
     return this.#store.getVersion<DocumentVersionMeta>(docId, versionId);
   }
 

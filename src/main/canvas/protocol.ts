@@ -9,11 +9,11 @@ import { protocol } from "electron";
 
 import { CanvasProtocolScheme, canvasHostToKey } from "../../shared/canvas";
 
+import type { DocumentStore } from "../documents/store";
 import { disposable } from "../lifecycle";
 import { createLogger } from "../log";
 
 import { injectCanvasShim } from "./shim";
-import { readCanvas } from "./store";
 
 const log = createLogger("canvas");
 
@@ -28,11 +28,11 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
-export function registerCanvasProtocol(stateRoot: string): Disposable {
+export function registerCanvasProtocol(documents: DocumentStore): Disposable {
   protocol.handle(CanvasProtocolScheme, async (request) => {
     const url = new URL(request.url);
     const key = canvasHostToKey(url.hostname);
-    const html = key ? await readCanvas(stateRoot, key) : null;
+    const html = key ? await documents.getCurrent(key) : null;
 
     if (key && html !== null) {
       log.debug({ key }, "canvas_served");

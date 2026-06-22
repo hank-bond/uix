@@ -24,26 +24,18 @@ import {
 import { assertCanvasKey } from "../shared/canvas";
 
 import { createAgentDriver } from "./agent/driver";
-import {
-  createStateMessages,
-  registerStateMessageContributions,
-} from "./agent/state-messages";
+import { createStateMessages } from "./agent/state-messages";
 import {
   createAgentToolInstaller,
   createAgentToolRegistry,
-  registerAgentToolContributions,
 } from "./agent/tools";
-import {
-  createStateRegistry,
-  registerStateContributions,
-} from "./state/registry";
+import { createStateRegistry } from "./state/registry";
 import { registerCanvasProtocol } from "./canvas/protocol";
 import { CanvasDocumentBuffer } from "./canvas/document-buffer";
-import { createCanvasContentStore } from "./canvas/content-store";
-import { createCanvasAgentToolContributions } from "./canvas/contributions/agent-tools";
-import { createCanvasStateContributions } from "./canvas/contributions/state";
-import { createCanvasStateMessageContributions } from "./canvas/contributions/state-messages";
+import { createLocalDocumentStore } from "./documents/store";
+import { createCanvasContributions } from "./canvas/contributions";
 import { loadExtensions } from "./extensions/loader";
+import { registerFeatureContributions } from "./features/contributions";
 import { defaultRoots } from "./extensions/roots";
 import { resolveWorkspace } from "./workspace";
 import * as ipc from "./ipc";
@@ -141,7 +133,13 @@ void app.whenReady().then(async () => {
   // logged as `ipc_log_file` when armed.
   ipc.initLogFile(workspace.stateRoot);
 
-  appBag.add(registerCanvasProtocol(workspace.stateRoot));
+  const canvasDocuments = createLocalDocumentStore(workspace.stateRoot, {
+    namespace: "canvas",
+    extension: "html",
+    validateDocumentId: assertCanvasKey,
+  });
+
+  appBag.add(registerCanvasProtocol(canvasDocuments));
 
   // Extensions live under their own child scope so reload can tear
   // down the extension subtree without touching app-lifetime process
@@ -164,44 +162,24 @@ void app.whenReady().then(async () => {
   // One canvas store shared by the agent's buffer and the human-writeback
   // handler, so both update current content through the same seam — and pick up
   // versioning together once the store gains it.
-  const canvasStore = createCanvasContentStore(workspace.stateRoot);
-  const canvasBuffer = new CanvasDocumentBuffer(canvasStore);
+  const canvasBuffer = new CanvasDocumentBuffer(canvasDocuments);
   const agentChangedCanvasKeys = new Set<string>();
 
-  // The cockpit-private state pathway records durable refs at turn boundaries.
+  // Facet registries. Features contribute data into these; substrate installers
+  // adapt the registries to pi when the agent session opens.
   const state = createStateRegistry();
-  appBag.add(
-    registerStateContributions(
-      state,
-      createCanvasStateContributions(
-        canvasBuffer,
-        ["main"],
-        agentChangedCanvasKeys,
-      ),
-    ),
-  );
-
-  // Agent tools are contributed as data; the substrate installer registers
-  // them into pi when the agent session opens.
   const agentTools = createAgentToolRegistry();
-  appBag.add(
-    registerAgentToolContributions(
-      agentTools,
-      createCanvasAgentToolContributions(
-        { onCanvasChanged: sendCanvasChanged },
-        canvasBuffer,
-        agentChangedCanvasKeys,
-      ),
-    ),
-  );
-
-  // The cockpit→agent state pathway; contributions register their messageType
-  // against it and the driver flushes them while preparing each agent run.
   const stateMessages = createStateMessages();
+
   appBag.add(
-    registerStateMessageContributions(
-      stateMessages,
-      createCanvasStateMessageContributions(canvasBuffer, ["main"]),
+    registerFeatureContributions(
+      { agentTools, state, stateMessages },
+      createCanvasContributions({
+        buffer: canvasBuffer,
+        openCanvasKeys: ["main"],
+        agentChangedCanvasKeys,
+        onCanvasChanged: sendCanvasChanged,
+      }),
     ),
   );
 

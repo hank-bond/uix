@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { CanvasDocumentBuffer } from "../document-buffer";
-import type { ContentStore, ContentVersion } from "../content-store";
+import type { DocumentStore, DocumentVersion } from "../../documents/store";
 
 import { createCanvasStateContributions } from "./state";
 
-function memoryStore(initial: Record<string, string> = {}): ContentStore {
+function memoryStore(initial: Record<string, string> = {}): DocumentStore {
   const latest = new Map<string, string>(Object.entries(initial));
-  const versions = new Map<string, ContentVersion>();
+  const versions = new Map<string, DocumentVersion>();
 
   return {
     getCurrent: (docId) => Promise.resolve(latest.get(docId) ?? null),
@@ -16,9 +16,9 @@ function memoryStore(initial: Record<string, string> = {}): ContentStore {
       return Promise.resolve();
     },
     snapshotCurrent: (docId, meta) => {
-      const version: ContentVersion<typeof meta> = {
+      const version: DocumentVersion<typeof meta> = {
         id: `v${versions.size + 1}`,
-        docId,
+        documentId: docId,
         content: latest.get(docId) ?? "",
         meta,
         createdAt: new Date(0).toISOString(),
@@ -29,7 +29,7 @@ function memoryStore(initial: Record<string, string> = {}): ContentStore {
     getVersion<TMeta>(docId: string, versionId: string) {
       return Promise.resolve(
         (versions.get(`${docId}:${versionId}`) as
-          | ContentVersion<TMeta>
+          | DocumentVersion<TMeta>
           | undefined) ?? null,
       );
     },
@@ -37,7 +37,7 @@ function memoryStore(initial: Record<string, string> = {}): ContentStore {
 }
 
 function captureCanvasState(opts: {
-  store?: ContentStore;
+  store?: DocumentStore;
   openCanvasKeys?: readonly string[];
   agentChangedCanvasKeys?: Set<string>;
 }) {

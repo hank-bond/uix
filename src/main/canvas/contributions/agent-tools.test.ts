@@ -25,15 +25,15 @@ import {
 } from "../../state/registry";
 
 import { CanvasDocumentBuffer } from "../document-buffer";
-import type { ContentStore, ContentVersion } from "../content-store";
+import type { DocumentStore, DocumentVersion } from "../../documents/store";
 
 import { createCanvasAgentToolContributions } from "./agent-tools";
 import { createCanvasStateContributions } from "./state";
 import { createCanvasStateMessageContributions } from "./state-messages";
 
-function memoryStore(): ContentStore {
+function memoryStore(): DocumentStore {
   const map = new Map<string, string>();
-  const versions = new Map<string, ContentVersion>();
+  const versions = new Map<string, DocumentVersion>();
   return {
     getCurrent: (docId) => Promise.resolve(map.get(docId) ?? null),
     setCurrent: (docId, content) => {
@@ -41,9 +41,9 @@ function memoryStore(): ContentStore {
       return Promise.resolve();
     },
     snapshotCurrent: (docId, meta) => {
-      const version: ContentVersion<typeof meta> = {
+      const version: DocumentVersion<typeof meta> = {
         id: `v${versions.size + 1}`,
-        docId,
+        documentId: docId,
         content: map.get(docId) ?? "",
         meta,
         createdAt: new Date(0).toISOString(),
@@ -54,7 +54,7 @@ function memoryStore(): ContentStore {
     getVersion<TMeta>(docId: string, versionId: string) {
       return Promise.resolve(
         (versions.get(`${docId}:${versionId}`) as
-          | ContentVersion<TMeta>
+          | DocumentVersion<TMeta>
           | undefined) ?? null,
       );
     },

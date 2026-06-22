@@ -3,15 +3,15 @@ import { describe, expect, it } from "vitest";
 import { AnchoredDocument } from "../anchors/document";
 
 import { CanvasDocumentBuffer } from "./document-buffer";
-import type { ContentStore, ContentVersion } from "./content-store";
+import type { DocumentStore, DocumentVersion } from "../documents/store";
 
 // In-memory store standing in for the file-backed one, plus a dump() peek so
 // tests can assert current content.
 function memoryStore(
   initial: Record<string, string> = {},
-): ContentStore & { dump(docId: string): string | null } {
+): DocumentStore & { dump(docId: string): string | null } {
   const map = new Map<string, string>(Object.entries(initial));
-  const versions = new Map<string, ContentVersion>();
+  const versions = new Map<string, DocumentVersion>();
   return {
     getCurrent(docId) {
       return Promise.resolve(map.get(docId) ?? null);
@@ -21,9 +21,9 @@ function memoryStore(
       return Promise.resolve();
     },
     snapshotCurrent(docId, meta) {
-      const version: ContentVersion<typeof meta> = {
+      const version: DocumentVersion<typeof meta> = {
         id: `v${versions.size + 1}`,
-        docId,
+        documentId: docId,
         content: map.get(docId) ?? "",
         meta,
         createdAt: new Date(0).toISOString(),
@@ -34,7 +34,7 @@ function memoryStore(
     getVersion<TMeta>(docId: string, versionId: string) {
       return Promise.resolve(
         (versions.get(`${docId}:${versionId}`) as
-          | ContentVersion<TMeta>
+          | DocumentVersion<TMeta>
           | undefined) ?? null,
       );
     },

@@ -1,5 +1,5 @@
 ---
-summary: "The cockpit uses an in-memory pi session and stores canvas HTML by key under .uix/canvas; there is no public UIX-extension state API yet beyond lifetime-scoped registerCommand cleanup."
+summary: "The cockpit uses an in-memory pi session and stores canvas HTML in the local document store; there is no public UIX-extension state API yet beyond lifetime-scoped registerCommand cleanup."
 status: active
 ---
 
@@ -10,7 +10,7 @@ UIX currently exposes no public state-persistence API for UIX extensions.
 Current shipped state behavior:
 
 - The cockpit-owned pi session is created with `SessionManager.inMemory()` in `src/main/agent/driver.ts`; UIX does not currently persist that session to a project session file.
-- Canvas HTML is stored by key under `.uix/canvas/<key>.html` by `src/main/canvas/store.ts`.
+- Canvas HTML is stored by key in the local document store (`src/main/documents/store.ts`) under the `canvas` namespace.
 - Canvas keys are validated slash-namespaced slugs, not filesystem paths.
 - Canvas writes go through the `canvas__anchor_write` tool and broadcast `canvasChanged { key }`.
 - UIX extensions can currently call `registerCommand(...)`; the command-shaped contribution is lifetime-scoped but not persisted and not invokable through UIX.

@@ -32,7 +32,7 @@ The current canvas agent-tool contribution lives in `src/main/canvas/contributio
 - `canvas__anchor_write({ key, html })`
 - `canvas__anchor_edit({ key, start_line, end_line, replacement })`
 
-Canvases are addressed by key through a content-store seam (`src/main/canvas/content-store.ts`), edited via the anchored core (`src/main/anchors/`), and canonicalized at the core boundary (`src/main/canvas/normalize.ts`). The tools are canvas-named because every HTML document edited through them is a canvas; the general document/content abstraction lives underneath in the channel and store. Every result returns the affected lines in the `<anchor>§<text>` wire format so the agent never re-reads to learn current anchors.
+Canvases are addressed by key through the substrate document store (`src/main/documents/store.ts`), edited via the anchored core (`src/main/anchors/`), and canonicalized at the canvas buffer boundary (`src/main/canvas/normalize.ts`). The tools are canvas-named because every HTML document edited through them is a canvas; the document storage abstraction lives underneath the canvas buffer. Every result returns the affected lines in the `<anchor>§<text>` wire format so the agent never re-reads to learn current anchors.
 
 ## State messages
 
