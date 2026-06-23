@@ -19,8 +19,6 @@ import {
   type PromptRequest,
   type ReloadResult,
 } from "../shared/ipc";
-import { assertCanvasKey } from "../shared/canvas";
-
 import { createAgentDriver } from "./agent/driver";
 import { createStateMessages } from "./agent/state-messages";
 import {
@@ -29,12 +27,15 @@ import {
 } from "./agent/tools";
 import { createChannelRegistry } from "./channels/registry";
 import { createStateRegistry } from "./state/registry";
-import { registerCanvasProtocol } from "./canvas/protocol";
 import { createLocalDocumentStoreProvider } from "./documents/store";
-import { createCanvasContributions } from "./canvas/contributions";
 import { loadExtensions } from "./extensions/loader";
-import { registerFeatureContributions } from "./features/contributions";
+import { getBundledFeatures } from "./features/bundled";
+import {
+  registerFeatureContributions,
+  registerFeaturePreflightContributions,
+} from "./features/contributions";
 import { defaultRoots } from "./extensions/roots";
+import { createResourceRegistry } from "./resources/registry";
 import { resolveWorkspace } from "./workspace";
 import * as ipc from "./ipc";
 import {
@@ -46,6 +47,9 @@ import {
 import { createLogger } from "./log";
 
 const isDev = !app.isPackaged;
+const bundledFeatures = getBundledFeatures();
+
+registerFeaturePreflightContributions(bundledFeatures);
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -126,14 +130,6 @@ void app.whenReady().then(async () => {
 
   const documents = createLocalDocumentStoreProvider(workspace.stateRoot);
 
-  const canvasDocuments = documents.createStore({
-    namespace: "canvas",
-    extension: "html",
-    validateDocumentId: assertCanvasKey,
-  });
-
-  appBag.add(registerCanvasProtocol(canvasDocuments));
-
   // Extensions live under their own child scope so reload can tear
   // down the extension subtree without touching app-lifetime process
   // handlers, the window, the agent driver, or IPC registrations.
@@ -154,6 +150,7 @@ void app.whenReady().then(async () => {
 
   // Facet registries. Features contribute data into these; substrate installers
   // adapt the registries to pi when the agent session opens.
+  const resources = createResourceRegistry();
   const channels = createChannelRegistry({
     publish(channel, payload) {
       for (const win of BrowserWindow.getAllWindows()) {
@@ -165,12 +162,14 @@ void app.whenReady().then(async () => {
   const agentTools = createAgentToolRegistry();
   const stateMessages = createStateMessages();
 
-  appBag.add(
-    registerFeatureContributions(
-      { channels, agentTools, state, stateMessages },
-      createCanvasContributions({ documents, channels }),
-    ),
-  );
+  for (const feature of bundledFeatures) {
+    appBag.add(
+      registerFeatureContributions(
+        { resources, channels, agentTools, state, stateMessages },
+        feature.contribute({ documents, channels }),
+      ),
+    );
+  }
 
   const driver = createAgentDriver({
     onEvent: (event) => sendAgentEvent(mainWindow, event),

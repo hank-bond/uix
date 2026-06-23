@@ -16,12 +16,34 @@ import type {
   ChannelRegistry,
 } from "../channels/registry";
 import { registerChannelContributions } from "../channels/registry";
+import type { FeatureContext } from "./context";
 import { DisposableBag } from "../lifecycle";
+import type {
+  ResourceContribution,
+  ResourceRegistry,
+  ResourceSchemeContribution,
+  ResourceSchemeRegistrar,
+} from "../resources/registry";
+import {
+  registerResourceContributions,
+  registerResourceSchemeContributions,
+} from "../resources/registry";
 import type { StateContribution, StateRegistry } from "../state/registry";
 import { registerStateContributions } from "../state/registry";
 
+export interface FeaturePreflightContributions {
+  resourceSchemes?: readonly ResourceSchemeContribution[];
+}
+
+export interface FeatureDefinition {
+  id: string;
+  preflight?: FeaturePreflightContributions;
+  contribute(ctx: FeatureContext): FeatureContributions;
+}
+
 export interface FeatureContributions {
   id: string;
+  resources?: readonly ResourceContribution[];
   channels?: readonly ChannelContribution[];
   agentTools?: readonly AgentToolContribution[];
   state?: readonly StateContribution[];
@@ -29,6 +51,7 @@ export interface FeatureContributions {
 }
 
 export interface FeatureContributionRegistries {
+  resources?: ResourceRegistry;
   channels?: ChannelRegistry;
   agentTools?: AgentToolRegistry;
   state?: StateRegistry;
@@ -40,6 +63,17 @@ export function registerFeatureContributions(
   feature: FeatureContributions,
 ): Disposable {
   const bag = new DisposableBag();
+
+  if (feature.resources?.length) {
+    if (!registries.resources) {
+      throw new Error(
+        `Feature ${feature.id} contributes resources but no resource registry was provided`,
+      );
+    }
+    bag.add(
+      registerResourceContributions(registries.resources, feature.resources),
+    );
+  }
 
   if (feature.channels?.length) {
     if (!registries.channels) {
@@ -87,4 +121,14 @@ export function registerFeatureContributions(
   }
 
   return bag;
+}
+
+export function registerFeaturePreflightContributions(
+  features: readonly FeatureDefinition[],
+  registerResourceSchemes?: ResourceSchemeRegistrar,
+): void {
+  registerResourceSchemeContributions(
+    features.flatMap((feature) => feature.preflight?.resourceSchemes ?? []),
+    registerResourceSchemes,
+  );
 }

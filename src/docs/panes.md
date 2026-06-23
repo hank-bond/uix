@@ -26,7 +26,7 @@ The chat code font is a local Iosevka Regular WOFF2 asset under `src/renderer/ch
 
 The canvas pane renders agent-authored HTML from a canvas key such as `main`. Keys are not filesystem paths. The local document store keeps canvas keys under the `canvas` namespace, and the renderer and agent tools address canvases only by key.
 
-Canvas HTML is loaded with `iframe src`, never `srcdoc`. `srcdoc` would inherit the cockpit renderer origin, which would let agent-authored HTML reach privileged cockpit APIs. UIX instead serves canvas content from the custom `uix-canvas://` protocol registered in `src/main/canvas/protocol.ts`.
+Canvas HTML is loaded with `iframe src`, never `srcdoc`. `srcdoc` would inherit the cockpit renderer origin, which would let agent-authored HTML reach privileged cockpit APIs. UIX instead serves canvas content from the custom `uix-canvas://` resource scheme contributed by `src/main/canvas/contributions/resources.ts`.
 
 Each canvas key maps to a stable own-origin URL by reversing slash-separated key segments into host labels:
 

@@ -5,9 +5,13 @@ import { Type } from "typebox";
 import { createStateMessages } from "../agent/state-messages";
 import { createAgentToolRegistry } from "../agent/tools";
 import { createChannelRegistry } from "../channels/registry";
+import { createResourceRegistry } from "../resources/registry";
 import { createStateRegistry } from "../state/registry";
 
-import { registerFeatureContributions } from "./contributions";
+import {
+  registerFeatureContributions,
+  registerFeaturePreflightContributions,
+} from "./contributions";
 
 const emptyParams = Type.Object({});
 
@@ -26,6 +30,10 @@ function agentTool(name: string) {
 
 describe("registerFeatureContributions", () => {
   it("registers all contribution groups and disposes them together", () => {
+    const resources = createResourceRegistry({
+      handle: () => undefined,
+      unhandle: () => undefined,
+    });
     const channels = createChannelRegistry({
       handle: () => ({
         [Symbol.dispose]() {},
@@ -36,9 +44,16 @@ describe("registerFeatureContributions", () => {
     const stateMessages = createStateMessages();
 
     const registration = registerFeatureContributions(
-      { channels, agentTools, state, stateMessages },
+      { resources, channels, agentTools, state, stateMessages },
       {
         id: "canvas",
+        resources: [
+          {
+            id: "canvas.resource.html",
+            scheme: "uix-canvas",
+            handle: () => new Response(""),
+          },
+        ],
         channels: [
           {
             id: "canvas.channel.refresh",
@@ -60,6 +75,21 @@ describe("registerFeatureContributions", () => {
       },
     );
 
+    expect(() =>
+      registerFeatureContributions(
+        { resources },
+        {
+          id: "other",
+          resources: [
+            {
+              id: "other.resource.html",
+              scheme: "uix-canvas",
+              handle: () => new Response(""),
+            },
+          ],
+        },
+      ),
+    ).toThrow("Resource scheme already handled: uix-canvas");
     expect(() =>
       registerFeatureContributions(
         { channels },
@@ -115,9 +145,16 @@ describe("registerFeatureContributions", () => {
 
     expect(() =>
       registerFeatureContributions(
-        { channels, agentTools, state, stateMessages },
+        { resources, channels, agentTools, state, stateMessages },
         {
           id: "canvas",
+          resources: [
+            {
+              id: "canvas.resource.html",
+              scheme: "uix-canvas",
+              handle: () => new Response(""),
+            },
+          ],
           channels: [
             {
               id: "canvas.channel.refresh",
@@ -140,6 +177,24 @@ describe("registerFeatureContributions", () => {
   });
 
   it("rejects contribution groups when the matching registry is missing", () => {
+    expect(() =>
+      registerFeatureContributions(
+        {},
+        {
+          id: "canvas",
+          resources: [
+            {
+              id: "canvas.resource.html",
+              scheme: "uix-canvas",
+              handle: () => new Response(""),
+            },
+          ],
+        },
+      ),
+    ).toThrow(
+      "Feature canvas contributes resources but no resource registry was provided",
+    );
+
     expect(() =>
       registerFeatureContributions(
         {},
@@ -193,5 +248,41 @@ describe("registerFeatureContributions", () => {
     ).toThrow(
       "Feature canvas contributes state messages but no state-message registry was provided",
     );
+  });
+});
+
+describe("registerFeaturePreflightContributions", () => {
+  it("registers pre-ready resource schemes from feature definitions", () => {
+    const registered: Electron.CustomScheme[][] = [];
+
+    registerFeaturePreflightContributions(
+      [
+        {
+          id: "canvas",
+          preflight: {
+            resourceSchemes: [
+              {
+                id: "canvas.resource.scheme",
+                scheme: "uix-canvas",
+                privileges: { standard: true },
+              },
+            ],
+          },
+          contribute: () => ({ id: "canvas" }),
+        },
+      ],
+      (schemes) => {
+        registered.push(schemes);
+      },
+    );
+
+    expect(registered).toEqual([
+      [
+        {
+          scheme: "uix-canvas",
+          privileges: { standard: true },
+        },
+      ],
+    ]);
   });
 });
