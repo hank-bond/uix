@@ -1,4 +1,4 @@
-// UIX cockpit — transcript identity (keyed-on-persist).
+// transcript identity (keyed-on-persist).
 //
 // Implements docs/decisions/2026-06-09-transcript-keyed-on-persist.md: live
 // transcript rows start under a pre-key transport handle and are rekeyed to

@@ -1,4 +1,4 @@
-// UIX cockpit — substrate document store.
+// substrate document store.
 //
 // A document is addressed by namespace + id behind getCurrent/setCurrent; the
 // backing store is hidden so it can later become a git-backed or remote store

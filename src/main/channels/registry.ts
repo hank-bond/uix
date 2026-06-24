@@ -1,4 +1,4 @@
-// UIX cockpit — typed channel contributions.
+// typed channel contributions.
 //
 // This is a narrow substrate facet for request/response channels. Features
 // declare the channels they handle; the substrate owns registration through

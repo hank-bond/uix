@@ -1,4 +1,4 @@
-// UIX cockpit — hardcoded Stage-1 canvas pane.
+// hardcoded Stage-1 canvas pane.
 //
 // TODO: hardcoded pane — becomes a registered iframe pane when the pane host +
 // registerPane contribution land.

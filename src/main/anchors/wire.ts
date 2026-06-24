@@ -1,4 +1,4 @@
-// UIX cockpit — anchor wire format.
+// anchor wire format.
 //
 // How anchored lines are rendered to, and parsed from, the agent. The document
 // core deals only in structured `{ anchor, text }`; the §-gutter representation

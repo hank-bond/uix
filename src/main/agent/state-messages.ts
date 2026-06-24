@@ -1,4 +1,4 @@
-// UIX cockpit — state messages: the cockpit→agent state pathway.
+// state messages: the cockpit→agent state pathway.
 //
 // A state-message contribution declares one model-visible state section: its
 // messageType, vocabulary line, optional UIX-managed buffer, and optional

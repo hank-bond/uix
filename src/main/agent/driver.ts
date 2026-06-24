@@ -1,4 +1,4 @@
-// UIX cockpit — agent driver.
+// agent driver.
 //
 // Wraps `createAgentSession` from `@earendil-works/pi-coding-agent` and
 // normalizes pi's live event stream into the same transcript item model used

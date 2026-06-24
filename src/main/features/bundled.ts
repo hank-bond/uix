@@ -1,4 +1,4 @@
-// UIX cockpit — bundled default features.
+// bundled default features.
 //
 // This is the current synchronous feature inventory. Keeping it outside the
 // composition root lets main/index.ts consume "features" without naming canvas;

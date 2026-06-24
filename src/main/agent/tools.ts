@@ -1,4 +1,4 @@
-// UIX cockpit — agent tool contribution registry.
+// agent tool contribution registry.
 //
 // Features contribute pi tool definitions as data. This substrate owns
 // registration lifetime and the pi-facing installer that installs those tools

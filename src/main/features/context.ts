@@ -1,4 +1,4 @@
-// UIX cockpit — feature activation context.
+// feature activation context.
 //
 // This is the small service bag handed to bundled/default features while the
 // substrate is being decomposed into contribution facets. It is not a full

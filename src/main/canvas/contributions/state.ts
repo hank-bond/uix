@@ -1,4 +1,4 @@
-// UIX cockpit — canvas private state contributions.
+// canvas private state contributions.
 //
 // Canvas tools mutate the latest document store during a run. This contribution
 // snapshots the relevant canvases at UIX turn boundaries and returns resource

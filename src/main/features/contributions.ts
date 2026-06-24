@@ -1,4 +1,4 @@
-// UIX cockpit — feature contribution registration.
+// feature contribution registration.
 //
 // This is intentionally not a full feature system. It centralizes the repeated
 // facet-registration/lifetime pattern while canvas is being decomposed into

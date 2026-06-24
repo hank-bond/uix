@@ -1,4 +1,4 @@
-// UIX cockpit — canvas document buffer (session state).
+// canvas document buffer (session state).
 //
 // Holds one AnchoredDocument per canvas document id for the life of the agent session.
 // The anchor<->line map inside each document is regenerable from content and is

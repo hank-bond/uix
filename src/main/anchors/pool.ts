@@ -1,4 +1,4 @@
-// UIX cockpit — committed anchor pool runtime.
+// committed anchor pool runtime.
 //
 // Runtime code loads the small committed newline-separated pool into memory and
 // advances a per-document index through it. The pool is model-agnostic: UIX

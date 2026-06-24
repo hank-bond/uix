@@ -1,4 +1,4 @@
-// UIX cockpit — preload.
+// preload.
 //
 // Sandboxed + contextIsolated. The renderer never sees `ipcRenderer`
 // directly; it gets a typed surface on `window.uix` mirroring the

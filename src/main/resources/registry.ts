@@ -1,4 +1,4 @@
-// UIX cockpit — resource serving contributions.
+// resource serving contributions.
 //
 // Resources are request/response byte producers addressed by URL scheme. The
 // current local transport is Electron custom protocols; a hosted runtime can

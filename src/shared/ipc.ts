@@ -1,4 +1,4 @@
-// UIX cockpit — shared IPC contract.
+// shared IPC contract.
 //
 // Channels are scoped under `uix:` so they don't collide with
 // anything Electron or other libs might use. Renderer never imports

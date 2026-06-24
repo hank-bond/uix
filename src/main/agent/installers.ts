@@ -1,4 +1,4 @@
-// UIX cockpit — agent-surface composition root.
+// agent-surface composition root.
 //
 // UIX-core's agent installers ride a single in-process pi extension. Each
 // installer is handed the live pi handle and registers its own tools, hooks, or

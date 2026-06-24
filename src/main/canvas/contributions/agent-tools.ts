@@ -1,4 +1,4 @@
-// UIX cockpit — canvas agent tool contributions.
+// canvas agent tool contributions.
 //
 // The agent reads, clobbers, and range-edits canvases by key through these
 // tools, always in the anchored §-gutter wire format, and gets fresh anchors

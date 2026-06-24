@@ -1,4 +1,4 @@
-// UIX cockpit — canvas resource contributions.
+// canvas resource contributions.
 
 import { CanvasProtocolScheme, canvasHostToKey } from "../../../shared/canvas";
 import type { DocumentStore } from "../../documents/store";

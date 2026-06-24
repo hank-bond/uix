@@ -1,4 +1,4 @@
-// UIX cockpit — canvas model-visible state-message contributions.
+// canvas model-visible state-message contributions.
 
 import { Type } from "typebox";
 

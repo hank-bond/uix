@@ -1,4 +1,4 @@
-// UIX cockpit — main process.
+// main process.
 //
 // Owns app lifecycle, creates the BrowserWindow, and registers the IPC
 // channels declared in src/shared/ipc.ts.

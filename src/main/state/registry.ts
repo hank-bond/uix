@@ -1,4 +1,4 @@
-// UIX cockpit — private state lifecycle registry.
+// private state lifecycle registry.
 //
 // State contributions prepare cockpit-private session entries at run
 // boundaries. Unlike model-visible state messages, this pathway records

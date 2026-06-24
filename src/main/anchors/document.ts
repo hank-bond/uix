@@ -1,4 +1,4 @@
-// UIX cockpit — anchored line editor core.
+// anchored line editor core.
 //
 // The document is a doubly-linked list of line nodes plus a Map<anchor, Node>
 // for O(1) anchor lookup. Edits patch the list in place and never touch

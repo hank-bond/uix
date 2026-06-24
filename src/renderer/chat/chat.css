@@ -1,4 +1,4 @@
-/* UIX cockpit — chat pane defaults.
+/* chat pane defaults.
  *
  * Chat styling is scoped to the pane root so future panes can define
  * their own local vocabulary without inheriting chat-specific block styles.

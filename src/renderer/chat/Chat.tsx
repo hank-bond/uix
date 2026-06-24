@@ -1,4 +1,4 @@
-// UIX cockpit — chat pane.
+// chat pane.
 //
 // One transcript item shape feeds the pane. Startup history supplies completed
 // durable items; live events append the same items, stream compact partials

@@ -1,4 +1,4 @@
-// UIX cockpit — the renderer↔main IPC boundary.
+// the renderer↔main IPC boundary.
 //
 // Every crossing goes through this module and is recorded by it. `handle()`
 // is the inbound chokepoint (invoke endpoints), `send()` the outbound one

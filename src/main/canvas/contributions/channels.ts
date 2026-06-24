@@ -1,4 +1,4 @@
-// UIX cockpit — canvas channel contributions.
+// canvas channel contributions.
 
 import {
   type CanvasChanged,

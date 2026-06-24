@@ -1,4 +1,4 @@
-// UIX cockpit — canvas writeback shim.
+// canvas writeback shim.
 //
 // Injected into served canvas HTML so a human can edit the pane and have edits
 // flow back to the store. The canvas frame is sandboxed off `window.uix` (see
