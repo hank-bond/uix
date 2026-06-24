@@ -1,5 +1,5 @@
 ---
-summary: "Build the Host→Workspace runtime boundary before surface contributions: introduce a web-compatible Workspace iframe, bridge it to backend substrate through one bus/API, then move chat and canvas in as default feature surfaces without hardcoding them in Host."
+summary: "Build the Host→Workspace runtime boundary before surface contributions: introduce a web-compatible Workspace iframe, bridge it to backend substrate through request/event channels, then move chat and canvas in as default feature surfaces without hardcoding them in Host."
 read_when: "Read when resuming canvas/chat featurification after the Host/Workspace design discussion, especially before adding renderer surface contributions or changing App.tsx."
 status: active
 ---
@@ -23,10 +23,12 @@ A renderer-side `SurfaceHost` stepping stone was tried and reverted because it h
 - Use **Surface** for visible feature UI areas inside a Workspace. Avoid `pane` as the public concept for now; it is too form-specific.
 - A surface contribution declares that a visible surface exists; workspace/layout state decides order, size, focus, visibility, and later persistence.
 - Shadow and iframe surfaces are both supported concepts, but they are not naively swappable modes. Shadow is cooperative/reusable trusted code; iframe is a containment boundary with an extra bridge hop.
-- One logical backend-routed bus is the durable/agent-relevant/inter-feature path. Shadow surfaces call the Workspace bus client directly; nested iframe surfaces proxy via `postMessage` to the same bus. Ephemeral UI-only coordination may remain local inside Workspace later.
+- One logical backend-routed communication path is the durable/agent-relevant/inter-feature path. Model it as channel **requests** plus channel **events** rather than a WebSocket-first bus: Workspace→backend operations are REST-like request/response calls; backend→Workspace notifications are SSE-like event subscriptions. Shadow surfaces call the Workspace channel client directly; nested iframe surfaces proxy via `postMessage` to the same client. Ephemeral UI-only coordination may remain local inside Workspace later.
 - Backend routing matters because backend owns durable feature state, agent context, transcript/custom messages, rehydration, resources, and document stores.
 - Feature boundaries still matter in shadow mode for reuse/composition, like React component libraries but with UIX facets: UI surfaces, resources, channels, state, tools, docs, and default config.
 - Keep UI under Workspace web-compatible: no Electron imports/preload assumptions in Workspace runtime code once the bridge exists.
+- The `channels` facet is the declarative communication facet. Contributions declare request handlers and event schemas; runtime code imperatively calls requests from surfaces and publishes events from backend feature code.
+- Prefer typed facet clients over raw stringly transport in feature/surface code. The raw request/event pipe is Host/Workspace transport plumbing; feature-owned SDKs can later wrap generated/scoped clients into ergonomic methods such as `canvas.writeback(...)` and `canvas.onChanged(...)`.
 
 ## Step plan
 
@@ -38,17 +40,24 @@ Commit the updated design thread and this plan before implementation. Relevant d
 
 Introduce a small renderer-side API module used by current Chat/Canvas instead of direct `window.uix` calls. Initially it delegates to `window.uix` so the app still works unchanged. This creates the seam that can later switch to a postMessage proxy inside the Workspace iframe.
 
-Candidate shape:
+Candidate internal transport shape:
 
 ```ts
-workspaceApi.agent.sendPrompt(...)
-workspaceApi.agent.onEvent(...)
-workspaceApi.agent.getHistory(...)
-workspaceApi.channels.request(...)
-workspaceApi.channels.subscribe(...)
+workspaceClient.requests.call(...)
+workspaceClient.events.subscribe(...)
 ```
 
-Do not design the final bus all at once. Start by wrapping current calls: prompt/history/agent events/canvas changed/canvas writeback/refresh.
+Candidate facet/client shape used by current components:
+
+```ts
+agentClient.sendPrompt(...)
+agentClient.onEvent(...)
+agentClient.getHistory(...)
+canvasClient.writeback(...)
+canvasClient.onChanged(...)
+```
+
+Do not put canvas on the core Workspace API. Canvas-specific methods belong to a canvas-owned client/facet wrapper over the scoped channel client. Start by wrapping current calls: prompt/history/agent events/canvas changed/canvas writeback/refresh.
 
 ### W2 — Split Host and Workspace frontend entries while keeping behavior unchanged
 
@@ -93,20 +102,25 @@ The layout can preserve today’s two-column grid. Naming should use `SurfaceLay
 
 Move hardcoded Workspace rendering to bundled/default surface contributions. Chat and canvas should be contributed surfaces, but still use existing functionality internally. This step removes direct chat/canvas mounting from Workspace without changing behavior.
 
-### W6 — Evolve Workspace API toward bus/agent/resource clients
+### W6 — Evolve Workspace API toward typed facet clients
 
-Replace legacy-shaped methods with the intended public API:
+Replace legacy-shaped wrapper methods with typed clients derived from declared facets. The underlying Workspace/Host transport remains generic request/event plumbing, but feature/surface code should normally use scoped clients:
 
 ```ts
-ctx.bus.request(...)
-ctx.bus.publish(...)
-ctx.bus.subscribe(...)
-ctx.agent.prompt(...)
-ctx.agent.history(...)
-ctx.resources.url(...)
+ctx.feature.requests.writeback(...)
+ctx.feature.events.changed.subscribe(...)
+agentClient.sendPrompt(...)
+resourceClient.url(...)
 ```
 
-This is where channel declarations/capabilities can be revisited, but only once the bridge exists and real surfaces are inside Workspace.
+Feature-owned SDKs can wrap those generated/scoped clients into ergonomic methods:
+
+```ts
+canvas.writeback(...)
+canvas.onChanged(...)
+```
+
+This is where channel declarations become the source of truth for validation, bridge routing, docs, and typed clients, but only once the bridge exists and real surfaces are inside Workspace.
 
 ### W7 — Later cleanup
 
