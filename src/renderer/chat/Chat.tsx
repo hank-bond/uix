@@ -4,13 +4,16 @@
 // durable items; live events append the same items, stream compact partials
 // into them, and replace them whole at completion.
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import type { AgentEvent, TranscriptItem } from "../../shared/ipc";
+import { createAgentClient, type AgentClient } from "../workspace/agent";
+import { useWorkspaceClient } from "../workspace/context";
 import { ChatBlock } from "./blocks/ChatBlock";
 import { isPendingUserId, pendingUserId } from "./pending";
 
 export function Chat() {
+  const agent = useAgentClient();
   const [items, setItems] = useState<TranscriptItem[]>([]);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
@@ -18,13 +21,13 @@ export function Chat() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    return window.uix.onAgentEvent((event: AgentEvent) => {
+    return agent.onEvent((event: AgentEvent) => {
       setItems((prev) => reduce(prev, event));
       if (event.type === "agent_end") {
         setPending(false);
       }
     });
-  }, []);
+  }, [agent]);
 
   // Pull the prior transcript once and prepend it. Prepend (not replace) so any
   // live event that arrived during the await stays after the resumed history.
@@ -34,7 +37,7 @@ export function Chat() {
     let cancelled = false;
     void (async () => {
       try {
-        const snapshot = await window.uix.getHistory();
+        const snapshot = await agent.getHistory();
         if (cancelled) return;
         setItems((prev) => [...snapshot.items.filter(isVisible), ...prev]);
       } finally {
@@ -44,7 +47,7 @@ export function Chat() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [agent]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -63,7 +66,7 @@ export function Chat() {
     // first, confirm via the canonical record).
     setItems((prev) => [...prev, { id: pendingUserId(), kind: "user", text }]);
     try {
-      await window.uix.sendPrompt({ text });
+      await agent.sendPrompt({ text });
     } catch (err) {
       setPending(false);
       setItems((prev) => [
@@ -119,6 +122,11 @@ export function Chat() {
       </form>
     </>
   );
+}
+
+function useAgentClient(): AgentClient {
+  const workspace = useWorkspaceClient();
+  return useMemo(() => createAgentClient(workspace), [workspace]);
 }
 
 function reduce(prev: TranscriptItem[], event: AgentEvent): TranscriptItem[] {
