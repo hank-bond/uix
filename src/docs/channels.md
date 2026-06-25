@@ -7,10 +7,12 @@ status: stub
 
 UIX does not yet ship the final public packaged-feature channel API, but the current direction is in place for bundled features.
 
-A feature channel contract declares two operation kinds:
+A feature channel contribution declares two operation kinds:
 
 - **requests** — Workspace/front-end code asks the backend to do or return something; the backend registers a handler and the caller receives acceptance/result or an error;
 - **events** — backend feature code publishes events; Workspace/front-end code subscribes to them.
+
+Requests and events are grouped into one contribution for a feature. Request handlers are part of the backend contribution, not a separate merge step: shared feature code should export schemas/types/light parsers, while backend code owns executable handlers. A request contribution without a handler is not a complete request contribution.
 
 The feature author declares local names and schemas. The channel facet derives canonical ids from the feature id and local name:
 
@@ -20,6 +22,10 @@ canvas + changed   -> canvas.channel.changed
 ```
 
 For channels, the canonical id is also the transport address. The current Electron preload bridge still exposes legacy convenience methods on `window.uix`, but those methods now route canvas traffic through the same canonical channel ids.
+
+Request handlers should be typed from their request/response schemas. Feature-authored handler code should not receive `unknown`; only the transport boundary deals in unknown raw payloads. Explicit `response: Type.Void()` is preferred for ack-only requests because it communicates that the request has completion/backpressure semantics but no response body.
+
+Event schemas are not decorative. The channel facet should use event declarations to type and validate publish calls just as request declarations type and validate handlers. If runtime objects are split, name them honestly: request handler installables are request registrations; event declarations need their own normalized metadata/registration path for typed publishing.
 
 ## Boundary validation
 

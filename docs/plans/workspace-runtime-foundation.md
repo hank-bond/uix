@@ -30,6 +30,7 @@ A renderer-side `SurfaceHost` stepping stone was tried and reverted because it h
 - The `channels` facet is the declarative communication facet. Contributions declare request handlers and event schemas; runtime code imperatively calls requests from surfaces and publishes events from backend feature code.
 - Prefer typed facet clients over raw stringly transport in feature/surface code. The raw request/event pipe is Host/Workspace transport plumbing; feature-owned SDKs can later wrap generated/scoped clients into ergonomic methods such as `canvas.writeback(...)` and `canvas.onChanged(...)`.
 - The `window.uix`/Host bridge should become **faceted and contribution-derived**. Preload should not know canvas, chat, or feature channel contracts; it should expose generic facet transports installed from registered contributions, and Workspace clients should bind to those facets dynamically.
+- Facet-owned addresses should be derived by the facet, not authored as feature business logic. The current canvas `uix-canvas` protocol string is resource-facet addressing debt: canvas should contribute a resource by local name/config, while the resource facet derives/registers the scheme/address and provides Workspace URL construction.
 
 ## Step plan
 
@@ -122,6 +123,15 @@ canvas.onChanged(...)
 ```
 
 This is where channel declarations become the source of truth for validation, bridge routing, docs, and typed clients, but only once the bridge exists and real surfaces are inside Workspace.
+
+Channel contribution cleanup to preserve for W6:
+
+- Shared feature modules export schemas, branded/domain types, and light parsers only; they do not export pseudo-contributions shaped like backend contributions.
+- Backend channel contributions own executable request handlers. Request `handle` is required and typed from the request/response schemas.
+- Feature `channels` should likely become singular (`channels?: ChannelContribution`) because a single contribution can contain arbitrary `requests` and `events`; keep arrays only if a real composition use case appears.
+- Rename normalized request handler installables away from generic `ChannelRegistration` if events also participate; `ChannelRequestRegistration` better describes the current request-handler runtime object.
+- Event schemas must drive typed/validated publish, not just docs. Add normalized event metadata/registration or a contribution-derived typed publisher before treating events as fully enforced.
+- Keep explicit `response: Type.Void()` on ack-only requests, while client request helpers default response type to `void` to avoid repeated call-site ceremony.
 
 ### W7 — Later cleanup
 
