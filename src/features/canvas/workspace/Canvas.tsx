@@ -9,6 +9,7 @@ import {
   CanvasProtocolScheme,
   canvasKeyToHost,
   canvasUrl,
+  type CanvasKey,
 } from "../shared/addressing";
 import { createCanvasClient, type CanvasClient } from "./client";
 import {
@@ -17,7 +18,7 @@ import {
 } from "@uix/api/workspace";
 
 export interface CanvasProps {
-  canvasKey: string;
+  canvasKey: CanvasKey;
   workspace: WorkspaceClient;
 }
 

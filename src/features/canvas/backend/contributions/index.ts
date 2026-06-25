@@ -1,4 +1,4 @@
-import { assertCanvasKey } from "../../shared/addressing";
+import { parseCanvasKey } from "../../shared/addressing";
 import type {
   FeatureContributions,
   FeatureDefinition,
@@ -30,7 +30,9 @@ export function createCanvasContributions(
   const documents = ctx.documents.createStore({
     namespace: "canvas",
     extension: "html",
-    validateDocumentId: assertCanvasKey,
+    validateDocumentId: (documentId) => {
+      parseCanvasKey(documentId);
+    },
   });
   const buffer = new CanvasDocumentBuffer(documents);
   const openCanvasKeys = ["main"];

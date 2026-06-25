@@ -7,11 +7,11 @@
 // removes its own <script> node before serializing, so it never leaks into
 // stored content.
 
-import { assertCanvasKey } from "../shared/addressing";
+import type { CanvasKey } from "../shared/addressing";
 
 // Embedded raw into the script via a template; the key is validated so it
 // cannot contain quotes or break out of the string literal.
-function shimScript(key: string): string {
+function shimScript(key: CanvasKey): string {
   return `(function () {
   var self = document.currentScript;
   if (self) self.remove();
@@ -69,7 +69,6 @@ function shimScript(key: string): string {
 })();`;
 }
 
-export function injectCanvasShim(html: string, key: string): string {
-  assertCanvasKey(key);
+export function injectCanvasShim(html: string, key: CanvasKey): string {
   return `${html}\n<script>${shimScript(key)}</script>`;
 }

@@ -5,7 +5,7 @@ import {
   type CanvasWriteback,
   Channels,
 } from "../../../../shared/ipc";
-import { assertCanvasKey } from "../../shared/addressing";
+import { parseCanvasKey, type CanvasKey } from "../../shared/addressing";
 import type {
   ChannelContribution,
   ChannelPublisher,
@@ -20,7 +20,7 @@ export interface CanvasChannelContributionOptions {
 
 export function publishCanvasChanged(
   channels: ChannelPublisher,
-  key: string,
+  key: CanvasKey,
 ): void {
   createLogger("canvas").debug({ key }, "canvas_changed");
   channels.publish(Channels.canvasChanged, { key } satisfies CanvasChanged);
@@ -36,8 +36,8 @@ export function createCanvasChannelContributions(
       channel: Channels.canvasRefresh,
       handle(req: unknown) {
         const payload = req as CanvasChanged;
-        assertCanvasKey(payload.key);
-        publishCanvasChanged(opts.channels, payload.key);
+        const key = parseCanvasKey(payload.key);
+        publishCanvasChanged(opts.channels, key);
       },
     },
     {
@@ -45,14 +45,14 @@ export function createCanvasChannelContributions(
       channel: Channels.canvasWriteback,
       async handle(req: unknown) {
         const payload = req as CanvasWriteback;
-        assertCanvasKey(payload.key);
+        const key = parseCanvasKey(payload.key);
         createLogger("canvas").debug(
-          { key: payload.key, bytes: payload.html.length },
+          { key, bytes: payload.html.length },
           "canvas_writeback",
         );
         // No broadcast: the pane already shows the human's edit, and the
         // channel pulls from the canvas document buffer on its next turn.
-        await buffer.writeback(payload.key, payload.html);
+        await buffer.writeback(key, payload.html);
       },
     },
   ];

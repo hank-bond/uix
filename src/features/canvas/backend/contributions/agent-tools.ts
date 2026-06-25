@@ -15,7 +15,7 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
-import { assertCanvasKey, CanvasKeyDescription } from "../../shared/addressing";
+import { CanvasKeyDescription, CanvasKeySchema } from "../../shared/addressing";
 import type { AgentToolContribution } from "../../../../main/agent/tools";
 import {
   formatAnchoredText,
@@ -29,9 +29,13 @@ import { CanvasDocumentBuffer } from "../document-buffer";
 import { publishCanvasChanged } from "./channels";
 
 const keyDescription = `Canvas key (not a filesystem path): ${CanvasKeyDescription}, e.g. main or reports/security-review.`;
+const CanvasKeyToolParamSchema = {
+  ...CanvasKeySchema,
+  description: keyDescription,
+} as typeof CanvasKeySchema;
 
 const readParams = Type.Object({
-  key: Type.String({ description: keyDescription }),
+  key: CanvasKeyToolParamSchema,
   start: Type.Optional(
     Type.Integer({
       description:
@@ -47,7 +51,7 @@ const readParams = Type.Object({
 });
 
 const writeParams = Type.Object({
-  key: Type.String({ description: keyDescription }),
+  key: CanvasKeyToolParamSchema,
   html: Type.String({
     description:
       "Full authored HTML document. Write one block-level element per line so later edits can address fine-grained anchors.",
@@ -55,7 +59,7 @@ const writeParams = Type.Object({
 });
 
 const editParams = Type.Object({
-  key: Type.String({ description: keyDescription }),
+  key: CanvasKeyToolParamSchema,
   start_line: Type.String({
     description:
       "First line of the inclusive range to replace, as the full `<anchor>§<text>` line from a previous result. The live line must still match.",
@@ -107,7 +111,6 @@ function createReadTool(
     promptSnippet: "Read a canvas as anchored lines.",
     parameters: readParams,
     async execute(_toolCallId, params: ReadParams) {
-      assertCanvasKey(params.key);
       const lines = await buffer.read(params.key, params.start, params.end);
       return {
         content: [
@@ -143,7 +146,6 @@ function createWriteTool(
     parameters: writeParams,
     executionMode: "sequential",
     async execute(_toolCallId, params: WriteParams) {
-      assertCanvasKey(params.key);
       const lines = await buffer.write(params.key, params.html);
       agentChangedCanvasKeys.add(params.key);
       publishCanvasChanged(opts.channels, params.key);
@@ -169,7 +171,6 @@ function createEditTool(
     parameters: editParams,
     executionMode: "sequential",
     async execute(_toolCallId, params: EditParams) {
-      assertCanvasKey(params.key);
       const changes = await buffer.edit(params.key, {
         start: parseAnchoredLine(params.start_line),
         end: parseAnchoredLine(params.end_line),
