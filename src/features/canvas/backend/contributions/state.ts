@@ -4,10 +4,7 @@
 // snapshots the relevant canvases at UIX turn boundaries and returns resource
 // refs for the substrate-owned `uix.turn-state` entry.
 
-import type {
-  PreparedState,
-  StateContribution,
-} from "../../../../main/state/registry";
+import type { PreparedState, StateContribution } from "#backend/state/registry";
 
 import { CanvasDocumentBuffer } from "../document-buffer";
 

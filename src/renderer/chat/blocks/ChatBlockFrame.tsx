@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import type { TranscriptItem } from "../../../shared/ipc";
+import type { TranscriptItem } from "#shared/ipc";
 
 export interface ChatBlockFrameProps {
   className: string;

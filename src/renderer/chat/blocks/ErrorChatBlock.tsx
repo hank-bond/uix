@@ -1,4 +1,4 @@
-import type { TranscriptItem } from "../../../shared/ipc";
+import type { TranscriptItem } from "#shared/ipc";
 import { ChatBlockFrame } from "./ChatBlockFrame";
 
 export function ErrorChatBlock({

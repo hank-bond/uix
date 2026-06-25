@@ -1,15 +1,12 @@
 // canvas resource contributions.
 
-import {
-  CanvasProtocolScheme,
-  canvasHostToKey,
-} from "../../../../shared/canvas";
-import type { DocumentStore } from "../../../../main/documents/store";
+import { CanvasProtocolScheme, canvasHostToKey } from "#shared/canvas";
+import type { DocumentStore } from "#backend/documents/store";
 import type {
   ResourceContribution,
   ResourceSchemeContribution,
-} from "../../../../main/resources/registry";
-import { createLogger } from "../../../../main/log";
+} from "#backend/resources/registry";
+import { createLogger } from "#backend/log";
 
 import { injectCanvasShim } from "../shim";
 

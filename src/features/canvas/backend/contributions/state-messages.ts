@@ -2,8 +2,8 @@
 
 import { Type } from "typebox";
 
-import type { StateMessageContribution } from "../../../../main/agent/state-messages";
-import { createLogger } from "../../../../main/log";
+import type { StateMessageContribution } from "#backend/agent/state-messages";
+import { createLogger } from "#backend/log";
 
 import { formatCanvasChanges } from "../anchored-format";
 import { CanvasDocumentBuffer } from "../document-buffer";

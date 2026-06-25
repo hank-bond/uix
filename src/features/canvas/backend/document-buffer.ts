@@ -16,12 +16,9 @@ import {
   type AnchoredDocumentSnapshot,
   type AnchoredLine,
   AnchoredDocument,
-} from "../../../main/anchors/document";
+} from "#backend/anchors/document";
 
-import type {
-  DocumentStore,
-  DocumentVersion,
-} from "../../../main/documents/store";
+import type { DocumentStore, DocumentVersion } from "#backend/documents/store";
 import { canonicalizeHtml } from "./normalize";
 
 export interface DocumentVersionMeta {

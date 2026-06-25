@@ -6,7 +6,7 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
-import type { AgentEvent, TranscriptItem } from "../../shared/ipc";
+import type { AgentEvent, TranscriptItem } from "#shared/ipc";
 import { createAgentClient, type AgentClient } from "../workspace/agent";
 import { useWorkspaceClient } from "../workspace/context";
 import { ChatBlock } from "./blocks/ChatBlock";
