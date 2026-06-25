@@ -15,10 +15,7 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
-import {
-  assertCanvasKey,
-  CanvasKeyDescription,
-} from "../../../../shared/canvas";
+import { assertCanvasKey, CanvasKeyDescription } from "../../shared/addressing";
 import type { AgentToolContribution } from "../../../../main/agent/tools";
 import {
   formatAnchoredText,

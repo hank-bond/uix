@@ -5,7 +5,7 @@ import {
   type CanvasWriteback,
   Channels,
 } from "../../../../shared/ipc";
-import { assertCanvasKey } from "../../../../shared/canvas";
+import { assertCanvasKey } from "../../shared/addressing";
 import type {
   ChannelContribution,
   ChannelPublisher,
