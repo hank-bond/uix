@@ -2,7 +2,7 @@ import type {
   AgentEvent,
   PromptRequest,
   TranscriptSnapshot,
-} from "../../shared/ipc";
+} from "#shared/ipc";
 import type { WorkspaceClient } from "@uix/api/workspace";
 
 export const AgentRequests = {

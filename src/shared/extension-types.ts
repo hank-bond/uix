@@ -1,15 +1,8 @@
-// Public types for extension authors.
+// Legacy extension-author types re-exported by src/api/index.ts.
 //
-// Imported by extensions as `@uix/api` (a tsconfig path alias). When external
-// extensions exist and we publish, this file moves to
-// `packages/api/src/index.ts`, the alias goes away, and the extension-facing
-// import shape stays identical.
-//
-// IMPORTANT: only types live here. Extensions never `import` a runtime value
-// from `@uix/api` — the `uix` object passed to the factory is constructed by
-// the loader and handed in. That's why a tsconfig alias is sufficient:
-// `import type` is erased at compile, so nothing ever has to resolve
-// `@uix/api` at runtime.
+// The broader `@uix/api` surface now also contains small runtime helpers for
+// feature contracts. This file stays type-only because the trusted extension
+// command API still receives its runtime `uix` object by injection.
 
 /**
  * Context object passed to a command handler when it's invoked.
