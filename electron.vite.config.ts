@@ -16,6 +16,11 @@ import { resolve } from "node:path";
 // parse5 is excluded (i.e. bundled) because it is ESM-only: left external it
 // would emit `require("parse5")`, which throws under the CJS main bundle. It is
 // pure JS with no runtime path lookups, so bundling it is safe.
+//
+// typebox is bundled into preload because sandboxed preload scripts cannot
+// resolve dependency external requires. The preload currently imports bundled
+// feature channel contracts so bridge adapters consume the same contribution
+// metadata as the rest of the channel facet.
 const alias = {
   "@uix/api": resolve(__dirname, "src/api"),
   "#backend": resolve(__dirname, "src/main"),
@@ -36,7 +41,7 @@ export default defineConfig({
   },
   preload: {
     resolve: { alias },
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: ["typebox"] })],
     build: {
       outDir: "out/preload",
       rollupOptions: {
