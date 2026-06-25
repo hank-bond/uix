@@ -1,6 +1,6 @@
 // canvas resource contributions.
 
-import { CanvasProtocolScheme, canvasHostToKey } from "#shared/canvas";
+import { CanvasProtocolScheme, canvasHostToKey } from "../../shared/addressing";
 import type { DocumentStore } from "#backend/documents/store";
 import type {
   ResourceContribution,

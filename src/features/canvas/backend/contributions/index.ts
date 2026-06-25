@@ -1,4 +1,4 @@
-import { assertCanvasKey } from "#shared/canvas";
+import { assertCanvasKey } from "../../shared/addressing";
 import type {
   FeatureContributions,
   FeatureDefinition,
