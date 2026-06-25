@@ -1,4 +1,4 @@
-// UIX cockpit — renderer entry.
+// renderer entry.
 // Mounts the React app into #root. Strict mode on; nothing else.
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

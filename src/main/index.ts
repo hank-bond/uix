@@ -1,4 +1,4 @@
-// UIX cockpit — main process.
+// main process.
 //
 // Owns app lifecycle, creates the BrowserWindow, and registers the IPC
 // channels declared in src/shared/ipc.ts.
@@ -14,22 +14,28 @@ import process from "node:process";
 
 import {
   type AgentEvent,
-  type CanvasChanged,
-  type CanvasWriteback,
   Channels,
   type TranscriptSnapshot,
   type PromptRequest,
   type ReloadResult,
 } from "../shared/ipc";
-import { assertCanvasKey } from "../shared/canvas";
-
 import { createAgentDriver } from "./agent/driver";
 import { createStateMessages } from "./agent/state-messages";
-import { registerCanvasProtocol } from "./canvas/protocol";
-import { createCanvasAgentFacet } from "./content/agent-facet";
-import { createCanvasContentStore } from "./content/content-store";
+import {
+  createAgentToolInstaller,
+  createAgentToolRegistry,
+} from "./agent/tools";
+import { createChannelRegistry } from "./channels/registry";
+import { createStateRegistry } from "./state/registry";
+import { createLocalDocumentStoreProvider } from "./documents/store";
 import { loadExtensions } from "./extensions/loader";
+import { getBundledFeatures } from "./features/bundled";
+import {
+  registerFeatureContributions,
+  registerFeaturePreflightContributions,
+} from "./features/contributions";
 import { defaultRoots } from "./extensions/roots";
+import { createResourceRegistry } from "./resources/registry";
 import { resolveWorkspace } from "./workspace";
 import * as ipc from "./ipc";
 import {
@@ -41,6 +47,9 @@ import {
 import { createLogger } from "./log";
 
 const isDev = !app.isPackaged;
+const bundledFeatures = getBundledFeatures();
+
+registerFeaturePreflightContributions(bundledFeatures);
 
 function createWindow(): BrowserWindow {
   const win = new BrowserWindow({
@@ -100,13 +109,6 @@ function logChatContent(event: AgentEvent): void {
   }
 }
 
-function sendCanvasChanged(key: string): void {
-  createLogger("canvas").debug({ key }, "canvas_changed");
-  for (const win of BrowserWindow.getAllWindows()) {
-    ipc.send(win, Channels.canvasChanged, { key });
-  }
-}
-
 void app.whenReady().then(async () => {
   // One bag for everything that lives as long as the app does.
   // Anything we register goes in here; `will-quit` disposes it.
@@ -126,7 +128,7 @@ void app.whenReady().then(async () => {
   // logged as `ipc_log_file` when armed.
   ipc.initLogFile(workspace.stateRoot);
 
-  appBag.add(registerCanvasProtocol(workspace.stateRoot));
+  const documents = createLocalDocumentStoreProvider(workspace.stateRoot);
 
   // Extensions live under their own child scope so reload can tear
   // down the extension subtree without touching app-lifetime process
@@ -146,29 +148,35 @@ void app.whenReady().then(async () => {
     }),
   );
 
-  // One canvas store shared by the agent's channel and the human-writeback
-  // handler, so both commit through the same seam — and pick up versioning
-  // together once the store gains it.
-  const canvasStore = createCanvasContentStore(workspace.stateRoot);
-
-  // The cockpit→agent state channel; contributions register their messageType
-  // against it and the driver flushes them while preparing each agent run.
+  // Facet registries. Features contribute data into these; substrate installers
+  // adapt the registries to pi when the agent session opens.
+  const resources = createResourceRegistry();
+  const channels = createChannelRegistry({
+    publish(channel, payload) {
+      for (const win of BrowserWindow.getAllWindows()) {
+        ipc.send(win, channel, payload);
+      }
+    },
+  });
+  const state = createStateRegistry();
+  const agentTools = createAgentToolRegistry();
   const stateMessages = createStateMessages();
+
+  for (const feature of bundledFeatures) {
+    appBag.add(
+      registerFeatureContributions(
+        { resources, channels, agentTools, state, stateMessages },
+        feature.contribute({ documents, channels }),
+      ),
+    );
+  }
 
   const driver = createAgentDriver({
     onEvent: (event) => sendAgentEvent(mainWindow, event),
     workspace,
+    state,
     stateMessages,
-    agentFacets: [
-      // Open canvases are hardcoded to match the single pane (Canvas.tsx);
-      // swap for pane-reported keys when the pane host lands.
-      createCanvasAgentFacet(
-        { onCanvasChanged: sendCanvasChanged },
-        canvasStore,
-        ["main"],
-        stateMessages,
-      ),
-    ],
+    agentInstallers: [createAgentToolInstaller(agentTools)],
   });
   appBag.add(driver);
   // Eager, off the boot path: loads the session file so getHistory() resolves
@@ -196,26 +204,6 @@ void app.whenReady().then(async () => {
         }),
       },
     ),
-  );
-
-  appBag.add(
-    ipc.handle<CanvasChanged, void>(Channels.canvasRefresh, (req) => {
-      assertCanvasKey(req.key);
-      sendCanvasChanged(req.key);
-    }),
-  );
-
-  appBag.add(
-    ipc.handle<CanvasWriteback, void>(Channels.canvasWriteback, async (req) => {
-      assertCanvasKey(req.key);
-      createLogger("canvas").debug(
-        { key: req.key, bytes: req.html.length },
-        "canvas_writeback",
-      );
-      // No broadcast: the pane already shows the human's edit, and the channel
-      // pulls from the store on its next turn.
-      await canvasStore.commit(req.key, req.html);
-    }),
   );
 
   appBag.add(

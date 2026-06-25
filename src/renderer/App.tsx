@@ -1,4 +1,4 @@
-// UIX cockpit — top-level layout.
+// top-level layout.
 //
 // Two panes, side by side: the chat (left, live) and the canvas
 // (right, hardcoded Stage-1 iframe). The layout itself is plain CSS grid in

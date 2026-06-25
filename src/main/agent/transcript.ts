@@ -1,4 +1,4 @@
-// UIX cockpit — pi session/events → transcript model.
+// pi session/events → transcript model.
 //
 // The renderer consumes one UIX-owned transcript item shape whether the source
 // is a persisted pi session entry or a live pi event. Live streaming may attach

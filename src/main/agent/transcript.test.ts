@@ -48,7 +48,7 @@ describe("toTranscriptItems", () => {
         {
           type: "toolCall",
           id: "call-1",
-          name: "uix_canvas_write",
+          name: "canvas__anchor_write",
           arguments: { key: "main" },
         },
         { type: "text", text: "after" },
@@ -57,7 +57,7 @@ describe("toTranscriptItems", () => {
     const result = entry("message", {
       role: "toolResult",
       toolCallId: "call-1",
-      toolName: "uix_canvas_write",
+      toolName: "canvas__anchor_write",
       content: [{ type: "text", text: "wrote canvas" }],
       details: { lines: 3 },
       isError: false,
@@ -74,7 +74,7 @@ describe("toTranscriptItems", () => {
       expect.objectContaining({
         kind: "tool",
         toolCallId: "call-1",
-        toolName: "uix_canvas_write",
+        toolName: "canvas__anchor_write",
         args: { key: "main" },
         result: {
           content: [{ type: "text", text: "wrote canvas" }],

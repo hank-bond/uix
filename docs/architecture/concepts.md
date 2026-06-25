@@ -1,5 +1,5 @@
 ---
-summary: "Canonical UIX concept vocabulary: feature, contribution point, contribution, capability handle, registry, agent facet, assembler, and the state-message-local buffer/materialize terms, with boundaries from pi extension vocabulary."
+summary: "Canonical UIX concept vocabulary: feature, facet, installer, driver, hook, contribution point, contribution, capability handle, registry, coordinator, assembler, reload reconciliation, and state-message-local terms, with boundaries from pi extension vocabulary."
 status: active
 ---
 
@@ -9,15 +9,37 @@ This is the canonical vocabulary for UIX architecture discussions and code names
 
 ## Feature
 
-A **feature** is a coherent product/capability bundle: canvas, conversation, a chess board, a file browser, a report renderer. A feature may be first-party in-tree or supplied by a UIX extension package.
+A **feature** is the coherent capability being added: canvas, conversation, a chess board, a file browser, a report renderer. A feature may be first-party in-tree or supplied by a UIX extension package.
+
+A feature is conceptual: what it does. An extension package is concrete: how UIX discovers, activates, reloads, and lifetimes loadable code. Most packages will start as one extension package installing one feature, but a package may install several related features.
 
 A feature is not itself one registration. It may include several pieces:
 
 - UIX contributions, such as panes, commands, state messages, or channel handlers;
-- agent facets, such as tools or Pi hooks;
+- agent installers, such as code that registers tools or Pi hooks;
 - renderer code, services, stores, styles, and assets.
 
-Use **feature** for UIX capability bundles instead of **extension** unless you specifically mean a loadable UIX package or a Pi extension factory.
+Use **feature** when naming the user-facing capability. Use **extension** when you mean the loadable package/activation boundary or a Pi extension factory.
+
+## Identifier grammar
+
+UIX uses two id grammars for different things.
+
+**Dotted ids** name globally visible sources, kinds, messages, and actions:
+
+```text
+<namespace>.<origin-facet>[.<contribution-or-action>...]
+```
+
+`namespace` is either a feature id (`canvas`, `chat`, `acme.report`) or `uix` for substrate-owned ids. The middle segment names the contribution surface where the capability/action originates (`pane`, `agent`, `document`, `state`, `channel`, `command`), not necessarily the facet that emits a later event. Later segments are facet-local stable names, not throwaway strings. Examples: `canvas.document.html`, `canvas.pane.writeback`, `canvas.agent.anchor_edit`, `uix.document.restore`, `uix.turn-state`.
+
+Event payload shapes are defined by the emitting substrate facet. If a pane-originated write causes a document event, `sourceId: "canvas.pane.writeback"` is provenance, but the payload is still the document facet's `DocumentWriteEvent` shape. A contribution in one facet may call another facet; `eventType`/channel tells you what happened, and `sourceId` tells you which contribution caused it.
+
+Inside a typed registry, the registry supplies the facet context, so contribution ids can be simpler when uniqueness is scoped by that registry. For example, the state registry can persist the canvas state contribution under `canvas`; global source ids still use self-describing dotted ids such as `canvas.pane.writeback`.
+
+**Resource ids** name addressable things. URI schemes identify substrate resource managers: `doc://canvas/main` is a document-engine resource in the canvas namespace; `workspace://src/main.ts` is a workspace file interpreted relative to the turn's recorded cwd. Feature/facet organization does not appear inside resource paths — the same resource may be read by a pane, edited by an agent tool, snapshotted by state, and restored by the coordinator.
+
+Use `uix.*` only for substrate-owned dotted ids. Bundled default features are still features, so their ids use feature namespaces such as `canvas.*` and `chat.*`.
 
 ## Contribution point
 
@@ -31,6 +53,22 @@ Examples:
 - future `registerChannelHandler(...)`
 
 A contribution point defines validation, lifetime, ownership, and how registered contributions are later used by the substrate.
+
+## Registration
+
+A **registration** is one concrete setup action that adds a contribution, callback, or capability to a contribution point or runtime surface.
+
+Examples:
+
+- `state.register(contribution)`;
+- `stateMessages.register(contribution)`;
+- `pi.registerTool(tool)`;
+- `pi.on("input", handler)`;
+- `ipc.handle(channel, handler)`.
+
+Registering answers: what one concrete thing was added? Installing answers: how does a whole slice attach to the system?
+
+A registered callback at a lifecycle point is a hook. For example, `pi.on("input", handler)` registers an `input` hook.
 
 ## Contribution
 
@@ -50,7 +88,7 @@ Examples:
 - a future pane contribution describes a mountable surface;
 - a future channel-handler contribution describes a typed pane→main message handler.
 
-Do not use **contribution** as a generic synonym for any behavior-changing code. An internal function that calls `pi.registerTool(...)` is an agent facet, not a UIX contribution, unless it is itself registered through a UIX contribution point.
+Do not use **contribution** as a generic synonym for any behavior-changing code. An internal function that calls `pi.registerTool(...)` is an agent installer, not a UIX contribution, unless it is itself registered through a UIX contribution point.
 
 ## Capability handle
 
@@ -70,11 +108,41 @@ A **registry** is the substrate-owned collection of currently registered contrib
 
 A registry is working memory, not durable authority. Durable state lives in Pi session entries, content stores, or other explicitly owned stores. The registry answers: what contributions are live right now?
 
-## Agent facet
+A registry is not a `DisposableBag`. The registry owns the live contribution index and invariants such as duplicate-id checks; the `Disposable` returned by `register(...)` removes that one contribution; a caller-owned bag decides when that removal happens. Hosted extension APIs should auto-scope registration disposables to the extension's lifetime bag, and first-party wiring should add registration disposables to an explicit bag when the contribution lifetime is shorter than the app.
 
-An **agent facet** is an internal Pi-facing side of a UIX feature. It receives Pi's `ExtensionAPI` and affects agent/session behavior.
+## Facet
 
-An agent facet may call Pi APIs such as:
+A **facet** is a coherent slice of behavior we try to keep self-contained and discrete. It is a conceptual boundary, not necessarily one file, one class, or one registration.
+
+Examples:
+
+- state management;
+- state messages;
+- pane hosting;
+- channels;
+- transcript identity;
+- the agent-facing side of a feature.
+
+A feature may participate in many facets. For example, a canvas feature can contribute a pane to the pane-hosting facet, tools to the agent/tooling facet, private snapshots to the state-management facet, and model-visible sections to the state-message facet.
+
+Use **facet** for the behavioral slice. Use **feature** for the product/capability bundle that may be packaged as a UIX extension.
+
+## Installer
+
+An **installer** is setup-time code that attaches a facet or feature side to a runtime by registering concrete pieces of behavior.
+
+An installer may register:
+
+- tools;
+- hooks;
+- commands;
+- IPC handlers;
+- Electron protocols;
+- UIX contributions.
+
+Installers answer: how does this slice attach to the system? Registrations answer: what one concrete thing was added?
+
+An **agent installer** is the Pi-facing installer shape: it receives Pi's `ExtensionAPI` and registers behavior that affects the agent/session runtime. Agent installers may call Pi APIs such as:
 
 - `pi.registerTool(...)`
 - `pi.on(...)`
@@ -82,13 +150,47 @@ An agent facet may call Pi APIs such as:
 - `pi.sendMessage(...)`
 - `pi.sendUserMessage(...)`
 
-Agent facets are composed inside UIX-core's single in-process Pi extension factory. They are internal substrate wiring, not public UIX extension contributions.
+Agent installers are composed inside UIX-core's single in-process Pi extension factory. They are internal substrate wiring, not public UIX extension contributions.
 
-Use **agent facet** instead of **binding** for this role. Pi's **extension** vocabulary still refers to the factory/API mechanism supplied by Pi; UIX **feature** vocabulary refers to capability bundles.
+## Driver
+
+A **driver** owns a runtime or lifecycle boundary. It creates the relevant lifetime bag(s), runs installers or otherwise attaches behavior for that boundary, arranges teardown/reload ordering, and exposes the small control surface other code uses to drive that runtime.
+
+Examples:
+
+- the agent driver owns the Pi session boundary: session creation/resume, prompt/reload/history, live event forwarding, and the Pi extension factory that runs agent installers;
+- the extension driver owns extension activation: discovery, per-entry bags, injected API construction, activation/reload/error isolation, and teardown of registered contributions.
+
+Drivers own bags. Installers register things. Registries track live contributions. Bags decide when the registration disposables run.
+
+## Hook
+
+A **hook** is a runtime callback registered at a named lifecycle point.
+
+Examples:
+
+- `pi.on("input", handler)` registers an `input` hook;
+- `pi.on("before_agent_start", handler)` registers a `before_agent_start` hook;
+- `pi.on("agent_end", handler)` registers an `agent_end` hook.
+
+Installers register hooks. Hooks run later when the lifecycle event occurs.
+
+## Coordinator
+
+A **coordinator** is substrate-owned glue that runs a lifecycle across many registered contributions and performs the side effects for that lifecycle.
+
+The current example is the private state coordinator:
+
+- installs Pi `input` and `agent_end` hooks;
+- asks live state contributions to prepare private turn state;
+- persists contribution-keyed opaque state;
+- appends one `uix.turn-state` session entry when there is state to persist.
+
+A coordinator owns timing and cross-contribution mechanics. The contributing feature owns the data it prepares.
 
 ## Assembler
 
-An **assembler** is a substrate-owned pattern for turning many registered contributions into one runtime artifact or hook.
+An **assembler** is a substrate-owned pattern for turning many registered contributions into one runtime artifact or hook result.
 
 The current example is the state-message assembler:
 
@@ -97,9 +199,25 @@ The current example is the state-message assembler:
 - materializes live contributions while preparing an agent run;
 - performs branch comparison and append confirmation;
 - assembles one display-hidden `uix.state` custom message;
-- installs as an agent facet via Pi's `before_agent_start` hook.
+- installs a Pi `before_agent_start` hook through an agent installer.
 
-Not every agent facet is an assembler. The canvas tool facet registers tools directly and is not an assembler.
+Coordinators and assemblers are both cross-contribution substrate patterns. A coordinator emphasizes lifecycle orchestration and side effects; an assembler emphasizes building one combined artifact from many contributions.
+
+## Reload reconciliation
+
+UIX has three layers that can fall out of sync at different times:
+
+1. **Disk** — extension package files.
+2. **UIX memory** — currently registered contributions in facet registries.
+3. **Pi runtime** — tools, hooks, commands, and other agent behavior registered during the last Pi extension load.
+
+The extension driver reconciles disk to UIX memory by reloading extension packages: clear old extension bags, activate entries again, and let their installers register the current contributions. Registries are the source of truth after activation.
+
+Facet registries that compile to Pi install-time behavior mark the agent install surface dirty when their contributions are registered or unregistered. The dirty marker is not about disk; it means the Pi runtime snapshot no longer matches UIX's in-memory contribution graph. The agent driver must reconcile that by reloading Pi before the next agent turn starts. It may reload earlier when the agent is idle to avoid submit latency, but the invariant is before-turn reconciliation.
+
+Facet registries that are local to UIX do not mark the agent install surface dirty. Their registration disposables and renderer/main notifications are enough.
+
+Renderer reload follows the same registry-source-of-truth rule. The main process owns extension activation and facet registries; the renderer shell does not discover extensions. When UI-visible registries change, main sends the relevant registry snapshot or change payload to the renderer, and React reconciles: unmount removed surfaces, mount new ones, and update changed ones. A full Electron/Vite hot reload is dev tooling, not the UIX extension reload mechanism.
 
 ## State-message-local terms
 
@@ -144,5 +262,5 @@ A contribution can provide custom `materialize(...)` logic. With no UIX-managed 
 - **Pi extension**: Pi's factory/API mechanism — a function receives `pi: ExtensionAPI` and registers hooks, tools, commands, providers, messages, or session writes.
 - **UIX extension**: a loadable package using `@uix/api` to register UIX contributions.
 - **Feature**: the capability bundle, independent of whether it is first-party or packaged.
-- **Agent facet**: the internal Pi-facing part of a feature.
+- **Agent installer**: the internal Pi-facing setup function for a facet or feature side.
 - **Contribution**: the UIX-facing registered object accepted by a UIX contribution point.

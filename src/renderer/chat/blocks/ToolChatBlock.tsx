@@ -6,13 +6,13 @@ import type { ToolChatRenderer, ToolItem } from "./tool";
 
 const toolChatRenderers = new Map<string, ToolChatRenderer>();
 
-registerToolChatRenderer("uix_canvas_read", {
+registerToolChatRenderer("canvas__anchor_read", {
   render: (props) => <CanvasToolContent {...props} label="Read Canvas" />,
 });
-registerToolChatRenderer("uix_canvas_write", {
+registerToolChatRenderer("canvas__anchor_write", {
   render: (props) => <CanvasToolContent {...props} label="Write Canvas" />,
 });
-registerToolChatRenderer("uix_canvas_edit", {
+registerToolChatRenderer("canvas__anchor_edit", {
   render: (props) => <CanvasToolContent {...props} label="Edit Canvas" />,
 });
 

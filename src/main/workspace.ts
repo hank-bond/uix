@@ -1,4 +1,4 @@
-// UIX cockpit — workspace roots.
+// workspace roots.
 //
 // Two roots, deliberately separate even though they are equal today:
 //

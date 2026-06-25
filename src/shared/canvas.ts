@@ -1,4 +1,4 @@
-// UIX cockpit — shared canvas addressing helpers.
+// shared canvas addressing helpers.
 //
 // Canvas documents are addressed by keys, not filesystem paths. Keys are
 // slash-namespaced lowercase slug segments. The custom protocol needs the full

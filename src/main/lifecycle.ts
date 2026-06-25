@@ -1,4 +1,4 @@
-// UIX cockpit — lifecycle helpers (main process).
+// lifecycle helpers (main process).
 //
 // The rule: every callback registration produces a Disposable, and that
 // Disposable goes into a bag that's torn down together. This makes

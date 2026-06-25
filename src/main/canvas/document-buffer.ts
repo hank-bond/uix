@@ -1,6 +1,6 @@
-// UIX cockpit — anchored document channel (session state).
+// canvas document buffer (session state).
 //
-// Holds one AnchoredDocument per document id for the life of the agent session.
+// Holds one AnchoredDocument per canvas document id for the life of the agent session.
 // The anchor<->line map inside each document is regenerable from content and is
 // never persisted (so the filesystem stays non-load-bearing): a document is
 // (re)built by canonicalizing the store's current content the first time the
@@ -13,18 +13,24 @@
 import {
   type AnchoredChange,
   type AnchoredEdit,
+  type AnchoredDocumentSnapshot,
   type AnchoredLine,
   AnchoredDocument,
 } from "../anchors/document";
 
-import type { ContentStore } from "./content-store";
+import type { DocumentStore, DocumentVersion } from "../documents/store";
 import { canonicalizeHtml } from "./normalize";
 
-export class DocumentChannel {
-  readonly #store: ContentStore;
-  readonly #docs = new Map<string, AnchoredDocument>();
+export interface DocumentVersionMeta {
+  readonly anchors: AnchoredDocumentSnapshot;
+}
 
-  constructor(store: ContentStore) {
+export class CanvasDocumentBuffer {
+  readonly #store: DocumentStore;
+  readonly #docs = new Map<string, AnchoredDocument>();
+  readonly #pendingChanges = new Map<string, readonly AnchoredChange[]>();
+
+  constructor(store: DocumentStore) {
     this.#store = store;
   }
 
@@ -45,12 +51,28 @@ export class DocumentChannel {
   async write(docId: string, html: string): Promise<readonly AnchoredLine[]> {
     const doc = await this.#load(docId);
     const lines = doc.write(canonicalizeHtml(html));
-    await this.#store.commit(docId, plainText(lines));
+    await this.#store.setCurrent(docId, plainText(lines));
     return lines;
   }
 
+  // Apply a pane-originated whole-document writeback. If the agent has an
+  // active anchor projection for this document, reconcile instead of clobbering
+  // so the next canvas-diff can report stable anchored hunks.
+  async writeback(docId: string, html: string): Promise<void> {
+    const canonical = canonicalizeHtml(html);
+    const doc = this.#docs.get(docId);
+    if (!doc) {
+      await this.#store.setCurrent(docId, canonical);
+      return;
+    }
+
+    const changes = doc.reconcile(canonical);
+    if (changes.length) this.#appendPendingChanges(docId, changes);
+    await this.#store.setCurrent(docId, plainText(doc.read()));
+  }
+
   // Syncs to the store first: an edit computed against a stale cache would
-  // re-commit the agent's whole view and silently revert a concurrent human edit
+  // re-save the agent's whole view and silently revert a concurrent human edit
   // to an untouched line. If the human touched the line being edited, the
   // boundary match-guard rejects it.
   //
@@ -74,11 +96,42 @@ export class DocumentChannel {
       ...currentLines.slice(endIndex + 1).map((line) => line.text),
     ].join("\n");
     const changes = doc.reconcile(canonicalizeHtml(nextText));
-    await this.#store.commit(docId, plainText(doc.read()));
+    await this.#store.setCurrent(docId, plainText(doc.read()));
     return changes;
   }
 
-  // Drives the per-turn context injection (see content/agent-facet.ts). Only
+  // Persist current content plus the exact anchor state as immutable versions.
+  // Callers pass the document ids that are durable at this run boundary (open
+  // canvases today; dynamic pane ids once the pane host lands).
+  async snapshotCurrent(
+    docIds: Iterable<string>,
+  ): Promise<ReadonlyMap<string, DocumentVersion<DocumentVersionMeta>>> {
+    const result = new Map<string, DocumentVersion<DocumentVersionMeta>>();
+    for (const docId of new Set(docIds)) {
+      await this.#sync(docId);
+      const doc = await this.#load(docId);
+      // Make the mutable latest byte-match the anchor state we are about to
+      // store. This canonicalizes cosmetic iframe/file rewrites at the durable
+      // boundary instead of snapshotting content/meta that disagree.
+      await this.#store.setCurrent(docId, plainText(doc.read()));
+      result.set(
+        docId,
+        await this.#store.snapshotCurrent<DocumentVersionMeta>(docId, {
+          anchors: doc.toSnapshot(),
+        }),
+      );
+    }
+    return result;
+  }
+
+  async getVersion(
+    docId: string,
+    versionId: string,
+  ): Promise<DocumentVersion<DocumentVersionMeta> | null> {
+    return this.#store.getVersion<DocumentVersionMeta>(docId, versionId);
+  }
+
+  // Drives the per-turn context injection (see canvas/contributions/agent-tools.ts). Only
   // touched documents are in scope: the agent has no anchors for the rest and
   // reads them fresh when needed.
   async consumeChanges(): Promise<
@@ -86,13 +139,25 @@ export class DocumentChannel {
   > {
     const result = new Map<string, readonly AnchoredChange[]>();
     for (const docId of this.#docs.keys()) {
-      const changes = await this.#sync(docId);
+      const pending = this.#pendingChanges.get(docId) ?? [];
+      const changes = [...pending, ...(await this.#sync(docId))];
+      this.#pendingChanges.delete(docId);
       if (changes.length) result.set(docId, changes);
     }
     return result;
   }
 
-  // No commit — the content came *from* the store. Returns [] when already in
+  #appendPendingChanges(
+    docId: string,
+    changes: readonly AnchoredChange[],
+  ): void {
+    this.#pendingChanges.set(docId, [
+      ...(this.#pendingChanges.get(docId) ?? []),
+      ...changes,
+    ]);
+  }
+
+  // No setCurrent — the content came *from* the store. Returns [] when already in
   // sync, so it is cheap to call on every read/edit. Canonicalizing before the
   // compare keeps a human's non-canonical HTML from registering as a spurious
   // diff.

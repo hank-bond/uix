@@ -1,4 +1,4 @@
-// UIX cockpit — agent driver.
+// agent driver.
 //
 // Wraps `createAgentSession` from `@earendil-works/pi-coding-agent` and
 // normalizes pi's live event stream into the same transcript item model used
@@ -33,8 +33,9 @@ import { join } from "node:path";
 
 import { disposable, DisposableBag, subscribe } from "../lifecycle";
 import { createLogger } from "../log";
+import { createStateCoordinator, type StateRegistry } from "../state/registry";
 
-import { type AgentFacet, createUixCoreExtension } from "./facets";
+import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { createTranscriptIdentity, type TranscriptIdentity } from "./identity";
 import {
   createStateMessageAssembler,
@@ -73,8 +74,10 @@ export interface AgentDriver extends Disposable {
 export interface AgentDriverOptions {
   /** Forwarded to the renderer (over IPC). */
   onEvent: (event: AgentEvent) => void;
-  /** UIX-core agent facets composed into the in-process pi extension. */
-  agentFacets?: readonly AgentFacet[];
+  /** UIX-core agent installers composed into the in-process pi extension. */
+  agentInstallers?: readonly AgentInstaller[];
+  /** Cockpit-private turn-state registry, installed by the driver. */
+  state?: StateRegistry;
   /** Cockpit→agent state-message registry, installed by the driver. */
   stateMessages?: StateMessages;
   /** State root (pins the session dir) + agent cwd. */
@@ -158,19 +161,22 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     const authStorage = sdk.AuthStorage.create();
     const modelRegistry = sdk.ModelRegistry.create(authStorage);
 
-    // UIX-core agent facets (tools + run-prep hooks) ride a single in-process
+    // UIX-core agent installers (tools + run-prep hooks) ride a single in-process
     // pi extension. Load it through a DefaultResourceLoader
     // with the same cwd/agentDir createAgentSession would default to, so user
     // pi resources still discover and our factory holds the live ExtensionAPI.
-    const agentFacets = [...(opts.agentFacets ?? [])];
+    const agentInstallers = [...(opts.agentInstallers ?? [])];
+    if (opts.state) {
+      agentInstallers.push(createStateCoordinator(opts.state));
+    }
     if (opts.stateMessages) {
-      agentFacets.push(createStateMessageAssembler(opts.stateMessages));
+      agentInstallers.push(createStateMessageAssembler(opts.stateMessages));
     }
 
     const resourceLoader = new sdk.DefaultResourceLoader({
       cwd: opts.workspace.agentCwd,
       agentDir: sdk.getAgentDir(),
-      extensionFactories: [createUixCoreExtension(agentFacets)],
+      extensionFactories: [createUixCoreExtension(agentInstallers)],
     });
     await resourceLoader.reload();
 

@@ -1,4 +1,4 @@
-// UIX cockpit — HTML canonicalization at the anchored-core boundary.
+// HTML canonicalization at the anchored-core boundary.
 //
 // Every document that enters the anchored editor is normalized first, so the
 // core — and the anchors it hands the agent — always describes one canonical

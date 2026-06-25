@@ -23,6 +23,6 @@ Pages marked _(stub)_ are placeholders that fill in as the corresponding primiti
 - **[extensions](./extensions.md)** _(active)_ — Trusted local TS/JS packages default-export a factory that receives the injected type-only @uix/api; entries are discovered from .uix/extensions and ~/.uix/extensions, loaded with jiti, and lifetime-scoped across reloads.
 - **[lifetimes](./lifetimes.md)** _(active)_ — DisposableBag owns cleanup for the app, extension reload, window registrations, and the agent driver; extension authors get cleanup only through registrations made on the injected API.
 - **[panes](./panes.md)** _(active)_ — The renderer ships a hardcoded chat pane and a hardcoded canvas iframe pane; the chat pane renders TranscriptItems as scoped chat blocks, and the canvas is key-addressed, served over own-origin uix-canvas:// URLs, sandboxed, refreshed by whole-document iframe reload, and served with a writeback shim.
-- **[state](./state.md)** _(active)_ — The cockpit uses an in-memory pi session and stores canvas HTML by key under .uix/canvas; there is no public UIX-extension state API yet beyond lifetime-scoped registerCommand cleanup.
+- **[state](./state.md)** _(active)_ — The cockpit uses an in-memory pi session and stores canvas HTML in the local document store; there is no public UIX-extension state API yet beyond lifetime-scoped registerCommand cleanup.
 
 <!-- INDEX:END -->
