@@ -14,15 +14,21 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "@uix/api": ["./src/shared/extension-types.ts"]
+      "@uix/api": ["./src/api/index.ts"],
+      "@uix/api/*": ["./src/api/*.ts"],
+      "#backend/*": ["./src/main/*"],
+      "#features/*": ["./src/features/*"],
+      "#shared/*": ["./src/shared/*"]
     }
   },
   "include": [
+    "src/api/**/*.ts",
     "src/main/**/*.ts",
     "src/features/**/backend/**/*.ts",
     "src/features/**/shared/**/*.ts",
     "src/preload/**/*.ts",
     "src/shared/**/*.ts",
-    "electron.vite.config.ts"
+    "electron.vite.config.ts",
+    "vitest.config.mts"
   ]
 }

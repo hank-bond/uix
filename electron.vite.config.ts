@@ -16,8 +16,16 @@ import { resolve } from "node:path";
 // parse5 is excluded (i.e. bundled) because it is ESM-only: left external it
 // would emit `require("parse5")`, which throws under the CJS main bundle. It is
 // pure JS with no runtime path lookups, so bundling it is safe.
+const alias = {
+  "@uix/api": resolve(__dirname, "src/api"),
+  "#backend": resolve(__dirname, "src/main"),
+  "#features": resolve(__dirname, "src/features"),
+  "#shared": resolve(__dirname, "src/shared"),
+};
+
 export default defineConfig({
   main: {
+    resolve: { alias },
     plugins: [externalizeDepsPlugin({ exclude: ["parse5"] })],
     build: {
       outDir: "out/main",
@@ -27,6 +35,7 @@ export default defineConfig({
     },
   },
   preload: {
+    resolve: { alias },
     plugins: [externalizeDepsPlugin()],
     build: {
       outDir: "out/preload",
@@ -37,6 +46,7 @@ export default defineConfig({
   },
   renderer: {
     root: resolve(__dirname, "src/renderer"),
+    resolve: { alias },
     plugins: [react()],
     build: {
       outDir: "out/renderer",
