@@ -1,30 +1,34 @@
-// hardcoded Stage-1 canvas pane.
+// hardcoded Stage-1 canvas surface.
 //
-// TODO: hardcoded pane — becomes a registered iframe pane when the pane host +
-// registerPane contribution land.
+// TODO: hardcoded surface — becomes a registered Workspace surface once surface
+// contributions land.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   CanvasProtocolScheme,
   canvasKeyToHost,
   canvasUrl,
 } from "../shared/canvas";
+import { createCanvasClient, type CanvasClient } from "./canvas/client";
+import { createFeatureChannelClient } from "./workspace/client";
+import { useWorkspaceClient } from "./workspace/context";
 
 export interface CanvasProps {
   canvasKey: string;
 }
 
 export function Canvas({ canvasKey }: CanvasProps) {
+  const canvas = useCanvasClient();
   const [token, setToken] = useState(0);
 
   useEffect(() => {
-    return window.uix.onCanvasChanged((event) => {
+    return canvas.onChanged((event) => {
       if (event.key === canvasKey) {
         setToken((prev) => prev + 1);
       }
     });
-  }, [canvasKey]);
+  }, [canvas, canvasKey]);
 
   useEffect(() => {
     // The shim postMessages human edits up from the sandboxed canvas frame.
@@ -36,11 +40,11 @@ export function Canvas({ canvasKey }: CanvasProps) {
       if (msg?.type !== "uix:canvas-writeback" || msg.key !== canvasKey) return;
       // Guard against a malformed message blanking the stored canvas.
       if (typeof msg.html !== "string" || msg.html === "") return;
-      void window.uix.writebackCanvas({ key: canvasKey, html: msg.html });
+      void canvas.writeback({ key: canvasKey, html: msg.html });
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [canvasKey]);
+  }, [canvas, canvasKey]);
 
   return (
     <iframe
@@ -48,9 +52,17 @@ export function Canvas({ canvasKey }: CanvasProps) {
       src={canvasUrl(canvasKey, token)}
       title={`canvas ${canvasKey}`}
       // allow-scripts + allow-same-origin is safe here because the iframe's
-      // origin is the canvas's own custom-protocol origin, not the cockpit's.
-      // The canvas origin holds no privileged window.uix bridge or cockpit DOM.
+      // origin is the canvas's own custom-protocol origin, not the host's.
+      // The canvas origin holds no privileged window.uix bridge or host DOM.
       sandbox="allow-scripts allow-same-origin"
     />
   );
+}
+
+function useCanvasClient(): CanvasClient {
+  const workspace = useWorkspaceClient();
+  return useMemo(() => {
+    const feature = createFeatureChannelClient(workspace, "canvas");
+    return createCanvasClient(feature);
+  }, [workspace]);
 }
