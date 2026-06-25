@@ -14,7 +14,7 @@ import {
   createCanvasClient,
   type CanvasClient,
 } from "../features/canvas/workspace/client";
-import { createFeatureChannelClient } from "./workspace/client";
+import { createFeatureChannelClient } from "@uix/api/workspace";
 import { useWorkspaceClient } from "./workspace/context";
 
 export interface CanvasProps {

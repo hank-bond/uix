@@ -10,7 +10,7 @@ import {
   CanvasRequestAddresses,
 } from "../../features/canvas/workspace/channels";
 import { AgentEvents, AgentRequests } from "./agent";
-import type { WorkspaceClient } from "./client";
+import type { WorkspaceClient } from "@uix/api/workspace";
 
 // Temporary adapter for the pre-Workspace-iframe path. The current renderer can
 // still access the preload bridge directly; once Workspace runs in a Host-owned

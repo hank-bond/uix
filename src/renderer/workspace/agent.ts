@@ -3,7 +3,7 @@ import type {
   PromptRequest,
   TranscriptSnapshot,
 } from "../../shared/ipc";
-import type { WorkspaceClient } from "./client";
+import type { WorkspaceClient } from "@uix/api/workspace";
 
 export const AgentRequests = {
   prompt: "agent.prompt",

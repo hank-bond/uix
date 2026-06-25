@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from "react";
 
-import type { WorkspaceClient } from "./client";
+import type { WorkspaceClient } from "@uix/api/workspace";
 
 const WorkspaceClientContext = createContext<WorkspaceClient | undefined>(
   undefined,

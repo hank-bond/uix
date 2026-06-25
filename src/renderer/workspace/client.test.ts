@@ -7,7 +7,10 @@ import {
 } from "../../features/canvas/workspace/channels";
 import { createCanvasClient } from "../../features/canvas/workspace/client";
 import { AgentEvents, AgentRequests, createAgentClient } from "./agent";
-import { createFeatureChannelClient, type WorkspaceClient } from "./client";
+import {
+  createFeatureChannelClient,
+  type WorkspaceClient,
+} from "@uix/api/workspace";
 import { createPreloadWorkspaceClient } from "./preload";
 
 function fakeBridge(): UIXBridge {
