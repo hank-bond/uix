@@ -29,6 +29,7 @@ A renderer-side `SurfaceHost` stepping stone was tried and reverted because it h
 - Keep UI under Workspace web-compatible: no Electron imports/preload assumptions in Workspace runtime code once the bridge exists.
 - The `channels` facet is the declarative communication facet. Contributions declare request handlers and event schemas; runtime code imperatively calls requests from surfaces and publishes events from backend feature code.
 - Prefer typed facet clients over raw stringly transport in feature/surface code. The raw request/event pipe is Host/Workspace transport plumbing; feature-owned SDKs can later wrap generated/scoped clients into ergonomic methods such as `canvas.writeback(...)` and `canvas.onChanged(...)`.
+- The `window.uix`/Host bridge should become **faceted and contribution-derived**. Preload should not know canvas, chat, or feature channel contracts; it should expose generic facet transports installed from registered contributions, and Workspace clients should bind to those facets dynamically.
 
 ## Step plan
 
@@ -76,14 +77,14 @@ Update `electron.vite.config.ts` to build both renderer HTML entries if needed. 
 
 ### W3 — Host renders Workspace iframe and bridges current API
 
-Switch Host to render a Workspace iframe. Implement request/response correlation and event forwarding over `postMessage`:
+Switch Host to render a Workspace iframe. Replace the remaining canvas-specific preload compatibility methods with a faceted bridge generated from registered contributions. Implement request/response correlation and event forwarding over `postMessage`:
 
 ```text
 Workspace iframe -> Host renderer -> preload/window.uix -> main/backend
 main/backend events -> preload/Host renderer -> Workspace iframe
 ```
 
-At the end of W3, current Chat and Canvas should still work, but they run inside the Workspace iframe and use the Workspace API proxy rather than direct preload access.
+At the end of W3, current Chat and Canvas should still work, but they run inside the Workspace iframe and use the Workspace API proxy rather than direct preload access. Preload/Host should route generic channel requests/events by canonical id instead of importing canvas channel definitions or calling `normalizeChannelContribution(...)`.
 
 ### W4 — Add surface layout inside Workspace
 
