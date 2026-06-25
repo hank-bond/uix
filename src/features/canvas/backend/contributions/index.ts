@@ -1,9 +1,9 @@
-import { assertCanvasKey } from "../../../shared/canvas";
+import { assertCanvasKey } from "../../../../shared/canvas";
 import type {
   FeatureContributions,
   FeatureDefinition,
-} from "../../features/contributions";
-import type { FeatureContext } from "../../features/context";
+} from "../../../../main/features/contributions";
+import type { FeatureContext } from "../../../../main/features/context";
 
 import { CanvasDocumentBuffer } from "../document-buffer";
 

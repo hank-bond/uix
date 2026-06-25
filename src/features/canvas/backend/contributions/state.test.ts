@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { CanvasDocumentBuffer } from "../document-buffer";
-import type { DocumentStore, DocumentVersion } from "../../documents/store";
+import type {
+  DocumentStore,
+  DocumentVersion,
+} from "../../../../main/documents/store";
 
 import { createCanvasStateContributions } from "./state";
 

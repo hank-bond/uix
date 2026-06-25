@@ -4,8 +4,8 @@ import type { UIXBridge } from "../../shared/ipc";
 import {
   CanvasEventAddresses,
   CanvasRequestAddresses,
-} from "../canvas/channels";
-import { createCanvasClient } from "../canvas/client";
+} from "../../features/canvas/workspace/channels";
+import { createCanvasClient } from "../../features/canvas/workspace/client";
 import { AgentEvents, AgentRequests, createAgentClient } from "./agent";
 import { createFeatureChannelClient, type WorkspaceClient } from "./client";
 import { createPreloadWorkspaceClient } from "./preload";

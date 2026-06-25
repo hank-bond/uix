@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { DocumentStore, DocumentVersion } from "../../documents/store";
+import type {
+  DocumentStore,
+  DocumentVersion,
+} from "../../../../main/documents/store";
 
 import { createCanvasResourceContributions } from "./resources";
 

@@ -15,10 +15,16 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
-import { assertCanvasKey, CanvasKeyDescription } from "../../../shared/canvas";
-import type { AgentToolContribution } from "../../agent/tools";
-import { formatAnchoredText, parseAnchoredLine } from "../../anchors/wire";
-import type { ChannelPublisher } from "../../channels/registry";
+import {
+  assertCanvasKey,
+  CanvasKeyDescription,
+} from "../../../../shared/canvas";
+import type { AgentToolContribution } from "../../../../main/agent/tools";
+import {
+  formatAnchoredText,
+  parseAnchoredLine,
+} from "../../../../main/anchors/wire";
+import type { ChannelPublisher } from "../../../../main/channels/registry";
 
 import { formatChangeHunks } from "../anchored-format";
 import { CanvasDocumentBuffer } from "../document-buffer";

@@ -1,5 +1,5 @@
-import type { CanvasChanged, CanvasWriteback } from "../../shared/ipc";
-import type { FeatureChannelClient } from "../workspace/client";
+import type { CanvasChanged, CanvasWriteback } from "../../../shared/ipc";
+import type { FeatureChannelClient } from "../../../renderer/workspace/client";
 import { CanvasChannelNames } from "./channels";
 
 export interface CanvasClient {

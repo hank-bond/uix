@@ -17,6 +17,9 @@
   "include": [
     "src/renderer/**/*.ts",
     "src/renderer/**/*.tsx",
+    "src/features/**/workspace/**/*.ts",
+    "src/features/**/workspace/**/*.tsx",
+    "src/features/**/shared/**/*.ts",
     "src/shared/**/*.ts"
   ]
 }

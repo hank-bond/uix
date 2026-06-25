@@ -8,7 +8,7 @@ import type {
 import {
   CanvasEventAddresses,
   CanvasRequestAddresses,
-} from "../canvas/channels";
+} from "../../features/canvas/workspace/channels";
 import { AgentEvents, AgentRequests } from "./agent";
 import type { WorkspaceClient } from "./client";
 

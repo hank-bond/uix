@@ -4,13 +4,13 @@ import {
   type CanvasChanged,
   type CanvasWriteback,
   Channels,
-} from "../../../shared/ipc";
-import { assertCanvasKey } from "../../../shared/canvas";
+} from "../../../../shared/ipc";
+import { assertCanvasKey } from "../../../../shared/canvas";
 import type {
   ChannelContribution,
   ChannelPublisher,
-} from "../../channels/registry";
-import { createLogger } from "../../log";
+} from "../../../../main/channels/registry";
+import { createLogger } from "../../../../main/log";
 
 import { CanvasDocumentBuffer } from "../document-buffer";
 

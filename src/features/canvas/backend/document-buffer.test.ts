@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { AnchoredDocument } from "../anchors/document";
+import { AnchoredDocument } from "../../../main/anchors/document";
 
 import { CanvasDocumentBuffer } from "./document-buffer";
-import type { DocumentStore, DocumentVersion } from "../documents/store";
+import type {
+  DocumentStore,
+  DocumentVersion,
+} from "../../../main/documents/store";
 
 // In-memory store standing in for the file-backed one, plus a dump() peek so
 // tests can assert current content.

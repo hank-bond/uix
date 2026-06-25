@@ -12,20 +12,23 @@ import {
   createStateMessages,
   createStateMessageAssembler,
   registerStateMessageContributions,
-} from "../../agent/state-messages";
+} from "../../../../main/agent/state-messages";
 import {
   createAgentToolInstaller,
   createAgentToolRegistry,
   registerAgentToolContributions,
-} from "../../agent/tools";
+} from "../../../../main/agent/tools";
 import {
   createStateCoordinator,
   createStateRegistry,
   registerStateContributions,
-} from "../../state/registry";
+} from "../../../../main/state/registry";
 
 import { CanvasDocumentBuffer } from "../document-buffer";
-import type { DocumentStore, DocumentVersion } from "../../documents/store";
+import type {
+  DocumentStore,
+  DocumentVersion,
+} from "../../../../main/documents/store";
 
 import { createCanvasAgentToolContributions } from "./agent-tools";
 import { createCanvasStateContributions } from "./state";

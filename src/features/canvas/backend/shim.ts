@@ -7,7 +7,7 @@
 // removes its own <script> node before serializing, so it never leaks into
 // stored content.
 
-import { assertCanvasKey } from "../../shared/canvas";
+import { assertCanvasKey } from "../../../shared/canvas";
 
 // Embedded raw into the script via a template; the key is validated so it
 // cannot contain quotes or break out of the string literal.

@@ -10,7 +10,10 @@ import {
   canvasKeyToHost,
   canvasUrl,
 } from "../shared/canvas";
-import { createCanvasClient, type CanvasClient } from "./canvas/client";
+import {
+  createCanvasClient,
+  type CanvasClient,
+} from "../features/canvas/workspace/client";
 import { createFeatureChannelClient } from "./workspace/client";
 import { useWorkspaceClient } from "./workspace/context";
 

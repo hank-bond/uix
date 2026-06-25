@@ -4,7 +4,7 @@
 // composition root lets main/index.ts consume "features" without naming canvas;
 // later package/discovery loading replaces this module's implementation.
 
-import { canvasFeature } from "../canvas/contributions";
+import { canvasFeature } from "../../features/canvas/backend/contributions";
 
 import type { FeatureDefinition } from "./contributions";
 
