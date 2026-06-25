@@ -9,20 +9,20 @@ import {
   CanvasProtocolScheme,
   canvasKeyToHost,
   canvasUrl,
-} from "../shared/canvas";
+} from "../shared/addressing";
+import { createCanvasClient, type CanvasClient } from "./client";
 import {
-  createCanvasClient,
-  type CanvasClient,
-} from "../features/canvas/workspace/client";
-import { createFeatureChannelClient } from "@uix/api/workspace";
-import { useWorkspaceClient } from "./workspace/context";
+  createFeatureChannelClient,
+  type WorkspaceClient,
+} from "@uix/api/workspace";
 
 export interface CanvasProps {
   canvasKey: string;
+  workspace: WorkspaceClient;
 }
 
-export function Canvas({ canvasKey }: CanvasProps) {
-  const canvas = useCanvasClient();
+export function Canvas({ canvasKey, workspace }: CanvasProps) {
+  const canvas = useCanvasClient(workspace);
   const [token, setToken] = useState(0);
 
   useEffect(() => {
@@ -62,8 +62,7 @@ export function Canvas({ canvasKey }: CanvasProps) {
   );
 }
 
-function useCanvasClient(): CanvasClient {
-  const workspace = useWorkspaceClient();
+function useCanvasClient(workspace: WorkspaceClient): CanvasClient {
   return useMemo(() => {
     const feature = createFeatureChannelClient(workspace, "canvas");
     return createCanvasClient(feature);
