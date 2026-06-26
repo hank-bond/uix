@@ -21,7 +21,6 @@ export const canvasFeature: FeatureDefinition<CanvasContext> = {
   context: createCanvasContext,
   contribute(ctx) {
     return {
-      id: "canvas",
       resources: createCanvasResourceContributions(ctx),
       channels: createCanvasChannelContributions(ctx),
       agentTools: createCanvasAgentToolContributions(ctx),

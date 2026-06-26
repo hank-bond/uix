@@ -174,6 +174,7 @@ void app.whenReady().then(async () => {
     appBag.add(
       registerFeatureContributions(
         { resources, channels, agentTools, state, stateMessages },
+        feature.id,
         feature.contribute({ ...baseContext, ...contributedContext }),
       ),
     );

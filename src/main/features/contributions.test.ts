@@ -58,8 +58,8 @@ describe("registerFeatureContributions", () => {
 
     const registration = registerFeatureContributions(
       { resources, channels, agentTools, state, stateMessages },
+      "canvas",
       {
-        id: "canvas",
         resources: [
           {
             id: "canvas.resource.html",
@@ -83,65 +83,48 @@ describe("registerFeatureContributions", () => {
     );
 
     expect(() =>
-      registerFeatureContributions(
-        { resources },
-        {
-          id: "other",
-          resources: [
-            {
-              id: "other.resource.html",
-              scheme: "uix-canvas",
-              handle: () => new Response(""),
-            },
-          ],
-        },
-      ),
+      registerFeatureContributions({ resources }, "other", {
+        resources: [
+          {
+            id: "other.resource.html",
+            scheme: "uix-canvas",
+            handle: () => new Response(""),
+          },
+        ],
+      }),
     ).toThrow("Resource scheme already handled: uix-canvas");
     expect(() =>
-      registerFeatureContributions(
-        { channels },
-        {
-          id: "canvas",
-          channels: [channelContribution()],
-        },
-      ),
+      registerFeatureContributions({ channels }, "canvas", {
+        channels: [channelContribution()],
+      }),
     ).toThrow(
       "Channel contribution already registered: canvas.channel.refresh",
     );
     expect(() =>
-      registerFeatureContributions(
-        { agentTools },
-        {
-          id: "other",
-          agentTools: [
-            {
-              id: "other.anchor_read",
-              tool: agentTool("anchor_read").tool,
-            },
-          ],
-        },
-      ),
+      registerFeatureContributions({ agentTools }, "other", {
+        agentTools: [
+          {
+            id: "other.anchor_read",
+            tool: agentTool("anchor_read").tool,
+          },
+        ],
+      }),
     ).toThrow("Agent tool already registered: canvas__anchor_read");
     expect(() =>
-      registerFeatureContributions(
-        { state },
-        { id: "other", state: [{ id: "canvas" }] },
-      ),
+      registerFeatureContributions({ state }, "other", {
+        state: [{ id: "canvas" }],
+      }),
     ).toThrow("State contribution already registered: canvas");
     expect(() =>
-      registerFeatureContributions(
-        { stateMessages },
-        {
-          id: "other",
-          stateMessages: [
-            {
-              messageType: "uix.canvas-diff",
-              description: "again",
-              materialize: () => undefined,
-            },
-          ],
-        },
-      ),
+      registerFeatureContributions({ stateMessages }, "other", {
+        stateMessages: [
+          {
+            messageType: "uix.canvas-diff",
+            description: "again",
+            materialize: () => undefined,
+          },
+        ],
+      }),
     ).toThrow("State message already registered: uix.canvas-diff");
 
     registration[Symbol.dispose]();
@@ -149,8 +132,8 @@ describe("registerFeatureContributions", () => {
     expect(() =>
       registerFeatureContributions(
         { resources, channels, agentTools, state, stateMessages },
+        "canvas",
         {
-          id: "canvas",
           resources: [
             {
               id: "canvas.resource.html",
@@ -175,67 +158,51 @@ describe("registerFeatureContributions", () => {
 
   it("rejects contribution groups when the matching registry is missing", () => {
     expect(() =>
-      registerFeatureContributions(
-        {},
-        {
-          id: "canvas",
-          resources: [
-            {
-              id: "canvas.resource.html",
-              scheme: "uix-canvas",
-              handle: () => new Response(""),
-            },
-          ],
-        },
-      ),
+      registerFeatureContributions({}, "canvas", {
+        resources: [
+          {
+            id: "canvas.resource.html",
+            scheme: "uix-canvas",
+            handle: () => new Response(""),
+          },
+        ],
+      }),
     ).toThrow(
       "Feature canvas contributes resources but no resource registry was provided",
     );
 
     expect(() =>
-      registerFeatureContributions(
-        {},
-        {
-          id: "canvas",
-          channels: [channelContribution()],
-        },
-      ),
+      registerFeatureContributions({}, "canvas", {
+        channels: [channelContribution()],
+      }),
     ).toThrow(
       "Feature canvas contributes channels but no channel registry was provided",
     );
 
     expect(() =>
-      registerFeatureContributions(
-        {},
-        { id: "canvas", agentTools: [agentTool("anchor_read")] },
-      ),
+      registerFeatureContributions({}, "canvas", {
+        agentTools: [agentTool("anchor_read")],
+      }),
     ).toThrow(
       "Feature canvas contributes agent tools but no agent tool registry was provided",
     );
 
     expect(() =>
-      registerFeatureContributions(
-        {},
-        { id: "canvas", state: [{ id: "canvas" }] },
-      ),
+      registerFeatureContributions({}, "canvas", { state: [{ id: "canvas" }] }),
     ).toThrow(
       "Feature canvas contributes state but no state registry was provided",
     );
 
     expect(() =>
-      registerFeatureContributions(
-        {},
-        {
-          id: "canvas",
-          stateMessages: [
-            {
-              messageType: "uix.canvas-diff",
-              description: "diffs",
-              materialize: () => undefined,
-            },
-          ],
-        },
-      ),
+      registerFeatureContributions({}, "canvas", {
+        stateMessages: [
+          {
+            messageType: "uix.canvas-diff",
+            description: "diffs",
+            materialize: () => undefined,
+          },
+        ],
+      }),
     ).toThrow(
       "Feature canvas contributes state messages but no state-message registry was provided",
     );
@@ -259,7 +226,7 @@ describe("registerFeaturePreflightContributions", () => {
               },
             ],
           },
-          contribute: () => ({ id: "canvas" }),
+          contribute: () => ({}),
         },
       ],
       (schemes) => {

@@ -49,7 +49,6 @@ export interface FeatureDefinition<
 }
 
 export interface FeatureContributions {
-  id: string;
   resources?: readonly ResourceContribution[];
   channels?: readonly ChannelContribution[];
   agentTools?: readonly AgentToolContribution[];
@@ -67,66 +66,73 @@ export interface FeatureContributionRegistries {
 
 export function registerFeatureContributions(
   registries: FeatureContributionRegistries,
-  feature: FeatureContributions,
+  featureId: string,
+  contributions: FeatureContributions,
 ): Disposable {
   const bag = new DisposableBag();
 
-  if (feature.resources?.length) {
+  if (contributions.resources?.length) {
     if (!registries.resources) {
       throw new Error(
-        `Feature ${feature.id} contributes resources but no resource registry was provided`,
+        `Feature ${featureId} contributes resources but no resource registry was provided`,
       );
     }
     bag.add(
-      registerResourceContributions(registries.resources, feature.resources),
+      registerResourceContributions(
+        registries.resources,
+        contributions.resources,
+      ),
     );
   }
 
-  if (feature.channels?.length) {
+  if (contributions.channels?.length) {
     if (!registries.channels) {
       throw new Error(
-        `Feature ${feature.id} contributes channels but no channel registry was provided`,
+        `Feature ${featureId} contributes channels but no channel registry was provided`,
       );
     }
     bag.add(
       registerChannelContributions(
         registries.channels,
-        feature.id,
-        feature.channels,
+        featureId,
+        contributions.channels,
       ),
     );
   }
 
-  if (feature.agentTools?.length) {
+  if (contributions.agentTools?.length) {
     if (!registries.agentTools) {
       throw new Error(
-        `Feature ${feature.id} contributes agent tools but no agent tool registry was provided`,
+        `Feature ${featureId} contributes agent tools but no agent tool registry was provided`,
       );
     }
     bag.add(
-      registerAgentToolContributions(registries.agentTools, feature.agentTools),
+      registerAgentToolContributions(
+        registries.agentTools,
+        contributions.agentTools,
+      ),
     );
   }
 
-  if (feature.state?.length) {
+  if (contributions.state?.length) {
     if (!registries.state) {
       throw new Error(
-        `Feature ${feature.id} contributes state but no state registry was provided`,
+        `Feature ${featureId} contributes state but no state registry was provided`,
       );
     }
-    bag.add(registerStateContributions(registries.state, feature.state));
+    bag.add(registerStateContributions(registries.state, contributions.state));
   }
 
-  if (feature.stateMessages?.length) {
+  if (contributions.stateMessages?.length) {
     if (!registries.stateMessages) {
       throw new Error(
-        `Feature ${feature.id} contributes state messages but no state-message registry was provided`,
+        `Feature ${featureId} contributes state messages but no state-message registry was provided`,
       );
     }
     bag.add(
       registerStateMessageContributions(
         registries.stateMessages,
-        feature.stateMessages,
+        contributions.stateMessages,
       ),
     );
   }
