@@ -18,7 +18,7 @@ import { type Static, Type } from "typebox";
 import { CanvasKeyDescription, CanvasKeySchema } from "../../shared/addressing";
 import type { AgentToolContribution } from "#backend/agent/tools";
 import { formatAnchoredText, parseAnchoredLine } from "#backend/anchors/wire";
-import type { FeatureChannelPublisher } from "@uix/api/channels";
+import type { FeatureContext } from "#backend/features/context";
 
 import { formatChangeHunks } from "../anchored-format";
 import { CanvasDocumentBuffer } from "../document-buffer";
@@ -75,12 +75,8 @@ type ReadParams = Static<typeof readParams>;
 type WriteParams = Static<typeof writeParams>;
 type EditParams = Static<typeof editParams>;
 
-interface CanvasAgentToolOptions {
-  channels: FeatureChannelPublisher;
-}
-
 export function createCanvasAgentToolContributions(
-  opts: CanvasAgentToolOptions,
+  ctx: FeatureContext,
   buffer: CanvasDocumentBuffer,
   agentChangedCanvasKeys: Set<string>,
 ): readonly AgentToolContribution[] {
@@ -88,11 +84,11 @@ export function createCanvasAgentToolContributions(
     { id: "canvas.anchor_read", tool: createReadTool(buffer) },
     {
       id: "canvas.anchor_write",
-      tool: createWriteTool(buffer, opts, agentChangedCanvasKeys),
+      tool: createWriteTool(buffer, ctx, agentChangedCanvasKeys),
     },
     {
       id: "canvas.anchor_edit",
-      tool: createEditTool(buffer, opts, agentChangedCanvasKeys),
+      tool: createEditTool(buffer, ctx, agentChangedCanvasKeys),
     },
   ];
 }
@@ -126,7 +122,7 @@ function createReadTool(
 
 function createWriteTool(
   buffer: CanvasDocumentBuffer,
-  opts: CanvasAgentToolOptions,
+  ctx: FeatureContext,
   agentChangedCanvasKeys: Set<string>,
 ): ToolDefinition<typeof writeParams> {
   return {
@@ -145,7 +141,7 @@ function createWriteTool(
     async execute(_toolCallId, params: WriteParams) {
       const lines = await buffer.write(params.key, params.html);
       agentChangedCanvasKeys.add(params.key);
-      publishCanvasChanged(opts.channels, params.key);
+      publishCanvasChanged(ctx.channels, params.key);
       return {
         content: [{ type: "text", text: formatAnchoredText(lines) }],
         details: {},
@@ -156,7 +152,7 @@ function createWriteTool(
 
 function createEditTool(
   buffer: CanvasDocumentBuffer,
-  opts: CanvasAgentToolOptions,
+  ctx: FeatureContext,
   agentChangedCanvasKeys: Set<string>,
 ): ToolDefinition<typeof editParams> {
   return {
@@ -174,7 +170,7 @@ function createEditTool(
         replacement: params.replacement,
       });
       agentChangedCanvasKeys.add(params.key);
-      publishCanvasChanged(opts.channels, params.key);
+      publishCanvasChanged(ctx.channels, params.key);
       return {
         content: [
           {

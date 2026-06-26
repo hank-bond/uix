@@ -43,7 +43,7 @@ export function createCanvasContributions(
     resources: createCanvasResourceContributions(documents),
     channels: createCanvasChannelContributions(buffer),
     agentTools: createCanvasAgentToolContributions(
-      { channels: ctx.channels },
+      ctx,
       buffer,
       agentChangedCanvasKeys,
     ),
