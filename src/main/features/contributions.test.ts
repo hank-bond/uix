@@ -15,6 +15,19 @@ import {
 
 const emptyParams = Type.Object({});
 
+function channelContribution(name = "refresh") {
+  return {
+    requests: {
+      [name]: {
+        request: emptyParams,
+        response: Type.Void(),
+        handle: () => undefined,
+      },
+    },
+    events: {},
+  };
+}
+
 function agentTool(name: string) {
   return {
     id: `canvas.${name}`,
@@ -54,13 +67,7 @@ describe("registerFeatureContributions", () => {
             handle: () => new Response(""),
           },
         ],
-        channels: [
-          {
-            id: "canvas.channel.refresh",
-            channel: "uix:canvas-refresh",
-            handle: () => undefined,
-          },
-        ],
+        channels: [channelContribution()],
         agentTools: [agentTool("anchor_read")],
         state: [
           { id: "canvas", prepareUserSubmitState: () => ({ state: {} }) },
@@ -94,17 +101,13 @@ describe("registerFeatureContributions", () => {
       registerFeatureContributions(
         { channels },
         {
-          id: "other",
-          channels: [
-            {
-              id: "other.channel.refresh",
-              channel: "uix:canvas-refresh",
-              handle: () => undefined,
-            },
-          ],
+          id: "canvas",
+          channels: [channelContribution()],
         },
       ),
-    ).toThrow("Channel already registered: uix:canvas-refresh");
+    ).toThrow(
+      "Channel contribution already registered: canvas.channel.refresh",
+    );
     expect(() =>
       registerFeatureContributions(
         { agentTools },
@@ -155,13 +158,7 @@ describe("registerFeatureContributions", () => {
               handle: () => new Response(""),
             },
           ],
-          channels: [
-            {
-              id: "canvas.channel.refresh",
-              channel: "uix:canvas-refresh",
-              handle: () => undefined,
-            },
-          ],
+          channels: [channelContribution()],
           agentTools: [agentTool("anchor_read")],
           state: [{ id: "canvas" }],
           stateMessages: [
@@ -200,13 +197,7 @@ describe("registerFeatureContributions", () => {
         {},
         {
           id: "canvas",
-          channels: [
-            {
-              id: "canvas.channel.refresh",
-              channel: "uix:canvas-refresh",
-              handle: () => undefined,
-            },
-          ],
+          channels: [channelContribution()],
         },
       ),
     ).toThrow(

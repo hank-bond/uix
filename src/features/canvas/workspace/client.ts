@@ -1,9 +1,7 @@
-import type { CanvasChanged, CanvasWriteback } from "../../../shared/ipc";
 import type { FeatureChannelClient } from "@uix/api/workspace";
-import { CanvasChannelNames } from "./channels";
+import type { CanvasChanged, CanvasWriteback } from "../shared/channels";
 
 export interface CanvasClient {
-  refresh(req: CanvasChanged): Promise<void>;
   writeback(req: CanvasWriteback): Promise<void>;
   onChanged(handler: (event: CanvasChanged) => void): () => void;
 }
@@ -12,20 +10,11 @@ export function createCanvasClient(
   feature: FeatureChannelClient,
 ): CanvasClient {
   return {
-    refresh(req: CanvasChanged) {
-      return feature.request<CanvasChanged, void>(
-        CanvasChannelNames.refresh,
-        req,
-      );
-    },
     writeback(req: CanvasWriteback) {
-      return feature.request<CanvasWriteback, void>(
-        CanvasChannelNames.writeback,
-        req,
-      );
+      return feature.request("writeback", req);
     },
     onChanged(handler: (event: CanvasChanged) => void) {
-      return feature.subscribe(CanvasChannelNames.changed, handler);
+      return feature.subscribe("changed", handler);
     },
   };
 }

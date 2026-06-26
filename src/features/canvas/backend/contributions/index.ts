@@ -41,10 +41,7 @@ export function createCanvasContributions(
   return {
     id: "canvas",
     resources: createCanvasResourceContributions(documents),
-    channels: createCanvasChannelContributions(
-      { channels: ctx.channels },
-      buffer,
-    ),
+    channels: createCanvasChannelContributions(buffer),
     agentTools: createCanvasAgentToolContributions(
       { channels: ctx.channels },
       buffer,

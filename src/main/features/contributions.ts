@@ -11,10 +11,8 @@ import type {
 import { registerStateMessageContributions } from "../agent/state-messages";
 import type { AgentToolContribution, AgentToolRegistry } from "../agent/tools";
 import { registerAgentToolContributions } from "../agent/tools";
-import type {
-  ChannelContribution,
-  ChannelRegistry,
-} from "../channels/registry";
+import type { ChannelContribution } from "@uix/api/channels";
+import type { ChannelRegistry } from "../channels/registry";
 import { registerChannelContributions } from "../channels/registry";
 import type { FeatureContext } from "./context";
 import { DisposableBag } from "../lifecycle";
@@ -82,7 +80,11 @@ export function registerFeatureContributions(
       );
     }
     bag.add(
-      registerChannelContributions(registries.channels, feature.channels),
+      registerChannelContributions(
+        registries.channels,
+        feature.id,
+        feature.channels,
+      ),
     );
   }
 

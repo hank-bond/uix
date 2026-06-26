@@ -25,7 +25,10 @@ import {
   createAgentToolInstaller,
   createAgentToolRegistry,
 } from "./agent/tools";
-import { createChannelRegistry } from "./channels/registry";
+import {
+  createChannelRegistry,
+  createFeatureChannelPublisher,
+} from "./channels/registry";
 import { createStateRegistry } from "./state/registry";
 import { createLocalDocumentStoreProvider } from "./documents/store";
 import { loadExtensions } from "./extensions/loader";
@@ -166,7 +169,10 @@ void app.whenReady().then(async () => {
     appBag.add(
       registerFeatureContributions(
         { resources, channels, agentTools, state, stateMessages },
-        feature.contribute({ documents, channels }),
+        feature.contribute({
+          documents,
+          channels: createFeatureChannelPublisher(feature.id, channels),
+        }),
       ),
     );
   }

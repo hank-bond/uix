@@ -1,7 +1,7 @@
 // shared IPC contract.
 //
-// Channels are scoped under `uix:` so they don't collide with
-// anything Electron or other libs might use. Renderer never imports
+// Substrate-owned channels are scoped under `uix:` so they don't collide with
+// feature channels or other transport messages. Renderer never imports
 // `electron`; it only sees the surface exposed by the preload via
 // contextBridge. These types describe that contract so both sides stay
 // in sync.
@@ -12,12 +12,6 @@ export const Channels = {
   prompt: "uix:prompt",
   /** Main → renderer. webContents.send. Stream of agent events. */
   agentEvent: "uix:agent-event",
-  /** Main → renderer. webContents.send. Canvas invalidation signal. */
-  canvasChanged: "uix:canvas-changed",
-  /** Renderer → main. invoke-style. Dev-only canvas refresh trigger. */
-  canvasRefresh: "uix:canvas-refresh",
-  /** Renderer → main. invoke-style. Human pane edit flushed back to the store. */
-  canvasWriteback: "uix:canvas-writeback",
   /** Renderer → main. invoke-style. Reloads cockpit resources in place. */
   reload: "uix:reload",
   /** Renderer → main. invoke-style. Prior transcript for rehydration on mount. */
@@ -36,12 +30,12 @@ export interface ReloadResult {
   piReloaded: boolean;
 }
 
-/** Payload for `uix:canvas-changed` and `uix:canvas-refresh`. */
+/** Payload for the canvas changed feature channel. */
 export interface CanvasChanged {
   key: string;
 }
 
-/** Payload for `uix:canvas-writeback`. */
+/** Payload for the canvas writeback feature channel. */
 export interface CanvasWriteback {
   key: string;
   html: string;
@@ -124,8 +118,6 @@ export interface UIXBridge {
   sendPrompt: (req: PromptRequest) => Promise<void>;
   onAgentEvent: (handler: (event: AgentEvent) => void) => () => void;
   onCanvasChanged: (handler: (event: CanvasChanged) => void) => () => void;
-  /** Dev/dogfood hook for hand-edited canvas files. */
-  refreshCanvas: (req: CanvasChanged) => Promise<void>;
   /** Flush a human pane edit back to the store. */
   writebackCanvas: (req: CanvasWriteback) => Promise<void>;
   /** Programmatic hook for future command palette/menu/chat /reload. */

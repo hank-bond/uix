@@ -16,12 +16,9 @@ import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
 import { CanvasKeyDescription, CanvasKeySchema } from "../../shared/addressing";
-import type { AgentToolContribution } from "../../../../main/agent/tools";
-import {
-  formatAnchoredText,
-  parseAnchoredLine,
-} from "../../../../main/anchors/wire";
-import type { ChannelPublisher } from "../../../../main/channels/registry";
+import type { AgentToolContribution } from "#backend/agent/tools";
+import { formatAnchoredText, parseAnchoredLine } from "#backend/anchors/wire";
+import type { FeatureChannelPublisher } from "@uix/api/channels";
 
 import { formatChangeHunks } from "../anchored-format";
 import { CanvasDocumentBuffer } from "../document-buffer";
@@ -79,7 +76,7 @@ type WriteParams = Static<typeof writeParams>;
 type EditParams = Static<typeof editParams>;
 
 interface CanvasAgentToolOptions {
-  channels: ChannelPublisher;
+  channels: FeatureChannelPublisher;
 }
 
 export function createCanvasAgentToolContributions(

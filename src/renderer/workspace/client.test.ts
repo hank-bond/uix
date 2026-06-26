@@ -1,11 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { UIXBridge } from "../../shared/ipc";
-import {
-  CanvasEventAddresses,
-  CanvasRequestAddresses,
-} from "../../features/canvas/workspace/channels";
-import { createCanvasClient } from "../../features/canvas/workspace/client";
+import type { UIXBridge } from "#shared/ipc";
+import { featureChannelId } from "@uix/api/channels";
+import { parseCanvasKey } from "#features/canvas/shared/addressing";
+import { createCanvasClient } from "#features/canvas/workspace/client";
 import { AgentEvents, AgentRequests, createAgentClient } from "./agent";
 import {
   createFeatureChannelClient,
@@ -13,12 +11,16 @@ import {
 } from "@uix/api/workspace";
 import { createPreloadWorkspaceClient } from "./preload";
 
+const CanvasChannels = {
+  writeback: featureChannelId("canvas", "writeback"),
+  changed: featureChannelId("canvas", "changed"),
+} as const;
+
 function fakeBridge(): UIXBridge {
   return {
     sendPrompt: vi.fn(() => Promise.resolve()),
     onAgentEvent: vi.fn(() => () => undefined),
     onCanvasChanged: vi.fn(() => () => undefined),
-    refreshCanvas: vi.fn(() => Promise.resolve()),
     writebackCanvas: vi.fn(() => Promise.resolve()),
     reload: vi.fn(() =>
       Promise.resolve({
@@ -59,7 +61,7 @@ describe("createPreloadWorkspaceClient", () => {
 
     await client.request(AgentRequests.prompt, { text: "hi" });
     await client.request(AgentRequests.history, undefined);
-    await client.request(CanvasRequestAddresses.writeback, {
+    await client.request(CanvasChannels.writeback, {
       key: "main",
       html: "<p>hello</p>",
     });
@@ -79,10 +81,15 @@ describe("createPreloadWorkspaceClient", () => {
     const onCanvas = vi.fn();
 
     client.subscribe(AgentEvents.event, onAgent);
-    client.subscribe(CanvasEventAddresses.changed, onCanvas);
+    client.subscribe(CanvasChannels.changed, onCanvas);
 
     expect(bridge.onAgentEvent).toHaveBeenCalledWith(onAgent);
-    expect(bridge.onCanvasChanged).toHaveBeenCalledWith(onCanvas);
+    expect(bridge.onCanvasChanged).toHaveBeenCalledTimes(1);
+
+    const wrappedCanvasHandler = vi.mocked(bridge.onCanvasChanged).mock
+      .calls[0]?.[0];
+    wrappedCanvasHandler?.({ key: "main" });
+    expect(onCanvas).toHaveBeenCalledWith({ key: "main" });
   });
 });
 
@@ -93,14 +100,14 @@ describe("feature and facet clients", () => {
     const canvas = createCanvasClient(feature);
     const onChanged = vi.fn();
 
-    await canvas.writeback({ key: "main", html: "<main />" });
+    await canvas.writeback({ key: parseCanvasKey("main"), html: "<main />" });
     canvas.onChanged(onChanged);
 
-    expect(request).toHaveBeenCalledWith("canvas.writeback", {
+    expect(request).toHaveBeenCalledWith("canvas.channel.writeback", {
       key: "main",
       html: "<main />",
     });
-    expect(subscribe).toHaveBeenCalledWith("canvas.changed", onChanged);
+    expect(subscribe).toHaveBeenCalledWith("canvas.channel.changed", onChanged);
   });
 
   it("keeps agent requests outside feature namespaces", async () => {

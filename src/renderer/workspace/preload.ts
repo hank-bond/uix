@@ -1,14 +1,10 @@
-import type {
-  AgentEvent,
-  CanvasChanged,
-  CanvasWriteback,
-  PromptRequest,
-  UIXBridge,
-} from "../../shared/ipc";
+import type { AgentEvent, PromptRequest, UIXBridge } from "#shared/ipc";
+import { featureChannelId } from "@uix/api/channels";
 import {
-  CanvasEventAddresses,
-  CanvasRequestAddresses,
-} from "../../features/canvas/workspace/channels";
+  CanvasChangedSchema,
+  type CanvasWriteback,
+} from "#features/canvas/shared/channels";
+import { Value } from "typebox/value";
 import { AgentEvents, AgentRequests } from "./agent";
 import type { WorkspaceClient } from "@uix/api/workspace";
 
@@ -18,6 +14,11 @@ import type { WorkspaceClient } from "@uix/api/workspace";
 // keep the preload access on its side of the bridge.
 export const UixRequests = {
   reload: "uix.reload",
+} as const;
+
+const CanvasChannels = {
+  writeback: featureChannelId("canvas", "writeback"),
+  changed: featureChannelId("canvas", "changed"),
 } as const;
 
 export function createPreloadWorkspaceClient(
@@ -32,9 +33,7 @@ export function createPreloadWorkspaceClient(
           return bridge.getHistory() as Promise<Res>;
         case UixRequests.reload:
           return bridge.reload() as Promise<Res>;
-        case CanvasRequestAddresses.refresh:
-          return bridge.refreshCanvas(req as CanvasChanged) as Promise<Res>;
-        case CanvasRequestAddresses.writeback:
+        case CanvasChannels.writeback:
           return bridge.writebackCanvas(req as CanvasWriteback) as Promise<Res>;
         default:
           return Promise.reject(
@@ -49,10 +48,10 @@ export function createPreloadWorkspaceClient(
       switch (name) {
         case AgentEvents.event:
           return bridge.onAgentEvent(handler as (event: AgentEvent) => void);
-        case CanvasEventAddresses.changed:
-          return bridge.onCanvasChanged(
-            handler as (event: CanvasChanged) => void,
-          );
+        case CanvasChannels.changed:
+          return bridge.onCanvasChanged((event) => {
+            handler(Value.Parse(CanvasChangedSchema, event) as Event);
+          });
         default:
           throw new Error(`Unknown workspace event: ${name}`);
       }
