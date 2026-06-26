@@ -1,12 +1,9 @@
-import { parseCanvasKey } from "../../shared/addressing";
 import type {
   FeatureContributions,
   FeatureDefinition,
 } from "#backend/features/contributions";
-import type { FeatureContext } from "#backend/features/context";
 
-import { CanvasDocumentBuffer } from "../document-buffer";
-
+import { createCanvasContext, type CanvasContext } from "../context";
 import { createCanvasAgentToolContributions } from "./agent-tools";
 import { createCanvasChannelContributions } from "./channels";
 import {
@@ -16,45 +13,20 @@ import {
 import { createCanvasStateContributions } from "./state";
 import { createCanvasStateMessageContributions } from "./state-messages";
 
-export const canvasFeature: FeatureDefinition = {
+export const canvasFeature: FeatureDefinition<CanvasContext> = {
   id: "canvas",
   preflight: {
     resourceSchemes: [canvasResourceScheme],
   },
-  contribute: createCanvasContributions,
+  context: createCanvasContext,
+  contribute(ctx) {
+    return {
+      id: "canvas",
+      resources: createCanvasResourceContributions(ctx),
+      channels: createCanvasChannelContributions(ctx),
+      agentTools: createCanvasAgentToolContributions(ctx),
+      state: createCanvasStateContributions(ctx),
+      stateMessages: createCanvasStateMessageContributions(ctx),
+    };
+  },
 };
-
-export function createCanvasContributions(
-  ctx: FeatureContext,
-): FeatureContributions {
-  const documents = ctx.documents.createStore({
-    namespace: "canvas",
-    extension: "html",
-    validateDocumentId: (documentId) => {
-      parseCanvasKey(documentId);
-    },
-  });
-  const buffer = new CanvasDocumentBuffer(documents);
-  const openCanvasKeys = ["main"];
-  const agentChangedCanvasKeys = new Set<string>();
-
-  return {
-    id: "canvas",
-    resources: createCanvasResourceContributions(documents),
-    channels: createCanvasChannelContributions(buffer),
-    agentTools: createCanvasAgentToolContributions(
-      ctx,
-      buffer,
-      agentChangedCanvasKeys,
-    ),
-    state: createCanvasStateContributions(
-      buffer,
-      openCanvasKeys,
-      agentChangedCanvasKeys,
-    ),
-    stateMessages: createCanvasStateMessageContributions(
-      buffer,
-      openCanvasKeys,
-    ),
-  };
-}

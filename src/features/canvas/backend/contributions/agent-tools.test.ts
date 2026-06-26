@@ -25,7 +25,9 @@ import {
 } from "#backend/state/registry";
 
 import { CanvasDocumentBuffer } from "../document-buffer";
+import type { CanvasContext } from "../context";
 import type { DocumentStore, DocumentVersion } from "#backend/documents/store";
+import type { FeatureContext } from "#backend/features/context";
 
 import { createCanvasAgentToolContributions } from "./agent-tools";
 import { createCanvasStateContributions } from "./state";
@@ -61,6 +63,23 @@ function memoryStore(): DocumentStore {
   };
 }
 
+function fakeCanvasContext(
+  overrides: Partial<CanvasContext> = {},
+): CanvasContext {
+  const store = overrides.store ?? memoryStore();
+  const base: FeatureContext = {
+    documents: { createStore: () => store },
+    channels: overrides.channels ?? { publish: () => undefined },
+  };
+  return {
+    ...base,
+    store,
+    buffer: overrides.buffer ?? new CanvasDocumentBuffer(store),
+    openCanvasKeys: overrides.openCanvasKeys ?? ["main"],
+    agentChangedCanvasKeys: overrides.agentChangedCanvasKeys ?? new Set(),
+  };
+}
+
 type Handler = (
   event: BeforeAgentStartEvent,
   ctx: ExtensionContext,
@@ -72,27 +91,21 @@ type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
 // driver-installed substrate installers wired against an in-memory store and a
 // fake pi handle.
 function setup() {
-  const store = memoryStore();
+  const ctx = fakeCanvasContext();
   const state = createStateRegistry();
   const stateMessages = createStateMessages();
   const agentTools = createAgentToolRegistry();
-  const buffer = new CanvasDocumentBuffer(store);
-  const agentChangedCanvasKeys = new Set<string>();
   const canvasState = registerStateContributions(
     state,
-    createCanvasStateContributions(buffer, ["main"], agentChangedCanvasKeys),
+    createCanvasStateContributions(ctx),
   );
   const canvasStateMessages = registerStateMessageContributions(
     stateMessages,
-    createCanvasStateMessageContributions(buffer, ["main"]),
+    createCanvasStateMessageContributions(ctx),
   );
   const canvasAgentTools = registerAgentToolContributions(
     agentTools,
-    createCanvasAgentToolContributions(
-      { channels: { publish: () => undefined } },
-      buffer,
-      agentChangedCanvasKeys,
-    ),
+    createCanvasAgentToolContributions(ctx),
   );
 
   const tools = new Map<string, ToolDefinition>();
@@ -128,19 +141,20 @@ function setup() {
       } as unknown as ExtensionContext,
     );
 
-  const ctx = { cwd: "/work", sessionManager: { getBranch: () => [] } };
+  const extCtx = { cwd: "/work", sessionManager: { getBranch: () => [] } };
 
   return {
-    store,
+    store: ctx.store,
     tools,
     turnBoundary,
     entries,
-    writebackCanvas: (key: string, html: string) => buffer.writeback(key, html),
+    writebackCanvas: (key: string, html: string) =>
+      ctx.buffer.writeback(key, html),
     inputBoundary: async () => {
-      await inputHandlers[0]({}, ctx as unknown as ExtensionContext);
+      await inputHandlers[0]({}, extCtx as unknown as ExtensionContext);
     },
     agentEnd: async () => {
-      await agentEndHandlers[0]({}, ctx as unknown as ExtensionContext);
+      await agentEndHandlers[0]({}, extCtx as unknown as ExtensionContext);
     },
     disposeCanvasState: () => canvasState[Symbol.dispose](),
     disposeCanvasStateMessages: () => canvasStateMessages[Symbol.dispose](),

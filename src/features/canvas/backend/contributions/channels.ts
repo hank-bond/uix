@@ -14,7 +14,7 @@ import {
   type CanvasWriteback,
 } from "../../shared/channels";
 
-import { CanvasDocumentBuffer } from "../document-buffer";
+import type { CanvasContext } from "../context";
 
 export function publishCanvasChanged(
   channels: FeatureChannelPublisher,
@@ -25,7 +25,7 @@ export function publishCanvasChanged(
 }
 
 export function createCanvasChannelContributions(
-  buffer: CanvasDocumentBuffer,
+  ctx: CanvasContext,
 ): readonly ChannelContribution[] {
   return [
     {
@@ -41,7 +41,7 @@ export function createCanvasChannelContributions(
             );
             // No broadcast: the pane already shows the human's edit, and the
             // channel pulls from the canvas document buffer on its next turn.
-            await buffer.writeback(payload.key, payload.html);
+            await ctx.buffer.writeback(payload.key, payload.html);
           },
         },
       },

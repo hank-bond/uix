@@ -166,13 +166,15 @@ void app.whenReady().then(async () => {
   const stateMessages = createStateMessages();
 
   for (const feature of bundledFeatures) {
+    const baseContext = {
+      documents,
+      channels: createFeatureChannelPublisher(feature.id, channels),
+    };
+    const contributedContext = feature.context?.(baseContext) ?? {};
     appBag.add(
       registerFeatureContributions(
         { resources, channels, agentTools, state, stateMessages },
-        feature.contribute({
-          documents,
-          channels: createFeatureChannelPublisher(feature.id, channels),
-        }),
+        feature.contribute({ ...baseContext, ...contributedContext }),
       ),
     );
   }

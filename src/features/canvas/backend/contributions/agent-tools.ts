@@ -18,10 +18,9 @@ import { type Static, Type } from "typebox";
 import { CanvasKeyDescription, CanvasKeySchema } from "../../shared/addressing";
 import type { AgentToolContribution } from "#backend/agent/tools";
 import { formatAnchoredText, parseAnchoredLine } from "#backend/anchors/wire";
-import type { FeatureContext } from "#backend/features/context";
+import type { CanvasContext } from "../context";
 
 import { formatChangeHunks } from "../anchored-format";
-import { CanvasDocumentBuffer } from "../document-buffer";
 
 import { publishCanvasChanged } from "./channels";
 
@@ -76,26 +75,22 @@ type WriteParams = Static<typeof writeParams>;
 type EditParams = Static<typeof editParams>;
 
 export function createCanvasAgentToolContributions(
-  ctx: FeatureContext,
-  buffer: CanvasDocumentBuffer,
-  agentChangedCanvasKeys: Set<string>,
+  ctx: CanvasContext,
 ): readonly AgentToolContribution[] {
   return [
-    { id: "canvas.anchor_read", tool: createReadTool(buffer) },
+    { id: "canvas.anchor_read", tool: createReadTool(ctx) },
     {
       id: "canvas.anchor_write",
-      tool: createWriteTool(buffer, ctx, agentChangedCanvasKeys),
+      tool: createWriteTool(ctx),
     },
     {
       id: "canvas.anchor_edit",
-      tool: createEditTool(buffer, ctx, agentChangedCanvasKeys),
+      tool: createEditTool(ctx),
     },
   ];
 }
 
-function createReadTool(
-  buffer: CanvasDocumentBuffer,
-): ToolDefinition<typeof readParams> {
+function createReadTool(ctx: CanvasContext): ToolDefinition<typeof readParams> {
   return {
     name: "canvas__anchor_read",
     label: "read canvas",
@@ -104,7 +99,7 @@ function createReadTool(
     promptSnippet: "Read a canvas as anchored lines.",
     parameters: readParams,
     async execute(_toolCallId, params: ReadParams) {
-      const lines = await buffer.read(params.key, params.start, params.end);
+      const lines = await ctx.buffer.read(params.key, params.start, params.end);
       return {
         content: [
           {
@@ -121,9 +116,7 @@ function createReadTool(
 }
 
 function createWriteTool(
-  buffer: CanvasDocumentBuffer,
-  ctx: FeatureContext,
-  agentChangedCanvasKeys: Set<string>,
+  ctx: CanvasContext,
 ): ToolDefinition<typeof writeParams> {
   return {
     name: "canvas__anchor_write",
@@ -139,8 +132,8 @@ function createWriteTool(
     parameters: writeParams,
     executionMode: "sequential",
     async execute(_toolCallId, params: WriteParams) {
-      const lines = await buffer.write(params.key, params.html);
-      agentChangedCanvasKeys.add(params.key);
+      const lines = await ctx.buffer.write(params.key, params.html);
+      ctx.agentChangedCanvasKeys.add(params.key);
       publishCanvasChanged(ctx.channels, params.key);
       return {
         content: [{ type: "text", text: formatAnchoredText(lines) }],
@@ -150,11 +143,7 @@ function createWriteTool(
   };
 }
 
-function createEditTool(
-  buffer: CanvasDocumentBuffer,
-  ctx: FeatureContext,
-  agentChangedCanvasKeys: Set<string>,
-): ToolDefinition<typeof editParams> {
+function createEditTool(ctx: CanvasContext): ToolDefinition<typeof editParams> {
   return {
     name: "canvas__anchor_edit",
     label: "edit canvas",
@@ -164,12 +153,12 @@ function createEditTool(
     parameters: editParams,
     executionMode: "sequential",
     async execute(_toolCallId, params: EditParams) {
-      const changes = await buffer.edit(params.key, {
+      const changes = await ctx.buffer.edit(params.key, {
         start: parseAnchoredLine(params.start_line),
         end: parseAnchoredLine(params.end_line),
         replacement: params.replacement,
       });
-      agentChangedCanvasKeys.add(params.key);
+      ctx.agentChangedCanvasKeys.add(params.key);
       publishCanvasChanged(ctx.channels, params.key);
       return {
         content: [

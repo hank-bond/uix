@@ -6,13 +6,12 @@
 
 import type { PreparedState, StateContribution } from "#backend/state/registry";
 
-import { CanvasDocumentBuffer } from "../document-buffer";
+import type { CanvasContext } from "../context";
 
 export function createCanvasStateContributions(
-  buffer: CanvasDocumentBuffer,
-  openCanvasKeys: readonly string[],
-  agentChangedCanvasKeys: Set<string>,
+  ctx: CanvasContext,
 ): readonly StateContribution[] {
+  const { buffer, openCanvasKeys, agentChangedCanvasKeys } = ctx;
   return [
     {
       id: "canvas",
@@ -32,7 +31,7 @@ export function createCanvasStateContributions(
 }
 
 async function snapshotCanvasPanes(
-  buffer: CanvasDocumentBuffer,
+  buffer: CanvasContext["buffer"],
   canvasKeys: Iterable<string>,
 ): Promise<PreparedState | undefined> {
   const versions = await buffer.snapshotCurrent(canvasKeys);

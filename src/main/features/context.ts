@@ -7,7 +7,7 @@
 import type { FeatureChannelPublisher } from "@uix/api/channels";
 import type { DocumentStoreProvider } from "../documents/store";
 
-export interface FeatureContext {
+export type FeatureContext = {
   documents: DocumentStoreProvider;
   channels: FeatureChannelPublisher;
-}
+};

@@ -6,12 +6,12 @@ import type { StateMessageContribution } from "#backend/agent/state-messages";
 import { createLogger } from "#backend/log";
 
 import { formatCanvasChanges } from "../anchored-format";
-import { CanvasDocumentBuffer } from "../document-buffer";
+import type { CanvasContext } from "../context";
 
 export function createCanvasStateMessageContributions(
-  buffer: CanvasDocumentBuffer,
-  openCanvasKeys: readonly string[],
+  ctx: CanvasContext,
 ): readonly StateMessageContribution[] {
+  const { buffer, openCanvasKeys } = ctx;
   return [
     {
       messageType: "uix.pane-visibility",

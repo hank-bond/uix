@@ -1,12 +1,12 @@
 // canvas resource contributions.
 
 import { CanvasProtocolScheme, canvasHostToKey } from "../../shared/addressing";
-import type { DocumentStore } from "#backend/documents/store";
 import type {
   ResourceContribution,
   ResourceSchemeContribution,
 } from "#backend/resources/registry";
 import { createLogger } from "#backend/log";
+import type { CanvasContext } from "../context";
 
 import { injectCanvasShim } from "../shim";
 
@@ -23,7 +23,7 @@ export const canvasResourceScheme: ResourceSchemeContribution = {
 };
 
 export function createCanvasResourceContributions(
-  documents: DocumentStore,
+  ctx: CanvasContext,
 ): readonly ResourceContribution[] {
   return [
     {
@@ -32,7 +32,7 @@ export function createCanvasResourceContributions(
       async handle(request) {
         const url = new URL(request.url);
         const key = canvasHostToKey(url.hostname);
-        const html = key ? await documents.getCurrent(key) : null;
+        const html = key ? await ctx.store.getCurrent(key) : null;
 
         if (key && html !== null) {
           log.debug({ key }, "canvas_served");

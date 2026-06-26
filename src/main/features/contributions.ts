@@ -33,10 +33,19 @@ export interface FeaturePreflightContributions {
   resourceSchemes?: readonly ResourceSchemeContribution[];
 }
 
-export interface FeatureDefinition {
+export interface FeatureDefinition<
+  ContributedContext extends Record<string, unknown> = Record<string, unknown>,
+> {
   id: string;
   preflight?: FeaturePreflightContributions;
-  contribute(ctx: FeatureContext): FeatureContributions;
+  /**
+   * Feature-local context hook. Runs first, before any other contribution,
+   * and is the only contribution whose execution order is guaranteed. Its
+   * return value is merged onto the substrate `FeatureContext` and handed to
+   * `contribute` and every facet factory.
+   */
+  context?: (ctx: FeatureContext) => ContributedContext;
+  contribute(ctx: FeatureContext & ContributedContext): FeatureContributions;
 }
 
 export interface FeatureContributions {

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { CanvasDocumentBuffer } from "../document-buffer";
+import type { CanvasContext } from "../context";
 import type { DocumentStore, DocumentVersion } from "#backend/documents/store";
+import type { FeatureContext } from "#backend/features/context";
 
 import { createCanvasStateContributions } from "./state";
 
@@ -42,11 +44,19 @@ function captureCanvasState(opts: {
   agentChangedCanvasKeys?: Set<string>;
 }) {
   const agentChangedCanvasKeys = opts.agentChangedCanvasKeys ?? new Set();
-  const [contribution] = createCanvasStateContributions(
-    new CanvasDocumentBuffer(opts.store ?? memoryStore()),
-    opts.openCanvasKeys ?? [],
+  const store = opts.store ?? memoryStore();
+  const base: FeatureContext = {
+    documents: { createStore: () => store },
+    channels: { publish: () => undefined },
+  };
+  const ctx: CanvasContext = {
+    ...base,
+    store,
+    buffer: new CanvasDocumentBuffer(store),
+    openCanvasKeys: opts.openCanvasKeys ?? [],
     agentChangedCanvasKeys,
-  );
+  };
+  const [contribution] = createCanvasStateContributions(ctx);
 
   if (!contribution) throw new Error("Canvas state was not created");
   return { contribution, agentChangedCanvasKeys };

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import type { DocumentStore, DocumentVersion } from "#backend/documents/store";
+import type { FeatureContext } from "#backend/features/context";
+import type { CanvasContext } from "../context";
+import { CanvasDocumentBuffer } from "../document-buffer";
 
 import { createCanvasResourceContributions } from "./resources";
 
@@ -26,10 +29,24 @@ function memoryStore(initial: Record<string, string> = {}): DocumentStore {
   };
 }
 
+function fakeCanvasContext(store: DocumentStore): CanvasContext {
+  const base: FeatureContext = {
+    documents: { createStore: () => store },
+    channels: { publish: () => undefined },
+  };
+  return {
+    ...base,
+    store,
+    buffer: new CanvasDocumentBuffer(store),
+    openCanvasKeys: [],
+    agentChangedCanvasKeys: new Set(),
+  };
+}
+
 describe("createCanvasResourceContributions", () => {
   it("serves current canvas HTML with the writeback shim", async () => {
     const [resource] = createCanvasResourceContributions(
-      memoryStore({ main: "<p>Hello</p>" }),
+      fakeCanvasContext(memoryStore({ main: "<p>Hello</p>" })),
     );
 
     const response = await resource.handle(new Request("uix-canvas://main/"));
@@ -44,7 +61,9 @@ describe("createCanvasResourceContributions", () => {
   });
 
   it("returns a small 404 page when the canvas is missing", async () => {
-    const [resource] = createCanvasResourceContributions(memoryStore());
+    const [resource] = createCanvasResourceContributions(
+      fakeCanvasContext(memoryStore()),
+    );
 
     const response = await resource.handle(new Request("uix-canvas://main/"));
 
