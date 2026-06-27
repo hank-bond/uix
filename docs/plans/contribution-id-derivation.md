@@ -1,5 +1,5 @@
 ---
-summary: "Derive contribution/canonical ids from featureId + name across all facets so authors give only a local name; one uniform ContributionId brand (`${featureId}.<facet>.<name>`) plus one per-facet canonical-id brand (facet segment dropped), the api exposes author shapes only. Units: channels (done), agent tools, state messages, resources, private state."
+summary: "Derive contribution/canonical ids from featureId + name across all facets so authors give only a local name; one uniform ContributionId brand (`${featureId}.<facet>.<name>`) plus one per-facet canonical-id brand (facet segment dropped), the api exposes author shapes only. Units: channels (done), agent tools (done), state messages (done), resources, private state."
 status: active
 ---
 
@@ -13,7 +13,7 @@ The model is established in the channels facet (committed) and applied uniformly
 
 Every facet: author gives `name` (+ payload/handler). The facet derives two ids.
 
-- **`ContributionId`** — registry dedup key. One uniform brand, shared across facets, constructed by `contributionId(featureId, facet, name)` → `${featureId}.<facet>.<name>`. Lives in `src/shared/contribution-id.ts`.
+- **`ContributionId`** — registry dedup key. One uniform brand, shared across facets, constructed by `toContributionId(featureId, facet, name)` → `${featureId}.<facet>.<name>`. Lives in `src/shared/contribution-id.ts`.
 - **`…CanonicalId`** — the downstream-system address. One brand per facet (each has its own format), constructed by a facet-specific `<facet>CanonicalId(featureId, name)`. The facet segment is dropped from the canonical id because within the downstream system the channel/tool/scheme/storage-key kind is implicit.
 
 Brands are nominal and constructed only by their validated helper; internal code (registry Sets, resolved `…Registration` shapes) carries the brand, genuine external string boundaries cast inline (`id as string`, the `CanvasKey` precedent). No `asString`-style unbrand helpers. The public `@uix/api` modules expose **author shapes only** — `…Contribution` types with a `name` field, no id fields, no brands. Id construction lives with its consumer: main-only facets keep canonical-id helpers in `src/main/`; cross-facet helpers (resources) go in `#shared`. The `ContributionId` grammar itself stays in `#shared` since every facet uses it.
@@ -30,7 +30,7 @@ Envelope/customType ids stay substrate-owned (`uix.state`, `uix.turn-state`, the
 
 ## Units
 
-Implement in order; each is a facet, ends green (tsc + tests), and is committed on its own. Channels is the reference pattern for the author shape (`name`-keyed) and the `ContributionId`/canonical-id split. U3–U5 simplify two things: (a) no separate normalization module — id derivation lives alongside the registry; (b) the `*Registry` types become opaque branded tokens with no public `register()` method — the bulk `register<Facet>Contributions(registry, featureId, contributions)` is the sole registration path. `registerFeatureContributions` threads `featureId` through to each facet's bulk helper.
+Implement in order; each is a facet, ends green (tsc + tests), and is committed on its own. Channels is the reference pattern for the author shape (`name`-keyed) and the `ContributionId`/canonical-id split. U3–U5 simplify two things: (a) no separate normalization module — id derivation lives alongside the registry; (b) registry classes are exported directly — no opaque interface wrappers, no public `register()` on the facade, just `register<Facet>Contributions(registry, featureId, contributions)` as the sole registration path. `registerFeatureContributions` threads `featureId` through to each facet's bulk helper.
 
 ### U1 — Channels ✅ done (committed)
 
@@ -48,25 +48,23 @@ Files: `src/main/agent/tools.ts`, new `src/main/agent/agent-tool-normalization.t
 
 **Pattern notes (post-U2 simplifications):** Two things U3–U5 will do differently: (1) no separate normalization module — id derivation lives in the same file as the registry and is called from the bulk `register<Facet>Contributions` helper; and (2) the `*Registry` types become opaque branded tokens — no public `register()` method at all. Features provide `Contributions[]`, the bulk helper derives ids and registers internally, and the registry is just a token accepted by the bulk helper and the installer/assembler. U1 and the shared `ContributionId` grammar remain as-is; U2 is already committed.
 
-### U3 — State messages
+### U3 — State messages ✅ done (committed)
 
 `BaseContribution.messageType` → `name`. `StateMessageCanonicalId` brand + `stateMessageCanonicalId(featureId, name)` → `${featureId}.${name}`; `contributionId` via the shared helper → `${featureId}.state-message.${name}`. These helpers live in `src/main/agent/state-messages.ts` (main-only, same placement rationale as U2). Drop the `uix.` prefix entirely (the `<uix-state>` envelope + `uix.state` customType stay substrate-owned; inner tags go feature-scoped, e.g. `<canvas-pane-visibility>`). `stateTag` keeps dots→dashes (no more `uix.` strip). `nearestPersistedBodies` keys off the derived canonical id — still works.
 
-**Registry becomes opaque:** `StateMessages` changes from `StateMessageRegistry` (with `register()`) to an opaque branded token. `registerStateMessageContributions(stateMessages, featureId, contributions)` is the sole registration path — it derives both ids internally, registers into the store, applies initial values, returns a `Disposable` bag. The internal store class keeps a `register()` method for tests (tests either import the class directly or go through the bulk helper with single-element arrays).
+**Registration:** no separate normalization module. `registerStateMessageContributions(stateMessages, featureId, contributions)` is the sole registration path — it derives both ids internally, registers into the store, applies initial values, returns a `Disposable` bag. The `StateMessageRegistry` class is exported directly (no opaque interface wrapper); features go through the bulk helper. `contributionId` function renamed to `toContributionId` to avoid variable shadowing; the shared `assertIdToken` regex widened to allow hyphens in facet/name segments.
 
 Canvas `state-messages.ts`: `name: "pane-visibility"`, `name: "canvas-diff"`.
 
-Files: `src/main/agent/state-messages.ts` (brand, constructor, registry changes), `src/features/canvas/backend/contributions/state-messages.ts`, `src/main/features/contributions.ts` (thread featureId), `src/main/agent/state-messages.test.ts`. Update `src/docs/agent.md` (the state-message section currently names `uix.pane-visibility`/`uix.canvas-diff`).
-
 ### U4 — Resources
 
-`ResourceContribution`/`ResourceSchemeContribution`: `id`/`scheme` → `name`; scheme derived = `ResourceCanonicalId` = `${featureId}-${name}` (feature-namespaced, kills cross-feature scheme collisions). `registerResourceContributions(registry, featureId, contributions)` + `registerResourceSchemeContributions` (preflight, needs featureId per feature) thread `featureId` + derive scheme. Canvas: `name: "doc"` → scheme `canvas-doc`; the fixed `CanvasProtocolScheme = "uix-canvas"` constant goes away. **Ripple:** the renderer (`Canvas.tsx`) and `shared/addressing.ts` (`canvasUrl`, `canvasKeyToHost`) build URLs from the scheme — they must consume the derived scheme. The `resourceCanonicalId` helper must be renderer-importable (`#shared`). **Registry becomes opaque** — `ResourceRegistry` drops `register()`, same pattern as U3.
+`ResourceContribution`/`ResourceSchemeContribution`: `id`/`scheme` → `name`; scheme derived = `ResourceCanonicalId` = `${featureId}-${name}` (feature-namespaced, kills cross-feature scheme collisions). `registerResourceContributions(registry, featureId, contributions)` + `registerResourceSchemeContributions` (preflight, needs featureId per feature) thread `featureId` + derive scheme. Canvas: `name: "doc"` → scheme `canvas-doc`; the fixed `CanvasProtocolScheme = "uix-canvas"` constant goes away. **Ripple:** the renderer (`Canvas.tsx`) and `shared/addressing.ts` (`canvasUrl`, `canvasKeyToHost`) build URLs from the scheme — they must consume the derived scheme. The `resourceCanonicalId` helper must be renderer-importable (`#shared`). **Registry:** exported class, same pattern as U3.
 
 Files: `src/main/resources/registry.ts`, new `src/shared/resource-canonical-id.ts` (just the brand + constructor, not a full normalization module), `src/features/canvas/backend/contributions/resources.ts`, `src/features/canvas/shared/addressing.ts`, `src/features/canvas/workspace/Canvas.tsx`, `src/main/features/contributions.ts` (preflight signature), tests. Update `src/docs/` if any resource doc names the scheme.
 
 ### U5 — Private state
 
-`StateContribution`: drop `id` entirely (one contribution per feature; it routes its own keys internally). `StateCanonicalId` = `featureId` (the persisted `uix.turn-state` blob key). `ContributionId` = `${featureId}.state` (registry dedup). `registerStateContributions(registry, featureId, contributions)` stamps both ids; `appendPreparedTurnState` keys the blob by the canonical id (= featureId) instead of `contribution.id`. Canvas `state.ts`: drop `id: "canvas"`. Main-only facet — brands and derivation live in `src/main/state/registry.ts`. **Registry becomes opaque** — `StateRegistry` drops `register()`, same pattern as U3.
+`StateContribution`: drop `id` entirely (one contribution per feature; it routes its own keys internally). `StateCanonicalId` = `featureId` (the persisted `uix.turn-state` blob key). `ContributionId` = `${featureId}.state` (registry dedup). `registerStateContributions(registry, featureId, contributions)` stamps both ids; `appendPreparedTurnState` keys the blob by the canonical id (= featureId) instead of `contribution.id`. Canvas `state.ts`: drop `id: "canvas"`. Main-only facet — brands and derivation live in `src/main/state/registry.ts`. **Registry:** exported class, no opaque wrapper — `StateRegistry` drops public `register()`, same pattern as U3.
 
 Files: `src/main/state/registry.ts`, `src/features/canvas/backend/contributions/state.ts`, tests.
 
