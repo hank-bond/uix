@@ -1,11 +1,44 @@
+// typed channel contributions.
+//
+// This is a narrow substrate facet for request/response channels and backend →
+// workspace event publishing. Features declare the channels they handle; the
+// substrate owns registration through the current transport adapter. Today that
+// adapter is Electron IPC, but the contribution model is intentionally
+// transport-neutral.
+
 import type {
   ChannelContribution,
   ChannelEventContribution,
-  ChannelRegistration,
+  ChannelLogOptions,
   ChannelRequestContribution,
 } from "@uix/api/channels";
-import { featureChannelId } from "@uix/api/channels";
 import type { TSchema } from "typebox";
+
+import { contributionId, type ContributionId } from "./contribution-id";
+
+/**
+ * Canonical channel id: the transport address. The format drops the facet
+ * segment because within the transport the channel kind is implicit:
+ * `${featureId}.${name}` (e.g. `canvas.writeback`).
+ */
+const ChannelCanonicalIdBrand: unique symbol = Symbol("ChannelCanonicalId");
+
+export type ChannelCanonicalId = string & {
+  readonly [ChannelCanonicalIdBrand]: true;
+};
+
+/**
+ * Builds the transport address for a channel: `${featureId}.${name}`.
+ * Validates each segment; a failure is an app bug.
+ */
+export function channelCanonicalId(
+  featureId: string,
+  name: string,
+): ChannelCanonicalId {
+  assertChannelToken("feature id", featureId);
+  assertChannelToken("channel name", name);
+  return `${featureId}.${name}` as ChannelCanonicalId;
+}
 
 export type ChannelRequestContract<
   Name extends string,
@@ -13,8 +46,8 @@ export type ChannelRequestContract<
   Res extends TSchema,
 > = ChannelRequestContribution<Req, Res> & {
   readonly name: Name;
-  readonly contributionId: string;
-  readonly canonicalId: string;
+  readonly contributionId: ContributionId;
+  readonly canonicalId: ChannelCanonicalId;
 };
 
 export type ChannelEventContract<
@@ -22,8 +55,8 @@ export type ChannelEventContract<
   Event extends TSchema,
 > = ChannelEventContribution<Event> & {
   readonly name: Name;
-  readonly contributionId: string;
-  readonly canonicalId: string;
+  readonly contributionId: ContributionId;
+  readonly canonicalId: ChannelCanonicalId;
 };
 
 export type ChannelContract<Contribution extends ChannelContribution> = {
@@ -47,6 +80,17 @@ export type ChannelContract<Contribution extends ChannelContribution> = {
   };
 };
 
+export type ChannelLogOptions<Res> = { describeResult?: (res: Res) => unknown };
+
+export type ChannelRegistration<Req = unknown, Res = unknown> = {
+  contributionId: ContributionId;
+  canonicalId: ChannelCanonicalId;
+  request: TSchema;
+  response: TSchema;
+  handle: (req: Req) => Res | Promise<Res>;
+  log?: ChannelLogOptions<Res>;
+};
+
 export function normalizeChannelContribution<
   const Contribution extends ChannelContribution,
 >(
@@ -59,17 +103,17 @@ export function normalizeChannelContribution<
 
   for (const [name, request] of Object.entries(contribution.requests)) {
     assertUniqueChannelName(featureId, seen, name);
-    const id = featureChannelId(featureId, name);
+    const id = channelContributionIds(featureId, name);
     Object.assign(requests, {
-      [name]: { ...request, name, contributionId: id, canonicalId: id },
+      [name]: { ...request, name, ...id },
     });
   }
 
   for (const [name, event] of Object.entries(contribution.events)) {
     assertUniqueChannelName(featureId, seen, name);
-    const id = featureChannelId(featureId, name);
+    const id = channelContributionIds(featureId, name);
     Object.assign(events, {
-      [name]: { ...event, name, contributionId: id, canonicalId: id },
+      [name]: { ...event, name, ...id },
     });
   }
 
@@ -91,6 +135,19 @@ export function channelRequestRegistrations(
   });
 }
 
+function channelContributionIds(
+  featureId: string,
+  name: string,
+): {
+  contributionId: ContributionId;
+  canonicalId: ChannelCanonicalId;
+} {
+  return {
+    contributionId: contributionId(featureId, "channel", name),
+    canonicalId: channelCanonicalId(featureId, name),
+  };
+}
+
 function assertUniqueChannelName(
   featureId: string,
   seen: Set<string>,
@@ -100,4 +157,13 @@ function assertUniqueChannelName(
     throw new Error(`Duplicate channel name for feature ${featureId}: ${name}`);
   }
   seen.add(name);
+}
+
+function assertChannelToken(label: string, token: string): void {
+  const channelTokenPattern = /^[a-z][a-z0-9_]*$/;
+  if (!channelTokenPattern.test(token)) {
+    throw new Error(
+      `Invalid ${label}: ${token}. Expected ${channelTokenPattern}.`,
+    );
+  }
 }

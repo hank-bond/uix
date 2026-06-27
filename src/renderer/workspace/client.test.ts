@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { UIXBridge } from "#shared/ipc";
-import { featureChannelId } from "@uix/api/channels";
+import { channelCanonicalId } from "#shared/channel-normalization";
 import { parseCanvasKey } from "#features/canvas/shared/addressing";
 import { createCanvasClient } from "#features/canvas/workspace/client";
 import { AgentEvents, AgentRequests, createAgentClient } from "./agent";
@@ -12,8 +12,8 @@ import {
 import { createPreloadWorkspaceClient } from "./preload";
 
 const CanvasChannels = {
-  writeback: featureChannelId("canvas", "writeback"),
-  changed: featureChannelId("canvas", "changed"),
+  writeback: channelCanonicalId("canvas", "writeback") as string,
+  changed: channelCanonicalId("canvas", "changed") as string,
 } as const;
 
 function fakeBridge(): UIXBridge {
@@ -103,11 +103,11 @@ describe("feature and facet clients", () => {
     await canvas.writeback({ key: parseCanvasKey("main"), html: "<main />" });
     canvas.onChanged(onChanged);
 
-    expect(request).toHaveBeenCalledWith("canvas.channel.writeback", {
+    expect(request).toHaveBeenCalledWith("canvas.writeback", {
       key: "main",
       html: "<main />",
     });
-    expect(subscribe).toHaveBeenCalledWith("canvas.channel.changed", onChanged);
+    expect(subscribe).toHaveBeenCalledWith("canvas.changed", onChanged);
   });
 
   it("keeps agent requests outside feature namespaces", async () => {

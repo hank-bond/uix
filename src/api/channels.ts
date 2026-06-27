@@ -23,30 +23,6 @@ export interface ChannelContribution {
   readonly events: Record<string, ChannelEventContribution>;
 }
 
-export interface ChannelRegistration<Req = unknown, Res = unknown> {
-  contributionId: string;
-  canonicalId?: string;
-  request: TSchema;
-  response: TSchema;
-  handle: (req: Req) => Res | Promise<Res>;
-  log?: ChannelLogOptions<Res>;
-}
-
 export interface FeatureChannelPublisher {
   publish(name: string, payload: unknown): void;
-}
-
-export function featureChannelId(featureId: string, name: string): string {
-  assertWordChars("feature id", featureId);
-  assertWordChars("channel name", name);
-  return `${featureId}.channel.${name}`;
-}
-
-function assertWordChars(label: string, token: string): void {
-  const contributionTokenPattern = /^[a-z][a-z0-9_]*$/;
-  if (!contributionTokenPattern.test(token)) {
-    throw new Error(
-      `Invalid ${label}: ${token}. Expected ${contributionTokenPattern}.`,
-    );
-  }
 }

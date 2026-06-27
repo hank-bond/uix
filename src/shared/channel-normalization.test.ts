@@ -2,7 +2,36 @@ import { describe, expect, it } from "vitest";
 
 import { Type } from "typebox";
 
-import { normalizeChannelContribution } from "./channel-normalization";
+import {
+  channelCanonicalId,
+  normalizeChannelContribution,
+} from "./channel-normalization";
+import { contributionId } from "./contribution-id";
+
+describe("channelCanonicalId", () => {
+  it("derives transport addresses without the facet segment", () => {
+    expect(channelCanonicalId("canvas", "writeback") as string).toBe(
+      "canvas.writeback",
+    );
+  });
+
+  it("rejects tokens that cannot participate in derived ids", () => {
+    expect(() => channelCanonicalId("Canvas", "writeback")).toThrow(
+      "Invalid feature id: Canvas",
+    );
+    expect(() => channelCanonicalId("canvas", "bad-name")).toThrow(
+      "Invalid channel name: bad-name",
+    );
+  });
+});
+
+describe("contributionId", () => {
+  it("derives the uniform dotted registry id for any facet", () => {
+    expect(contributionId("canvas", "channel", "writeback") as string).toBe(
+      "canvas.channel.writeback",
+    );
+  });
+});
 
 describe("normalizeChannelContribution", () => {
   it("derives contribution and canonical ids from feature id and names", () => {
@@ -23,12 +52,12 @@ describe("normalizeChannelContribution", () => {
     expect(channels.requests.writeback).toMatchObject({
       name: "writeback",
       contributionId: "canvas.channel.writeback",
-      canonicalId: "canvas.channel.writeback",
+      canonicalId: "canvas.writeback",
     });
     expect(channels.events.changed).toMatchObject({
       name: "changed",
       contributionId: "canvas.channel.changed",
-      canonicalId: "canvas.channel.changed",
+      canonicalId: "canvas.changed",
     });
   });
 

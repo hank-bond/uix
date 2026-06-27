@@ -7,6 +7,11 @@ import {
   createFeatureChannelPublisher,
   registerChannelContributions,
 } from "./registry";
+import {
+  channelCanonicalId,
+  type ChannelCanonicalId,
+} from "#shared/channel-normalization";
+import { contributionId } from "#shared/contribution-id";
 
 function fakeTransport() {
   const handlers = new Map<string, (req: unknown) => Promise<unknown>>();
@@ -17,17 +22,20 @@ function fakeTransport() {
     handlers,
     disposed,
     published,
-    handle(canonicalId: string, fn: (req: unknown) => Promise<unknown>) {
-      handlers.set(canonicalId, fn);
+    handle(
+      canonicalId: ChannelCanonicalId,
+      fn: (req: unknown) => Promise<unknown>,
+    ) {
+      handlers.set(canonicalId as string, fn);
       return {
         [Symbol.dispose]() {
-          disposed.push(canonicalId);
-          handlers.delete(canonicalId);
+          disposed.push(canonicalId as string);
+          handlers.delete(canonicalId as string);
         },
       };
     },
-    publish(canonicalId: string, payload: unknown) {
-      published.push({ canonicalId, payload });
+    publish(canonicalId: ChannelCanonicalId, payload: unknown) {
+      published.push({ canonicalId: canonicalId as string, payload });
     },
   };
 }
@@ -40,20 +48,21 @@ describe("ChannelRegistry", () => {
     });
 
     const registration = registry.register({
-      contributionId: "canvas.channel.writeback",
+      contributionId: contributionId("canvas", "channel", "writeback"),
+      canonicalId: channelCanonicalId("canvas", "writeback"),
       request: Type.Object({ key: Type.Unknown() }),
       response: Type.Object({ ok: Type.Unknown() }),
       handle: (req: unknown) => ({ ok: req }),
     });
 
     await expect(
-      transport.handlers.get("canvas.channel.writeback")?.({ key: "main" }),
+      transport.handlers.get("canvas.writeback")?.({ key: "main" }),
     ).resolves.toEqual({ ok: { key: "main" } });
 
     registration[Symbol.dispose]();
 
-    expect(transport.handlers.has("canvas.channel.writeback")).toBe(false);
-    expect(transport.disposed).toEqual(["canvas.channel.writeback"]);
+    expect(transport.handlers.has("canvas.writeback")).toBe(false);
+    expect(transport.disposed).toEqual(["canvas.writeback"]);
   });
 
   it("rejects duplicate contribution and canonical ids until disposed", () => {
@@ -63,7 +72,8 @@ describe("ChannelRegistry", () => {
     });
 
     const registration = registry.register({
-      contributionId: "canvas.channel.refresh",
+      contributionId: contributionId("canvas", "channel", "refresh"),
+      canonicalId: channelCanonicalId("canvas", "refresh"),
       request: Type.Object({}),
       response: Type.Void(),
       handle: () => undefined,
@@ -71,8 +81,8 @@ describe("ChannelRegistry", () => {
 
     expect(() =>
       registry.register({
-        contributionId: "canvas.channel.refresh",
-        canonicalId: "other.channel.refresh",
+        contributionId: contributionId("canvas", "channel", "refresh"),
+        canonicalId: channelCanonicalId("other", "refresh"),
         request: Type.Object({}),
         response: Type.Void(),
         handle: () => undefined,
@@ -82,19 +92,20 @@ describe("ChannelRegistry", () => {
     );
     expect(() =>
       registry.register({
-        contributionId: "other.channel.refresh",
-        canonicalId: "canvas.channel.refresh",
+        contributionId: contributionId("other", "channel", "refresh"),
+        canonicalId: channelCanonicalId("canvas", "refresh"),
         request: Type.Object({}),
         response: Type.Void(),
         handle: () => undefined,
       }),
-    ).toThrow("Channel already registered: canvas.channel.refresh");
+    ).toThrow("Channel already registered: canvas.refresh");
 
     registration[Symbol.dispose]();
 
     expect(() =>
       registry.register({
-        contributionId: "canvas.channel.refresh",
+        contributionId: contributionId("canvas", "channel", "refresh"),
+        canonicalId: channelCanonicalId("canvas", "refresh"),
         request: Type.Object({}),
         response: Type.Void(),
         handle: () => undefined,
@@ -109,17 +120,18 @@ describe("ChannelRegistry", () => {
     });
 
     registry.register({
-      contributionId: "canvas.channel.writeback",
+      contributionId: contributionId("canvas", "channel", "writeback"),
+      canonicalId: channelCanonicalId("canvas", "writeback"),
       request: Type.Object({ key: Type.String() }),
       response: Type.Object({ ok: Type.Boolean() }),
       handle: (req: { key: string }) => ({ ok: req.key === "main" }),
     });
 
     await expect(
-      transport.handlers.get("canvas.channel.writeback")?.({ key: "main" }),
+      transport.handlers.get("canvas.writeback")?.({ key: "main" }),
     ).resolves.toEqual({ ok: true });
     await expect(
-      transport.handlers.get("canvas.channel.writeback")?.({ key: 1 }),
+      transport.handlers.get("canvas.writeback")?.({ key: 1 }),
     ).rejects.toThrow();
   });
 
@@ -131,10 +143,10 @@ describe("ChannelRegistry", () => {
         transport.publish(canonicalId, payload),
     });
 
-    registry.publish("canvas.channel.changed", { key: "main" });
+    registry.publish(channelCanonicalId("canvas", "changed"), { key: "main" });
 
     expect(transport.published).toEqual([
-      { canonicalId: "canvas.channel.changed", payload: { key: "main" } },
+      { canonicalId: "canvas.changed", payload: { key: "main" } },
     ]);
   });
 
@@ -163,17 +175,14 @@ describe("ChannelRegistry", () => {
     ]);
 
     expect([...transport.handlers.keys()].sort()).toEqual([
-      "canvas.channel.refresh",
-      "canvas.channel.writeback",
+      "canvas.refresh",
+      "canvas.writeback",
     ]);
 
     registration[Symbol.dispose]();
 
     expect(transport.handlers.size).toBe(0);
-    expect(transport.disposed).toEqual([
-      "canvas.channel.writeback",
-      "canvas.channel.refresh",
-    ]);
+    expect(transport.disposed).toEqual(["canvas.writeback", "canvas.refresh"]);
   });
 
   it("creates feature-scoped publishers", () => {
@@ -187,7 +196,7 @@ describe("ChannelRegistry", () => {
     publisher.publish("changed", { key: "main" });
 
     expect(transport.published).toEqual([
-      { canonicalId: "canvas.channel.changed", payload: { key: "main" } },
+      { canonicalId: "canvas.changed", payload: { key: "main" } },
     ]);
   });
 });

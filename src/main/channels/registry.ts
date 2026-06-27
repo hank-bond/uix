@@ -8,14 +8,18 @@
 
 import type {
   ChannelContribution,
-  ChannelRegistration,
   FeatureChannelPublisher,
 } from "@uix/api/channels";
-import { featureChannelId } from "@uix/api/channels";
+import {
+  channelCanonicalId,
+  type ChannelCanonicalId,
+  type ChannelRegistration,
+} from "#shared/channel-normalization";
 import {
   channelRequestRegistrations,
   normalizeChannelContribution,
 } from "#shared/channel-normalization";
+import type { ContributionId } from "#shared/contribution-id";
 import { Value } from "typebox/value";
 
 import type { HandleLogOptions } from "../ipc";
@@ -23,18 +27,18 @@ import * as ipc from "../ipc";
 import { DisposableBag, disposable } from "../lifecycle";
 
 export type ChannelTransportHandle = (
-  canonicalId: string,
+  canonicalId: ChannelCanonicalId,
   fn: (req: unknown) => Promise<unknown>,
   logOpts?: HandleLogOptions<unknown>,
 ) => Disposable;
 
 export type ChannelTransportPublish = (
-  canonicalId: string,
+  canonicalId: ChannelCanonicalId,
   payload: unknown,
 ) => void;
 
 export interface ChannelRegistry {
-  publish(canonicalId: string, payload: unknown): void;
+  publish(canonicalId: ChannelCanonicalId, payload: unknown): void;
   register<Req, Res>(registration: ChannelRegistration<Req, Res>): Disposable;
 }
 
@@ -49,26 +53,25 @@ export function createChannelRegistry(
   const handle =
     opts.handle ??
     ((canonicalId, fn, logOpts) =>
-      ipc.handle<unknown, unknown>(canonicalId, fn, logOpts));
+      ipc.handle<unknown, unknown>(canonicalId as string, fn, logOpts));
   const publish = opts.publish ?? (() => undefined);
-  const contributionIds = new Set<string>();
-  const canonicalIds = new Set<string>();
+  const contributionIds = new Set<ContributionId>();
+  const canonicalIds = new Set<ChannelCanonicalId>();
 
   return {
     publish,
     register<Req, Res>(channelRegistration: ChannelRegistration<Req, Res>) {
-      const canonicalId =
-        channelRegistration.canonicalId ?? channelRegistration.contributionId;
-      if (contributionIds.has(channelRegistration.contributionId)) {
+      const { contributionId, canonicalId } = channelRegistration;
+      if (contributionIds.has(contributionId)) {
         throw new Error(
-          `Channel contribution already registered: ${channelRegistration.contributionId}`,
+          `Channel contribution already registered: ${contributionId as string}`,
         );
       }
       if (canonicalIds.has(canonicalId)) {
-        throw new Error(`Channel already registered: ${canonicalId}`);
+        throw new Error(`Channel already registered: ${canonicalId as string}`);
       }
 
-      contributionIds.add(channelRegistration.contributionId);
+      contributionIds.add(contributionId);
       canonicalIds.add(canonicalId);
       const transportRegistration = handle(
         canonicalId,
@@ -85,7 +88,7 @@ export function createChannelRegistry(
         if (disposed) return;
         disposed = true;
         transportRegistration[Symbol.dispose]();
-        contributionIds.delete(channelRegistration.contributionId);
+        contributionIds.delete(contributionId);
         canonicalIds.delete(canonicalId);
       });
     },
@@ -113,7 +116,7 @@ export function createFeatureChannelPublisher(
 ): FeatureChannelPublisher {
   return {
     publish(name: string, payload: unknown) {
-      publisher.publish(featureChannelId(featureId, name), payload);
+      publisher.publish(channelCanonicalId(featureId, name), payload);
     },
   };
 }

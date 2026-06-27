@@ -1,5 +1,5 @@
 import type { AgentEvent, PromptRequest, UIXBridge } from "#shared/ipc";
-import { featureChannelId } from "@uix/api/channels";
+import { channelCanonicalId } from "#shared/channel-normalization";
 import {
   CanvasChangedSchema,
   type CanvasWriteback,
@@ -17,8 +17,8 @@ export const UixRequests = {
 } as const;
 
 const CanvasChannels = {
-  writeback: featureChannelId("canvas", "writeback"),
-  changed: featureChannelId("canvas", "changed"),
+  writeback: channelCanonicalId("canvas", "writeback"),
+  changed: channelCanonicalId("canvas", "changed"),
 } as const;
 
 export function createPreloadWorkspaceClient(
