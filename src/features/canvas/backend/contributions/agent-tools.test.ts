@@ -105,6 +105,7 @@ function setup() {
   );
   const canvasAgentTools = registerAgentToolContributions(
     agentTools,
+    "canvas",
     createCanvasAgentToolContributions(ctx),
   );
 

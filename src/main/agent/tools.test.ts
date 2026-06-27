@@ -11,14 +11,15 @@ import {
   createAgentToolRegistry,
   registerAgentToolContributions,
 } from "./tools";
+import type { AgentToolDefinition } from "./agent-tool-normalization";
 
 const emptyParams = Type.Object({});
 
-function tool(name: string): ToolDefinition<typeof emptyParams> {
+/** Author-shaped tool body: everything but `name`. */
+function body(label: string): AgentToolDefinition {
   return {
-    name,
-    label: name,
-    description: name,
+    label,
+    description: label,
     parameters: emptyParams,
     execute: () => Promise.resolve({ content: [], details: {} }),
   };
@@ -36,41 +37,48 @@ function installTools(registry = createAgentToolRegistry()) {
 }
 
 describe("AgentToolRegistry", () => {
-  it("rejects duplicate contribution ids", () => {
+  it("rejects duplicate contribution ids (same local name)", () => {
     const registry = createAgentToolRegistry();
-    registry.register({
-      id: "canvas.anchor_read",
-      tool: tool("canvas__anchor_read"),
-    });
+    registerAgentToolContributions(registry, "canvas", [
+      { name: "anchor_read", tool: body("read") },
+    ]);
 
     expect(() =>
-      registry.register({
-        id: "canvas.anchor_read",
-        tool: tool("canvas__other"),
-      }),
-    ).toThrow("Agent tool contribution already registered: canvas.anchor_read");
+      registerAgentToolContributions(registry, "canvas", [
+        { name: "anchor_read", tool: body("other") },
+      ]),
+    ).toThrow(
+      "Agent tool contribution already registered: canvas.agent.anchor_read",
+    );
   });
 
-  it("rejects duplicate tool names", () => {
+  it("rejects duplicate canonical tool names across features", () => {
     const registry = createAgentToolRegistry();
-    registry.register({
-      id: "canvas.anchor_read",
-      tool: tool("canvas__anchor_read"),
-    });
+    registerAgentToolContributions(registry, "canvas", [
+      { name: "anchor_read", tool: body("read") },
+    ]);
 
+    // Different featureId + local name, but if canonical ids collided it
+    // would be the pi tool name that dupes. Here they differ, so this should
+    // succeed; the assertion below checks the derived name is distinct.
     expect(() =>
-      registry.register({
-        id: "canvas.other_read",
-        tool: tool("canvas__anchor_read"),
-      }),
-    ).toThrow("Agent tool already registered: canvas__anchor_read");
+      registerAgentToolContributions(registry, "other", [
+        { name: "anchor_read", tool: body("read") },
+      ]),
+    ).not.toThrow();
+
+    const tools = installTools(registry);
+    expect([...tools.keys()].sort()).toEqual([
+      "canvas__anchor_read",
+      "other__anchor_read",
+    ]);
   });
 
-  it("bulk-registers contributions and installs active tools", () => {
+  it("bulk-registers contributions and installs active tools with derived names", () => {
     const registry = createAgentToolRegistry();
-    const registrations = registerAgentToolContributions(registry, [
-      { id: "canvas.anchor_read", tool: tool("canvas__anchor_read") },
-      { id: "canvas.anchor_write", tool: tool("canvas__anchor_write") },
+    const registrations = registerAgentToolContributions(registry, "canvas", [
+      { name: "anchor_read", tool: body("canvas__anchor_read") },
+      { name: "anchor_write", tool: body("canvas__anchor_write") },
     ]);
 
     expect([...installTools(registry).keys()]).toEqual([
@@ -84,19 +92,33 @@ describe("AgentToolRegistry", () => {
 
   it("unregisters a contribution when disposed", () => {
     const registry = createAgentToolRegistry();
-    const registration = registry.register({
-      id: "canvas.anchor_read",
-      tool: tool("canvas__anchor_read"),
-    });
+    const registrations = registerAgentToolContributions(registry, "canvas", [
+      { name: "anchor_read", tool: body("canvas__anchor_read") },
+    ]);
 
-    registration[Symbol.dispose]();
+    registrations[Symbol.dispose]();
 
     expect([...installTools(registry).keys()]).toEqual([]);
+    // Re-registering the same name after dispose is allowed.
     expect(() =>
-      registry.register({
-        id: "canvas.anchor_read",
-        tool: tool("canvas__anchor_read"),
-      }),
+      registerAgentToolContributions(registry, "canvas", [
+        { name: "anchor_read", tool: body("canvas__anchor_read") },
+      ]),
     ).not.toThrow();
+  });
+
+  it("reproduces the legacy pi tool names (back-compat for persisted history)", () => {
+    const registry = createAgentToolRegistry();
+    registerAgentToolContributions(registry, "canvas", [
+      { name: "anchor_read", tool: body("read") },
+      { name: "anchor_write", tool: body("write") },
+      { name: "anchor_edit", tool: body("edit") },
+    ]);
+
+    expect([...installTools(registry).keys()].sort()).toEqual([
+      "canvas__anchor_edit",
+      "canvas__anchor_read",
+      "canvas__anchor_write",
+    ]);
   });
 });

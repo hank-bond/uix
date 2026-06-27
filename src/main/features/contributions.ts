@@ -109,6 +109,7 @@ export function registerFeatureContributions(
     bag.add(
       registerAgentToolContributions(
         registries.agentTools,
+        featureId,
         contributions.agentTools,
       ),
     );

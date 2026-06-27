@@ -30,9 +30,8 @@ function channelContribution(name = "refresh") {
 
 function agentTool(name: string) {
   return {
-    id: `canvas.${name}`,
+    name,
     tool: {
-      name: `canvas__${name}`,
       label: name,
       description: name,
       parameters: emptyParams,
@@ -101,15 +100,17 @@ describe("registerFeatureContributions", () => {
       "Channel contribution already registered: canvas.channel.refresh",
     );
     expect(() =>
-      registerFeatureContributions({ agentTools }, "other", {
+      registerFeatureContributions({ agentTools }, "canvas", {
         agentTools: [
           {
-            id: "other.anchor_read",
+            name: "anchor_read",
             tool: agentTool("anchor_read").tool,
           },
         ],
       }),
-    ).toThrow("Agent tool already registered: canvas__anchor_read");
+    ).toThrow(
+      "Agent tool contribution already registered: canvas.agent.anchor_read",
+    );
     expect(() =>
       registerFeatureContributions({ state }, "other", {
         state: [{ id: "canvas" }],

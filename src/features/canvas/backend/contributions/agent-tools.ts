@@ -12,11 +12,11 @@
 // DocumentStore (a later case-2 surface could store non-HTML state docs there
 // with its own purpose-specific buffer).
 
-import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
-import { type Static, Type } from "typebox";
+import { Type } from "typebox";
 
 import { CanvasKeyDescription, CanvasKeySchema } from "../../shared/addressing";
 import type { AgentToolContribution } from "#backend/agent/tools";
+import type { AgentToolDefinition } from "#backend/agent/agent-tool-normalization";
 import { formatAnchoredText, parseAnchoredLine } from "#backend/anchors/wire";
 import type { CanvasContext } from "../context";
 
@@ -70,35 +70,28 @@ const editParams = Type.Object({
   }),
 });
 
-type ReadParams = Static<typeof readParams>;
-type WriteParams = Static<typeof writeParams>;
-type EditParams = Static<typeof editParams>;
-
 export function createCanvasAgentToolContributions(
   ctx: CanvasContext,
 ): readonly AgentToolContribution[] {
   return [
-    { id: "canvas.anchor_read", tool: createReadTool(ctx) },
-    {
-      id: "canvas.anchor_write",
-      tool: createWriteTool(ctx),
-    },
-    {
-      id: "canvas.anchor_edit",
-      tool: createEditTool(ctx),
-    },
+    { name: "anchor_read", tool: createReadTool(ctx) },
+    { name: "anchor_write", tool: createWriteTool(ctx) },
+    { name: "anchor_edit", tool: createEditTool(ctx) },
   ];
 }
 
-function createReadTool(ctx: CanvasContext): ToolDefinition<typeof readParams> {
+function createReadTool(
+  ctx: CanvasContext,
+): AgentToolDefinition<typeof readParams> {
   return {
-    name: "canvas__anchor_read",
     label: "read canvas",
     description:
       "Read a canvas as anchored lines (`<anchor>§<text>`). Each line is addressable by its anchor in canvas__anchor_edit. The key is not a filesystem path.",
     promptSnippet: "Read a canvas as anchored lines.",
     parameters: readParams,
-    async execute(_toolCallId, params: ReadParams) {
+    // `params: ReadParams` is inferred from `AgentToolDefinition<typeof readParams>`
+    // — no hand-annotation needed; the factory return type carries the schema.
+    async execute(_toolCallId, params) {
       const lines = await ctx.buffer.read(params.key, params.start, params.end);
       return {
         content: [
@@ -117,9 +110,8 @@ function createReadTool(ctx: CanvasContext): ToolDefinition<typeof readParams> {
 
 function createWriteTool(
   ctx: CanvasContext,
-): ToolDefinition<typeof writeParams> {
+): AgentToolDefinition<typeof writeParams> {
   return {
-    name: "canvas__anchor_write",
     label: "write canvas",
     description:
       "Replace a canvas with a full authored HTML body and get anchored lines back. Use this and canvas__anchor_edit, not filesystem tools, for canvases.",
@@ -131,7 +123,7 @@ function createWriteTool(
     ],
     parameters: writeParams,
     executionMode: "sequential",
-    async execute(_toolCallId, params: WriteParams) {
+    async execute(_toolCallId, params) {
       const lines = await ctx.buffer.write(params.key, params.html);
       ctx.agentChangedCanvasKeys.add(params.key);
       publishCanvasChanged(ctx.channels, params.key);
@@ -143,16 +135,17 @@ function createWriteTool(
   };
 }
 
-function createEditTool(ctx: CanvasContext): ToolDefinition<typeof editParams> {
+function createEditTool(
+  ctx: CanvasContext,
+): AgentToolDefinition<typeof editParams> {
   return {
-    name: "canvas__anchor_edit",
     label: "edit canvas",
     description:
       "Replace an inclusive anchor range in a canvas. Boundaries are full `<anchor>§<text>` lines from a previous result; the live lines must still match. Returns fresh anchors for the changed lines.",
     promptSnippet: "Replace an anchor range in a canvas.",
     parameters: editParams,
     executionMode: "sequential",
-    async execute(_toolCallId, params: EditParams) {
+    async execute(_toolCallId, params) {
       const changes = await ctx.buffer.edit(params.key, {
         start: parseAnchoredLine(params.start_line),
         end: parseAnchoredLine(params.end_line),
