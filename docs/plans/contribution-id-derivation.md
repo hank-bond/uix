@@ -36,11 +36,15 @@ Implement in order; each is a facet, ends green (tsc + tests), and is committed 
 
 `featureChannelId`/`channelCanonicalId` split, `ChannelCanonicalId` brand, `ChannelRegistration` moved to `src/shared/channel-normalization.ts`, api stripped to author shapes, preload/workspace-client cast inline at the IPC boundary. Reference for the rest.
 
-### U2 — Agent tools
+### U2 — Agent tools ✅ done (committed)
 
 `AgentToolContribution`: `id: string` → `name: string`. New `AgentToolCanonicalId` brand + `agentToolCanonicalId(featureId, name)` → `${featureId}__${name}` (pi's double-underscore naming). The facet stamps `tool.name` from the canonical id, so authors stop hand-writing it — the author's `tool` becomes `Omit<ToolDefinition, "name">` (facet-owned name). `registerAgentToolContributions(registry, featureId, contributions)` threads `featureId` + normalizes. Canvas `agent-tools.ts`: `name: "anchor_read"` etc., drop the `name: "canvas__anchor_read"` from each tool def. Wire-visible: pi tool names are now derived, but persisted history/snippets referencing `canvas__anchor_read` still match because the derivation reproduces the same string.
 
-Files: `src/main/agent/tools.ts`, new `src/shared/agent-tool-normalization.ts`, `src/features/canvas/backend/contributions/agent-tools.ts`, `src/main/features/contributions.ts` (thread featureId), tests.
+**Placement note:** normalization lives in `src/main/agent/agent-tool-normalization.ts`, not `src/shared/` — unlike channels, the renderer has no agent-tool consumer (no serde path), so there is no functional requirement for it to be renderer-importable. It imports only the genuinely cross-facet `ContributionId` grammar from `#shared`. Resources (U4) will need `#shared` placement because the renderer builds URLs from the derived scheme.
+
+**Author-shape generic:** `AgentToolDefinition<TParams extends TSchema = TSchema> = Omit<ToolDefinition<TParams>, "name">` is generic-with-default. One-off inline tool literals use the bare alias (widened); reusable tool factories narrow it (`AgentToolDefinition<typeof myParams>`) to thread `Static<TParams>` into `execute`/`renderCall`/`prepareArguments` and type-check the `parameters` field against the specific schema — mirrors pi's own `createReadToolDefinition: ToolDefinition<typeof readSchema>`. Canvas's three factories demonstrate the narrowed form; the `params: ReadParams` hand-annotations are gone (inferred from the return type).
+
+Files: `src/main/agent/tools.ts`, new `src/shared/agent-tool-normalization.ts`, `src/features/canvas/backend/contributions/agent-tools.ts`, `src/main/features/contributions.ts` (thread featureId), tests. _(U2 landed with normalization in `src/main/agent/` rather than `src/shared/`; see the U2 placement note above.)_
 
 ### U3 — State messages
 
