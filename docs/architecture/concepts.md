@@ -25,21 +25,22 @@ Use **feature** when naming the user-facing capability. Use **extension** when y
 
 UIX uses two id grammars for different things.
 
-**Dotted ids** name globally visible sources, kinds, messages, and actions:
+**Contribution ids** are derived by the facets, never hand-authored. A feature author gives a local `name`; the facet derives two ids:
 
-```text
-<namespace>.<origin-facet>[.<contribution-or-action>...]
-```
+- **`ContributionId`** — the registry dedup key. One uniform brand across all facets, constructed by `contributionId(featureId, facet, name)` → `${featureId}.<facet>.<name>`. Examples: `canvas.channel.writeback`, `canvas.agent.anchor_read`, `canvas.state-message.pane-visibility`.
+- **`…CanonicalId`** — the downstream-system address (transport channel, pi tool name, URL scheme, persisted-section key, storage blob key). One brand per facet, because each downstream system has its own naming convention. The facet segment is **dropped** from the canonical id, because within the downstream system the channel/tool/scheme kind is implicit. Examples: `ChannelCanonicalId` `canvas.writeback`, `AgentToolCanonicalId` `canvas__anchor_read` (pi's double-underscore), `ResourceCanonicalId` `canvas-doc` (the scheme).
 
-`namespace` is either a feature id (`canvas`, `chat`, `acme.report`) or `uix` for substrate-owned ids. The middle segment names the contribution surface where the capability/action originates (`pane`, `agent`, `document`, `state`, `channel`, `command`), not necessarily the facet that emits a later event. Later segments are facet-local stable names, not throwaway strings. Examples: `canvas.document.html`, `canvas.pane.writeback`, `canvas.agent.anchor_edit`, `uix.document.restore`, `uix.turn-state`.
+Both are nominal brands constructed only by their validated helper; internal code (registry Sets, resolved `…Registration` shapes) carries the brand, and genuine external string boundaries (Electron IPC channel, pi `tool.name`, URL scheme string) cast inline (`id as string`, the `CanvasKey` precedent). The public `@uix/api` modules expose author shapes only — `…Contribution` types with a `name` field, no id fields, no brands. Id construction and the resolved `…Registration` shapes live in `src/shared/<facet>-normalization.ts`.
+
+Envelope and customType ids stay substrate-owned and are not feature-scoped: `uix.state` (the display-hidden state-message envelope), `uix.turn-state` (the persisted private-state entry). Only the inner contribution tags go feature-scoped (e.g. `<canvas-pane-visibility>` inside `<uix-state>`).
 
 Event payload shapes are defined by the emitting substrate facet. If a pane-originated write causes a document event, `sourceId: "canvas.pane.writeback"` is provenance, but the payload is still the document facet's `DocumentWriteEvent` shape. A contribution in one facet may call another facet; `eventType`/channel tells you what happened, and `sourceId` tells you which contribution caused it.
 
-Inside a typed registry, the registry supplies the facet context, so contribution ids can be simpler when uniqueness is scoped by that registry. For example, the state registry can persist the canvas state contribution under `canvas`; global source ids still use self-describing dotted ids such as `canvas.pane.writeback`.
-
 **Resource ids** name addressable things. URI schemes identify substrate resource managers: `doc://canvas/main` is a document-engine resource in the canvas namespace; `workspace://src/main.ts` is a workspace file interpreted relative to the turn's recorded cwd. Feature/facet organization does not appear inside resource paths — the same resource may be read by a pane, edited by an agent tool, snapshotted by state, and restored by the coordinator.
 
-Use `uix.*` only for substrate-owned dotted ids. Bundled default features are still features, so their ids use feature namespaces such as `canvas.*` and `chat.*`.
+Use `uix.*` only for substrate-owned dotted ids (envelopes/customTypes). Bundled default features are still features, so their contribution ids use feature namespaces such as `canvas.*` and `chat.*`.
+
+The build spec for landing this model across the five facets is [contribution-id-derivation](../plans/contribution-id-derivation.md).
 
 ## Contribution point
 

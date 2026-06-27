@@ -14,14 +14,14 @@ A feature channel contribution declares two operation kinds:
 
 Requests and events are grouped into one contribution for a feature. Request handlers are part of the backend contribution, not a separate merge step: shared feature code should export schemas/types/light parsers, while backend code owns executable handlers. A request contribution without a handler is not a complete request contribution.
 
-The feature author declares local names and schemas. The channel facet derives canonical ids from the feature id and local name:
+The feature author declares local names and schemas. The channel facet derives both ids from the feature id and local name: the `ContributionId` (registry dedup) `${featureId}.channel.${name}`, and the `ChannelCanonicalId` (transport address) `${featureId}.${name}` with the facet segment dropped:
 
 ```text
-canvas + writeback -> canvas.channel.writeback
-canvas + changed   -> canvas.channel.changed
+canvas + writeback -> contributionId canvas.channel.writeback / canonicalId canvas.writeback
+canvas + changed   -> contributionId canvas.channel.changed   / canonicalId canvas.changed
 ```
 
-For channels, the canonical id is also the transport address. The current Electron preload bridge still exposes legacy convenience methods on `window.uix`, but those methods now route canvas traffic through the same canonical channel ids.
+For channels, the canonical id is also the transport address. Both ids are nominal brands; the transport boundary casts to a plain string inline. The current Electron preload bridge still exposes legacy convenience methods on `window.uix`, but those methods now route canvas traffic through the same canonical channel ids.
 
 Request handlers should be typed from their request/response schemas. Feature-authored handler code should not receive `unknown`; only the transport boundary deals in unknown raw payloads. Explicit `response: Type.Void()` is preferred for ack-only requests because it communicates that the request has completion/backpressure semantics but no response body.
 
