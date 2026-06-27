@@ -27,10 +27,42 @@ import type {
 import type { Static, TSchema } from "typebox";
 import { Value } from "typebox/value";
 
+import { toContributionId, type ContributionId } from "#shared/contribution-id";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
 
 import type { AgentInstaller } from "./installers";
+
+// ---- canonical id brand ----
+
+const StateMessageCanonicalIdBrand: unique symbol = Symbol(
+  "StateMessageCanonicalId",
+);
+
+export type StateMessageCanonicalId = string & {
+  readonly [StateMessageCanonicalIdBrand]: true;
+};
+
+/**
+ * Builds the canonical id for a state-message contribution:
+ * `${featureId}.${name}` (e.g. `canvas.pane-visibility`).
+ * Validates each segment; a failure is an app bug.
+ */
+function stateMessageCanonicalId(
+  featureId: string,
+  name: string,
+): StateMessageCanonicalId {
+  assertStateMessageToken("feature id", featureId);
+  assertStateMessageToken("state message name", name);
+  return `${featureId}.${name}` as StateMessageCanonicalId;
+}
+
+function assertStateMessageToken(label: string, token: string): void {
+  const pattern = /^[a-z][a-z0-9_-]*$/;
+  if (!pattern.test(token)) {
+    throw new Error(`Invalid ${label}: ${token}. Expected ${pattern}.`);
+  }
+}
 
 export interface StateMessageMaterialization {
   /** Body rendered inside this contribution's state tag; this is what the model sees. */
@@ -42,8 +74,8 @@ export interface StateMessageMaterialization {
 type MaybePromise<T> = T | Promise<T>;
 
 interface BaseContribution {
-  /** State-message section key. Substrate-owned types use the `uix.` prefix. */
-  messageType: string;
+  /** Local name for this state-message section; the substrate derives the canonical id as `${featureId}.${name}`. */
+  name: string;
   /** Vocabulary line describing this section's body to the model. */
   description: string;
 }
@@ -101,28 +133,22 @@ export interface StateMessageAppender<T extends TSchema> extends Disposable {
   append(payload: Static<T>): void;
 }
 
-/** Registrant-facing surface — the future `@uix/api` state-message shape. */
-export interface StateMessageRegistry {
-  register<T extends TSchema>(
-    contribution: UpdateContribution<T>,
-  ): StateMessageUpdater<T>;
-  register<T extends TSchema>(
-    contribution: AppendContribution<T>,
-  ): StateMessageAppender<T>;
-  register(contribution: MaterializedContribution): Disposable;
-}
-
-export type StateMessages = StateMessageRegistry;
-
 export function registerStateMessageContributions(
-  registry: StateMessageRegistry,
+  stateMessages: StateMessageRegistry,
+  featureId: string,
   contributions: readonly StateMessageContribution[],
 ): Disposable {
+  if (!(stateMessages instanceof StateMessageRegistry)) {
+    throw new Error(
+      "registerStateMessageContributions requires createStateMessages()",
+    );
+  }
+
   const bag = new DisposableBag();
 
   for (const contribution of contributions) {
     if (isUpdateContribution(contribution)) {
-      const handle = registry.register(contribution);
+      const handle = stateMessages.register(featureId, contribution);
       if (contribution.initialValue !== undefined) {
         handle.update(contribution.initialValue);
       }
@@ -131,11 +157,11 @@ export function registerStateMessageContributions(
     }
 
     if (isAppendContribution(contribution)) {
-      bag.add(registry.register(contribution));
+      bag.add(stateMessages.register(featureId, contribution));
       continue;
     }
 
-    bag.add(registry.register(contribution));
+    bag.add(stateMessages.register(featureId, contribution));
   }
 
   return bag;
@@ -159,6 +185,7 @@ type RegisteredContribution =
   | RegisteredMaterializedContribution;
 
 interface RegisteredContributionBase {
+  contributionId: ContributionId;
   messageType: string;
   description: string;
 }
@@ -188,33 +215,51 @@ interface RegisteredMaterializedContribution extends RegisteredContributionBase 
   materialize: () => MaybePromise<StateMessageMaterialization | undefined>;
 }
 
-class StateMessagesStore implements StateMessages {
+/** Registry for state-message contributions. Features pass this to `registerStateMessageContributions`; they never call individual registration methods directly. */
+export class StateMessageRegistry {
   readonly registeredContributions: RegisteredContribution[] = [];
 
   register<T extends TSchema>(
+    featureId: string,
     contribution: UpdateContribution<T>,
   ): StateMessageUpdater<T>;
   register<T extends TSchema>(
+    featureId: string,
     contribution: AppendContribution<T>,
   ): StateMessageAppender<T>;
-  register(contribution: MaterializedContribution): Disposable;
   register(
+    featureId: string,
+    contribution: MaterializedContribution,
+  ): Disposable;
+  register(
+    featureId: string,
     contribution:
       | UpdateContribution<TSchema>
       | AppendContribution<TSchema>
       | MaterializedContribution,
   ): StateMessageUpdater<TSchema> | StateMessageAppender<TSchema> | Disposable {
+    const canonicalId = stateMessageCanonicalId(featureId, contribution.name);
+    const contributionId = toContributionId(
+      featureId,
+      "state-message",
+      contribution.name,
+    );
+
     if (
       this.registeredContributions.some(
-        (e) => e.messageType === contribution.messageType,
+        (e) => e.contributionId === contributionId,
       )
     ) {
       throw new Error(
-        `State message already registered: ${contribution.messageType}`,
+        `State message contribution already registered: ${contributionId}`,
       );
     }
 
-    const registeredContribution = toRegisteredContribution(contribution);
+    const registeredContribution = toRegisteredContribution(
+      canonicalId,
+      contributionId,
+      contribution,
+    );
     this.registeredContributions.push(registeredContribution);
 
     const dispose = (): void => {
@@ -249,21 +294,23 @@ class StateMessagesStore implements StateMessages {
   }
 }
 
-export function createStateMessages(): StateMessages {
-  return new StateMessagesStore();
+export function createStateMessageRegistry(): StateMessageRegistry {
+  return new StateMessageRegistry();
 }
 
 export function createStateMessageAssembler(
-  stateMessages: StateMessages,
+  stateMessageRegistry: StateMessageRegistry,
 ): AgentInstaller {
-  if (!(stateMessages instanceof StateMessagesStore)) {
+  if (!(stateMessageRegistry instanceof StateMessageRegistry)) {
     throw new Error(
       "createStateMessageAssembler requires createStateMessages()",
     );
   }
 
   return (pi) => {
-    const installedContributions = [...stateMessages.registeredContributions];
+    const installedContributions = [
+      ...stateMessageRegistry.registeredContributions,
+    ];
     const vocabulary = installedContributions.length
       ? vocabularySection(
           installedContributions.map((contribution) => ({
@@ -284,7 +331,7 @@ export function createStateMessageAssembler(
 
         const liveContributions = installedContributions.filter(
           (contribution) =>
-            stateMessages.registeredContributions.includes(contribution),
+            stateMessageRegistry.registeredContributions.includes(contribution),
         );
         const bufferedContributions = liveContributions.filter(
           (
@@ -355,6 +402,8 @@ export function createStateMessageAssembler(
 }
 
 function toRegisteredContribution(
+  canonicalId: StateMessageCanonicalId,
+  contributionId: ContributionId,
   contribution:
     | UpdateContribution<TSchema>
     | AppendContribution<TSchema>
@@ -363,7 +412,8 @@ function toRegisteredContribution(
   if (contribution.buffer?.kind === "update") {
     return {
       kind: "update",
-      messageType: contribution.messageType,
+      contributionId: contributionId,
+      messageType: canonicalId,
       description: contribution.description,
       schema: contribution.buffer.schema,
       materialize:
@@ -375,7 +425,8 @@ function toRegisteredContribution(
   if (contribution.buffer?.kind === "append") {
     return {
       kind: "append",
-      messageType: contribution.messageType,
+      contributionId: contributionId,
+      messageType: canonicalId,
       description: contribution.description,
       schema: contribution.buffer.schema,
       materialize:
@@ -387,7 +438,8 @@ function toRegisteredContribution(
   const materialized = contribution as MaterializedContribution;
   return {
     kind: "materialized",
-    messageType: materialized.messageType,
+    contributionId: contributionId,
+    messageType: canonicalId,
     description: materialized.description,
     materialize: materialized.materialize,
   };
@@ -441,7 +493,7 @@ function reconcileAppendPersistence(
 }
 
 function stateTag(messageType: string): string {
-  return messageType.replace(/^uix\./, "").replaceAll(".", "-");
+  return messageType.replaceAll(".", "-");
 }
 
 function renderSection(messageType: string, body: string): string {

@@ -14,7 +14,7 @@ import type {
 } from "@uix/api/channels";
 import type { TSchema } from "typebox";
 
-import { contributionId, type ContributionId } from "./contribution-id";
+import { toContributionId, type ContributionId } from "./contribution-id";
 
 /**
  * Canonical channel id: the transport address. The format drops the facet
@@ -31,7 +31,7 @@ export type ChannelCanonicalId = string & {
  * Builds the transport address for a channel: `${featureId}.${name}`.
  * Validates each segment; a failure is an app bug.
  */
-export function channelCanonicalId(
+export function toChannelCanonicalId(
   featureId: string,
   name: string,
 ): ChannelCanonicalId {
@@ -79,8 +79,6 @@ export type ChannelContract<Contribution extends ChannelContribution> = {
       : never;
   };
 };
-
-export type ChannelLogOptions<Res> = { describeResult?: (res: Res) => unknown };
 
 export type ChannelRegistration<Req = unknown, Res = unknown> = {
   contributionId: ContributionId;
@@ -143,8 +141,8 @@ function channelContributionIds(
   canonicalId: ChannelCanonicalId;
 } {
   return {
-    contributionId: contributionId(featureId, "channel", name),
-    canonicalId: channelCanonicalId(featureId, name),
+    contributionId: toContributionId(featureId, "channel", name),
+    canonicalId: toChannelCanonicalId(featureId, name),
   };
 }
 

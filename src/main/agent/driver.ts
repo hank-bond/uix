@@ -39,7 +39,7 @@ import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { createTranscriptIdentity, type TranscriptIdentity } from "./identity";
 import {
   createStateMessageAssembler,
-  type StateMessages,
+  type StateMessageRegistry,
 } from "./state-messages";
 import {
   extractTranscriptText,
@@ -79,7 +79,7 @@ export interface AgentDriverOptions {
   /** Cockpit-private turn-state registry, installed by the driver. */
   state?: StateRegistry;
   /** Cockpit→agent state-message registry, installed by the driver. */
-  stateMessages?: StateMessages;
+  stateMessages?: StateMessageRegistry;
   /** State root (pins the session dir) + agent cwd. */
   workspace: Workspace;
 }

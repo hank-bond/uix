@@ -6,7 +6,7 @@
 
 import { contextBridge, ipcRenderer } from "electron";
 
-import { channelCanonicalId } from "#shared/channel-normalization";
+import { toChannelCanonicalId } from "#shared/channel-normalization";
 import {
   type AgentEvent,
   type CanvasChanged,
@@ -17,14 +17,14 @@ import {
 } from "../shared/ipc";
 
 const CanvasChannels = {
-  writeback: channelCanonicalId("canvas", "writeback"),
-  changed: channelCanonicalId("canvas", "changed"),
+  writeback: toChannelCanonicalId("canvas", "writeback"),
+  changed: toChannelCanonicalId("canvas", "changed"),
 } as const;
 
 const bridge: UIXBridge = {
   sendPrompt: (req: PromptRequest) => ipcRenderer.invoke(Channels.prompt, req),
   writebackCanvas: (req: CanvasWriteback) =>
-    ipcRenderer.invoke(CanvasChannels.writeback as string, req),
+    ipcRenderer.invoke(CanvasChannels.writeback, req),
   reload: () => ipcRenderer.invoke(Channels.reload),
   getHistory: () => ipcRenderer.invoke(Channels.history),
 
@@ -40,9 +40,9 @@ const bridge: UIXBridge = {
   onCanvasChanged: (handler) => {
     const listener = (_e: Electron.IpcRendererEvent, event: CanvasChanged) =>
       handler(event);
-    ipcRenderer.on(CanvasChannels.changed as string, listener);
+    ipcRenderer.on(CanvasChannels.changed, listener);
     return () => {
-      ipcRenderer.off(CanvasChannels.changed as string, listener);
+      ipcRenderer.off(CanvasChannels.changed, listener);
     };
   },
 };

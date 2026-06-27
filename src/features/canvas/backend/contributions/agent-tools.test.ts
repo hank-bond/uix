@@ -9,7 +9,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 
 import {
-  createStateMessages,
+  createStateMessageRegistry,
   createStateMessageAssembler,
   registerStateMessageContributions,
 } from "#backend/agent/state-messages";
@@ -93,7 +93,7 @@ type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
 function setup() {
   const ctx = fakeCanvasContext();
   const state = createStateRegistry();
-  const stateMessages = createStateMessages();
+  const stateMessages = createStateMessageRegistry();
   const agentTools = createAgentToolRegistry();
   const canvasState = registerStateContributions(
     state,
@@ -101,6 +101,7 @@ function setup() {
   );
   const canvasStateMessages = registerStateMessageContributions(
     stateMessages,
+    "canvas",
     createCanvasStateMessageContributions(ctx),
   );
   const canvasAgentTools = registerAgentToolContributions(
@@ -167,15 +168,15 @@ describe("canvas agent tool contributions", () => {
   it("teaches both canvas tags in the system prompt vocabulary", async () => {
     const { turnBoundary } = setup();
     const result = await turnBoundary();
-    expect(result.systemPrompt).toContain("- `<pane-visibility>`");
-    expect(result.systemPrompt).toContain("- `<canvas-diff>`");
+    expect(result.systemPrompt).toContain("- `<canvas-pane-visibility>`");
+    expect(result.systemPrompt).toContain("- `<canvas-canvas-diff>`");
   });
 
   it("reports open canvases as a sorted JSON body", async () => {
     const { turnBoundary } = setup();
     const content = (await turnBoundary()).message!.content as string;
     expect(content).toContain(
-      ["<pane-visibility>", '{"canvases_open":["main"]}'].join("\n"),
+      ["<canvas-pane-visibility>", '{"canvases_open":["main"]}'].join("\n"),
     );
   });
 
@@ -195,7 +196,7 @@ describe("canvas agent tool contributions", () => {
     await writebackCanvas("main", "<p>goodbye</p>");
 
     const first = (await turnBoundary()).message!.content as string;
-    expect(first).toContain("<canvas-diff>");
+    expect(first).toContain("<canvas-canvas-diff>");
     expect(first).toContain("## main");
     expect(first).toContain("goodbye");
 
@@ -205,7 +206,7 @@ describe("canvas agent tool contributions", () => {
     const second = (await turnBoundary()).message?.content as
       | string
       | undefined;
-    expect(second ?? "").not.toContain("<canvas-diff>");
+    expect(second ?? "").not.toContain("<canvas-canvas-diff>");
   });
 
   it("keeps pane writeback diff available after input snapshots turn state", async () => {
@@ -234,7 +235,7 @@ describe("canvas agent tool contributions", () => {
     ]);
 
     const content = (await turnBoundary()).message!.content as string;
-    expect(content).toContain("<canvas-diff>");
+    expect(content).toContain("<canvas-canvas-diff>");
     expect(content).toContain("## main");
     expect(content).toContain("goodbye");
   });

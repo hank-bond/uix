@@ -20,7 +20,7 @@ import {
   type ReloadResult,
 } from "../shared/ipc";
 import { createAgentDriver } from "./agent/driver";
-import { createStateMessages } from "./agent/state-messages";
+import { createStateMessageRegistry } from "./agent/state-messages";
 import {
   createAgentToolInstaller,
   createAgentToolRegistry,
@@ -163,7 +163,7 @@ void app.whenReady().then(async () => {
   });
   const state = createStateRegistry();
   const agentTools = createAgentToolRegistry();
-  const stateMessages = createStateMessages();
+  const stateMessages = createStateMessageRegistry();
 
   for (const feature of bundledFeatures) {
     const baseContext = {

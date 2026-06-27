@@ -20,7 +20,7 @@ export type ContributionId = string & {
  * Builds the registry dedup id for a contribution: `${featureId}.<facet>.<name>`.
  * Validates each segment; a failure is an app bug.
  */
-export function contributionId(
+export function toContributionId(
   featureId: string,
   facet: string,
   name: string,
@@ -32,7 +32,7 @@ export function contributionId(
 }
 
 function assertIdToken(label: string, token: string): void {
-  const idTokenPattern = /^[a-z][a-z0-9_]*$/;
+  const idTokenPattern = /^[a-z][a-z0-9_-]*$/;
   if (!idTokenPattern.test(token)) {
     throw new Error(`Invalid ${label}: ${token}. Expected ${idTokenPattern}.`);
   }

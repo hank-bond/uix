@@ -64,7 +64,7 @@ describe("normalizeAgentToolContribution", () => {
     expect(registration.contributionId as string).toBe(
       "canvas.agent.anchor_read",
     );
-    expect(registration.canonicalId as string).toBe("canvas__anchor_read");
+    expect(registration.canonicalId).toBe("canvas__anchor_read");
     expect(registration.tool.name).toBe("canvas__anchor_read");
     // Author body preserved.
     expect(registration.tool.label).toBe("read");

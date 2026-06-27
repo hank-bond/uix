@@ -8,10 +8,10 @@ import {
   registerChannelContributions,
 } from "./registry";
 import {
-  channelCanonicalId,
+  toChannelCanonicalId,
   type ChannelCanonicalId,
 } from "#shared/channel-normalization";
-import { contributionId } from "#shared/contribution-id";
+import { toContributionId } from "#shared/contribution-id";
 
 function fakeTransport() {
   const handlers = new Map<string, (req: unknown) => Promise<unknown>>();
@@ -26,16 +26,16 @@ function fakeTransport() {
       canonicalId: ChannelCanonicalId,
       fn: (req: unknown) => Promise<unknown>,
     ) {
-      handlers.set(canonicalId as string, fn);
+      handlers.set(canonicalId, fn);
       return {
         [Symbol.dispose]() {
-          disposed.push(canonicalId as string);
-          handlers.delete(canonicalId as string);
+          disposed.push(canonicalId);
+          handlers.delete(canonicalId);
         },
       };
     },
     publish(canonicalId: ChannelCanonicalId, payload: unknown) {
-      published.push({ canonicalId: canonicalId as string, payload });
+      published.push({ canonicalId: canonicalId, payload });
     },
   };
 }
@@ -48,8 +48,8 @@ describe("ChannelRegistry", () => {
     });
 
     const registration = registry.register({
-      contributionId: contributionId("canvas", "channel", "writeback"),
-      canonicalId: channelCanonicalId("canvas", "writeback"),
+      contributionId: toContributionId("canvas", "channel", "writeback"),
+      canonicalId: toChannelCanonicalId("canvas", "writeback"),
       request: Type.Object({ key: Type.Unknown() }),
       response: Type.Object({ ok: Type.Unknown() }),
       handle: (req: unknown) => ({ ok: req }),
@@ -72,8 +72,8 @@ describe("ChannelRegistry", () => {
     });
 
     const registration = registry.register({
-      contributionId: contributionId("canvas", "channel", "refresh"),
-      canonicalId: channelCanonicalId("canvas", "refresh"),
+      contributionId: toContributionId("canvas", "channel", "refresh"),
+      canonicalId: toChannelCanonicalId("canvas", "refresh"),
       request: Type.Object({}),
       response: Type.Void(),
       handle: () => undefined,
@@ -81,8 +81,8 @@ describe("ChannelRegistry", () => {
 
     expect(() =>
       registry.register({
-        contributionId: contributionId("canvas", "channel", "refresh"),
-        canonicalId: channelCanonicalId("other", "refresh"),
+        contributionId: toContributionId("canvas", "channel", "refresh"),
+        canonicalId: toChannelCanonicalId("other", "refresh"),
         request: Type.Object({}),
         response: Type.Void(),
         handle: () => undefined,
@@ -92,8 +92,8 @@ describe("ChannelRegistry", () => {
     );
     expect(() =>
       registry.register({
-        contributionId: contributionId("other", "channel", "refresh"),
-        canonicalId: channelCanonicalId("canvas", "refresh"),
+        contributionId: toContributionId("other", "channel", "refresh"),
+        canonicalId: toChannelCanonicalId("canvas", "refresh"),
         request: Type.Object({}),
         response: Type.Void(),
         handle: () => undefined,
@@ -104,8 +104,8 @@ describe("ChannelRegistry", () => {
 
     expect(() =>
       registry.register({
-        contributionId: contributionId("canvas", "channel", "refresh"),
-        canonicalId: channelCanonicalId("canvas", "refresh"),
+        contributionId: toContributionId("canvas", "channel", "refresh"),
+        canonicalId: toChannelCanonicalId("canvas", "refresh"),
         request: Type.Object({}),
         response: Type.Void(),
         handle: () => undefined,
@@ -120,8 +120,8 @@ describe("ChannelRegistry", () => {
     });
 
     registry.register({
-      contributionId: contributionId("canvas", "channel", "writeback"),
-      canonicalId: channelCanonicalId("canvas", "writeback"),
+      contributionId: toContributionId("canvas", "channel", "writeback"),
+      canonicalId: toChannelCanonicalId("canvas", "writeback"),
       request: Type.Object({ key: Type.String() }),
       response: Type.Object({ ok: Type.Boolean() }),
       handle: (req: { key: string }) => ({ ok: req.key === "main" }),
@@ -143,7 +143,9 @@ describe("ChannelRegistry", () => {
         transport.publish(canonicalId, payload),
     });
 
-    registry.publish(channelCanonicalId("canvas", "changed"), { key: "main" });
+    registry.publish(toChannelCanonicalId("canvas", "changed"), {
+      key: "main",
+    });
 
     expect(transport.published).toEqual([
       { canonicalId: "canvas.changed", payload: { key: "main" } },

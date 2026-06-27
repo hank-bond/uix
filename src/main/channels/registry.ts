@@ -11,7 +11,7 @@ import type {
   FeatureChannelPublisher,
 } from "@uix/api/channels";
 import {
-  channelCanonicalId,
+  toChannelCanonicalId,
   type ChannelCanonicalId,
   type ChannelRegistration,
 } from "#shared/channel-normalization";
@@ -53,7 +53,7 @@ export function createChannelRegistry(
   const handle =
     opts.handle ??
     ((canonicalId, fn, logOpts) =>
-      ipc.handle<unknown, unknown>(canonicalId as string, fn, logOpts));
+      ipc.handle<unknown, unknown>(canonicalId, fn, logOpts));
   const publish = opts.publish ?? (() => undefined);
   const contributionIds = new Set<ContributionId>();
   const canonicalIds = new Set<ChannelCanonicalId>();
@@ -68,7 +68,7 @@ export function createChannelRegistry(
         );
       }
       if (canonicalIds.has(canonicalId)) {
-        throw new Error(`Channel already registered: ${canonicalId as string}`);
+        throw new Error(`Channel already registered: ${canonicalId}`);
       }
 
       contributionIds.add(contributionId);
@@ -116,7 +116,7 @@ export function createFeatureChannelPublisher(
 ): FeatureChannelPublisher {
   return {
     publish(name: string, payload: unknown) {
-      publisher.publish(channelCanonicalId(featureId, name), payload);
+      publisher.publish(toChannelCanonicalId(featureId, name), payload);
     },
   };
 }

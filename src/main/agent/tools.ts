@@ -9,9 +9,6 @@
 // registry dedups on the `ContributionId` and the derived pi tool name; the
 // installer forwards the name-stamped `ToolDefinition` to pi.
 
-import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
-
-import type { ContributionId } from "#shared/contribution-id";
 import { DisposableBag } from "../lifecycle";
 
 import {
@@ -51,7 +48,7 @@ class RegisteredAgentToolContributions implements AgentToolRegistry {
       )
     ) {
       throw new Error(
-        `Agent tool already registered: ${contribution.canonicalId as string}`,
+        `Agent tool already registered: ${contribution.canonicalId}`,
       );
     }
 

@@ -133,6 +133,7 @@ export function registerFeatureContributions(
     bag.add(
       registerStateMessageContributions(
         registries.stateMessages,
+        featureId,
         contributions.stateMessages,
       ),
     );

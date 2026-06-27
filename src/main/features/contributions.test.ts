@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { Type } from "typebox";
 
-import { createStateMessages } from "../agent/state-messages";
+import { createStateMessageRegistry } from "../agent/state-messages";
 import { createAgentToolRegistry } from "../agent/tools";
 import { createChannelRegistry } from "../channels/registry";
 import { createResourceRegistry } from "../resources/registry";
@@ -53,7 +53,7 @@ describe("registerFeatureContributions", () => {
     });
     const agentTools = createAgentToolRegistry();
     const state = createStateRegistry();
-    const stateMessages = createStateMessages();
+    const stateMessages = createStateMessageRegistry();
 
     const registration = registerFeatureContributions(
       { resources, channels, agentTools, state, stateMessages },
@@ -73,7 +73,7 @@ describe("registerFeatureContributions", () => {
         ],
         stateMessages: [
           {
-            messageType: "uix.canvas-diff",
+            name: "canvas-diff",
             description: "diffs",
             materialize: () => undefined,
           },
@@ -120,13 +120,26 @@ describe("registerFeatureContributions", () => {
       registerFeatureContributions({ stateMessages }, "other", {
         stateMessages: [
           {
-            messageType: "uix.canvas-diff",
+            name: "canvas-diff",
             description: "again",
             materialize: () => undefined,
           },
         ],
       }),
-    ).toThrow("State message already registered: uix.canvas-diff");
+    ).not.toThrow();
+    expect(() =>
+      registerFeatureContributions({ stateMessages }, "canvas", {
+        stateMessages: [
+          {
+            name: "canvas-diff",
+            description: "again",
+            materialize: () => undefined,
+          },
+        ],
+      }),
+    ).toThrow(
+      "State message contribution already registered: canvas.state-message.canvas-diff",
+    );
 
     registration[Symbol.dispose]();
 
@@ -147,7 +160,7 @@ describe("registerFeatureContributions", () => {
           state: [{ id: "canvas" }],
           stateMessages: [
             {
-              messageType: "uix.canvas-diff",
+              name: "canvas-diff",
               description: "diffs",
               materialize: () => undefined,
             },

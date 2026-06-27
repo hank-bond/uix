@@ -3,23 +3,23 @@ import { describe, expect, it } from "vitest";
 import { Type } from "typebox";
 
 import {
-  channelCanonicalId,
+  toChannelCanonicalId,
   normalizeChannelContribution,
 } from "./channel-normalization";
-import { contributionId } from "./contribution-id";
+import { toContributionId } from "./contribution-id";
 
 describe("channelCanonicalId", () => {
   it("derives transport addresses without the facet segment", () => {
-    expect(channelCanonicalId("canvas", "writeback") as string).toBe(
+    expect(toChannelCanonicalId("canvas", "writeback") as string).toBe(
       "canvas.writeback",
     );
   });
 
   it("rejects tokens that cannot participate in derived ids", () => {
-    expect(() => channelCanonicalId("Canvas", "writeback")).toThrow(
+    expect(() => toChannelCanonicalId("Canvas", "writeback")).toThrow(
       "Invalid feature id: Canvas",
     );
-    expect(() => channelCanonicalId("canvas", "bad-name")).toThrow(
+    expect(() => toChannelCanonicalId("canvas", "bad-name")).toThrow(
       "Invalid channel name: bad-name",
     );
   });
@@ -27,7 +27,7 @@ describe("channelCanonicalId", () => {
 
 describe("contributionId", () => {
   it("derives the uniform dotted registry id for any facet", () => {
-    expect(contributionId("canvas", "channel", "writeback") as string).toBe(
+    expect(toContributionId("canvas", "channel", "writeback") as string).toBe(
       "canvas.channel.writeback",
     );
   });

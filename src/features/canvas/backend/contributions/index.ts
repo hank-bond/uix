@@ -1,7 +1,4 @@
-import type {
-  FeatureContributions,
-  FeatureDefinition,
-} from "#backend/features/contributions";
+import type { FeatureDefinition } from "#backend/features/contributions";
 
 import { createCanvasContext, type CanvasContext } from "../context";
 import { createCanvasAgentToolContributions } from "./agent-tools";

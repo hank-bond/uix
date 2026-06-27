@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { UIXBridge } from "#shared/ipc";
-import { channelCanonicalId } from "#shared/channel-normalization";
+import { toChannelCanonicalId } from "#shared/channel-normalization";
 import { parseCanvasKey } from "#features/canvas/shared/addressing";
 import { createCanvasClient } from "#features/canvas/workspace/client";
 import { AgentEvents, AgentRequests, createAgentClient } from "./agent";
@@ -12,8 +12,8 @@ import {
 import { createPreloadWorkspaceClient } from "./preload";
 
 const CanvasChannels = {
-  writeback: channelCanonicalId("canvas", "writeback") as string,
-  changed: channelCanonicalId("canvas", "changed") as string,
+  writeback: toChannelCanonicalId("canvas", "writeback") as string,
+  changed: toChannelCanonicalId("canvas", "changed") as string,
 } as const;
 
 function fakeBridge(): UIXBridge {

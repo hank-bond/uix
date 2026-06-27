@@ -14,7 +14,7 @@ export function createCanvasStateMessageContributions(
   const { buffer, openCanvasKeys } = ctx;
   return [
     {
-      messageType: "uix.pane-visibility",
+      name: "pane-visibility",
       description:
         'JSON `{"canvases_open": [...]}` — the canvas keys currently open in the pane. Sent only when the set changes. Keys are not filesystem paths; read contents with canvas__anchor_read when relevant.',
       buffer: {
@@ -24,7 +24,7 @@ export function createCanvasStateMessageContributions(
       initialValue: { canvases_open: [...openCanvasKeys].sort() },
     },
     {
-      messageType: "uix.canvas-diff",
+      name: "canvas-diff",
       description:
         "anchored hunks the human edited in open canvases since your last turn, grouped by `## <canvas key>`. The anchors shown are current.",
       materialize: async () => {

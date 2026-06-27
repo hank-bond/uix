@@ -18,7 +18,7 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { TSchema } from "typebox";
 
-import { contributionId, type ContributionId } from "#shared/contribution-id";
+import { toContributionId, type ContributionId } from "#shared/contribution-id";
 
 /**
  * Canonical agent tool id: the pi tool name. Drops the facet segment (the tool
@@ -80,9 +80,9 @@ export function normalizeAgentToolContribution(
 ): AgentToolRegistration {
   const canonicalId = agentToolCanonicalId(featureId, contribution.name);
   return {
-    contributionId: contributionId(featureId, "agent", contribution.name),
+    contributionId: toContributionId(featureId, "agent", contribution.name),
     canonicalId,
-    tool: { ...contribution.tool, name: canonicalId as string },
+    tool: { ...contribution.tool, name: canonicalId },
   };
 }
 

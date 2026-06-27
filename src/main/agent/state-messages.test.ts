@@ -10,10 +10,10 @@ import type {
 import { Type } from "typebox";
 
 import {
-  createStateMessages,
+  createStateMessageRegistry,
   createStateMessageAssembler,
   registerStateMessageContributions,
-  type StateMessages,
+  StateMessageRegistry,
 } from "./state-messages";
 
 type Handler = (
@@ -21,14 +21,14 @@ type Handler = (
   ctx: ExtensionContext,
 ) => Promise<BeforeAgentStartEventResult>;
 
-function install(stateMessages: StateMessages) {
+function install(stateMessageRegistry: StateMessageRegistry) {
   const handlers: Handler[] = [];
   const pi = {
     on: (event: string, handler: Handler) => {
       if (event === "before_agent_start") handlers.push(handler);
     },
   } as unknown as ExtensionAPI;
-  void createStateMessageAssembler(stateMessages)(pi);
+  void createStateMessageAssembler(stateMessageRegistry)(pi);
   expect(handlers).toHaveLength(1);
 
   return async (entries: SessionEntry[] = []) =>
@@ -55,14 +55,14 @@ function stateEntry(content: string): SessionEntry {
 
 describe("createStateMessages", () => {
   it("appends one vocabulary section with a bullet per registered tag", async () => {
-    const sm = createStateMessages();
-    sm.register({
-      messageType: "uix.pane-visibility",
+    const sm = new StateMessageRegistry();
+    sm.register("test", {
+      name: "pane-visibility",
       description: "open keys",
       buffer: { kind: "update", schema: Type.Object({ open: Type.Boolean() }) },
     });
-    sm.register({
-      messageType: "uix.canvas-diff",
+    sm.register("test", {
+      name: "canvas-diff",
       description: "human hunks",
       materialize: () => undefined,
     });
@@ -72,20 +72,24 @@ describe("createStateMessages", () => {
 
     expect(result.systemPrompt).toContain("BASE");
     expect(result.systemPrompt).toContain("## UIX cockpit state messages");
-    expect(result.systemPrompt).toContain("- `<pane-visibility>` — open keys");
-    expect(result.systemPrompt).toContain("- `<canvas-diff>` — human hunks");
+    expect(result.systemPrompt).toContain(
+      "- `<test-pane-visibility>` — open keys",
+    );
+    expect(result.systemPrompt).toContain(
+      "- `<test-canvas-diff>` — human hunks",
+    );
   });
 
   it("leaves the system prompt alone with no registrations", async () => {
-    const run = install(createStateMessages());
+    const run = install(createStateMessageRegistry());
     expect(await run()).toEqual({});
   });
 
   it("bulk-registers contributions, applies initial update values, and disposes them together", async () => {
-    const sm = createStateMessages();
-    const registrations = registerStateMessageContributions(sm, [
+    const sm = createStateMessageRegistry();
+    const registrations = registerStateMessageContributions(sm, "test", [
       {
-        messageType: "uix.pane-visibility",
+        name: "pane-visibility",
         description: "d",
         buffer: {
           kind: "update",
@@ -94,7 +98,7 @@ describe("createStateMessages", () => {
         initialValue: { canvases_open: ["main"] },
       },
       {
-        messageType: "uix.canvas-diff",
+        name: "canvas-diff",
         description: "diffs",
         materialize: () => ({ content: "changed" }),
       },
@@ -102,18 +106,18 @@ describe("createStateMessages", () => {
     const run = install(sm);
 
     const result = await run();
-    expect(result.message?.content).toContain("<pane-visibility>");
+    expect(result.message?.content).toContain("<test-pane-visibility>");
     expect(result.message?.content).toContain('{"canvases_open":["main"]}');
-    expect(result.message?.content).toContain("<canvas-diff>\nchanged");
+    expect(result.message?.content).toContain("<test-canvas-diff>\nchanged");
 
     registrations[Symbol.dispose]();
     expect((await run()).message).toBeUndefined();
   });
 
   it("flushes updated state as one tagged section inside one uix.state envelope", async () => {
-    const sm = createStateMessages();
-    const visibility = sm.register({
-      messageType: "uix.pane-visibility",
+    const sm = new StateMessageRegistry();
+    const visibility = sm.register("test", {
+      name: "pane-visibility",
       description: "d",
       buffer: {
         kind: "update",
@@ -129,20 +133,20 @@ describe("createStateMessages", () => {
       customType: "uix.state",
       content: [
         "<uix-state>",
-        "<pane-visibility>",
+        "<test-pane-visibility>",
         '{"canvases_open":["main"]}',
-        "</pane-visibility>",
+        "</test-pane-visibility>",
         "</uix-state>",
       ].join("\n"),
-      details: { "uix.pane-visibility": { canvases_open: ["main"] } },
+      details: { "test.pane-visibility": { canvases_open: ["main"] } },
       display: false,
     });
   });
 
   it("suppresses an update section whose materialized body matches the nearest persisted tag", async () => {
-    const sm = createStateMessages();
-    const visibility = sm.register({
-      messageType: "uix.pane-visibility",
+    const sm = new StateMessageRegistry();
+    const visibility = sm.register("test", {
+      name: "pane-visibility",
       description: "d",
       buffer: {
         kind: "update",
@@ -164,9 +168,9 @@ describe("createStateMessages", () => {
   });
 
   it("walks past uix.state entries that do not carry the tag", async () => {
-    const sm = createStateMessages();
-    const visibility = sm.register({
-      messageType: "uix.pane-visibility",
+    const sm = new StateMessageRegistry();
+    const visibility = sm.register("test", {
+      name: "pane-visibility",
       description: "d",
       buffer: {
         kind: "update",
@@ -183,9 +187,9 @@ describe("createStateMessages", () => {
   });
 
   it("keeps the update value so an unpersisted flush resends", async () => {
-    const sm = createStateMessages();
-    const visibility = sm.register({
-      messageType: "uix.pane-visibility",
+    const sm = new StateMessageRegistry();
+    const visibility = sm.register("test", {
+      name: "pane-visibility",
       description: "d",
       buffer: {
         kind: "update",
@@ -201,9 +205,9 @@ describe("createStateMessages", () => {
 
   it("materializes a manual section every run when it returns content", async () => {
     let reads = 0;
-    const sm = createStateMessages();
-    sm.register({
-      messageType: "uix.canvas-diff",
+    const sm = new StateMessageRegistry();
+    sm.register("test", {
+      name: "canvas-diff",
       description: "d",
       materialize: () => {
         reads++;
@@ -213,7 +217,7 @@ describe("createStateMessages", () => {
     const run = install(sm);
 
     const first = (await run()).message!;
-    expect(first.details).toEqual({ "uix.canvas-diff": { hunks: 1 } });
+    expect(first.details).toEqual({ "test.canvas-diff": { hunks: 1 } });
 
     const again = await run([stateEntry(first.content as string)]);
     expect(again.message?.content).toContain("same hunks");
@@ -221,9 +225,9 @@ describe("createStateMessages", () => {
   });
 
   it("sends nothing when manual materialization returns undefined", async () => {
-    const sm = createStateMessages();
-    sm.register({
-      messageType: "uix.canvas-diff",
+    const sm = new StateMessageRegistry();
+    sm.register("test", {
+      name: "canvas-diff",
       description: "d",
       materialize: () => undefined,
     });
@@ -232,17 +236,17 @@ describe("createStateMessages", () => {
   });
 
   it("combines sections from multiple registrations in registration order", async () => {
-    const sm = createStateMessages();
-    const visibility = sm.register({
-      messageType: "uix.pane-visibility",
+    const sm = new StateMessageRegistry();
+    const visibility = sm.register("test", {
+      name: "pane-visibility",
       description: "d",
       buffer: {
         kind: "update",
         schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
       },
     });
-    sm.register({
-      messageType: "uix.canvas-diff",
+    sm.register("test", {
+      name: "canvas-diff",
       description: "d",
       materialize: () => ({ content: "## main\nhunks" }),
     });
@@ -250,17 +254,17 @@ describe("createStateMessages", () => {
     const run = install(sm);
 
     const content = (await run()).message!.content as string;
-    expect(content.indexOf("<pane-visibility>")).toBeLessThan(
-      content.indexOf("<canvas-diff>"),
+    expect(content.indexOf("<test-pane-visibility>")).toBeLessThan(
+      content.indexOf("<test-canvas-diff>"),
     );
     expect(content.startsWith("<uix-state>\n")).toBe(true);
     expect(content.endsWith("\n</uix-state>")).toBe(true);
   });
 
   it("validates update payloads against the registration schema", () => {
-    const sm = createStateMessages();
-    const visibility = sm.register({
-      messageType: "uix.pane-visibility",
+    const sm = new StateMessageRegistry();
+    const visibility = sm.register("test", {
+      name: "pane-visibility",
       description: "d",
       buffer: {
         kind: "update",
@@ -271,14 +275,14 @@ describe("createStateMessages", () => {
       visibility.update({ canvases_open: [1] } as unknown as {
         canvases_open: string[];
       }),
-    ).toThrow(/Invalid uix.pane-visibility payload/);
+    ).toThrow(/Invalid test.pane-visibility payload/);
     expect(() => visibility.update({ canvases_open: ["main"] })).not.toThrow();
   });
 
   it("appends pending values and confirms drain from the branch", async () => {
-    const sm = createStateMessages();
-    const moves = sm.register({
-      messageType: "game.moves",
+    const sm = new StateMessageRegistry();
+    const moves = sm.register("game", {
+      name: "moves",
       description: "moves",
       buffer: { kind: "append", schema: Type.Object({ move: Type.String() }) },
     });
@@ -304,9 +308,9 @@ describe("createStateMessages", () => {
   });
 
   it("custom materialization runs before update dedupe", async () => {
-    const sm = createStateMessages();
-    const value = sm.register({
-      messageType: "uix.value",
+    const sm = new StateMessageRegistry();
+    const value = sm.register("test", {
+      name: "value",
       description: "d",
       buffer: { kind: "update", schema: Type.Object({ count: Type.Number() }) },
       materialize: ({ value: payload }) => ({
@@ -325,9 +329,9 @@ describe("createStateMessages", () => {
   });
 
   it("stops flushing a section once its handle is disposed, and frees the tag", async () => {
-    const sm = createStateMessages();
-    const visibility = sm.register({
-      messageType: "uix.pane-visibility",
+    const sm = new StateMessageRegistry();
+    const visibility = sm.register("test", {
+      name: "pane-visibility",
       description: "d",
       buffer: {
         kind: "update",
@@ -337,30 +341,30 @@ describe("createStateMessages", () => {
     visibility.update({ canvases_open: ["main"] });
     const run = install(sm);
 
-    expect((await run()).message?.content).toContain("<pane-visibility>");
+    expect((await run()).message?.content).toContain("<test-pane-visibility>");
 
     visibility[Symbol.dispose]();
     expect((await run()).message).toBeUndefined();
 
     expect(() =>
-      sm.register({
-        messageType: "uix.pane-visibility",
+      sm.register("test", {
+        name: "pane-visibility",
         description: "d",
         materialize: () => undefined,
       }),
     ).not.toThrow();
   });
 
-  it("rejects a second active registration of the same messageType", () => {
-    const sm = createStateMessages();
-    sm.register({
-      messageType: "uix.a",
+  it("rejects a second active registration of the same name within a feature", () => {
+    const sm = new StateMessageRegistry();
+    sm.register("test", {
+      name: "a",
       description: "d",
       materialize: () => undefined,
     });
     expect(() =>
-      sm.register({
-        messageType: "uix.a",
+      sm.register("test", {
+        name: "a",
         description: "again",
         materialize: () => undefined,
       }),
