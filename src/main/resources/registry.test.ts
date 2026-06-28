@@ -36,9 +36,13 @@ describe("registerResourceSchemeContributions", () => {
     registerResourceSchemeContributions(
       [
         {
-          id: "canvas.resource.scheme",
-          scheme: "uix-canvas",
-          privileges: { standard: true, secure: true },
+          featureId: "canvas",
+          contributions: [
+            {
+              name: "doc",
+              privileges: { standard: true, secure: true },
+            },
+          ],
         },
       ],
       (schemes) => registered.push(schemes),
@@ -47,51 +51,46 @@ describe("registerResourceSchemeContributions", () => {
     expect(registered).toEqual([
       [
         {
-          scheme: "uix-canvas",
+          scheme: "canvas-doc",
           privileges: { standard: true, secure: true },
         },
       ],
     ]);
   });
 
-  it("rejects duplicate scheme ids and names", () => {
+  it("rejects duplicate scheme contribution ids and names", () => {
     expect(() =>
       registerResourceSchemeContributions(
         [
           {
-            id: "canvas.resource.scheme",
-            scheme: "uix-canvas",
-            privileges: {},
-          },
-          {
-            id: "canvas.resource.scheme",
-            scheme: "uix-other",
-            privileges: {},
+            featureId: "canvas",
+            contributions: [
+              { name: "doc", privileges: {} },
+              { name: "doc", privileges: {} },
+            ],
           },
         ],
         () => undefined,
       ),
     ).toThrow(
-      "Resource scheme contribution already registered: canvas.resource.scheme",
+      "Resource scheme contribution already registered: canvas.resource.doc",
     );
 
     expect(() =>
       registerResourceSchemeContributions(
         [
           {
-            id: "canvas.resource.scheme",
-            scheme: "uix-canvas",
-            privileges: {},
+            featureId: "canvas",
+            contributions: [{ name: "doc-html", privileges: {} }],
           },
           {
-            id: "other.resource.scheme",
-            scheme: "uix-canvas",
-            privileges: {},
+            featureId: "canvas-doc",
+            contributions: [{ name: "html", privileges: {} }],
           },
         ],
         () => undefined,
       ),
-    ).toThrow("Resource scheme already registered: uix-canvas");
+    ).toThrow("Resource scheme already registered: canvas-doc-html");
   });
 });
 
@@ -103,22 +102,23 @@ describe("ResourceRegistry", () => {
       unhandle: (scheme) => transport.unhandle(scheme),
     });
 
-    const registration = registry.register({
-      id: "canvas.resource.html",
-      scheme: "uix-canvas",
-      handle: () => new Response("hello", { status: 200 }),
-    });
+    const registration = registerResourceContributions(registry, "canvas", [
+      {
+        name: "doc",
+        handle: () => new Response("hello", { status: 200 }),
+      },
+    ]);
 
-    const response = await transport.handlers.get("uix-canvas")?.(
-      new Request("uix-canvas://main/"),
+    const response = await transport.handlers.get("canvas-doc")?.(
+      new Request("canvas-doc://main/"),
     );
 
     expect(await response?.text()).toBe("hello");
 
     registration[Symbol.dispose]();
 
-    expect(transport.handlers.has("uix-canvas")).toBe(false);
-    expect(transport.disposed).toEqual(["uix-canvas"]);
+    expect(transport.handlers.has("canvas-doc")).toBe(false);
+    expect(transport.disposed).toEqual(["canvas-doc"]);
   });
 
   it("rejects duplicate resource ids and schemes until disposed", () => {
@@ -128,35 +128,50 @@ describe("ResourceRegistry", () => {
       unhandle: (scheme) => transport.unhandle(scheme),
     });
 
-    const registration = registry.register({
-      id: "canvas.resource.html",
-      scheme: "uix-canvas",
-      handle: () => new Response(""),
-    });
+    const registration = registerResourceContributions(registry, "canvas", [
+      {
+        name: "doc",
+        handle: () => new Response(""),
+      },
+    ]);
 
     expect(() =>
-      registry.register({
-        id: "canvas.resource.html",
-        scheme: "uix-other",
+      registerResourceContributions(registry, "canvas", [
+        {
+          name: "doc",
+          handle: () => new Response(""),
+        },
+      ]),
+    ).toThrow("Resource contribution already registered: canvas.resource.doc");
+    const collisionTransport = fakeTransport();
+    const collisionRegistry = createResourceRegistry({
+      handle: (scheme, fn) => collisionTransport.handle(scheme, fn),
+      unhandle: (scheme) => collisionTransport.unhandle(scheme),
+    });
+    registerResourceContributions(collisionRegistry, "canvas", [
+      {
+        name: "doc-html",
         handle: () => new Response(""),
-      }),
-    ).toThrow("Resource contribution already registered: canvas.resource.html");
+      },
+    ]);
     expect(() =>
-      registry.register({
-        id: "other.resource.html",
-        scheme: "uix-canvas",
-        handle: () => new Response(""),
-      }),
-    ).toThrow("Resource scheme already handled: uix-canvas");
+      registerResourceContributions(collisionRegistry, "canvas-doc", [
+        {
+          name: "html",
+          handle: () => new Response(""),
+        },
+      ]),
+    ).toThrow("Resource scheme already handled: canvas-doc-html");
 
     registration[Symbol.dispose]();
 
     expect(() =>
-      registry.register({
-        id: "canvas.resource.html",
-        scheme: "uix-canvas",
-        handle: () => new Response(""),
-      }),
+      registerResourceContributions(registry, "canvas", [
+        {
+          name: "doc",
+          handle: () => new Response(""),
+        },
+      ]),
     ).not.toThrow();
   });
 
@@ -167,27 +182,25 @@ describe("ResourceRegistry", () => {
       unhandle: (scheme) => transport.unhandle(scheme),
     });
 
-    const registration = registerResourceContributions(registry, [
+    const registration = registerResourceContributions(registry, "canvas", [
       {
-        id: "canvas.resource.html",
-        scheme: "uix-canvas",
+        name: "doc",
         handle: () => new Response(""),
       },
       {
-        id: "assets.resource.files",
-        scheme: "uix-asset",
+        name: "asset",
         handle: () => new Response(""),
       },
     ]);
 
     expect([...transport.handlers.keys()].sort()).toEqual([
-      "uix-asset",
-      "uix-canvas",
+      "canvas-asset",
+      "canvas-doc",
     ]);
 
     registration[Symbol.dispose]();
 
     expect(transport.handlers.size).toBe(0);
-    expect(transport.disposed).toEqual(["uix-asset", "uix-canvas"]);
+    expect(transport.disposed).toEqual(["canvas-asset", "canvas-doc"]);
   });
 });

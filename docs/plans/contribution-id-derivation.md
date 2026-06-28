@@ -56,9 +56,9 @@ Files: `src/main/agent/tools.ts`, new `src/main/agent/agent-tool-normalization.t
 
 Canvas `state-messages.ts`: `name: "pane-visibility"`, `name: "canvas-diff"`.
 
-### U4 — Resources
+### U4 — Resources ✅ done
 
-`ResourceContribution`/`ResourceSchemeContribution`: `id`/`scheme` → `name`; scheme derived = `ResourceCanonicalId` = `${featureId}-${name}` (feature-namespaced, kills cross-feature scheme collisions). `registerResourceContributions(registry, featureId, contributions)` + `registerResourceSchemeContributions` (preflight, needs featureId per feature) thread `featureId` + derive scheme. Canvas: `name: "doc"` → scheme `canvas-doc`; the fixed `CanvasProtocolScheme = "uix-canvas"` constant goes away. **Ripple:** the renderer (`Canvas.tsx`) and `shared/addressing.ts` (`canvasUrl`, `canvasKeyToHost`) build URLs from the scheme — they must consume the derived scheme. The `resourceCanonicalId` helper must be renderer-importable (`#shared`). **Registry:** exported class, same pattern as U3.
+`ResourceContribution`/`ResourceSchemeContribution`: `id`/`scheme` → `name`; scheme derived = `ResourceCanonicalId` = `${featureId}-${name}` (feature-namespaced, kills cross-feature scheme collisions). `registerResourceContributions(registry, featureId, contributions)` + `registerResourceSchemeContributions` (preflight, needs featureId per feature) thread `featureId` + derive scheme. Canvas: `name: "doc"` → scheme `canvas-doc`; the fixed `CanvasProtocolScheme = "uix-canvas"` constant goes away. **Ripple:** the renderer (`Canvas.tsx`) and `shared/addressing.ts` (`toResourceUrl`, `encodeCanvasKeyHost`) build URLs from the scheme — they must consume the derived scheme. The `resourceCanonicalId` helper must be renderer-importable (`#shared`). **Registry:** exported class, same pattern as U3.
 
 Files: `src/main/resources/registry.ts`, new `src/shared/resource-canonical-id.ts` (just the brand + constructor, not a full normalization module), `src/features/canvas/backend/contributions/resources.ts`, `src/features/canvas/shared/addressing.ts`, `src/features/canvas/workspace/Canvas.tsx`, `src/main/features/contributions.ts` (preflight signature), tests. Update `src/docs/` if any resource doc names the scheme.
 

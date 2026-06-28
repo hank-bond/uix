@@ -61,8 +61,7 @@ describe("registerFeatureContributions", () => {
       {
         resources: [
           {
-            id: "canvas.resource.html",
-            scheme: "uix-canvas",
+            name: "doc",
             handle: () => new Response(""),
           },
         ],
@@ -82,16 +81,15 @@ describe("registerFeatureContributions", () => {
     );
 
     expect(() =>
-      registerFeatureContributions({ resources }, "other", {
+      registerFeatureContributions({ resources }, "canvas", {
         resources: [
           {
-            id: "other.resource.html",
-            scheme: "uix-canvas",
+            name: "doc",
             handle: () => new Response(""),
           },
         ],
       }),
-    ).toThrow("Resource scheme already handled: uix-canvas");
+    ).toThrow("Resource contribution already registered: canvas.resource.doc");
     expect(() =>
       registerFeatureContributions({ channels }, "canvas", {
         channels: [channelContribution()],
@@ -150,8 +148,7 @@ describe("registerFeatureContributions", () => {
         {
           resources: [
             {
-              id: "canvas.resource.html",
-              scheme: "uix-canvas",
+              name: "doc",
               handle: () => new Response(""),
             },
           ],
@@ -175,8 +172,7 @@ describe("registerFeatureContributions", () => {
       registerFeatureContributions({}, "canvas", {
         resources: [
           {
-            id: "canvas.resource.html",
-            scheme: "uix-canvas",
+            name: "doc",
             handle: () => new Response(""),
           },
         ],
@@ -211,7 +207,7 @@ describe("registerFeatureContributions", () => {
       registerFeatureContributions({}, "canvas", {
         stateMessages: [
           {
-            messageType: "uix.canvas-diff",
+            name: "canvas-diff",
             description: "diffs",
             materialize: () => undefined,
           },
@@ -234,8 +230,7 @@ describe("registerFeaturePreflightContributions", () => {
           preflight: {
             resourceSchemes: [
               {
-                id: "canvas.resource.scheme",
-                scheme: "uix-canvas",
+                name: "doc",
                 privileges: { standard: true },
               },
             ],
@@ -251,7 +246,7 @@ describe("registerFeaturePreflightContributions", () => {
     expect(registered).toEqual([
       [
         {
-          scheme: "uix-canvas",
+          scheme: "canvas-doc",
           privileges: { standard: true },
         },
       ],

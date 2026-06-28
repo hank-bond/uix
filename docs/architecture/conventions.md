@@ -40,11 +40,12 @@ bag[Symbol.dispose]();
 - A `DisposableBag` that owns registrations is named after the lifetime it tracks: `appBag`, `windowBag`, `sessionBag`.
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
 - Private helper functions should generally be operation-shaped so the call site says what operation is happening. Prefer:
-  - `parseX` for unknown input that may fail and return `undefined`;
+  - `parseX` for unknown/external input that validates into `X`; invalid input throws;
+  - `asX` / `tryParseX` for non-throwing refinement/parsing helpers that return `X | undefined`;
   - `extractX` for pulling data out of a larger value;
   - `getX` for cheap property lookup with no I/O;
-  - `asX` for safe cast/view helpers that return `X | undefined`;
-  - `toX` for conventional conversions;
+  - `toX` for deterministic conversions/derivations where inputs are expected to already be valid;
+  - `encodeX` / `decodeX` for reversible representation transforms;
   - `isX` / `hasX` for predicates and type guards;
   - `createX` / `buildX` for construction from known inputs;
   - `readX` only for real reads from disk, stores, streams, or similarly I/O-shaped sources.

@@ -6,9 +6,9 @@
 import { useEffect, useMemo, useState } from "react";
 
 import {
-  CanvasProtocolScheme,
-  canvasKeyToHost,
-  canvasUrl,
+  CanvasResourceScheme,
+  encodeCanvasKeyHost,
+  toResourceUrl,
   type CanvasKey,
 } from "../shared/addressing";
 import { createCanvasClient, type CanvasClient } from "./client";
@@ -37,7 +37,7 @@ export function Canvas({ canvasKey, workspace }: CanvasProps) {
   useEffect(() => {
     // The shim postMessages human edits up from the sandboxed canvas frame.
     // Trust only this canvas's own origin and its own key.
-    const origin = `${CanvasProtocolScheme}://${canvasKeyToHost(canvasKey)}`;
+    const origin = `${CanvasResourceScheme}://${encodeCanvasKeyHost(canvasKey)}`;
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== origin) return;
       const msg = event.data as { type?: string; key?: string; html?: string };
@@ -53,7 +53,7 @@ export function Canvas({ canvasKey, workspace }: CanvasProps) {
   return (
     <iframe
       className="canvas-frame"
-      src={canvasUrl(canvasKey, token)}
+      src={toResourceUrl(canvasKey, token)}
       title={`canvas ${canvasKey}`}
       // allow-scripts + allow-same-origin is safe here because the iframe's
       // origin is the canvas's own custom-protocol origin, not the host's.

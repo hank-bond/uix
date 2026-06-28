@@ -80,6 +80,7 @@ export function registerFeatureContributions(
     bag.add(
       registerResourceContributions(
         registries.resources,
+        featureId,
         contributions.resources,
       ),
     );
@@ -147,7 +148,10 @@ export function registerFeaturePreflightContributions(
   registerResourceSchemes?: ResourceSchemeRegistrar,
 ): void {
   registerResourceSchemeContributions(
-    features.flatMap((feature) => feature.preflight?.resourceSchemes ?? []),
+    features.map((feature) => ({
+      featureId: feature.id,
+      contributions: feature.preflight?.resourceSchemes ?? [],
+    })),
     registerResourceSchemes,
   );
 }

@@ -49,7 +49,7 @@ describe("createCanvasResourceContributions", () => {
       fakeCanvasContext(memoryStore({ main: "<p>Hello</p>" })),
     );
 
-    const response = await resource.handle(new Request("uix-canvas://main/"));
+    const response = await resource.handle(new Request("canvas-doc://main/"));
     const html = await response.text();
 
     expect(response.status).toBe(200);
@@ -65,7 +65,7 @@ describe("createCanvasResourceContributions", () => {
       fakeCanvasContext(memoryStore()),
     );
 
-    const response = await resource.handle(new Request("uix-canvas://main/"));
+    const response = await resource.handle(new Request("canvas-doc://main/"));
 
     expect(response.status).toBe(404);
     await expect(response.text()).resolves.toContain("No canvas yet");

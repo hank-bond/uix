@@ -40,6 +40,7 @@ describe("normalizeChannelContribution", () => {
         writeback: {
           request: Type.Object({ html: Type.String() }),
           response: Type.Void(),
+          handle: () => undefined,
         },
       },
       events: {
@@ -65,7 +66,11 @@ describe("normalizeChannelContribution", () => {
     expect(() =>
       normalizeChannelContribution("canvas", {
         requests: {
-          changed: { request: Type.Object({}), response: Type.Void() },
+          changed: {
+            request: Type.Object({}),
+            response: Type.Void(),
+            handle: () => undefined,
+          },
         },
         events: {
           changed: { event: Type.Object({}) },

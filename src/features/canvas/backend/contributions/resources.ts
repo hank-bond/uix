@@ -1,6 +1,9 @@
 // canvas resource contributions.
 
-import { CanvasProtocolScheme, canvasHostToKey } from "../../shared/addressing";
+import {
+  CanvasResourceName,
+  decodeCanvasKeyHost,
+} from "../../shared/addressing";
 import type {
   ResourceContribution,
   ResourceSchemeContribution,
@@ -13,8 +16,7 @@ import { injectCanvasShim } from "../shim";
 const log = createLogger("canvas");
 
 export const canvasResourceScheme: ResourceSchemeContribution = {
-  id: "canvas.resource.scheme",
-  scheme: CanvasProtocolScheme,
+  name: CanvasResourceName,
   privileges: {
     standard: true,
     secure: true,
@@ -27,11 +29,10 @@ export function createCanvasResourceContributions(
 ): readonly ResourceContribution[] {
   return [
     {
-      id: "canvas.resource.html",
-      scheme: CanvasProtocolScheme,
+      name: CanvasResourceName,
       async handle(request) {
         const url = new URL(request.url);
-        const key = canvasHostToKey(url.hostname);
+        const key = decodeCanvasKeyHost(url.hostname);
         const html = key ? await ctx.store.getCurrent(key) : null;
 
         if (key && html !== null) {

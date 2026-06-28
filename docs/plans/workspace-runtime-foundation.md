@@ -30,7 +30,7 @@ A renderer-side `SurfaceHost` stepping stone was tried and reverted because it h
 - The `channels` facet is the declarative communication facet. Contributions declare request handlers and event schemas; runtime code imperatively calls requests from surfaces and publishes events from backend feature code.
 - Prefer typed facet clients over raw stringly transport in feature/surface code. The raw request/event pipe is Host/Workspace transport plumbing; feature-owned SDKs can later wrap generated/scoped clients into ergonomic methods such as `canvas.writeback(...)` and `canvas.onChanged(...)`.
 - The `window.uix`/Host bridge should become **faceted and contribution-derived**. Preload should not know canvas, chat, or feature channel contracts; it should expose generic facet transports installed from registered contributions, and Workspace clients should bind to those facets dynamically.
-- Facet-owned addresses should be derived by the facet, not authored as feature business logic. The current canvas `uix-canvas` protocol string is resource-facet addressing debt: canvas should contribute a resource by local name/config, while the resource facet derives/registers the scheme/address and provides Workspace URL construction.
+- Facet-owned addresses should be derived by the facet, not authored as feature business logic. Canvas now contributes its document resource by local name and consumes the derived `canvas-doc` scheme; future Workspace URL construction should continue to come from the resource facet rather than feature-authored protocol strings.
 
 ## Step plan
 

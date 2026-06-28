@@ -8,10 +8,16 @@
 import { Type } from "typebox";
 import { Value } from "typebox/value";
 
+import { toResourceCanonicalId } from "#shared/resource-canonical-id";
+
 declare const CanvasKeyBrand: unique symbol;
 export type CanvasKey = string & { readonly [CanvasKeyBrand]: true };
 
-export const CanvasProtocolScheme = "uix-canvas";
+export const CanvasResourceName = "doc";
+export const CanvasResourceScheme = toResourceCanonicalId(
+  "canvas",
+  CanvasResourceName,
+);
 
 const CanvasKeyPattern = /^[a-z0-9-]+(?:\/[a-z0-9-]+)*$/;
 
@@ -26,17 +32,17 @@ export function parseCanvasKey(value: unknown): CanvasKey {
 export const CanvasKeyDescription =
   "lowercase slug segments [a-z0-9-]+ optionally separated by /";
 
-export function canvasKeyToHost(key: CanvasKey): string {
+export function encodeCanvasKeyHost(key: CanvasKey): string {
   return key.split("/").reverse().join(".");
 }
 
-export function canvasHostToKey(host: string): CanvasKey | null {
+export function decodeCanvasKeyHost(host: string): CanvasKey | null {
   if (!host) return null;
   const key = host.toLowerCase().split(".").reverse().join("/");
   return CanvasKeyPattern.test(key) ? (key as CanvasKey) : null;
 }
 
-export function canvasUrl(key: CanvasKey, token?: number): string {
+export function toResourceUrl(key: CanvasKey, token?: number): string {
   const query = token === undefined ? "" : `?v=${token}`;
-  return `${CanvasProtocolScheme}://${canvasKeyToHost(key)}/${query}`;
+  return `${CanvasResourceScheme}://${encodeCanvasKeyHost(key)}/${query}`;
 }
