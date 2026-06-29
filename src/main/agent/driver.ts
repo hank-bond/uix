@@ -33,7 +33,7 @@ import { join } from "node:path";
 
 import { disposable, DisposableBag, subscribe } from "../lifecycle";
 import { createLogger } from "../log";
-import { createStateCoordinator, type StateRegistry } from "../state/registry";
+import { createStateCoordinator, StateRegistry } from "../state/registry";
 
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { createTranscriptIdentity, type TranscriptIdentity } from "./identity";

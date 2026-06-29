@@ -119,7 +119,13 @@ export function registerFeatureContributions(
         `Feature ${featureId} contributes state but no state registry was provided`,
       );
     }
-    bag.add(registerStateContributions(registries.state, contributions.state));
+    bag.add(
+      registerStateContributions(
+        registries.state,
+        featureId,
+        contributions.state,
+      ),
+    );
   }
 
   if (contributions.stateMessages?.length) {

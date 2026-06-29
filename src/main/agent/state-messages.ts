@@ -138,12 +138,6 @@ export function registerStateMessageContributions(
   featureId: string,
   contributions: readonly StateMessageContribution[],
 ): Disposable {
-  if (!(stateMessages instanceof StateMessageRegistry)) {
-    throw new Error(
-      "registerStateMessageContributions requires createStateMessages()",
-    );
-  }
-
   const bag = new DisposableBag();
 
   for (const contribution of contributions) {
@@ -301,12 +295,6 @@ export function createStateMessageRegistry(): StateMessageRegistry {
 export function createStateMessageAssembler(
   stateMessageRegistry: StateMessageRegistry,
 ): AgentInstaller {
-  if (!(stateMessageRegistry instanceof StateMessageRegistry)) {
-    throw new Error(
-      "createStateMessageAssembler requires createStateMessages()",
-    );
-  }
-
   return (pi) => {
     const installedContributions = [
       ...stateMessageRegistry.registeredContributions,

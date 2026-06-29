@@ -86,12 +86,6 @@ export function registerAgentToolContributions(
 export function createAgentToolInstaller(
   registry: AgentToolRegistry,
 ): AgentInstaller {
-  if (!(registry instanceof RegisteredAgentToolContributions)) {
-    throw new Error(
-      "createAgentToolInstaller requires createAgentToolRegistry()",
-    );
-  }
-
   return (pi) => {
     const installedContributions = [...registry.registeredContributions];
     for (const contribution of liveContributions(

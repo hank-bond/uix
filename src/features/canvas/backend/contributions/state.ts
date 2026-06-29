@@ -14,7 +14,6 @@ export function createCanvasStateContributions(
   const { buffer, openCanvasKeys, agentChangedCanvasKeys } = ctx;
   return [
     {
-      id: "canvas",
       prepareUserSubmitState: async () =>
         snapshotCanvasPanes(buffer, openCanvasKeys),
       prepareAgentEndState: async () => {

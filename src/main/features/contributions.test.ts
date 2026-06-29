@@ -72,9 +72,7 @@ describe("registerFeatureContributions", () => {
         resources: [resourceContribution()],
         channels: [channelContribution()],
         agentTools: [agentTool("anchor_read")],
-        state: [
-          { id: "canvas", prepareUserSubmitState: () => ({ state: {} }) },
-        ],
+        state: [{ prepareUserSubmitState: () => ({ state: {} }) }],
         stateMessages: [
           {
             name: "canvas-diff",
@@ -110,10 +108,10 @@ describe("registerFeatureContributions", () => {
       "Agent tool contribution already registered: canvas.agent.anchor_read",
     );
     expect(() =>
-      registerFeatureContributions({ state }, "other", {
-        state: [{ id: "canvas" }],
+      registerFeatureContributions({ state }, "canvas", {
+        state: [{}],
       }),
-    ).toThrow("State contribution already registered: canvas");
+    ).toThrow("State contribution already registered: canvas.state");
     expect(() =>
       registerFeatureContributions({ stateMessages }, "other", {
         stateMessages: [
@@ -149,7 +147,7 @@ describe("registerFeatureContributions", () => {
           resources: [resourceContribution()],
           channels: [channelContribution()],
           agentTools: [agentTool("anchor_read")],
-          state: [{ id: "canvas" }],
+          state: [{}],
           stateMessages: [
             {
               name: "canvas-diff",
@@ -188,7 +186,7 @@ describe("registerFeatureContributions", () => {
     );
 
     expect(() =>
-      registerFeatureContributions({}, "canvas", { state: [{ id: "canvas" }] }),
+      registerFeatureContributions({}, "canvas", { state: [{}] }),
     ).toThrow(
       "Feature canvas contributes state but no state registry was provided",
     );

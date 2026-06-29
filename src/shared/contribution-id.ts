@@ -5,10 +5,14 @@
 //
 //   `${featureId}.<facet>.<name>`
 //
+// Most facets allow multiple contributions per feature, differentiated by
+// `name`. Singleton facets (one contribution per feature, e.g. private state)
+// omit `name` and the id becomes `${featureId}.<facet>`.
+//
 // The ContributionId brand is nominal: a value of this type can only have come
-// through `contributionId(...)`, which validates the feature id, facet segment,
-// and local name against the shared token grammar. Internal code carries the
-// brand; genuine external string boundaries cast inline (`id as string`).
+// through `toContributionId(...)`, which validates the feature id, facet segment,
+// and optional local name against the shared token grammar. Internal code carries
+// the brand; genuine external string boundaries cast inline (`id as string`).
 
 const ContributionIdBrand: unique symbol = Symbol("ContributionId");
 
@@ -23,12 +27,15 @@ export type ContributionId = string & {
 export function toContributionId(
   featureId: string,
   facet: string,
-  name: string,
+  name?: string,
 ): ContributionId {
   assertIdToken("feature id", featureId);
   assertIdToken("facet", facet);
-  assertIdToken("contribution name", name);
-  return `${featureId}.${facet}.${name}` as ContributionId;
+  if (name !== undefined) {
+    assertIdToken("contribution name", name);
+    return `${featureId}.${facet}.${name}` as ContributionId;
+  }
+  return `${featureId}.${facet}` as ContributionId;
 }
 
 function assertIdToken(label: string, token: string): void {

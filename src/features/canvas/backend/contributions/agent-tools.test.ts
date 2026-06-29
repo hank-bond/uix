@@ -97,6 +97,7 @@ function setup() {
   const agentTools = createAgentToolRegistry();
   const canvasState = registerStateContributions(
     state,
+    "canvas",
     createCanvasStateContributions(ctx),
   );
   const canvasStateMessages = registerStateMessageContributions(

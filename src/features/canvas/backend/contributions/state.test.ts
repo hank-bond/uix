@@ -63,12 +63,6 @@ function captureCanvasState(opts: {
 }
 
 describe("createCanvasStateContributions", () => {
-  it("registers the canvas state contribution id", () => {
-    const { contribution } = captureCanvasState({});
-
-    expect(contribution.id).toBe("canvas");
-  });
-
   it("snapshots open canvases on user submit", async () => {
     const store = memoryStore({ main: "<p>hello</p>" });
     const { contribution } = captureCanvasState({

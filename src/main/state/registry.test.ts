@@ -9,9 +9,18 @@ import {
   createStateCoordinator,
   createStateRegistry,
   registerStateContributions,
+  StateRegistry,
 } from "./registry";
 
 type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
+
+function register(state: StateRegistry, featureId: string) {
+  return registerStateContributions(state, featureId, [
+    {
+      prepareUserSubmitState: () => ({ state: { main: "v1" } }),
+    },
+  ]);
+}
 
 function setupCoordinator(state = createStateRegistry()) {
   const handlers = new Map<string, VoidHandler[]>();
@@ -40,23 +49,28 @@ describe("StateRegistry", () => {
   it("rejects duplicate contribution ids", () => {
     const state = createStateRegistry();
 
-    state.register({ id: "canvas" });
+    registerStateContributions(state, "canvas", [{}]);
 
-    expect(() => state.register({ id: "canvas" })).toThrow(
-      "State contribution already registered: canvas",
+    expect(() => registerStateContributions(state, "canvas", [{}])).toThrow(
+      "State contribution already registered: canvas.state",
+    );
+  });
+
+  it("rejects more than one contribution per feature", () => {
+    const state = createStateRegistry();
+
+    expect(() => registerStateContributions(state, "canvas", [{}, {}])).toThrow(
+      "Feature canvas contributes more than one private-state contribution. This is a singleton facet: at most one per feature.",
     );
   });
 
   it("unregisters contributions when disposed", async () => {
     const state = createStateRegistry();
-    const contribution = state.register({
-      id: "canvas",
-      prepareUserSubmitState: () => ({ state: { main: "v1" } }),
-    });
+    const disposable = register(state, "canvas");
     const { entries, fire } = setupCoordinator(state);
 
-    contribution[Symbol.dispose]();
-    state.register({ id: "canvas" });
+    disposable[Symbol.dispose]();
+    register(state, "canvas");
 
     await fire("input");
 
@@ -65,14 +79,9 @@ describe("StateRegistry", () => {
 
   it("bulk-registers contributions and disposes them together", async () => {
     const state = createStateRegistry();
-    const registrations = registerStateContributions(state, [
+    const registrations = registerStateContributions(state, "canvas", [
       {
-        id: "canvas",
         prepareUserSubmitState: () => ({ state: { main: "v1" } }),
-      },
-      {
-        id: "chat",
-        prepareUserSubmitState: () => ({ state: { selected: "c1" } }),
       },
     ]);
     const { entries, fire } = setupCoordinator(state);
@@ -83,7 +92,7 @@ describe("StateRegistry", () => {
         customType: "uix.turn-state",
         data: {
           cwd: "/work",
-          state: { canvas: { main: "v1" }, chat: { selected: "c1" } },
+          state: { canvas: { main: "v1" } },
         },
       },
     ]);
@@ -93,19 +102,21 @@ describe("StateRegistry", () => {
     expect(entries).toHaveLength(1);
   });
 
-  it("aggregates user-submit state by contribution id", async () => {
+  it("aggregates user-submit state by feature id", async () => {
     const state = createStateRegistry();
-    state.register({
-      id: "canvas",
-      prepareUserSubmitState: () => ({
-        state: { "doc://canvas/main": "v1" },
-      }),
-    });
-    state.register({
-      id: "chat",
-      prepareUserSubmitState: () =>
-        Promise.resolve({ state: { selected: "c1" } }),
-    });
+    registerStateContributions(state, "canvas", [
+      {
+        prepareUserSubmitState: () => ({
+          state: { "doc://canvas/main": "v1" },
+        }),
+      },
+    ]);
+    registerStateContributions(state, "chat", [
+      {
+        prepareUserSubmitState: () =>
+          Promise.resolve({ state: { selected: "c1" } }),
+      },
+    ]);
     const { entries, fire } = setupCoordinator(state);
 
     await fire("input", "/repo");
@@ -124,14 +135,15 @@ describe("StateRegistry", () => {
     ]);
   });
 
-  it("aggregates agent-end state by contribution id", async () => {
+  it("aggregates agent-end state by feature id", async () => {
     const state = createStateRegistry();
-    state.register({
-      id: "canvas",
-      prepareAgentEndState: () => ({
-        state: { "doc://canvas/main": "v2" },
-      }),
-    });
+    registerStateContributions(state, "canvas", [
+      {
+        prepareAgentEndState: () => ({
+          state: { "doc://canvas/main": "v2" },
+        }),
+      },
+    ]);
     const { entries, fire } = setupCoordinator(state);
 
     await fire("agent_end");
@@ -149,14 +161,16 @@ describe("StateRegistry", () => {
 
   it("skips contributions that do not prepare state", async () => {
     const state = createStateRegistry();
-    state.register({
-      id: "canvas",
-      prepareUserSubmitState: () => undefined,
-    });
-    state.register({
-      id: "chat",
-      prepareUserSubmitState: () => ({ state: { selected: "c1" } }),
-    });
+    registerStateContributions(state, "canvas", [
+      {
+        prepareUserSubmitState: () => undefined,
+      },
+    ]);
+    registerStateContributions(state, "chat", [
+      {
+        prepareUserSubmitState: () => ({ state: { selected: "c1" } }),
+      },
+    ]);
     const { entries, fire } = setupCoordinator(state);
 
     await fire("input");
@@ -171,10 +185,11 @@ describe("StateRegistry", () => {
 
   it("does not append a turn-state entry when nothing prepares state", async () => {
     const state = createStateRegistry();
-    state.register({
-      id: "canvas",
-      prepareUserSubmitState: () => undefined,
-    });
+    registerStateContributions(state, "canvas", [
+      {
+        prepareUserSubmitState: () => undefined,
+      },
+    ]);
     const { entries, fire } = setupCoordinator(state);
 
     await fire("input");

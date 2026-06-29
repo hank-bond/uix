@@ -1,5 +1,5 @@
 ---
-summary: "Derive contribution/canonical ids from featureId + name across all facets so authors give only a local name; one uniform ContributionId brand (`${featureId}.<facet>.<name>`) plus one per-facet canonical-id brand (facet segment dropped), the api exposes author shapes only. Units: channels (done), agent tools (done), state messages (done), resources, private state."
+summary: "Derive contribution/canonical ids from featureId + name across all facets so authors give only a local name; one uniform ContributionId brand (`${featureId}.<facet>.<name>`) plus one per-facet canonical-id brand (facet segment dropped), the api exposes author shapes only. Units: channels (done), agent tools (done), state messages (done), resources (done), private state (done)."
 status: active
 ---
 
@@ -62,7 +62,7 @@ Canvas `state-messages.ts`: `name: "pane-visibility"`, `name: "canvas-diff"`.
 
 Files: `src/main/resources/registry.ts`, new `src/shared/resource-canonical-id.ts` (just the brand + constructor, not a full normalization module), `src/features/canvas/backend/contributions/resources.ts`, `src/features/canvas/shared/addressing.ts`, `src/features/canvas/workspace/Canvas.tsx`, `src/main/features/contributions.ts` (preflight signature), tests. Update `src/docs/` if any resource doc names the scheme.
 
-### U5 — Private state
+### U5 — Private state ✅ done
 
 `StateContribution`: drop `id` entirely (one contribution per feature; it routes its own keys internally). `StateCanonicalId` = `featureId` (the persisted `uix.turn-state` blob key). `ContributionId` = `${featureId}.state` (registry dedup). `registerStateContributions(registry, featureId, contributions)` stamps both ids; `appendPreparedTurnState` keys the blob by the canonical id (= featureId) instead of `contribution.id`. Canvas `state.ts`: drop `id: "canvas"`. Main-only facet — brands and derivation live in `src/main/state/registry.ts`. **Registry:** exported class, no opaque wrapper — `StateRegistry` drops public `register()`, same pattern as U3.
 
@@ -73,6 +73,9 @@ Files: `src/main/state/registry.ts`, `src/features/canvas/backend/contributions/
 - `src/main/features/contributions.ts`: every `register<Facet>Contributions` call threads `featureId` (channels already does; U2–U5 add it).
 - `docs/architecture/concepts.md` Identifier grammar: already updated to the target model (this plan's source of truth). Reconcile any drift once all facets land.
 - Run `npm run docs:check`.
+- **Future cleanup:** once U1/U2 are retrofitted to the class-directly-exported pattern (no interface wrappers), the `create*Registry` factory functions become trivial `new X()` passthroughs and can be dropped in favor of direct construction. `ChannelRegistry` is the only one that still captures closure state (the IPC `handle`/`publish` functions); those become constructor params.
+- **Naming outliers:** `agentToolCanonicalId` (U2) and `stateMessageCanonicalId` (U3) lack the `to` prefix required by the `toX` convention in `docs/architecture/conventions.md`. Rename to `toAgentToolCanonicalId` / `toStateMessageCanonicalId` when those files are next touched.
+- **Lift duplicate-check out of registries:** every registry has its own `ContributionId` dedup guard. Move it into `registerFeatureContributions` as a single `Set<ContributionId>` spanning all facets, then drop the per-registry copies. Direct callers of `register<Facet>Contributions` (e.g. canvas tests) would need to route through the top-level helper or add their own guard.
 
 ## Boundary
 
