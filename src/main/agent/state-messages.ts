@@ -241,12 +241,10 @@ export class StateMessageRegistry {
 
     if (
       this.registeredContributions.some(
-        (e) => e.contributionId === contributionId,
+        (e) => e.messageType === (canonicalId as string),
       )
     ) {
-      throw new Error(
-        `State message contribution already registered: ${contributionId}`,
-      );
+      throw new Error(`State message already registered: ${canonicalId}`);
     }
 
     const registeredContribution = toRegisteredContribution(

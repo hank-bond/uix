@@ -87,14 +87,12 @@ describe("registerFeatureContributions", () => {
       registerFeatureContributions({ resources }, "canvas", {
         resources: [resourceContribution()],
       }),
-    ).toThrow("Resource contribution already registered: canvas.resource.doc");
+    ).toThrow("Resource already registered: canvas-doc");
     expect(() =>
       registerFeatureContributions({ channels }, "canvas", {
         channels: [channelContribution()],
       }),
-    ).toThrow(
-      "Channel contribution already registered: canvas.channel.refresh",
-    );
+    ).toThrow("Channel already registered: canvas.refresh");
     expect(() =>
       registerFeatureContributions({ agentTools }, "canvas", {
         agentTools: [
@@ -104,14 +102,12 @@ describe("registerFeatureContributions", () => {
           },
         ],
       }),
-    ).toThrow(
-      "Agent tool contribution already registered: canvas.agent.anchor_read",
-    );
+    ).toThrow("Agent tool already registered: canvas__anchor_read");
     expect(() =>
       registerFeatureContributions({ state }, "canvas", {
         state: [{}],
       }),
-    ).toThrow("State contribution already registered: canvas.state");
+    ).toThrow("State already registered: canvas");
     expect(() =>
       registerFeatureContributions({ stateMessages }, "other", {
         stateMessages: [
@@ -133,9 +129,7 @@ describe("registerFeatureContributions", () => {
           },
         ],
       }),
-    ).toThrow(
-      "State message contribution already registered: canvas.state-message.canvas-diff",
-    );
+    ).toThrow("State message already registered: canvas.canvas-diff");
 
     registration[Symbol.dispose]();
 

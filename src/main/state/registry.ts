@@ -98,13 +98,9 @@ export function registerStateContributions(
   const contributionId = toContributionId(featureId, "state");
 
   if (
-    registry.registeredContributions.some(
-      (e) => e.contributionId === contributionId,
-    )
+    registry.registeredContributions.some((e) => e.canonicalId === canonicalId)
   ) {
-    throw new Error(
-      `State contribution already registered: ${contributionId as string}`,
-    );
+    throw new Error(`State already registered: ${canonicalId as string}`);
   }
 
   const registered: RegisteredStateContribution = {

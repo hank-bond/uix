@@ -157,7 +157,7 @@ describe("ResourceRegistry", () => {
           handle: () => new Response(""),
         },
       ]),
-    ).toThrow("Resource contribution already registered: canvas.resource.doc");
+    ).toThrow("Resource already registered: canvas-doc");
 
     const collision = createTestRegistry();
     registerResourceContributions(collision.registry, "canvas", [

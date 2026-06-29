@@ -47,9 +47,7 @@ describe("AgentToolRegistry", () => {
       registerAgentToolContributions(registry, "canvas", [
         { name: "anchor_read", tool: body("other") },
       ]),
-    ).toThrow(
-      "Agent tool contribution already registered: canvas.agent.anchor_read",
-    );
+    ).toThrow("Agent tool already registered: canvas__anchor_read");
   });
 
   it("rejects duplicate canonical tool names across features", () => {

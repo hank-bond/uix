@@ -82,7 +82,6 @@ export function registerResourceProtocol(
 export class ResourceRegistry implements Disposable {
   readonly #workspaceId: string;
   readonly #unhandle: ResourceTransportUnhandle;
-  readonly #contributionIds = new Set<ContributionId>();
   readonly #canonicalIds = new Set<ResourceCanonicalId>();
   readonly #registrations = new Map<
     ResourceCanonicalId,
@@ -101,18 +100,12 @@ export class ResourceRegistry implements Disposable {
     if (this.#disposed) {
       throw new Error("Resource registry is disposed");
     }
-    if (this.#contributionIds.has(registration.contributionId)) {
-      throw new Error(
-        `Resource contribution already registered: ${registration.contributionId as string}`,
-      );
-    }
     if (this.#canonicalIds.has(registration.canonicalId)) {
       throw new Error(
         `Resource already registered: ${registration.canonicalId as string}`,
       );
     }
 
-    this.#contributionIds.add(registration.contributionId);
     this.#canonicalIds.add(registration.canonicalId);
     this.#registrations.set(registration.canonicalId, registration);
 
@@ -120,7 +113,6 @@ export class ResourceRegistry implements Disposable {
     return disposable(() => {
       if (disposed) return;
       disposed = true;
-      this.#contributionIds.delete(registration.contributionId);
       this.#canonicalIds.delete(registration.canonicalId);
       this.#registrations.delete(registration.canonicalId);
     });
@@ -130,7 +122,6 @@ export class ResourceRegistry implements Disposable {
     if (this.#disposed) return;
     this.#disposed = true;
     this.#registrations.clear();
-    this.#contributionIds.clear();
     this.#canonicalIds.clear();
     this.#unhandle(ResourceProtocolScheme);
   }

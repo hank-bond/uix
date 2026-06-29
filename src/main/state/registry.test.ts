@@ -52,7 +52,7 @@ describe("StateRegistry", () => {
     registerStateContributions(state, "canvas", [{}]);
 
     expect(() => registerStateContributions(state, "canvas", [{}])).toThrow(
-      "State contribution already registered: canvas.state",
+      "State already registered: canvas",
     );
   });
 

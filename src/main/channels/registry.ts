@@ -19,7 +19,6 @@ import {
   channelRequestRegistrations,
   normalizeChannelContribution,
 } from "#shared/channel-normalization";
-import type { ContributionId } from "#shared/contribution-id";
 import { Value } from "typebox/value";
 
 import type { HandleLogOptions } from "../ipc";
@@ -55,23 +54,16 @@ export function createChannelRegistry(
     ((canonicalId, fn, logOpts) =>
       ipc.handle<unknown, unknown>(canonicalId, fn, logOpts));
   const publish = opts.publish ?? (() => undefined);
-  const contributionIds = new Set<ContributionId>();
   const canonicalIds = new Set<ChannelCanonicalId>();
 
   return {
     publish,
     register<Req, Res>(channelRegistration: ChannelRegistration<Req, Res>) {
-      const { contributionId, canonicalId } = channelRegistration;
-      if (contributionIds.has(contributionId)) {
-        throw new Error(
-          `Channel contribution already registered: ${contributionId as string}`,
-        );
-      }
+      const { canonicalId } = channelRegistration;
       if (canonicalIds.has(canonicalId)) {
         throw new Error(`Channel already registered: ${canonicalId}`);
       }
 
-      contributionIds.add(contributionId);
       canonicalIds.add(canonicalId);
       const transportRegistration = handle(
         canonicalId,
@@ -88,7 +80,6 @@ export function createChannelRegistry(
         if (disposed) return;
         disposed = true;
         transportRegistration[Symbol.dispose]();
-        contributionIds.delete(contributionId);
         canonicalIds.delete(canonicalId);
       });
     },

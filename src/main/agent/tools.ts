@@ -26,6 +26,7 @@ export interface AgentToolContribution {
 }
 
 export interface AgentToolRegistry {
+  readonly registeredContributions: AgentToolRegistration[];
   register(contribution: AgentToolRegistration): Disposable;
 }
 
@@ -33,15 +34,6 @@ class RegisteredAgentToolContributions implements AgentToolRegistry {
   readonly registeredContributions: AgentToolRegistration[] = [];
 
   register(contribution: AgentToolRegistration): Disposable {
-    if (
-      this.registeredContributions.some(
-        (e) => e.contributionId === contribution.contributionId,
-      )
-    ) {
-      throw new Error(
-        `Agent tool contribution already registered: ${contribution.contributionId as string}`,
-      );
-    }
     if (
       this.registeredContributions.some(
         (e) => e.canonicalId === contribution.canonicalId,
@@ -98,7 +90,7 @@ export function createAgentToolInstaller(
 }
 
 function liveContributions(
-  registry: RegisteredAgentToolContributions,
+  registry: AgentToolRegistry,
   installedContributions: readonly AgentToolRegistration[],
 ): readonly AgentToolRegistration[] {
   return installedContributions.filter((contribution) =>

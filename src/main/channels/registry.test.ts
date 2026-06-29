@@ -65,7 +65,7 @@ describe("ChannelRegistry", () => {
     expect(transport.disposed).toEqual(["canvas.writeback"]);
   });
 
-  it("rejects duplicate contribution and canonical ids until disposed", () => {
+  it("rejects duplicate canonical ids until disposed", () => {
     const transport = fakeTransport();
     const registry = createChannelRegistry({
       handle: (canonicalId, fn) => transport.handle(canonicalId, fn),
@@ -79,17 +79,6 @@ describe("ChannelRegistry", () => {
       handle: () => undefined,
     });
 
-    expect(() =>
-      registry.register({
-        contributionId: toContributionId("canvas", "channel", "refresh"),
-        canonicalId: toChannelCanonicalId("other", "refresh"),
-        request: Type.Object({}),
-        response: Type.Void(),
-        handle: () => undefined,
-      }),
-    ).toThrow(
-      "Channel contribution already registered: canvas.channel.refresh",
-    );
     expect(() =>
       registry.register({
         contributionId: toContributionId("other", "channel", "refresh"),
