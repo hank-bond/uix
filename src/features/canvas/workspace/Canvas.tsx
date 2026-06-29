@@ -3,11 +3,10 @@
 // TODO: hardcoded surface — becomes a registered Workspace surface once surface
 // contributions land.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  CanvasResourceScheme,
-  encodeCanvasKeyHost,
+  toResourceOrigin,
   toResourceUrl,
   type CanvasKey,
 } from "../shared/addressing";
@@ -24,6 +23,7 @@ export interface CanvasProps {
 
 export function Canvas({ canvasKey, workspace }: CanvasProps) {
   const canvas = useCanvasClient(workspace);
+  const frameRef = useRef<HTMLIFrameElement>(null);
   const [token, setToken] = useState(0);
 
   useEffect(() => {
@@ -36,10 +36,12 @@ export function Canvas({ canvasKey, workspace }: CanvasProps) {
 
   useEffect(() => {
     // The shim postMessages human edits up from the sandboxed canvas frame.
-    // Trust only this canvas's own origin and its own key.
-    const origin = `${CanvasResourceScheme}://${encodeCanvasKeyHost(canvasKey)}`;
+    // Trust only this feature's isolated origin, this exact iframe window, and
+    // this canvas key. The origin is feature-scoped rather than per-document.
+    const origin = toResourceOrigin(workspace.workspaceId);
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== origin) return;
+      if (event.source !== frameRef.current?.contentWindow) return;
       const msg = event.data as { type?: string; key?: string; html?: string };
       if (msg?.type !== "uix:canvas-writeback" || msg.key !== canvasKey) return;
       // Guard against a malformed message blanking the stored canvas.
@@ -48,12 +50,13 @@ export function Canvas({ canvasKey, workspace }: CanvasProps) {
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [canvas, canvasKey]);
+  }, [canvas, canvasKey, workspace.workspaceId]);
 
   return (
     <iframe
+      ref={frameRef}
       className="canvas-frame"
-      src={toResourceUrl(canvasKey, token)}
+      src={toResourceUrl(workspace.workspaceId, canvasKey, token)}
       title={`canvas ${canvasKey}`}
       // allow-scripts + allow-same-origin is safe here because the iframe's
       // origin is the canvas's own custom-protocol origin, not the host's.

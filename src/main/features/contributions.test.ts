@@ -6,6 +6,7 @@ import { createStateMessageRegistry } from "../agent/state-messages";
 import { createAgentToolRegistry } from "../agent/tools";
 import { createChannelRegistry } from "../channels/registry";
 import { createResourceRegistry } from "../resources/registry";
+import { normalizeResourceRoute } from "#shared/resource-routes";
 import { createStateRegistry } from "../state/registry";
 
 import {
@@ -28,6 +29,14 @@ function channelContribution(name = "refresh") {
   };
 }
 
+function resourceContribution(name = "doc") {
+  return {
+    name,
+    route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
+    handle: () => new Response(""),
+  };
+}
+
 function agentTool(name: string) {
   return {
     name,
@@ -43,6 +52,7 @@ function agentTool(name: string) {
 describe("registerFeatureContributions", () => {
   it("registers all contribution groups and disposes them together", () => {
     const resources = createResourceRegistry({
+      workspaceId: "local",
       handle: () => undefined,
       unhandle: () => undefined,
     });
@@ -59,12 +69,7 @@ describe("registerFeatureContributions", () => {
       { resources, channels, agentTools, state, stateMessages },
       "canvas",
       {
-        resources: [
-          {
-            name: "doc",
-            handle: () => new Response(""),
-          },
-        ],
+        resources: [resourceContribution()],
         channels: [channelContribution()],
         agentTools: [agentTool("anchor_read")],
         state: [
@@ -82,12 +87,7 @@ describe("registerFeatureContributions", () => {
 
     expect(() =>
       registerFeatureContributions({ resources }, "canvas", {
-        resources: [
-          {
-            name: "doc",
-            handle: () => new Response(""),
-          },
-        ],
+        resources: [resourceContribution()],
       }),
     ).toThrow("Resource contribution already registered: canvas.resource.doc");
     expect(() =>
@@ -146,12 +146,7 @@ describe("registerFeatureContributions", () => {
         { resources, channels, agentTools, state, stateMessages },
         "canvas",
         {
-          resources: [
-            {
-              name: "doc",
-              handle: () => new Response(""),
-            },
-          ],
+          resources: [resourceContribution()],
           channels: [channelContribution()],
           agentTools: [agentTool("anchor_read")],
           state: [{ id: "canvas" }],
@@ -170,12 +165,7 @@ describe("registerFeatureContributions", () => {
   it("rejects contribution groups when the matching registry is missing", () => {
     expect(() =>
       registerFeatureContributions({}, "canvas", {
-        resources: [
-          {
-            name: "doc",
-            handle: () => new Response(""),
-          },
-        ],
+        resources: [resourceContribution()],
       }),
     ).toThrow(
       "Feature canvas contributes resources but no resource registry was provided",
@@ -220,21 +210,13 @@ describe("registerFeatureContributions", () => {
 });
 
 describe("registerFeaturePreflightContributions", () => {
-  it("registers pre-ready resource schemes from feature definitions", () => {
+  it("registers the pre-ready resource protocol", () => {
     const registered: Electron.CustomScheme[][] = [];
 
     registerFeaturePreflightContributions(
       [
         {
           id: "canvas",
-          preflight: {
-            resourceSchemes: [
-              {
-                name: "doc",
-                privileges: { standard: true },
-              },
-            ],
-          },
           contribute: () => ({}),
         },
       ],
@@ -246,8 +228,12 @@ describe("registerFeaturePreflightContributions", () => {
     expect(registered).toEqual([
       [
         {
-          scheme: "canvas-doc",
-          privileges: { standard: true },
+          scheme: "uix-resource",
+          privileges: {
+            standard: true,
+            secure: true,
+            supportFetchAPI: true,
+          },
         },
       ],
     ]);

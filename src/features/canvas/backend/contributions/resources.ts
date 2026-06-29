@@ -2,12 +2,10 @@
 
 import {
   CanvasResourceName,
-  decodeCanvasKeyHost,
+  CanvasResourceRoute,
+  parseCanvasKeyRouteParam,
 } from "../../shared/addressing";
-import type {
-  ResourceContribution,
-  ResourceSchemeContribution,
-} from "#backend/resources/registry";
+import type { ResourceContribution } from "#backend/resources/registry";
 import { createLogger } from "#backend/log";
 import type { CanvasContext } from "../context";
 
@@ -15,24 +13,15 @@ import { injectCanvasShim } from "../shim";
 
 const log = createLogger("canvas");
 
-export const canvasResourceScheme: ResourceSchemeContribution = {
-  name: CanvasResourceName,
-  privileges: {
-    standard: true,
-    secure: true,
-    supportFetchAPI: true,
-  },
-};
-
 export function createCanvasResourceContributions(
   ctx: CanvasContext,
 ): readonly ResourceContribution[] {
   return [
     {
       name: CanvasResourceName,
-      async handle(request) {
-        const url = new URL(request.url);
-        const key = decodeCanvasKeyHost(url.hostname);
+      route: CanvasResourceRoute,
+      async handle({ params }) {
+        const key = parseCanvasKeyRouteParam(params["key"]);
         const html = key ? await ctx.store.getCurrent(key) : null;
 
         if (key && html !== null) {
@@ -40,8 +29,8 @@ export function createCanvasResourceContributions(
           return htmlResponse(injectCanvasShim(html, key), 200);
         }
 
-        log.debug({ key: key ?? url.hostname }, "canvas_not_found");
-        return htmlResponse(notFoundHtml(key ?? url.hostname), 404);
+        log.debug({ key: key ?? "invalid" }, "canvas_not_found");
+        return htmlResponse(notFoundHtml(key ?? "invalid"), 404);
       },
     },
   ];

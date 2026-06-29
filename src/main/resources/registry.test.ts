@@ -1,10 +1,15 @@
+import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
 import {
   createResourceRegistry,
   registerResourceContributions,
-  registerResourceSchemeContributions,
+  registerResourceProtocol,
 } from "./registry";
+import {
+  normalizeResourceRoute,
+  ResourceProtocolScheme,
+} from "#shared/resource-routes";
 
 function fakeTransport() {
   const handlers = new Map<
@@ -29,108 +34,117 @@ function fakeTransport() {
   };
 }
 
-describe("registerResourceSchemeContributions", () => {
-  it("registers Electron scheme privileges in one batch", () => {
+function createTestRegistry(transport = fakeTransport()) {
+  const registry = createResourceRegistry({
+    workspaceId: "blue-river",
+    handle: (scheme, fn) => transport.handle(scheme, fn),
+    unhandle: (scheme) => transport.unhandle(scheme),
+  });
+  return { registry, transport };
+}
+
+describe("registerResourceProtocol", () => {
+  it("registers the substrate resource protocol", () => {
     const registered: Electron.CustomScheme[][] = [];
 
-    registerResourceSchemeContributions(
-      [
-        {
-          featureId: "canvas",
-          contributions: [
-            {
-              name: "doc",
-              privileges: { standard: true, secure: true },
-            },
-          ],
-        },
-      ],
-      (schemes) => registered.push(schemes),
-    );
+    registerResourceProtocol((schemes) => registered.push(schemes));
 
     expect(registered).toEqual([
       [
         {
-          scheme: "canvas-doc",
-          privileges: { standard: true, secure: true },
+          scheme: ResourceProtocolScheme,
+          privileges: {
+            standard: true,
+            secure: true,
+            supportFetchAPI: true,
+          },
         },
       ],
     ]);
   });
-
-  it("rejects duplicate scheme contribution ids and names", () => {
-    expect(() =>
-      registerResourceSchemeContributions(
-        [
-          {
-            featureId: "canvas",
-            contributions: [
-              { name: "doc", privileges: {} },
-              { name: "doc", privileges: {} },
-            ],
-          },
-        ],
-        () => undefined,
-      ),
-    ).toThrow(
-      "Resource scheme contribution already registered: canvas.resource.doc",
-    );
-
-    expect(() =>
-      registerResourceSchemeContributions(
-        [
-          {
-            featureId: "canvas",
-            contributions: [{ name: "doc-html", privileges: {} }],
-          },
-          {
-            featureId: "canvas-doc",
-            contributions: [{ name: "html", privileges: {} }],
-          },
-        ],
-        () => undefined,
-      ),
-    ).toThrow("Resource scheme already registered: canvas-doc-html");
-  });
 });
 
 describe("ResourceRegistry", () => {
-  it("registers resource handlers and disposes them", async () => {
-    const transport = fakeTransport();
-    const registry = createResourceRegistry({
-      handle: (scheme, fn) => transport.handle(scheme, fn),
-      unhandle: (scheme) => transport.unhandle(scheme),
-    });
+  it("dispatches resource requests through parsed route context", async () => {
+    const { registry, transport } = createTestRegistry();
 
     const registration = registerResourceContributions(registry, "canvas", [
       {
         name: "doc",
-        handle: () => new Response("hello", { status: 200 }),
+        route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
+        handle: ({ params }) =>
+          new Response(`hello ${JSON.stringify(params["key"])}`, {
+            status: 200,
+          }),
       },
     ]);
 
-    const response = await transport.handlers.get("canvas-doc")?.(
-      new Request("canvas-doc://main/"),
+    const response = await transport.handlers.get(ResourceProtocolScheme)?.(
+      new Request("uix-resource://canvas.blue-river/doc/reports/security"),
     );
 
-    expect(await response?.text()).toBe("hello");
+    expect(await response?.text()).toBe('hello ["reports","security"]');
 
     registration[Symbol.dispose]();
 
-    expect(transport.handlers.has("canvas-doc")).toBe(false);
-    expect(transport.disposed).toEqual(["canvas-doc"]);
+    const afterDispose = await transport.handlers.get(ResourceProtocolScheme)?.(
+      new Request("uix-resource://canvas.blue-river/doc/reports/security"),
+    );
+    expect(afterDispose?.status).toBe(404);
   });
 
-  it("rejects duplicate resource ids and schemes until disposed", () => {
-    const transport = fakeTransport();
-    const registry = createResourceRegistry({
-      handle: (scheme, fn) => transport.handle(scheme, fn),
-      unhandle: (scheme) => transport.unhandle(scheme),
-    });
+  it("dispatches workspace-origin resources with feature in the path", async () => {
+    const { registry, transport } = createTestRegistry();
+
+    registerResourceContributions(registry, "reports", [
+      {
+        name: "doc",
+        route: normalizeResourceRoute({ path: "/:id", origin: "workspace" }),
+        handle: ({ params }) => new Response(String(params["id"])),
+      },
+    ]);
+
+    const response = await transport.handlers.get(ResourceProtocolScheme)?.(
+      new Request("uix-resource://blue-river/reports/doc/security-review"),
+    );
+
+    expect(await response?.text()).toBe("security-review");
+  });
+
+  it("validates query before calling the contribution handler", async () => {
+    const { registry, transport } = createTestRegistry();
+    let called = false;
+
+    registerResourceContributions(registry, "canvas", [
+      {
+        name: "doc",
+        route: normalizeResourceRoute({
+          path: "/:key*",
+          query: Type.Object({ v: Type.Optional(Type.String()) }),
+          origin: "feature",
+        }),
+        handle: () => {
+          called = true;
+          return new Response("ok");
+        },
+      },
+    ]);
+
+    const response = await transport.handlers.get(ResourceProtocolScheme)?.(
+      new Request("uix-resource://canvas.blue-river/doc/main?v=1&v=2"),
+    );
+
+    expect(response?.status).toBe(400);
+    expect(called).toBe(false);
+  });
+
+  it("rejects duplicate resource ids and resource types until disposed", () => {
+    const { registry } = createTestRegistry();
 
     const registration = registerResourceContributions(registry, "canvas", [
       {
         name: "doc",
+        route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
         handle: () => new Response(""),
       },
     ]);
@@ -139,29 +153,29 @@ describe("ResourceRegistry", () => {
       registerResourceContributions(registry, "canvas", [
         {
           name: "doc",
+          route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
           handle: () => new Response(""),
         },
       ]),
     ).toThrow("Resource contribution already registered: canvas.resource.doc");
-    const collisionTransport = fakeTransport();
-    const collisionRegistry = createResourceRegistry({
-      handle: (scheme, fn) => collisionTransport.handle(scheme, fn),
-      unhandle: (scheme) => collisionTransport.unhandle(scheme),
-    });
-    registerResourceContributions(collisionRegistry, "canvas", [
+
+    const collision = createTestRegistry();
+    registerResourceContributions(collision.registry, "canvas", [
       {
         name: "doc-html",
+        route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
         handle: () => new Response(""),
       },
     ]);
     expect(() =>
-      registerResourceContributions(collisionRegistry, "canvas-doc", [
+      registerResourceContributions(collision.registry, "canvas-doc", [
         {
           name: "html",
+          route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
           handle: () => new Response(""),
         },
       ]),
-    ).toThrow("Resource scheme already handled: canvas-doc-html");
+    ).toThrow("Resource already registered: canvas-doc-html");
 
     registration[Symbol.dispose]();
 
@@ -169,38 +183,52 @@ describe("ResourceRegistry", () => {
       registerResourceContributions(registry, "canvas", [
         {
           name: "doc",
+          route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
           handle: () => new Response(""),
         },
       ]),
     ).not.toThrow();
   });
 
-  it("registers contribution groups and disposes them together", () => {
-    const transport = fakeTransport();
-    const registry = createResourceRegistry({
-      handle: (scheme, fn) => transport.handle(scheme, fn),
-      unhandle: (scheme) => transport.unhandle(scheme),
-    });
+  it("registers contribution groups and disposes them together", async () => {
+    const { registry, transport } = createTestRegistry();
 
     const registration = registerResourceContributions(registry, "canvas", [
       {
         name: "doc",
-        handle: () => new Response(""),
+        route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
+        handle: () => new Response("doc"),
       },
       {
         name: "asset",
-        handle: () => new Response(""),
+        route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
+        handle: () => new Response("asset"),
       },
     ]);
 
-    expect([...transport.handlers.keys()].sort()).toEqual([
-      "canvas-asset",
-      "canvas-doc",
-    ]);
+    const doc = await transport.handlers.get(ResourceProtocolScheme)?.(
+      new Request("uix-resource://canvas.blue-river/doc/main"),
+    );
+    const asset = await transport.handlers.get(ResourceProtocolScheme)?.(
+      new Request("uix-resource://canvas.blue-river/asset/main"),
+    );
+    expect(await doc?.text()).toBe("doc");
+    expect(await asset?.text()).toBe("asset");
 
     registration[Symbol.dispose]();
 
-    expect(transport.handlers.size).toBe(0);
-    expect(transport.disposed).toEqual(["canvas-asset", "canvas-doc"]);
+    const missing = await transport.handlers.get(ResourceProtocolScheme)?.(
+      new Request("uix-resource://canvas.blue-river/doc/main"),
+    );
+    expect(missing?.status).toBe(404);
+  });
+
+  it("unhandles the transport when the registry is disposed", () => {
+    const { registry, transport } = createTestRegistry();
+
+    registry[Symbol.dispose]();
+
+    expect(transport.handlers.has(ResourceProtocolScheme)).toBe(false);
+    expect(transport.disposed).toEqual([ResourceProtocolScheme]);
   });
 });

@@ -81,6 +81,8 @@ Settled R1 choices: splats are spelled `:key*`; normal params decode as `string`
 
 ### R2 — Resource registry request wrapper
 
+_Landed: resource contributions now declare `path`, `query`, and `origin`; the registry registers one `uix-resource` protocol handler, dispatches against normalized routes, and passes parsed context to handlers._
+
 Change `ResourceContribution.handle` from raw `Request` to parsed context:
 
 ```ts
@@ -95,9 +97,13 @@ The registry wraps `protocol.handle` callbacks, parses the request URL against t
 
 ### R3 — Substrate URL builder for renderer/workspace code
 
+_Landed as a direct shared codec: `encodeResourceUrl(...)` builds branded resource URLs from normalized route metadata. Canvas calls it through a small feature helper while the future Workspace resource client is not yet in place._
+
 Expose a resource URL builder that takes feature id + resource name + params/query and uses the registered/normalized route metadata. First cut can be a direct helper while canvas is still hardcoded; later W6 can move it behind `resourceClient.url(...)` or a scoped feature resource client.
 
 ### R4 — Migrate canvas resource
+
+_Landed: canvas declares `path: "/:key*"`, `origin: "feature"`, and query validation; backend serving reads parsed route params; renderer iframe URLs use `uix-resource://canvas.<workspace>/doc/...`; writeback trust checks feature origin plus `event.source`._
 
 Canvas contributes:
 

@@ -12,6 +12,8 @@ import type { WorkspaceClient } from "@uix/api/workspace";
 // still access the preload bridge directly; once Workspace runs in a Host-owned
 // iframe, WorkspaceClient will be backed by postMessage instead and Host will
 // keep the preload access on its side of the bridge.
+export const LocalWorkspaceId = "local";
+
 export const UixRequests = {
   reload: "uix.reload",
 } as const;
@@ -25,6 +27,7 @@ export function createPreloadWorkspaceClient(
   bridge: UIXBridge,
 ): WorkspaceClient {
   return {
+    workspaceId: LocalWorkspaceId,
     request<Req, Res>(name: string, req: Req): Promise<Res> {
       switch (name) {
         case AgentRequests.prompt:

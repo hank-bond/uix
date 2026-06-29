@@ -41,6 +41,7 @@ function fakeWorkspaceClient() {
     (_name: string, _handler: (event: unknown) => void) => () => undefined,
   );
   const client: WorkspaceClient = {
+    workspaceId: "local",
     request<Req, Res>(name: string, req: Req): Promise<Res> {
       return request(name, req) as Promise<Res>;
     },

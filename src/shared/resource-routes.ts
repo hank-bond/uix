@@ -148,6 +148,26 @@ export function normalizeResourceRoute<const Query extends TSchema>(
   };
 }
 
+export function encodeResourceOrigin(
+  route: NormalizedResourceRoute,
+  featureId: string,
+  workspaceId: string,
+): { origin: string; pathPrefix: string } {
+  // Feature-origin resources put the feature in the host so Chromium isolates
+  // them from the workspace. Workspace-origin resources put the feature in the
+  // path because the host only identifies the workspace.
+  if (route.origin === "feature") {
+    return {
+      origin: `${ResourceProtocolScheme}://${featureId}.${workspaceId}`,
+      pathPrefix: "",
+    };
+  }
+  return {
+    origin: `${ResourceProtocolScheme}://${workspaceId}`,
+    pathPrefix: `/${featureId}`,
+  };
+}
+
 export function encodeResourceUrl(
   route: NormalizedResourceRoute,
   location: EncodeResourceUrlInput,
@@ -156,17 +176,12 @@ export function encodeResourceUrl(
   const params = encodeRoutePath(route, location.params ?? {});
   const query = encodeQuery(route, location.query);
 
-  // if the origin is set to be feature scope then we need the feature to be part of
-  // the 'domain' to achieve the desired isolation.  if its not then we can just make
-  // it part of the path as a way to specify the location.  we need the information either
-  // way, its just whether or not the feature is used as part of the origin scoping or not.
-  const scope =
-    route.origin === "feature"
-      ? `${featureId}.${workspaceId}`
-      : `${workspaceId}/${featureId}`;
-  const url =
-    `${ResourceProtocolScheme}://${scope}/${name}${params}${query}` as ResourceUrl;
-  return url;
+  const { origin, pathPrefix } = encodeResourceOrigin(
+    route,
+    featureId,
+    workspaceId,
+  );
+  return `${origin}${pathPrefix}/${name}${params}${query}` as ResourceUrl;
 }
 
 export function decodeResourceUrl(

@@ -1,8 +1,8 @@
 // resource canonical id brand and constructor.
 //
-// A resource canonical id is the downstream URL scheme used by the resource
-// transport. The resource facet derives it from feature id + local resource
-// name so feature authors do not hand-author protocol strings.
+// A resource canonical id is the feature-scoped resource type key used by the
+// resource registry. The resource facet derives it from feature id + local
+// resource name so feature authors do not hand-author transport strings.
 
 const ResourceCanonicalIdBrand: unique symbol = Symbol("ResourceCanonicalId");
 
@@ -11,7 +11,7 @@ export type ResourceCanonicalId = string & {
 };
 
 /**
- * Builds the URL scheme for a resource contribution: `${featureId}-${name}`.
+ * Builds the canonical resource type for a resource contribution: `${featureId}-${name}`.
  * Validates each segment; a failure is an app bug.
  */
 export function toResourceCanonicalId(

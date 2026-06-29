@@ -51,6 +51,7 @@ import { createLogger } from "./log";
 
 const isDev = !app.isPackaged;
 const bundledFeatures = getBundledFeatures();
+const LocalWorkspaceId = "local";
 
 registerFeaturePreflightContributions(bundledFeatures);
 
@@ -153,7 +154,9 @@ void app.whenReady().then(async () => {
 
   // Facet registries. Features contribute data into these; substrate installers
   // adapt the registries to pi when the agent session opens.
-  const resources = createResourceRegistry();
+  const resources = appBag.add(
+    createResourceRegistry({ workspaceId: LocalWorkspaceId }),
+  );
   const channels = createChannelRegistry({
     publish(channel, payload) {
       for (const win of BrowserWindow.getAllWindows()) {

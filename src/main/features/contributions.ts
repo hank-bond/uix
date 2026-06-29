@@ -19,19 +19,16 @@ import { DisposableBag } from "../lifecycle";
 import type {
   ResourceContribution,
   ResourceRegistry,
-  ResourceSchemeContribution,
   ResourceSchemeRegistrar,
 } from "../resources/registry";
 import {
   registerResourceContributions,
-  registerResourceSchemeContributions,
+  registerResourceProtocol,
 } from "../resources/registry";
 import type { StateContribution, StateRegistry } from "../state/registry";
 import { registerStateContributions } from "../state/registry";
 
-export interface FeaturePreflightContributions {
-  resourceSchemes?: readonly ResourceSchemeContribution[];
-}
+export type FeaturePreflightContributions = Record<string, never>;
 
 export interface FeatureDefinition<
   ContributedContext extends Record<string, unknown> = Record<string, unknown>,
@@ -144,14 +141,8 @@ export function registerFeatureContributions(
 }
 
 export function registerFeaturePreflightContributions(
-  features: readonly FeatureDefinition[],
+  _features: readonly FeatureDefinition[],
   registerResourceSchemes?: ResourceSchemeRegistrar,
 ): void {
-  registerResourceSchemeContributions(
-    features.map((feature) => ({
-      featureId: feature.id,
-      contributions: feature.preflight?.resourceSchemes ?? [],
-    })),
-    registerResourceSchemes,
-  );
+  registerResourceProtocol(registerResourceSchemes);
 }
