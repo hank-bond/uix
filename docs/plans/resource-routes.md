@@ -11,7 +11,7 @@ Related plan: [contribution-id-derivation](./contribution-id-derivation.md) esta
 
 Resource contributions should describe **what location shape they serve**, not hand-build protocol URLs. The resource facet should derive the resource type address (`canvas-doc` today), generate renderer URLs, parse incoming requests, and hide Electron custom-protocol vs future web-server hosting from feature code.
 
-Canvas is the first migration target: it should keep owning `CanvasKey` validation, but stop owning host/path URL mechanics such as `encodeCanvasKeyHost` / `decodeCanvasKeyHost`.
+Canvas is the first migration target: it should keep owning `CanvasKey` validation, but stop owning host/path URL mechanics such as `encodeCanvasKeyHost` / `decodeCanvasKeyHost`. Its authored documents need a feature-isolated browser origin, not per-document origin partitioning.
 
 ## Target model
 
@@ -25,17 +25,24 @@ A resource contribution declares a local name, a route, optional query schema, a
 ```ts
 {
   name: "doc",
-  route: "/:key*",
+  path: "/:key*",
   query: Type.Object({
     v: Type.Optional(Type.String()),
   }),
-  origin: { perParam: "key" },
+  origin: "feature",
   handle({ request, params, query }) {
     const key = parseCanvasKey(params.key.join("/"));
     // serve canvas document
   },
 }
 ```
+
+Origin policy is intentionally coarse for now:
+
+- `"workspace"` means the resource belongs to the shared app/workspace origin.
+- `"feature"` means the resource belongs to one isolated origin for this feature within the workspace.
+
+Hosted UIX maps these to shapes like `https://{workspace}.uix.sh/...` for workspace resources and `https://{feature}.{workspace}.uix.sh/...` for feature-isolated resources. Route params affect only resource location, never origin partitioning.
 
 The substrate provides the inverse URL builder. The helper name may change once it moves behind a Workspace resource client, but the operation is deterministic conversion from resource type + route params into a transport URL:
 
@@ -46,29 +53,31 @@ toResourceUrl("canvas", "doc", {
 });
 ```
 
-Transport-specific output is not feature-owned. Electron may encode the isolated origin as a custom-protocol host; hosted UIX may encode the same route as an HTTP path or subdomain.
+Transport-specific output is not feature-owned. Electron encodes resource requests under one substrate protocol scheme (`uix-resource://...`) and uses the URL host for workspace/feature origin partitioning; hosted UIX encodes the same route as HTTP paths and workspace/feature subdomains.
 
 ## Design constraints
 
 - **One declaration, two directions.** The same route declaration must generate renderer URLs and parse backend requests.
 - **Feature validates domain semantics.** The substrate parses route params/query; canvas still validates `CanvasKey`. The substrate should not learn canvas's slash-slug grammar.
-- **Origin policy is explicit.** Canvas requires per-document iframe origin isolation, so the route contract must express which param controls origin isolation instead of hiding that decision in a feature-owned host codec.
-- **Small DSL.** Do not build Express. Start with fixed segments, `:param`, `:splat*`, and typed query parsing.
+- **Origin policy is explicit.** Canvas requires iframe origin isolation from the workspace/host, so the route contract says whether a resource belongs to the shared workspace origin or to the feature's isolated origin instead of hiding that decision in a feature-owned host codec.
+- **Small DSL.** Do not build Express. Start with static segments, `:param`, `:splat*`, and typed query parsing.
 - **Transport portability.** Feature code must not depend on Electron protocol shape. The route contract should adapt to local Electron and future web-server/hosted transport.
 
 ## Proposed units
 
 ### R1 — Route model and pure codec tests
 
+_Landed: `src/shared/resource-routes.ts` defines the route model, normalized route representation, branded `ResourceUrl`, one `uix-resource` transport scheme with host-based origin partitioning, and pure encode/decode tests._
+
 Add shared route normalization helpers for resource routes:
 
-- `ResourceRoute` author shape (`route`, optional `query`, optional `origin`).
+- `ResourceRoute` author shape (`path`, optional `query`, `origin: "workspace" | "feature"`).
 - Parse route patterns into a small internal representation.
-- Encode params/query into a URL path/host representation for the Electron transport.
+- Encode params/query into a branded `ResourceUrl` string for the Electron transport.
 - Decode an incoming URL back into params/query.
 - Validate reversible cases and rejected malformed params in unit tests.
 
-Open design choice for R1: exact route DSL spelling for splats and how route params are represented (`string` vs `string[]`).
+Settled R1 choices: splats are spelled `:key*`; normal params decode as `string`; splat params decode as `readonly string[]`; generated URLs are branded strings, with encode/decode helpers external to the value; scheme is a permission/transport class, not the semantic resource type; workspace id is supplied by the workspace/runtime layer, not defaulted by the pure codec.
 
 ### R2 — Resource registry request wrapper
 
@@ -94,7 +103,7 @@ Canvas contributes:
 
 - `name: "doc"`
 - route for canvas document keys
-- per-key origin policy
+- feature-isolated origin policy
 - query param for cache-bust token
 
 Canvas removes URL host encode/decode from feature code. It keeps `CanvasKey`, `CanvasKeySchema`, and `parseCanvasKey` as domain validation for route params.
@@ -112,7 +121,7 @@ Update architecture/current-state and the workspace/resource plans. If the route
 
 ## Open questions
 
-1. Should `origin: { perParam: "key" }` accept a splat param directly, or should origin inputs be separately declared from path params?
-2. Should generated URLs be strings (`href`) or `URL` objects at the helper boundary?
-3. How should invalid parsed params map to responses: generic 404, explicit 400, or contribution-provided not-found handling?
-4. Does query validation use TypeBox immediately, or do we defer typed query until after route params land?
+1. Resolved: origin is `"workspace" | "feature"`; route params never drive origin partitioning.
+2. Resolved: generated URLs are branded strings (`ResourceUrl`), not mutable `URL` objects.
+3. Current direction: route/resource mismatches map to 404, malformed matching locations/query map to 400, and domain not-found remains contribution-owned.
+4. Resolved: query validation uses TypeBox immediately.
