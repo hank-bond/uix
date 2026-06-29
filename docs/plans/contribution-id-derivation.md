@@ -71,7 +71,7 @@ Files: `src/main/state/registry.ts`, `src/features/canvas/backend/contributions/
 ## After all units
 
 - `src/main/features/contributions.ts`: every `register<Facet>Contributions` call threads `featureId` (channels already does; U2–U5 add it).
-- `docs/architecture/concepts.md` Identifier grammar: already updated to the target model (this plan's source of truth). Reconcile any drift once all facets land.
+- `docs/architecture/concepts.md` Identifier grammar: already updated to the target model (this plan's source of truth). Reconcile any drift once all facets land. ✅ done — fixed `contributionId` → `toContributionId` helper name and the id-construction placement sentence (channels/resources in `#shared`; agent tools/state messages/private state in `src/main/`).
 - Run `npm run docs:check`.
 - **Future cleanup:** once U1/U2 are retrofitted to the class-directly-exported pattern (no interface wrappers), the `create*Registry` factory functions become trivial `new X()` passthroughs and can be dropped in favor of direct construction. `ChannelRegistry` is the only one that still captures closure state (the IPC `handle`/`publish` functions); those become constructor params.
 - **Lift duplicate-check out of registries:** every registry has its own `ContributionId` dedup guard. Move it into `registerFeatureContributions` as a single `Set<ContributionId>` spanning all facets, then drop the per-registry copies. Direct callers of `register<Facet>Contributions` (e.g. canvas tests) would need to route through the top-level helper or add their own guard.
