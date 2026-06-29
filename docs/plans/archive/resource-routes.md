@@ -1,6 +1,6 @@
 ---
 summary: "Make resource locations route-based: feature authors declare a resource route and origin policy, while the substrate owns URL generation/parsing across Electron and future hosted transports."
-status: active
+status: landed
 ---
 
 # Spec: resource routes
