@@ -35,7 +35,7 @@ export type AgentToolCanonicalId = string & {
  * Builds the pi tool name for a contribution: `${featureId}__${name}`.
  * Validates each segment; a failure is an app bug.
  */
-export function agentToolCanonicalId(
+export function toAgentToolCanonicalId(
   featureId: string,
   name: string,
 ): AgentToolCanonicalId {
@@ -78,7 +78,7 @@ export function normalizeAgentToolContribution(
   featureId: string,
   contribution: { readonly name: string; readonly tool: AgentToolDefinition },
 ): AgentToolRegistration {
-  const canonicalId = agentToolCanonicalId(featureId, contribution.name);
+  const canonicalId = toAgentToolCanonicalId(featureId, contribution.name);
   return {
     contributionId: toContributionId(featureId, "agent", contribution.name),
     canonicalId,

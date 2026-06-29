@@ -48,7 +48,7 @@ export type StateMessageCanonicalId = string & {
  * `${featureId}.${name}` (e.g. `canvas.pane-visibility`).
  * Validates each segment; a failure is an app bug.
  */
-function stateMessageCanonicalId(
+function toStateMessageCanonicalId(
   featureId: string,
   name: string,
 ): StateMessageCanonicalId {
@@ -232,7 +232,7 @@ export class StateMessageRegistry {
       | AppendContribution<TSchema>
       | MaterializedContribution,
   ): StateMessageUpdater<TSchema> | StateMessageAppender<TSchema> | Disposable {
-    const canonicalId = stateMessageCanonicalId(featureId, contribution.name);
+    const canonicalId = toStateMessageCanonicalId(featureId, contribution.name);
     const contributionId = toContributionId(
       featureId,
       "state-message",

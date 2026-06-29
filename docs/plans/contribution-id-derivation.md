@@ -74,7 +74,6 @@ Files: `src/main/state/registry.ts`, `src/features/canvas/backend/contributions/
 - `docs/architecture/concepts.md` Identifier grammar: already updated to the target model (this plan's source of truth). Reconcile any drift once all facets land.
 - Run `npm run docs:check`.
 - **Future cleanup:** once U1/U2 are retrofitted to the class-directly-exported pattern (no interface wrappers), the `create*Registry` factory functions become trivial `new X()` passthroughs and can be dropped in favor of direct construction. `ChannelRegistry` is the only one that still captures closure state (the IPC `handle`/`publish` functions); those become constructor params.
-- **Naming outliers:** `agentToolCanonicalId` (U2) and `stateMessageCanonicalId` (U3) lack the `to` prefix required by the `toX` convention in `docs/architecture/conventions.md`. Rename to `toAgentToolCanonicalId` / `toStateMessageCanonicalId` when those files are next touched.
 - **Lift duplicate-check out of registries:** every registry has its own `ContributionId` dedup guard. Move it into `registerFeatureContributions` as a single `Set<ContributionId>` spanning all facets, then drop the per-registry copies. Direct callers of `register<Facet>Contributions` (e.g. canvas tests) would need to route through the top-level helper or add their own guard.
 
 ## Boundary

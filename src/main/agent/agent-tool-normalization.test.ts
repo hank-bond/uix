@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { Type } from "typebox";
 
 import {
-  agentToolCanonicalId,
+  toAgentToolCanonicalId,
   normalizeAgentToolContribution,
 } from "./agent-tool-normalization";
 import type { AgentToolDefinition } from "./agent-tool-normalization";
@@ -19,36 +19,36 @@ function body(): AgentToolDefinition {
   };
 }
 
-describe("agentToolCanonicalId", () => {
+describe("toAgentToolCanonicalId", () => {
   it("joins featureId + name with pi's double underscore", () => {
-    expect(agentToolCanonicalId("canvas", "anchor_read")).toBe(
+    expect(toAgentToolCanonicalId("canvas", "anchor_read")).toBe(
       "canvas__anchor_read",
     );
-    expect(agentToolCanonicalId("canvas", "anchor_write")).toBe(
+    expect(toAgentToolCanonicalId("canvas", "anchor_write")).toBe(
       "canvas__anchor_write",
     );
   });
 
   it("rejects invalid feature ids", () => {
-    expect(() => agentToolCanonicalId("Canvas", "anchor_read")).toThrow(
+    expect(() => toAgentToolCanonicalId("Canvas", "anchor_read")).toThrow(
       "Invalid feature id",
     );
-    expect(() => agentToolCanonicalId("", "anchor_read")).toThrow(
+    expect(() => toAgentToolCanonicalId("", "anchor_read")).toThrow(
       "Invalid feature id",
     );
-    expect(() => agentToolCanonicalId("can-vas", "anchor_read")).toThrow(
+    expect(() => toAgentToolCanonicalId("can-vas", "anchor_read")).toThrow(
       "Invalid feature id",
     );
   });
 
   it("rejects invalid tool names", () => {
-    expect(() => agentToolCanonicalId("canvas", "AnchorRead")).toThrow(
+    expect(() => toAgentToolCanonicalId("canvas", "AnchorRead")).toThrow(
       "Invalid agent tool name",
     );
-    expect(() => agentToolCanonicalId("canvas", "")).toThrow(
+    expect(() => toAgentToolCanonicalId("canvas", "")).toThrow(
       "Invalid agent tool name",
     );
-    expect(() => agentToolCanonicalId("canvas", "anchor-read")).toThrow(
+    expect(() => toAgentToolCanonicalId("canvas", "anchor-read")).toThrow(
       "Invalid agent tool name",
     );
   });
