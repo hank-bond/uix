@@ -31,7 +31,7 @@ import { toContributionId, type ContributionId } from "#shared/contribution-id";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
 
-import type { AgentInstaller } from "./installers";
+import type { AgentInstaller } from "../agent/installers";
 
 // ---- canonical id brand ----
 

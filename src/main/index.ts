@@ -20,8 +20,11 @@ import {
   type ReloadResult,
 } from "../shared/ipc";
 import { createAgentDriver } from "./agent/driver";
-import { StateMessageRegistry } from "./agent/state-messages";
-import { createAgentToolInstaller, AgentToolRegistry } from "./agent/tools";
+import { StateMessageRegistry } from "./state-messages/registry";
+import {
+  createAgentToolInstaller,
+  AgentToolRegistry,
+} from "./agent-tools/registry";
 import {
   ChannelRegistry,
   createFeatureChannelPublisher,

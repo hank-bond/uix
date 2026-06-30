@@ -15,8 +15,8 @@ import {
   type AgentToolDefinition,
   type AgentToolRegistration,
   normalizeAgentToolContribution,
-} from "./agent-tool-normalization";
-import type { AgentInstaller } from "./installers";
+} from "./normalization";
+import type { AgentInstaller } from "../agent/installers";
 
 export interface AgentToolContribution {
   /** Local tool name: the facet derives `${featureId}__${name}` as the pi tool name. */

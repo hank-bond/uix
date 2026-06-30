@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { Type } from "typebox";
 
-import { StateMessageRegistry } from "../agent/state-messages";
-import { AgentToolRegistry } from "../agent/tools";
+import { StateMessageRegistry } from "../state-messages/registry";
+import { AgentToolRegistry } from "../agent-tools/registry";
 import { ChannelRegistry } from "../channels/registry";
 import { ResourceRegistry } from "../resources/registry";
 import { normalizeResourceRoute } from "#shared/resource-routes";

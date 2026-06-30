@@ -12,12 +12,12 @@ import {
   StateMessageRegistry,
   createStateMessageAssembler,
   registerStateMessageContributions,
-} from "#backend/agent/state-messages";
+} from "#backend/state-messages/registry";
 import {
   createAgentToolInstaller,
   AgentToolRegistry,
   registerAgentToolContributions,
-} from "#backend/agent/tools";
+} from "#backend/agent-tools/registry";
 import {
   createStateCoordinator,
   StateRegistry,

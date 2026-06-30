@@ -7,10 +7,13 @@
 import type {
   StateMessageContribution,
   StateMessageRegistry,
-} from "../agent/state-messages";
-import { registerStateMessageContributions } from "../agent/state-messages";
-import type { AgentToolContribution, AgentToolRegistry } from "../agent/tools";
-import { registerAgentToolContributions } from "../agent/tools";
+} from "../state-messages/registry";
+import { registerStateMessageContributions } from "../state-messages/registry";
+import type {
+  AgentToolContribution,
+  AgentToolRegistry,
+} from "../agent-tools/registry";
+import { registerAgentToolContributions } from "../agent-tools/registry";
 import type { ChannelContribution } from "@uix/api/channels";
 import type { ChannelRegistry } from "../channels/registry";
 import { registerChannelContributions } from "../channels/registry";

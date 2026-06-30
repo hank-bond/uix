@@ -15,8 +15,8 @@
 import { Type } from "typebox";
 
 import { CanvasKeyDescription, CanvasKeySchema } from "../../shared/addressing";
-import type { AgentToolContribution } from "#backend/agent/tools";
-import type { AgentToolDefinition } from "#backend/agent/agent-tool-normalization";
+import type { AgentToolContribution } from "#backend/agent-tools/registry";
+import type { AgentToolDefinition } from "#backend/agent-tools/normalization";
 import { formatAnchoredText, parseAnchoredLine } from "#backend/anchors/wire";
 import type { CanvasContext } from "../context";
 

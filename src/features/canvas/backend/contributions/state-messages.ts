@@ -2,7 +2,7 @@
 
 import { Type } from "typebox";
 
-import type { StateMessageContribution } from "#backend/agent/state-messages";
+import type { StateMessageContribution } from "#backend/state-messages/registry";
 import { createLogger } from "#backend/log";
 
 import { formatCanvasChanges } from "../anchored-format";

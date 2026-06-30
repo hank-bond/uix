@@ -5,8 +5,8 @@ import { Type } from "typebox";
 import {
   toAgentToolCanonicalId,
   normalizeAgentToolContribution,
-} from "./agent-tool-normalization";
-import type { AgentToolDefinition } from "./agent-tool-normalization";
+} from "./normalization";
+import type { AgentToolDefinition } from "./normalization";
 
 const emptyParams = Type.Object({});
 

@@ -257,7 +257,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         // Send the human's text verbatim. Agent-run context (open canvases,
         // the human-writeback diff) rides display-hidden
         // custom messages flushed at "before_agent_start" (see
-        // agent/state-messages.ts), so the stored user entry is exactly what
+        // state-messages/registry.ts), so the stored user entry is exactly what
         // the human typed.
         await session.prompt(text);
       } catch (err) {

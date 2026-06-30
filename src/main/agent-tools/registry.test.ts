@@ -10,8 +10,8 @@ import {
   createAgentToolInstaller,
   AgentToolRegistry,
   registerAgentToolContributions,
-} from "./tools";
-import type { AgentToolDefinition } from "./agent-tool-normalization";
+} from "./registry";
+import type { AgentToolDefinition } from "./normalization";
 
 const emptyParams = Type.Object({});
 

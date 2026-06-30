@@ -14,7 +14,7 @@ import {
   createStateMessageAssembler,
   registerStateMessageContributions,
   StateMessageRegistry,
-} from "./state-messages";
+} from "./registry";
 
 type Handler = (
   event: BeforeAgentStartEvent,
