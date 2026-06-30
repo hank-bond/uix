@@ -9,20 +9,20 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 
 import {
-  StateMessageRegistry,
-  createStateMessageAssembler,
-  registerStateMessageContributions,
-} from "#backend/state-messages/registry";
+  AgentContextRegistry,
+  createAgentContextAssembler,
+  registerAgentContextContributions,
+} from "#backend/agent-context/registry";
 import {
   createAgentToolInstaller,
   AgentToolRegistry,
   registerAgentToolContributions,
 } from "#backend/agent-tools/registry";
 import {
-  createStateCoordinator,
-  StateRegistry,
-  registerStateContributions,
-} from "#backend/state/registry";
+  createTurnStateCoordinator,
+  TurnStateRegistry,
+  registerTurnStateContributions,
+} from "#backend/turn-state/registry";
 
 import { CanvasDocumentBuffer } from "../document-buffer";
 import type { CanvasContext } from "../context";
@@ -30,8 +30,8 @@ import type { DocumentStore, DocumentVersion } from "#backend/documents/store";
 import type { FeatureContext } from "#backend/features/context";
 
 import { createCanvasAgentToolContributions } from "./agent-tools";
-import { createCanvasStateContributions } from "./state";
-import { createCanvasStateMessageContributions } from "./state-messages";
+import { createCanvasTurnStateContributions } from "./turn-state";
+import { createCanvasAgentContextContributions } from "./agent-context";
 
 function memoryStore(): DocumentStore {
   const map = new Map<string, string>();
@@ -87,23 +87,23 @@ type Handler = (
 
 type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
 
-// The canvas agent tool/state/state-message contributions and the
+// The canvas agent tool/turn-state/agent-context contributions and the
 // driver-installed substrate installers wired against an in-memory store and a
 // fake pi handle.
 function setup() {
   const ctx = fakeCanvasContext();
-  const state = new StateRegistry();
-  const stateMessages = new StateMessageRegistry();
+  const state = new TurnStateRegistry();
+  const agentContext = new AgentContextRegistry();
   const agentTools = new AgentToolRegistry();
-  const canvasState = registerStateContributions(
+  const canvasState = registerTurnStateContributions(
     state,
     "canvas",
-    createCanvasStateContributions(ctx),
+    createCanvasTurnStateContributions(ctx),
   );
-  const canvasStateMessages = registerStateMessageContributions(
-    stateMessages,
+  const canvasAgentContext = registerAgentContextContributions(
+    agentContext,
     "canvas",
-    createCanvasStateMessageContributions(ctx),
+    createCanvasAgentContextContributions(ctx),
   );
   const canvasAgentTools = registerAgentToolContributions(
     agentTools,
@@ -128,8 +128,8 @@ function setup() {
     },
   } as unknown as ExtensionAPI;
   void createAgentToolInstaller(agentTools)(pi);
-  void createStateCoordinator(state)(pi);
-  void createStateMessageAssembler(stateMessages)(pi);
+  void createTurnStateCoordinator(state)(pi);
+  void createAgentContextAssembler(agentContext)(pi);
 
   const turnBoundary = async () =>
     handlers[0](
@@ -160,7 +160,7 @@ function setup() {
       await agentEndHandlers[0]({}, extCtx as unknown as ExtensionContext);
     },
     disposeCanvasState: () => canvasState[Symbol.dispose](),
-    disposeCanvasStateMessages: () => canvasStateMessages[Symbol.dispose](),
+    disposeCanvasAgentContext: () => canvasAgentContext[Symbol.dispose](),
     disposeCanvasAgentTools: () => canvasAgentTools[Symbol.dispose](),
   };
 }

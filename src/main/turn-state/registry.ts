@@ -1,7 +1,7 @@
 // private state lifecycle registry.
 //
 // State contributions prepare cockpit-private session entries at run
-// boundaries. Unlike model-visible state messages, this pathway records
+// boundaries. Unlike model-visible agent context, this pathway records
 // durable refs the substrate needs to interpret a branch later.
 //
 // This is a singleton facet: at most one contribution per feature. The
@@ -20,20 +20,20 @@ type MaybePromise<T> = T | Promise<T>;
 
 // ---- canonical id brand ----
 
-const StateCanonicalIdBrand: unique symbol = Symbol("StateCanonicalId");
+const TurnStateCanonicalIdBrand: unique symbol = Symbol("TurnStateCanonicalId");
 
-export type StateCanonicalId = string & {
-  readonly [StateCanonicalIdBrand]: true;
+export type TurnStateCanonicalId = string & {
+  readonly [TurnStateCanonicalIdBrand]: true;
 };
 
 /**
- * Builds the canonical id for a private-state contribution (`featureId`).
+ * Builds the canonical id for a turn-state contribution (`featureId`).
  * Validates the feature id against the shared token grammar; a failure is
  * an app bug.
  */
-function toStateCanonicalId(featureId: string): StateCanonicalId {
+function toTurnStateCanonicalId(featureId: string): TurnStateCanonicalId {
   assertStateToken("feature id", featureId);
-  return featureId as StateCanonicalId;
+  return featureId as TurnStateCanonicalId;
 }
 
 function assertStateToken(label: string, token: string): void {
@@ -52,11 +52,11 @@ export interface PreparedState {
 }
 
 /**
- * A private-state contribution from a feature. Exactly one per feature.
+ * A turn-state contribution from a feature. Exactly one per feature.
  * Preparation callbacks are optional — a contribution that declares neither
  * is valid but inert.
  */
-export interface StateContribution {
+export interface TurnStateContribution {
   prepareUserSubmitState?: (
     ctx: StatePreparationContext,
   ) => MaybePromise<PreparedState | undefined>;
@@ -65,41 +65,41 @@ export interface StateContribution {
   ) => MaybePromise<PreparedState | undefined>;
 }
 
-interface RegisteredStateContribution extends StateContribution {
+interface RegisteredTurnStateContribution extends TurnStateContribution {
   readonly contributionId: ContributionId;
-  readonly canonicalId: StateCanonicalId;
+  readonly canonicalId: TurnStateCanonicalId;
 }
 
-/** Registry for private-state contributions. Features pass this to `registerStateContributions`; they never register directly. */
-export class StateRegistry {
-  readonly registeredContributions: RegisteredStateContribution[] = [];
+/** Registry for turn-state contributions. Features pass this to `registerTurnStateContributions`; they never register directly. */
+export class TurnStateRegistry {
+  readonly registeredContributions: RegisteredTurnStateContribution[] = [];
 }
 
-/** The sole registration path for private-state contributions. Derives both ids, enforces the singleton-per-feature invariant, and returns a Disposable. */
-export function registerStateContributions(
-  registry: StateRegistry,
+/** The sole registration path for turn-state contributions. Derives both ids, enforces the singleton-per-feature invariant, and returns a Disposable. */
+export function registerTurnStateContributions(
+  registry: TurnStateRegistry,
   featureId: string,
-  contributions: readonly StateContribution[],
+  contributions: readonly TurnStateContribution[],
 ): Disposable {
   if (contributions.length > 1) {
     throw new Error(
-      `Feature ${featureId} contributes more than one private-state contribution. This is a singleton facet: at most one per feature.`,
+      `Feature ${featureId} contributes more than one turn-state contribution. This is a singleton facet: at most one per feature.`,
     );
   }
 
   if (contributions.length === 0) return new DisposableBag();
 
   const contribution = contributions[0];
-  const canonicalId = toStateCanonicalId(featureId);
-  const contributionId = toContributionId(featureId, "state");
+  const canonicalId = toTurnStateCanonicalId(featureId);
+  const contributionId = toContributionId(featureId, "turn-state");
 
   if (
     registry.registeredContributions.some((e) => e.canonicalId === canonicalId)
   ) {
-    throw new Error(`State already registered: ${canonicalId as string}`);
+    throw new Error(`Turn state already registered: ${canonicalId as string}`);
   }
 
-  const registered: RegisteredStateContribution = {
+  const registered: RegisteredTurnStateContribution = {
     ...contribution,
     contributionId,
     canonicalId,
@@ -115,7 +115,9 @@ export function registerStateContributions(
   };
 }
 
-export function createStateCoordinator(state: StateRegistry): AgentInstaller {
+export function createTurnStateCoordinator(
+  state: TurnStateRegistry,
+): AgentInstaller {
   return (pi) => {
     const installedContributions = [...state.registeredContributions];
 
@@ -138,9 +140,9 @@ export function createStateCoordinator(state: StateRegistry): AgentInstaller {
 }
 
 function liveContributions(
-  state: StateRegistry,
-  installedContributions: readonly RegisteredStateContribution[],
-): readonly RegisteredStateContribution[] {
+  state: TurnStateRegistry,
+  installedContributions: readonly RegisteredTurnStateContribution[],
+): readonly RegisteredTurnStateContribution[] {
   return installedContributions.filter((contribution) =>
     state.registeredContributions.includes(contribution),
   );
@@ -150,10 +152,10 @@ async function appendPreparedTurnState(
   pi: ExtensionAPI,
   opts: {
     cwd: string;
-    contributions: readonly RegisteredStateContribution[];
+    contributions: readonly RegisteredTurnStateContribution[];
     select: (
-      contribution: RegisteredStateContribution,
-    ) => RegisteredStateContribution["prepareUserSubmitState"];
+      contribution: RegisteredTurnStateContribution,
+    ) => RegisteredTurnStateContribution["prepareUserSubmitState"];
   },
 ): Promise<void> {
   const preparedState: Record<string, unknown> = {};

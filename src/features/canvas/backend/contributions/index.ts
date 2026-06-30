@@ -4,8 +4,8 @@ import { createCanvasContext, type CanvasContext } from "../context";
 import { createCanvasAgentToolContributions } from "./agent-tools";
 import { createCanvasChannelContributions } from "./channels";
 import { createCanvasResourceContributions } from "./resources";
-import { createCanvasStateContributions } from "./state";
-import { createCanvasStateMessageContributions } from "./state-messages";
+import { createCanvasTurnStateContributions } from "./turn-state";
+import { createCanvasAgentContextContributions } from "./agent-context";
 
 export const canvasFeature: FeatureDefinition<CanvasContext> = {
   id: "canvas",
@@ -15,8 +15,8 @@ export const canvasFeature: FeatureDefinition<CanvasContext> = {
       resources: createCanvasResourceContributions(ctx),
       channels: createCanvasChannelContributions(ctx),
       agentTools: createCanvasAgentToolContributions(ctx),
-      state: createCanvasStateContributions(ctx),
-      stateMessages: createCanvasStateMessageContributions(ctx),
+      turnState: createCanvasTurnStateContributions(ctx),
+      agentContext: createCanvasAgentContextContributions(ctx),
     };
   },
 };

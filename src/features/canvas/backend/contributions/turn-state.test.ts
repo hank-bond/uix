@@ -5,7 +5,7 @@ import type { CanvasContext } from "../context";
 import type { DocumentStore, DocumentVersion } from "#backend/documents/store";
 import type { FeatureContext } from "#backend/features/context";
 
-import { createCanvasStateContributions } from "./state";
+import { createCanvasTurnStateContributions } from "./turn-state";
 
 function memoryStore(initial: Record<string, string> = {}): DocumentStore {
   const latest = new Map<string, string>(Object.entries(initial));
@@ -56,13 +56,13 @@ function captureCanvasState(opts: {
     openCanvasKeys: opts.openCanvasKeys ?? [],
     agentChangedCanvasKeys,
   };
-  const [contribution] = createCanvasStateContributions(ctx);
+  const [contribution] = createCanvasTurnStateContributions(ctx);
 
   if (!contribution) throw new Error("Canvas state was not created");
   return { contribution, agentChangedCanvasKeys };
 }
 
-describe("createCanvasStateContributions", () => {
+describe("createCanvasTurnStateContributions", () => {
   it("snapshots open canvases on user submit", async () => {
     const store = memoryStore({ main: "<p>hello</p>" });
     const { contribution } = captureCanvasState({

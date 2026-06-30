@@ -1,6 +1,6 @@
 // state messages: the cockpit→agent state pathway.
 //
-// A state-message contribution declares one model-visible state section: its
+// A agent-context contribution declares one model-visible state section: its
 // messageType, vocabulary line, optional UIX-managed buffer, and optional
 // materializer. The registered object is the contribution; registrations may
 // return a capability handle when the substrate manages a buffer for the owner.
@@ -35,36 +35,36 @@ import type { AgentInstaller } from "../agent/installers";
 
 // ---- canonical id brand ----
 
-const StateMessageCanonicalIdBrand: unique symbol = Symbol(
-  "StateMessageCanonicalId",
+const AgentContextCanonicalIdBrand: unique symbol = Symbol(
+  "AgentContextCanonicalId",
 );
 
-export type StateMessageCanonicalId = string & {
-  readonly [StateMessageCanonicalIdBrand]: true;
+export type AgentContextCanonicalId = string & {
+  readonly [AgentContextCanonicalIdBrand]: true;
 };
 
 /**
- * Builds the canonical id for a state-message contribution:
+ * Builds the canonical id for a agent-context contribution:
  * `${featureId}.${name}` (e.g. `canvas.pane-visibility`).
  * Validates each segment; a failure is an app bug.
  */
-function toStateMessageCanonicalId(
+function toAgentContextCanonicalId(
   featureId: string,
   name: string,
-): StateMessageCanonicalId {
-  assertStateMessageToken("feature id", featureId);
-  assertStateMessageToken("state message name", name);
-  return `${featureId}.${name}` as StateMessageCanonicalId;
+): AgentContextCanonicalId {
+  assertAgentContextToken("feature id", featureId);
+  assertAgentContextToken("state message name", name);
+  return `${featureId}.${name}` as AgentContextCanonicalId;
 }
 
-function assertStateMessageToken(label: string, token: string): void {
+function assertAgentContextToken(label: string, token: string): void {
   const pattern = /^[a-z][a-z0-9_-]*$/;
   if (!pattern.test(token)) {
     throw new Error(`Invalid ${label}: ${token}. Expected ${pattern}.`);
   }
 }
 
-export interface StateMessageMaterialization {
+export interface AgentContextMaterialization {
   /** Body rendered inside this contribution's state tag; this is what the model sees. */
   content: string;
   /** Optional structured sidecar persisted with the combined custom message. */
@@ -74,7 +74,7 @@ export interface StateMessageMaterialization {
 type MaybePromise<T> = T | Promise<T>;
 
 interface BaseContribution {
-  /** Local name for this state-message section; the substrate derives the canonical id as `${featureId}.${name}`. */
+  /** Local name for this agent-context section; the substrate derives the canonical id as `${featureId}.${name}`. */
   name: string;
   /** Vocabulary line describing this section's body to the model. */
   description: string;
@@ -101,7 +101,7 @@ export interface UpdateContribution<
   /** Optional formatter; default is JSON.stringify(value) with value as details. */
   materialize?: (input: {
     value: Static<T>;
-  }) => MaybePromise<StateMessageMaterialization | undefined>;
+  }) => MaybePromise<AgentContextMaterialization | undefined>;
 }
 
 export interface AppendContribution<
@@ -111,38 +111,38 @@ export interface AppendContribution<
   /** Optional formatter; default is JSON.stringify(values) with values as details. */
   materialize?: (input: {
     values: readonly Static<T>[];
-  }) => MaybePromise<StateMessageMaterialization | undefined>;
+  }) => MaybePromise<AgentContextMaterialization | undefined>;
 }
 
 export interface MaterializedContribution extends BaseContribution {
   buffer?: never;
   /** Called while UIX prepares an agent run; owns any external state it touches. */
-  materialize: () => MaybePromise<StateMessageMaterialization | undefined>;
+  materialize: () => MaybePromise<AgentContextMaterialization | undefined>;
 }
 
-export type StateMessageContribution =
+export type AgentContextContribution =
   | UpdateContribution<TSchema>
   | AppendContribution<TSchema>
   | MaterializedContribution;
 
-export interface StateMessageUpdater<T extends TSchema> extends Disposable {
+export interface AgentContextUpdater<T extends TSchema> extends Disposable {
   update(payload: Static<T>): void;
 }
 
-export interface StateMessageAppender<T extends TSchema> extends Disposable {
+export interface AgentContextAppender<T extends TSchema> extends Disposable {
   append(payload: Static<T>): void;
 }
 
-export function registerStateMessageContributions(
-  stateMessages: StateMessageRegistry,
+export function registerAgentContextContributions(
+  agentContext: AgentContextRegistry,
   featureId: string,
-  contributions: readonly StateMessageContribution[],
+  contributions: readonly AgentContextContribution[],
 ): Disposable {
   const bag = new DisposableBag();
 
   for (const contribution of contributions) {
     if (isUpdateContribution(contribution)) {
-      const handle = stateMessages.register(featureId, contribution);
+      const handle = agentContext.register(featureId, contribution);
       if (contribution.initialValue !== undefined) {
         handle.update(contribution.initialValue);
       }
@@ -151,24 +151,24 @@ export function registerStateMessageContributions(
     }
 
     if (isAppendContribution(contribution)) {
-      bag.add(stateMessages.register(featureId, contribution));
+      bag.add(agentContext.register(featureId, contribution));
       continue;
     }
 
-    bag.add(stateMessages.register(featureId, contribution));
+    bag.add(agentContext.register(featureId, contribution));
   }
 
   return bag;
 }
 
 function isUpdateContribution(
-  contribution: StateMessageContribution,
+  contribution: AgentContextContribution,
 ): contribution is UpdateContribution<TSchema> {
   return contribution.buffer?.kind === "update";
 }
 
 function isAppendContribution(
-  contribution: StateMessageContribution,
+  contribution: AgentContextContribution,
 ): contribution is AppendContribution<TSchema> {
   return contribution.buffer?.kind === "append";
 }
@@ -189,7 +189,7 @@ interface RegisteredUpdateContribution extends RegisteredContributionBase {
   schema: TSchema;
   materialize?: (input: {
     value: unknown;
-  }) => MaybePromise<StateMessageMaterialization | undefined>;
+  }) => MaybePromise<AgentContextMaterialization | undefined>;
   hasValue: boolean;
   value?: unknown;
 }
@@ -199,28 +199,28 @@ interface RegisteredAppendContribution extends RegisteredContributionBase {
   schema: TSchema;
   materialize?: (input: {
     values: readonly unknown[];
-  }) => MaybePromise<StateMessageMaterialization | undefined>;
+  }) => MaybePromise<AgentContextMaterialization | undefined>;
   values: unknown[];
   inFlight?: { content: string; count: number };
 }
 
 interface RegisteredMaterializedContribution extends RegisteredContributionBase {
   kind: "materialized";
-  materialize: () => MaybePromise<StateMessageMaterialization | undefined>;
+  materialize: () => MaybePromise<AgentContextMaterialization | undefined>;
 }
 
-/** Registry for state-message contributions. Features pass this to `registerStateMessageContributions`; they never call individual registration methods directly. */
-export class StateMessageRegistry {
+/** Registry for agent-context contributions. Features pass this to `registerAgentContextContributions`; they never call individual registration methods directly. */
+export class AgentContextRegistry {
   readonly registeredContributions: RegisteredContribution[] = [];
 
   register<T extends TSchema>(
     featureId: string,
     contribution: UpdateContribution<T>,
-  ): StateMessageUpdater<T>;
+  ): AgentContextUpdater<T>;
   register<T extends TSchema>(
     featureId: string,
     contribution: AppendContribution<T>,
-  ): StateMessageAppender<T>;
+  ): AgentContextAppender<T>;
   register(
     featureId: string,
     contribution: MaterializedContribution,
@@ -231,11 +231,11 @@ export class StateMessageRegistry {
       | UpdateContribution<TSchema>
       | AppendContribution<TSchema>
       | MaterializedContribution,
-  ): StateMessageUpdater<TSchema> | StateMessageAppender<TSchema> | Disposable {
-    const canonicalId = toStateMessageCanonicalId(featureId, contribution.name);
+  ): AgentContextUpdater<TSchema> | AgentContextAppender<TSchema> | Disposable {
+    const canonicalId = toAgentContextCanonicalId(featureId, contribution.name);
     const contributionId = toContributionId(
       featureId,
-      "state-message",
+      "agent-context",
       contribution.name,
     );
 
@@ -244,7 +244,7 @@ export class StateMessageRegistry {
         (e) => e.messageType === (canonicalId as string),
       )
     ) {
-      throw new Error(`State message already registered: ${canonicalId}`);
+      throw new Error(`Agent context already registered: ${canonicalId}`);
     }
 
     const registeredContribution = toRegisteredContribution(
@@ -286,8 +286,8 @@ export class StateMessageRegistry {
   }
 }
 
-export function createStateMessageAssembler(
-  stateMessageRegistry: StateMessageRegistry,
+export function createAgentContextAssembler(
+  stateMessageRegistry: AgentContextRegistry,
 ): AgentInstaller {
   return (pi) => {
     const installedContributions = [
@@ -384,7 +384,7 @@ export function createStateMessageAssembler(
 }
 
 function toRegisteredContribution(
-  canonicalId: StateMessageCanonicalId,
+  canonicalId: AgentContextCanonicalId,
   contributionId: ContributionId,
   contribution:
     | UpdateContribution<TSchema>
@@ -441,7 +441,7 @@ function assertPayloadMatchesSchema(
 
 async function materializeContribution(
   contribution: RegisteredContribution,
-): Promise<StateMessageMaterialization | undefined> {
+): Promise<AgentContextMaterialization | undefined> {
   if (contribution.kind === "update") {
     if (!contribution.hasValue) return undefined;
     return contribution.materialize
@@ -459,7 +459,7 @@ async function materializeContribution(
   return contribution.materialize();
 }
 
-function defaultMaterialization(value: unknown): StateMessageMaterialization {
+function defaultMaterialization(value: unknown): AgentContextMaterialization {
   return { content: JSON.stringify(value), details: value };
 }
 

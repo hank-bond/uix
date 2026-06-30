@@ -4,13 +4,16 @@
 // snapshots the relevant canvases at UIX turn boundaries and returns resource
 // refs for the substrate-owned `uix.turn-state` entry.
 
-import type { PreparedState, StateContribution } from "#backend/state/registry";
+import type {
+  PreparedState,
+  TurnStateContribution,
+} from "#backend/turn-state/registry";
 
 import type { CanvasContext } from "../context";
 
-export function createCanvasStateContributions(
+export function createCanvasTurnStateContributions(
   ctx: CanvasContext,
-): readonly StateContribution[] {
+): readonly TurnStateContribution[] {
   const { buffer, openCanvasKeys, agentChangedCanvasKeys } = ctx;
   return [
     {

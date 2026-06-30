@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { Type } from "typebox";
 
-import { StateMessageRegistry } from "../state-messages/registry";
+import { AgentContextRegistry } from "../agent-context/registry";
 import { AgentToolRegistry } from "../agent-tools/registry";
 import { ChannelRegistry } from "../channels/registry";
 import { ResourceRegistry } from "../resources/registry";
 import { normalizeResourceRoute } from "#shared/resource-routes";
-import { StateRegistry } from "../state/registry";
+import { TurnStateRegistry } from "../turn-state/registry";
 
 import {
   registerFeatureContributions,
@@ -62,18 +62,18 @@ describe("registerFeatureContributions", () => {
       }),
     });
     const agentTools = new AgentToolRegistry();
-    const state = new StateRegistry();
-    const stateMessages = new StateMessageRegistry();
+    const turnState = new TurnStateRegistry();
+    const agentContext = new AgentContextRegistry();
 
     const registration = registerFeatureContributions(
-      { resources, channels, agentTools, state, stateMessages },
+      { resources, channels, agentTools, turnState, agentContext },
       "canvas",
       {
         resources: [resourceContribution()],
         channels: [channelContribution()],
         agentTools: [agentTool("anchor_read")],
-        state: [{ prepareUserSubmitState: () => ({ state: {} }) }],
-        stateMessages: [
+        turnState: [{ prepareUserSubmitState: () => ({ state: {} }) }],
+        agentContext: [
           {
             name: "canvas-diff",
             description: "diffs",
@@ -104,13 +104,13 @@ describe("registerFeatureContributions", () => {
       }),
     ).toThrow("Agent tool already registered: canvas__anchor_read");
     expect(() =>
-      registerFeatureContributions({ state }, "canvas", {
-        state: [{}],
+      registerFeatureContributions({ turnState }, "canvas", {
+        turnState: [{}],
       }),
-    ).toThrow("State already registered: canvas");
+    ).toThrow("Turn state already registered: canvas");
     expect(() =>
-      registerFeatureContributions({ stateMessages }, "other", {
-        stateMessages: [
+      registerFeatureContributions({ agentContext }, "other", {
+        agentContext: [
           {
             name: "canvas-diff",
             description: "again",
@@ -120,8 +120,8 @@ describe("registerFeatureContributions", () => {
       }),
     ).not.toThrow();
     expect(() =>
-      registerFeatureContributions({ stateMessages }, "canvas", {
-        stateMessages: [
+      registerFeatureContributions({ agentContext }, "canvas", {
+        agentContext: [
           {
             name: "canvas-diff",
             description: "again",
@@ -129,20 +129,20 @@ describe("registerFeatureContributions", () => {
           },
         ],
       }),
-    ).toThrow("State message already registered: canvas.canvas-diff");
+    ).toThrow("Agent context already registered: canvas.canvas-diff");
 
     registration[Symbol.dispose]();
 
     expect(() =>
       registerFeatureContributions(
-        { resources, channels, agentTools, state, stateMessages },
+        { resources, channels, agentTools, turnState, agentContext },
         "canvas",
         {
           resources: [resourceContribution()],
           channels: [channelContribution()],
           agentTools: [agentTool("anchor_read")],
-          state: [{}],
-          stateMessages: [
+          turnState: [{}],
+          agentContext: [
             {
               name: "canvas-diff",
               description: "diffs",
@@ -180,14 +180,14 @@ describe("registerFeatureContributions", () => {
     );
 
     expect(() =>
-      registerFeatureContributions({}, "canvas", { state: [{}] }),
+      registerFeatureContributions({}, "canvas", { turnState: [{}] }),
     ).toThrow(
-      "Feature canvas contributes state but no state registry was provided",
+      "Feature canvas contributes turn state but no turn-state registry was provided",
     );
 
     expect(() =>
       registerFeatureContributions({}, "canvas", {
-        stateMessages: [
+        agentContext: [
           {
             name: "canvas-diff",
             description: "diffs",
@@ -196,7 +196,7 @@ describe("registerFeatureContributions", () => {
         ],
       }),
     ).toThrow(
-      "Feature canvas contributes state messages but no state-message registry was provided",
+      "Feature canvas contributes agent context but no agent-context registry was provided",
     );
   });
 });

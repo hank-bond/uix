@@ -20,7 +20,7 @@ import {
   type ReloadResult,
 } from "../shared/ipc";
 import { createAgentDriver } from "./agent/driver";
-import { StateMessageRegistry } from "./state-messages/registry";
+import { AgentContextRegistry } from "./agent-context/registry";
 import {
   createAgentToolInstaller,
   AgentToolRegistry,
@@ -29,7 +29,7 @@ import {
   ChannelRegistry,
   createFeatureChannelPublisher,
 } from "./channels/registry";
-import { StateRegistry } from "./state/registry";
+import { TurnStateRegistry } from "./turn-state/registry";
 import { createLocalDocumentStoreProvider } from "./documents/store";
 import { loadExtensions } from "./extensions/loader";
 import { getBundledFeatures } from "./features/bundled";
@@ -167,9 +167,9 @@ void app.whenReady().then(async () => {
       }
     },
   });
-  const state = new StateRegistry();
+  const turnState = new TurnStateRegistry();
   const agentTools = new AgentToolRegistry();
-  const stateMessages = new StateMessageRegistry();
+  const agentContext = new AgentContextRegistry();
 
   for (const feature of bundledFeatures) {
     const baseContext = {
@@ -179,7 +179,7 @@ void app.whenReady().then(async () => {
     const contributedContext = feature.context?.(baseContext) ?? {};
     appBag.add(
       registerFeatureContributions(
-        { resources, channels, agentTools, state, stateMessages },
+        { resources, channels, agentTools, turnState, agentContext },
         feature.id,
         feature.contribute({ ...baseContext, ...contributedContext }),
       ),
@@ -189,8 +189,8 @@ void app.whenReady().then(async () => {
   const driver = createAgentDriver({
     onEvent: (event) => sendAgentEvent(mainWindow, event),
     workspace,
-    state,
-    stateMessages,
+    turnState,
+    agentContext,
     agentInstallers: [createAgentToolInstaller(agentTools)],
   });
   appBag.add(driver);

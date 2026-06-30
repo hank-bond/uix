@@ -10,10 +10,10 @@ import type {
 import { Type } from "typebox";
 
 import {
-  StateMessageRegistry,
-  createStateMessageAssembler,
-  registerStateMessageContributions,
-  StateMessageRegistry,
+  AgentContextRegistry,
+  createAgentContextAssembler,
+  registerAgentContextContributions,
+  AgentContextRegistry,
 } from "./registry";
 
 type Handler = (
@@ -21,14 +21,14 @@ type Handler = (
   ctx: ExtensionContext,
 ) => Promise<BeforeAgentStartEventResult>;
 
-function install(stateMessageRegistry: StateMessageRegistry) {
+function install(stateMessageRegistry: AgentContextRegistry) {
   const handlers: Handler[] = [];
   const pi = {
     on: (event: string, handler: Handler) => {
       if (event === "before_agent_start") handlers.push(handler);
     },
   } as unknown as ExtensionAPI;
-  void createStateMessageAssembler(stateMessageRegistry)(pi);
+  void createAgentContextAssembler(stateMessageRegistry)(pi);
   expect(handlers).toHaveLength(1);
 
   return async (entries: SessionEntry[] = []) =>
@@ -53,9 +53,9 @@ function stateEntry(content: string): SessionEntry {
   } as unknown as SessionEntry;
 }
 
-describe("createStateMessages", () => {
+describe("AgentContextRegistry", () => {
   it("appends one vocabulary section with a bullet per registered tag", async () => {
-    const sm = new StateMessageRegistry();
+    const sm = new AgentContextRegistry();
     sm.register("test", {
       name: "pane-visibility",
       description: "open keys",
@@ -81,13 +81,13 @@ describe("createStateMessages", () => {
   });
 
   it("leaves the system prompt alone with no registrations", async () => {
-    const run = install(new StateMessageRegistry());
+    const run = install(new AgentContextRegistry());
     expect(await run()).toEqual({});
   });
 
   it("bulk-registers contributions, applies initial update values, and disposes them together", async () => {
-    const sm = new StateMessageRegistry();
-    const registrations = registerStateMessageContributions(sm, "test", [
+    const sm = new AgentContextRegistry();
+    const registrations = registerAgentContextContributions(sm, "test", [
       {
         name: "pane-visibility",
         description: "d",
@@ -115,7 +115,7 @@ describe("createStateMessages", () => {
   });
 
   it("flushes updated state as one tagged section inside one uix.state envelope", async () => {
-    const sm = new StateMessageRegistry();
+    const sm = new AgentContextRegistry();
     const visibility = sm.register("test", {
       name: "pane-visibility",
       description: "d",
@@ -144,7 +144,7 @@ describe("createStateMessages", () => {
   });
 
   it("suppresses an update section whose materialized body matches the nearest persisted tag", async () => {
-    const sm = new StateMessageRegistry();
+    const sm = new AgentContextRegistry();
     const visibility = sm.register("test", {
       name: "pane-visibility",
       description: "d",
@@ -168,7 +168,7 @@ describe("createStateMessages", () => {
   });
 
   it("walks past uix.state entries that do not carry the tag", async () => {
-    const sm = new StateMessageRegistry();
+    const sm = new AgentContextRegistry();
     const visibility = sm.register("test", {
       name: "pane-visibility",
       description: "d",
@@ -187,7 +187,7 @@ describe("createStateMessages", () => {
   });
 
   it("keeps the update value so an unpersisted flush resends", async () => {
-    const sm = new StateMessageRegistry();
+    const sm = new AgentContextRegistry();
     const visibility = sm.register("test", {
       name: "pane-visibility",
       description: "d",
@@ -205,7 +205,7 @@ describe("createStateMessages", () => {
 
   it("materializes a manual section every run when it returns content", async () => {
     let reads = 0;
-    const sm = new StateMessageRegistry();
+    const sm = new AgentContextRegistry();
     sm.register("test", {
       name: "canvas-diff",
       description: "d",
@@ -225,7 +225,7 @@ describe("createStateMessages", () => {
   });
 
   it("sends nothing when manual materialization returns undefined", async () => {
-    const sm = new StateMessageRegistry();
+    const sm = new AgentContextRegistry();
     sm.register("test", {
       name: "canvas-diff",
       description: "d",
@@ -236,7 +236,7 @@ describe("createStateMessages", () => {
   });
 
   it("combines sections from multiple registrations in registration order", async () => {
-    const sm = new StateMessageRegistry();
+    const sm = new AgentContextRegistry();
     const visibility = sm.register("test", {
       name: "pane-visibility",
       description: "d",
@@ -262,7 +262,7 @@ describe("createStateMessages", () => {
   });
 
   it("validates update payloads against the registration schema", () => {
-    const sm = new StateMessageRegistry();
+    const sm = new AgentContextRegistry();
     const visibility = sm.register("test", {
       name: "pane-visibility",
       description: "d",
@@ -280,7 +280,7 @@ describe("createStateMessages", () => {
   });
 
   it("appends pending values and confirms drain from the branch", async () => {
-    const sm = new StateMessageRegistry();
+    const sm = new AgentContextRegistry();
     const moves = sm.register("game", {
       name: "moves",
       description: "moves",
@@ -308,7 +308,7 @@ describe("createStateMessages", () => {
   });
 
   it("custom materialization runs before update dedupe", async () => {
-    const sm = new StateMessageRegistry();
+    const sm = new AgentContextRegistry();
     const value = sm.register("test", {
       name: "value",
       description: "d",
@@ -329,7 +329,7 @@ describe("createStateMessages", () => {
   });
 
   it("stops flushing a section once its handle is disposed, and frees the tag", async () => {
-    const sm = new StateMessageRegistry();
+    const sm = new AgentContextRegistry();
     const visibility = sm.register("test", {
       name: "pane-visibility",
       description: "d",
@@ -356,7 +356,7 @@ describe("createStateMessages", () => {
   });
 
   it("rejects a second active registration of the same name within a feature", () => {
-    const sm = new StateMessageRegistry();
+    const sm = new AgentContextRegistry();
     sm.register("test", {
       name: "a",
       description: "d",

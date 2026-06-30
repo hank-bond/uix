@@ -11,7 +11,7 @@ export function formatChangeHunks(
   return added.length ? `${header}\n${formatAnchoredText(added)}` : header;
 }
 
-// Section body only — the state-message substrate owns the <canvas-diff>
+// Section body only — the agent-context substrate owns the <canvas-diff>
 // tag and the <uix-state> envelope around it.
 export function formatCanvasChanges(
   changes: ReadonlyMap<string, readonly AnchoredChange[]>,

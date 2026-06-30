@@ -33,14 +33,17 @@ import { join } from "node:path";
 
 import { disposable, DisposableBag, subscribe } from "../lifecycle";
 import { createLogger } from "../log";
-import { createStateCoordinator, StateRegistry } from "../state/registry";
+import {
+  createTurnStateCoordinator,
+  TurnStateRegistry,
+} from "../turn-state/registry";
 
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { createTranscriptIdentity, type TranscriptIdentity } from "./identity";
 import {
-  createStateMessageAssembler,
-  type StateMessageRegistry,
-} from "./state-messages";
+  createAgentContextAssembler,
+  type AgentContextRegistry,
+} from "../agent-context/registry";
 import {
   extractTranscriptText,
   parseCustomTranscriptItem,
@@ -77,9 +80,9 @@ export interface AgentDriverOptions {
   /** UIX-core agent installers composed into the in-process pi extension. */
   agentInstallers?: readonly AgentInstaller[];
   /** Cockpit-private turn-state registry, installed by the driver. */
-  state?: StateRegistry;
-  /** Cockpit→agent state-message registry, installed by the driver. */
-  stateMessages?: StateMessageRegistry;
+  turnState?: TurnStateRegistry;
+  /** Cockpit→agent context registry, installed by the driver. */
+  agentContext?: AgentContextRegistry;
   /** State root (pins the session dir) + agent cwd. */
   workspace: Workspace;
 }
@@ -166,11 +169,11 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     // with the same cwd/agentDir createAgentSession would default to, so user
     // pi resources still discover and our factory holds the live ExtensionAPI.
     const agentInstallers = [...(opts.agentInstallers ?? [])];
-    if (opts.state) {
-      agentInstallers.push(createStateCoordinator(opts.state));
+    if (opts.turnState) {
+      agentInstallers.push(createTurnStateCoordinator(opts.turnState));
     }
-    if (opts.stateMessages) {
-      agentInstallers.push(createStateMessageAssembler(opts.stateMessages));
+    if (opts.agentContext) {
+      agentInstallers.push(createAgentContextAssembler(opts.agentContext));
     }
 
     const resourceLoader = new sdk.DefaultResourceLoader({
@@ -257,7 +260,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         // Send the human's text verbatim. Agent-run context (open canvases,
         // the human-writeback diff) rides display-hidden
         // custom messages flushed at "before_agent_start" (see
-        // state-messages/registry.ts), so the stored user entry is exactly what
+        // agent-context/registry.ts), so the stored user entry is exactly what
         // the human typed.
         await session.prompt(text);
       } catch (err) {

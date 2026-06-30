@@ -1,5 +1,5 @@
 ---
-summary: "Canonical UIX concept vocabulary: feature, facet, installer, driver, hook, contribution point, contribution, capability handle, registry, coordinator, assembler, reload reconciliation, and state-message-local terms, with boundaries from pi extension vocabulary."
+summary: "Canonical UIX concept vocabulary: feature, facet, installer, driver, hook, contribution point, contribution, capability handle, registry, coordinator, assembler, reload reconciliation, and agent-context-local terms, with boundaries from pi extension vocabulary."
 status: active
 ---
 
@@ -27,12 +27,12 @@ UIX uses two id grammars for different things.
 
 **Contribution ids** are derived by the facets, never hand-authored. A feature author gives a local `name`; the facet derives two ids:
 
-- **`ContributionId`** — the registry dedup key. One uniform brand across all facets, constructed by `toContributionId(featureId, facet, name)` → `${featureId}.<facet>.<name>`. Examples: `canvas.channel.writeback`, `canvas.agent.anchor_read`, `canvas.state-message.pane-visibility`.
+- **`ContributionId`** — the registry dedup key. One uniform brand across all facets, constructed by `toContributionId(featureId, facet, name)` → `${featureId}.<facet>.<name>`. Examples: `canvas.channel.writeback`, `canvas.agent.anchor_read`, `canvas.agent-context.pane-visibility`.
 - **`…CanonicalId`** — the downstream-system address (transport channel, pi tool name, resource type key, persisted-section key, storage blob key). One brand per facet, because each downstream system has its own naming convention. The facet segment is **dropped** from the canonical id, because within the downstream system the channel/tool/resource kind is implicit. Examples: `ChannelCanonicalId` `canvas.writeback`, `AgentToolCanonicalId` `canvas__anchor_read` (pi's double-underscore), `ResourceCanonicalId` `canvas-doc` (resource type; resource URL scheme is substrate-owned).
 
-Both are nominal brands constructed only by their validated helper; internal code (registry Sets, resolved `…Registration` shapes) carries the brand, and genuine external string boundaries (Electron IPC channel, pi `tool.name`, URL/path strings) cast inline (`id as string`, the `CanvasKey` precedent). The public `@uix/api` modules expose author shapes only — `…Contribution` types with a `name` field, no id fields, no brands. The cross-facet `ContributionId` grammar lives in `#shared` (`src/shared/contribution-id.ts`); per-facet canonical-id helpers and resolved `…Registration` shapes live with their consumer — in `#shared` for facets with a renderer consumer (channels in `src/shared/channel-normalization.ts`, resources in `src/shared/resource-canonical-id.ts`), in `src/main/` for main-only facets (agent tools, state messages, private state).
+Both are nominal brands constructed only by their validated helper; internal code (registry Sets, resolved `…Registration` shapes) carries the brand, and genuine external string boundaries (Electron IPC channel, pi `tool.name`, URL/path strings) cast inline (`id as string`, the `CanvasKey` precedent). The public `@uix/api` modules expose author shapes only — `…Contribution` types with a `name` field, no id fields, no brands. The cross-facet `ContributionId` grammar lives in `#shared` (`src/shared/contribution-id.ts`); per-facet canonical-id helpers and resolved `…Registration` shapes live with their consumer — in `#shared` for facets with a renderer consumer (channels in `src/shared/channel-normalization.ts`, resources in `src/shared/resource-canonical-id.ts`), in `src/main/` for main-only facets (agent tools, agent context, turn state).
 
-Envelope and customType ids stay substrate-owned and are not feature-scoped: `uix.state` (the display-hidden state-message envelope), `uix.turn-state` (the persisted private-state entry). Only the inner contribution tags go feature-scoped (e.g. `<canvas-pane-visibility>` inside `<uix-state>`).
+Envelope and customType ids stay substrate-owned and are not feature-scoped: `uix.state` (the display-hidden agent-context envelope), `uix.turn-state` (the persisted turn-state entry). Only the inner contribution tags go feature-scoped (e.g. `<canvas-pane-visibility>` inside `<uix-state>`).
 
 Event payload shapes are defined by the emitting substrate facet. If a pane-originated write causes a document event, `sourceId: "canvas.pane.writeback"` is provenance, but the payload is still the document facet's `DocumentWriteEvent` shape. A contribution in one facet may call another facet; `eventType`/channel tells you what happened, and `sourceId` tells you which contribution caused it.
 
@@ -49,7 +49,7 @@ A **contribution point** is a UIX substrate API slot that accepts contributions.
 Examples:
 
 - `registerCommand(...)`
-- `registerStateMessage(...)`
+- `registerAgentContextContributions(...)`
 - future `registerPane(...)`
 - future `registerChannelHandler(...)`
 
@@ -85,7 +85,7 @@ A contribution must be:
 Examples:
 
 - a command contribution describes a human-invokable verb;
-- a state-message contribution describes one model-visible state section;
+- an agent-context contribution describes one model-visible state section;
 - a future pane contribution describes a mountable surface;
 - a future channel-handler contribution describes a typed pane→main message handler.
 
@@ -97,8 +97,8 @@ A **capability handle** is the value returned by a registration when the contrib
 
 Examples:
 
-- a state-message update contribution returns a handle with `update(payload)`;
-- a state-message append contribution returns a handle with `append(payload)`;
+- an agent-context update contribution returns a handle with `update(payload)`;
+- an agent-context append contribution returns a handle with `append(payload)`;
 - many contribution points return no handle because the registered object already contains the needed callbacks.
 
 A handle belongs to the registering feature. It should not become a shared stringly API for other features to drive.
@@ -124,7 +124,7 @@ Examples:
 - transcript identity;
 - the agent-facing side of a feature.
 
-A feature may participate in many facets. For example, a canvas feature can contribute a pane to the pane-hosting facet, tools to the agent/tooling facet, private snapshots to the state-management facet, and model-visible sections to the state-message facet.
+A feature may participate in many facets. For example, a canvas feature can contribute a pane to the pane-hosting facet, tools to the agent/tooling facet, turn-state snapshots to the turn-state facet, and model-visible sections to the agent-context facet.
 
 Use **facet** for the behavioral slice. Use **feature** for the product/capability bundle that may be packaged as a UIX extension.
 
@@ -180,7 +180,7 @@ Installers register hooks. Hooks run later when the lifecycle event occurs.
 
 A **coordinator** is substrate-owned glue that runs a lifecycle across many registered contributions and performs the side effects for that lifecycle.
 
-The current example is the private state coordinator:
+The current example is the turn state coordinator:
 
 - installs Pi `input` and `agent_end` hooks;
 - asks live state contributions to prepare private turn state;
@@ -193,9 +193,9 @@ A coordinator owns timing and cross-contribution mechanics. The contributing fea
 
 An **assembler** is a substrate-owned pattern for turning many registered contributions into one runtime artifact or hook result.
 
-The current example is the state-message assembler:
+The current example is the agent-context assembler:
 
-- reads registered state-message contributions;
+- reads registered agent-context contributions;
 - computes the vocabulary section once for a Pi install;
 - materializes live contributions while preparing an agent run;
 - performs branch comparison and append confirmation;
@@ -222,7 +222,7 @@ Renderer reload follows the same registry-source-of-truth rule. The main process
 
 ## State-message-local terms
 
-These terms are local to state-message contributions; do not generalize them across UIX unless another design independently earns them.
+These terms are local to agent-context contributions; do not generalize them across UIX unless another design independently earns them.
 
 ### Update buffer
 
@@ -249,7 +249,7 @@ Semantics:
 
 ### Materialize
 
-**Materialize** means turning a state-message contribution's current data into concrete model-visible content.
+**Materialize** means turning an agent-context contribution's current data into concrete model-visible content.
 
 Default materialization for buffered state messages is JSON:
 

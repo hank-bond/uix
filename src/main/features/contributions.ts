@@ -5,10 +5,10 @@
 // explicit contribution axes.
 
 import type {
-  StateMessageContribution,
-  StateMessageRegistry,
-} from "../state-messages/registry";
-import { registerStateMessageContributions } from "../state-messages/registry";
+  AgentContextContribution,
+  AgentContextRegistry,
+} from "../agent-context/registry";
+import { registerAgentContextContributions } from "../agent-context/registry";
 import type {
   AgentToolContribution,
   AgentToolRegistry,
@@ -28,8 +28,11 @@ import {
   registerResourceContributions,
   registerResourceProtocol,
 } from "../resources/registry";
-import type { StateContribution, StateRegistry } from "../state/registry";
-import { registerStateContributions } from "../state/registry";
+import type {
+  TurnStateContribution,
+  TurnStateRegistry,
+} from "../turn-state/registry";
+import { registerTurnStateContributions } from "../turn-state/registry";
 
 export type FeaturePreflightContributions = Record<string, never>;
 
@@ -52,16 +55,16 @@ export interface FeatureContributions {
   resources?: readonly ResourceContribution[];
   channels?: readonly ChannelContribution[];
   agentTools?: readonly AgentToolContribution[];
-  state?: readonly StateContribution[];
-  stateMessages?: readonly StateMessageContribution[];
+  turnState?: readonly TurnStateContribution[];
+  agentContext?: readonly AgentContextContribution[];
 }
 
 export interface FeatureContributionRegistries {
   resources?: ResourceRegistry;
   channels?: ChannelRegistry;
   agentTools?: AgentToolRegistry;
-  state?: StateRegistry;
-  stateMessages?: StateMessageRegistry;
+  turnState?: TurnStateRegistry;
+  agentContext?: AgentContextRegistry;
 }
 
 export function registerFeatureContributions(
@@ -116,32 +119,32 @@ export function registerFeatureContributions(
     );
   }
 
-  if (contributions.state?.length) {
-    if (!registries.state) {
+  if (contributions.turnState?.length) {
+    if (!registries.turnState) {
       throw new Error(
-        `Feature ${featureId} contributes state but no state registry was provided`,
+        `Feature ${featureId} contributes turn state but no turn-state registry was provided`,
       );
     }
     bag.add(
-      registerStateContributions(
-        registries.state,
+      registerTurnStateContributions(
+        registries.turnState,
         featureId,
-        contributions.state,
+        contributions.turnState,
       ),
     );
   }
 
-  if (contributions.stateMessages?.length) {
-    if (!registries.stateMessages) {
+  if (contributions.agentContext?.length) {
+    if (!registries.agentContext) {
       throw new Error(
-        `Feature ${featureId} contributes state messages but no state-message registry was provided`,
+        `Feature ${featureId} contributes agent context but no agent-context registry was provided`,
       );
     }
     bag.add(
-      registerStateMessageContributions(
-        registries.stateMessages,
+      registerAgentContextContributions(
+        registries.agentContext,
         featureId,
-        contributions.stateMessages,
+        contributions.agentContext,
       ),
     );
   }

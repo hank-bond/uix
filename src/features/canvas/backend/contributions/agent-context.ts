@@ -1,16 +1,16 @@
-// canvas model-visible state-message contributions.
+// canvas model-visible agent-context contributions.
 
 import { Type } from "typebox";
 
-import type { StateMessageContribution } from "#backend/state-messages/registry";
+import type { AgentContextContribution } from "#backend/agent-context/registry";
 import { createLogger } from "#backend/log";
 
 import { formatCanvasChanges } from "../anchored-format";
 import type { CanvasContext } from "../context";
 
-export function createCanvasStateMessageContributions(
+export function createCanvasAgentContextContributions(
   ctx: CanvasContext,
-): readonly StateMessageContribution[] {
+): readonly AgentContextContribution[] {
   const { buffer, openCanvasKeys } = ctx;
   return [
     {
