@@ -44,6 +44,7 @@ bag[Symbol.dispose]();
   - `asX` / `tryParseX` for non-throwing refinement/parsing helpers that return `X | undefined`;
   - `extractX` for pulling data out of a larger value;
   - `getX` for cheap property lookup with no I/O;
+  - `requireX` for retrieving an expected value and throwing when absent;
   - `toX` for deterministic conversions/derivations where inputs are expected to already be valid;
   - `encodeX` / `decodeX` for reversible representation transforms;
   - `isX` / `hasX` for predicates and type guards;
