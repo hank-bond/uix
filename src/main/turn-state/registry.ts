@@ -129,7 +129,7 @@ export function createTurnStateCoordinator(
       await appendPreparedTurnState(pi, {
         cwd: ctx.cwd,
         branch: ctx.sessionManager.getBranch(),
-        contributions: liveContributions(state, installedContributions),
+        contributions: filterInLiveContributions(state, installedContributions),
         select: (contribution) => contribution.prepareUserSubmitState,
       });
     });
@@ -138,14 +138,14 @@ export function createTurnStateCoordinator(
       await appendPreparedTurnState(pi, {
         cwd: ctx.cwd,
         branch: ctx.sessionManager.getBranch(),
-        contributions: liveContributions(state, installedContributions),
+        contributions: filterInLiveContributions(state, installedContributions),
         select: (contribution) => contribution.prepareAgentEndState,
       });
     });
   };
 }
 
-function liveContributions(
+function filterInLiveContributions(
   state: TurnStateRegistry,
   installedContributions: readonly RegisteredTurnStateContribution[],
 ): readonly RegisteredTurnStateContribution[] {
