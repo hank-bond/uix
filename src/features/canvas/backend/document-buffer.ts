@@ -16,6 +16,7 @@ import {
   type AnchoredDocumentSnapshot,
   type AnchoredLine,
   AnchoredDocument,
+  diffAnchoredSnapshots,
 } from "#backend/anchors/document";
 
 import type { DocumentStore, DocumentVersion } from "#backend/documents/store";
@@ -124,11 +125,14 @@ export class CanvasDocumentBuffer {
     return result;
   }
 
-  async getVersion(
+  async diffVersions(
     docId: string,
-    versionId: string,
-  ): Promise<DocumentVersion<DocumentVersionMeta> | null> {
-    return this.#store.getVersion<DocumentVersionMeta>(docId, versionId);
+    fromVersionId: string,
+    toVersionId: string,
+  ): Promise<readonly AnchoredChange[]> {
+    const from = await this.#requireVersion(docId, fromVersionId);
+    const to = await this.#requireVersion(docId, toVersionId);
+    return diffAnchoredSnapshots(from.meta.anchors, to.meta.anchors);
   }
 
   // Drives the per-turn context injection (see canvas/contributions/agent-tools.ts). Only
@@ -167,6 +171,22 @@ export class CanvasDocumentBuffer {
     const canonical = current === null ? "" : canonicalizeHtml(current);
     if (plainText(doc.read()) === canonical) return [];
     return doc.reconcile(canonical);
+  }
+
+  async #requireVersion(
+    docId: string,
+    versionId: string,
+  ): Promise<DocumentVersion<DocumentVersionMeta>> {
+    const version = await this.#store.getVersion<DocumentVersionMeta>(
+      docId,
+      versionId,
+    );
+    if (!version) {
+      throw new Error(
+        `Canvas document version not found: ${docId}@${versionId}`,
+      );
+    }
+    return version;
   }
 
   async #load(docId: string): Promise<AnchoredDocument> {

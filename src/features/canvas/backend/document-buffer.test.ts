@@ -244,4 +244,39 @@ describe("CanvasDocumentBuffer", () => {
     const restored = new AnchoredDocument(version.meta.anchors);
     expect(restored.read()).toEqual(lines);
   });
+
+  it("diffs two snapshotted versions using their persisted anchor state", async () => {
+    const store = memoryStore();
+    const buffer = new CanvasDocumentBuffer(store);
+    const initial = await buffer.write(
+      "main",
+      "<body>\n<p>a</p>\n<p>b</p>\n</body>",
+    );
+    const before = (await buffer.snapshotCurrent(["main"])).get("main")!;
+
+    await buffer.writeback(
+      "main",
+      store.dump("main")!.replace("<p>b</p>", "<p>B</p>"),
+    );
+    const after = (await buffer.snapshotCurrent(["main"])).get("main")!;
+
+    await expect(
+      buffer.diffVersions("main", before.id, after.id),
+    ).resolves.toEqual([
+      {
+        oldLines: [initial.find((line) => line.text === "<p>b</p>")!],
+        newLines: [
+          after.meta.anchors.lines.find((line) => line.text === "<p>B</p>")!,
+        ],
+      },
+    ]);
+  });
+
+  it("throws when diffing an unknown canvas version", async () => {
+    const buffer = new CanvasDocumentBuffer(memoryStore());
+
+    await expect(
+      buffer.diffVersions("main", "missing-a", "missing-b"),
+    ).rejects.toThrow("Canvas document version not found: main@missing-a");
+  });
 });
