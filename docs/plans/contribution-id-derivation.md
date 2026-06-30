@@ -1,6 +1,6 @@
 ---
 summary: "Derive contribution/canonical ids from featureId + name across all facets so authors give only a local name; one uniform ContributionId brand (`${featureId}.<facet>.<name>`) plus one per-facet canonical-id brand (facet segment dropped), the api exposes author shapes only. Units: channels (done), agent tools (done), state messages (done), resources (done), private state (done)."
-status: active
+status: archived
 ---
 
 # Spec: contribution id derivation
