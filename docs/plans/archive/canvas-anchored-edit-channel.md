@@ -1,6 +1,6 @@
 ---
 summary: "Build spec for the value-first canvas anchored edit channel: the anchor pool (P0), the anchored editing core (U1), and the live bidirectional canvas channel (U2) on customTools — later units (pi refactor, FS parity, versioning) are out of scope here."
-status: active
+status: archived
 ---
 
 # Spec: canvas anchored edit channel (P0–U2)
