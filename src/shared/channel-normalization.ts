@@ -83,8 +83,8 @@ export type ChannelContract<Contribution extends ChannelContribution> = {
 export type ChannelRegistration<Req = unknown, Res = unknown> = {
   contributionId: ContributionId;
   canonicalId: ChannelCanonicalId;
-  request: TSchema;
-  response: TSchema;
+  requestSchema: TSchema;
+  responseSchema: TSchema;
   handle: (req: Req) => Res | Promise<Res>;
   log?: ChannelLogOptions<Res>;
 };
@@ -125,8 +125,8 @@ export function channelRequestRegistrations(
     return {
       contributionId: request.contributionId,
       canonicalId: request.canonicalId,
-      request: request.request,
-      response: request.response,
+      requestSchema: request.requestSchema,
+      responseSchema: request.responseSchema,
       handle: request.handle,
       log: request.log,
     };

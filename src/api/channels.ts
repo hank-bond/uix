@@ -8,8 +8,8 @@ export interface ChannelRequestContribution<
   Req extends TSchema = TSchema,
   Res extends TSchema = TSchema,
 > {
-  readonly request: Req;
-  readonly response: Res;
+  readonly requestSchema: Req;
+  readonly responseSchema: Res;
   readonly handle: (req: unknown) => unknown;
   readonly log?: ChannelLogOptions<unknown>;
 }

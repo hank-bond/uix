@@ -66,9 +66,9 @@ export class ChannelRegistry {
     const transportRegistration = this.#transportHandle(
       canonicalId,
       async (rawReq) => {
-        const req = Value.Parse(channelRegistration.request, rawReq);
+        const req = Value.Parse(channelRegistration.requestSchema, rawReq);
         const res = await channelRegistration.handle(req as Req);
-        return Value.Parse(channelRegistration.response, res);
+        return Value.Parse(channelRegistration.responseSchema, res);
       },
       channelRegistration.log as HandleLogOptions<unknown> | undefined,
     );

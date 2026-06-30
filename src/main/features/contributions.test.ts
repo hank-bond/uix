@@ -20,8 +20,8 @@ function channelContribution(name = "refresh") {
   return {
     requests: {
       [name]: {
-        request: emptyParams,
-        response: Type.Void(),
+        requestSchema: emptyParams,
+        responseSchema: Type.Void(),
         handle: () => undefined,
       },
     },

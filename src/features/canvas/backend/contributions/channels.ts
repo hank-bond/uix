@@ -31,8 +31,8 @@ export function createCanvasChannelContributions(
     {
       requests: {
         writeback: {
-          request: CanvasWritebackSchema,
-          response: Type.Void(),
+          requestSchema: CanvasWritebackSchema,
+          responseSchema: Type.Void(),
           async handle(req) {
             const payload = req as CanvasWriteback;
             createLogger("canvas").debug(

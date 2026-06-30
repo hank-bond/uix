@@ -50,8 +50,8 @@ describe("ChannelRegistry", () => {
     const registration = registry.register({
       contributionId: toContributionId("canvas", "channel", "writeback"),
       canonicalId: toChannelCanonicalId("canvas", "writeback"),
-      request: Type.Object({ key: Type.Unknown() }),
-      response: Type.Object({ ok: Type.Unknown() }),
+      requestSchema: Type.Object({ key: Type.Unknown() }),
+      responseSchema: Type.Object({ ok: Type.Unknown() }),
       handle: (req: unknown) => ({ ok: req }),
     });
 
@@ -74,8 +74,8 @@ describe("ChannelRegistry", () => {
     const registration = registry.register({
       contributionId: toContributionId("canvas", "channel", "refresh"),
       canonicalId: toChannelCanonicalId("canvas", "refresh"),
-      request: Type.Object({}),
-      response: Type.Void(),
+      requestSchema: Type.Object({}),
+      responseSchema: Type.Void(),
       handle: () => undefined,
     });
 
@@ -83,8 +83,8 @@ describe("ChannelRegistry", () => {
       registry.register({
         contributionId: toContributionId("other", "channel", "refresh"),
         canonicalId: toChannelCanonicalId("canvas", "refresh"),
-        request: Type.Object({}),
-        response: Type.Void(),
+        requestSchema: Type.Object({}),
+        responseSchema: Type.Void(),
         handle: () => undefined,
       }),
     ).toThrow("Channel already registered: canvas.refresh");
@@ -95,8 +95,8 @@ describe("ChannelRegistry", () => {
       registry.register({
         contributionId: toContributionId("canvas", "channel", "refresh"),
         canonicalId: toChannelCanonicalId("canvas", "refresh"),
-        request: Type.Object({}),
-        response: Type.Void(),
+        requestSchema: Type.Object({}),
+        responseSchema: Type.Void(),
         handle: () => undefined,
       }),
     ).not.toThrow();
@@ -111,8 +111,8 @@ describe("ChannelRegistry", () => {
     registry.register({
       contributionId: toContributionId("canvas", "channel", "writeback"),
       canonicalId: toChannelCanonicalId("canvas", "writeback"),
-      request: Type.Object({ key: Type.String() }),
-      response: Type.Object({ ok: Type.Boolean() }),
+      requestSchema: Type.Object({ key: Type.String() }),
+      responseSchema: Type.Object({ ok: Type.Boolean() }),
       handle: (req: { key: string }) => ({ ok: req.key === "main" }),
     });
 
@@ -151,13 +151,13 @@ describe("ChannelRegistry", () => {
       {
         requests: {
           refresh: {
-            request: Type.Object({}),
-            response: Type.Void(),
+            requestSchema: Type.Object({}),
+            responseSchema: Type.Void(),
             handle: () => undefined,
           },
           writeback: {
-            request: Type.Object({}),
-            response: Type.Void(),
+            requestSchema: Type.Object({}),
+            responseSchema: Type.Void(),
             handle: () => undefined,
           },
         },

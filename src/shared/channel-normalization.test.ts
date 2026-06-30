@@ -38,8 +38,8 @@ describe("normalizeChannelContribution", () => {
     const channels = normalizeChannelContribution("canvas", {
       requests: {
         writeback: {
-          request: Type.Object({ html: Type.String() }),
-          response: Type.Void(),
+          requestSchema: Type.Object({ html: Type.String() }),
+          responseSchema: Type.Void(),
           handle: () => undefined,
         },
       },
@@ -67,8 +67,8 @@ describe("normalizeChannelContribution", () => {
       normalizeChannelContribution("canvas", {
         requests: {
           changed: {
-            request: Type.Object({}),
-            response: Type.Void(),
+            requestSchema: Type.Object({}),
+            responseSchema: Type.Void(),
             handle: () => undefined,
           },
         },
