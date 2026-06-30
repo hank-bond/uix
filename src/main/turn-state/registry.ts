@@ -8,7 +8,10 @@
 // featureId itself serves as the canonical id under the `uix.turn-state`
 // blob; the registry dedup key is `${featureId}.state`.
 
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type {
+  ExtensionAPI,
+  SessionEntry,
+} from "@earendil-works/pi-coding-agent";
 
 import { toContributionId, type ContributionId } from "#shared/contribution-id";
 import { DisposableBag } from "../lifecycle";
@@ -43,11 +46,12 @@ function assertStateToken(label: string, token: string): void {
   }
 }
 
-export interface StatePreparationContext {
+export interface TurnStatePreparationContext {
   cwd: string;
+  branch: readonly SessionEntry[];
 }
 
-export interface PreparedState {
+export interface PreparedTurnState {
   state: unknown;
 }
 
@@ -58,11 +62,11 @@ export interface PreparedState {
  */
 export interface TurnStateContribution {
   prepareUserSubmitState?: (
-    ctx: StatePreparationContext,
-  ) => MaybePromise<PreparedState | undefined>;
+    ctx: TurnStatePreparationContext,
+  ) => MaybePromise<PreparedTurnState | undefined>;
   prepareAgentEndState?: (
-    ctx: StatePreparationContext,
-  ) => MaybePromise<PreparedState | undefined>;
+    ctx: TurnStatePreparationContext,
+  ) => MaybePromise<PreparedTurnState | undefined>;
 }
 
 interface RegisteredTurnStateContribution extends TurnStateContribution {
@@ -124,6 +128,7 @@ export function createTurnStateCoordinator(
     pi.on("input", async (_event, ctx) => {
       await appendPreparedTurnState(pi, {
         cwd: ctx.cwd,
+        branch: ctx.sessionManager.getBranch(),
         contributions: liveContributions(state, installedContributions),
         select: (contribution) => contribution.prepareUserSubmitState,
       });
@@ -132,6 +137,7 @@ export function createTurnStateCoordinator(
     pi.on("agent_end", async (_event, ctx) => {
       await appendPreparedTurnState(pi, {
         cwd: ctx.cwd,
+        branch: ctx.sessionManager.getBranch(),
         contributions: liveContributions(state, installedContributions),
         select: (contribution) => contribution.prepareAgentEndState,
       });
@@ -152,6 +158,7 @@ async function appendPreparedTurnState(
   pi: ExtensionAPI,
   opts: {
     cwd: string;
+    branch: readonly SessionEntry[];
     contributions: readonly RegisteredTurnStateContribution[];
     select: (
       contribution: RegisteredTurnStateContribution,
@@ -164,7 +171,7 @@ async function appendPreparedTurnState(
     const prepare = opts.select(contribution);
     if (!prepare) continue;
 
-    const prepared = await prepare({ cwd: opts.cwd });
+    const prepared = await prepare({ cwd: opts.cwd, branch: opts.branch });
     if (!prepared) continue;
     preparedState[contribution.canonicalId] = prepared.state;
   }

@@ -5,7 +5,7 @@
 // refs for the substrate-owned `uix.turn-state` entry.
 
 import type {
-  PreparedState,
+  PreparedTurnState,
   TurnStateContribution,
 } from "#backend/turn-state/registry";
 
@@ -35,7 +35,7 @@ export function createCanvasTurnStateContributions(
 async function snapshotCanvasPanes(
   buffer: CanvasContext["buffer"],
   canvasKeys: Iterable<string>,
-): Promise<PreparedState | undefined> {
+): Promise<PreparedTurnState | undefined> {
   const versions = await buffer.snapshotCurrent(canvasKeys);
   if (versions.size === 0) return undefined;
   return {

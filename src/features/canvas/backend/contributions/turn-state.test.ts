@@ -71,7 +71,7 @@ describe("createCanvasTurnStateContributions", () => {
     });
 
     await expect(
-      contribution.prepareUserSubmitState?.({ cwd: "/work" }),
+      contribution.prepareUserSubmitState?.({ cwd: "/work", branch: [] }),
     ).resolves.toEqual({
       state: { "doc://canvas/main": "v1" },
     });
@@ -81,7 +81,7 @@ describe("createCanvasTurnStateContributions", () => {
     const { contribution } = captureCanvasState({ openCanvasKeys: [] });
 
     await expect(
-      contribution.prepareUserSubmitState?.({ cwd: "/work" }),
+      contribution.prepareUserSubmitState?.({ cwd: "/work", branch: [] }),
     ).resolves.toBeUndefined();
   });
 
@@ -92,7 +92,7 @@ describe("createCanvasTurnStateContributions", () => {
     });
 
     await expect(
-      contribution.prepareAgentEndState?.({ cwd: "/work" }),
+      contribution.prepareAgentEndState?.({ cwd: "/work", branch: [] }),
     ).resolves.toBeUndefined();
   });
 
@@ -108,7 +108,7 @@ describe("createCanvasTurnStateContributions", () => {
     });
 
     await expect(
-      contribution.prepareAgentEndState?.({ cwd: "/work" }),
+      contribution.prepareAgentEndState?.({ cwd: "/work", branch: [] }),
     ).resolves.toEqual({
       state: {
         "doc://canvas/main": "v1",
@@ -125,11 +125,11 @@ describe("createCanvasTurnStateContributions", () => {
       agentChangedCanvasKeys,
     });
 
-    await contribution.prepareAgentEndState?.({ cwd: "/work" });
+    await contribution.prepareAgentEndState?.({ cwd: "/work", branch: [] });
 
     expect(agentChangedCanvasKeys.size).toBe(0);
     await expect(
-      contribution.prepareAgentEndState?.({ cwd: "/work" }),
+      contribution.prepareAgentEndState?.({ cwd: "/work", branch: [] }),
     ).resolves.toBeUndefined();
   });
 });

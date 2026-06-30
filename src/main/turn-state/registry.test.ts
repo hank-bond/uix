@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type {
   ExtensionAPI,
   ExtensionContext,
+  SessionEntry,
 } from "@earendil-works/pi-coding-agent";
 
 import {
@@ -35,9 +36,16 @@ function setupCoordinator(state = new TurnStateRegistry()) {
 
   void createTurnStateCoordinator(state)(pi);
 
-  const fire = async (event: string, cwd = "/work") => {
+  const fire = async (
+    event: string,
+    cwd = "/work",
+    branch: readonly SessionEntry[] = [],
+  ) => {
     for (const handler of handlers.get(event) ?? []) {
-      await handler({}, { cwd } as ExtensionContext);
+      await handler({}, {
+        cwd,
+        sessionManager: { getBranch: () => branch },
+      } as ExtensionContext);
     }
   };
 
@@ -101,6 +109,33 @@ describe("TurnStateRegistry", () => {
     registrations[Symbol.dispose]();
     await fire("input");
     expect(entries).toHaveLength(1);
+  });
+
+  it("passes the current branch to preparation callbacks", async () => {
+    const state = new TurnStateRegistry();
+    const branch = [
+      { id: "entry-1", type: "custom", customType: "uix.turn-state" },
+    ] as unknown as readonly SessionEntry[];
+    let seenBranch: readonly SessionEntry[] | undefined;
+    registerTurnStateContributions(state, "canvas", [
+      {
+        prepareUserSubmitState: (ctx) => {
+          seenBranch = ctx.branch;
+          return { state: { main: ctx.cwd } };
+        },
+      },
+    ]);
+    const { entries, fire } = setupCoordinator(state);
+
+    await fire("input", "/repo", branch);
+
+    expect(seenBranch).toBe(branch);
+    expect(entries).toEqual([
+      {
+        customType: "uix.turn-state",
+        data: { cwd: "/repo", state: { canvas: { main: "/repo" } } },
+      },
+    ]);
   });
 
   it("aggregates user-submit state by feature id", async () => {
