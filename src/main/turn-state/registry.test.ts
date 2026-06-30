@@ -22,6 +22,20 @@ function register(state: TurnStateRegistry, featureId: string) {
   ]);
 }
 
+function turnStateEntry(
+  id: string,
+  data: { cwd?: string; state: Record<string, unknown> },
+): SessionEntry {
+  return {
+    id,
+    parentId: undefined,
+    timestamp: new Date(0).toISOString(),
+    type: "custom",
+    customType: "uix.turn-state",
+    data,
+  } as unknown as SessionEntry;
+}
+
 function setupCoordinator(state = new TurnStateRegistry()) {
   const handlers = new Map<string, VoidHandler[]>();
   const entries: Array<{ customType: string; data: unknown }> = [];
@@ -111,16 +125,32 @@ describe("TurnStateRegistry", () => {
     expect(entries).toHaveLength(1);
   });
 
-  it("passes the current branch to preparation callbacks", async () => {
+  it("provides contribution-scoped previous turn-state helpers", async () => {
     const state = new TurnStateRegistry();
     const branch = [
-      { id: "entry-1", type: "custom", customType: "uix.turn-state" },
-    ] as unknown as readonly SessionEntry[];
-    let seenBranch: readonly SessionEntry[] | undefined;
+      turnStateEntry("older", {
+        cwd: "/old",
+        state: { canvas: { main: "v1" }, chat: { selected: "c1" } },
+      }),
+      turnStateEntry("chat-only", {
+        cwd: "/chat",
+        state: { chat: { selected: "c2" } },
+      }),
+      turnStateEntry("newer", {
+        cwd: "/new",
+        state: { canvas: { main: "v2" } },
+      }),
+    ];
+    let previous: { main: string } | undefined;
+    let secondPrevious: { main: string } | undefined;
     registerTurnStateContributions(state, "canvas", [
       {
         prepareUserSubmitState: (ctx) => {
-          seenBranch = ctx.branch;
+          previous = ctx.previousTurnState<{ main: string }>()?.state;
+          secondPrevious = ctx.previousTurnStates<{ main: string }>({
+            offset: 1,
+            limit: 1,
+          })[0]?.state;
           return { state: { main: ctx.cwd } };
         },
       },
@@ -129,7 +159,8 @@ describe("TurnStateRegistry", () => {
 
     await fire("input", "/repo", branch);
 
-    expect(seenBranch).toBe(branch);
+    expect(previous).toEqual({ main: "v2" });
+    expect(secondPrevious).toEqual({ main: "v1" });
     expect(entries).toEqual([
       {
         customType: "uix.turn-state",

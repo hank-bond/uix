@@ -4,8 +4,17 @@ import { CanvasDocumentBuffer } from "../document-buffer";
 import type { CanvasContext } from "../context";
 import type { DocumentStore, DocumentVersion } from "#backend/documents/store";
 import type { FeatureContext } from "#backend/features/context";
+import type { TurnStatePreparationContext } from "#backend/turn-state/registry";
 
 import { createCanvasTurnStateContributions } from "./turn-state";
+
+function prepCtx(): TurnStatePreparationContext {
+  return {
+    cwd: "/work",
+    previousTurnState: () => undefined,
+    previousTurnStates: () => [],
+  };
+}
 
 function memoryStore(initial: Record<string, string> = {}): DocumentStore {
   const latest = new Map<string, string>(Object.entries(initial));
@@ -71,7 +80,7 @@ describe("createCanvasTurnStateContributions", () => {
     });
 
     await expect(
-      contribution.prepareUserSubmitState?.({ cwd: "/work", branch: [] }),
+      contribution.prepareUserSubmitState?.(prepCtx()),
     ).resolves.toEqual({
       state: { "doc://canvas/main": "v1" },
     });
@@ -81,7 +90,7 @@ describe("createCanvasTurnStateContributions", () => {
     const { contribution } = captureCanvasState({ openCanvasKeys: [] });
 
     await expect(
-      contribution.prepareUserSubmitState?.({ cwd: "/work", branch: [] }),
+      contribution.prepareUserSubmitState?.(prepCtx()),
     ).resolves.toBeUndefined();
   });
 
@@ -92,7 +101,7 @@ describe("createCanvasTurnStateContributions", () => {
     });
 
     await expect(
-      contribution.prepareAgentEndState?.({ cwd: "/work", branch: [] }),
+      contribution.prepareAgentEndState?.(prepCtx()),
     ).resolves.toBeUndefined();
   });
 
@@ -108,7 +117,7 @@ describe("createCanvasTurnStateContributions", () => {
     });
 
     await expect(
-      contribution.prepareAgentEndState?.({ cwd: "/work", branch: [] }),
+      contribution.prepareAgentEndState?.(prepCtx()),
     ).resolves.toEqual({
       state: {
         "doc://canvas/main": "v1",
@@ -125,11 +134,11 @@ describe("createCanvasTurnStateContributions", () => {
       agentChangedCanvasKeys,
     });
 
-    await contribution.prepareAgentEndState?.({ cwd: "/work", branch: [] });
+    await contribution.prepareAgentEndState?.(prepCtx());
 
     expect(agentChangedCanvasKeys.size).toBe(0);
     await expect(
-      contribution.prepareAgentEndState?.({ cwd: "/work", branch: [] }),
+      contribution.prepareAgentEndState?.(prepCtx()),
     ).resolves.toBeUndefined();
   });
 });

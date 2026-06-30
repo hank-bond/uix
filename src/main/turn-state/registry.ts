@@ -46,9 +46,23 @@ function assertStateToken(label: string, token: string): void {
   }
 }
 
+export interface PreviousTurnState<TState = unknown> {
+  readonly entryId: string;
+  readonly cwd: string | undefined;
+  readonly state: TState;
+}
+
+export interface PreviousTurnStatesOptions {
+  readonly offset?: number;
+  readonly limit?: number;
+}
+
 export interface TurnStatePreparationContext {
   cwd: string;
-  branch: readonly SessionEntry[];
+  previousTurnState<TState = unknown>(): PreviousTurnState<TState> | undefined;
+  previousTurnStates<TState = unknown>(
+    opts?: PreviousTurnStatesOptions,
+  ): readonly PreviousTurnState<TState>[];
 }
 
 export interface PreparedTurnState {
@@ -171,11 +185,104 @@ async function appendPreparedTurnState(
     const prepare = opts.select(contribution);
     if (!prepare) continue;
 
-    const prepared = await prepare({ cwd: opts.cwd, branch: opts.branch });
+    const prepared = await prepare(
+      createTurnStatePreparationContext({
+        cwd: opts.cwd,
+        branch: opts.branch,
+        canonicalId: contribution.canonicalId,
+      }),
+    );
     if (!prepared) continue;
     preparedState[contribution.canonicalId] = prepared.state;
   }
 
   if (Object.keys(preparedState).length === 0) return;
   pi.appendEntry(TurnStateEntryType, { state: preparedState, cwd: opts.cwd });
+}
+
+// We bind the methods so that they can only access the same key that
+// is being provided in the contribution.
+function createTurnStatePreparationContext(opts: {
+  cwd: string;
+  branch: readonly SessionEntry[];
+  canonicalId: TurnStateCanonicalId;
+}): TurnStatePreparationContext {
+  return {
+    cwd: opts.cwd,
+    previousTurnState<TState = unknown>() {
+      return previousTurnStates<TState>(opts.branch, opts.canonicalId, {
+        limit: 1,
+      })[0];
+    },
+    previousTurnStates<TState = unknown>(historyOpts = {}) {
+      return previousTurnStates<TState>(
+        opts.branch,
+        opts.canonicalId,
+        historyOpts,
+      );
+    },
+  };
+}
+
+/* Iterate through the TurnState customEntry blocks in the session 
+history such that we select the first N nodes that are both parents
+of the current leaf we are at and contain the target key within 
+our TurnState.  We skip all other nodes.
+*/
+function previousTurnStates<TState>(
+  branch: readonly SessionEntry[],
+  canonicalId: TurnStateCanonicalId,
+  opts: PreviousTurnStatesOptions,
+): PreviousTurnState<TState>[] {
+  const offset = opts.offset ?? 0;
+  const limit = opts.limit ?? branch.length;
+  assertNonNegativeInteger("previous turn-state offset", offset);
+  assertNonNegativeInteger("previous turn-state limit", limit);
+
+  const result: PreviousTurnState<TState>[] = [];
+  let skipped = 0;
+  for (let index = branch.length - 1; index >= 0; index -= 1) {
+    const turnState = extractTurnStateEntry(branch[index], canonicalId);
+    if (!turnState) continue;
+
+    if (skipped < offset) {
+      skipped += 1;
+      continue;
+    }
+
+    result.push(turnState as PreviousTurnState<TState>);
+    if (result.length >= limit) break;
+  }
+  return result;
+}
+
+function extractTurnStateEntry(
+  entry: SessionEntry,
+  canonicalId: TurnStateCanonicalId,
+): PreviousTurnState | undefined {
+  if (entry.type !== "custom") return undefined;
+  if (entry.customType !== TurnStateEntryType) return undefined;
+  const data = asRecord(entry.data);
+  const state = asRecord(data?.["state"]);
+  if (!state) return undefined;
+  if (!(canonicalId in state)) return undefined;
+  return {
+    entryId: entry.id,
+    cwd: typeof data?.["cwd"] === "string" ? data["cwd"] : undefined,
+    state: state[canonicalId],
+  };
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function assertNonNegativeInteger(label: string, value: number): void {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(
+      `Invalid ${label}: ${value}. Expected a non-negative integer.`,
+    );
+  }
 }
