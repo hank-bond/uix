@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { AnchorPool } from "./pool";
 
-import { AnchoredDocument } from "./document";
+import { AnchoredDocument, diffAnchoredSnapshots } from "./document";
 
 function testAllocate() {
   const pool = new AnchorPool("A\nB\nC\nD\nE\nF\nG\nH\nI\nJ\nK\nL\n");
@@ -266,6 +266,84 @@ describe("AnchoredDocument", () => {
         { anchor: "A", text: "same" },
         { anchor: "D", text: "new" },
         { anchor: "C", text: "same" },
+      ]);
+    });
+  });
+
+  describe("diffAnchoredSnapshots", () => {
+    it("returns no hunks for unchanged snapshot text", () => {
+      expect(
+        diffAnchoredSnapshots(
+          {
+            lines: [
+              { anchor: "A", text: "one" },
+              { anchor: "B", text: "two" },
+            ],
+            nextAnchorIndex: 2,
+          },
+          {
+            lines: [
+              { anchor: "A", text: "one" },
+              { anchor: "B", text: "two" },
+            ],
+            nextAnchorIndex: 2,
+          },
+        ),
+      ).toEqual([]);
+    });
+
+    it("reports removed lines from the old snapshot and added lines from the new snapshot", () => {
+      expect(
+        diffAnchoredSnapshots(
+          {
+            lines: [
+              { anchor: "A", text: "one" },
+              { anchor: "B", text: "two" },
+              { anchor: "C", text: "three" },
+            ],
+            nextAnchorIndex: 3,
+          },
+          {
+            lines: [
+              { anchor: "A", text: "one" },
+              { anchor: "D", text: "TWO" },
+              { anchor: "C", text: "three" },
+            ],
+            nextAnchorIndex: 4,
+          },
+        ),
+      ).toEqual([
+        {
+          oldLines: [{ anchor: "B", text: "two" }],
+          newLines: [{ anchor: "D", text: "TWO" }],
+        },
+      ]);
+    });
+
+    it("uses the current snapshot's anchors for inserted lines", () => {
+      expect(
+        diffAnchoredSnapshots(
+          {
+            lines: [
+              { anchor: "old-a", text: "one" },
+              { anchor: "old-c", text: "three" },
+            ],
+            nextAnchorIndex: 2,
+          },
+          {
+            lines: [
+              { anchor: "new-a", text: "one" },
+              { anchor: "new-b", text: "two" },
+              { anchor: "new-c", text: "three" },
+            ],
+            nextAnchorIndex: 3,
+          },
+        ),
+      ).toEqual([
+        {
+          oldLines: [],
+          newLines: [{ anchor: "new-b", text: "two" }],
+        },
       ]);
     });
   });

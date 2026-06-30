@@ -33,6 +33,44 @@ export interface AnchoredDocumentSnapshot {
   readonly nextAnchorIndex: number;
 }
 
+export function diffAnchoredSnapshots(
+  oldSnapshot: AnchoredDocumentSnapshot,
+  newSnapshot: AnchoredDocumentSnapshot,
+): readonly AnchoredChange[] {
+  const oldTexts = oldSnapshot.lines.map((line) => line.text);
+  const newTexts = newSnapshot.lines.map((line) => line.text);
+  const changes: AnchoredChange[] = [];
+  let pending:
+    | { oldLines: AnchoredLine[]; newLines: AnchoredLine[] }
+    | undefined;
+
+  const flushPending = () => {
+    if (!pending) return;
+    changes.push({ oldLines: pending.oldLines, newLines: pending.newLines });
+    pending = undefined;
+  };
+
+  const ensurePending = () => (pending ??= { oldLines: [], newLines: [] });
+
+  for (const step of diffLines(oldTexts, newTexts)) {
+    if (step.type === "equal") {
+      flushPending();
+      continue;
+    }
+
+    const change = ensurePending();
+    if (step.type === "delete") {
+      change.oldLines.push(oldSnapshot.lines[step.oldIndex]);
+      continue;
+    }
+
+    change.newLines.push(newSnapshot.lines[step.newIndex]);
+  }
+
+  flushPending();
+  return changes;
+}
+
 export interface AnchorRangeEdit {
   // Boundaries are structured lines (anchor + the text the caller believes is
   // there), not rendered strings — the §-gutter wire format is parsed at the
