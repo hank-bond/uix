@@ -75,10 +75,6 @@ export class StateRegistry {
   readonly registeredContributions: RegisteredStateContribution[] = [];
 }
 
-export function createStateRegistry(): StateRegistry {
-  return new StateRegistry();
-}
-
 /** The sole registration path for private-state contributions. Derives both ids, enforces the singleton-per-feature invariant, and returns a Disposable. */
 export function registerStateContributions(
   registry: StateRegistry,

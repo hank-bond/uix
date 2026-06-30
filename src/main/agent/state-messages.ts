@@ -286,10 +286,6 @@ export class StateMessageRegistry {
   }
 }
 
-export function createStateMessageRegistry(): StateMessageRegistry {
-  return new StateMessageRegistry();
-}
-
 export function createStateMessageAssembler(
   stateMessageRegistry: StateMessageRegistry,
 ): AgentInstaller {

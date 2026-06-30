@@ -22,7 +22,6 @@ import {
 import { Value } from "typebox/value";
 
 import type { HandleLogOptions } from "../ipc";
-import * as ipc from "../ipc";
 import { DisposableBag, disposable } from "../lifecycle";
 
 export type ChannelTransportHandle = (
@@ -36,54 +35,52 @@ export type ChannelTransportPublish = (
   payload: unknown,
 ) => void;
 
-export interface ChannelRegistry {
-  publish(canonicalId: ChannelCanonicalId, payload: unknown): void;
-  register<Req, Res>(registration: ChannelRegistration<Req, Res>): Disposable;
-}
-
 export interface ChannelRegistryOptions {
-  handle?: ChannelTransportHandle;
+  transportHandle: ChannelTransportHandle;
   publish?: ChannelTransportPublish;
 }
 
-export function createChannelRegistry(
-  opts: ChannelRegistryOptions = {},
-): ChannelRegistry {
-  const handle =
-    opts.handle ??
-    ((canonicalId, fn, logOpts) =>
-      ipc.handle<unknown, unknown>(canonicalId, fn, logOpts));
-  const publish = opts.publish ?? (() => undefined);
-  const canonicalIds = new Set<ChannelCanonicalId>();
+export class ChannelRegistry {
+  readonly #transportHandle: ChannelTransportHandle;
+  readonly #publish: ChannelTransportPublish;
+  readonly #canonicalIds = new Set<ChannelCanonicalId>();
 
-  return {
-    publish,
-    register<Req, Res>(channelRegistration: ChannelRegistration<Req, Res>) {
-      const { canonicalId } = channelRegistration;
-      if (canonicalIds.has(canonicalId)) {
-        throw new Error(`Channel already registered: ${canonicalId}`);
-      }
+  constructor(opts: ChannelRegistryOptions) {
+    this.#transportHandle = opts.transportHandle;
+    this.#publish = opts.publish ?? (() => undefined);
+  }
 
-      canonicalIds.add(canonicalId);
-      const transportRegistration = handle(
-        canonicalId,
-        async (rawReq) => {
-          const req = Value.Parse(channelRegistration.request, rawReq);
-          const res = await channelRegistration.handle(req as Req);
-          return Value.Parse(channelRegistration.response, res);
-        },
-        channelRegistration.log as HandleLogOptions<unknown> | undefined,
-      );
+  publish(canonicalId: ChannelCanonicalId, payload: unknown): void {
+    this.#publish(canonicalId, payload);
+  }
 
-      let disposed = false;
-      return disposable(() => {
-        if (disposed) return;
-        disposed = true;
-        transportRegistration[Symbol.dispose]();
-        canonicalIds.delete(canonicalId);
-      });
-    },
-  };
+  register<Req, Res>(
+    channelRegistration: ChannelRegistration<Req, Res>,
+  ): Disposable {
+    const { canonicalId } = channelRegistration;
+    if (this.#canonicalIds.has(canonicalId)) {
+      throw new Error(`Channel already registered: ${canonicalId}`);
+    }
+
+    this.#canonicalIds.add(canonicalId);
+    const transportRegistration = this.#transportHandle(
+      canonicalId,
+      async (rawReq) => {
+        const req = Value.Parse(channelRegistration.request, rawReq);
+        const res = await channelRegistration.handle(req as Req);
+        return Value.Parse(channelRegistration.response, res);
+      },
+      channelRegistration.log as HandleLogOptions<unknown> | undefined,
+    );
+
+    let disposed = false;
+    return disposable(() => {
+      if (disposed) return;
+      disposed = true;
+      transportRegistration[Symbol.dispose]();
+      this.#canonicalIds.delete(canonicalId);
+    });
+  }
 }
 
 export function registerChannelContributions(

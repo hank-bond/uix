@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { Type } from "typebox";
 
-import { createStateMessageRegistry } from "../agent/state-messages";
-import { createAgentToolRegistry } from "../agent/tools";
-import { createChannelRegistry } from "../channels/registry";
-import { createResourceRegistry } from "../resources/registry";
+import { StateMessageRegistry } from "../agent/state-messages";
+import { AgentToolRegistry } from "../agent/tools";
+import { ChannelRegistry } from "../channels/registry";
+import { ResourceRegistry } from "../resources/registry";
 import { normalizeResourceRoute } from "#shared/resource-routes";
-import { createStateRegistry } from "../state/registry";
+import { StateRegistry } from "../state/registry";
 
 import {
   registerFeatureContributions,
@@ -51,19 +51,19 @@ function agentTool(name: string) {
 
 describe("registerFeatureContributions", () => {
   it("registers all contribution groups and disposes them together", () => {
-    const resources = createResourceRegistry({
+    const resources = new ResourceRegistry({
       workspaceId: "local",
       handle: () => undefined,
       unhandle: () => undefined,
     });
-    const channels = createChannelRegistry({
-      handle: () => ({
+    const channels = new ChannelRegistry({
+      transportHandle: () => ({
         [Symbol.dispose]() {},
       }),
     });
-    const agentTools = createAgentToolRegistry();
-    const state = createStateRegistry();
-    const stateMessages = createStateMessageRegistry();
+    const agentTools = new AgentToolRegistry();
+    const state = new StateRegistry();
+    const stateMessages = new StateMessageRegistry();
 
     const registration = registerFeatureContributions(
       { resources, channels, agentTools, state, stateMessages },

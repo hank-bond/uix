@@ -10,7 +10,7 @@ import type {
 import { Type } from "typebox";
 
 import {
-  createStateMessageRegistry,
+  StateMessageRegistry,
   createStateMessageAssembler,
   registerStateMessageContributions,
   StateMessageRegistry,
@@ -81,12 +81,12 @@ describe("createStateMessages", () => {
   });
 
   it("leaves the system prompt alone with no registrations", async () => {
-    const run = install(createStateMessageRegistry());
+    const run = install(new StateMessageRegistry());
     expect(await run()).toEqual({});
   });
 
   it("bulk-registers contributions, applies initial update values, and disposes them together", async () => {
-    const sm = createStateMessageRegistry();
+    const sm = new StateMessageRegistry();
     const registrations = registerStateMessageContributions(sm, "test", [
       {
         name: "pane-visibility",

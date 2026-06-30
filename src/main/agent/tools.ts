@@ -25,12 +25,7 @@ export interface AgentToolContribution {
   readonly tool: AgentToolDefinition;
 }
 
-export interface AgentToolRegistry {
-  readonly registeredContributions: AgentToolRegistration[];
-  register(contribution: AgentToolRegistration): Disposable;
-}
-
-class RegisteredAgentToolContributions implements AgentToolRegistry {
+export class AgentToolRegistry {
   readonly registeredContributions: AgentToolRegistration[] = [];
 
   register(contribution: AgentToolRegistration): Disposable {
@@ -53,10 +48,6 @@ class RegisteredAgentToolContributions implements AgentToolRegistry {
       },
     };
   }
-}
-
-export function createAgentToolRegistry(): AgentToolRegistry {
-  return new RegisteredAgentToolContributions();
 }
 
 export function registerAgentToolContributions(

@@ -149,12 +149,6 @@ export class ResourceRegistry implements Disposable {
   }
 }
 
-export function createResourceRegistry(
-  opts: ResourceRegistryOptions,
-): ResourceRegistry {
-  return new ResourceRegistry(opts);
-}
-
 export function registerResourceContributions(
   registry: ResourceRegistry,
   featureId: string,

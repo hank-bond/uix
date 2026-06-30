@@ -20,16 +20,13 @@ import {
   type ReloadResult,
 } from "../shared/ipc";
 import { createAgentDriver } from "./agent/driver";
-import { createStateMessageRegistry } from "./agent/state-messages";
+import { StateMessageRegistry } from "./agent/state-messages";
+import { createAgentToolInstaller, AgentToolRegistry } from "./agent/tools";
 import {
-  createAgentToolInstaller,
-  createAgentToolRegistry,
-} from "./agent/tools";
-import {
-  createChannelRegistry,
+  ChannelRegistry,
   createFeatureChannelPublisher,
 } from "./channels/registry";
-import { createStateRegistry } from "./state/registry";
+import { StateRegistry } from "./state/registry";
 import { createLocalDocumentStoreProvider } from "./documents/store";
 import { loadExtensions } from "./extensions/loader";
 import { getBundledFeatures } from "./features/bundled";
@@ -38,7 +35,7 @@ import {
   registerFeaturePreflightContributions,
 } from "./features/contributions";
 import { defaultRoots } from "./extensions/roots";
-import { createResourceRegistry } from "./resources/registry";
+import { ResourceRegistry } from "./resources/registry";
 import { resolveWorkspace } from "./workspace";
 import * as ipc from "./ipc";
 import {
@@ -155,18 +152,21 @@ void app.whenReady().then(async () => {
   // Facet registries. Features contribute data into these; substrate installers
   // adapt the registries to pi when the agent session opens.
   const resources = appBag.add(
-    createResourceRegistry({ workspaceId: LocalWorkspaceId }),
+    new ResourceRegistry({ workspaceId: LocalWorkspaceId }),
   );
-  const channels = createChannelRegistry({
+  const channels = new ChannelRegistry({
+    transportHandle(canonicalId, fn, logOpts) {
+      return ipc.handle(canonicalId, fn, logOpts);
+    },
     publish(channel, payload) {
       for (const win of BrowserWindow.getAllWindows()) {
         ipc.send(win, channel, payload);
       }
     },
   });
-  const state = createStateRegistry();
-  const agentTools = createAgentToolRegistry();
-  const stateMessages = createStateMessageRegistry();
+  const state = new StateRegistry();
+  const agentTools = new AgentToolRegistry();
+  const stateMessages = new StateMessageRegistry();
 
   for (const feature of bundledFeatures) {
     const baseContext = {

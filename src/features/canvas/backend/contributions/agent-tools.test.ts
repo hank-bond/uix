@@ -9,18 +9,18 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 
 import {
-  createStateMessageRegistry,
+  StateMessageRegistry,
   createStateMessageAssembler,
   registerStateMessageContributions,
 } from "#backend/agent/state-messages";
 import {
   createAgentToolInstaller,
-  createAgentToolRegistry,
+  AgentToolRegistry,
   registerAgentToolContributions,
 } from "#backend/agent/tools";
 import {
   createStateCoordinator,
-  createStateRegistry,
+  StateRegistry,
   registerStateContributions,
 } from "#backend/state/registry";
 
@@ -92,9 +92,9 @@ type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
 // fake pi handle.
 function setup() {
   const ctx = fakeCanvasContext();
-  const state = createStateRegistry();
-  const stateMessages = createStateMessageRegistry();
-  const agentTools = createAgentToolRegistry();
+  const state = new StateRegistry();
+  const stateMessages = new StateMessageRegistry();
+  const agentTools = new AgentToolRegistry();
   const canvasState = registerStateContributions(
     state,
     "canvas",

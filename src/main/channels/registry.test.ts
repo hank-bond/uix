@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { Type } from "typebox";
 
 import {
-  createChannelRegistry,
+  ChannelRegistry,
   createFeatureChannelPublisher,
   registerChannelContributions,
 } from "./registry";
@@ -43,8 +43,8 @@ function fakeTransport() {
 describe("ChannelRegistry", () => {
   it("registers request handlers and disposes them", async () => {
     const transport = fakeTransport();
-    const registry = createChannelRegistry({
-      handle: (canonicalId, fn) => transport.handle(canonicalId, fn),
+    const registry = new ChannelRegistry({
+      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
     });
 
     const registration = registry.register({
@@ -67,8 +67,8 @@ describe("ChannelRegistry", () => {
 
   it("rejects duplicate canonical ids until disposed", () => {
     const transport = fakeTransport();
-    const registry = createChannelRegistry({
-      handle: (canonicalId, fn) => transport.handle(canonicalId, fn),
+    const registry = new ChannelRegistry({
+      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
     });
 
     const registration = registry.register({
@@ -104,8 +104,8 @@ describe("ChannelRegistry", () => {
 
   it("validates requests and responses when schemas are provided", async () => {
     const transport = fakeTransport();
-    const registry = createChannelRegistry({
-      handle: (canonicalId, fn) => transport.handle(canonicalId, fn),
+    const registry = new ChannelRegistry({
+      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
     });
 
     registry.register({
@@ -126,8 +126,8 @@ describe("ChannelRegistry", () => {
 
   it("publishes through the configured transport", () => {
     const transport = fakeTransport();
-    const registry = createChannelRegistry({
-      handle: (canonicalId, fn) => transport.handle(canonicalId, fn),
+    const registry = new ChannelRegistry({
+      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
       publish: (canonicalId, payload) =>
         transport.publish(canonicalId, payload),
     });
@@ -143,8 +143,8 @@ describe("ChannelRegistry", () => {
 
   it("registers contribution groups and disposes them together", () => {
     const transport = fakeTransport();
-    const registry = createChannelRegistry({
-      handle: (canonicalId, fn) => transport.handle(canonicalId, fn),
+    const registry = new ChannelRegistry({
+      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
     });
 
     const registration = registerChannelContributions(registry, "canvas", [
@@ -178,7 +178,7 @@ describe("ChannelRegistry", () => {
 
   it("creates feature-scoped publishers", () => {
     const transport = fakeTransport();
-    const registry = createChannelRegistry({
+    const registry = new ChannelRegistry({
       publish: (canonicalId, payload) =>
         transport.publish(canonicalId, payload),
     });

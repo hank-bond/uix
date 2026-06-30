@@ -8,7 +8,7 @@ import { Type } from "typebox";
 
 import {
   createAgentToolInstaller,
-  createAgentToolRegistry,
+  AgentToolRegistry,
   registerAgentToolContributions,
 } from "./tools";
 import type { AgentToolDefinition } from "./agent-tool-normalization";
@@ -25,7 +25,7 @@ function body(label: string): AgentToolDefinition {
   };
 }
 
-function installTools(registry = createAgentToolRegistry()) {
+function installTools(registry = new AgentToolRegistry()) {
   const tools = new Map<string, ToolDefinition>();
   const pi = {
     registerTool: (next: ToolDefinition) => tools.set(next.name, next),
@@ -38,7 +38,7 @@ function installTools(registry = createAgentToolRegistry()) {
 
 describe("AgentToolRegistry", () => {
   it("rejects duplicate contribution ids (same local name)", () => {
-    const registry = createAgentToolRegistry();
+    const registry = new AgentToolRegistry();
     registerAgentToolContributions(registry, "canvas", [
       { name: "anchor_read", tool: body("read") },
     ]);
@@ -51,7 +51,7 @@ describe("AgentToolRegistry", () => {
   });
 
   it("rejects duplicate canonical tool names across features", () => {
-    const registry = createAgentToolRegistry();
+    const registry = new AgentToolRegistry();
     registerAgentToolContributions(registry, "canvas", [
       { name: "anchor_read", tool: body("read") },
     ]);
@@ -73,7 +73,7 @@ describe("AgentToolRegistry", () => {
   });
 
   it("bulk-registers contributions and installs active tools with derived names", () => {
-    const registry = createAgentToolRegistry();
+    const registry = new AgentToolRegistry();
     const registrations = registerAgentToolContributions(registry, "canvas", [
       { name: "anchor_read", tool: body("canvas__anchor_read") },
       { name: "anchor_write", tool: body("canvas__anchor_write") },
@@ -89,7 +89,7 @@ describe("AgentToolRegistry", () => {
   });
 
   it("unregisters a contribution when disposed", () => {
-    const registry = createAgentToolRegistry();
+    const registry = new AgentToolRegistry();
     const registrations = registerAgentToolContributions(registry, "canvas", [
       { name: "anchor_read", tool: body("canvas__anchor_read") },
     ]);
@@ -106,7 +106,7 @@ describe("AgentToolRegistry", () => {
   });
 
   it("reproduces the legacy pi tool names (back-compat for persisted history)", () => {
-    const registry = createAgentToolRegistry();
+    const registry = new AgentToolRegistry();
     registerAgentToolContributions(registry, "canvas", [
       { name: "anchor_read", tool: body("read") },
       { name: "anchor_write", tool: body("write") },

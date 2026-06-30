@@ -2,7 +2,7 @@ import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
 import {
-  createResourceRegistry,
+  ResourceRegistry,
   registerResourceContributions,
   registerResourceProtocol,
 } from "./registry";
@@ -35,7 +35,7 @@ function fakeTransport() {
 }
 
 function createTestRegistry(transport = fakeTransport()) {
-  const registry = createResourceRegistry({
+  const registry = new ResourceRegistry({
     workspaceId: "blue-river",
     handle: (scheme, fn) => transport.handle(scheme, fn),
     unhandle: (scheme) => transport.unhandle(scheme),
