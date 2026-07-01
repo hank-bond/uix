@@ -9,8 +9,8 @@
 // blob; the registry dedup key is `${featureId}.state`.
 
 import type {
-  ExtensionAPI,
   SessionEntry,
+  SessionManager,
 } from "@earendil-works/pi-coding-agent";
 
 import { toContributionId, type ContributionId } from "#shared/contribution-id";
@@ -147,23 +147,20 @@ export function registerTurnStateContributions(
   };
 }
 
+/**
+ * Create the agent_end hook for turn-state prep. The submit-side prep
+ * is called directly by the driver (see submitTurnStatePrep) so uix.turn-state
+ * entries are ordered before the user message in the session tree.
+ */
 export function createTurnStateCoordinator(
   state: TurnStateRegistry,
 ): AgentInstaller {
   return (pi) => {
     const installedContributions = [...state.registeredContributions];
 
-    pi.on("input", async (_event, ctx) => {
-      await appendPreparedTurnState(pi, {
-        cwd: ctx.cwd,
-        branch: ctx.sessionManager.getBranch(),
-        contributions: filterInLiveContributions(state, installedContributions),
-        select: (contribution) => contribution.prepareUserSubmitState,
-      });
-    });
-
     pi.on("agent_end", async (_event, ctx) => {
-      await appendPreparedTurnState(pi, {
+      await appendPreparedTurnState({
+        sessionManager: ctx.sessionManager,
         cwd: ctx.cwd,
         branch: ctx.sessionManager.getBranch(),
         contributions: filterInLiveContributions(state, installedContributions),
@@ -171,6 +168,25 @@ export function createTurnStateCoordinator(
       });
     });
   };
+}
+
+/**
+ * Run submit-side turn-state prep. Called by the driver before
+ * session.prompt(text) so turn-state entries are ordered before the user
+ * message in the session tree.
+ */
+export async function submitTurnStatePrep(
+  sessionManager: SessionManager,
+  cwd: string,
+  registry: TurnStateRegistry,
+): Promise<void> {
+  await appendPreparedTurnState({
+    sessionManager,
+    cwd,
+    branch: sessionManager.getBranch(),
+    contributions: registry.registeredContributions,
+    select: (contribution) => contribution.prepareUserSubmitState,
+  });
 }
 
 function filterInLiveContributions(
@@ -182,17 +198,15 @@ function filterInLiveContributions(
   );
 }
 
-async function appendPreparedTurnState(
-  pi: ExtensionAPI,
-  opts: {
-    cwd: string;
-    branch: readonly SessionEntry[];
-    contributions: readonly RegisteredTurnStateContribution[];
-    select: (
-      contribution: RegisteredTurnStateContribution,
-    ) => RegisteredTurnStateContribution["prepareUserSubmitState"];
-  },
-): Promise<void> {
+async function appendPreparedTurnState(opts: {
+  sessionManager: SessionManager;
+  cwd: string;
+  branch: readonly SessionEntry[];
+  contributions: readonly RegisteredTurnStateContribution[];
+  select: (
+    contribution: RegisteredTurnStateContribution,
+  ) => RegisteredTurnStateContribution["prepareUserSubmitState"];
+}): Promise<void> {
   const preparedState: Record<string, unknown> = {};
 
   for (const contribution of opts.contributions) {
@@ -211,7 +225,10 @@ async function appendPreparedTurnState(
   }
 
   if (Object.keys(preparedState).length === 0) return;
-  pi.appendEntry(TurnStateEntryType, { state: preparedState, cwd: opts.cwd });
+  opts.sessionManager.appendCustomEntry(TurnStateEntryType, {
+    state: preparedState,
+    cwd: opts.cwd,
+  });
 }
 
 export function createTurnStateHistoryReader(

@@ -21,15 +21,14 @@
 // inner tag per canonical id. Human prompt text stays verbatim.
 
 import type {
-  BeforeAgentStartEventResult,
   SessionEntry,
+  SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import type { Static, TSchema } from "typebox";
 import { Value } from "typebox/value";
 
 import { toContributionId, type ContributionId } from "#shared/contribution-id";
 import { DisposableBag } from "../lifecycle";
-import { createLogger } from "../log";
 import {
   createTurnStateHistoryReader,
   type TurnStateHistoryReader,
@@ -302,7 +301,17 @@ export class AgentContextRegistry {
   }
 }
 
-export function createAgentContextAssembler(
+export interface AgentContextMessage {
+  content: string;
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Install the system-prompt vocabulary section for agent-context contributions.
+ * The message flush is handled by the driver (see buildAgentContextMessage) so
+ * the uix.state entry is ordered before the user message in the session tree.
+ */
+export function createAgentContextVocabularyInstaller(
   stateMessageRegistry: AgentContextRegistry,
 ): AgentInstaller {
   return (pi) => {
@@ -318,87 +327,78 @@ export function createAgentContextAssembler(
         )
       : undefined;
 
-    pi.on(
-      "before_agent_start",
-      async (event, ctx): Promise<BeforeAgentStartEventResult> => {
-        if (installedContributions.length === 0) return {};
+    if (!vocabulary) return;
 
-        const result: BeforeAgentStartEventResult = {
-          systemPrompt: `${event.systemPrompt}\n\n${vocabulary}`,
-        };
+    pi.on("before_agent_start", async (event, _ctx) => ({
+      systemPrompt: `${event.systemPrompt}\n\n${vocabulary}`,
+    }));
+  };
+}
 
-        const liveContributions = installedContributions.filter(
-          (contribution) =>
-            stateMessageRegistry.registeredContributions.includes(contribution),
-        );
-        const bufferedContributions = liveContributions.filter(
-          (
-            contribution,
-          ): contribution is
-            | RegisteredUpdateContribution
-            | RegisteredAppendContribution =>
-            contribution.kind === "update" || contribution.kind === "append",
-        );
-        const lastBodies = nearestPersistedBodies(
-          ctx.sessionManager.getBranch(),
-          bufferedContributions.map((contribution) => contribution.canonicalId),
-        );
+/**
+ * Build the display-hidden uix.state message from all live agent-context
+ * contributions. Called by the driver before session.prompt(text) so the
+ * entry is ordered before the user message in the session tree.
+ *
+ * Returns undefined when no sections would be emitted (nothing to flush).
+ */
+export async function buildAgentContextMessage(
+  sessionManager: SessionManager,
+  registry: AgentContextRegistry,
+): Promise<AgentContextMessage | undefined> {
+  const liveContributions = registry.registeredContributions;
+  if (liveContributions.length === 0) return undefined;
 
-        for (const contribution of bufferedContributions) {
-          reconcileAppendPersistence(
-            contribution,
-            lastBodies.get(contribution.canonicalId),
-          );
-        }
+  const bufferedContributions = liveContributions.filter(
+    (c) => c.kind === "update" || c.kind === "append",
+  );
+  const lastBodies = nearestPersistedBodies(
+    sessionManager.getBranch(),
+    bufferedContributions.map((contribution) => contribution.canonicalId),
+  );
 
-        const sections: string[] = [];
-        let details: Record<string, unknown> | undefined;
-
-        for (const contribution of liveContributions) {
-          const message = await materializeContribution(
-            contribution,
-            ctx.sessionManager.getBranch(),
-          );
-          if (message === undefined) continue;
-
-          if (
-            contribution.kind === "update" &&
-            message.content === lastBodies.get(contribution.canonicalId)
-          ) {
-            continue;
-          }
-
-          if (contribution.kind === "append") {
-            contribution.inFlight = {
-              content: message.content,
-              count: contribution.values.length,
-            };
-          }
-
-          sections.push(
-            renderSection(contribution.canonicalId, message.content),
-          );
-          if (message.details !== undefined) {
-            (details ??= {})[contribution.canonicalId] = message.details;
-          }
-        }
-
-        if (sections.length > 0) {
-          createLogger("agent").debug(
-            { sections: sections.length },
-            "state_message_flush",
-          );
-          result.message = {
-            customType: "uix.state",
-            content: ["<uix-state>", ...sections, "</uix-state>"].join("\n"),
-            details,
-            display: false,
-          };
-        }
-
-        return result;
-      },
+  for (const contribution of bufferedContributions) {
+    reconcileAppendPersistence(
+      contribution,
+      lastBodies.get(contribution.canonicalId),
     );
+  }
+
+  const sections: string[] = [];
+  let details: Record<string, unknown> | undefined;
+
+  for (const contribution of liveContributions) {
+    const message = await materializeContribution(
+      contribution,
+      sessionManager.getBranch(),
+    );
+    if (message === undefined) continue;
+
+    if (
+      contribution.kind === "update" &&
+      message.content === lastBodies.get(contribution.canonicalId)
+    ) {
+      continue;
+    }
+
+    if (contribution.kind === "append") {
+      contribution.inFlight = {
+        content: message.content,
+        count: contribution.values.length,
+      };
+    }
+
+    sections.push(renderSection(contribution.canonicalId, message.content));
+    if (message.details !== undefined) {
+      (details ??= {})[contribution.canonicalId] = message.details;
+    }
+  }
+
+  if (sections.length === 0) return undefined;
+
+  return {
+    content: ["<uix-state>", ...sections, "</uix-state>"].join("\n"),
+    details,
   };
 }
 

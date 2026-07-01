@@ -4,11 +4,13 @@ import type {
   ExtensionAPI,
   ExtensionContext,
   SessionEntry,
+  SessionManager,
 } from "@earendil-works/pi-coding-agent";
 
 import {
   createTurnStateCoordinator,
   registerTurnStateContributions,
+  submitTurnStatePrep,
   TurnStateRegistry,
 } from "./registry";
 
@@ -39,10 +41,15 @@ function turnStateEntry(
 function setupCoordinator(state = new TurnStateRegistry()) {
   const handlers = new Map<string, VoidHandler[]>();
   const entries: Array<{ customType: string; data: unknown }> = [];
-  const pi = {
-    appendEntry: (customType: string, data: unknown) => {
+  const sessionManager = {
+    appendCustomEntry: (customType: string, data: unknown) => {
       entries.push({ customType, data });
+      return "entry-id";
     },
+    getBranch: () => [] as readonly SessionEntry[],
+  } as SessionManager;
+
+  const pi = {
     on: (event: string, handler: VoidHandler) => {
       handlers.set(event, [...(handlers.get(event) ?? []), handler]);
     },
@@ -55,15 +62,36 @@ function setupCoordinator(state = new TurnStateRegistry()) {
     cwd = "/work",
     branch: readonly SessionEntry[] = [],
   ) => {
+    const branchArr = [...branch];
     for (const handler of handlers.get(event) ?? []) {
       await handler({}, {
         cwd,
-        sessionManager: { getBranch: () => branch },
+        sessionManager: {
+          getBranch: () => branchArr,
+          appendCustomEntry: (customType: string, data: unknown) => {
+            entries.push({ customType, data });
+            return "entry-id";
+          },
+        },
       } as ExtensionContext);
     }
   };
 
-  return { entries, fire };
+  const submit = async (
+    cwd = "/work",
+    branch: readonly SessionEntry[] = [],
+  ) => {
+    const mgr = {
+      appendCustomEntry: (customType: string, data: unknown) => {
+        entries.push({ customType, data });
+        return "entry-id";
+      },
+      getBranch: () => branch,
+    } as SessionManager;
+    await submitTurnStatePrep(mgr, cwd, state);
+  };
+
+  return { entries, fire, submit };
 }
 
 describe("TurnStateRegistry", () => {
@@ -90,14 +118,23 @@ describe("TurnStateRegistry", () => {
   it("unregisters contributions when disposed", async () => {
     const state = new TurnStateRegistry();
     const disposable = register(state, "canvas");
-    const { entries, fire } = setupCoordinator(state);
+    const { entries, submit } = setupCoordinator(state);
 
     disposable[Symbol.dispose]();
-    register(state, "canvas");
-
-    await fire("input");
-
+    // submit() reads the live registry; the disposed contribution is gone, so
+    // no entry is produced.
+    await submit();
     expect(entries).toEqual([]);
+
+    // Re-register a new contribution — it is live in the registry and fires.
+    register(state, "canvas");
+    await submit();
+    expect(entries).toEqual([
+      {
+        customType: "uix.turn-state",
+        data: { cwd: "/work", state: { canvas: { main: "v1" } } },
+      },
+    ]);
   });
 
   it("bulk-registers contributions and disposes them together", async () => {
@@ -107,9 +144,9 @@ describe("TurnStateRegistry", () => {
         prepareUserSubmitState: () => ({ state: { main: "v1" } }),
       },
     ]);
-    const { entries, fire } = setupCoordinator(state);
+    const { entries, submit } = setupCoordinator(state);
 
-    await fire("input");
+    await submit();
     expect(entries).toEqual([
       {
         customType: "uix.turn-state",
@@ -121,7 +158,7 @@ describe("TurnStateRegistry", () => {
     ]);
 
     registrations[Symbol.dispose]();
-    await fire("input");
+    await submit();
     expect(entries).toHaveLength(1);
   });
 
@@ -155,9 +192,9 @@ describe("TurnStateRegistry", () => {
         },
       },
     ]);
-    const { entries, fire } = setupCoordinator(state);
+    const { entries, submit } = setupCoordinator(state);
 
-    await fire("input", "/repo", branch);
+    await submit("/repo", branch);
 
     expect(previous).toEqual({ main: "v2" });
     expect(secondPrevious).toEqual({ main: "v1" });
@@ -184,9 +221,9 @@ describe("TurnStateRegistry", () => {
           Promise.resolve({ state: { selected: "c1" } }),
       },
     ]);
-    const { entries, fire } = setupCoordinator(state);
+    const { entries, submit } = setupCoordinator(state);
 
-    await fire("input", "/repo");
+    await submit("/repo");
 
     expect(entries).toEqual([
       {
@@ -238,9 +275,9 @@ describe("TurnStateRegistry", () => {
         prepareUserSubmitState: () => ({ state: { selected: "c1" } }),
       },
     ]);
-    const { entries, fire } = setupCoordinator(state);
+    const { entries, submit } = setupCoordinator(state);
 
-    await fire("input");
+    await submit();
 
     expect(entries).toEqual([
       {
@@ -257,9 +294,9 @@ describe("TurnStateRegistry", () => {
         prepareUserSubmitState: () => undefined,
       },
     ]);
-    const { entries, fire } = setupCoordinator(state);
+    const { entries, submit } = setupCoordinator(state);
 
-    await fire("input");
+    await submit();
 
     expect(entries).toEqual([]);
   });

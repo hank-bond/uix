@@ -1,47 +1,23 @@
 import { describe, expect, it } from "vitest";
 
 import type {
-  BeforeAgentStartEvent,
-  BeforeAgentStartEventResult,
-  ExtensionAPI,
-  ExtensionContext,
   SessionEntry,
+  SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
 import {
   AgentContextRegistry,
-  createAgentContextAssembler,
+  buildAgentContextMessage,
+  createAgentContextVocabularyInstaller,
   registerAgentContextContributions,
 } from "./registry";
 
-type Handler = (
-  event: BeforeAgentStartEvent,
-  ctx: ExtensionContext,
-) => Promise<BeforeAgentStartEventResult>;
-
-function install(stateMessageRegistry: AgentContextRegistry) {
-  const handlers: Handler[] = [];
-  const pi = {
-    on: (event: string, handler: Handler) => {
-      if (event === "before_agent_start") handlers.push(handler);
-    },
-  } as unknown as ExtensionAPI;
-  void createAgentContextAssembler(stateMessageRegistry)(pi);
-  expect(handlers).toHaveLength(1);
-
-  return async (entries: SessionEntry[] = []) =>
-    handlers[0](
-      {
-        type: "before_agent_start",
-        prompt: "hi",
-        systemPrompt: "BASE",
-        systemPromptOptions: {},
-      } as unknown as BeforeAgentStartEvent,
-      {
-        sessionManager: { getBranch: () => entries },
-      } as unknown as ExtensionContext,
-    );
+function flush(registry: AgentContextRegistry, branch: SessionEntry[] = []) {
+  return buildAgentContextMessage(
+    { getBranch: () => branch } as SessionManager,
+    registry,
+  );
 }
 
 function stateEntry(content: string): SessionEntry {
@@ -67,7 +43,7 @@ function turnStateEntry(
 }
 
 describe("AgentContextRegistry", () => {
-  it("appends one vocabulary section with a bullet per registered tag", async () => {
+  it("installs vocabulary section with a bullet per registered tag", async () => {
     const sm = new AgentContextRegistry();
     sm.register("test", {
       name: "pane-visibility",
@@ -79,9 +55,23 @@ describe("AgentContextRegistry", () => {
       description: "human hunks",
       materialize: () => undefined,
     });
-    const run = install(sm);
 
-    const result = await run();
+    const handlers: Array<
+      (event: unknown, ctx: unknown) => Promise<{ systemPrompt?: string }>
+    > = [];
+    void createAgentContextVocabularyInstaller(sm)({
+      on: (_event: string, handler: (typeof handlers)[0]) => {
+        handlers.push(handler);
+      },
+    } as Parameters<
+      ReturnType<typeof createAgentContextVocabularyInstaller>
+    >[0]);
+    expect(handlers).toHaveLength(1);
+
+    const result = await handlers[0](
+      { systemPrompt: "BASE" },
+      {} as Parameters<(typeof handlers)[0]>[1],
+    );
 
     expect(result.systemPrompt).toContain("BASE");
     expect(result.systemPrompt).toContain("## UIX cockpit state messages");
@@ -93,9 +83,19 @@ describe("AgentContextRegistry", () => {
     );
   });
 
-  it("leaves the system prompt alone with no registrations", async () => {
-    const run = install(new AgentContextRegistry());
-    expect(await run()).toEqual({});
+  it("does not install vocabulary with no registrations", () => {
+    const handlers: Array<
+      (event: unknown, ctx: unknown) => Promise<{ systemPrompt?: string }>
+    > = [];
+    void createAgentContextVocabularyInstaller(new AgentContextRegistry())({
+      on: (_event: string, handler: (typeof handlers)[0]) => {
+        handlers.push(handler);
+      },
+    } as Parameters<
+      ReturnType<typeof createAgentContextVocabularyInstaller>
+    >[0]);
+    // No vocabulary → no handler installed.
+    expect(handlers).toHaveLength(0);
   });
 
   it("bulk-registers contributions, applies initial update values, and disposes them together", async () => {
@@ -116,15 +116,14 @@ describe("AgentContextRegistry", () => {
         materialize: () => ({ content: "changed" }),
       },
     ]);
-    const run = install(sm);
 
-    const result = await run();
-    expect(result.message?.content).toContain("<test.pane-visibility>");
-    expect(result.message?.content).toContain('{"canvases_open":["main"]}');
-    expect(result.message?.content).toContain("<test.canvas-diff>\nchanged");
+    const result = await flush(sm);
+    expect(result?.content).toContain("<test.pane-visibility>");
+    expect(result?.content).toContain('{"canvases_open":["main"]}');
+    expect(result?.content).toContain("<test.canvas-diff>\nchanged");
 
     registrations[Symbol.dispose]();
-    expect((await run()).message).toBeUndefined();
+    expect(await flush(sm)).toBeUndefined();
   });
 
   it("flushes updated state as one tagged section inside one uix.state envelope", async () => {
@@ -138,12 +137,10 @@ describe("AgentContextRegistry", () => {
       },
     });
     visibility.update({ canvases_open: ["main"] });
-    const run = install(sm);
 
-    const result = await run();
+    const result = await flush(sm);
 
-    expect(result.message).toEqual({
-      customType: "uix.state",
+    expect(result).toEqual({
       content: [
         "<uix-state>",
         "<test.pane-visibility>",
@@ -152,7 +149,6 @@ describe("AgentContextRegistry", () => {
         "</uix-state>",
       ].join("\n"),
       details: { "test.pane-visibility": { canvases_open: ["main"] } },
-      display: false,
     });
   });
 
@@ -167,17 +163,16 @@ describe("AgentContextRegistry", () => {
       },
     });
     visibility.update({ canvases_open: ["main"] });
-    const run = install(sm);
 
-    const persisted = (await run()).message;
+    const persisted = await flush(sm);
     expect(persisted).toBeDefined();
 
-    const next = await run([stateEntry(persisted!.content as string)]);
-    expect(next.message).toBeUndefined();
+    const next = await flush(sm, [stateEntry(persisted!.content)]);
+    expect(next).toBeUndefined();
 
     visibility.update({ canvases_open: [] });
-    const changed = await run([stateEntry(persisted!.content as string)]);
-    expect(changed.message?.content).toContain('{"canvases_open":[]}');
+    const changed = await flush(sm, [stateEntry(persisted!.content)]);
+    expect(changed?.content).toContain('{"canvases_open":[]}');
   });
 
   it("walks past uix.state entries that do not carry the tag", async () => {
@@ -191,12 +186,11 @@ describe("AgentContextRegistry", () => {
       },
     });
     visibility.update({ canvases_open: ["main"] });
-    const run = install(sm);
 
-    const visible = (await run()).message!.content as string;
+    const visible = (await flush(sm))!.content;
     const other = "<uix-state>\n<other>\nx\n</other>\n</uix-state>";
-    const result = await run([stateEntry(visible), stateEntry(other)]);
-    expect(result.message).toBeUndefined();
+    const result = await flush(sm, [stateEntry(visible), stateEntry(other)]);
+    expect(result).toBeUndefined();
   });
 
   it("keeps the update value so an unpersisted flush resends", async () => {
@@ -210,10 +204,9 @@ describe("AgentContextRegistry", () => {
       },
     });
     visibility.update({ canvases_open: ["main"] });
-    const run = install(sm);
 
-    expect((await run()).message).toBeDefined();
-    expect((await run()).message).toBeDefined();
+    expect(await flush(sm)).toBeDefined();
+    expect(await flush(sm)).toBeDefined();
   });
 
   it("passes feature-scoped turn-state history to materialized contributions", async () => {
@@ -230,9 +223,8 @@ describe("AgentContextRegistry", () => {
         };
       },
     });
-    const run = install(sm);
 
-    const result = await run([
+    const result = await flush(sm, [
       turnStateEntry("older", {
         cwd: "/old",
         state: { canvas: { main: "v1" }, chat: { selected: "c1" } },
@@ -247,7 +239,7 @@ describe("AgentContextRegistry", () => {
       }),
     ]);
 
-    expect(result.message?.content).toContain("v1->v2");
+    expect(result?.content).toContain("v1->v2");
   });
 
   it("materializes a manual section every run when it returns content", async () => {
@@ -261,13 +253,12 @@ describe("AgentContextRegistry", () => {
         return { content: "same hunks", details: { hunks: 1 } };
       },
     });
-    const run = install(sm);
 
-    const first = (await run()).message!;
+    const first = (await flush(sm))!;
     expect(first.details).toEqual({ "test.canvas-diff": { hunks: 1 } });
 
-    const again = await run([stateEntry(first.content as string)]);
-    expect(again.message?.content).toContain("same hunks");
+    const again = await flush(sm, [stateEntry(first.content)]);
+    expect(again?.content).toContain("same hunks");
     expect(reads).toBe(2);
   });
 
@@ -278,8 +269,7 @@ describe("AgentContextRegistry", () => {
       description: "d",
       materialize: () => undefined,
     });
-    const run = install(sm);
-    expect((await run()).message).toBeUndefined();
+    expect(await flush(sm)).toBeUndefined();
   });
 
   it("combines sections from multiple registrations in registration order", async () => {
@@ -298,9 +288,8 @@ describe("AgentContextRegistry", () => {
       materialize: () => ({ content: "## main\nhunks" }),
     });
     visibility.update({ canvases_open: ["main"] });
-    const run = install(sm);
 
-    const content = (await run()).message!.content as string;
+    const content = (await flush(sm))!.content;
     expect(content.indexOf("<test.pane-visibility>")).toBeLessThan(
       content.indexOf("<test.canvas-diff>"),
     );
@@ -335,23 +324,20 @@ describe("AgentContextRegistry", () => {
     });
     moves.append({ move: "e4" });
     moves.append({ move: "e5" });
-    const run = install(sm);
 
-    const first = (await run()).message!;
+    const first = (await flush(sm))!;
     expect(first.content).toContain('[{"move":"e4"},{"move":"e5"}]');
 
     // Not persisted yet: the same pending events are retried.
-    expect((await run()).message?.content).toContain("e4");
+    expect((await flush(sm))?.content).toContain("e4");
 
     // Persisted: the confirmed batch drains, so there is nothing left to send.
-    expect(
-      (await run([stateEntry(first.content as string)])).message,
-    ).toBeUndefined();
+    expect(await flush(sm, [stateEntry(first.content)])).toBeUndefined();
 
     moves.append({ move: "Nf3" });
-    const next = await run([stateEntry(first.content as string)]);
-    expect(next.message?.content).not.toContain("e4");
-    expect(next.message?.content).toContain("Nf3");
+    const next = await flush(sm, [stateEntry(first.content)]);
+    expect(next?.content).not.toContain("e4");
+    expect(next?.content).toContain("Nf3");
   });
 
   it("custom materialization runs before update dedupe", async () => {
@@ -366,13 +352,10 @@ describe("AgentContextRegistry", () => {
       }),
     });
     value.update({ count: 1 });
-    const run = install(sm);
 
-    const first = (await run()).message!;
+    const first = (await flush(sm))!;
     expect(first.content).toContain("count=1");
-    expect(
-      (await run([stateEntry(first.content as string)])).message,
-    ).toBeUndefined();
+    expect(await flush(sm, [stateEntry(first.content)])).toBeUndefined();
   });
 
   it("stops flushing a section once its handle is disposed, and frees the tag", async () => {
@@ -386,12 +369,11 @@ describe("AgentContextRegistry", () => {
       },
     });
     visibility.update({ canvases_open: ["main"] });
-    const run = install(sm);
 
-    expect((await run()).message?.content).toContain("<test.pane-visibility>");
+    expect((await flush(sm))?.content).toContain("<test.pane-visibility>");
 
     visibility[Symbol.dispose]();
-    expect((await run()).message).toBeUndefined();
+    expect(await flush(sm)).toBeUndefined();
 
     expect(() =>
       sm.register("test", {

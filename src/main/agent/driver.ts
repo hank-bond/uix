@@ -35,13 +35,15 @@ import { disposable, DisposableBag, subscribe } from "../lifecycle";
 import { createLogger } from "../log";
 import {
   createTurnStateCoordinator,
+  submitTurnStatePrep,
   TurnStateRegistry,
 } from "../turn-state/registry";
 
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { createTranscriptIdentity, type TranscriptIdentity } from "./identity";
 import {
-  createAgentContextAssembler,
+  buildAgentContextMessage,
+  createAgentContextVocabularyInstaller,
   type AgentContextRegistry,
 } from "../agent-context/registry";
 import {
@@ -173,7 +175,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       agentInstallers.push(createTurnStateCoordinator(opts.turnState));
     }
     if (opts.agentContext) {
-      agentInstallers.push(createAgentContextAssembler(opts.agentContext));
+      agentInstallers.push(
+        createAgentContextVocabularyInstaller(opts.agentContext),
+      );
     }
 
     const resourceLoader = new sdk.DefaultResourceLoader({
@@ -257,11 +261,44 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
           throw err;
         });
         const session = await sessionPromise;
-        // Send the human's text verbatim. Agent-run context (open canvases,
-        // the human-writeback diff) rides display-hidden
-        // custom messages flushed at "before_agent_start" (see
-        // agent-context/registry.ts), so the stored user entry is exactly what
-        // the human typed.
+
+        // Submit-prep ordering: turn-state entries and the hidden uix.state
+        // message must be ordered BEFORE the user message in the session tree
+        // so branch navigation to the gap before a user message still has the
+        // state explaining that turn.  We write both before calling
+        // session.prompt(text).
+        if (opts.turnState) {
+          await submitTurnStatePrep(
+            session.sessionManager,
+            opts.workspace.agentCwd,
+            opts.turnState,
+          );
+        }
+        if (opts.agentContext) {
+          const message = await buildAgentContextMessage(
+            session.sessionManager,
+            opts.agentContext,
+          );
+          if (message) {
+            // Push directly into agent state so the model sees it adjacent to
+            // the user message. Pi persists it during agent processing via its
+            // internal message_end handler (we skip sendCustomMessage to avoid
+            // double-persisting an entry that is already being recorded by the
+            // agent loop).
+            session.agent.state.messages.push({
+              role: "custom",
+              customType: "uix.state",
+              content: message.content,
+              display: false,
+              details: message.details,
+              timestamp: Date.now(),
+            });
+          }
+        }
+
+        // Send the human's text verbatim. Agent-run context rides the
+        // uix.state entry pushed above; the stored user entry is exactly
+        // what the human typed.
         await session.prompt(text);
       } catch (err) {
         opts.onEvent({

@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import type {
-  BeforeAgentStartEvent,
-  BeforeAgentStartEventResult,
   ExtensionAPI,
   ExtensionContext,
   SessionEntry,
+  SessionManager,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 
 import {
   AgentContextRegistry,
-  createAgentContextAssembler,
+  buildAgentContextMessage,
+  createAgentContextVocabularyInstaller,
   registerAgentContextContributions,
 } from "#backend/agent-context/registry";
 import {
@@ -21,6 +21,7 @@ import {
 } from "#backend/agent-tools/registry";
 import {
   createTurnStateCoordinator,
+  submitTurnStatePrep,
   TurnStateRegistry,
   registerTurnStateContributions,
 } from "#backend/turn-state/registry";
@@ -81,11 +82,6 @@ function fakeCanvasContext(
   };
 }
 
-type Handler = (
-  event: BeforeAgentStartEvent,
-  ctx: ExtensionContext,
-) => Promise<BeforeAgentStartEventResult>;
-
 type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
 
 // The canvas agent tool/turn-state/agent-context contributions and the
@@ -113,61 +109,97 @@ function setup() {
   );
 
   const tools = new Map<string, ToolDefinition>();
-  const handlers: Handler[] = [];
-  const inputHandlers: VoidHandler[] = [];
+  const vocabHandlers: Array<
+    (
+      event: { systemPrompt: string },
+      ctx: ExtensionContext,
+    ) => Promise<{ systemPrompt?: string }>
+  > = [];
   const agentEndHandlers: VoidHandler[] = [];
   const entries: Array<{ customType: string; data: unknown }> = [];
   const branch: SessionEntry[] = [];
+
+  const sessionManager: SessionManager = {
+    appendCustomEntry: (_customType: string, _data: unknown) => "entry-id",
+    getBranch: () => branch,
+  } as SessionManager;
+
   const pi = {
     registerTool: (tool: ToolDefinition) => tools.set(tool.name, tool),
-    appendEntry: (customType: string, data: unknown) => {
-      entries.push({ customType, data });
-      branch.push({
-        id: `entry-${branch.length + 1}`,
-        parentId: undefined,
-        timestamp: new Date(0).toISOString(),
-        type: "custom",
-        customType,
-        data,
-      } as unknown as SessionEntry);
-    },
-    on: (event: string, handler: Handler | VoidHandler) => {
-      if (event === "before_agent_start") handlers.push(handler as Handler);
-      if (event === "input") inputHandlers.push(handler as VoidHandler);
-      if (event === "agent_end") agentEndHandlers.push(handler as VoidHandler);
+    on: (event: string, handler: VoidHandler) => {
+      if (event === "agent_end") agentEndHandlers.push(handler);
     },
   } as unknown as ExtensionAPI;
+
   void createAgentToolInstaller(agentTools)(pi);
   void createTurnStateCoordinator(state)(pi);
-  void createAgentContextAssembler(agentContext)(pi);
 
-  const turnBoundary = async () =>
-    handlers[0](
-      {
-        type: "before_agent_start",
-        prompt: "hi",
-        systemPrompt: "BASE",
-        systemPromptOptions: {},
-      } as unknown as BeforeAgentStartEvent,
-      {
-        sessionManager: { getBranch: () => branch },
-      } as unknown as ExtensionContext,
-    );
+  // Vocabulary is installed separately — it's the only thing that still uses
+  // before_agent_start. The message flush is called directly.
+  const vocabPi = {
+    on: (event: string, handler: (typeof vocabHandlers)[0]) => {
+      if (event === "before_agent_start") vocabHandlers.push(handler);
+    },
+  } as unknown as ExtensionAPI;
+  void createAgentContextVocabularyInstaller(agentContext)(vocabPi);
 
-  const extCtx = { cwd: "/work", sessionManager: { getBranch: () => branch } };
+  const extCtx = {
+    cwd: "/work",
+    sessionManager: {
+      getBranch: () => branch,
+      appendCustomEntry: (customType: string, data: unknown) => {
+        entries.push({ customType, data });
+        branch.push({
+          id: `entry-${branch.length + 1}`,
+          parentId: undefined,
+          timestamp: new Date(0).toISOString(),
+          type: "custom",
+          customType,
+          data,
+        } as unknown as SessionEntry);
+        return "entry-id";
+      },
+    },
+  };
 
   return {
     store: ctx.store,
     tools,
-    turnBoundary,
     entries,
     writebackCanvas: (key: string, html: string) =>
       ctx.buffer.writeback(key, html),
     inputBoundary: async () => {
-      await inputHandlers[0]({}, extCtx as unknown as ExtensionContext);
+      // Drive submit-side turn-state prep directly (no longer via input hook).
+      const mgr = {
+        appendCustomEntry: (customType: string, data: unknown) => {
+          entries.push({ customType, data });
+          branch.push({
+            id: `entry-${branch.length + 1}`,
+            parentId: undefined,
+            timestamp: new Date(0).toISOString(),
+            type: "custom",
+            customType,
+            data,
+          } as unknown as SessionEntry);
+          return "entry-id";
+        },
+        getBranch: () => branch,
+      } as SessionManager;
+      await submitTurnStatePrep(mgr, "/work", state);
     },
     agentEnd: async () => {
       await agentEndHandlers[0]({}, extCtx as unknown as ExtensionContext);
+    },
+    /** Build the agent-context flush message directly (no longer via before_agent_start). */
+    flushContext: () => buildAgentContextMessage(sessionManager, agentContext),
+    /** System prompt vocabulary (the only thing before_agent_start does now). */
+    vocabPrompt: async () => {
+      if (vocabHandlers.length === 0) return "BASE";
+      const result = await vocabHandlers[0](
+        { systemPrompt: "BASE" },
+        extCtx as unknown as ExtensionContext,
+      );
+      return result.systemPrompt ?? "BASE";
     },
     disposeCanvasState: () => canvasState[Symbol.dispose](),
     disposeCanvasAgentContext: () => canvasAgentContext[Symbol.dispose](),
@@ -177,22 +209,22 @@ function setup() {
 
 describe("canvas agent tool contributions", () => {
   it("teaches both canvas tags in the system prompt vocabulary", async () => {
-    const { turnBoundary } = setup();
-    const result = await turnBoundary();
-    expect(result.systemPrompt).toContain("- `<canvas.pane-visibility>`");
-    expect(result.systemPrompt).toContain("- `<canvas.canvas-diff>`");
+    const { vocabPrompt } = setup();
+    const prompt = await vocabPrompt();
+    expect(prompt).toContain("- `<canvas.pane-visibility>`");
+    expect(prompt).toContain("- `<canvas.canvas-diff>`");
   });
 
   it("reports open canvases as a sorted JSON body", async () => {
-    const { turnBoundary } = setup();
-    const content = (await turnBoundary()).message!.content as string;
+    const { flushContext } = setup();
+    const content = (await flushContext())!.content;
     expect(content).toContain(
       ["<canvas.pane-visibility>", '{"canvases_open":["main"]}'].join("\n"),
     );
   });
 
   it("does not surface pane writebacks without turn-state snapshots", async () => {
-    const { tools, turnBoundary, writebackCanvas } = setup();
+    const { tools, flushContext, writebackCanvas } = setup();
 
     const write = tools.get("canvas__anchor_write")!;
     await write.execute(
@@ -204,10 +236,8 @@ describe("canvas agent tool contributions", () => {
     );
     await writebackCanvas("main", "<p>goodbye</p>");
 
-    const content = (await turnBoundary()).message?.content as
-      | string
-      | undefined;
-    expect(content ?? "").not.toContain("<canvas.canvas-diff>");
+    const content = (await flushContext())?.content ?? "";
+    expect(content).not.toContain("<canvas.canvas-diff>");
   });
 
   it("keeps pane writeback diff available after input snapshots turn state", async () => {
@@ -215,7 +245,7 @@ describe("canvas agent tool contributions", () => {
       tools,
       entries,
       inputBoundary,
-      turnBoundary,
+      flushContext,
       writebackCanvas,
       agentEnd,
     } = setup();
@@ -249,7 +279,7 @@ describe("canvas agent tool contributions", () => {
       },
     ]);
 
-    const content = (await turnBoundary()).message!.content as string;
+    const content = (await flushContext())!.content;
     expect(content).toContain("<canvas.canvas-diff>");
     expect(content).toContain("## main");
     expect(content).toContain("goodbye");
