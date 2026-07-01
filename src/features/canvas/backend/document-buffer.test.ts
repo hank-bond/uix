@@ -155,7 +155,7 @@ describe("CanvasDocumentBuffer", () => {
     expect(read.some((line) => line.text.includes("<div>x</div>"))).toBe(true);
   });
 
-  it("reports a pane writeback as changes, preserving untouched anchors", async () => {
+  it("reconciles a pane writeback, preserving untouched anchors", async () => {
     const store = memoryStore();
     const buffer = new CanvasDocumentBuffer(store);
     const lines = await buffer.write(
@@ -169,30 +169,10 @@ describe("CanvasDocumentBuffer", () => {
       store.dump("main")!.replace("<p>b</p>", "<p>B</p>"),
     );
 
-    const changes = await buffer.consumeChanges();
-    const hunks = changes.get("main")!;
-    expect(hunks.flatMap((h) => h.oldLines).map((l) => l.text)).toContain(
-      "<p>b</p>",
-    );
-    expect(hunks.flatMap((h) => h.newLines).map((l) => l.text)).toContain(
-      "<p>B</p>",
-    );
-    // Untouched line keeps its anchor across the reconcile.
     const read = await buffer.read("main");
     expect(read.find((l) => l.text === "<p>a</p>")!.anchor).toBe(aAnchor);
-  });
-
-  it("consumeChanges is idempotent once synced", async () => {
-    const store = memoryStore();
-    const buffer = new CanvasDocumentBuffer(store);
-    await buffer.write("main", "<body>\n<p>a</p>\n</body>");
-    await store.setCurrent(
-      "main",
-      store.dump("main")!.replace("<p>a</p>", "<p>A</p>"),
-    );
-
-    expect((await buffer.consumeChanges()).size).toBe(1);
-    expect((await buffer.consumeChanges()).size).toBe(0);
+    expect(read.map((l) => l.text)).toContain("<p>B</p>");
+    expect(store.dump("main")).toContain("<p>B</p>");
   });
 
   it("an agent edit does not clobber a concurrent human edit to another line", async () => {
@@ -217,10 +197,10 @@ describe("CanvasDocumentBuffer", () => {
     expect(current).not.toContain("<p>c</p>");
   });
 
-  it("ignores a purely cosmetic out-of-band rewrite", async () => {
+  it("absorbs a purely cosmetic out-of-band rewrite", async () => {
     const store = memoryStore();
     const buffer = new CanvasDocumentBuffer(store);
-    await buffer.write("main", "<body>\n<p>x</p>\n</body>");
+    const before = await buffer.write("main", "<body>\n<p>x</p>\n</body>");
 
     // Same content, non-canonical casing — canonicalization absorbs it.
     await store.setCurrent(
@@ -228,7 +208,7 @@ describe("CanvasDocumentBuffer", () => {
       store.dump("main")!.replace("<p>x</p>", "<P>x</P>"),
     );
 
-    expect((await buffer.consumeChanges()).size).toBe(0);
+    await expect(buffer.read("main")).resolves.toEqual(before);
   });
 
   it("snapshots current content with restorable anchor state", async () => {

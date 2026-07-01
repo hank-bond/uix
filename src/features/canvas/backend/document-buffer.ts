@@ -29,7 +29,6 @@ export interface DocumentVersionMeta {
 export class CanvasDocumentBuffer {
   readonly #store: DocumentStore;
   readonly #docs = new Map<string, AnchoredDocument>();
-  readonly #pendingChanges = new Map<string, readonly AnchoredChange[]>();
 
   constructor(store: DocumentStore) {
     this.#store = store;
@@ -58,7 +57,7 @@ export class CanvasDocumentBuffer {
 
   // Apply a pane-originated whole-document writeback. If the agent has an
   // active anchor projection for this document, reconcile instead of clobbering
-  // so the next canvas-diff can report stable anchored hunks.
+  // so later snapshot diffs can keep stable anchored hunks.
   async writeback(docId: string, html: string): Promise<void> {
     const canonical = canonicalizeHtml(html);
     const doc = this.#docs.get(docId);
@@ -67,8 +66,7 @@ export class CanvasDocumentBuffer {
       return;
     }
 
-    const changes = doc.reconcile(canonical);
-    if (changes.length) this.#appendPendingChanges(docId, changes);
+    doc.reconcile(canonical);
     await this.#store.setCurrent(docId, plainText(doc.read()));
   }
 
@@ -133,32 +131,6 @@ export class CanvasDocumentBuffer {
     const from = await this.#requireVersion(docId, fromVersionId);
     const to = await this.#requireVersion(docId, toVersionId);
     return diffAnchoredSnapshots(from.meta.anchors, to.meta.anchors);
-  }
-
-  // Drives the per-turn context injection (see canvas/contributions/agent-tools.ts). Only
-  // touched documents are in scope: the agent has no anchors for the rest and
-  // reads them fresh when needed.
-  async consumeChanges(): Promise<
-    ReadonlyMap<string, readonly AnchoredChange[]>
-  > {
-    const result = new Map<string, readonly AnchoredChange[]>();
-    for (const docId of this.#docs.keys()) {
-      const pending = this.#pendingChanges.get(docId) ?? [];
-      const changes = [...pending, ...(await this.#sync(docId))];
-      this.#pendingChanges.delete(docId);
-      if (changes.length) result.set(docId, changes);
-    }
-    return result;
-  }
-
-  #appendPendingChanges(
-    docId: string,
-    changes: readonly AnchoredChange[],
-  ): void {
-    this.#pendingChanges.set(docId, [
-      ...(this.#pendingChanges.get(docId) ?? []),
-      ...changes,
-    ]);
   }
 
   // No setCurrent — the content came *from* the store. Returns [] when already in
