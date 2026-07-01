@@ -6,45 +6,19 @@
 
 import { contextBridge, ipcRenderer } from "electron";
 
-import { toChannelCanonicalId } from "#shared/channel-normalization";
-import {
-  type AgentEvent,
-  type CanvasChanged,
-  type CanvasWriteback,
-  Channels,
-  type PromptRequest,
-  type UIXBridge,
-} from "../shared/ipc";
-
-const CanvasChannels = {
-  writeback: toChannelCanonicalId("canvas", "writeback"),
-  changed: toChannelCanonicalId("canvas", "changed"),
-} as const;
+import { Channels, type UIXBridge } from "../shared/ipc";
 
 const bridge: UIXBridge = {
-  sendPrompt: (req: PromptRequest) => ipcRenderer.invoke(Channels.prompt, req),
-  writebackCanvas: (req: CanvasWriteback) =>
-    ipcRenderer.invoke(CanvasChannels.writeback, req),
+  request: (name, payload) => ipcRenderer.invoke(name, payload),
+  subscribe: (name, handler) => {
+    const listener = (_e: Electron.IpcRendererEvent, payload: unknown) =>
+      handler(payload);
+    ipcRenderer.on(name, listener);
+    return () => {
+      ipcRenderer.off(name, listener);
+    };
+  },
   reload: () => ipcRenderer.invoke(Channels.reload),
-  getHistory: () => ipcRenderer.invoke(Channels.history),
-
-  onAgentEvent: (handler) => {
-    const listener = (_e: Electron.IpcRendererEvent, event: AgentEvent) =>
-      handler(event);
-    ipcRenderer.on(Channels.agentEvent, listener);
-    return () => {
-      ipcRenderer.off(Channels.agentEvent, listener);
-    };
-  },
-
-  onCanvasChanged: (handler) => {
-    const listener = (_e: Electron.IpcRendererEvent, event: CanvasChanged) =>
-      handler(event);
-    ipcRenderer.on(CanvasChannels.changed, listener);
-    return () => {
-      ipcRenderer.off(CanvasChannels.changed, listener);
-    };
-  },
 };
 
 // BrowserWindow preload is for the cockpit shell only. Agent-authored canvas

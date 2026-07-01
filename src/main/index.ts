@@ -12,22 +12,18 @@ import { app, BrowserWindow } from "electron";
 import { join } from "node:path";
 import process from "node:process";
 
-import {
-  type AgentEvent,
-  Channels,
-  type TranscriptSnapshot,
-  type PromptRequest,
-  type ReloadResult,
-} from "../shared/ipc";
+import { type AgentEvent, Channels, type ReloadResult } from "../shared/ipc";
 import { createAgentDriver } from "./agent/driver";
 import { AgentContextRegistry } from "./agent-context/registry";
 import {
   createAgentToolInstaller,
   AgentToolRegistry,
 } from "./agent-tools/registry";
+import { Type } from "typebox";
 import {
   ChannelRegistry,
   createFeatureChannelPublisher,
+  registerChannelContributions,
 } from "./channels/registry";
 import { TurnStateRegistry } from "./turn-state/registry";
 import { createLocalDocumentStoreProvider } from "./documents/store";
@@ -77,17 +73,6 @@ function createWindow(): BrowserWindow {
   }
 
   return win;
-}
-
-function sendAgentEvent(win: BrowserWindow | null, event: AgentEvent): void {
-  logChatContent(event);
-  if (win) {
-    // Partials repeat at per-token/per-tick cadence; flagging them lets the
-    // boundary demote that noise regardless of payload size.
-    ipc.send(win, Channels.agentEvent, event, {
-      partial: event.type === "transcript_partial",
-    });
-  }
 }
 
 // Level policy: what the chat displays is info; plumbing is debug; partials
@@ -180,6 +165,59 @@ void app.whenReady().then(async () => {
   const agentTools = new AgentToolRegistry();
   const agentContext = new AgentContextRegistry();
 
+  // Agent publisher: created early so the driver can emit events through the
+  // channel transport. The registry's publish transport already broadcasts to
+  // all windows.
+  const agentPublisher = createFeatureChannelPublisher("agent", channels);
+
+  const driver = createAgentDriver({
+    onEvent: (event) => {
+      logChatContent(event);
+      agentPublisher.publish("event", event);
+    },
+    workspace,
+    turnState,
+    agentContext,
+    agentInstallers: [createAgentToolInstaller(agentTools)],
+  });
+  appBag.add(driver);
+
+  // Register substrate agent channels before feature contributions so the
+  // prompt/history handlers can close over the driver.
+  appBag.add(
+    registerChannelContributions(channels, "agent", [
+      {
+        requests: {
+          prompt: {
+            requestSchema: Type.Object({ text: Type.String() }),
+            responseSchema: Type.Void(),
+            handle: (req) => {
+              // Fire and forget — the renderer subscribes to the event
+              // stream, and the invoke resolves once the prompt has been
+              // accepted.
+              void driver.prompt((req as { text: string }).text);
+            },
+          },
+          history: {
+            requestSchema: Type.Void(),
+            responseSchema: Type.Any(),
+            handle: () => driver.history(),
+            log: {
+              // A snapshot is the entire persisted transcript, already on
+              // disk — the wire log records a pointer instead of duplicating
+              // it.
+              describeResult: (snap) => ({
+                items: (snap as { items: unknown[] }).items.length,
+                ref: driver.sessionFile(),
+              }),
+            },
+          },
+        },
+        events: {},
+      },
+    ]),
+  );
+
   for (const feature of bundledFeatures) {
     const baseContext = {
       documents,
@@ -195,40 +233,9 @@ void app.whenReady().then(async () => {
     );
   }
 
-  const driver = createAgentDriver({
-    onEvent: (event) => sendAgentEvent(mainWindow, event),
-    workspace,
-    turnState,
-    agentContext,
-    agentInstallers: [createAgentToolInstaller(agentTools)],
-  });
-  appBag.add(driver);
   // Eager, off the boot path: loads the session file so getHistory() resolves
   // fast. The auth-bearing live agent stays lazy until the first prompt.
   driver.init();
-
-  appBag.add(
-    ipc.handle<PromptRequest, void>(Channels.prompt, (req) => {
-      // Fire and forget — the renderer subscribes to the event stream,
-      // and `invoke` resolves once the prompt has been accepted.
-      void driver.prompt(req.text);
-    }),
-  );
-
-  appBag.add(
-    ipc.handle<void, TranscriptSnapshot>(
-      Channels.history,
-      () => driver.history(),
-      {
-        // A snapshot is the entire persisted transcript, already on disk — the
-        // wire log records a pointer instead of duplicating it.
-        describeResult: (snap) => ({
-          items: snap.items.length,
-          ref: driver.sessionFile(),
-        }),
-      },
-    ),
-  );
 
   appBag.add(
     ipc.handle<void, ReloadResult>(Channels.reload, async () => {

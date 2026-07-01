@@ -6,16 +6,10 @@
 // contextBridge. These types describe that contract so both sides stay
 // in sync.
 
-/** Channel names. Keep this list small. */
+/** Substrate channel names. Keep this list small — features register their own. */
 export const Channels = {
-  /** Renderer → main. invoke-style. Returns when the prompt has been accepted. */
-  prompt: "uix:prompt",
-  /** Main → renderer. webContents.send. Stream of agent events. */
-  agentEvent: "uix:agent-event",
   /** Renderer → main. invoke-style. Reloads cockpit resources in place. */
   reload: "uix:reload",
-  /** Renderer → main. invoke-style. Prior transcript for rehydration on mount. */
-  history: "uix:history",
 } as const;
 
 /** Payload for `uix:prompt`. */
@@ -28,17 +22,6 @@ export interface ReloadResult {
   extensionsFailed: number;
   /** True when a pi session already existed and pi's reload path ran. */
   piReloaded: boolean;
-}
-
-/** Payload for the canvas changed feature channel. */
-export interface CanvasChanged {
-  key: string;
-}
-
-/** Payload for the canvas writeback feature channel. */
-export interface CanvasWriteback {
-  key: string;
-  html: string;
 }
 
 /**
@@ -115,13 +98,10 @@ export interface TranscriptSnapshot {
 
 /** Shape exposed on `window.uix` by the preload. */
 export interface UIXBridge {
-  sendPrompt: (req: PromptRequest) => Promise<void>;
-  onAgentEvent: (handler: (event: AgentEvent) => void) => () => void;
-  onCanvasChanged: (handler: (event: CanvasChanged) => void) => () => void;
-  /** Flush a human pane edit back to the store. */
-  writebackCanvas: (req: CanvasWriteback) => Promise<void>;
+  /** Generic request/response over IPC. Channel name is the transport address. */
+  request(name: string, payload: unknown): Promise<unknown>;
+  /** Generic event subscription over IPC. Returns an unsubscribe function. */
+  subscribe(name: string, handler: (payload: unknown) => void): () => void;
   /** Programmatic hook for future command palette/menu/chat /reload. */
   reload: () => Promise<ReloadResult>;
-  /** Pull the prior transcript to seed the pane on mount. */
-  getHistory: () => Promise<TranscriptSnapshot>;
 }

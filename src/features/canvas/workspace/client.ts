@@ -1,5 +1,11 @@
+import { Value } from "typebox/value";
+
 import type { FeatureChannelClient } from "@uix/api/workspace";
-import type { CanvasChanged, CanvasWriteback } from "../shared/channels";
+import {
+  CanvasChangedSchema,
+  type CanvasChanged,
+  type CanvasWriteback,
+} from "../shared/channels";
 
 export interface CanvasClient {
   writeback(req: CanvasWriteback): Promise<void>;
@@ -14,7 +20,9 @@ export function createCanvasClient(
       return feature.request("writeback", req);
     },
     onChanged(handler: (event: CanvasChanged) => void) {
-      return feature.subscribe("changed", handler);
+      return feature.subscribe("changed", (raw) => {
+        handler(Value.Parse(CanvasChangedSchema, raw) as CanvasChanged);
+      });
     },
   };
 }
