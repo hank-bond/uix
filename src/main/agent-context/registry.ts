@@ -489,11 +489,7 @@ function createAgentContextMaterializationContext(
   branch: readonly SessionEntry[],
   featureId: string,
 ): AgentContextMaterializationContext {
-  const reader = createTurnStateHistoryReader(branch, featureId);
-  return {
-    turnState: reader.turnState,
-    turnStates: reader.turnStates,
-  };
+  return createTurnStateHistoryReader(branch, featureId);
 }
 
 function defaultMaterialization(value: unknown): AgentContextMaterialization {

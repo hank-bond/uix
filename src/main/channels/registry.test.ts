@@ -178,11 +178,10 @@ describe("ChannelRegistry", () => {
 
   it("creates feature-scoped publishers", () => {
     const transport = fakeTransport();
-    const registry = new ChannelRegistry({
+    const publisher = createFeatureChannelPublisher("canvas", {
       publish: (canonicalId, payload) =>
         transport.publish(canonicalId, payload),
     });
-    const publisher = createFeatureChannelPublisher("canvas", registry);
 
     publisher.publish("changed", { key: "main" });
 
