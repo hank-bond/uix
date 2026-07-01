@@ -6,7 +6,7 @@
 
 import { parseCanvasKey } from "#features/canvas/shared/addressing";
 import { Canvas } from "#features/canvas/workspace/Canvas";
-import { Chat } from "./chat/Chat";
+import { Chat } from "#features/chat/workspace/Chat";
 import { useWorkspaceClient } from "./workspace/context";
 
 const MainCanvasKey = parseCanvasKey("main");

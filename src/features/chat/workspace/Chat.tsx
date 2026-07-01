@@ -5,10 +5,14 @@
 // into them, and replace them whole at completion.
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import "./chat.css";
 
 import type { AgentEvent, TranscriptItem } from "#shared/ipc";
-import { createAgentClient, type AgentClient } from "../workspace/agent";
-import { useWorkspaceClient } from "../workspace/context";
+import {
+  createAgentClient,
+  type AgentClient,
+} from "../../../renderer/workspace/agent";
+import { useWorkspaceClient } from "../../../renderer/workspace/context";
 import { ChatBlock } from "./blocks/ChatBlock";
 import { isPendingUserId, pendingUserId } from "./pending";
 
