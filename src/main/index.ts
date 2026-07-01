@@ -60,6 +60,7 @@ function createWindow(): BrowserWindow {
     width: 1100,
     height: 720,
     title: "UIX",
+    icon: join(__dirname, "../../src/shared/assets/icon-black.png"),
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       sandbox: true,
@@ -117,6 +118,14 @@ void app.whenReady().then(async () => {
   // One bag for everything that lives as long as the app does.
   // Anything we register goes in here; `will-quit` disposes it.
   const appBag = new DisposableBag();
+
+  app.setName("UIX");
+
+  if (process.platform === "darwin") {
+    app.dock.setIcon(
+      join(__dirname, "../../src/shared/assets/icon-black-large.png"),
+    );
+  }
 
   // Process-level error handlers are the catch-all for anything
   // that escapes the synchronous call stack — an extension's
