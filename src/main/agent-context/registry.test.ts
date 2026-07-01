@@ -13,7 +13,6 @@ import {
   AgentContextRegistry,
   createAgentContextAssembler,
   registerAgentContextContributions,
-  AgentContextRegistry,
 } from "./registry";
 
 type Handler = (
@@ -50,6 +49,20 @@ function stateEntry(content: string): SessionEntry {
     type: "custom_message",
     customType: "uix.state",
     content,
+  } as unknown as SessionEntry;
+}
+
+function turnStateEntry(
+  id: string,
+  data: { cwd?: string; state: Record<string, unknown> },
+): SessionEntry {
+  return {
+    id,
+    parentId: undefined,
+    timestamp: new Date(0).toISOString(),
+    type: "custom",
+    customType: "uix.turn-state",
+    data,
   } as unknown as SessionEntry;
 }
 
@@ -201,6 +214,40 @@ describe("AgentContextRegistry", () => {
 
     expect((await run()).message).toBeDefined();
     expect((await run()).message).toBeDefined();
+  });
+
+  it("passes feature-scoped turn-state history to materialized contributions", async () => {
+    const sm = new AgentContextRegistry();
+    sm.register("canvas", {
+      name: "canvas-diff",
+      description: "d",
+      materialize: (ctx) => {
+        const [current, previous] = ctx.turnStates<{ main: string }>({
+          limit: 2,
+        });
+        return {
+          content: `${previous?.state.main ?? "none"}->${current?.state.main ?? "none"}`,
+        };
+      },
+    });
+    const run = install(sm);
+
+    const result = await run([
+      turnStateEntry("older", {
+        cwd: "/old",
+        state: { canvas: { main: "v1" }, chat: { selected: "c1" } },
+      }),
+      turnStateEntry("chat-only", {
+        cwd: "/chat",
+        state: { chat: { selected: "c2" } },
+      }),
+      turnStateEntry("newer", {
+        cwd: "/new",
+        state: { canvas: { main: "v2" } },
+      }),
+    ]);
+
+    expect(result.message?.content).toContain("v1->v2");
   });
 
   it("materializes a manual section every run when it returns content", async () => {

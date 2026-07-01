@@ -1,7 +1,7 @@
 // state messages: the cockpit→agent state pathway.
 //
 // A agent-context contribution declares one model-visible state section: its
-// messageType, vocabulary line, optional UIX-managed buffer, and optional
+// canonical id, vocabulary line, optional UIX-managed buffer, and optional
 // materializer. The registered object is the contribution; registrations may
 // return a capability handle when the substrate manages a buffer for the owner.
 //
@@ -18,7 +18,7 @@
 // All flushed sections are coalesced into one display-hidden `uix.state` custom
 // message. Pi renders custom messages into provider user-role text and strips
 // customType, so the content itself carries a <uix-state> envelope and one
-// inner tag per messageType. Human prompt text stays verbatim.
+// inner tag per canonical id. Human prompt text stays verbatim.
 
 import type {
   BeforeAgentStartEventResult,
@@ -30,6 +30,10 @@ import { Value } from "typebox/value";
 import { toContributionId, type ContributionId } from "#shared/contribution-id";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
+import {
+  createTurnStateHistoryReader,
+  type TurnStateHistoryReader,
+} from "../turn-state/registry";
 
 import type { AgentInstaller } from "../agent/installers";
 
@@ -71,10 +75,18 @@ export interface AgentContextMaterialization {
   details?: unknown;
 }
 
+// Agent-context materializers run after turn-state prep has appended its
+// durable refs, so turnState() resolves to the latest committed state for this
+// feature.  Really the only reason we have this type alias is to make it clear
+// that we are in a particular stage in the execution and so the expectations
+// of what the "previous state" is clearer.
+export type AgentContextMaterializationContext = TurnStateHistoryReader;
+
 type MaybePromise<T> = T | Promise<T>;
 
 interface BaseContribution {
-  /** Local name for this agent-context section; the substrate derives the canonical id as `${featureId}.${name}`. */
+  // We use the name mostly just to derive the contributionID and canonicalID
+  // by the substrate
   name: string;
   /** Vocabulary line describing this section's body to the model. */
   description: string;
@@ -117,7 +129,9 @@ export interface AppendContribution<
 export interface MaterializedContribution extends BaseContribution {
   buffer?: never;
   /** Called while UIX prepares an agent run; owns any external state it touches. */
-  materialize: () => MaybePromise<AgentContextMaterialization | undefined>;
+  materialize: (
+    ctx: AgentContextMaterializationContext,
+  ) => MaybePromise<AgentContextMaterialization | undefined>;
 }
 
 export type AgentContextContribution =
@@ -179,8 +193,9 @@ type RegisteredContribution =
   | RegisteredMaterializedContribution;
 
 interface RegisteredContributionBase {
+  featureId: string;
   contributionId: ContributionId;
-  messageType: string;
+  canonicalId: AgentContextCanonicalId;
   description: string;
 }
 
@@ -206,7 +221,9 @@ interface RegisteredAppendContribution extends RegisteredContributionBase {
 
 interface RegisteredMaterializedContribution extends RegisteredContributionBase {
   kind: "materialized";
-  materialize: () => MaybePromise<AgentContextMaterialization | undefined>;
+  materialize: (
+    ctx: AgentContextMaterializationContext,
+  ) => MaybePromise<AgentContextMaterialization | undefined>;
 }
 
 /** Registry for agent-context contributions. Features pass this to `registerAgentContextContributions`; they never call individual registration methods directly. */
@@ -240,14 +257,13 @@ export class AgentContextRegistry {
     );
 
     if (
-      this.registeredContributions.some(
-        (e) => e.messageType === (canonicalId as string),
-      )
+      this.registeredContributions.some((e) => e.canonicalId === canonicalId)
     ) {
       throw new Error(`Agent context already registered: ${canonicalId}`);
     }
 
     const registeredContribution = toRegisteredContribution(
+      featureId,
       canonicalId,
       contributionId,
       contribution,
@@ -296,7 +312,7 @@ export function createAgentContextAssembler(
     const vocabulary = installedContributions.length
       ? vocabularySection(
           installedContributions.map((contribution) => ({
-            messageType: contribution.messageType,
+            canonicalId: contribution.canonicalId,
             description: contribution.description,
           })),
         )
@@ -325,13 +341,13 @@ export function createAgentContextAssembler(
         );
         const lastBodies = nearestPersistedBodies(
           ctx.sessionManager.getBranch(),
-          bufferedContributions.map((contribution) => contribution.messageType),
+          bufferedContributions.map((contribution) => contribution.canonicalId),
         );
 
         for (const contribution of bufferedContributions) {
           reconcileAppendPersistence(
             contribution,
-            lastBodies.get(contribution.messageType),
+            lastBodies.get(contribution.canonicalId),
           );
         }
 
@@ -339,12 +355,15 @@ export function createAgentContextAssembler(
         let details: Record<string, unknown> | undefined;
 
         for (const contribution of liveContributions) {
-          const message = await materializeContribution(contribution);
+          const message = await materializeContribution(
+            contribution,
+            ctx.sessionManager.getBranch(),
+          );
           if (message === undefined) continue;
 
           if (
             contribution.kind === "update" &&
-            message.content === lastBodies.get(contribution.messageType)
+            message.content === lastBodies.get(contribution.canonicalId)
           ) {
             continue;
           }
@@ -357,10 +376,10 @@ export function createAgentContextAssembler(
           }
 
           sections.push(
-            renderSection(contribution.messageType, message.content),
+            renderSection(contribution.canonicalId, message.content),
           );
           if (message.details !== undefined) {
-            (details ??= {})[contribution.messageType] = message.details;
+            (details ??= {})[contribution.canonicalId] = message.details;
           }
         }
 
@@ -384,6 +403,7 @@ export function createAgentContextAssembler(
 }
 
 function toRegisteredContribution(
+  featureId: string,
   canonicalId: AgentContextCanonicalId,
   contributionId: ContributionId,
   contribution:
@@ -394,8 +414,9 @@ function toRegisteredContribution(
   if (contribution.buffer?.kind === "update") {
     return {
       kind: "update",
+      featureId,
       contributionId: contributionId,
-      messageType: canonicalId,
+      canonicalId,
       description: contribution.description,
       schema: contribution.buffer.schema,
       materialize:
@@ -407,8 +428,9 @@ function toRegisteredContribution(
   if (contribution.buffer?.kind === "append") {
     return {
       kind: "append",
+      featureId,
       contributionId: contributionId,
-      messageType: canonicalId,
+      canonicalId,
       description: contribution.description,
       schema: contribution.buffer.schema,
       materialize:
@@ -420,8 +442,9 @@ function toRegisteredContribution(
   const materialized = contribution as MaterializedContribution;
   return {
     kind: "materialized",
+    featureId,
     contributionId: contributionId,
-    messageType: canonicalId,
+    canonicalId,
     description: materialized.description,
     materialize: materialized.materialize,
   };
@@ -434,13 +457,14 @@ function assertPayloadMatchesSchema(
   if (!Value.Check(contribution.schema, payload)) {
     const [first] = Value.Errors(contribution.schema, payload);
     throw new Error(
-      `Invalid ${contribution.messageType} payload: ${first?.message ?? "schema mismatch"}`,
+      `Invalid ${contribution.canonicalId} payload: ${first?.message ?? "schema mismatch"}`,
     );
   }
 }
 
 async function materializeContribution(
   contribution: RegisteredContribution,
+  branch: readonly SessionEntry[],
 ): Promise<AgentContextMaterialization | undefined> {
   if (contribution.kind === "update") {
     if (!contribution.hasValue) return undefined;
@@ -456,7 +480,20 @@ async function materializeContribution(
       : defaultMaterialization(contribution.values);
   }
 
-  return contribution.materialize();
+  return contribution.materialize(
+    createAgentContextMaterializationContext(branch, contribution.featureId),
+  );
+}
+
+function createAgentContextMaterializationContext(
+  branch: readonly SessionEntry[],
+  featureId: string,
+): AgentContextMaterializationContext {
+  const reader = createTurnStateHistoryReader(branch, featureId);
+  return {
+    turnState: reader.turnState,
+    turnStates: reader.turnStates,
+  };
 }
 
 function defaultMaterialization(value: unknown): AgentContextMaterialization {
@@ -474,19 +511,22 @@ function reconcileAppendPersistence(
   contribution.inFlight = undefined;
 }
 
-function stateTag(messageType: string): string {
-  return messageType.replaceAll(".", "-");
+function stateTag(canonicalId: AgentContextCanonicalId): string {
+  return canonicalId.replaceAll(".", "-");
 }
 
-function renderSection(messageType: string, body: string): string {
-  const tag = stateTag(messageType);
+function renderSection(
+  canonicalId: AgentContextCanonicalId,
+  body: string,
+): string {
+  const tag = stateTag(canonicalId);
   return [`<${tag}>`, body, `</${tag}>`].join("\n");
 }
 
 function vocabularySection(
   configs: readonly Pick<
     RegisteredContributionBase,
-    "messageType" | "description"
+    "canonicalId" | "description"
   >[],
 ): string {
   return [
@@ -499,32 +539,32 @@ function vocabularySection(
     "",
     ...configs.map(
       (config) =>
-        `- \`<${stateTag(config.messageType)}>\` — ${config.description}`,
+        `- \`<${stateTag(config.canonicalId)}>\` — ${config.description}`,
     ),
   ].join("\n");
 }
 
 function nearestPersistedBodies(
   entries: readonly SessionEntry[],
-  messageTypes: readonly string[],
-): Map<string, string> {
-  const found = new Map<string, string>();
-  if (messageTypes.length === 0) return found;
-  const want = new Set(messageTypes);
+  canonicalIds: readonly AgentContextCanonicalId[],
+): Map<AgentContextCanonicalId, string> {
+  const found = new Map<AgentContextCanonicalId, string>();
+  if (canonicalIds.length === 0) return found;
+  const want = new Set(canonicalIds);
   for (let i = entries.length - 1; i >= 0 && want.size > 0; i--) {
     const entry = entries[i];
     if (entry.type !== "custom_message") continue;
     if (entry.customType !== "uix.state") continue;
     if (typeof entry.content !== "string") continue;
-    for (const messageType of [...want]) {
-      const open = `<${stateTag(messageType)}>\n`;
-      const close = `\n</${stateTag(messageType)}>`;
+    for (const canonicalId of [...want]) {
+      const open = `<${stateTag(canonicalId)}>\n`;
+      const close = `\n</${stateTag(canonicalId)}>`;
       const start = entry.content.indexOf(open);
       if (start === -1) continue;
       const end = entry.content.indexOf(close, start + open.length);
       if (end === -1) continue;
-      found.set(messageType, entry.content.slice(start + open.length, end));
-      want.delete(messageType);
+      found.set(canonicalId, entry.content.slice(start + open.length, end));
+      want.delete(canonicalId);
     }
   }
   return found;

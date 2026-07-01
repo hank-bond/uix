@@ -5,6 +5,7 @@ import type {
   BeforeAgentStartEventResult,
   ExtensionAPI,
   ExtensionContext,
+  SessionEntry,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 
@@ -116,10 +117,19 @@ function setup() {
   const inputHandlers: VoidHandler[] = [];
   const agentEndHandlers: VoidHandler[] = [];
   const entries: Array<{ customType: string; data: unknown }> = [];
+  const branch: SessionEntry[] = [];
   const pi = {
     registerTool: (tool: ToolDefinition) => tools.set(tool.name, tool),
     appendEntry: (customType: string, data: unknown) => {
       entries.push({ customType, data });
+      branch.push({
+        id: `entry-${branch.length + 1}`,
+        parentId: undefined,
+        timestamp: new Date(0).toISOString(),
+        type: "custom",
+        customType,
+        data,
+      } as unknown as SessionEntry);
     },
     on: (event: string, handler: Handler | VoidHandler) => {
       if (event === "before_agent_start") handlers.push(handler as Handler);
@@ -140,11 +150,11 @@ function setup() {
         systemPromptOptions: {},
       } as unknown as BeforeAgentStartEvent,
       {
-        sessionManager: { getBranch: () => [] },
+        sessionManager: { getBranch: () => branch },
       } as unknown as ExtensionContext,
     );
 
-  const extCtx = { cwd: "/work", sessionManager: { getBranch: () => [] } };
+  const extCtx = { cwd: "/work", sessionManager: { getBranch: () => branch } };
 
   return {
     store: ctx.store,
@@ -181,11 +191,9 @@ describe("canvas agent tool contributions", () => {
     );
   });
 
-  it("surfaces pane writebacks as a canvas-diff section, consumed once", async () => {
+  it("does not surface pane writebacks without turn-state snapshots", async () => {
     const { tools, turnBoundary, writebackCanvas } = setup();
 
-    // Agent writes the canvas (so it has anchors), then the human edits through
-    // the pane writeback path.
     const write = tools.get("canvas__anchor_write")!;
     await write.execute(
       "t1",
@@ -196,23 +204,21 @@ describe("canvas agent tool contributions", () => {
     );
     await writebackCanvas("main", "<p>goodbye</p>");
 
-    const first = (await turnBoundary()).message!.content as string;
-    expect(first).toContain("<canvas-canvas-diff>");
-    expect(first).toContain("## main");
-    expect(first).toContain("goodbye");
-
-    // The diff was consumed; an untouched canvas contributes no section (and
-    // visibility has not been branch-confirmed in this fake setup, so the
-    // second run still carries it — assert on the diff only).
-    const second = (await turnBoundary()).message?.content as
+    const content = (await turnBoundary()).message?.content as
       | string
       | undefined;
-    expect(second ?? "").not.toContain("<canvas-canvas-diff>");
+    expect(content ?? "").not.toContain("<canvas-canvas-diff>");
   });
 
   it("keeps pane writeback diff available after input snapshots turn state", async () => {
-    const { tools, entries, inputBoundary, turnBoundary, writebackCanvas } =
-      setup();
+    const {
+      tools,
+      entries,
+      inputBoundary,
+      turnBoundary,
+      writebackCanvas,
+      agentEnd,
+    } = setup();
 
     const write = tools.get("canvas__anchor_write")!;
     await write.execute(
@@ -222,6 +228,7 @@ describe("canvas agent tool contributions", () => {
       undefined,
       {} as never,
     );
+    await agentEnd();
     await writebackCanvas("main", "<p>goodbye</p>");
 
     await inputBoundary();
@@ -230,6 +237,13 @@ describe("canvas agent tool contributions", () => {
         customType: "uix.turn-state",
         data: {
           state: { canvas: { "doc://canvas/main": "v1" } },
+          cwd: "/work",
+        },
+      },
+      {
+        customType: "uix.turn-state",
+        data: {
+          state: { canvas: { "doc://canvas/main": "v2" } },
           cwd: "/work",
         },
       },

@@ -46,23 +46,37 @@ function assertStateToken(label: string, token: string): void {
   }
 }
 
-export interface PreviousTurnState<TState = unknown> {
+export interface TurnStateHistoryEntry<TState = unknown> {
   readonly entryId: string;
   readonly cwd: string | undefined;
   readonly state: TState;
 }
 
-export interface PreviousTurnStatesOptions {
+export interface TurnStateHistoryOptions {
   readonly offset?: number;
   readonly limit?: number;
 }
 
-export interface TurnStatePreparationContext {
+// Access to committed turn-state history for one feature key. The nearest
+// entry is whatever is latest at the point this reader is used: in turn-state
+// prep that means the previous committed state; after prep appends, it means
+// the just-committed state.  Keep this in mind because it does mean you have
+// to be aware of the order of facet execution sometimes.  The expectaion is
+// that you will not implement this directly, but will extend or alias it with
+// the name of your execution stage.
+export interface TurnStateHistoryReader {
+  turnState<TState = unknown>(): TurnStateHistoryEntry<TState> | undefined;
+  turnStates<TState = unknown>(
+    opts?: TurnStateHistoryOptions,
+  ): readonly TurnStateHistoryEntry<TState>[];
+}
+
+// Turn-state prep adds cwd to the same feature-bound history reader. Again,
+// in turn-state prep stage, the most recent state is going to be the committed
+// state from the previous turn, not this turn (since that has not been committed
+// yet, hence us being in prep :D )
+export interface TurnStatePreparationContext extends TurnStateHistoryReader {
   cwd: string;
-  previousTurnState<TState = unknown>(): PreviousTurnState<TState> | undefined;
-  previousTurnStates<TState = unknown>(
-    opts?: PreviousTurnStatesOptions,
-  ): readonly PreviousTurnState<TState>[];
 }
 
 export interface PreparedTurnState {
@@ -200,8 +214,21 @@ async function appendPreparedTurnState(
   pi.appendEntry(TurnStateEntryType, { state: preparedState, cwd: opts.cwd });
 }
 
-// We bind the methods so that they can only access the same key that
-// is being provided in the contribution.
+export function createTurnStateHistoryReader(
+  branch: readonly SessionEntry[],
+  featureId: string,
+): TurnStateHistoryReader {
+  const canonicalId = toTurnStateCanonicalId(featureId);
+  return {
+    turnState<TState = unknown>() {
+      return turnStates<TState>(branch, canonicalId, { limit: 1 })[0];
+    },
+    turnStates<TState = unknown>(historyOpts = {}) {
+      return turnStates<TState>(branch, canonicalId, historyOpts);
+    },
+  };
+}
+
 function createTurnStatePreparationContext(opts: {
   cwd: string;
   branch: readonly SessionEntry[];
@@ -209,37 +236,29 @@ function createTurnStatePreparationContext(opts: {
 }): TurnStatePreparationContext {
   return {
     cwd: opts.cwd,
-    previousTurnState<TState = unknown>() {
-      return previousTurnStates<TState>(opts.branch, opts.canonicalId, {
-        limit: 1,
-      })[0];
+    turnState<TState = unknown>() {
+      return turnStates<TState>(opts.branch, opts.canonicalId, { limit: 1 })[0];
     },
-    previousTurnStates<TState = unknown>(historyOpts = {}) {
-      return previousTurnStates<TState>(
-        opts.branch,
-        opts.canonicalId,
-        historyOpts,
-      );
+    turnStates<TState = unknown>(historyOpts = {}) {
+      return turnStates<TState>(opts.branch, opts.canonicalId, historyOpts);
     },
   };
 }
 
-/* Iterate through the TurnState customEntry blocks in the session 
-history such that we select the first N nodes that are both parents
-of the current leaf we are at and contain the target key within 
-our TurnState.  We skip all other nodes.
-*/
-function previousTurnStates<TState>(
+// Walk the current root→leaf path from leaf to root and return only the
+// turn-state entries that contain this feature's key. Offset and limit apply
+// to matching states, not raw session entries.
+function turnStates<TState>(
   branch: readonly SessionEntry[],
   canonicalId: TurnStateCanonicalId,
-  opts: PreviousTurnStatesOptions,
-): PreviousTurnState<TState>[] {
+  opts: TurnStateHistoryOptions,
+): TurnStateHistoryEntry<TState>[] {
   const offset = opts.offset ?? 0;
   const limit = opts.limit ?? branch.length;
-  assertNonNegativeInteger("previous turn-state offset", offset);
-  assertNonNegativeInteger("previous turn-state limit", limit);
+  assertNonNegativeInteger("turn-state history offset", offset);
+  assertNonNegativeInteger("turn-state history limit", limit);
 
-  const result: PreviousTurnState<TState>[] = [];
+  const result: TurnStateHistoryEntry<TState>[] = [];
   let skipped = 0;
   for (let index = branch.length - 1; index >= 0; index -= 1) {
     const turnState = extractTurnStateEntry(branch[index], canonicalId);
@@ -250,7 +269,7 @@ function previousTurnStates<TState>(
       continue;
     }
 
-    result.push(turnState as PreviousTurnState<TState>);
+    result.push(turnState as TurnStateHistoryEntry<TState>);
     if (result.length >= limit) break;
   }
   return result;
@@ -259,7 +278,7 @@ function previousTurnStates<TState>(
 function extractTurnStateEntry(
   entry: SessionEntry,
   canonicalId: TurnStateCanonicalId,
-): PreviousTurnState | undefined {
+): TurnStateHistoryEntry | undefined {
   if (entry.type !== "custom") return undefined;
   if (entry.customType !== TurnStateEntryType) return undefined;
   const data = asRecord(entry.data);

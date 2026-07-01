@@ -11,8 +11,8 @@ import { createCanvasTurnStateContributions } from "./turn-state";
 function prepCtx(): TurnStatePreparationContext {
   return {
     cwd: "/work",
-    previousTurnState: () => undefined,
-    previousTurnStates: () => [],
+    turnState: () => undefined,
+    turnStates: () => [],
   };
 }
 

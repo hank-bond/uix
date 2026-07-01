@@ -9,6 +9,10 @@ import type {
   TurnStateContribution,
 } from "#backend/turn-state/registry";
 
+import {
+  parseCanvasKey,
+  toCanvasDocumentResourceId,
+} from "../../shared/addressing";
 import type { CanvasContext } from "../context";
 
 export function createCanvasTurnStateContributions(
@@ -41,13 +45,9 @@ async function snapshotCanvasPanes(
   return {
     state: Object.fromEntries(
       [...versions].map(([canvasKey, version]) => [
-        canvasResourceId(canvasKey),
+        toCanvasDocumentResourceId(parseCanvasKey(canvasKey)),
         version.id,
       ]),
     ),
   };
-}
-
-function canvasResourceId(canvasKey: string): string {
-  return `doc://canvas/${canvasKey}`;
 }

@@ -146,8 +146,8 @@ describe("TurnStateRegistry", () => {
     registerTurnStateContributions(state, "canvas", [
       {
         prepareUserSubmitState: (ctx) => {
-          previous = ctx.previousTurnState<{ main: string }>()?.state;
-          secondPrevious = ctx.previousTurnStates<{ main: string }>({
+          previous = ctx.turnState<{ main: string }>()?.state;
+          secondPrevious = ctx.turnStates<{ main: string }>({
             offset: 1,
             limit: 1,
           })[0]?.state;
