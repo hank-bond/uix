@@ -28,7 +28,7 @@ body,
   color: var(--fg);
 }
 
-.cockpit {
+.workspace {
   height: 100%;
   display: grid;
   grid-template-columns: minmax(320px, 1fr) minmax(420px, 1.4fr);

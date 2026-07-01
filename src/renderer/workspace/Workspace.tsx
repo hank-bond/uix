@@ -1,37 +1,24 @@
-// workspace surface layout.
+// workspace surface composition.
 //
-// Hardcoded two-column grid — chat on the left, canvas on the right. This
-// layout moves into the Workspace iframe at W3 and becomes a surface
-// composition at W4–W5.
+// Renders surfaces declared in layout.ts. Each surface provides a render
+// function; the workspace composes them into a CSS grid.
 
-import { parseCanvasKey } from "#features/canvas/shared/addressing";
-import { Canvas } from "#features/canvas/workspace/Canvas";
-import { Chat } from "#features/chat/workspace/Chat";
-import { useWorkspaceClient } from "./context";
-
-const MainCanvasKey = parseCanvasKey("main");
+import { layout } from "./layout";
 
 export function Workspace() {
-  const workspace = useWorkspaceClient();
-
   return (
-    <div className="cockpit">
-      <section
-        className="pane pane--chat"
-        data-uix-pane="chat"
-        aria-label="Chat"
-      >
-        <header className="pane__header">chat</header>
-        <div className="pane__body pane__body--chat">
-          <Chat />
-        </div>
-      </section>
-      <section className="pane pane--canvas" aria-label="Canvas">
-        <header className="pane__header">canvas</header>
-        <div className="pane__body pane__body--canvas">
-          <Canvas canvasKey={MainCanvasKey} workspace={workspace} />
-        </div>
-      </section>
+    <div className="workspace">
+      {layout.map(({ name, render }) => (
+        <section
+          key={name}
+          className={`pane pane--${name}`}
+          data-uix-pane={name}
+          aria-label={name}
+        >
+          <header className="pane__header">{name}</header>
+          <div className={`pane__body pane__body--${name}`}>{render()}</div>
+        </section>
+      ))}
     </div>
   );
 }

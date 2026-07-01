@@ -1,7 +1,7 @@
-// hardcoded Stage-1 canvas surface.
+// canvas surface.
 //
-// TODO: hardcoded surface — becomes a registered Workspace surface once surface
-// contributions land.
+// Renders agent-authored HTML from the document store in a sandboxed iframe.
+// Human edits flow back to the store via postMessage writeback.
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -15,13 +15,14 @@ import {
   createFeatureChannelClient,
   type WorkspaceClient,
 } from "@uix/api/workspace";
+import { useWorkspaceClient } from "../../../renderer/workspace/context";
 
 export interface CanvasProps {
   canvasKey: CanvasKey;
-  workspace: WorkspaceClient;
 }
 
-export function Canvas({ canvasKey, workspace }: CanvasProps) {
+export function Canvas({ canvasKey }: CanvasProps) {
+  const workspace = useWorkspaceClient();
   const canvas = useCanvasClient(workspace);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [token, setToken] = useState(0);
