@@ -17,6 +17,7 @@ function shimScript(key: CanvasKey): string {
   if (self) self.remove();
   var KEY = "${key}";
   var timer;
+  var lastHtml = "";
   // outerHTML serializes attributes, not live form state — reflect each
   // control's current property onto the clone so a selection/typed value is
   // captured, not just the markup it was parsed from.
@@ -48,8 +49,11 @@ function shimScript(key: CanvasKey): string {
     return clone.outerHTML;
   }
   function flush() {
+    var html = serialize();
+    if (html === lastHtml) return;
+    lastHtml = html;
     parent.postMessage(
-      { type: "uix:canvas-writeback", key: KEY, html: serialize() },
+      { type: "uix:canvas-writeback", key: KEY, html: html },
       "*"
     );
   }
@@ -58,8 +62,11 @@ function shimScript(key: CanvasKey): string {
     timer = setTimeout(flush, 400);
   }
   function init() {
+    window.__uixWriteback = schedule;
     document.addEventListener("input", schedule, true);
     document.addEventListener("change", schedule, true);
+    document.addEventListener("click", schedule, true);
+    document.addEventListener("drop", schedule, true);
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);

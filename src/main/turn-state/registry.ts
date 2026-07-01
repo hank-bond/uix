@@ -14,8 +14,11 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 
 import { toContributionId, type ContributionId } from "#shared/contribution-id";
+import { createLogger } from "../log";
 import { DisposableBag } from "../lifecycle";
 import type { AgentInstaller } from "../agent/installers";
+
+const log = createLogger("turn-state");
 
 const TurnStateEntryType = "uix.turn-state";
 
@@ -224,7 +227,14 @@ async function appendPreparedTurnState(opts: {
     preparedState[contribution.canonicalId] = prepared.state;
   }
 
-  if (Object.keys(preparedState).length === 0) return;
+  if (Object.keys(preparedState).length === 0) {
+    log.debug("no_state_produced");
+    return;
+  }
+  log.debug(
+    { sections: Object.keys(preparedState).length, preparedState },
+    "committed",
+  );
   opts.sessionManager.appendCustomEntry(TurnStateEntryType, {
     state: preparedState,
     cwd: opts.cwd,

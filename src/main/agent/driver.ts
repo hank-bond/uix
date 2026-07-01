@@ -33,6 +33,8 @@ import { join } from "node:path";
 
 import { disposable, DisposableBag, subscribe } from "../lifecycle";
 import { createLogger } from "../log";
+
+const log = createLogger("agent");
 import {
   createTurnStateCoordinator,
   submitTurnStatePrep,
@@ -225,7 +227,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         const sessionManager = await manager();
         return { items: toTranscriptItems(sessionManager.getBranch()) };
       } catch (err) {
-        createLogger("agent").warn(
+        log.warn(
           { err: err instanceof Error ? err.message : String(err) },
           "history_load_failed",
         );
@@ -268,6 +270,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         // state explaining that turn.  We write both before calling
         // session.prompt(text).
         if (opts.turnState) {
+          log.trace("submitting_turn_state");
           await submitTurnStatePrep(
             session.sessionManager,
             opts.workspace.agentCwd,
@@ -275,6 +278,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
           );
         }
         if (opts.agentContext) {
+          log.trace("building_agent_context");
           const message = await buildAgentContextMessage(
             session.sessionManager,
             opts.agentContext,

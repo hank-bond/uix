@@ -28,11 +28,14 @@ import type { Static, TSchema } from "typebox";
 import { Value } from "typebox/value";
 
 import { toContributionId, type ContributionId } from "#shared/contribution-id";
+import { createLogger } from "../log";
 import { DisposableBag } from "../lifecycle";
 import {
   createTurnStateHistoryReader,
   type TurnStateHistoryReader,
 } from "../turn-state/registry";
+
+const log = createLogger("agent-context");
 
 import type { AgentInstaller } from "../agent/installers";
 
@@ -347,7 +350,10 @@ export async function buildAgentContextMessage(
   registry: AgentContextRegistry,
 ): Promise<AgentContextMessage | undefined> {
   const liveContributions = registry.registeredContributions;
-  if (liveContributions.length === 0) return undefined;
+  if (liveContributions.length === 0) {
+    log.debug("no_live_contributions");
+    return undefined;
+  }
 
   const bufferedContributions = liveContributions.filter(
     (c) => c.kind === "update" || c.kind === "append",
@@ -394,12 +400,15 @@ export async function buildAgentContextMessage(
     }
   }
 
-  if (sections.length === 0) return undefined;
+  if (sections.length === 0) {
+    log.debug("nothing_changed");
+    return undefined;
+  }
 
-  return {
-    content: ["<uix-state>", ...sections, "</uix-state>"].join("\n"),
-    details,
-  };
+  const content = ["<uix-state>", ...sections, "</uix-state>"].join("\n");
+  log.debug({ sections: sections.length, content, details }, "flushed");
+
+  return { content, details };
 }
 
 function toRegisteredContribution(
