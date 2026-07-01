@@ -481,15 +481,8 @@ async function materializeContribution(
   }
 
   return contribution.materialize(
-    createAgentContextMaterializationContext(branch, contribution.featureId),
+    createTurnStateHistoryReader(branch, contribution.featureId),
   );
-}
-
-function createAgentContextMaterializationContext(
-  branch: readonly SessionEntry[],
-  featureId: string,
-): AgentContextMaterializationContext {
-  return createTurnStateHistoryReader(branch, featureId);
 }
 
 function defaultMaterialization(value: unknown): AgentContextMaterialization {
@@ -507,16 +500,11 @@ function reconcileAppendPersistence(
   contribution.inFlight = undefined;
 }
 
-function stateTag(canonicalId: AgentContextCanonicalId): string {
-  return canonicalId.replaceAll(".", "-");
-}
-
 function renderSection(
   canonicalId: AgentContextCanonicalId,
   body: string,
 ): string {
-  const tag = stateTag(canonicalId);
-  return [`<${tag}>`, body, `</${tag}>`].join("\n");
+  return [`<${canonicalId}>`, body, `</${canonicalId}>`].join("\n");
 }
 
 function vocabularySection(
@@ -534,8 +522,7 @@ function vocabularySection(
     "section per update:",
     "",
     ...configs.map(
-      (config) =>
-        `- \`<${stateTag(config.canonicalId)}>\` — ${config.description}`,
+      (config) => `- \`<${config.canonicalId}>\` — ${config.description}`,
     ),
   ].join("\n");
 }
@@ -553,8 +540,8 @@ function nearestPersistedBodies(
     if (entry.customType !== "uix.state") continue;
     if (typeof entry.content !== "string") continue;
     for (const canonicalId of [...want]) {
-      const open = `<${stateTag(canonicalId)}>\n`;
-      const close = `\n</${stateTag(canonicalId)}>`;
+      const open = `<${canonicalId}>\n`;
+      const close = `\n</${canonicalId}>`;
       const start = entry.content.indexOf(open);
       if (start === -1) continue;
       const end = entry.content.indexOf(close, start + open.length);

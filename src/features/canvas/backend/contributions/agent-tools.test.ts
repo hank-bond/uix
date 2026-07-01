@@ -179,15 +179,15 @@ describe("canvas agent tool contributions", () => {
   it("teaches both canvas tags in the system prompt vocabulary", async () => {
     const { turnBoundary } = setup();
     const result = await turnBoundary();
-    expect(result.systemPrompt).toContain("- `<canvas-pane-visibility>`");
-    expect(result.systemPrompt).toContain("- `<canvas-canvas-diff>`");
+    expect(result.systemPrompt).toContain("- `<canvas.pane-visibility>`");
+    expect(result.systemPrompt).toContain("- `<canvas.canvas-diff>`");
   });
 
   it("reports open canvases as a sorted JSON body", async () => {
     const { turnBoundary } = setup();
     const content = (await turnBoundary()).message!.content as string;
     expect(content).toContain(
-      ["<canvas-pane-visibility>", '{"canvases_open":["main"]}'].join("\n"),
+      ["<canvas.pane-visibility>", '{"canvases_open":["main"]}'].join("\n"),
     );
   });
 
@@ -207,7 +207,7 @@ describe("canvas agent tool contributions", () => {
     const content = (await turnBoundary()).message?.content as
       | string
       | undefined;
-    expect(content ?? "").not.toContain("<canvas-canvas-diff>");
+    expect(content ?? "").not.toContain("<canvas.canvas-diff>");
   });
 
   it("keeps pane writeback diff available after input snapshots turn state", async () => {
@@ -250,7 +250,7 @@ describe("canvas agent tool contributions", () => {
     ]);
 
     const content = (await turnBoundary()).message!.content as string;
-    expect(content).toContain("<canvas-canvas-diff>");
+    expect(content).toContain("<canvas.canvas-diff>");
     expect(content).toContain("## main");
     expect(content).toContain("goodbye");
   });

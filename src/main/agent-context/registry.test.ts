@@ -86,10 +86,10 @@ describe("AgentContextRegistry", () => {
     expect(result.systemPrompt).toContain("BASE");
     expect(result.systemPrompt).toContain("## UIX cockpit state messages");
     expect(result.systemPrompt).toContain(
-      "- `<test-pane-visibility>` — open keys",
+      "- `<test.pane-visibility>` — open keys",
     );
     expect(result.systemPrompt).toContain(
-      "- `<test-canvas-diff>` — human hunks",
+      "- `<test.canvas-diff>` — human hunks",
     );
   });
 
@@ -119,9 +119,9 @@ describe("AgentContextRegistry", () => {
     const run = install(sm);
 
     const result = await run();
-    expect(result.message?.content).toContain("<test-pane-visibility>");
+    expect(result.message?.content).toContain("<test.pane-visibility>");
     expect(result.message?.content).toContain('{"canvases_open":["main"]}');
-    expect(result.message?.content).toContain("<test-canvas-diff>\nchanged");
+    expect(result.message?.content).toContain("<test.canvas-diff>\nchanged");
 
     registrations[Symbol.dispose]();
     expect((await run()).message).toBeUndefined();
@@ -146,9 +146,9 @@ describe("AgentContextRegistry", () => {
       customType: "uix.state",
       content: [
         "<uix-state>",
-        "<test-pane-visibility>",
+        "<test.pane-visibility>",
         '{"canvases_open":["main"]}',
-        "</test-pane-visibility>",
+        "</test.pane-visibility>",
         "</uix-state>",
       ].join("\n"),
       details: { "test.pane-visibility": { canvases_open: ["main"] } },
@@ -301,8 +301,8 @@ describe("AgentContextRegistry", () => {
     const run = install(sm);
 
     const content = (await run()).message!.content as string;
-    expect(content.indexOf("<test-pane-visibility>")).toBeLessThan(
-      content.indexOf("<test-canvas-diff>"),
+    expect(content.indexOf("<test.pane-visibility>")).toBeLessThan(
+      content.indexOf("<test.canvas-diff>"),
     );
     expect(content.startsWith("<uix-state>\n")).toBe(true);
     expect(content.endsWith("\n</uix-state>")).toBe(true);
@@ -388,7 +388,7 @@ describe("AgentContextRegistry", () => {
     visibility.update({ canvases_open: ["main"] });
     const run = install(sm);
 
-    expect((await run()).message?.content).toContain("<test-pane-visibility>");
+    expect((await run()).message?.content).toContain("<test.pane-visibility>");
 
     visibility[Symbol.dispose]();
     expect((await run()).message).toBeUndefined();
