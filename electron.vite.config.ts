@@ -57,7 +57,6 @@ export default defineConfig({
       outDir: "out/renderer",
       rollupOptions: {
         input: resolve(__dirname, "src/renderer/index.html"),
-        // host: resolve(__dirname, "src/renderer/host.html"),  // W3
       },
     },
   },

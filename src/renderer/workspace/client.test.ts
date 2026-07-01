@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { UIXBridge } from "#shared/ipc";
 import { parseCanvasKey } from "#features/canvas/shared/addressing";
 import { createCanvasClient } from "#features/canvas/workspace/client";
 import { AgentEvents, AgentRequests, createAgentClient } from "./agent";
@@ -8,21 +7,6 @@ import {
   createFeatureChannelClient,
   type WorkspaceClient,
 } from "@uix/api/workspace";
-import { createPreloadWorkspaceClient } from "./preload";
-
-function fakeBridge(): UIXBridge {
-  return {
-    request: vi.fn(() => Promise.resolve(undefined)),
-    subscribe: vi.fn(() => () => undefined),
-    reload: vi.fn(() =>
-      Promise.resolve({
-        extensionsLoaded: 0,
-        extensionsFailed: 0,
-        piReloaded: false,
-      }),
-    ),
-  };
-}
 
 function fakeWorkspaceClient() {
   const request = vi.fn((_name: string, _req: unknown) =>
@@ -45,39 +29,6 @@ function fakeWorkspaceClient() {
   };
   return { client, request, subscribe };
 }
-
-describe("createPreloadWorkspaceClient", () => {
-  it("forwards requests to the preload bridge", async () => {
-    const bridge = fakeBridge();
-    const client = createPreloadWorkspaceClient(bridge);
-
-    await client.request("agent.prompt", { text: "hi" });
-    await client.request("agent.history", undefined);
-    await client.request("canvas.writeback", {
-      key: "main",
-      html: "<p>hello</p>",
-    });
-
-    expect(bridge.request).toHaveBeenCalledWith("agent.prompt", { text: "hi" });
-    expect(bridge.request).toHaveBeenCalledWith("agent.history", undefined);
-    expect(bridge.request).toHaveBeenCalledWith("canvas.writeback", {
-      key: "main",
-      html: "<p>hello</p>",
-    });
-  });
-
-  it("forwards subscriptions to the preload bridge", () => {
-    const bridge = fakeBridge();
-    const client = createPreloadWorkspaceClient(bridge);
-    const handler = vi.fn();
-
-    client.subscribe("agent.event", handler);
-    client.subscribe("canvas.changed", handler);
-
-    expect(bridge.subscribe).toHaveBeenCalledWith("agent.event", handler);
-    expect(bridge.subscribe).toHaveBeenCalledWith("canvas.changed", handler);
-  });
-});
 
 describe("feature and facet clients", () => {
   it("scopes feature requests and events", async () => {
@@ -108,8 +59,8 @@ describe("feature and facet clients", () => {
     await agent.getHistory();
     agent.onEvent(onEvent);
 
-    expect(request).toHaveBeenCalledWith("agent.prompt", { text: "hi" });
-    expect(request).toHaveBeenCalledWith("agent.history", undefined);
-    expect(subscribe).toHaveBeenCalledWith("agent.event", onEvent);
+    expect(request).toHaveBeenCalledWith(AgentRequests.prompt, { text: "hi" });
+    expect(request).toHaveBeenCalledWith(AgentRequests.history, undefined);
+    expect(subscribe).toHaveBeenCalledWith(AgentEvents.event, onEvent);
   });
 });

@@ -97,7 +97,7 @@ export interface TranscriptSnapshot {
 }
 
 /** Shape exposed on `window.uix` by the preload. */
-export interface UIXBridge {
+export interface ChannelTransport {
   /** Generic request/response over IPC. Channel name is the transport address. */
   request(name: string, payload: unknown): Promise<unknown>;
   /** Generic event subscription over IPC. Returns an unsubscribe function. */

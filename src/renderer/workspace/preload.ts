@@ -1,29 +1,29 @@
-import type { UIXBridge } from "#shared/ipc";
+// workspace client backed by the preload channel transport (window.channels).
+//
+// The workspace runs directly in the BrowserWindow — no iframe, no sandbox.
+// Multi-workspace isolation comes from separate BrowserWindows.
+
+import type { ChannelTransport } from "#shared/ipc";
 import type { WorkspaceClient } from "@uix/api/workspace";
 
-// Temporary adapter for the pre-Workspace-iframe path. The current renderer can
-// still access the preload bridge directly; once Workspace runs in a Host-owned
-// iframe, WorkspaceClient will be backed by postMessage instead and Host will
-// keep the preload access on its side of the bridge.
 export const LocalWorkspaceId = "local";
 
-export const UixRequests = {
-  reload: "uix.reload",
-} as const;
-
 export function createPreloadWorkspaceClient(
-  bridge: UIXBridge,
+  transport: ChannelTransport,
 ): WorkspaceClient {
   return {
     workspaceId: LocalWorkspaceId,
-    request<Req, Res>(name: string, req: Req): Promise<Res> {
-      return bridge.request(name, req) as Promise<Res>;
+    request<Req, Res>(channel: string, req: Req): Promise<Res> {
+      return transport.request(channel, req) as Promise<Res>;
     },
     subscribe<Event>(
-      name: string,
+      channel: string,
       handler: (event: Event) => void,
     ): () => void {
-      return bridge.subscribe(name, handler as (payload: unknown) => void);
+      return transport.subscribe(
+        channel,
+        handler as (payload: unknown) => void,
+      );
     },
   };
 }

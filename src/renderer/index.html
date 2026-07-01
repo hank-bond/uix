@@ -3,7 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <title>UIX</title>
-    <!-- CSP intentionally omitted; we'll set a strict one once the bridge/iframe story is real. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; frame-src 'self' uix-resource:;"
+    />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
