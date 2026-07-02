@@ -38,9 +38,15 @@ export function toContributionId(
   return `${featureId}.${facet}` as ContributionId;
 }
 
+const idTokenPattern = /^[a-z][a-z0-9_-]*$/;
+
+/** True when `token` satisfies the shared id-token grammar. */
+export function isIdToken(token: string): boolean {
+  return idTokenPattern.test(token);
+}
+
 function assertIdToken(label: string, token: string): void {
-  const idTokenPattern = /^[a-z][a-z0-9_-]*$/;
-  if (!idTokenPattern.test(token)) {
+  if (!isIdToken(token)) {
     throw new Error(`Invalid ${label}: ${token}. Expected ${idTokenPattern}.`);
   }
 }

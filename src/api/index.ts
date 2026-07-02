@@ -1,4 +1,3 @@
-export type { ExtensionAPI, ExtensionFactory } from "../shared/extension-types";
 export type {
   FeatureDefinition,
   FeatureContext,

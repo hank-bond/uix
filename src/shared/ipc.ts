@@ -22,8 +22,8 @@ export const PromptRequestSchema = Type.Object({
 export type PromptRequest = Static<typeof PromptRequestSchema>;
 
 export interface ReloadResult {
-  extensionsLoaded: number;
-  extensionsFailed: number;
+  featuresLoaded: number;
+  featuresFailed: number;
   /** True when a pi session already existed and pi's reload path ran. */
   piReloaded: boolean;
 }

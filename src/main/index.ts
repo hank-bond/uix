@@ -32,13 +32,17 @@ import {
 } from "./channels/registry";
 import { TurnStateRegistry } from "./turn-state/registry";
 import { createLocalDocumentStoreFactory } from "./documents/store";
-import { loadExtensions } from "./extensions/loader";
 import { getBundledFeatures } from "./features/bundled";
 import {
   registerFeatureContributions,
   registerFeaturePreflightContributions,
 } from "./features/contributions";
-import { defaultRoots } from "./extensions/roots";
+import {
+  buildFeatureContext,
+  loadFeatures,
+  type FeatureSubstrate,
+} from "./features/loader";
+import { defaultRoots } from "./features/roots";
 import { ResourceRegistry } from "./resources/registry";
 import { resolveWorkspace } from "./workspace";
 import * as ipc from "./ipc";
@@ -133,16 +137,11 @@ void app.whenReady().then(async () => {
 
   const documents = createLocalDocumentStoreFactory(workspace.stateRoot);
 
-  // Extensions live under their own child scope so reload can tear
-  // down the extension subtree without touching app-lifetime process
+  // Discovered features live under their own child scope so reload can
+  // tear down the feature subtree without touching app-lifetime process
   // handlers, the window, the agent driver, or IPC registrations.
   const roots = defaultRoots();
-  const extensionsBag = appBag.add(new DisposableBag());
-  const { loaded, failed } = await loadExtensions(roots, extensionsBag);
-  createLogger("extensions").debug(
-    { loaded: loaded.length, failed: failed.length },
-    "activation_complete",
-  );
+  const featuresBag = appBag.add(new DisposableBag());
 
   let mainWindow: BrowserWindow | null = createWindow();
   appBag.add(
@@ -219,21 +218,33 @@ void app.whenReady().then(async () => {
     ]),
   );
 
+  // The loader activates discovered features against the same substrate the
+  // bundled loop uses; bundled ids are taken so a discovered feature can't
+  // cross-wire them. (F3 folds the bundled list into the load pass itself.)
+  const substrate: FeatureSubstrate = {
+    documents,
+    channels,
+    registries: { resources, channels, agentTools, turnState, agentContext },
+    takenIds: new Set(bundledFeatures.map((feature) => feature.id)),
+  };
+
   for (const feature of bundledFeatures) {
-    const baseContext = {
-      documents,
-      channels: createFeatureEventPublisherFactory(feature.id, channels),
-      log: createLogger(feature.id),
-    };
+    const baseContext = buildFeatureContext(feature.id, substrate);
     const contributedContext = feature.context?.(baseContext) ?? {};
     appBag.add(
       registerFeatureContributions(
-        { resources, channels, agentTools, turnState, agentContext },
+        substrate.registries,
         feature.id,
         feature.contribute({ ...baseContext, ...contributedContext }),
       ),
     );
   }
+
+  const { loaded, failed } = await loadFeatures(roots, featuresBag, substrate);
+  createLogger("features").debug(
+    { loaded: loaded.length, failed: failed.length },
+    "activation_complete",
+  );
 
   // Eager, off the boot path: loads the session file so getHistory() resolves
   // fast. The auth-bearing live agent stays lazy until the first prompt.
@@ -245,19 +256,19 @@ void app.whenReady().then(async () => {
       reloadLog.debug({}, "reload_started");
 
       try {
-        const extensionResult = await loadExtensions(roots, extensionsBag);
+        const featureResult = await loadFeatures(roots, featuresBag, substrate);
         const piReloaded = await driver.reload();
         reloadLog.debug(
           {
-            extensionsLoaded: extensionResult.loaded.length,
-            extensionsFailed: extensionResult.failed.length,
+            featuresLoaded: featureResult.loaded.length,
+            featuresFailed: featureResult.failed.length,
             piReloaded,
           },
           "reload_completed",
         );
         return {
-          extensionsLoaded: extensionResult.loaded.length,
-          extensionsFailed: extensionResult.failed.length,
+          featuresLoaded: featureResult.loaded.length,
+          featuresFailed: featureResult.failed.length,
           piReloaded,
         };
       } catch (thrown) {

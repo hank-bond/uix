@@ -1,4 +1,4 @@
-// Extension discovery — pure I/O + parsing, no activation.
+// Feature package discovery — pure I/O + parsing, no activation.
 //
 // Walks each configured root, reads each child directory's
 // `package.json`, and keeps the directories that declare a `pi`
@@ -9,20 +9,20 @@
 //   - Re-running it is cheap and side-effect-free, so reload can
 //     re-discover and diff.
 //   - It's the single seam where new root sources plug in later
-//     (e.g. settings.json `packages:` for imported extensions).
+//     (e.g. settings.json `packages:` for imported packages).
 //
-// Identity: the extension's absolute `dir` is its identifier. Two
-// extensions with the same name in different roots are distinct
+// Identity: the package's absolute `dir` is its identifier. Two
+// packages with the same name in different roots are distinct
 // because their dirs differ. We don't synthesize a composite id —
 // pi uses the path-as-identity too, and any tagging we layered on
 // top (project/global) would be a lie the moment we support
 // configured paths that aren't either.
 //
-// Terminology: we use "extension" throughout. The on-disk thing
-// happens to live in a directory with a `package.json`, but that's
-// an implementation detail of where extensions live, not a
-// separate conceptual unit. Pi uses the same convention; the file
-// `package.json` is just a manifest format.
+// Terminology: a discovered directory is a "package" — the on-disk
+// distribution unit, which may teach pi (its `pi` field, a pi
+// extension), the cockpit (its `uix` field, one or more features),
+// or both. The uix-side loadable unit is the feature; `package.json`
+// is just a manifest format.
 //
 // Ordering: within each root, entries are sorted alphabetically by
 // directory name. Across roots, iteration follows the input order.
@@ -34,19 +34,19 @@
 //
 // Failure posture: broken JSON is logged loudly (you want to know
 // immediately if a manifest is malformed). Missing `package.json`
-// is silent (stray files in the extensions dir are fine).
+// is silent (stray files in the features dir are fine).
 
 import fs from "node:fs";
 import path from "node:path";
 
 import { createLogger } from "../log";
 
-const log = createLogger("extensions");
+const log = createLogger("features");
 
-export interface DiscoveredExtension {
-  /** Human-readable label, taken from the extension's directory name. */
+export interface DiscoveredPackage {
+  /** Human-readable label, taken from the package's directory name. */
   displayName: string;
-  /** Absolute path to the extension's directory. This is the identifier. */
+  /** Absolute path to the package's directory. This is the identifier. */
   dir: string;
   /** True if package.json declares a `pi` field. */
   hasPi: boolean;
@@ -56,8 +56,8 @@ export interface DiscoveredExtension {
   packageJson: Record<string, unknown>;
 }
 
-export const discoverExtensions = (roots: string[]): DiscoveredExtension[] => {
-  const out: DiscoveredExtension[] = [];
+export const discoverPackages = (roots: string[]): DiscoveredPackage[] => {
+  const out: DiscoveredPackage[] = [];
 
   for (const root of roots) {
     if (!fs.existsSync(root)) continue;
