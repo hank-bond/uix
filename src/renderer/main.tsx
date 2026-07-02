@@ -4,6 +4,10 @@
 // directly — no iframe, no bridge, no sandbox. Multi-workspace isolation is
 // at the BrowserWindow layer.
 
+// Must run before any surface module can load: populates the shared-module
+// global that bundled surfaces resolve react/typebox/@uix/api against.
+import "./workspace/provide-shared-modules";
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 

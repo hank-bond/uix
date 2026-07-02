@@ -17,6 +17,12 @@ export interface SurfaceRegistration {
   readonly featureId: string;
   /** Absolute path to the surface module's entry file. */
   readonly entry: string;
+  /**
+   * The feature's root directory (its entry file's dir). Surface refs
+   * resolved against it; the pipeline serves CSS/assets from inside it and
+   * refuses imports that escape it.
+   */
+  readonly featureRoot: string;
 }
 
 export class SurfaceRegistry {
@@ -60,6 +66,7 @@ export function registerSurfaceContributions(
     return {
       featureId,
       entry: isAbsolute(ref) ? ref : resolve(entryDir, ref),
+      featureRoot: entryDir,
     };
   });
   return registry.register(registrations);

@@ -80,3 +80,31 @@ body,
   border: 0;
   background: white;
 }
+
+/* Runtime surface error card — the frontend twin of the loader's failed[]. */
+.surface-error {
+  margin: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--error);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--error) 8%, var(--bg-pane));
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.surface-error__title {
+  margin: 0 0 6px;
+  color: var(--error);
+  font-weight: 600;
+}
+
+.surface-error__detail {
+  margin: 0 0 6px;
+  color: var(--fg);
+  white-space: pre-wrap;
+}
+
+.surface-error__entry {
+  margin: 0;
+  color: var(--fg-dim);
+}

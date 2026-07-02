@@ -4,25 +4,48 @@
 // provides a render function; the workspace composes them into a CSS grid.
 // Channel clients are created by SurfaceMount, not by feature code.
 
-import { useSurfaces, SurfaceMount } from "./layout";
+import type { ReactNode } from "react";
+
+import { SurfaceMount, useRuntimeSurface, useSurfaces } from "./layout";
+import type { SurfaceEntry } from "#shared/ipc";
 
 export function Workspace() {
   const surfaces = useSurfaces();
   return (
     <div className="workspace">
-      {surfaces.map((surface, i) => (
-        <section
-          key={`${surface.name}:${String(i)}`}
-          className={`pane pane--${surface.name}`}
-          data-uix-pane={surface.name}
-          aria-label={surface.name}
-        >
-          <header className="pane__header">{surface.name}</header>
-          <div className={`pane__body pane__body--${surface.name}`}>
-            <SurfaceMount surface={surface} />
-          </div>
-        </section>
-      ))}
+      {surfaces.map((surface) =>
+        surface.kind === "static" ? (
+          <SurfacePane key={surface.key} name={surface.surface.name}>
+            <SurfaceMount surface={surface.surface} />
+          </SurfacePane>
+        ) : (
+          <RuntimeSurfacePane key={surface.key} entry={surface.entry} />
+        ),
+      )}
     </div>
   );
+}
+
+function SurfacePane({
+  name,
+  children,
+}: {
+  name: string;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      className={`pane pane--${name}`}
+      data-uix-pane={name}
+      aria-label={name}
+    >
+      <header className="pane__header">{name}</header>
+      <div className={`pane__body pane__body--${name}`}>{children}</div>
+    </section>
+  );
+}
+
+function RuntimeSurfacePane({ entry }: { entry: SurfaceEntry }) {
+  const { name, body } = useRuntimeSurface(entry);
+  return <SurfacePane name={name}>{body}</SurfacePane>;
 }

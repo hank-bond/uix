@@ -169,14 +169,16 @@ export const agentChannels = {
 } as const satisfies ChannelContract;
 
 /**
- * A surface entry the workspace page can mount: which feature contributed it
- * and the absolute entry-file path the contribution resolved to. The module
- * URL the page actually imports arrives with the surface pipeline (S2 of the
- * runtime-surface-composition plan).
+ * A surface entry the workspace page can mount: which feature contributed
+ * it, the absolute entry-file path the contribution resolved to (for error
+ * attribution), and either the content-hash-busted module URL to
+ * dynamic-import or the build error to render as an error card.
  */
 export const SurfaceEntrySchema = Type.Object({
   featureId: Type.String(),
   entry: Type.String(),
+  url: Type.Optional(Type.String()),
+  error: Type.Optional(Type.String()),
 });
 export type SurfaceEntry = Static<typeof SurfaceEntrySchema>;
 

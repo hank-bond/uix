@@ -52,9 +52,13 @@ import {
   readWorkspaceManifest,
   WorkspaceManifestFileName,
 } from "./features/manifest";
+import { SurfaceModulePipeline } from "./features/surface-pipeline";
 import { SurfaceRegistry } from "./features/surfaces";
 import { createRecentsStore, type RecentsStore } from "./recents";
-import { ResourceRegistry } from "./resources/registry";
+import {
+  registerResourceContributions,
+  ResourceRegistry,
+} from "./resources/registry";
 import { resolveWorkspace, type Workspace } from "./workspace";
 import * as ipc from "./ipc";
 import {
@@ -198,7 +202,18 @@ async function openWorkspace(
 
   // Substrate workspace channels under the reserved `uix` id: the surface
   // composition the renderer mounts, plus the changed signal fired after
-  // every load pass so the page re-fetches.
+  // every load pass so the page re-fetches. The pipeline bundles each
+  // registered surface entry into a servable module; its routes live on the
+  // substrate origin (uix-resource://uix.<ws>) — the only origin the page's
+  // CSP lets scripts and styles load from.
+  const surfacePipeline = new SurfaceModulePipeline(LocalWorkspaceId);
+  appBag.add(
+    registerResourceContributions(
+      resources,
+      "uix",
+      surfacePipeline.resourceContributions(),
+    ),
+  );
   const uixPublisher = createFeatureEventPublisherFactory(
     "uix",
     channels,
@@ -207,7 +222,9 @@ async function openWorkspace(
     registerChannelContributions(channels, "uix", [
       withHandlers(uixChannels, {
         surfaces: {
-          handle: () => ({ surfaces: [...surfaces.list()] }),
+          handle: async () => ({
+            surfaces: await surfacePipeline.buildAll(surfaces.list()),
+          }),
         },
       }),
     ]),

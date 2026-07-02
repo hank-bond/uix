@@ -3,9 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <title>UIX</title>
+    <!--
+      The substrate origin (uix-resource://uix.local) is the only protocol
+      origin the page realm may load scripts and styles from: it serves the
+      compiled surface modules and their CSS module scripts. Feature-origin
+      content (canvas docs, snippets) stays frame-only via frame-src.
+    -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; style-src 'self' 'unsafe-inline'; frame-src 'self' uix-resource:;"
+      content="default-src 'self'; script-src 'self' uix-resource://uix.local; style-src 'self' 'unsafe-inline' uix-resource://uix.local; frame-src 'self' uix-resource:;"
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>

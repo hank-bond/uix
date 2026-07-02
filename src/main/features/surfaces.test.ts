@@ -13,8 +13,16 @@ describe("SurfaceRegistry", () => {
     );
 
     expect(registry.list()).toEqual([
-      { featureId: "hello", entry: "/ws/features/hello/workspace/surface.tsx" },
-      { featureId: "hello", entry: "/abs/other.tsx" },
+      {
+        featureId: "hello",
+        entry: "/ws/features/hello/workspace/surface.tsx",
+        featureRoot: "/ws/features/hello",
+      },
+      {
+        featureId: "hello",
+        entry: "/abs/other.tsx",
+        featureRoot: "/ws/features/hello",
+      },
     ]);
   });
 
@@ -42,7 +50,9 @@ describe("SurfaceRegistry", () => {
 
     a[Symbol.dispose]();
 
-    expect(registry.list()).toEqual([{ featureId: "b", entry: "/ws/b.tsx" }]);
+    expect(registry.list()).toEqual([
+      { featureId: "b", entry: "/ws/b.tsx", featureRoot: "/ws" },
+    ]);
   });
 
   it("rejects empty surface refs", () => {

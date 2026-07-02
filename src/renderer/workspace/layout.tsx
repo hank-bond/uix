@@ -3,11 +3,14 @@
 // The surface list is registry-driven: the substrate's `uix.surfaces`
 // channel lists what the loaded features contributed, and the page
 // re-fetches on `surfaces_changed` (fired after every load pass, so
-// /reload updates the composition live). Surface definitions live with
-// their features; channel clients are created by the surface host, not
-// by features.
+// /reload updates the composition live). Runtime entries are
+// dynamic-imported from their content-hash-busted substrate-origin URLs;
+// a failing surface renders an error card — the frontend twin of the
+// loader's `failed[]` — without taking down the workspace. Surface
+// definitions live with their features; channel clients are created by
+// the surface host, not by feature code.
 
-import { useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import chatSurface from "#features/chat/workspace/surface";
 import canvasSurface from "#features/canvas/workspace/surface";
@@ -18,32 +21,22 @@ import {
   type SurfaceContribution,
 } from "@uix/api/workspace";
 
-// Temporary static tail: chat/canvas still compile into the page until the
-// surface module pipeline (S2) lets them load like any manifest feature
-// (S4), at which point these imports die with bundled.ts. They come first
-// because bundled features activate before manifest entries.
+// Temporary static tail: chat/canvas still compile into the page until
+// they load like any manifest feature (S4), at which point these imports
+// die with bundled.ts. They come first because bundled features activate
+// before manifest entries.
 const staticSurfaces: readonly SurfaceContribution[] = [
   chatSurface,
   canvasSurface,
 ];
 
-// S2 replaces this placeholder with a dynamic import of the entry's
-// compiled module (and an error card when that fails). Until then a
-// registry-listed surface renders as an inert marker naming its source.
-function placeholderSurface(entry: SurfaceEntry): SurfaceContribution {
-  return {
-    name: entry.featureId,
-    render: () => (
-      <p className="surface-placeholder">
-        {entry.featureId} contributed {entry.entry} — surface modules load once
-        the pipeline lands (S2).
-      </p>
-    ),
-  };
-}
+/** One pane in the workspace: a static compiled-in surface or a runtime entry. */
+export type WorkspaceSurface =
+  | { kind: "static"; key: string; surface: SurfaceContribution }
+  | { kind: "runtime"; key: string; entry: SurfaceEntry };
 
 /** The composed surface list: static tail plus registry contributions. */
-export function useSurfaces(): readonly SurfaceContribution[] {
+export function useSurfaces(): readonly WorkspaceSurface[] {
   const workspace = useWorkspaceClient();
   const client = useMemo(
     () => createChannelClient(workspace, uixChannels),
@@ -67,7 +60,24 @@ export function useSurfaces(): readonly SurfaceContribution[] {
   }, [client]);
 
   return useMemo(
-    () => [...staticSurfaces, ...runtime.map(placeholderSurface)],
+    () => [
+      ...staticSurfaces.map(
+        (surface): WorkspaceSurface => ({
+          kind: "static",
+          key: `static:${surface.name}`,
+          surface,
+        }),
+      ),
+      ...runtime.map(
+        (entry, i): WorkspaceSurface => ({
+          kind: "runtime",
+          // The URL is content-hashed, so it doubles as the remount key: a
+          // reload that changed the module remounts, an unchanged one doesn't.
+          key: `runtime:${entry.url ?? `${entry.featureId}:${String(i)}`}`,
+          entry,
+        }),
+      ),
+    ],
     [runtime],
   );
 }
@@ -100,4 +110,138 @@ export function SurfaceMount({ surface }: { surface: SurfaceContribution }) {
   }, [surface]);
 
   return <>{surface.render(client)}</>;
+}
+
+interface RuntimeSurfaceState {
+  name: string;
+  body: ReactNode;
+}
+
+/**
+ * Loads a runtime surface entry: dynamic-imports the pipeline-built module,
+ * validates its default export, and mounts it behind an error boundary.
+ * Returns the pane name (the module's, once loaded) plus the body to render.
+ */
+export function useRuntimeSurface(entry: SurfaceEntry): RuntimeSurfaceState {
+  const [loaded, setLoaded] = useState<
+    { surface: SurfaceContribution } | { error: string } | undefined
+  >(undefined);
+
+  useEffect(() => {
+    if (entry.error !== undefined || entry.url === undefined) return;
+    let alive = true;
+    import(/* @vite-ignore */ entry.url).then(
+      (module: { default?: unknown }) => {
+        if (!alive) return;
+        try {
+          setLoaded({ surface: validateSurfaceContribution(module.default) });
+        } catch (thrown) {
+          setLoaded({
+            error: thrown instanceof Error ? thrown.message : String(thrown),
+          });
+        }
+      },
+      (thrown: unknown) => {
+        if (alive) setLoaded({ error: String(thrown) });
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [entry]);
+
+  const buildFailure =
+    entry.error ??
+    (entry.url === undefined ? "No module URL for this surface." : undefined);
+  if (buildFailure !== undefined) {
+    return {
+      name: entry.featureId,
+      body: <SurfaceErrorCard entry={entry} message={buildFailure} />,
+    };
+  }
+  if (loaded === undefined) {
+    return { name: entry.featureId, body: undefined };
+  }
+  if ("error" in loaded) {
+    return {
+      name: entry.featureId,
+      body: <SurfaceErrorCard entry={entry} message={loaded.error} />,
+    };
+  }
+  return {
+    name: loaded.surface.name,
+    body: (
+      <SurfaceErrorBoundary entry={entry}>
+        <SurfaceMount surface={loaded.surface} />
+      </SurfaceErrorBoundary>
+    ),
+  };
+}
+
+/**
+ * Narrows a module's default export to a SurfaceContribution or throws
+ * with a message that names what's wrong — loaded code is validated, not
+ * trusted, mirroring the backend loader's `validateFeatureDefinition`.
+ */
+function validateSurfaceContribution(value: unknown): SurfaceContribution {
+  if (typeof value !== "object" || value === null) {
+    throw new Error(
+      "Default export is not a surface (expected a defineSurface result).",
+    );
+  }
+  const surface = value as Partial<SurfaceContribution>;
+  if (typeof surface.name !== "string") {
+    throw new Error(
+      "Surface has no name — export default defineSurface({ name, ... }).",
+    );
+  }
+  if (typeof surface.render !== "function") {
+    throw new Error(`Surface ${surface.name} has no render() function.`);
+  }
+  return surface as SurfaceContribution;
+}
+
+function SurfaceErrorCard({
+  entry,
+  message,
+}: {
+  entry: SurfaceEntry;
+  message: string;
+}) {
+  return (
+    <div className="surface-error" role="alert">
+      <p className="surface-error__title">
+        Surface failed: <code>{entry.featureId}</code>
+      </p>
+      <p className="surface-error__detail">{message}</p>
+      <p className="surface-error__entry">
+        Feature located at: <code>`{entry.entry}`</code> fix the source and
+        /reload.
+      </p>
+    </div>
+  );
+}
+
+/** Render-time throws land here instead of unmounting the workspace. */
+class SurfaceErrorBoundary extends Component<
+  { entry: SurfaceEntry; children: ReactNode },
+  { error?: Error }
+> {
+  state: { error?: Error } = {};
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <SurfaceErrorCard
+          entry={this.props.entry}
+          message={this.state.error.message}
+        />
+      );
+    }
+    return this.props.children;
+  }
 }

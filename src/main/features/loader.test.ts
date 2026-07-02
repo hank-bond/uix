@@ -390,7 +390,11 @@ export default {
     expect(result.failed).toEqual([]);
     const entryDir = join(result.loaded[0]?.entry ?? "", "..");
     expect(surfaces.list()).toEqual([
-      { featureId: "shiny", entry: join(entryDir, "workspace/surface.tsx") },
+      {
+        featureId: "shiny",
+        entry: join(entryDir, "workspace/surface.tsx"),
+        featureRoot: entryDir,
+      },
     ]);
 
     bag.clear();
