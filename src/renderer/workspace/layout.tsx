@@ -19,20 +19,32 @@ import {
   type SurfaceContribution,
 } from "@uix/api/workspace";
 
-/** The composed surface list, in composition (manifest) order. */
-export function useSurfaces(): readonly SurfaceEntry[] {
+/** The composed surface list plus where it came from (or didn't). */
+export interface SurfaceComposition {
+  surfaces: readonly SurfaceEntry[];
+  manifestPath: string;
+  manifestFound: boolean;
+}
+
+/**
+ * The composition, in manifest order; `undefined` until the first fetch
+ * resolves so an empty-state card doesn't flash during boot.
+ */
+export function useSurfaces(): SurfaceComposition | undefined {
   const workspace = useWorkspaceClient();
   const client = useMemo(
     () => createChannelClient(workspace, uixChannels),
     [workspace],
   );
-  const [surfaces, setSurfaces] = useState<readonly SurfaceEntry[]>([]);
+  const [composition, setComposition] = useState<
+    SurfaceComposition | undefined
+  >(undefined);
 
   useEffect(() => {
     let alive = true;
     const refresh = () => {
       void client.requests.surfaces(undefined).then((res) => {
-        if (alive) setSurfaces(res.surfaces);
+        if (alive) setComposition(res);
       });
     };
     refresh();
@@ -43,7 +55,7 @@ export function useSurfaces(): readonly SurfaceEntry[] {
     };
   }, [client]);
 
-  return surfaces;
+  return composition;
 }
 
 /** Creates the typed channel client and passes it to the surface render. */

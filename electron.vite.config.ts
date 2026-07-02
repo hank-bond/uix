@@ -13,10 +13,6 @@ import { resolve } from "node:path";
 // internal files via runtime paths (pino's worker_threads, native
 // modules, etc.) — bundling breaks those path lookups.
 //
-// parse5 is excluded (i.e. bundled) because it is ESM-only: left external it
-// would emit `require("parse5")`, which throws under the CJS main bundle. It is
-// pure JS with no runtime path lookups, so bundling it is safe.
-//
 // typebox is bundled into preload because sandboxed preload scripts cannot
 // resolve dependency external requires. The preload imports the substrate
 // channel contracts (via #shared/ipc → @uix/api/agent), which value-import
@@ -31,7 +27,7 @@ const alias = {
 export default defineConfig({
   main: {
     resolve: { alias },
-    plugins: [externalizeDepsPlugin({ exclude: ["parse5"] })],
+    plugins: [externalizeDepsPlugin()],
     build: {
       outDir: "out/main",
       rollupOptions: {

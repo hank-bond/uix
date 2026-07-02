@@ -108,3 +108,33 @@ body,
   margin: 0;
   color: var(--fg-dim);
 }
+
+/* Empty composition: spans the whole grid so it doesn't sit in one column. */
+.workspace-empty {
+  grid-column: 1 / -1;
+  place-self: center;
+  max-width: 480px;
+  padding: 18px 22px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-pane);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.workspace-empty__title {
+  margin: 0 0 8px;
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.workspace-empty__detail {
+  margin: 0 0 8px;
+  color: var(--fg-dim);
+}
+
+.workspace-empty__path {
+  margin: 0;
+  color: var(--fg-faint);
+  overflow-wrap: anywhere;
+}

@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "electron-vite dev",
+    "dev:fast": "electron-vite dev --rendererOnly",
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",

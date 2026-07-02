@@ -51,6 +51,7 @@ import {
   readWorkspaceManifest,
   WorkspaceManifestFileName,
 } from "./features/manifest";
+import { scaffoldWorkspace } from "./features/scaffold";
 import { SurfaceModulePipeline } from "./features/surface-pipeline";
 import { SurfaceRegistry } from "./features/surfaces";
 import { createRecentsStore, type RecentsStore } from "./recents";
@@ -225,6 +226,8 @@ async function openWorkspace(
         surfaces: {
           handle: async () => ({
             surfaces: await surfacePipeline.buildAll(surfaces.list()),
+            manifestPath,
+            manifestFound: fs.existsSync(manifestPath),
           }),
         },
       }),
@@ -329,10 +332,16 @@ async function openWorkspace(
         );
         uixPublisher.surfaces_changed({});
         const piReloaded = await driver.reload();
+        const failures = featureResult.failed.map((f) => ({
+          feature: f.displayName,
+          entry: f.entry,
+          error: f.error.message,
+        }));
         reloadLog.debug(
           {
             featuresLoaded: featureResult.loaded.length,
             featuresFailed: featureResult.failed.length,
+            failures,
             piReloaded,
           },
           "reload_completed",
@@ -340,6 +349,7 @@ async function openWorkspace(
         return {
           featuresLoaded: featureResult.loaded.length,
           featuresFailed: featureResult.failed.length,
+          failures,
           piReloaded,
         };
       } catch (thrown) {
@@ -429,14 +439,37 @@ function openPicker(appBag: DisposableBag, recents: RecentsStore): void {
         if (result.canceled || !dir) return { ok: false, canceled: true };
 
         // A folder that already holds a manifest is an existing workspace:
-        // adopt it rather than overwriting the user's composition.
+        // adopt it rather than overwriting the user's composition. A fresh
+        // one is scaffolded with editable copies of the default features;
+        // a failed dep install still opens (the broken feature lands in
+        // `failed[]`), but a failed copy/write keeps the picker up.
         const manifestPath = join(dir, WorkspaceManifestFileName);
         if (!fs.existsSync(manifestPath)) {
           const name = req.name.trim() || basename(dir);
-          fs.writeFileSync(
-            manifestPath,
-            `${JSON.stringify({ name, features: [] }, null, 2)}\n`,
-          );
+          try {
+            const { installError } = await scaffoldWorkspace({
+              templatesDir: join(__dirname, "../../src/features"),
+              workspaceDir: dir,
+              name,
+            });
+            if (installError) {
+              createLogger("main").warn(
+                { err: installError.message, workspaceDir: dir },
+                "scaffold_install_failed",
+              );
+            }
+          } catch (thrown) {
+            const error =
+              thrown instanceof Error ? thrown : new Error(String(thrown));
+            createLogger("main").error(
+              { err: error.message, workspaceDir: dir },
+              "scaffold_failed",
+            );
+            return {
+              ok: false,
+              error: `Could not create the workspace: ${error.message}`,
+            };
+          }
         }
         transition(manifestPath);
         return { ok: true };

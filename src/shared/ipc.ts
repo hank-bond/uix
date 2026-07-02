@@ -53,9 +53,21 @@ export type PickerActionResult =
   | { ok: true }
   | { ok: false; canceled?: boolean; error?: string };
 
+/** One feature that failed to activate during a load pass. */
+export interface ReloadFailure {
+  /** The manifest ref as written — the human/agent-facing label. */
+  feature: string;
+  /** Absolute entry-file path. */
+  entry: string;
+  /** The activation error message (e.g. names a missing module to install). */
+  error: string;
+}
+
 export interface ReloadResult {
   featuresLoaded: number;
   featuresFailed: number;
+  /** Per-feature failure detail, so the caller can act rather than count. */
+  failures: ReloadFailure[];
   /** True when a pi session already existed and pi's reload path ran. */
   piReloaded: boolean;
 }
@@ -81,7 +93,13 @@ export const uixChannels = {
   requests: {
     surfaces: {
       requestSchema: Type.Void(),
-      responseSchema: Type.Object({ surfaces: Type.Array(SurfaceEntrySchema) }),
+      responseSchema: Type.Object({
+        surfaces: Type.Array(SurfaceEntrySchema),
+        /** Where the manifest is (or would be) — existence checked per request,
+         * so a manifest created after boot flips this on the next fetch. */
+        manifestPath: Type.String(),
+        manifestFound: Type.Boolean(),
+      }),
     },
   },
   events: {

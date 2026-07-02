@@ -15,8 +15,10 @@
 // asked to write one block-level element per line so edits address fine-grained
 // anchors. Imposing line breaks (reflow) is a separate, later concern.
 //
-// parse5 is ESM-only and is bundled into the main process (excluded from
-// externalizeDepsPlugin in electron.vite.config.ts) so these stay synchronous.
+// parse5 is an ordinary feature dep, declared in this feature's package.json
+// and resolved by node_modules walk-up from this file (the repo's copy in
+// dev; the workspace-root install in a scaffolded workspace). jiti transpiles
+// its ESM entry, so these stay synchronous.
 
 import { parse, serialize } from "parse5";
 
