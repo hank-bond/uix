@@ -32,7 +32,7 @@ For now this is pure on-demand traversal. Preloading the top ~100 summaries brea
 
 ## Core idea
 
-The atomic UIX unit is a **feature**: a loadable definition that contributes to substrate facets — visible **surfaces**, typed **channels**, agent tools, turn state, agent context, resources. A **workspace** (one page, one window) composes enabled feature surfaces over one agent session; channels let a surface talk to its feature's backend, to other features, and optionally to the pi agent. Chat and canvas are bundled default features, not core app structure. Everything else layers on top.
+The atomic UIX unit is a **feature**: a loadable definition that contributes to substrate facets — visible **surfaces**, typed **channels**, agent tools, turn state, agent context, resources. A **workspace** (one page, one window) composes enabled feature surfaces over one agent session; on disk it is a directory defined by its `uix.workspace.json` manifest, whose ordered feature entry-file references are the composition — no auto-discovery. Channels let a surface talk to its feature's backend, to other features, and optionally to the pi agent. Chat and canvas are bundled default features, not core app structure. Everything else layers on top.
 
 ## Layers
 
@@ -52,7 +52,7 @@ The cockpit provides exactly these; anything else is a feature responsibility.
 
 | Primitive | Purpose |
 | --- | --- |
-| **Feature loader** | Discover, load, register, hot-reload features (bundled and discovered alike). |
+| **Feature loader** | Load, register, hot-reload the workspace manifest's features (bundled and workspace alike). |
 | **Surface composition** | Mount contributed feature surfaces into the workspace layout. |
 | **Typed channel** | Contract-derived requests and events, validated both directions, between surfaces, feature backends, and the agent. |
 | **Lifetime bags** | Per-feature `DisposableBag`; disposes everything a feature registered. |

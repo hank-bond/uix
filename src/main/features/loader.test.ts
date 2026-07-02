@@ -1,8 +1,9 @@
-// Loader integration tests over real temp-dir packages: discovery, jiti
-// entry loading, FeatureDefinition validation, id policy, error isolation,
-// and reload teardown all exercised through the public loadFeatures path.
+// Loader integration tests over real temp-dir workspaces: manifest
+// reading/validation, jiti entry loading, FeatureDefinition validation,
+// id policy, error isolation, ordering, and reload teardown all exercised
+// through the public loadFeatures path.
 
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -18,6 +19,7 @@ import { ChannelRegistry } from "../channels/registry";
 import { DisposableBag } from "../lifecycle";
 
 import { loadFeatures, type FeatureSubstrate } from "./loader";
+import { WorkspaceManifestFileName } from "./manifest";
 
 const documents: DocumentStoreFactory = {
   createStore: () => {
@@ -60,29 +62,27 @@ function bundledDefinition(id: string, tool = "snapshot"): FeatureDefinition {
   };
 }
 
-async function makeRoot(): Promise<string> {
-  return mkdtemp(join(tmpdir(), "uix-loader-test-"));
-}
-
-/** Writes a feature package dir: package.json with uix.features + entries. */
-async function writePackage(
-  root: string,
-  dirName: string,
-  entries: Record<string, string>,
-): Promise<void> {
-  const dir = join(root, dirName);
-  await mkdir(dir, { recursive: true });
-  await writeFile(
-    join(dir, "package.json"),
-    JSON.stringify({
-      name: dirName,
-      private: true,
-      uix: { features: Object.keys(entries).map((f) => `./${f}`) },
-    }),
-  );
-  for (const [file, source] of Object.entries(entries)) {
+/**
+ * Writes a workspace: the given feature files plus a manifest whose
+ * `features` array lists `refs` (defaulting to every written file, in
+ * insertion order).
+ */
+async function writeWorkspace(
+  files: Record<string, string>,
+  refs?: string[],
+): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), "uix-loader-test-"));
+  for (const [file, source] of Object.entries(files)) {
     await writeFile(join(dir, file), source);
   }
+  await writeFile(
+    join(dir, WorkspaceManifestFileName),
+    JSON.stringify({
+      name: "test workspace",
+      features: refs ?? Object.keys(files).map((f) => `./${f}`),
+    }),
+  );
+  return join(dir, WorkspaceManifestFileName);
 }
 
 const toolFeature = (id: string, tool = "greet") => `
@@ -109,20 +109,19 @@ export default feature;
 `;
 
 describe("loadFeatures", () => {
-  it("loads a TS FeatureDefinition entry and registers its contributions", async () => {
-    const root = await makeRoot();
-    await writePackage(root, "greeter", {
-      "feature.ts": toolFeature("greeter"),
+  it("loads a TS entry straight from a manifest ref and registers its contributions", async () => {
+    const manifestPath = await writeWorkspace({
+      "greeter.ts": toolFeature("greeter"),
     });
     const { substrate, agentTools } = makeSubstrate();
     const bag = new DisposableBag();
 
-    const result = await loadFeatures({ roots: [root] }, bag, substrate);
+    const result = await loadFeatures({ manifestPath }, bag, substrate);
 
     expect(result.failed).toEqual([]);
     expect(result.loaded).toHaveLength(1);
     expect(result.loaded[0]?.id).toBe("greeter");
-    expect(agentTools.registeredContributions).toHaveLength(1);
+    expect(result.loaded[0]?.displayName).toBe("./greeter.ts");
     expect(agentTools.registeredContributions[0]?.canonicalId).toBe(
       "greeter__greet",
     );
@@ -132,19 +131,78 @@ describe("loadFeatures", () => {
     expect(agentTools.registeredContributions).toHaveLength(0);
   });
 
-  it("isolates a throwing entry and continues with siblings", async () => {
-    const root = await makeRoot();
-    // "aaa-broken" sorts before "greeter", so the failure comes first.
-    await writePackage(root, "aaa-broken", {
-      "feature.mjs": `throw new Error("deliberate canary");`,
-    });
-    await writePackage(root, "greeter", {
-      "feature.ts": toolFeature("greeter"),
-    });
+  it("registers in manifest order, not filesystem order", async () => {
+    const manifestPath = await writeWorkspace(
+      {
+        "aaa.ts": toolFeature("aaa"),
+        "zzz.ts": toolFeature("zzz"),
+      },
+      ["./zzz.ts", "./aaa.ts"],
+    );
     const { substrate, agentTools } = makeSubstrate();
 
     const result = await loadFeatures(
-      { roots: [root] },
+      { manifestPath },
+      new DisposableBag(),
+      substrate,
+    );
+
+    expect(result.loaded.map((f) => f.id)).toEqual(["zzz", "aaa"]);
+    expect(
+      agentTools.registeredContributions.map((c) => c.canonicalId),
+    ).toEqual(["zzz__greet", "aaa__greet"]);
+  });
+
+  it("loads without a manifest (bundled only)", async () => {
+    const { substrate, agentTools } = makeSubstrate();
+
+    const result = await loadFeatures(
+      { bundled: [bundledDefinition("canvas")] },
+      new DisposableBag(),
+      substrate,
+    );
+
+    expect(result.failed).toEqual([]);
+    expect(result.loaded.map((f) => f.id)).toEqual(["canvas"]);
+    expect(agentTools.registeredContributions).toHaveLength(1);
+  });
+
+  it("rejects a malformed manifest and leaves the current tree intact", async () => {
+    const manifestPath = await writeWorkspace({
+      "greeter.ts": toolFeature("greeter"),
+    });
+    const { substrate, agentTools } = makeSubstrate();
+    const bag = new DisposableBag();
+
+    await loadFeatures({ manifestPath }, bag, substrate);
+    expect(agentTools.registeredContributions).toHaveLength(1);
+
+    await writeFile(manifestPath, "{ not json");
+    await expect(
+      loadFeatures({ manifestPath }, bag, substrate),
+    ).rejects.toThrow("not valid JSON");
+    // The failed pass never cleared the bag: the feature is still live.
+    expect(agentTools.registeredContributions).toHaveLength(1);
+
+    await writeFile(manifestPath, JSON.stringify({ features: "nope" }));
+    await expect(
+      loadFeatures({ manifestPath }, bag, substrate),
+    ).rejects.toThrow("does not match schema");
+    expect(agentTools.registeredContributions).toHaveLength(1);
+  });
+
+  it("isolates a throwing entry and continues with later manifest lines", async () => {
+    const manifestPath = await writeWorkspace(
+      {
+        "broken.mjs": `throw new Error("deliberate canary");`,
+        "greeter.ts": toolFeature("greeter"),
+      },
+      ["./broken.mjs", "./greeter.ts"],
+    );
+    const { substrate, agentTools } = makeSubstrate();
+
+    const result = await loadFeatures(
+      { manifestPath },
       new DisposableBag(),
       substrate,
     );
@@ -155,15 +213,50 @@ describe("loadFeatures", () => {
     expect(agentTools.registeredContributions).toHaveLength(1);
   });
 
+  it("fails a ref whose file is missing without aborting the pass", async () => {
+    const manifestPath = await writeWorkspace(
+      { "greeter.ts": toolFeature("greeter") },
+      ["./missing.ts", "./greeter.ts"],
+    );
+    const { substrate } = makeSubstrate();
+
+    const result = await loadFeatures(
+      { manifestPath },
+      new DisposableBag(),
+      substrate,
+    );
+
+    expect(result.failed).toHaveLength(1);
+    expect(result.failed[0]?.displayName).toBe("./missing.ts");
+    expect(result.loaded.map((f) => f.id)).toEqual(["greeter"]);
+  });
+
+  it("resolves absolute refs outside the workspace dir", async () => {
+    const sharedDir = await mkdtemp(join(tmpdir(), "uix-shared-feature-"));
+    const sharedEntry = join(sharedDir, "shared.ts");
+    await writeFile(sharedEntry, toolFeature("shared"));
+    const manifestPath = await writeWorkspace({}, [sharedEntry]);
+    const { substrate } = makeSubstrate();
+
+    const result = await loadFeatures(
+      { manifestPath },
+      new DisposableBag(),
+      substrate,
+    );
+
+    expect(result.failed).toEqual([]);
+    expect(result.loaded.map((f) => f.id)).toEqual(["shared"]);
+    expect(result.loaded[0]?.entry).toBe(sharedEntry);
+  });
+
   it("fails an entry whose default export is not a FeatureDefinition", async () => {
-    const root = await makeRoot();
-    await writePackage(root, "bad-shape", {
-      "feature.mjs": `export default function activate() {};`,
+    const manifestPath = await writeWorkspace({
+      "bad.mjs": `export default function activate() {};`,
     });
     const { substrate } = makeSubstrate();
 
     const result = await loadFeatures(
-      { roots: [root] },
+      { manifestPath },
       new DisposableBag(),
       substrate,
     );
@@ -175,38 +268,58 @@ describe("loadFeatures", () => {
   });
 
   it("rejects reserved ids and ids already claimed by bundled features", async () => {
-    const root = await makeRoot();
-    await writePackage(root, "impostor", {
-      "feature.ts": toolFeature("agent"),
-    });
-    await writePackage(root, "canvas-clone", {
-      "feature.ts": toolFeature("canvas"),
+    const manifestPath = await writeWorkspace({
+      "impostor.ts": toolFeature("agent"),
+      "canvas-clone.ts": toolFeature("canvas"),
     });
     const { substrate } = makeSubstrate();
 
     const result = await loadFeatures(
-      { roots: [root], bundled: [bundledDefinition("canvas")] },
+      { manifestPath, bundled: [bundledDefinition("canvas")] },
       new DisposableBag(),
       substrate,
     );
 
-    // Only the bundled canvas loads; both discovered entries fail.
+    // Only the bundled canvas loads; both manifest entries fail.
     expect(result.loaded.map((f) => f.id)).toEqual(["canvas"]);
     const messages = result.failed.map((f) => f.error.message).sort();
     expect(messages[0]).toContain("already registered: canvas");
     expect(messages[1]).toContain("reserved: agent");
   });
 
-  it("activates bundled features before discovered ones, all torn down together", async () => {
-    const root = await makeRoot();
-    await writePackage(root, "greeter", {
-      "feature.ts": toolFeature("greeter"),
+  it("rejects a duplicate id within the same pass", async () => {
+    const manifestPath = await writeWorkspace(
+      {
+        "first.ts": toolFeature("dup"),
+        "second.ts": toolFeature("dup"),
+      },
+      ["./first.ts", "./second.ts"],
+    );
+    const { substrate } = makeSubstrate();
+
+    const result = await loadFeatures(
+      { manifestPath },
+      new DisposableBag(),
+      substrate,
+    );
+
+    // Manifest order: the first line wins, the second fails.
+    expect(result.loaded.map((f) => f.id)).toEqual(["dup"]);
+    expect(result.failed[0]?.displayName).toBe("./second.ts");
+    expect(result.failed[0]?.error.message).toContain(
+      "already registered: dup",
+    );
+  });
+
+  it("activates bundled features before manifest entries, all torn down together", async () => {
+    const manifestPath = await writeWorkspace({
+      "greeter.ts": toolFeature("greeter"),
     });
     const { substrate, agentTools } = makeSubstrate();
     const bag = new DisposableBag();
 
     const result = await loadFeatures(
-      { roots: [root], bundled: [bundledDefinition("canvas")] },
+      { manifestPath, bundled: [bundledDefinition("canvas")] },
       bag,
       substrate,
     );
@@ -221,9 +334,8 @@ describe("loadFeatures", () => {
   });
 
   it("isolates a throwing bundled feature without aborting the pass", async () => {
-    const root = await makeRoot();
-    await writePackage(root, "greeter", {
-      "feature.ts": toolFeature("greeter"),
+    const manifestPath = await writeWorkspace({
+      "greeter.ts": toolFeature("greeter"),
     });
     const throwing: FeatureDefinition = {
       id: "explosive",
@@ -234,7 +346,7 @@ describe("loadFeatures", () => {
     const { substrate } = makeSubstrate();
 
     const result = await loadFeatures(
-      { roots: [root], bundled: [throwing] },
+      { manifestPath, bundled: [throwing] },
       new DisposableBag(),
       substrate,
     );
@@ -243,39 +355,19 @@ describe("loadFeatures", () => {
     expect(result.loaded.map((f) => f.id)).toEqual(["greeter"]);
   });
 
-  it("rejects a duplicate id within the same pass", async () => {
-    const root = await makeRoot();
-    await writePackage(root, "first", { "feature.ts": toolFeature("dup") });
-    await writePackage(root, "second", { "feature.ts": toolFeature("dup") });
-    const { substrate } = makeSubstrate();
-
-    const result = await loadFeatures(
-      { roots: [root] },
-      new DisposableBag(),
-      substrate,
-    );
-
-    // Alphabetical package order: "first" wins, "second" fails.
-    expect(result.loaded.map((f) => f.id)).toEqual(["dup"]);
-    expect(result.failed[0]?.displayName).toBe("second");
-    expect(result.failed[0]?.error.message).toContain(
-      "already registered: dup",
-    );
-  });
-
-  it("re-registers cleanly on reload without duplicate-id failures", async () => {
-    const root = await makeRoot();
-    await writePackage(root, "greeter", {
-      "feature.ts": toolFeature("greeter"),
+  it("re-registers bundled + manifest features cleanly on reload", async () => {
+    const manifestPath = await writeWorkspace({
+      "greeter.ts": toolFeature("greeter"),
     });
+    const sources = { manifestPath, bundled: [bundledDefinition("canvas")] };
     const { substrate, agentTools } = makeSubstrate();
     const bag = new DisposableBag();
 
-    await loadFeatures({ roots: [root] }, bag, substrate);
-    const second = await loadFeatures({ roots: [root] }, bag, substrate);
+    await loadFeatures(sources, bag, substrate);
+    const second = await loadFeatures(sources, bag, substrate);
 
     expect(second.failed).toEqual([]);
-    expect(second.loaded).toHaveLength(1);
-    expect(agentTools.registeredContributions).toHaveLength(1);
+    expect(second.loaded.map((f) => f.id)).toEqual(["canvas", "greeter"]);
+    expect(agentTools.registeredContributions).toHaveLength(2);
   });
 });

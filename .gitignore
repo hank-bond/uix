@@ -6,3 +6,4 @@ out/
 .vite/
 .uix/
 *.tsbuildinfo
+/uix.workspace.json

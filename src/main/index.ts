@@ -9,6 +9,7 @@
 // tree down. See docs/architecture/conventions.md.
 
 import { app, BrowserWindow } from "electron";
+import fs from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 
@@ -39,7 +40,7 @@ import {
   type FeatureSources,
   type FeatureSubstrate,
 } from "./features/loader";
-import { defaultRoots } from "./features/roots";
+import { WorkspaceManifestFileName } from "./features/manifest";
 import { ResourceRegistry } from "./resources/registry";
 import { resolveWorkspace } from "./workspace";
 import * as ipc from "./ipc";
@@ -134,11 +135,17 @@ void app.whenReady().then(async () => {
 
   const documents = createLocalDocumentStoreFactory(workspace.stateRoot);
 
-  // Discovered features live under their own child scope so reload can
+  // The feature composition lives under its own child scope so reload can
   // tear down the feature subtree without touching app-lifetime process
   // handlers, the window, the agent driver, or IPC registrations.
-  const roots = defaultRoots();
   const featuresBag = appBag.add(new DisposableBag());
+
+  // Transitional (M2 flips this): the workspace root is still the cwd, and
+  // the manifest is optional — a cwd without one is a workspace with only
+  // bundled features, keeping `npm run dev` working before the picker exists.
+  // Existence is checked per pass so a manifest created after boot is picked
+  // up by /reload.
+  const manifestPath = join(workspace.stateRoot, WorkspaceManifestFileName);
 
   let mainWindow: BrowserWindow | null = createWindow();
   appBag.add(
@@ -216,22 +223,35 @@ void app.whenReady().then(async () => {
   );
 
   // One load pass activates the whole composition — bundled defaults claim
-  // their ids first, then discovered packages — all under featuresBag, so
+  // their ids first, then the manifest's entries — all under featuresBag, so
   // reload re-runs everything.
   const substrate: FeatureSubstrate = {
     documents,
     channels,
     registries: { resources, channels, agentTools, turnState, agentContext },
   };
-  const sources: FeatureSources = { roots, bundled: bundledFeatures };
+  const currentSources = (): FeatureSources => ({
+    ...(fs.existsSync(manifestPath) && { manifestPath }),
+    bundled: bundledFeatures,
+  });
 
-  const { loaded, failed } = await loadFeatures(
-    sources,
-    featuresBag,
-    substrate,
-  );
+  // A bad manifest must not brick the app: log it loudly and boot with
+  // bundled features only — the pilot can then fix the manifest and /reload.
+  // Reload keeps strict semantics (a bad manifest rejects, tree intact).
+  let activation;
+  try {
+    activation = await loadFeatures(currentSources(), featuresBag, substrate);
+  } catch (thrown) {
+    const error = thrown instanceof Error ? thrown : new Error(String(thrown));
+    createLogger("features").error({ err: error.message }, "manifest_failed");
+    activation = await loadFeatures(
+      { bundled: bundledFeatures },
+      featuresBag,
+      substrate,
+    );
+  }
   createLogger("features").debug(
-    { loaded: loaded.length, failed: failed.length },
+    { loaded: activation.loaded.length, failed: activation.failed.length },
     "activation_complete",
   );
 
@@ -246,7 +266,7 @@ void app.whenReady().then(async () => {
 
       try {
         const featureResult = await loadFeatures(
-          sources,
+          currentSources(),
           featuresBag,
           substrate,
         );
