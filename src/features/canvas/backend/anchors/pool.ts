@@ -4,7 +4,14 @@
 // advances a per-document index through it. The pool is model-agnostic: UIX
 // uses the same anchors for every model.
 
-import anchorPoolText from "./assets/anchor-pool.txt?raw";
+import { readFileSync } from "node:fs";
+
+// Read at module init with the standard node pattern (URL-relative to this
+// module), the same source loads under jiti, vitest, and node alike.
+const anchorPoolText = readFileSync(
+  new URL("./assets/anchor-pool.txt", import.meta.url),
+  "utf8",
+);
 
 let defaultPool: AnchorPool | undefined;
 

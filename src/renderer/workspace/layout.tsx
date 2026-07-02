@@ -3,52 +3,36 @@
 // The surface list is registry-driven: the substrate's `uix.surfaces`
 // channel lists what the loaded features contributed, and the page
 // re-fetches on `surfaces_changed` (fired after every load pass, so
-// /reload updates the composition live). Runtime entries are
-// dynamic-imported from their content-hash-busted substrate-origin URLs;
-// a failing surface renders an error card — the frontend twin of the
-// loader's `failed[]` — without taking down the workspace. Surface
-// definitions live with their features; channel clients are created by
-// the surface host, not by feature code.
+// /reload updates the composition live). Every surface — chat and canvas
+// included — is dynamic-imported from its content-hash-busted
+// substrate-origin URL; a failing surface renders an error card — the
+// frontend twin of the loader's `failed[]` — without taking down the
+// workspace. Surface definitions live with their features; channel
+// clients are created by the surface host, not by feature code.
 
 import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
 
-import chatSurface from "#features/chat/workspace/surface";
-import canvasSurface from "#features/canvas/workspace/surface";
 import { uixChannels, type SurfaceEntry } from "#shared/ipc";
-import { useWorkspaceClient } from "./context";
 import {
   createChannelClient,
+  useWorkspaceClient,
   type SurfaceContribution,
 } from "@uix/api/workspace";
 
-// Temporary static tail: chat/canvas still compile into the page until
-// they load like any manifest feature (S4), at which point these imports
-// die with bundled.ts. They come first because bundled features activate
-// before manifest entries.
-const staticSurfaces: readonly SurfaceContribution[] = [
-  chatSurface,
-  canvasSurface,
-];
-
-/** One pane in the workspace: a static compiled-in surface or a runtime entry. */
-export type WorkspaceSurface =
-  | { kind: "static"; key: string; surface: SurfaceContribution }
-  | { kind: "runtime"; key: string; entry: SurfaceEntry };
-
-/** The composed surface list: static tail plus registry contributions. */
-export function useSurfaces(): readonly WorkspaceSurface[] {
+/** The composed surface list, in composition (manifest) order. */
+export function useSurfaces(): readonly SurfaceEntry[] {
   const workspace = useWorkspaceClient();
   const client = useMemo(
     () => createChannelClient(workspace, uixChannels),
     [workspace],
   );
-  const [runtime, setRuntime] = useState<readonly SurfaceEntry[]>([]);
+  const [surfaces, setSurfaces] = useState<readonly SurfaceEntry[]>([]);
 
   useEffect(() => {
     let alive = true;
     const refresh = () => {
       void client.requests.surfaces(undefined).then((res) => {
-        if (alive) setRuntime(res.surfaces);
+        if (alive) setSurfaces(res.surfaces);
       });
     };
     refresh();
@@ -59,27 +43,7 @@ export function useSurfaces(): readonly WorkspaceSurface[] {
     };
   }, [client]);
 
-  return useMemo(
-    () => [
-      ...staticSurfaces.map(
-        (surface): WorkspaceSurface => ({
-          kind: "static",
-          key: `static:${surface.name}`,
-          surface,
-        }),
-      ),
-      ...runtime.map(
-        (entry, i): WorkspaceSurface => ({
-          kind: "runtime",
-          // The URL is content-hashed, so it doubles as the remount key: a
-          // reload that changed the module remounts, an unchanged one doesn't.
-          key: `runtime:${entry.url ?? `${entry.featureId}:${String(i)}`}`,
-          entry,
-        }),
-      ),
-    ],
-    [runtime],
-  );
+  return surfaces;
 }
 
 /** Creates the typed channel client and passes it to the surface render. */

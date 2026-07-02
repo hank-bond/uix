@@ -7,7 +7,7 @@
 
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 
-import type { TranscriptItem } from "#shared/ipc";
+import type { TranscriptItem } from "@uix/api/agent-channels";
 
 // The single definition of a tool row's durable id. Live rows (identity.ts)
 // and history replay (below) must derive byte-identical ids or state keyed

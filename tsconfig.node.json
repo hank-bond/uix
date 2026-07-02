@@ -24,6 +24,7 @@
   "include": [
     "src/api/**/*.ts",
     "src/main/**/*.ts",
+    "src/features/*/index.ts",
     "src/features/**/backend/**/*.ts",
     "src/features/**/shared/**/*.ts",
     "src/preload/**/*.ts",

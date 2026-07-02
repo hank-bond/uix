@@ -20,13 +20,13 @@ import {
   type ResourceOrigin,
   type ResourceRouteParams,
   type ResourceUrl,
-} from "#shared/resource-routes";
+} from "./resource-routes";
 
 export type {
   ResourceRouteParamValue,
   ResourceRouteParams,
   ResourceUrl,
-} from "#shared/resource-routes";
+} from "./resource-routes";
 
 export interface ResourceRequestContext {
   request: Request;

@@ -5,11 +5,10 @@
 // into them, and replace them whole at completion.
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import "./chat.css";
 
-import type { AgentEvent, TranscriptItem } from "#shared/ipc";
+import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
 import type { ChannelClient } from "@uix/api/workspace";
-import type { agentChannels } from "#shared/ipc";
+import type { agentChannels } from "@uix/api/agent-channels";
 import { ChatBlock } from "./blocks/ChatBlock";
 import { isPendingUserId, pendingUserId } from "./pending";
 

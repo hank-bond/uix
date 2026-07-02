@@ -13,6 +13,8 @@ import * as reactDom from "react-dom";
 import * as reactDomClient from "react-dom/client";
 import * as typebox from "typebox";
 import * as typeboxValue from "typebox/value";
+import * as uixAgent from "@uix/api/agent-channels";
+import * as uixResources from "@uix/api/resources";
 import * as uixWorkspace from "@uix/api/workspace";
 
 import {
@@ -33,6 +35,8 @@ const shared: Record<SurfaceSharedModule, Record<string, unknown>> = {
   typebox: toShared(typebox),
   "typebox/value": toShared(typeboxValue),
   "@uix/api/workspace": toShared(uixWorkspace),
+  "@uix/api/agent-channels": toShared(uixAgent),
+  "@uix/api/resources": toShared(uixResources),
 };
 
 (globalThis as Record<string, unknown>)[SurfaceSharedGlobal] = shared;

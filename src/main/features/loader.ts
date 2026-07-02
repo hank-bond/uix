@@ -1,27 +1,24 @@
-// Feature loader — activates the workspace's feature composition:
-// bundled defaults first, then the workspace manifest's entries, all
-// through one registration path.
+// Feature loader — activates the workspace's feature composition (the
+// manifest's entries, in manifest order) through one registration path.
 //
 // Responsibilities:
 //   1. Re-read and validate the workspace manifest for every load pass
 //      (before clearing anything, so a bad manifest leaves the current
 //      tree intact).
 //   2. Clear the owned feature bag before activation.
-//   3. Activate bundled FeatureDefinitions (in-tree defaults) so
-//      their ids are claimed before any manifest entry runs.
-//   4. Load each manifest entry file with jiti so workspace features
+//   3. Load each manifest entry file with jiti so workspace features
 //      can be TypeScript files in a packaged Electron app.
-//   5. Validate every definition the same way (shape, id grammar,
-//      reserved/duplicate ids) — bundled and manifest alike.
-//   6. Build one FeatureContext shape and run each definition through
+//   4. Validate every definition (shape, id grammar, reserved/duplicate
+//      ids).
+//   5. Build one FeatureContext shape and run each definition through
 //      registerFeatureContributions, into a per-feature DisposableBag.
-//   7. Enroll the per-feature bag into the parent bag so a single
+//   6. Enroll the per-feature bag into the parent bag so a single
 //      clear or dispose tears every contribution down cleanly.
 //
-// Activation is sequential (`for...of` + `await`), in manifest order
-// after bundled — order is the composition semantics (registration
-// order is semantic for agent-facing facets), so it is explicit and
-// author-controlled, never emergent.
+// Activation is sequential (`for...of` + `await`), in manifest order —
+// order is the composition semantics (registration order is semantic
+// for agent-facing facets), so it is explicit and author-controlled,
+// never emergent.
 //
 // Error isolation: each entry is wrapped in try/catch. If loading,
 // validation, or contribution throws, the partially-built per-feature
@@ -58,7 +55,7 @@ import { createFeatureEventPublisherFactory } from "../channels/registry";
 import type { ChannelRegistry } from "../channels/registry";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
-import { isIdToken } from "#shared/contribution-id";
+import { isIdToken } from "@uix/api/contribution-id";
 
 import {
   registerFeatureContributions,
@@ -71,12 +68,13 @@ const log = createLogger("features");
 const requireFromLoader = createRequire(__filename);
 
 /**
- * The alias table feature entry imports resolve through. typebox entries
- * are exact (its package has no `main`, so a bare dir alias can't resolve);
- * `@uix/api` is a prefix mapping onto the implementation dir the
- * composition root supplies (absent in environments that don't ship the
- * API source — features then can't value-import it, and the entry fails
- * loudly into `failed[]`).
+ * The alias table feature entry imports resolve through — exactly the
+ * blessed backend set. `@uix/api` is a prefix mapping onto the
+ * implementation dir the composition root supplies (the API is
+ * self-contained, so one directory serves it; when absent, features can
+ * only type-import it and a value import fails loudly into `failed[]`).
+ * typebox entries are exact because its package has no `main` (exports
+ * map only), so a bare dir alias can't resolve.
  */
 const buildAliases = (apiModuleDir?: string): Record<string, string> => ({
   ...(apiModuleDir ? { "@uix/api": apiModuleDir } : {}),
@@ -117,22 +115,19 @@ export interface FeatureSubstrate {
   apiModuleDir?: string;
 }
 
-/** The feature sources a load pass composes, bundled first. */
+/** The feature sources a load pass composes. */
 export interface FeatureSources {
   /**
    * Absolute path to the workspace's `uix.workspace.json`. Omitted when
-   * the workspace has no manifest (transitional dev bootstrapping) —
-   * only bundled features load.
+   * the workspace has no manifest — no features load.
    */
   manifestPath?: string;
-  /** In-tree default features, activated before any manifest entry. */
-  bundled?: readonly FeatureDefinition[];
 }
 
 /**
  * Builds the context bag a feature's `context`/`contribute` hooks receive.
- * One construction path for bundled and manifest features — the substrate
- * facets a feature can touch are exactly what this returns.
+ * One construction path for every feature — the substrate facets a feature
+ * can touch are exactly what this returns.
  */
 export function buildFeatureContext(
   featureId: string,
@@ -149,9 +144,9 @@ export function buildFeatureContext(
 export interface LoadedFeature {
   /** The definition's feature id — keys every facet contribution. */
   id: string;
-  /** The manifest ref as written (or `bundled` for in-tree defaults). */
+  /** The manifest ref as written. */
   displayName: string;
-  /** Absolute entry-file path (`bundled:<id>` pseudo-path for defaults). */
+  /** Absolute entry-file path. */
   entry: string;
   /** Per-feature bag; disposing it removes all the feature's contributions. */
   bag: DisposableBag;
@@ -167,7 +162,7 @@ export interface LoadedFeature {
  * field: failure can precede a valid definition (bad export, bad id).
  */
 export interface FailedFeature {
-  /** The manifest ref as written (or `bundled` for in-tree defaults). */
+  /** The manifest ref as written. */
   displayName: string;
   /** Absolute entry-file path. */
   entry: string;
@@ -211,25 +206,18 @@ const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
 };
 
 /**
- * Activate bundled definitions and the manifest's feature entries, in
- * that order — bundled features claim their ids first, so a workspace
- * feature can't cross-wire a default's channels/tools.
+ * Activate the manifest's feature entries in manifest order. Each entry
+ * becomes its own LoadedFeature with its own bag and error isolation (a
+ * throwing feature lands in `failed[]` instead of aborting the pass).
  *
- * Each manifest entry becomes its own LoadedFeature with its own bag;
- * bundled definitions get the same per-feature bag and error isolation
- * (a throwing default lands in `failed[]` instead of aborting startup).
- *
- * @param sources bundled definitions plus resolved manifest refs.
+ * @param entries resolved manifest refs, in manifest order.
  * @param parentBag every per-feature bag is added here, so one
  *   dispose at app shutdown or reload clear tears down everything.
  * @param substrate the facet registries and context ingredients the
  *   definitions register into.
  */
 export const activateFeatures = async (
-  sources: {
-    bundled: readonly FeatureDefinition[];
-    entries: readonly ManifestFeatureRef[];
-  },
+  entries: readonly ManifestFeatureRef[],
   parentBag: DisposableBag,
   substrate: FeatureSubstrate,
 ): Promise<ActivationResult> => {
@@ -293,13 +281,7 @@ export const activateFeatures = async (
     }
   };
 
-  for (const definition of sources.bundled) {
-    // Bundled definitions have no entry file; the synthetic `bundled:`
-    // pseudo-path keeps `entry` unique and log-greppable.
-    await activate("bundled", `bundled:${definition.id}`, () => definition);
-  }
-
-  for (const { ref, entry } of sources.entries) {
+  for (const { ref, entry } of entries) {
     await activate(
       ref,
       entry,
@@ -312,12 +294,11 @@ export const activateFeatures = async (
 };
 
 /**
- * Load the whole feature composition — bundled defaults plus the
- * workspace manifest's entries — into the owned feature bag, replacing
- * whatever that bag currently contains. Safe for initial startup
- * (empty clear) and for manual reload (old contributions are disposed
- * before activation, and bundled features re-register with fresh
- * context/bags).
+ * Load the whole feature composition — the workspace manifest's entries —
+ * into the owned feature bag, replacing whatever that bag currently
+ * contains. Safe for initial startup (empty clear) and for manual reload
+ * (old contributions are disposed before activation; every feature
+ * re-registers with fresh context/bags).
  *
  * The manifest is read and validated before clearing, so a manifest
  * failure (unreadable, bad JSON, schema mismatch) rejects the pass and
@@ -350,11 +331,7 @@ export const loadFeatures = (
       entries = features;
     }
     featuresBag.clear();
-    return activateFeatures(
-      { bundled: sources.bundled ?? [], entries },
-      featuresBag,
-      substrate,
-    );
+    return activateFeatures(entries, featuresBag, substrate);
   })().finally(() => {
     inFlightFeatureLoad = undefined;
   });

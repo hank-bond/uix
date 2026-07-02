@@ -45,8 +45,11 @@ export default defineSurface({
 
 const request = (
   params: Record<string, string | string[]>,
+  origin?: string,
 ): ResourceRequestContext => ({
-  request: new Request("uix-resource://uix.local/test"),
+  request: new Request("uix-resource://uix.local/test", {
+    ...(origin ? { headers: { origin } } : {}),
+  }),
   params,
   query: {},
 });
@@ -173,6 +176,33 @@ describe("SurfaceModulePipeline", () => {
       request({ feature: "shiny", path: ["nope.css"] }),
     );
     expect(missing?.status).toBe(404);
+  });
+
+  it("grants CORS to the page origin but never to uix-resource origins", async () => {
+    // Module scripts are always fetched in CORS mode and the page is a
+    // different origin (dev server / file:), so the grant is load-bearing;
+    // feature-origin iframes stay refused.
+    const reg = await writeFeature({
+      "surface.tsx": `export default { name: "s", render: () => null };`,
+    });
+    const pipeline = new SurfaceModulePipeline("local");
+    await pipeline.buildAll([reg]);
+    const [moduleRoute] = pipeline.resourceContributions();
+
+    const fromPage = await moduleRoute?.handle(
+      request({ feature: "shiny", file: "0.js" }, "http://localhost:5173"),
+    );
+    expect(fromPage?.headers.get("Access-Control-Allow-Origin")).toBe(
+      "http://localhost:5173",
+    );
+
+    const fromIframe = await moduleRoute?.handle(
+      request(
+        { feature: "shiny", file: "0.js" },
+        "uix-resource://canvas.local",
+      ),
+    );
+    expect(fromIframe?.headers.get("Access-Control-Allow-Origin")).toBeNull();
   });
 
   it("drops previously built modules on rebuild", async () => {

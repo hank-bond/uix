@@ -9,10 +9,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { Type } from "typebox";
-
 import type { DocumentStoreFactory } from "@uix/api/documents";
-import type { FeatureDefinition } from "@uix/api/feature";
 
 import { AgentToolRegistry } from "../agent-tools/registry";
 import { ChannelRegistry } from "../channels/registry";
@@ -50,26 +47,6 @@ function makeSubstrate() {
     apiModuleDir: join(__dirname, "../../api"),
   };
   return { substrate, agentTools, surfaces, channelIds };
-}
-
-/** In-memory stand-in for an in-tree bundled default. */
-function bundledDefinition(id: string, tool = "snapshot"): FeatureDefinition {
-  return {
-    id,
-    contribute: () => ({
-      agentTools: [
-        {
-          name: tool,
-          tool: {
-            label: tool,
-            description: "bundled test tool",
-            parameters: Type.Object({}),
-            execute: () => Promise.resolve({ content: [], details: {} }),
-          },
-        },
-      ],
-    }),
-  };
 }
 
 /**
@@ -163,18 +140,14 @@ describe("loadFeatures", () => {
     ).toEqual(["zzz__greet", "aaa__greet"]);
   });
 
-  it("loads without a manifest (bundled only)", async () => {
+  it("loads nothing without a manifest", async () => {
     const { substrate, agentTools } = makeSubstrate();
 
-    const result = await loadFeatures(
-      { bundled: [bundledDefinition("canvas")] },
-      new DisposableBag(),
-      substrate,
-    );
+    const result = await loadFeatures({}, new DisposableBag(), substrate);
 
     expect(result.failed).toEqual([]);
-    expect(result.loaded.map((f) => f.id)).toEqual(["canvas"]);
-    expect(agentTools.registeredContributions).toHaveLength(1);
+    expect(result.loaded).toEqual([]);
+    expect(agentTools.registeredContributions).toHaveLength(0);
   });
 
   it("rejects a malformed manifest and leaves the current tree intact", async () => {
@@ -277,24 +250,23 @@ describe("loadFeatures", () => {
     );
   });
 
-  it("rejects reserved ids and ids already claimed by bundled features", async () => {
+  it("rejects reserved ids", async () => {
     const manifestPath = await writeWorkspace({
       "impostor.ts": toolFeature("agent"),
-      "canvas-clone.ts": toolFeature("canvas"),
+      "impostor2.ts": toolFeature("uix"),
     });
     const { substrate } = makeSubstrate();
 
     const result = await loadFeatures(
-      { manifestPath, bundled: [bundledDefinition("canvas")] },
+      { manifestPath },
       new DisposableBag(),
       substrate,
     );
 
-    // Only the bundled canvas loads; both manifest entries fail.
-    expect(result.loaded.map((f) => f.id)).toEqual(["canvas"]);
+    expect(result.loaded).toEqual([]);
     const messages = result.failed.map((f) => f.error.message).sort();
-    expect(messages[0]).toContain("already registered: canvas");
-    expect(messages[1]).toContain("reserved: agent");
+    expect(messages[0]).toContain("reserved: agent");
+    expect(messages[1]).toContain("reserved: uix");
   });
 
   it("rejects a duplicate id within the same pass", async () => {
@@ -321,55 +293,15 @@ describe("loadFeatures", () => {
     );
   });
 
-  it("activates bundled features before manifest entries, all torn down together", async () => {
-    const manifestPath = await writeWorkspace({
-      "greeter.ts": toolFeature("greeter"),
-    });
-    const { substrate, agentTools } = makeSubstrate();
-    const bag = new DisposableBag();
-
-    const result = await loadFeatures(
-      { manifestPath, bundled: [bundledDefinition("canvas")] },
-      bag,
-      substrate,
-    );
-
-    expect(result.failed).toEqual([]);
-    expect(result.loaded.map((f) => f.id)).toEqual(["canvas", "greeter"]);
-    expect(result.loaded[0]?.entry).toBe("bundled:canvas");
-    expect(agentTools.registeredContributions).toHaveLength(2);
-
-    bag.clear();
-    expect(agentTools.registeredContributions).toHaveLength(0);
-  });
-
-  it("isolates a throwing bundled feature without aborting the pass", async () => {
-    const manifestPath = await writeWorkspace({
-      "greeter.ts": toolFeature("greeter"),
-    });
-    const throwing: FeatureDefinition = {
-      id: "explosive",
-      contribute: () => {
-        throw new Error("bundled boom");
+  it("re-registers manifest features cleanly on reload", async () => {
+    const manifestPath = await writeWorkspace(
+      {
+        "greeter.ts": toolFeature("greeter"),
+        "waver.ts": toolFeature("waver", "wave"),
       },
-    };
-    const { substrate } = makeSubstrate();
-
-    const result = await loadFeatures(
-      { manifestPath, bundled: [throwing] },
-      new DisposableBag(),
-      substrate,
+      ["./greeter.ts", "./waver.ts"],
     );
-
-    expect(result.failed[0]?.error.message).toContain("bundled boom");
-    expect(result.loaded.map((f) => f.id)).toEqual(["greeter"]);
-  });
-
-  it("re-registers bundled + manifest features cleanly on reload", async () => {
-    const manifestPath = await writeWorkspace({
-      "greeter.ts": toolFeature("greeter"),
-    });
-    const sources = { manifestPath, bundled: [bundledDefinition("canvas")] };
+    const sources = { manifestPath };
     const { substrate, agentTools } = makeSubstrate();
     const bag = new DisposableBag();
 
@@ -377,7 +309,7 @@ describe("loadFeatures", () => {
     const second = await loadFeatures(sources, bag, substrate);
 
     expect(second.failed).toEqual([]);
-    expect(second.loaded.map((f) => f.id)).toEqual(["canvas", "greeter"]);
+    expect(second.loaded.map((f) => f.id)).toEqual(["greeter", "waver"]);
     expect(agentTools.registeredContributions).toHaveLength(2);
   });
 
@@ -445,25 +377,5 @@ export default {
     expect(result.failed).toEqual([]);
     expect(result.loaded.map((f) => f.id)).toEqual(["valuey"]);
     expect([...channelIds]).toContain("valuey.ping");
-  });
-
-  it("rejects surface contributions from compiled-in definitions", async () => {
-    const manifestPath = await writeWorkspace({});
-    const compiledIn: FeatureDefinition = {
-      id: "surfacey",
-      contribute: () => ({ surfaces: ["./surface.tsx"] }),
-    };
-    const { substrate } = makeSubstrate();
-
-    const result = await loadFeatures(
-      { manifestPath, bundled: [compiledIn] },
-      new DisposableBag(),
-      substrate,
-    );
-
-    expect(result.loaded).toEqual([]);
-    expect(result.failed[0]?.error.message).toContain(
-      "activated without an entry directory",
-    );
   });
 });

@@ -11,9 +11,8 @@ import {
   toResourceUrl,
   type CanvasKey,
 } from "../shared/addressing";
-import type { ChannelClient } from "@uix/api/workspace";
+import { useWorkspaceClient, type ChannelClient } from "@uix/api/workspace";
 import { canvasChannels } from "../shared/channels";
-import { useWorkspaceClient } from "../../../renderer/workspace/context";
 
 export interface CanvasProps {
   canvasKey: CanvasKey;

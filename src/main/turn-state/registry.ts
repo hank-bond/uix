@@ -17,7 +17,10 @@ import type {
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 
-import { toContributionId, type ContributionId } from "#shared/contribution-id";
+import {
+  toContributionId,
+  type ContributionId,
+} from "@uix/api/contribution-id";
 import { createLogger } from "../log";
 import { DisposableBag } from "../lifecycle";
 import type { AgentInstaller } from "../agent/installers";

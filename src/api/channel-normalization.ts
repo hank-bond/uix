@@ -11,7 +11,7 @@ import type {
   ChannelEventContribution,
   ChannelLogOptions,
   ChannelRequestContribution,
-} from "@uix/api/channels";
+} from "./channels";
 import type { TSchema } from "typebox";
 
 import { toContributionId, type ContributionId } from "./contribution-id";

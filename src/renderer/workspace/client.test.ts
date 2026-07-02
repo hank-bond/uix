@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { canvasChannels } from "#features/canvas/shared/channels";
 import { parseCanvasKey } from "#features/canvas/shared/addressing";
-import { agentChannels } from "#shared/ipc";
+import { agentChannels } from "@uix/api/agent-channels";
 import { createChannelClient, type WorkspaceClient } from "@uix/api/workspace";
 
 function fakeWorkspaceClient() {

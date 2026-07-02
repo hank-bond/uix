@@ -15,11 +15,11 @@ import {
   toChannelCanonicalId,
   type ChannelCanonicalId,
   type ChannelRegistration,
-} from "#shared/channel-normalization";
+} from "@uix/api/channel-normalization";
 import {
   channelRequestRegistrations,
   normalizeChannelContribution,
-} from "#shared/channel-normalization";
+} from "@uix/api/channel-normalization";
 import { Value } from "typebox/value";
 
 import type { HandleLogOptions } from "../ipc";

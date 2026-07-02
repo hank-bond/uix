@@ -9,7 +9,7 @@ import {
 import {
   normalizeResourceRoute,
   ResourceProtocolScheme,
-} from "#shared/resource-routes";
+} from "@uix/api/resource-routes";
 
 function fakeTransport() {
   const handlers = new Map<
@@ -57,6 +57,7 @@ describe("registerResourceProtocol", () => {
             standard: true,
             secure: true,
             supportFetchAPI: true,
+            corsEnabled: true,
           },
         },
       ],

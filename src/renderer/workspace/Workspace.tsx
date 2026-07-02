@@ -6,22 +6,21 @@
 
 import type { ReactNode } from "react";
 
-import { SurfaceMount, useRuntimeSurface, useSurfaces } from "./layout";
+import { useRuntimeSurface, useSurfaces } from "./layout";
 import type { SurfaceEntry } from "#shared/ipc";
 
 export function Workspace() {
   const surfaces = useSurfaces();
   return (
     <div className="workspace">
-      {surfaces.map((surface) =>
-        surface.kind === "static" ? (
-          <SurfacePane key={surface.key} name={surface.surface.name}>
-            <SurfaceMount surface={surface.surface} />
-          </SurfacePane>
-        ) : (
-          <RuntimeSurfacePane key={surface.key} entry={surface.entry} />
-        ),
-      )}
+      {surfaces.map((entry, i) => (
+        <RuntimeSurfacePane
+          // The URL is content-hashed, so it doubles as the remount key: a
+          // reload that changed the module remounts, an unchanged one doesn't.
+          key={entry.url ?? `${entry.featureId}:${String(i)}`}
+          entry={entry}
+        />
+      ))}
     </div>
   );
 }

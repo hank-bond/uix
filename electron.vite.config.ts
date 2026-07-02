@@ -18,9 +18,9 @@ import { resolve } from "node:path";
 // pure JS with no runtime path lookups, so bundling it is safe.
 //
 // typebox is bundled into preload because sandboxed preload scripts cannot
-// resolve dependency external requires. The preload currently imports bundled
-// feature channel contracts so bridge adapters consume the same contribution
-// metadata as the rest of the channel facet.
+// resolve dependency external requires. The preload imports the substrate
+// channel contracts (via #shared/ipc → @uix/api/agent), which value-import
+// typebox.
 const alias = {
   "@uix/api": resolve(__dirname, "src/api"),
   "#backend": resolve(__dirname, "src/main"),

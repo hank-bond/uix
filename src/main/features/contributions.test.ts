@@ -6,13 +6,14 @@ import { AgentContextRegistry } from "../agent-context/registry";
 import { AgentToolRegistry } from "../agent-tools/registry";
 import { ChannelRegistry } from "../channels/registry";
 import { ResourceRegistry } from "../resources/registry";
-import { normalizeResourceRoute } from "#shared/resource-routes";
+import { normalizeResourceRoute } from "@uix/api/resource-routes";
 import { TurnStateRegistry } from "../turn-state/registry";
 
 import {
   registerFeatureContributions,
   registerFeaturePreflightContributions,
 } from "./contributions";
+import { SurfaceRegistry } from "./surfaces";
 
 const emptyParams = Type.Object({});
 
@@ -208,6 +209,17 @@ describe("registerFeatureContributions", () => {
       "Feature canvas contributes surfaces but no surface registry was provided",
     );
   });
+
+  it("rejects surface contributions without an entry directory", () => {
+    const surfaces = new SurfaceRegistry();
+    expect(() =>
+      registerFeatureContributions({ surfaces }, "canvas", {
+        surfaces: ["./surface.tsx"],
+      }),
+    ).toThrow(
+      "Feature canvas contributes surfaces but was activated without an entry directory",
+    );
+  });
 });
 
 describe("registerFeaturePreflightContributions", () => {
@@ -234,6 +246,7 @@ describe("registerFeaturePreflightContributions", () => {
             standard: true,
             secure: true,
             supportFetchAPI: true,
+            corsEnabled: true,
           },
         },
       ],

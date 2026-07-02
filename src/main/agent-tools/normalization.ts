@@ -5,7 +5,7 @@
 // installer need:
 //
 //   - `ContributionId` (`${featureId}.agent.<name>`) — the registry dedup key,
-//     shared across facets via `#shared/contribution-id`.
+//     shared across facets via `@uix/api/contribution-id`.
 //   - `AgentToolCanonicalId` (`${featureId}__${name>`) — the pi tool name,
 //     i.e. the address the agent calls. The facet segment is dropped because
 //     within pi the "this is a tool" kind is implicit; the `__` separator is
@@ -18,7 +18,10 @@
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 
 import type { AgentToolDefinition } from "@uix/api/agent-tools";
-import { toContributionId, type ContributionId } from "#shared/contribution-id";
+import {
+  toContributionId,
+  type ContributionId,
+} from "@uix/api/contribution-id";
 
 /**
  * Canonical agent tool id: the pi tool name. Drops the facet segment (the tool

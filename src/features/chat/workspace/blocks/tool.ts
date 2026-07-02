@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import type { TranscriptItem } from "#shared/ipc";
+import type { TranscriptItem } from "@uix/api/agent-channels";
 import { extractTextContent, truncateText } from "./content";
 
 export type ToolItem = Extract<TranscriptItem, { kind: "tool" }>;

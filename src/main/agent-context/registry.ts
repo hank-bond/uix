@@ -30,7 +30,10 @@ import type {
 import type { TSchema } from "typebox";
 import { Value } from "typebox/value";
 
-import { toContributionId, type ContributionId } from "#shared/contribution-id";
+import {
+  toContributionId,
+  type ContributionId,
+} from "@uix/api/contribution-id";
 import { createLogger } from "../log";
 import { DisposableBag } from "../lifecycle";
 import { createTurnStateHistoryReader } from "../turn-state/registry";

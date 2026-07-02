@@ -16,9 +16,8 @@ import fs from "node:fs";
 import { basename, join } from "node:path";
 import process from "node:process";
 
+import { type AgentEvent, agentChannels } from "@uix/api/agent-channels";
 import {
-  type AgentEvent,
-  agentChannels,
   Channels,
   type PickerActionResult,
   type PickerCreateRequest,
@@ -41,10 +40,10 @@ import {
 } from "./channels/registry";
 import { TurnStateRegistry } from "./turn-state/registry";
 import { createLocalDocumentStoreFactory } from "./documents/store";
-import { getBundledFeatures } from "./features/bundled";
 import { registerFeaturePreflightContributions } from "./features/contributions";
 import {
   loadFeatures,
+  type ActivationResult,
   type FeatureSources,
   type FeatureSubstrate,
 } from "./features/loader";
@@ -70,10 +69,12 @@ import {
 import { createLogger } from "./log";
 
 const isDev = !app.isPackaged;
-const bundledFeatures = getBundledFeatures();
 const LocalWorkspaceId = "local";
 
-registerFeaturePreflightContributions(bundledFeatures);
+// Preflight declarations must land before app ready; today that's just the
+// substrate resource protocol (no feature is loaded this early — manifest
+// features are runtime contributions by definition).
+registerFeaturePreflightContributions([]);
 
 function createShellWindow(page: "index" | "picker"): BrowserWindow {
   const size =
@@ -148,8 +149,8 @@ async function openWorkspace(
   // handlers, the window, the agent driver, or IPC registrations.
   const featuresBag = appBag.add(new DisposableBag());
 
-  // The manifest is optional (a dir target without one loads bundled features
-  // only). Existence is checked per pass so a manifest created after boot is
+  // The manifest is optional (a dir target without one loads no features).
+  // Existence is checked per pass so a manifest created after boot is
   // picked up by /reload.
   const manifestPath = workspace.manifestPath;
 
@@ -259,9 +260,8 @@ async function openWorkspace(
     ]),
   );
 
-  // One load pass activates the whole composition — bundled defaults claim
-  // their ids first, then the manifest's entries — all under featuresBag, so
-  // reload re-runs everything.
+  // One load pass activates the whole composition — the manifest's entries,
+  // in manifest order — all under featuresBag, so reload re-runs everything.
   // Where feature value-imports of @uix/api resolve. In dev this is the
   // repo's source; a packaged app ships the API source with the feature
   // templates (packaging arc) — until then the alias is simply absent there
@@ -282,23 +282,18 @@ async function openWorkspace(
   };
   const currentSources = (): FeatureSources => ({
     ...(fs.existsSync(manifestPath) && { manifestPath }),
-    bundled: bundledFeatures,
   });
 
-  // A bad manifest must not brick the app: log it loudly and boot with
-  // bundled features only — the pilot can then fix the manifest and /reload.
-  // Reload keeps strict semantics (a bad manifest rejects, tree intact).
-  let activation;
+  // A bad manifest must not brick the app: log it loudly and boot with no
+  // features — the pilot can then fix the manifest and /reload. Reload
+  // keeps strict semantics (a bad manifest rejects, tree intact).
+  let activation: ActivationResult;
   try {
     activation = await loadFeatures(currentSources(), featuresBag, substrate);
   } catch (thrown) {
     const error = thrown instanceof Error ? thrown : new Error(String(thrown));
     createLogger("features").error({ err: error.message }, "manifest_failed");
-    activation = await loadFeatures(
-      { bundled: bundledFeatures },
-      featuresBag,
-      substrate,
-    );
+    activation = { loaded: [], failed: [] };
   }
   createLogger("features").debug(
     { loaded: activation.loaded.length, failed: activation.failed.length },

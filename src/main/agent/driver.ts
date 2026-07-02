@@ -26,7 +26,7 @@ import type {
   AgentEvent,
   TranscriptItem,
   TranscriptSnapshot,
-} from "#shared/ipc";
+} from "@uix/api/agent-channels";
 import type { Workspace } from "../workspace";
 
 import { join } from "node:path";

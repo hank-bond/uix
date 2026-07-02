@@ -12,13 +12,16 @@ import { protocol } from "electron";
 
 import type { ResourceCanonicalId } from "#shared/resource-canonical-id";
 import { toResourceCanonicalId } from "#shared/resource-canonical-id";
-import { toContributionId, type ContributionId } from "#shared/contribution-id";
+import {
+  toContributionId,
+  type ContributionId,
+} from "@uix/api/contribution-id";
 import {
   decodeResourceUrl,
   ResourceProtocolScheme,
   type DecodedResourceUrl,
   type NormalizedResourceRoute,
-} from "#shared/resource-routes";
+} from "@uix/api/resource-routes";
 
 import { DisposableBag, disposable } from "../lifecycle";
 
@@ -66,6 +69,11 @@ export function registerResourceProtocol(
         standard: true,
         secure: true,
         supportFetchAPI: true,
+        // Without this Chromium refuses CORS-mode requests *to* the scheme
+        // at the network layer — and module scripts (the surface pipeline)
+        // are always fetched in CORS mode. Actual grants stay per-response:
+        // the surface routes echo non-uix-resource origins only.
+        corsEnabled: true,
       },
     },
   ]);

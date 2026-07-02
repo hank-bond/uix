@@ -36,7 +36,8 @@ import type { SurfaceEntry } from "#shared/ipc";
 import {
   encodeResourceUrl,
   normalizeResourceRoute,
-} from "#shared/resource-routes";
+  ResourceProtocolScheme,
+} from "@uix/api/resource-routes";
 import {
   SurfaceSharedGlobal,
   SurfaceSharedModules,
@@ -192,7 +193,7 @@ export class SurfaceModulePipeline {
       {
         name: ModuleRouteName,
         route: ModuleRoute,
-        handle: ({ params }) => {
+        handle: ({ request, params }) => {
           const key = `${String(params["feature"])}/${String(params["file"])}`;
           const module = this.#built.get(key);
           if (!module) {
@@ -201,6 +202,7 @@ export class SurfaceModulePipeline {
           return new Response(module.code, {
             status: 200,
             headers: {
+              ...corsHeaders(request),
               "Cache-Control": "no-store",
               "Content-Type": "text/javascript; charset=utf-8",
             },
@@ -210,7 +212,7 @@ export class SurfaceModulePipeline {
       {
         name: FilesRouteName,
         route: FilesRoute,
-        handle: async ({ params }) => {
+        handle: async ({ request, params }) => {
           const featureId = String(params["feature"]);
           const root = this.#roots.get(featureId);
           const segments = params["path"];
@@ -226,6 +228,7 @@ export class SurfaceModulePipeline {
             return new Response(new Uint8Array(content), {
               status: 200,
               headers: {
+                ...corsHeaders(request),
                 "Cache-Control": "no-store",
                 "Content-Type":
                   FileContentTypes[extname(filePath)] ??
@@ -313,6 +316,22 @@ export class SurfaceModulePipeline {
       },
     };
   }
+}
+
+/**
+ * Module scripts, CSS module scripts, and fonts are always fetched in CORS
+ * mode, and the workspace page is a *different* origin than the substrate
+ * (the dev server or file: page) — so these responses must grant it access
+ * by echoing its origin. Feature-origin content (a canvas iframe on a
+ * `uix-resource://` host) gets no grant: that's the one cross-origin
+ * consumer the substrate deliberately refuses.
+ */
+function corsHeaders(request: Request): Record<string, string> {
+  const origin = request.headers.get("origin");
+  if (!origin || origin.startsWith(`${ResourceProtocolScheme}://`)) {
+    return {};
+  }
+  return { "Access-Control-Allow-Origin": origin, Vary: "Origin" };
 }
 
 function isStringArray(value: unknown): value is readonly string[] {

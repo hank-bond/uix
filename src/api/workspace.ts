@@ -1,8 +1,9 @@
 import type { Static } from "typebox";
 import { Value } from "typebox/value";
+import { createContext, createElement, useContext } from "react";
 import type { ReactNode } from "react";
-import { toChannelCanonicalId } from "#shared/channel-normalization";
-import { isIdToken } from "#shared/contribution-id";
+import { toChannelCanonicalId } from "./channel-normalization";
+import { isIdToken } from "./contribution-id";
 import type { ChannelContract } from "./channels";
 
 export interface WorkspaceClient {
@@ -12,6 +13,38 @@ export interface WorkspaceClient {
     name: string,
     handler: (event: Event) => void,
   ) => () => void;
+}
+
+// The workspace client context lives here — not in page code — because
+// surface modules share this exact module instance with the page (via the
+// shared-modules global), so the context identity matches and feature
+// components can call useWorkspaceClient directly.
+const WorkspaceClientContext = createContext<WorkspaceClient | undefined>(
+  undefined,
+);
+
+export interface WorkspaceClientProviderProps {
+  client: WorkspaceClient;
+  children: ReactNode;
+}
+
+export function WorkspaceClientProvider({
+  client,
+  children,
+}: WorkspaceClientProviderProps): ReactNode {
+  return createElement(
+    WorkspaceClientContext.Provider,
+    { value: client },
+    children,
+  );
+}
+
+export function useWorkspaceClient(): WorkspaceClient {
+  const client = useContext(WorkspaceClientContext);
+  if (!client) {
+    throw new Error("WorkspaceClientProvider is missing");
+  }
+  return client;
 }
 
 type RequestClient<C extends ChannelContract> = {

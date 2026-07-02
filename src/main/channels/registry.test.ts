@@ -10,8 +10,8 @@ import {
 import {
   toChannelCanonicalId,
   type ChannelCanonicalId,
-} from "#shared/channel-normalization";
-import { toContributionId } from "#shared/contribution-id";
+} from "@uix/api/channel-normalization";
+import { toContributionId } from "@uix/api/contribution-id";
 
 function fakeTransport() {
   const handlers = new Map<string, (req: unknown) => Promise<unknown>>();

@@ -17,6 +17,9 @@ export const canvasFeature: FeatureDefinition<CanvasContext> = {
       agentTools: createCanvasAgentToolContributions(ctx),
       turnState: createCanvasTurnStateContributions(ctx),
       agentContext: createCanvasAgentContextContributions(ctx),
+      // Resolved against the feature entry file's dir (the feature root,
+      // src/features/canvas), not this file's.
+      surfaces: ["./workspace/surface.tsx"],
     };
   },
 };
