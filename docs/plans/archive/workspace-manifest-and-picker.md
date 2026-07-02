@@ -1,11 +1,15 @@
 ---
-summary: "Build manifest-driven workspaces: uix.workspace.json (name + ordered feature entry-file refs) replaces auto-discovery as what feeds the loader (M1), resolveWorkspace derives stateRoot/agentCwd from the opened manifest's directory (M2), and the App grows a start picker — recents from userData plus create-new that writes a manifest (M3)."
-status: active
+summary: "Landed spec for manifest-driven workspaces: uix.workspace.json (name + ordered feature entry-file refs) replaced auto-discovery as what feeds the loader (M1), resolveWorkspace derives stateRoot/agentCwd from the opened manifest's directory (M2), and the App grew a start picker — recents from userData plus create-new that writes a manifest (M3)."
+status: landed
 ---
 
-# Workspace manifest + start picker
+# Spec: workspace manifest + start picker (landed)
 
-Builds [workspace-manifest-not-discovery](../decisions/2026-07-02-workspace-manifest-not-discovery.md). Assumes [features-are-the-loadable-unit](../decisions/2026-07-01-features-are-the-loadable-unit.md) (definition shape, one registration path, reload symmetry — all unchanged) and [project-root-vs-agent-cwd](../decisions/2026-06-06-project-root-vs-agent-cwd.md) (stateRoot pinned, agentCwd mutable). Design context: [workspace-feature-composition](../design/workspace-feature-composition.md).
+Shipped as `49e9ad4` (M1: manifest drives loading, discovery retired), `9de1056` (M2: workspace roots derive from the manifest target, `UIX_WORKSPACE` env), and `bf4f330` (M3: startup splits into shell + `openWorkspace()`, picker window with recents + create-new, recents store in `userData`). Loader/resolution/recents behavior is covered by tests and the two-entry renderer production build was verified; the interactive picker flow (fresh launch → create → relaunch → recents) still needs a manual smoke pass, since it can't be exercised headlessly.
+
+The original plan follows unedited.
+
+Builds [workspace-manifest-not-discovery](../../decisions/2026-07-02-workspace-manifest-not-discovery.md). Assumes [features-are-the-loadable-unit](../../decisions/2026-07-01-features-are-the-loadable-unit.md) (definition shape, one registration path, reload symmetry — all unchanged) and [project-root-vs-agent-cwd](../../decisions/2026-06-06-project-root-vs-agent-cwd.md) (stateRoot pinned, agentCwd mutable). Design context: [workspace-feature-composition](../../design/workspace-feature-composition.md).
 
 ## Context snapshot
 
