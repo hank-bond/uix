@@ -31,17 +31,25 @@ const documents: DocumentStoreFactory = {
 function makeSubstrate() {
   const agentTools = new AgentToolRegistry();
   const surfaces = new SurfaceRegistry();
+  const channelIds = new Set<string>();
   const channels = new ChannelRegistry({
-    transportHandle: () => ({
-      [Symbol.dispose]() {},
-    }),
+    transportHandle: (canonicalId) => {
+      channelIds.add(canonicalId);
+      return {
+        [Symbol.dispose]() {
+          channelIds.delete(canonicalId);
+        },
+      };
+    },
   });
   const substrate: FeatureSubstrate = {
     documents,
     channels,
     registries: { agentTools, channels, surfaces },
+    // The repo's API source — what the composition root supplies in dev.
+    apiModuleDir: join(__dirname, "../../api"),
   };
-  return { substrate, agentTools, surfaces };
+  return { substrate, agentTools, surfaces, channelIds };
 }
 
 /** In-memory stand-in for an in-tree bundled default. */
@@ -399,6 +407,44 @@ export default {
 
     bag.clear();
     expect(surfaces.list()).toEqual([]);
+  });
+
+  it("resolves @uix/api and typebox value imports through the loader aliases", async () => {
+    const manifestPath = await writeWorkspace({
+      "valuey.ts": `
+import { withHandlers } from "@uix/api/channels";
+import { Type } from "typebox";
+
+const contract = {
+  feature: "valuey",
+  requests: {
+    ping: {
+      requestSchema: Type.Object({}),
+      responseSchema: Type.Object({ ok: Type.Boolean() }),
+    },
+  },
+  events: {},
+};
+
+export default {
+  id: "valuey",
+  contribute: () => ({
+    channels: [withHandlers(contract, { ping: { handle: () => ({ ok: true }) } })],
+  }),
+};
+`,
+    });
+    const { substrate, channelIds } = makeSubstrate();
+
+    const result = await loadFeatures(
+      { manifestPath },
+      new DisposableBag(),
+      substrate,
+    );
+
+    expect(result.failed).toEqual([]);
+    expect(result.loaded.map((f) => f.id)).toEqual(["valuey"]);
+    expect([...channelIds]).toContain("valuey.ping");
   });
 
   it("rejects surface contributions from compiled-in definitions", async () => {

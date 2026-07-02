@@ -40,7 +40,14 @@
 // hacks — which is what makes "agent edits feature source, user
 // reloads" work with no build step. jiti is a loader/transpiler,
 // not a sandbox; workspace features remain trusted local code.
+//
+// An alias table makes the blessed backend deps value-importable from
+// feature code living anywhere on disk (no node_modules walk-up):
+// `@uix/api` maps to the substrate-provided implementation dir and
+// typebox to the app's own copy — the backend twin of the surface
+// pipeline's shared-modules plugin, with the same one-instance guarantee.
 
+import { createRequire } from "node:module";
 import { dirname } from "node:path";
 
 import type { FeatureContext, FeatureDefinition } from "@uix/api/feature";
@@ -61,14 +68,32 @@ import { readWorkspaceManifest, type ManifestFeatureRef } from "./manifest";
 
 const log = createLogger("features");
 
-const jiti = createJiti(__filename, {
-  // Same hot-reload lever pi uses. Disabling the runtime module cache
-  // lets editing a feature's .ts/.js file and reloading evaluate the
-  // new source for the same absolute path. jiti may still keep its
-  // filesystem transform cache for performance; that cache tracks
-  // source state and is not the stale-module problem Node import() has.
-  moduleCache: false,
+const requireFromLoader = createRequire(__filename);
+
+/**
+ * The alias table feature entry imports resolve through. typebox entries
+ * are exact (its package has no `main`, so a bare dir alias can't resolve);
+ * `@uix/api` is a prefix mapping onto the implementation dir the
+ * composition root supplies (absent in environments that don't ship the
+ * API source — features then can't value-import it, and the entry fails
+ * loudly into `failed[]`).
+ */
+const buildAliases = (apiModuleDir?: string): Record<string, string> => ({
+  ...(apiModuleDir ? { "@uix/api": apiModuleDir } : {}),
+  typebox: requireFromLoader.resolve("typebox"),
+  "typebox/value": requireFromLoader.resolve("typebox/value"),
 });
+
+const createFeatureJiti = (apiModuleDir?: string) =>
+  createJiti(__filename, {
+    // Same hot-reload lever pi uses. Disabling the runtime module cache
+    // lets editing a feature's .ts/.js file and reloading evaluate the
+    // new source for the same absolute path. jiti may still keep its
+    // filesystem transform cache for performance; that cache tracks
+    // source state and is not the stale-module problem Node import() has.
+    moduleCache: false,
+    alias: buildAliases(apiModuleDir),
+  });
 
 /**
  * Feature ids the loader refuses outright: `agent` occupies the channel
@@ -83,6 +108,13 @@ export interface FeatureSubstrate {
   documents: DocumentStoreFactory;
   channels: ChannelRegistry;
   registries: FeatureContributionRegistries;
+  /**
+   * On-disk dir of the `@uix/api` implementation feature imports resolve
+   * to (the repo's `src/api` in dev). Supplied by the composition root —
+   * it's environment knowledge, not loader logic. When absent, features
+   * can only type-import the API.
+   */
+  apiModuleDir?: string;
 }
 
 /** The feature sources a load pass composes, bundled first. */
@@ -204,6 +236,7 @@ export const activateFeatures = async (
   const loaded: LoadedFeature[] = [];
   const failed: FailedFeature[] = [];
   const takenIds = new Set<string>();
+  const jiti = createFeatureJiti(substrate.apiModuleDir);
 
   const activate = async (
     displayName: string,

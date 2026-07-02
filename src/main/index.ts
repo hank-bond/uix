@@ -262,9 +262,15 @@ async function openWorkspace(
   // One load pass activates the whole composition — bundled defaults claim
   // their ids first, then the manifest's entries — all under featuresBag, so
   // reload re-runs everything.
+  // Where feature value-imports of @uix/api resolve. In dev this is the
+  // repo's source; a packaged app ships the API source with the feature
+  // templates (packaging arc) — until then the alias is simply absent there
+  // and features can only type-import the API.
+  const apiModuleDir = join(app.getAppPath(), "src/api");
   const substrate: FeatureSubstrate = {
     documents,
     channels,
+    ...(fs.existsSync(apiModuleDir) && { apiModuleDir }),
     registries: {
       resources,
       channels,
