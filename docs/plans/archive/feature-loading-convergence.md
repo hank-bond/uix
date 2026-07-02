@@ -1,11 +1,13 @@
 ---
-summary: "Converge the old extension loader and the feature contribution system into one feature-loading path: move the contribution contract behind @uix/api (F1), merge the loader into features/ so discovered entries export FeatureDefinitions and ExtensionAPI dies (F2), then unify lifetimes so bundled and discovered features both live under the reload bag and /reload re-runs the whole composition (F3)."
-status: active
+summary: "Landed spec that converged the old extension loader and the feature contribution system into one feature-loading path: the contribution contract moved behind @uix/api (F1), the loader merged into features/ with FeatureDefinition entries and ExtensionAPI deleted (F2a/F2b), and bundled + discovered features now share one lifetime under featuresBag with /reload re-running the whole composition (F3)."
+status: landed
 ---
 
-# Feature loading convergence
+# Spec: feature loading convergence (landed)
 
-Builds [features-are-the-loadable-unit](../decisions/2026-07-01-features-are-the-loadable-unit.md). Assumes [manual-reload-extensionsbag](../decisions/2026-05-31-manual-reload-extensionsbag.md) (reload bag mechanics) and [extension-activation-and-isolation](../decisions/2026-05-30-extension-activation-and-isolation.md) (activation/error-isolation mechanics, carried forward). Design context: [workspace-feature-composition](../design/workspace-feature-composition.md).
+Shipped as `e0e1280` (F1: contract behind `@uix/api`), `300125a` (F2a: canvas stops importing cockpit internals — anchors moved into the feature, `FeatureContext.log`, shim sweep), `833b475` (F2b: one loader, `FeatureDefinition` entries, `ExtensionAPI` deleted, `uix.features`/`.uix/features/` renames), and the F3 commit (bundled features activate through the load pass under `featuresBag`; reload re-runs the whole composition, with bundled failures error-isolated like discovered ones). One acceptance note: bundled feature _source_ changes still require the dev rebuild (they're compiled into the app bundle); reload re-runs their registration with fresh context/bags — the edit-and-reload loop applies to discovered features, which is where the agent self-modifies.
+
+Builds [features-are-the-loadable-unit](../../decisions/2026-07-01-features-are-the-loadable-unit.md). Assumes [manual-reload-extensionsbag](../../decisions/2026-05-31-manual-reload-extensionsbag.md) (reload bag mechanics) and [extension-activation-and-isolation](../../decisions/2026-05-30-extension-activation-and-isolation.md) (activation/error-isolation mechanics, carried forward). Design context: [workspace-feature-composition](../../design/workspace-feature-composition.md).
 
 ## Context snapshot
 

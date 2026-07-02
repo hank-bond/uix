@@ -1,18 +1,20 @@
-// Feature loader — discovers feature packages and registers each
-// entry's FeatureDefinition through the substrate contribution path.
+// Feature loader — activates the whole feature composition: bundled
+// defaults first, then discovered packages, all through one
+// registration path.
 //
 // Responsibilities:
 //   1. Re-run side-effect-free discovery for every load pass.
 //   2. Log the roots and discovered packages in one shared path.
 //   3. Clear the owned feature bag before activation.
-//   4. Resolve each `uix.features` entry relative to its package dir.
-//   5. Load the entry with jiti so user/project features can be
+//   4. Activate bundled FeatureDefinitions (in-tree defaults) so
+//      their ids are claimed before anything discovered runs.
+//   5. Resolve each `uix.features` entry relative to its package dir
+//      and load it with jiti so user/project features can be
 //      TypeScript files in a packaged Electron app.
-//   6. Validate the default export as a FeatureDefinition (shape,
-//      id grammar, reserved/duplicate ids).
-//   7. Build the same FeatureContext bundled features receive and run
-//      the definition through registerFeatureContributions, into a
-//      per-feature DisposableBag.
+//   6. Validate every definition the same way (shape, id grammar,
+//      reserved/duplicate ids) — bundled and discovered alike.
+//   7. Build one FeatureContext shape and run each definition through
+//      registerFeatureContributions, into a per-feature DisposableBag.
 //   8. Enroll the per-feature bag into the parent bag so a single
 //      clear or dispose tears every contribution down cleanly.
 //
@@ -83,12 +85,6 @@ export interface FeatureSubstrate {
   documents: DocumentStoreFactory;
   channels: ChannelRegistry;
   registries: FeatureContributionRegistries;
-  /**
-   * Feature ids already claimed outside discovery (the bundled
-   * features). A discovered feature reusing one fails activation
-   * instead of cross-wiring the id's channels/tools/resources.
-   */
-  takenIds?: ReadonlySet<string>;
 }
 
 /**
@@ -217,8 +213,18 @@ export const discoverFeaturePackages = (
   return discovered;
 };
 
+/** The two feature sources a load pass composes, bundled first. */
+export interface FeatureSources {
+  /** Discovery roots scanned for feature packages. */
+  roots: string[];
+  /** In-tree default features, activated before anything discovered. */
+  bundled?: readonly FeatureDefinition[];
+}
+
 /**
- * Activate the uix side of each discovered package.
+ * Activate bundled definitions and the uix side of each discovered
+ * package, in that order — bundled features claim their ids first, so
+ * a discovered feature can't cross-wire a default's channels/tools.
  *
  * Packages that don't declare a `uix` field are skipped (the
  * pi side, if present, is the agent's concern, not the cockpit's).
@@ -226,24 +232,89 @@ export const discoverFeaturePackages = (
  * a warning and are otherwise ignored.
  *
  * Each entry file becomes its own LoadedFeature with its own bag,
- * matching pi's "entry is the unit of loading" model.
+ * matching pi's "entry is the unit of loading" model; bundled
+ * definitions get the same per-feature bag and error isolation (a
+ * throwing default lands in `failed[]` instead of aborting startup).
  *
- * @param packages from `discoverFeaturePackages()` or `discoverPackages()`.
+ * @param sources bundled definitions plus packages from
+ *   `discoverFeaturePackages()` or `discoverPackages()`.
  * @param parentBag every per-feature bag is added here, so one
  *   dispose at app shutdown or reload clear tears down everything.
  * @param substrate the facet registries and context ingredients the
  *   definitions register into.
  */
 export const activateFeatures = async (
-  packages: DiscoveredPackage[],
+  sources: {
+    bundled: readonly FeatureDefinition[];
+    packages: DiscoveredPackage[];
+  },
   parentBag: DisposableBag,
   substrate: FeatureSubstrate,
 ): Promise<ActivationResult> => {
   const loaded: LoadedFeature[] = [];
   const failed: FailedFeature[] = [];
-  const takenIds = new Set(substrate.takenIds);
+  const takenIds = new Set<string>();
 
-  for (const pkg of packages) {
+  const activate = async (
+    displayName: string,
+    entry: string,
+    loadDefinition: () => unknown,
+  ): Promise<void> => {
+    const flog = log.child({ package: displayName, entry });
+    flog.debug({}, "activating");
+
+    // The per-feature bag is built early so the definition's
+    // registrations land somewhere disposable. We only enroll
+    // it in the parent bag after activation succeeds — a
+    // failed feature's bag is disposed immediately and never
+    // becomes part of app-shutdown teardown.
+    const bag = new DisposableBag();
+
+    try {
+      const definition = validateFeatureDefinition(await loadDefinition());
+
+      if (ReservedFeatureIds.has(definition.id)) {
+        throw new Error(`Feature id is reserved: ${definition.id}`);
+      }
+      if (takenIds.has(definition.id)) {
+        throw new Error(`Feature id already registered: ${definition.id}`);
+      }
+
+      const baseContext = buildFeatureContext(definition.id, substrate);
+      const contributedContext = definition.context?.(baseContext) ?? {};
+      bag.add(
+        registerFeatureContributions(
+          substrate.registries,
+          definition.id,
+          definition.contribute({ ...baseContext, ...contributedContext }),
+        ),
+      );
+
+      takenIds.add(definition.id);
+      parentBag.add(bag);
+      loaded.push({ id: definition.id, displayName, entry, bag });
+      flog.debug({ id: definition.id }, "activation_succeeded");
+    } catch (thrown) {
+      const error = normalize(thrown);
+      // Tear down anything the definition managed to register
+      // before it threw — partial activation shouldn't leak
+      // half-wired contributions.
+      bag[Symbol.dispose]();
+      failed.push({ displayName, entry, error });
+      flog.error(
+        { err: error.message, stack: error.stack },
+        "activation_failed",
+      );
+    }
+  };
+
+  for (const definition of sources.bundled) {
+    // Bundled definitions have no entry file; the synthetic `bundled:`
+    // pseudo-path keeps `entry` unique and log-greppable.
+    await activate("bundled", `bundled:${definition.id}`, () => definition);
+  }
+
+  for (const pkg of sources.packages) {
     if (!pkg.hasUIX) continue;
 
     const manifest = readFeatureManifest(pkg);
@@ -255,62 +326,9 @@ export const activateFeatures = async (
 
     for (const relativeEntry of entries) {
       const entry = path.resolve(pkg.dir, relativeEntry);
-      const flog = log.child({
-        package: pkg.displayName,
-        entry,
-      });
-
-      flog.debug({}, "activating");
-
-      // The per-feature bag is built early so the definition's
-      // registrations land somewhere disposable. We only enroll
-      // it in the parent bag after activation succeeds — a
-      // failed feature's bag is disposed immediately and never
-      // becomes part of app-shutdown teardown.
-      const bag = new DisposableBag();
-
-      try {
-        const exported = await jiti.import<unknown>(entry, { default: true });
-        const definition = validateFeatureDefinition(exported);
-
-        if (ReservedFeatureIds.has(definition.id)) {
-          throw new Error(`Feature id is reserved: ${definition.id}`);
-        }
-        if (takenIds.has(definition.id)) {
-          throw new Error(`Feature id already registered: ${definition.id}`);
-        }
-
-        const baseContext = buildFeatureContext(definition.id, substrate);
-        const contributedContext = definition.context?.(baseContext) ?? {};
-        bag.add(
-          registerFeatureContributions(
-            substrate.registries,
-            definition.id,
-            definition.contribute({ ...baseContext, ...contributedContext }),
-          ),
-        );
-
-        takenIds.add(definition.id);
-        parentBag.add(bag);
-        loaded.push({
-          id: definition.id,
-          displayName: pkg.displayName,
-          entry,
-          bag,
-        });
-        flog.debug({ id: definition.id }, "activation_succeeded");
-      } catch (thrown) {
-        const error = normalize(thrown);
-        // Tear down anything the definition managed to register
-        // before it threw — partial activation shouldn't leak
-        // half-wired contributions.
-        bag[Symbol.dispose]();
-        failed.push({ displayName: pkg.displayName, entry, error });
-        flog.error(
-          { err: error.message, stack: error.stack },
-          "activation_failed",
-        );
-      }
+      await activate(pkg.displayName, entry, () =>
+        jiti.import<unknown>(entry, { default: true }),
+      );
     }
   }
 
@@ -318,10 +336,11 @@ export const activateFeatures = async (
 };
 
 /**
- * Load discovered features from disk into the owned feature bag,
- * replacing whatever that bag currently contains. Safe for initial
- * startup (empty clear) and for manual reload (old contributions are
- * disposed before activation).
+ * Load the whole feature composition — bundled defaults plus discovered
+ * packages — into the owned feature bag, replacing whatever that bag
+ * currently contains. Safe for initial startup (empty clear) and for
+ * manual reload (old contributions are disposed before activation, and
+ * bundled features re-register with fresh context/bags).
  *
  * Discovery runs before clearing so a discovery-only substrate failure
  * leaves the current feature tree intact. Concurrent callers share
@@ -330,16 +349,20 @@ export const activateFeatures = async (
 let inFlightFeatureLoad: Promise<ActivationResult> | undefined;
 
 export const loadFeatures = (
-  roots: string[],
+  sources: FeatureSources,
   featuresBag: DisposableBag,
   substrate: FeatureSubstrate,
 ): Promise<ActivationResult> => {
   if (inFlightFeatureLoad) return inFlightFeatureLoad;
 
   inFlightFeatureLoad = (async () => {
-    const discovered = discoverFeaturePackages(roots);
+    const packages = discoverFeaturePackages(sources.roots);
     featuresBag.clear();
-    return activateFeatures(discovered, featuresBag, substrate);
+    return activateFeatures(
+      { bundled: sources.bundled ?? [], packages },
+      featuresBag,
+      substrate,
+    );
   })().finally(() => {
     inFlightFeatureLoad = undefined;
   });

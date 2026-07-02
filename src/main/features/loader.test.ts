@@ -8,7 +8,10 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { Type } from "typebox";
+
 import type { DocumentStoreFactory } from "@uix/api/documents";
+import type { FeatureDefinition } from "@uix/api/feature";
 
 import { AgentToolRegistry } from "../agent-tools/registry";
 import { ChannelRegistry } from "../channels/registry";
@@ -22,7 +25,7 @@ const documents: DocumentStoreFactory = {
   },
 };
 
-function makeSubstrate(takenIds?: ReadonlySet<string>) {
+function makeSubstrate() {
   const agentTools = new AgentToolRegistry();
   const channels = new ChannelRegistry({
     transportHandle: () => ({
@@ -33,9 +36,28 @@ function makeSubstrate(takenIds?: ReadonlySet<string>) {
     documents,
     channels,
     registries: { agentTools, channels },
-    ...(takenIds && { takenIds }),
   };
   return { substrate, agentTools };
+}
+
+/** In-memory stand-in for an in-tree bundled default. */
+function bundledDefinition(id: string, tool = "snapshot"): FeatureDefinition {
+  return {
+    id,
+    contribute: () => ({
+      agentTools: [
+        {
+          name: tool,
+          tool: {
+            label: tool,
+            description: "bundled test tool",
+            parameters: Type.Object({}),
+            execute: () => Promise.resolve({ content: [], details: {} }),
+          },
+        },
+      ],
+    }),
+  };
 }
 
 async function makeRoot(): Promise<string> {
@@ -95,7 +117,7 @@ describe("loadFeatures", () => {
     const { substrate, agentTools } = makeSubstrate();
     const bag = new DisposableBag();
 
-    const result = await loadFeatures([root], bag, substrate);
+    const result = await loadFeatures({ roots: [root] }, bag, substrate);
 
     expect(result.failed).toEqual([]);
     expect(result.loaded).toHaveLength(1);
@@ -121,7 +143,11 @@ describe("loadFeatures", () => {
     });
     const { substrate, agentTools } = makeSubstrate();
 
-    const result = await loadFeatures([root], new DisposableBag(), substrate);
+    const result = await loadFeatures(
+      { roots: [root] },
+      new DisposableBag(),
+      substrate,
+    );
 
     expect(result.failed).toHaveLength(1);
     expect(result.failed[0]?.error.message).toContain("deliberate canary");
@@ -136,7 +162,11 @@ describe("loadFeatures", () => {
     });
     const { substrate } = makeSubstrate();
 
-    const result = await loadFeatures([root], new DisposableBag(), substrate);
+    const result = await loadFeatures(
+      { roots: [root] },
+      new DisposableBag(),
+      substrate,
+    );
 
     expect(result.loaded).toEqual([]);
     expect(result.failed[0]?.error.message).toContain(
@@ -144,7 +174,7 @@ describe("loadFeatures", () => {
     );
   });
 
-  it("rejects reserved and already-taken feature ids", async () => {
+  it("rejects reserved ids and ids already claimed by bundled features", async () => {
     const root = await makeRoot();
     await writePackage(root, "impostor", {
       "feature.ts": toolFeature("agent"),
@@ -152,14 +182,65 @@ describe("loadFeatures", () => {
     await writePackage(root, "canvas-clone", {
       "feature.ts": toolFeature("canvas"),
     });
-    const { substrate } = makeSubstrate(new Set(["canvas"]));
+    const { substrate } = makeSubstrate();
 
-    const result = await loadFeatures([root], new DisposableBag(), substrate);
+    const result = await loadFeatures(
+      { roots: [root], bundled: [bundledDefinition("canvas")] },
+      new DisposableBag(),
+      substrate,
+    );
 
-    expect(result.loaded).toEqual([]);
+    // Only the bundled canvas loads; both discovered entries fail.
+    expect(result.loaded.map((f) => f.id)).toEqual(["canvas"]);
     const messages = result.failed.map((f) => f.error.message).sort();
     expect(messages[0]).toContain("already registered: canvas");
     expect(messages[1]).toContain("reserved: agent");
+  });
+
+  it("activates bundled features before discovered ones, all torn down together", async () => {
+    const root = await makeRoot();
+    await writePackage(root, "greeter", {
+      "feature.ts": toolFeature("greeter"),
+    });
+    const { substrate, agentTools } = makeSubstrate();
+    const bag = new DisposableBag();
+
+    const result = await loadFeatures(
+      { roots: [root], bundled: [bundledDefinition("canvas")] },
+      bag,
+      substrate,
+    );
+
+    expect(result.failed).toEqual([]);
+    expect(result.loaded.map((f) => f.id)).toEqual(["canvas", "greeter"]);
+    expect(result.loaded[0]?.entry).toBe("bundled:canvas");
+    expect(agentTools.registeredContributions).toHaveLength(2);
+
+    bag.clear();
+    expect(agentTools.registeredContributions).toHaveLength(0);
+  });
+
+  it("isolates a throwing bundled feature without aborting the pass", async () => {
+    const root = await makeRoot();
+    await writePackage(root, "greeter", {
+      "feature.ts": toolFeature("greeter"),
+    });
+    const throwing: FeatureDefinition = {
+      id: "explosive",
+      contribute: () => {
+        throw new Error("bundled boom");
+      },
+    };
+    const { substrate } = makeSubstrate();
+
+    const result = await loadFeatures(
+      { roots: [root], bundled: [throwing] },
+      new DisposableBag(),
+      substrate,
+    );
+
+    expect(result.failed[0]?.error.message).toContain("bundled boom");
+    expect(result.loaded.map((f) => f.id)).toEqual(["greeter"]);
   });
 
   it("rejects a duplicate id within the same pass", async () => {
@@ -168,7 +249,11 @@ describe("loadFeatures", () => {
     await writePackage(root, "second", { "feature.ts": toolFeature("dup") });
     const { substrate } = makeSubstrate();
 
-    const result = await loadFeatures([root], new DisposableBag(), substrate);
+    const result = await loadFeatures(
+      { roots: [root] },
+      new DisposableBag(),
+      substrate,
+    );
 
     // Alphabetical package order: "first" wins, "second" fails.
     expect(result.loaded.map((f) => f.id)).toEqual(["dup"]);
@@ -186,8 +271,8 @@ describe("loadFeatures", () => {
     const { substrate, agentTools } = makeSubstrate();
     const bag = new DisposableBag();
 
-    await loadFeatures([root], bag, substrate);
-    const second = await loadFeatures([root], bag, substrate);
+    await loadFeatures({ roots: [root] }, bag, substrate);
+    const second = await loadFeatures({ roots: [root] }, bag, substrate);
 
     expect(second.failed).toEqual([]);
     expect(second.loaded).toHaveLength(1);

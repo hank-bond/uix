@@ -33,13 +33,10 @@ import {
 import { TurnStateRegistry } from "./turn-state/registry";
 import { createLocalDocumentStoreFactory } from "./documents/store";
 import { getBundledFeatures } from "./features/bundled";
+import { registerFeaturePreflightContributions } from "./features/contributions";
 import {
-  registerFeatureContributions,
-  registerFeaturePreflightContributions,
-} from "./features/contributions";
-import {
-  buildFeatureContext,
   loadFeatures,
+  type FeatureSources,
   type FeatureSubstrate,
 } from "./features/loader";
 import { defaultRoots } from "./features/roots";
@@ -218,29 +215,21 @@ void app.whenReady().then(async () => {
     ]),
   );
 
-  // The loader activates discovered features against the same substrate the
-  // bundled loop uses; bundled ids are taken so a discovered feature can't
-  // cross-wire them. (F3 folds the bundled list into the load pass itself.)
+  // One load pass activates the whole composition — bundled defaults claim
+  // their ids first, then discovered packages — all under featuresBag, so
+  // reload re-runs everything.
   const substrate: FeatureSubstrate = {
     documents,
     channels,
     registries: { resources, channels, agentTools, turnState, agentContext },
-    takenIds: new Set(bundledFeatures.map((feature) => feature.id)),
   };
+  const sources: FeatureSources = { roots, bundled: bundledFeatures };
 
-  for (const feature of bundledFeatures) {
-    const baseContext = buildFeatureContext(feature.id, substrate);
-    const contributedContext = feature.context?.(baseContext) ?? {};
-    appBag.add(
-      registerFeatureContributions(
-        substrate.registries,
-        feature.id,
-        feature.contribute({ ...baseContext, ...contributedContext }),
-      ),
-    );
-  }
-
-  const { loaded, failed } = await loadFeatures(roots, featuresBag, substrate);
+  const { loaded, failed } = await loadFeatures(
+    sources,
+    featuresBag,
+    substrate,
+  );
   createLogger("features").debug(
     { loaded: loaded.length, failed: failed.length },
     "activation_complete",
@@ -256,7 +245,11 @@ void app.whenReady().then(async () => {
       reloadLog.debug({}, "reload_started");
 
       try {
-        const featureResult = await loadFeatures(roots, featuresBag, substrate);
+        const featureResult = await loadFeatures(
+          sources,
+          featuresBag,
+          substrate,
+        );
         const piReloaded = await driver.reload();
         reloadLog.debug(
           {
