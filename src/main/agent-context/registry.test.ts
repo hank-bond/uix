@@ -68,10 +68,7 @@ describe("AgentContextRegistry", () => {
     >[0]);
     expect(handlers).toHaveLength(1);
 
-    const result = await handlers[0](
-      { systemPrompt: "BASE" },
-      {} as Parameters<(typeof handlers)[0]>[1],
-    );
+    const result = await handlers[0]({ systemPrompt: "BASE" }, {});
 
     expect(result.systemPrompt).toContain("BASE");
     expect(result.systemPrompt).toContain("## UIX cockpit state messages");

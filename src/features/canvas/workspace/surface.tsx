@@ -2,9 +2,12 @@
 
 import { Canvas } from "./Canvas";
 import { parseCanvasKey } from "../shared/addressing";
-import type { SurfaceLayout } from "../../../renderer/workspace/layout";
+import { canvasChannels } from "../shared/channels";
+import { defineSurface } from "@uix/api/workspace";
 
-export const canvasSurface: SurfaceLayout = {
-  name: "canvas",
-  render: () => <Canvas canvasKey={parseCanvasKey("main")} />,
-};
+export const canvasSurface = defineSurface(
+  "canvas",
+  "canvas",
+  canvasChannels,
+  (client) => <Canvas canvasKey={parseCanvasKey("main")} client={client} />,
+);

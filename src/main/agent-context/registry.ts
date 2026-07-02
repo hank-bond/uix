@@ -332,7 +332,7 @@ export function createAgentContextVocabularyInstaller(
 
     if (!vocabulary) return;
 
-    pi.on("before_agent_start", async (event, _ctx) => ({
+    pi.on("before_agent_start", (event, _ctx) => ({
       systemPrompt: `${event.systemPrompt}\n\n${vocabulary}`,
     }));
   };

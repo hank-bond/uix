@@ -40,7 +40,7 @@ export function toChannelCanonicalId(
   return `${featureId}.${name}` as ChannelCanonicalId;
 }
 
-export type ChannelRequestContract<
+export type NormalizedChannelRequestContract<
   Name extends string,
   Req extends TSchema,
   Res extends TSchema,
@@ -50,7 +50,7 @@ export type ChannelRequestContract<
   readonly canonicalId: ChannelCanonicalId;
 };
 
-export type ChannelEventContract<
+export type NormalizedChannelEventContract<
   Name extends string,
   Event extends TSchema,
 > = ChannelEventContribution<Event> & {
@@ -59,7 +59,9 @@ export type ChannelEventContract<
   readonly canonicalId: ChannelCanonicalId;
 };
 
-export type ChannelContract<Contribution extends ChannelContribution> = {
+export type NormalizedChannelContract<
+  Contribution extends ChannelContribution,
+> = {
   readonly featureId: string;
   readonly requests: {
     readonly [Name in keyof Contribution["requests"] &
@@ -67,7 +69,7 @@ export type ChannelContract<Contribution extends ChannelContribution> = {
       infer Req,
       infer Res
     >
-      ? ChannelRequestContract<Name, Req, Res>
+      ? NormalizedChannelRequestContract<Name, Req, Res>
       : never;
   };
   readonly events: {
@@ -75,7 +77,7 @@ export type ChannelContract<Contribution extends ChannelContribution> = {
       string]: Contribution["events"][Name] extends ChannelEventContribution<
       infer Event
     >
-      ? ChannelEventContract<Name, Event>
+      ? NormalizedChannelEventContract<Name, Event>
       : never;
   };
 };
@@ -94,10 +96,10 @@ export function normalizeChannelContribution<
 >(
   featureId: string,
   contribution: Contribution,
-): ChannelContract<Contribution> {
+): NormalizedChannelContract<Contribution> {
   const seen = new Set<string>();
-  const requests = {} as ChannelContract<Contribution>["requests"];
-  const events = {} as ChannelContract<Contribution>["events"];
+  const requests = {} as NormalizedChannelContract<Contribution>["requests"];
+  const events = {} as NormalizedChannelContract<Contribution>["events"];
 
   for (const [name, request] of Object.entries(contribution.requests)) {
     assertUniqueChannelName(featureId, seen, name);
@@ -119,7 +121,7 @@ export function normalizeChannelContribution<
 }
 
 export function channelRequestRegistrations(
-  contract: ChannelContract<ChannelContribution>,
+  contract: NormalizedChannelContract<ChannelContribution>,
 ): readonly ChannelRegistration[] {
   return Object.values(contract.requests).map((request) => {
     return {

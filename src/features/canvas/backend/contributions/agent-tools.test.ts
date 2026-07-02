@@ -119,6 +119,19 @@ function setup() {
   const entries: Array<{ customType: string; data: unknown }> = [];
   const branch: SessionEntry[] = [];
 
+  const recordEntry = (customType: string, data: unknown) => {
+    entries.push({ customType, data });
+    branch.push({
+      id: `entry-${branch.length + 1}`,
+      parentId: undefined,
+      timestamp: new Date(0).toISOString(),
+      type: "custom",
+      customType,
+      data,
+    } as unknown as SessionEntry);
+    return "entry-id";
+  };
+
   const sessionManager: SessionManager = {
     appendCustomEntry: (_customType: string, _data: unknown) => "entry-id",
     getBranch: () => branch,
@@ -129,6 +142,7 @@ function setup() {
     on: (event: string, handler: VoidHandler) => {
       if (event === "agent_end") agentEndHandlers.push(handler);
     },
+    appendEntry: recordEntry,
   } as unknown as ExtensionAPI;
 
   void createAgentToolInstaller(agentTools)(pi);
@@ -147,18 +161,6 @@ function setup() {
     cwd: "/work",
     sessionManager: {
       getBranch: () => branch,
-      appendCustomEntry: (customType: string, data: unknown) => {
-        entries.push({ customType, data });
-        branch.push({
-          id: `entry-${branch.length + 1}`,
-          parentId: undefined,
-          timestamp: new Date(0).toISOString(),
-          type: "custom",
-          customType,
-          data,
-        } as unknown as SessionEntry);
-        return "entry-id";
-      },
     },
   };
 
@@ -171,18 +173,7 @@ function setup() {
     inputBoundary: async () => {
       // Drive submit-side turn-state prep directly (no longer via input hook).
       const mgr = {
-        appendCustomEntry: (customType: string, data: unknown) => {
-          entries.push({ customType, data });
-          branch.push({
-            id: `entry-${branch.length + 1}`,
-            parentId: undefined,
-            timestamp: new Date(0).toISOString(),
-            type: "custom",
-            customType,
-            data,
-          } as unknown as SessionEntry);
-          return "entry-id";
-        },
+        appendCustomEntry: recordEntry,
         getBranch: () => branch,
       } as SessionManager;
       await submitTurnStatePrep(mgr, "/work", state);

@@ -6,16 +6,20 @@
 // contextBridge. These types describe that contract so both sides stay
 // in sync.
 
+import { Type, type Static } from "typebox";
+import type { ChannelContract } from "@uix/api/channels";
+
 /** Substrate channel names. Keep this list small — features register their own. */
 export const Channels = {
   /** Renderer → main. invoke-style. Reloads cockpit resources in place. */
   reload: "uix:reload",
 } as const;
 
-/** Payload for `uix:prompt`. */
-export interface PromptRequest {
-  text: string;
-}
+/** Schema for the `prompt` request payload. */
+export const PromptRequestSchema = Type.Object({
+  text: Type.String(),
+});
+export type PromptRequest = Static<typeof PromptRequestSchema>;
 
 export interface ReloadResult {
   extensionsLoaded: number;
@@ -95,6 +99,35 @@ export type AgentEvent =
 export interface TranscriptSnapshot {
   items: TranscriptItem[];
 }
+
+// Agent channel contract — the single source of truth for substrate agent
+// channels. The backend merges handlers via `withHandlers`; the frontend
+// derives a typed client via `createChannelClient`. `Type.Unsafe` is used for
+// the complex union types (`AgentEvent`, `TranscriptSnapshot`) whose full
+// TypeBox encoding would be disproportionate — the runtime types are already
+// validated by the driver that produces them.
+export const AgentEventSchema = Type.Unsafe<AgentEvent>(Type.Any());
+export const TranscriptSnapshotSchema = Type.Unsafe<TranscriptSnapshot>(
+  Type.Any(),
+);
+
+export const agentChannels = {
+  requests: {
+    prompt: {
+      requestSchema: PromptRequestSchema,
+      responseSchema: Type.Void(),
+    },
+    history: {
+      requestSchema: Type.Void(),
+      responseSchema: TranscriptSnapshotSchema,
+    },
+  },
+  events: {
+    event: {
+      event: AgentEventSchema,
+    },
+  },
+} as const satisfies ChannelContract;
 
 /** Shape exposed on `window.uix` by the preload. */
 export interface ChannelTransport {

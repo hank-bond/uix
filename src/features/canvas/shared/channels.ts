@@ -12,3 +12,17 @@ export const CanvasWritebackSchema = Type.Object({
   html: Type.String(),
 });
 export type CanvasWriteback = Static<typeof CanvasWritebackSchema>;
+
+export const canvasChannels = {
+  requests: {
+    writeback: {
+      requestSchema: CanvasWritebackSchema,
+      responseSchema: Type.Void(),
+    },
+  },
+  events: {
+    changed: {
+      event: CanvasChangedSchema,
+    },
+  },
+} as const;

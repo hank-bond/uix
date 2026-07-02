@@ -6,13 +6,8 @@ import type {
   ChannelContribution,
   FeatureChannelPublisher,
 } from "@uix/api/channels";
-import { Type } from "typebox";
-import {
-  CanvasChangedSchema,
-  CanvasWritebackSchema,
-  type CanvasChanged,
-  type CanvasWriteback,
-} from "../../shared/channels";
+import { withHandlers } from "@uix/api/channels";
+import { canvasChannels, type CanvasChanged } from "../../shared/channels";
 
 import type { CanvasContext } from "../context";
 
@@ -28,28 +23,18 @@ export function createCanvasChannelContributions(
   ctx: CanvasContext,
 ): readonly ChannelContribution[] {
   return [
-    {
-      requests: {
-        writeback: {
-          requestSchema: CanvasWritebackSchema,
-          responseSchema: Type.Void(),
-          async handle(req) {
-            const payload = req as CanvasWriteback;
-            createLogger("canvas").debug(
-              { key: payload.key, bytes: payload.html.length },
-              "canvas_writeback",
-            );
-            // No broadcast: the pane already shows the human's edit, and the
-            // channel pulls from the canvas document buffer on its next turn.
-            await ctx.buffer.writeback(payload.key, payload.html);
-          },
+    withHandlers(canvasChannels, {
+      writeback: {
+        async handle(req) {
+          createLogger("canvas").debug(
+            { key: req.key, bytes: req.html.length },
+            "canvas_writeback",
+          );
+          // No broadcast: the pane already shows the human's edit, and the
+          // channel pulls from the canvas document buffer on its next turn.
+          await ctx.buffer.writeback(req.key, req.html);
         },
       },
-      events: {
-        changed: {
-          event: CanvasChangedSchema,
-        },
-      },
-    },
+    }),
   ];
 }

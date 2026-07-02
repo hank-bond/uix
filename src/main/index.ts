@@ -12,14 +12,19 @@ import { app, BrowserWindow } from "electron";
 import { join } from "node:path";
 import process from "node:process";
 
-import { type AgentEvent, Channels, type ReloadResult } from "../shared/ipc";
+import {
+  type AgentEvent,
+  agentChannels,
+  Channels,
+  type ReloadResult,
+} from "../shared/ipc";
 import { createAgentDriver } from "./agent/driver";
 import { AgentContextRegistry } from "./agent-context/registry";
 import {
   createAgentToolInstaller,
   AgentToolRegistry,
 } from "./agent-tools/registry";
-import { Type } from "typebox";
+import { withHandlers } from "@uix/api/channels";
 import {
   ChannelRegistry,
   createFeatureChannelPublisher,
@@ -107,7 +112,7 @@ void app.whenReady().then(async () => {
   app.setName("UIX");
 
   if (process.platform === "darwin") {
-    app.dock.setIcon(
+    app.dock?.setIcon(
       join(__dirname, "../../src/shared/assets/icon-black-large.png"),
     );
   }
@@ -186,35 +191,28 @@ void app.whenReady().then(async () => {
   // prompt/history handlers can close over the driver.
   appBag.add(
     registerChannelContributions(channels, "agent", [
-      {
-        requests: {
-          prompt: {
-            requestSchema: Type.Object({ text: Type.String() }),
-            responseSchema: Type.Void(),
-            handle: (req) => {
-              // Fire and forget — the renderer subscribes to the event
-              // stream, and the invoke resolves once the prompt has been
-              // accepted.
-              void driver.prompt((req as { text: string }).text);
-            },
-          },
-          history: {
-            requestSchema: Type.Void(),
-            responseSchema: Type.Any(),
-            handle: () => driver.history(),
-            log: {
-              // A snapshot is the entire persisted transcript, already on
-              // disk — the wire log records a pointer instead of duplicating
-              // it.
-              describeResult: (snap) => ({
-                items: (snap as { items: unknown[] }).items.length,
-                ref: driver.sessionFile(),
-              }),
-            },
+      withHandlers(agentChannels, {
+        prompt: {
+          handle: (req) => {
+            // Fire and forget — the renderer subscribes to the event
+            // stream, and the invoke resolves once the prompt has been
+            // accepted.
+            void driver.prompt(req.text);
           },
         },
-        events: {},
-      },
+        history: {
+          handle: () => driver.history(),
+          log: {
+            // A snapshot is the entire persisted transcript, already on
+            // disk — the wire log records a pointer instead of duplicating
+            // it.
+            describeResult: (snap) => ({
+              items: snap.items.length,
+              ref: driver.sessionFile(),
+            }),
+          },
+        },
+      }),
     ]),
   );
 

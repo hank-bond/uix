@@ -1,22 +1,25 @@
 // workspace surface composition.
 //
 // Renders surfaces declared in layout.ts. Each surface provides a render
-// function; the workspace composes them into a CSS grid.
+// function; the workspace composes them into a CSS grid. Channel clients
+// are created by SurfaceMount, not by feature code.
 
-import { layout } from "./layout";
+import { layout, SurfaceMount } from "./layout";
 
 export function Workspace() {
   return (
     <div className="workspace">
-      {layout.map(({ name, render }) => (
+      {layout.map((surface) => (
         <section
-          key={name}
-          className={`pane pane--${name}`}
-          data-uix-pane={name}
-          aria-label={name}
+          key={surface.name}
+          className={`pane pane--${surface.name}`}
+          data-uix-pane={surface.name}
+          aria-label={surface.name}
         >
-          <header className="pane__header">{name}</header>
-          <div className={`pane__body pane__body--${name}`}>{render()}</div>
+          <header className="pane__header">{surface.name}</header>
+          <div className={`pane__body pane__body--${surface.name}`}>
+            <SurfaceMount surface={surface} />
+          </div>
         </section>
       ))}
     </div>

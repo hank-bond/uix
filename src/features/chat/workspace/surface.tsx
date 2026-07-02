@@ -1,9 +1,12 @@
 // chat surface contribution.
 
 import { Chat } from "./Chat";
-import type { SurfaceLayout } from "../../../renderer/workspace/layout";
+import { agentChannels } from "#shared/ipc";
+import { defineSurface } from "@uix/api/workspace";
 
-export const chatSurface: SurfaceLayout = {
-  name: "chat",
-  render: () => <Chat />,
-};
+export const chatSurface = defineSurface(
+  "chat",
+  "agent",
+  agentChannels,
+  (client) => <Chat client={client} />,
+);

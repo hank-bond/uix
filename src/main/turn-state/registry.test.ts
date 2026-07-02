@@ -41,17 +41,13 @@ function turnStateEntry(
 function setupCoordinator(state = new TurnStateRegistry()) {
   const handlers = new Map<string, VoidHandler[]>();
   const entries: Array<{ customType: string; data: unknown }> = [];
-  const sessionManager = {
-    appendCustomEntry: (customType: string, data: unknown) => {
-      entries.push({ customType, data });
-      return "entry-id";
-    },
-    getBranch: () => [] as readonly SessionEntry[],
-  } as SessionManager;
 
   const pi = {
     on: (event: string, handler: VoidHandler) => {
       handlers.set(event, [...(handlers.get(event) ?? []), handler]);
+    },
+    appendEntry: (customType: string, data: unknown) => {
+      entries.push({ customType, data });
     },
   } as unknown as ExtensionAPI;
 
@@ -68,12 +64,8 @@ function setupCoordinator(state = new TurnStateRegistry()) {
         cwd,
         sessionManager: {
           getBranch: () => branchArr,
-          appendCustomEntry: (customType: string, data: unknown) => {
-            entries.push({ customType, data });
-            return "entry-id";
-          },
         },
-      } as ExtensionContext);
+      } as unknown as ExtensionContext);
     }
   };
 

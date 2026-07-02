@@ -163,7 +163,9 @@ export function createTurnStateCoordinator(
 
     pi.on("agent_end", async (_event, ctx) => {
       await appendPreparedTurnState({
-        sessionManager: ctx.sessionManager,
+        // ctx.sessionManager is read-only for extensions; appends go
+        // through pi's sanctioned entry API.
+        append: (customType, data) => pi.appendEntry(customType, data),
         cwd: ctx.cwd,
         branch: ctx.sessionManager.getBranch(),
         contributions: filterInLiveContributions(state, installedContributions),
@@ -184,7 +186,8 @@ export async function submitTurnStatePrep(
   registry: TurnStateRegistry,
 ): Promise<void> {
   await appendPreparedTurnState({
-    sessionManager,
+    append: (customType, data) =>
+      void sessionManager.appendCustomEntry(customType, data),
     cwd,
     branch: sessionManager.getBranch(),
     contributions: registry.registeredContributions,
@@ -202,7 +205,7 @@ function filterInLiveContributions(
 }
 
 async function appendPreparedTurnState(opts: {
-  sessionManager: SessionManager;
+  append: (customType: string, data: unknown) => void;
   cwd: string;
   branch: readonly SessionEntry[];
   contributions: readonly RegisteredTurnStateContribution[];
@@ -235,7 +238,7 @@ async function appendPreparedTurnState(opts: {
     { sections: Object.keys(preparedState).length, preparedState },
     "committed",
   );
-  opts.sessionManager.appendCustomEntry(TurnStateEntryType, {
+  opts.append(TurnStateEntryType, {
     state: preparedState,
     cwd: opts.cwd,
   });

@@ -4,20 +4,22 @@
 // durable items; live events append the same items, stream compact partials
 // into them, and replace them whole at completion.
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import "./chat.css";
 
 import type { AgentEvent, TranscriptItem } from "#shared/ipc";
-import {
-  createAgentClient,
-  type AgentClient,
-} from "../../../renderer/workspace/agent";
-import { useWorkspaceClient } from "../../../renderer/workspace/context";
+import type { ChannelClient } from "@uix/api/workspace";
+import type { agentChannels } from "#shared/ipc";
 import { ChatBlock } from "./blocks/ChatBlock";
 import { isPendingUserId, pendingUserId } from "./pending";
 
-export function Chat() {
-  const agent = useAgentClient();
+type AgentChannelClient = ChannelClient<typeof agentChannels>;
+
+export interface ChatProps {
+  client: AgentChannelClient;
+}
+
+export function Chat({ client }: ChatProps) {
   const [items, setItems] = useState<TranscriptItem[]>([]);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
@@ -25,13 +27,13 @@ export function Chat() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    return agent.onEvent((event: AgentEvent) => {
+    return client.subscriptions.event((event: AgentEvent) => {
       setItems((prev) => reduce(prev, event));
       if (event.type === "agent_end") {
         setPending(false);
       }
     });
-  }, [agent]);
+  }, [client]);
 
   // Pull the prior transcript once and prepend it. Prepend (not replace) so any
   // live event that arrived during the await stays after the resumed history.
@@ -41,7 +43,7 @@ export function Chat() {
     let cancelled = false;
     void (async () => {
       try {
-        const snapshot = await agent.getHistory();
+        const snapshot = await client.requests.history(undefined);
         if (cancelled) return;
         setItems((prev) => [...snapshot.items.filter(isVisible), ...prev]);
       } finally {
@@ -51,7 +53,7 @@ export function Chat() {
     return () => {
       cancelled = true;
     };
-  }, [agent]);
+  }, [client]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -70,7 +72,7 @@ export function Chat() {
     // first, confirm via the canonical record).
     setItems((prev) => [...prev, { id: pendingUserId(), kind: "user", text }]);
     try {
-      await agent.sendPrompt({ text });
+      await client.requests.prompt({ text });
     } catch (err) {
       setPending(false);
       setItems((prev) => [
@@ -126,11 +128,6 @@ export function Chat() {
       </form>
     </>
   );
-}
-
-function useAgentClient(): AgentClient {
-  const workspace = useWorkspaceClient();
-  return useMemo(() => createAgentClient(workspace), [workspace]);
 }
 
 function reduce(prev: TranscriptItem[], event: AgentEvent): TranscriptItem[] {
@@ -201,6 +198,7 @@ function syncItem(
       : [...items.slice(0, index), ...items.slice(index + 1)];
   }
   if (index === -1) {
+    // eslint-disable-next-line no-console -- ordering-broke diagnostic; the renderer has no logger facility
     console.warn("transcript_replace inserted a net-new item", item.id);
     return [...items, item];
   }
@@ -218,6 +216,7 @@ function applyPartial(
 ): TranscriptItem[] {
   const index = lastIndexById(items, event.id);
   if (index === -1) {
+    // eslint-disable-next-line no-console -- ordering-broke diagnostic; the renderer has no logger facility
     console.warn("transcript_partial for unknown item", event.id);
     return items;
   }
