@@ -1,10 +1,20 @@
 ---
-summary: "Build the Host→Workspace runtime boundary before surface contributions: introduce a web-compatible Workspace iframe, bridge it to backend substrate through request/event channels, then move chat and canvas in as default feature surfaces without hardcoding them in Host."
-read_when: "Read when resuming canvas/chat featurification after the Host/Workspace design discussion, especially before adding renderer surface contributions or changing App.tsx."
-status: active
+summary: "Archived spec for the Host→Workspace iframe boundary: W1–W2 were built and then deliberately collapsed into a single-page workspace (no Host, no iframe, no bridge — multi-workspace = multi-BrowserWindow), while W4–W6 landed in single-page form as surface contributions, shared channel contracts, and typed event publishers."
+read_when: "Read only for historical context on why the Host/Workspace iframe split was attempted and abandoned; the current direction lives in the workspace-feature-composition design thread."
+status: archived
 ---
 
-# Workspace runtime foundation
+# Spec: workspace runtime foundation (archived)
+
+## Outcome
+
+The plan half-shipped, in a different shape than written. W1–W2 (Workspace API wrapper, Host/Workspace entry split) were built (`683b97a`) and then deliberately removed in `8adeb7d`, which collapsed the app to a single-page workspace: no Host frame, no Workspace iframe, no postMessage bridge. Multi-workspace becomes multi-BrowserWindow — one page per workspace — with `window.channels` (`ChannelTransport`) wrapped by `WorkspaceClient`. W3 (the iframe bridge) was abandoned with it; an iframe transport returns only if/when foreign or generated surface code needs a containment boundary inside the workspace (backlog: discovery-fed surface composition).
+
+W4–W6 landed in single-page form: surface contributions live with features and `layout.tsx` composes them (`802e6d1`); shared schema-only `ChannelContract`s drive both the backend handlers (`withHandlers`) and the typed frontend client (`createChannelClient`), with surfaces receiving the client through `defineSurface` (`252c7d2`); backend events publish through typed contract-derived publishers via `FeatureEventPublisherFactory` (`828b0c4`). The W6 channel-cleanup checklist below is essentially done.
+
+W7 leftovers moved to the backlog: deriving canvas open keys from visible surfaces (still `openCanvasKeys = ["main"]`), feature-agent link metadata, locks/concurrency. The "Decisions to preserve" section remains a useful record of the vocabulary (Host/Workspace/Surface, shadow vs iframe surfaces) — with the caveat that Host is now a dormant concept, not a built layer. The follow-on loading work is [feature-loading-convergence](../feature-loading-convergence.md).
+
+The original plan follows unedited.
 
 ## Context snapshot
 

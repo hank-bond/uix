@@ -6,7 +6,7 @@ status: active
 
 # UIX
 
-UIX is a local Electron cockpit for building bidirectional human-agent surfaces on top of pi. Pi is the agent framework (sessions, tools, prompts, skills, extensions, model providers, agent events); UIX is the UI substrate (panes, channels, contribution points, and the bridge between agent tool calls and frontend state). The goal is not one fixed app but the wiring to build many local agent-facing apps: reports, dashboards, knowledge tools, design-system deliverables, interactive canvases.
+UIX is a local Electron cockpit for building bidirectional human-agent surfaces on top of pi. Pi is the agent framework (sessions, tools, prompts, skills, extensions, model providers, agent events); UIX is the UI substrate (surfaces, channels, contribution facets, and the bridge between agent tool calls and frontend state). The goal is not one fixed app but the wiring to build many local agent-facing apps: reports, dashboards, knowledge tools, design-system deliverables, interactive canvases.
 
 This file is the always-loaded orientation — the core model, the load-bearing invariants, and a routing map. Everything else lives one level down and is read on demand; nothing below this file is pinned into the agent's context.
 
@@ -32,34 +32,34 @@ For now this is pure on-demand traversal. Preloading the top ~100 summaries brea
 
 ## Core idea
 
-The atomic UIX unit is a **pane**: a render surface plus a typed event channel. The surface shows UI to the human; the channel lets it talk to other panes, to extension state, and optionally to the pi agent. Everything else layers on top.
+The atomic UIX unit is a **feature**: a loadable definition that contributes to substrate facets — visible **surfaces**, typed **channels**, agent tools, turn state, agent context, resources. A **workspace** (one page, one window) composes enabled feature surfaces over one agent session; channels let a surface talk to its feature's backend, to other features, and optionally to the pi agent. Chat and canvas are bundled default features, not core app structure. Everything else layers on top.
 
 ## Layers
 
 ```text
 pi                  agent sessions, tools, prompts, skills, providers, events
-UIX main            extension loading, lifetimes, agent session ownership, file watching
-UIX renderer shell  slots, pane host, chrome, layout, channel routing
-UIX extensions      panes, tools, declarative contributions, state schemas, docs
-pane content        React, iframe HTML, or declarative UI rendered by UIX
+UIX main            feature loading, lifetimes, facet registries, agent session ownership
+UIX workspace       surface composition, layout, typed channel clients
+UIX features        surfaces, channels, agent tools, turn state, agent context, resources
+surface content     React (trusted feature UI) or iframe HTML (contained/authored content)
 ```
 
 Pi and UIX are separate systems. A loadable package may contribute to either or both via optional `pi` and `uix` fields in `package.json`: the `pi` field teaches the agent backend capabilities, the `uix` field teaches the cockpit frontend capabilities.
 
 ## Substrate primitives
 
-The cockpit provides exactly these; anything else is an extension responsibility.
+The cockpit provides exactly these; anything else is a feature responsibility.
 
 | Primitive | Purpose |
 | --- | --- |
-| **Extension loader** | Discover, load, activate, hot-reload extensions. |
-| **Pane host + slot registry** | Mount React, iframe, or declarative surfaces into named slots. |
-| **Typed channel** | Bidirectional bus carrying validated events between panes and the agent. |
-| **Lifetime bags** | Per-extension `DisposableBag`; disposes everything an extension registered. |
-| **Agent session manager** | Owns the pi session, collects tool contributions, routes channel events to pi. |
-| **File watcher service** | Cockpit-owned watcher; extensions register glob → callback. |
+| **Feature loader** | Discover, load, register, hot-reload features (bundled and discovered alike). |
+| **Surface composition** | Mount contributed feature surfaces into the workspace layout. |
+| **Typed channel** | Contract-derived requests and events, validated both directions, between surfaces, feature backends, and the agent. |
+| **Lifetime bags** | Per-feature `DisposableBag`; disposes everything a feature registered. |
+| **Agent session manager** | Owns the pi session, installs agent-facet contributions, routes channel events to pi. |
+| **File watcher service** | Cockpit-owned watcher; features register glob → callback. |
 
-The cockpit shell (window, slot layout, error boundaries) sits underneath these and is not itself extensible.
+The cockpit shell (window, workspace layout, error boundaries) sits underneath these and is not itself extensible.
 
 ## Invariants
 
@@ -67,7 +67,7 @@ The rules that constrain every change — hold these before reaching for detail:
 
 - **Pilot, not the pilot's brain.** UIX adds capabilities for the _human working with the agent_, not for the agent; anything that makes the agent smarter belongs in pi. → [decision](docs/decisions/2026-05-30-uix-is-a-pilot-substrate.md)
 - **Mirror pi's self-extension ethos for UI.** Pi ships the tools to customize itself and little else (no subagents, permissions, or MCP — you build those through its integration points). UIX does the same one layer up for visual UI: ship composable primitives and thin default chrome, not fixed features. When tempted to hardcode a UI feature, make it a primitive something registers or composes. → [decision](docs/decisions/2026-06-05-pi-self-extension-ethos.md)
-- **Extensions never import cockpit internals.** All extension ↔ cockpit traffic flows through the injected `@uix/api` object, which keeps a future worker/utility-process isolation a mechanical swap. → [decision](docs/decisions/2026-05-30-extension-activation-and-isolation.md)
+- **Features never import cockpit internals.** All feature ↔ cockpit traffic flows through the injected context and the `@uix/api` types, which keeps a future worker/utility-process isolation a mechanical swap. → [decision](docs/decisions/2026-07-01-features-are-the-loadable-unit.md)
 - **The agent edits files, not the UI.** Persistent artifacts change through ordinary file-edit tools; channels carry validated events, not an agent-side UI API. → [decision](docs/decisions/2026-05-30-no-agent-ui-manipulation.md)
 - **Hosting-compatible by default.** The filesystem is never load-bearing — it's one local impl of a content store + change feed; address by id, cockpit is sole writer, content-hash echo suppression, field-level merge. → [decision](docs/decisions/2026-05-31-hosting-compatible-by-default.md)
 - **One channel API, two transports.** In-process and iframe `postMessage` sit behind one channel API (hosting later adds a third).
@@ -91,4 +91,4 @@ The cockpit injects this same orientation plus the doc map into its UIX-owned ag
 
 ## Non-goals
 
-UIX is not a marketplace, a sandbox for hostile extensions, a web-only deployment, a template/database persistence system, or a multi-agent orchestrator. The cockpit ships default chrome only — design system, markdown rendering, syntax highlighting, and a code editor are extension territory. All of these can be built on top of the substrate later.
+UIX is not a marketplace, a sandbox for hostile features, a web-only deployment, a template/database persistence system, or a multi-agent orchestrator. The cockpit ships default chrome only — design system, markdown rendering, syntax highlighting, and a code editor are feature territory. All of these can be built on top of the substrate later.

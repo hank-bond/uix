@@ -1,9 +1,11 @@
 ---
 summary: "Extensions activate sequentially, each under its own DisposableBag, with errors isolated per extension so one failure doesn't abort the rest (v0)."
-status: accepted
+status: superseded
 ---
 
 # Extension activation, lifetime, and error isolation
+
+> **Superseded by [features-are-the-loadable-unit](./2026-07-01-features-are-the-loadable-unit.md).** The activation/lifetime/error-isolation mechanics carry forward under feature vocabulary; the `ExtensionAPI` lifetime surface (`register*` returning void, `createExtensionAPI` enrollment) is retired.
 
 **Activation policy.**
 

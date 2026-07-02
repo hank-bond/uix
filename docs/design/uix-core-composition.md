@@ -45,9 +45,9 @@ export function buildUixExtension(pi: ExtensionAPI) {
 
 Order is **semantic** for every _mutating_ hook, not cosmetic. `input` transforms chain (each sees the prior's `currentText`); `before_agent_start` system-prompt edits "are chained"; `tool_call` mutations are visible to later handlers; `context` / `tool_result` / `message_end` rewrite in sequence. With no priority field, the registration sequence _is_ the composition semantics. The central array is the only place that sequence is legible and controllable. (Tools and pure observers are order-independent — for those the central list is legibility, not correctness; namespacing carries the rest, see below.)
 
-### Facets, features, and extensions
+### Facets and features
 
-A UIX **facet** is a substrate slice/contribution axis: state management, state messages, panes, channels, transcript rendering, extension loading. A UIX **feature** is the capability being added: canvas, chat, an interactive button, a viz pane. A UIX **extension package** is the concrete loadable/lifetime unit that installs one or more features.
+A UIX **facet** is a substrate slice/contribution axis: state management, state messages, surfaces, channels, transcript rendering, feature loading. A UIX **feature** is the capability being added — canvas, chat, an interactive button, a viz surface — and it is also the loadable/lifetime unit: one discovered entry default-exports one `FeatureDefinition` ([features-are-the-loadable-unit](../decisions/2026-07-01-features-are-the-loadable-unit.md)). The earlier "extension package installs features" two-level framing is retired; bundling features for distribution is a future **App** packaging concern.
 
 A feature may contribute to several facets at once:
 
@@ -57,7 +57,7 @@ A feature may contribute to several facets at once:
 - a **service** — a long-lived main-side process with teardown on `session_shutdown`. **Net-new.**
 - a **main handler/channel contribution** — bridges inbound renderer messages back to main-owned stores or the agent.
 
-The framework does not need a concrete `Feature` abstraction before it earns one. Extension installers can register directly into facet registries. “Feature” remains the friendly conceptual word for the thing a human/agent is building; “extension” is the package/activation boundary.
+The concrete `Feature` abstraction has since been earned: `FeatureDefinition` (`id`, optional `context(ctx)` hook, `contribute(ctx)` returning per-facet contributions) is the shape canvas ships on and the shape discovered entries export. Feature is both the conceptual word and the activation boundary; the loader machinery (discovery, per-entry bags, error isolation, reload) carries over from the old extension side unchanged.
 
 ### State lifecycle is a substrate subdomain
 
@@ -137,6 +137,10 @@ The concepts are a thinking tool, not a build order. Today everything is **relat
 Everything else, hardcode freely. The deferred extractions are already seeded in the [plans backlog](../plans/AGENTS.md) (pane host + slot registry, agent-tool contribution from extensions, default conversation extension, file-watcher service); each earns its place at the second or third instance, or the first userspace contribution.
 
 ## Log
+
+### 2026-07-01 — feature becomes the loadable unit
+
+The "extension package installs features" two-level vocabulary from the 2026-06-07 entry is retired: the feature is the loadable unit, discovered entries default-export a plain `FeatureDefinition`, and the injected-`ExtensionAPI` factory dies. Bundled and discovered features share one registration path under the reload bag — the driver/bag/reload reconciliation model from the 2026-06-18 entry applies to all features, bundled included, because the expected loop is the agent self-modifying feature source and the user reloading. See [features-are-the-loadable-unit](../decisions/2026-07-01-features-are-the-loadable-unit.md) and [feature-loading-convergence](../plans/feature-loading-convergence.md); the synthesis above has been updated in place.
 
 ### 2026-06-18 — drivers, extension reload, and Pi reconciliation
 

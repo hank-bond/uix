@@ -1,0 +1,38 @@
+---
+summary: "The feature is the one uix-side loadable unit: a discovered entry default-exports a plain FeatureDefinition (no injected-API factory), bundled and discovered features register through one contribution path under the reload bag, and the contribution contract lives behind @uix/api — retiring ExtensionAPI and the parallel extension system."
+read_when: "Read before touching src/main/extensions/ or src/main/features/, the @uix/api surface, or anything named 'extension' on the uix side — the extension vocabulary and the injected-API factory shape are retired."
+status: accepted
+---
+
+# Features are the loadable unit; ExtensionAPI is retired
+
+Two parallel systems grew side by side: the extension loader (discovery, jiti entry loading, per-entry bags, error isolation, reload) handing entries a stub `ExtensionAPI`, and the feature contribution system (`FeatureDefinition`, facet registries, `registerFeatureContributions`) fed by a hardcoded bundled inventory. This decision converges them into one system under one word.
+
+**Vocabulary: feature, only.** The uix-side loadable unit is a **feature** — the thing that contributes resources, channels, agent tools, turn state, agent context, and surfaces. "Extension" is retired from the uix side; it remains pi's word for pi's own loadable unit (a package's `pi` field is still "a pi extension" because that's pi's vocabulary, not ours). The two-level "extension package installs features" framing is dropped: one discovered entry is one feature. If we later want to distribute several features together as a unit, that unit is an **App** — a packaging concern deliberately not designed here.
+
+**Export shape: a plain `FeatureDefinition` object.** A feature entry default-exports the same `FeatureDefinition` bundled features already use — `id`, optional `context(ctx)` hook, `contribute(ctx)` returning facet contributions. The pi-mirroring injected-API factory (`export default (uix: ExtensionAPI) => { uix.register*(...) }`) is retired: it duplicated what `contribute(ctx)` does declaratively, its only method was a logged no-op stub, and the declarative shape keeps registration order substrate-owned instead of emergent from author code. The definition already has imperative hooks where they're needed (`context`, `contribute` are functions and can close over feature-private runtime). An async factory form (`export default async () => FeatureDefinition`) is **deferred** until a feature actually needs activation-time `await` — adding it later is non-breaking.
+
+**One registration path, one lifetime.** The bundled inventory (`bundled.ts`) becomes a _source_ — an always-present feature list prepended to whatever discovery finds — not a parallel system. Every feature, bundled or discovered, flows through the same `registerFeatureContributions` into a per-feature `DisposableBag` enrolled under the reload child bag. Reload therefore re-runs the whole feature composition, bundled included. This symmetry is load-bearing, not aesthetic: the expected workflow is the agent self-modifying feature source on disk and the user reloading, exactly like pi — so wholesale teardown/re-register is the boundary test that proves lifetimes are scoped correctly. This extends [manual-reload-extensionsbag](./2026-05-31-manual-reload-extensionsbag.md), whose mechanics (child bag, `clear()` vs dispose, discovery-before-teardown, single-flight load, jiti with `moduleCache: false`) all carry forward; the bag is renamed `extensionsBag` → `featuresBag`.
+
+**The contract lives behind `@uix/api`.** `FeatureDefinition`, `FeatureContributions`, `FeatureContext`, and every facet's contribution types move behind `@uix/api`, inverting today's dependency direction (main-process registries currently define the contribution types and `features/contributions.ts` imports them). Main registries import their contribution types _from_ the API package; `FeatureContext`'s `documents` field is typed by a type-only `DocumentStoreFactory` interface that the local store implements. Bundled features import the contract from `@uix/api` like any external feature would — bundled and discovered features are indistinguishable except for how they're found. The invariant carries forward reworded: **features never import cockpit internals**; all feature ↔ substrate traffic flows through the injected `FeatureContext` and the `@uix/api` types.
+
+**Renames.** Manifest key `uix.extensions` → `uix.features`; discovery roots `.uix/extensions/` → `.uix/features/`; `src/main/extensions/` merges into `src/main/features/`.
+
+**Carried forward from the superseded decisions** (still true, restated under feature vocabulary so this doc is self-sufficient):
+
+- Discovery is side-effect-free (dir + `package.json` reads, no user code), separate from activation, re-runnable for reload ([extension-discovery-and-identity](./2026-05-30-extension-discovery-and-identity.md)).
+- Identity: the package dir for discovery, the entry file's absolute path for a loaded feature; a manifest may list multiple entries, each its own feature with its own bag. No composite root-tagged ids; no same-name shadowing across roots.
+- Roots: `<project>/.uix/features/` and `~/.uix/features/`; bare absolute paths, configured paths append later. UIX ships zero discovered features; bundled defaults are in-tree source.
+- Activation is sequential with per-feature error isolation: a throwing entry lands in `failed[]` with its partially-built bag disposed, siblings continue ([extension-activation-and-isolation](./2026-05-30-extension-activation-and-isolation.md)).
+- Process posture: features run in-process as trusted local code; jiti is a loader, not a sandbox. A future worker/utility-process isolation stays a transport swap because features only touch the injected context.
+- `@uix/api` stays a tsconfig path alias until external distribution needs a real package; the import shape is what's frozen ([extension-api-type-alias](./2026-05-30-extension-api-type-alias.md)).
+
+**Rejected.**
+
+- _Keeping both systems_ (extensions for external, features for bundled): two names, two registration paths, and an API boundary (`ExtensionAPI`) that would have to grow into a worse duplicate of `FeatureContributions`.
+- _Growing `ExtensionAPI` into the real API_ (imperative `register*` methods): registration order becomes author-emergent, lifetime enrollment becomes side-effectful per call, and every facet needs a method mirror of its contribution type. The declarative definition already exists and is what canvas ships on.
+- _Keeping "extension" as the package word above features_: a second conceptual layer with no current behavior behind it; App covers the future need better.
+
+**Out of scope.** Discovery-fed _surface_ composition (the renderer's layout is still a build-time import list; foreign/generated surface code additionally needs the iframe surface transport) — backlog. A commands facet, if commands return, returns on `FeatureContributions`. Preflight for discovered features — today's preflight is feature-independent (one substrate resource scheme), so nothing is lost by deferring.
+
+Supersedes [extension-api-type-alias](./2026-05-30-extension-api-type-alias.md), [extension-discovery-and-identity](./2026-05-30-extension-discovery-and-identity.md), and [extension-activation-and-isolation](./2026-05-30-extension-activation-and-isolation.md). Distilled from [workspace-feature-composition](../design/workspace-feature-composition.md) and [uix-core-composition](../design/uix-core-composition.md); built by [feature-loading-convergence](../plans/feature-loading-convergence.md).

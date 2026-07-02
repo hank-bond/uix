@@ -1,9 +1,11 @@
 ---
 summary: "Extensions are discovered from project/global .uix/extensions (a package.json with pi/uix fields) and identified by the entry file's absolute path; UIX ships none of its own."
-status: accepted
+status: superseded
 ---
 
 # Extension discovery model and identity
+
+> **Superseded by [features-are-the-loadable-unit](./2026-07-01-features-are-the-loadable-unit.md).** The discovery mechanics and identity model carry forward; "extension" is retired as the uix-side unit (the unit is a feature) and the roots/manifest rename to `.uix/features/` / `uix.features`.
 
 **User-installed, not first-party.** Putting `uix-core` under `src/extensions/` was a category mistake. Extensions are user-installed; what `uix-core` does (orientation + doc map + cockpit tools) is _embedded-pi config_ — how the cockpit configures its own pi instance, not a feature users opt into.
 
