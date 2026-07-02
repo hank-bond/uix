@@ -18,6 +18,7 @@ const emptyParams = Type.Object({});
 
 function channelContribution(name = "refresh") {
   return {
+    feature: "canvas",
     requests: {
       [name]: {
         requestSchema: emptyParams,
@@ -197,6 +198,14 @@ describe("registerFeatureContributions", () => {
       }),
     ).toThrow(
       "Feature canvas contributes agent context but no agent-context registry was provided",
+    );
+
+    expect(() =>
+      registerFeatureContributions({}, "canvas", {
+        surfaces: ["./surface.tsx"],
+      }),
+    ).toThrow(
+      "Feature canvas contributes surfaces but no surface registry was provided",
     );
   });
 });

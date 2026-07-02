@@ -20,6 +20,7 @@ import { DisposableBag } from "../lifecycle";
 
 import { loadFeatures, type FeatureSubstrate } from "./loader";
 import { WorkspaceManifestFileName } from "./manifest";
+import { SurfaceRegistry } from "./surfaces";
 
 const documents: DocumentStoreFactory = {
   createStore: () => {
@@ -29,6 +30,7 @@ const documents: DocumentStoreFactory = {
 
 function makeSubstrate() {
   const agentTools = new AgentToolRegistry();
+  const surfaces = new SurfaceRegistry();
   const channels = new ChannelRegistry({
     transportHandle: () => ({
       [Symbol.dispose]() {},
@@ -37,9 +39,9 @@ function makeSubstrate() {
   const substrate: FeatureSubstrate = {
     documents,
     channels,
-    registries: { agentTools, channels },
+    registries: { agentTools, channels, surfaces },
   };
-  return { substrate, agentTools };
+  return { substrate, agentTools, surfaces };
 }
 
 /** In-memory stand-in for an in-tree bundled default. */
@@ -369,5 +371,49 @@ describe("loadFeatures", () => {
     expect(second.failed).toEqual([]);
     expect(second.loaded.map((f) => f.id)).toEqual(["canvas", "greeter"]);
     expect(agentTools.registeredContributions).toHaveLength(2);
+  });
+
+  it("registers surface refs resolved against the feature entry's directory", async () => {
+    const manifestPath = await writeWorkspace({
+      "shiny.ts": `
+export default {
+  id: "shiny",
+  contribute: () => ({ surfaces: ["./workspace/surface.tsx"] }),
+};
+`,
+    });
+    const { substrate, surfaces } = makeSubstrate();
+    const bag = new DisposableBag();
+
+    const result = await loadFeatures({ manifestPath }, bag, substrate);
+
+    expect(result.failed).toEqual([]);
+    const entryDir = join(result.loaded[0]?.entry ?? "", "..");
+    expect(surfaces.list()).toEqual([
+      { featureId: "shiny", entry: join(entryDir, "workspace/surface.tsx") },
+    ]);
+
+    bag.clear();
+    expect(surfaces.list()).toEqual([]);
+  });
+
+  it("rejects surface contributions from compiled-in definitions", async () => {
+    const manifestPath = await writeWorkspace({});
+    const compiledIn: FeatureDefinition = {
+      id: "surfacey",
+      contribute: () => ({ surfaces: ["./surface.tsx"] }),
+    };
+    const { substrate } = makeSubstrate();
+
+    const result = await loadFeatures(
+      { manifestPath, bundled: [compiledIn] },
+      new DisposableBag(),
+      substrate,
+    );
+
+    expect(result.loaded).toEqual([]);
+    expect(result.failed[0]?.error.message).toContain(
+      "activated without an entry directory",
+    );
   });
 });

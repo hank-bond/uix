@@ -30,7 +30,7 @@ function fakeWorkspaceClient() {
 describe("channel clients", () => {
   it("creates typed feature client from a channel contract", async () => {
     const { client, request, subscribe } = fakeWorkspaceClient();
-    const canvas = createChannelClient(client, "canvas", canvasChannels);
+    const canvas = createChannelClient(client, canvasChannels);
     const onChanged = vi.fn();
 
     await canvas.requests.writeback({
@@ -57,7 +57,7 @@ describe("channel clients", () => {
 
   it("creates typed agent client from the agent channel contract", async () => {
     const { client, request, subscribe } = fakeWorkspaceClient();
-    const agent = createChannelClient(client, "agent", agentChannels);
+    const agent = createChannelClient(client, agentChannels);
     const onEvent = vi.fn();
 
     await agent.requests.prompt({ text: "hi" });

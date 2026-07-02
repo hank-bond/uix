@@ -91,6 +91,14 @@ export function registerChannelContributions(
 ): Disposable {
   const bag = new DisposableBag();
   for (const contribution of contributions) {
+    // The contract states its owner once, where it's defined; a mismatch
+    // here means a feature is registering handlers under someone else's
+    // channel namespace — always a wiring bug, never valid.
+    if (contribution.feature !== featureId) {
+      throw new Error(
+        `Feature ${featureId} cannot register channels owned by ${contribution.feature}`,
+      );
+    }
     const contract = normalizeChannelContribution(featureId, contribution);
     for (const registration of channelRequestRegistrations(contract)) {
       bag.add(registry.register(registration));
@@ -111,11 +119,17 @@ export function createFeatureEventPublisherFactory(
   publisher: Pick<ChannelRegistry, "publish">,
 ): FeatureEventPublisherFactory {
   return {
-    createPublisher: (contract) =>
-      createFeatureEventPublisher(
+    createPublisher: (contract) => {
+      if (contract.feature !== featureId) {
+        throw new Error(
+          `Feature ${featureId} cannot publish events on channels owned by ${contract.feature}`,
+        );
+      }
+      return createFeatureEventPublisher(
         (name, payload) =>
           publisher.publish(toChannelCanonicalId(featureId, name), payload),
         contract,
-      ),
+      );
+    },
   };
 }

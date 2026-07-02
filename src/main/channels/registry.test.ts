@@ -149,6 +149,7 @@ describe("ChannelRegistry", () => {
 
     const registration = registerChannelContributions(registry, "canvas", [
       {
+        feature: "canvas",
         requests: {
           refresh: {
             requestSchema: Type.Object({}),
@@ -185,6 +186,7 @@ describe("ChannelRegistry", () => {
     });
 
     const typed = channels.createPublisher({
+      feature: "canvas",
       requests: {},
       events: {
         changed: { event: Type.Object({ key: Type.String() }) },
@@ -199,5 +201,40 @@ describe("ChannelRegistry", () => {
       { canonicalId: "canvas.changed", payload: { key: "main" } },
       { canonicalId: "canvas.refreshed", payload: undefined },
     ]);
+  });
+
+  it("rejects registering channels under another contract's owner", () => {
+    const transport = fakeTransport();
+    const registry = new ChannelRegistry({
+      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
+    });
+
+    expect(() =>
+      registerChannelContributions(registry, "impostor", [
+        {
+          feature: "canvas",
+          requests: {},
+          events: {},
+        },
+      ]),
+    ).toThrow("Feature impostor cannot register channels owned by canvas");
+  });
+
+  it("rejects minting a publisher for another contract's owner", () => {
+    const transport = fakeTransport();
+    const channels = createFeatureEventPublisherFactory("impostor", {
+      publish: (canonicalId, payload) =>
+        transport.publish(canonicalId, payload),
+    });
+
+    expect(() =>
+      channels.createPublisher({
+        feature: "canvas",
+        requests: {},
+        events: {},
+      } as const),
+    ).toThrow(
+      "Feature impostor cannot publish events on channels owned by canvas",
+    );
   });
 });

@@ -36,6 +36,7 @@ describe("contributionId", () => {
 describe("normalizeChannelContribution", () => {
   it("derives contribution and canonical ids from feature id and names", () => {
     const channels = normalizeChannelContribution("canvas", {
+      feature: "canvas",
       requests: {
         writeback: {
           requestSchema: Type.Object({ html: Type.String() }),
@@ -65,6 +66,7 @@ describe("normalizeChannelContribution", () => {
   it("rejects duplicate request/event names", () => {
     expect(() =>
       normalizeChannelContribution("canvas", {
+        feature: "canvas",
         requests: {
           changed: {
             requestSchema: Type.Object({}),

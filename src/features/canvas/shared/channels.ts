@@ -1,6 +1,6 @@
 import { Type, type Static } from "typebox";
 
-import type { FeatureEventPublisher } from "@uix/api/channels";
+import type { ChannelContract, FeatureEventPublisher } from "@uix/api/channels";
 
 import { CanvasKeySchema } from "./addressing";
 
@@ -16,6 +16,7 @@ export const CanvasWritebackSchema = Type.Object({
 export type CanvasWriteback = Static<typeof CanvasWritebackSchema>;
 
 export const canvasChannels = {
+  feature: "canvas",
   requests: {
     writeback: {
       requestSchema: CanvasWritebackSchema,
@@ -27,6 +28,6 @@ export const canvasChannels = {
       event: CanvasChangedSchema,
     },
   },
-} as const;
+} as const satisfies ChannelContract;
 
 export type CanvasEventPublisher = FeatureEventPublisher<typeof canvasChannels>;

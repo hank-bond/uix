@@ -22,6 +22,8 @@ import {
 } from "../resources/registry";
 import type { TurnStateRegistry } from "../turn-state/registry";
 import { registerTurnStateContributions } from "../turn-state/registry";
+import type { SurfaceRegistry } from "./surfaces";
+import { registerSurfaceContributions } from "./surfaces";
 
 import type { FeatureDefinition, FeatureContributions } from "@uix/api/feature";
 
@@ -31,12 +33,24 @@ export interface FeatureContributionRegistries {
   agentTools?: AgentToolRegistry;
   turnState?: TurnStateRegistry;
   agentContext?: AgentContextRegistry;
+  surfaces?: SurfaceRegistry;
+}
+
+/** Where the feature's definition came from, for path-relative facets. */
+export interface FeatureOrigin {
+  /**
+   * Directory of the feature's entry file; surface entry refs resolve
+   * against it. Absent for compiled-in definitions, which therefore cannot
+   * contribute surfaces.
+   */
+  entryDir?: string;
 }
 
 export function registerFeatureContributions(
   registries: FeatureContributionRegistries,
   featureId: string,
   contributions: FeatureContributions,
+  origin: FeatureOrigin = {},
 ): Disposable {
   const bag = new DisposableBag();
 
@@ -111,6 +125,27 @@ export function registerFeatureContributions(
         registries.agentContext,
         featureId,
         contributions.agentContext,
+      ),
+    );
+  }
+
+  if (contributions.surfaces?.length) {
+    if (!registries.surfaces) {
+      throw new Error(
+        `Feature ${featureId} contributes surfaces but no surface registry was provided`,
+      );
+    }
+    if (!origin.entryDir) {
+      throw new Error(
+        `Feature ${featureId} contributes surfaces but was activated without an entry directory to resolve them against`,
+      );
+    }
+    bag.add(
+      registerSurfaceContributions(
+        registries.surfaces,
+        featureId,
+        contributions.surfaces,
+        origin.entryDir,
       ),
     );
   }

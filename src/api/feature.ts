@@ -43,6 +43,13 @@ export interface FeatureContributions {
   agentTools?: readonly AgentToolContribution[];
   turnState?: readonly TurnStateContribution[];
   agentContext?: readonly AgentContextContribution[];
+  /**
+   * Frontend surface entry files, resolved against the feature entry's
+   * directory (absolute paths pass through). Each module's default export
+   * must be a `defineSurface` result; the workspace mounts them in
+   * composition order (manifest order, then declaration order here).
+   */
+  surfaces?: readonly string[];
 }
 
 export interface FeatureDefinition<

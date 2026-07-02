@@ -30,5 +30,9 @@
     "src/shared/**/*.ts",
     "electron.vite.config.ts",
     "vitest.config.mts"
-  ]
+  ],
+  // workspace.ts is the web-only half of @uix/api (React surfaces,
+  // CSSStyleSheet); nothing in the main process imports it, and it needs
+  // the DOM lib this config deliberately lacks.
+  "exclude": ["src/api/workspace.ts"]
 }

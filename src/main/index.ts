@@ -25,6 +25,7 @@ import {
   type PickerOpenRequest,
   type PickerState,
   type ReloadResult,
+  uixChannels,
 } from "../shared/ipc";
 import { createAgentDriver } from "./agent/driver";
 import { AgentContextRegistry } from "./agent-context/registry";
@@ -51,6 +52,7 @@ import {
   readWorkspaceManifest,
   WorkspaceManifestFileName,
 } from "./features/manifest";
+import { SurfaceRegistry } from "./features/surfaces";
 import { createRecentsStore, type RecentsStore } from "./recents";
 import { ResourceRegistry } from "./resources/registry";
 import { resolveWorkspace, type Workspace } from "./workspace";
@@ -172,6 +174,7 @@ async function openWorkspace(
   const turnState = new TurnStateRegistry();
   const agentTools = new AgentToolRegistry();
   const agentContext = new AgentContextRegistry();
+  const surfaces = new SurfaceRegistry();
 
   // Agent publisher: created early so the driver can emit events through the
   // channel transport. The registry's publish transport already broadcasts to
@@ -192,6 +195,23 @@ async function openWorkspace(
     agentInstallers: [createAgentToolInstaller(agentTools)],
   });
   appBag.add(driver);
+
+  // Substrate workspace channels under the reserved `uix` id: the surface
+  // composition the renderer mounts, plus the changed signal fired after
+  // every load pass so the page re-fetches.
+  const uixPublisher = createFeatureEventPublisherFactory(
+    "uix",
+    channels,
+  ).createPublisher(uixChannels);
+  appBag.add(
+    registerChannelContributions(channels, "uix", [
+      withHandlers(uixChannels, {
+        surfaces: {
+          handle: () => ({ surfaces: [...surfaces.list()] }),
+        },
+      }),
+    ]),
+  );
 
   // Register substrate agent channels before feature contributions so the
   // prompt/history handlers can close over the driver.
@@ -228,7 +248,14 @@ async function openWorkspace(
   const substrate: FeatureSubstrate = {
     documents,
     channels,
-    registries: { resources, channels, agentTools, turnState, agentContext },
+    registries: {
+      resources,
+      channels,
+      agentTools,
+      turnState,
+      agentContext,
+      surfaces,
+    },
   };
   const currentSources = (): FeatureSources => ({
     ...(fs.existsSync(manifestPath) && { manifestPath }),
@@ -254,6 +281,7 @@ async function openWorkspace(
     { loaded: activation.loaded.length, failed: activation.failed.length },
     "activation_complete",
   );
+  uixPublisher.surfaces_changed({});
 
   // Record the recent by manifest name (best-effort: a workspace without a
   // manifest isn't listable, and a bad manifest was already logged above).
@@ -281,6 +309,7 @@ async function openWorkspace(
           featuresBag,
           substrate,
         );
+        uixPublisher.surfaces_changed({});
         const piReloaded = await driver.reload();
         reloadLog.debug(
           {

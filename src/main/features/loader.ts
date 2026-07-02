@@ -41,6 +41,8 @@
 // reloads" work with no build step. jiti is a loader/transpiler,
 // not a sandbox; workspace features remain trusted local code.
 
+import { dirname } from "node:path";
+
 import type { FeatureContext, FeatureDefinition } from "@uix/api/feature";
 import type { DocumentStoreFactory } from "@uix/api/documents";
 import { createJiti } from "jiti";
@@ -207,6 +209,7 @@ export const activateFeatures = async (
     displayName: string,
     entry: string,
     loadDefinition: () => unknown,
+    entryDir?: string,
   ): Promise<void> => {
     const flog = log.child({ feature: displayName, entry });
     flog.debug({}, "activating");
@@ -235,6 +238,7 @@ export const activateFeatures = async (
           substrate.registries,
           definition.id,
           definition.contribute({ ...baseContext, ...contributedContext }),
+          { entryDir },
         ),
       );
 
@@ -263,8 +267,11 @@ export const activateFeatures = async (
   }
 
   for (const { ref, entry } of sources.entries) {
-    await activate(ref, entry, () =>
-      jiti.import<unknown>(entry, { default: true }),
+    await activate(
+      ref,
+      entry,
+      () => jiti.import<unknown>(entry, { default: true }),
+      dirname(entry),
     );
   }
 

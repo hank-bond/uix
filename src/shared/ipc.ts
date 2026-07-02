@@ -150,6 +150,7 @@ export const TranscriptSnapshotSchema = Type.Unsafe<TranscriptSnapshot>(
 );
 
 export const agentChannels = {
+  feature: "agent",
   requests: {
     prompt: {
       requestSchema: PromptRequestSchema,
@@ -163,6 +164,35 @@ export const agentChannels = {
   events: {
     event: {
       event: AgentEventSchema,
+    },
+  },
+} as const satisfies ChannelContract;
+
+/**
+ * A surface entry the workspace page can mount: which feature contributed it
+ * and the absolute entry-file path the contribution resolved to. The module
+ * URL the page actually imports arrives with the surface pipeline (S2 of the
+ * runtime-surface-composition plan).
+ */
+export const SurfaceEntrySchema = Type.Object({
+  featureId: Type.String(),
+  entry: Type.String(),
+});
+export type SurfaceEntry = Static<typeof SurfaceEntrySchema>;
+
+// Substrate workspace channels under the reserved `uix` id — the surface
+// composition the renderer mounts. Same contract discipline as agentChannels.
+export const uixChannels = {
+  feature: "uix",
+  requests: {
+    surfaces: {
+      requestSchema: Type.Void(),
+      responseSchema: Type.Object({ surfaces: Type.Array(SurfaceEntrySchema) }),
+    },
+  },
+  events: {
+    surfaces_changed: {
+      event: Type.Object({}),
     },
   },
 } as const satisfies ChannelContract;
