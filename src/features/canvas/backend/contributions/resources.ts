@@ -5,7 +5,7 @@ import {
   CanvasResourceRoute,
   parseCanvasKeyRouteParam,
 } from "../../shared/addressing";
-import type { ResourceContribution } from "#backend/resources/registry";
+import type { ResourceContribution } from "@uix/api/resources";
 import { createLogger } from "#backend/log";
 import type { CanvasContext } from "../context";
 

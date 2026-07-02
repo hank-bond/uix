@@ -6,7 +6,7 @@
 
 import { canvasFeature } from "#features/canvas/backend/contributions";
 
-import type { FeatureDefinition } from "./contributions";
+import type { FeatureDefinition } from "@uix/api/feature";
 
 export function getBundledFeatures(): readonly FeatureDefinition[] {
   return [canvasFeature];

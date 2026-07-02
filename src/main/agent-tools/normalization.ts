@@ -16,8 +16,8 @@
 // cross-facet piece — the ContributionId grammar — stays in `#shared`.
 
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
-import type { TSchema } from "typebox";
 
+import type { AgentToolDefinition } from "@uix/api/agent-tools";
 import { toContributionId, type ContributionId } from "#shared/contribution-id";
 
 /**
@@ -44,24 +44,10 @@ export function toAgentToolCanonicalId(
   return `${featureId}__${name}` as AgentToolCanonicalId;
 }
 
-/**
- * The tool body an author provides: everything in a `ToolDefinition` except
- * `name`, which the facet derives from `(featureId, name)` and stamps during
- * normalization. Making it `Omit` turns an author hand-writing `name` into a
- * compile error.
- *
- * Generic on the parameter schema so a reusable tool factory can narrow it —
- * `AgentToolDefinition<typeof myParams>` — which threads `Static<TParams>`
- * contextually into `execute`, `renderCall`, and `prepareArguments` and
- * type-checks the `parameters` field against the specific schema. Defaults to
- * the widened `TSchema` so one-off inline tool literals can use the bare alias.
- * (Pi's own `createReadToolDefinition` uses `ToolDefinition<typeof readSchema>`
- * the same way; this mirrors that for feature-authored tools.)
- */
-export type AgentToolDefinition<TParams extends TSchema = TSchema> = Omit<
-  ToolDefinition<TParams>,
-  "name"
->;
+// The author-facing tool-body alias lives in @uix/api/agent-tools (a tool
+// body is a pi artifact; features get the real pi typing from the API).
+// Re-exported here so main-internal call sites keep one import path.
+export type { AgentToolDefinition } from "@uix/api/agent-tools";
 
 export interface AgentToolRegistration {
   readonly contributionId: ContributionId;

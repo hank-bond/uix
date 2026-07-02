@@ -7,6 +7,10 @@
 // This is a singleton facet: at most one contribution per feature. The
 // featureId itself serves as the canonical id under the `uix.turn-state`
 // blob; the registry dedup key is `${featureId}.state`.
+//
+// The contribution types (TurnStateContribution and companions) live in
+// @uix/api/turn-state and are re-exported here so existing call sites keep
+// compiling without import changes.
 
 import type {
   SessionEntry,
@@ -18,11 +22,26 @@ import { createLogger } from "../log";
 import { DisposableBag } from "../lifecycle";
 import type { AgentInstaller } from "../agent/installers";
 
+export type {
+  TurnStateHistoryEntry,
+  TurnStateHistoryOptions,
+  TurnStateHistoryReader,
+  TurnStatePreparationContext,
+  PreparedTurnState,
+  TurnStateContribution,
+} from "@uix/api/turn-state";
+
+import type {
+  TurnStateContribution,
+  TurnStatePreparationContext,
+  TurnStateHistoryReader,
+  TurnStateHistoryEntry,
+  TurnStateHistoryOptions,
+} from "@uix/api/turn-state";
+
 const log = createLogger("turn-state");
 
 const TurnStateEntryType = "uix.turn-state";
-
-type MaybePromise<T> = T | Promise<T>;
 
 // ---- canonical id brand ----
 
@@ -47,57 +66,6 @@ function assertStateToken(label: string, token: string): void {
   if (!pattern.test(token)) {
     throw new Error(`Invalid ${label}: ${token}. Expected ${pattern}.`);
   }
-}
-
-export interface TurnStateHistoryEntry<TState = unknown> {
-  readonly entryId: string;
-  readonly cwd: string | undefined;
-  readonly state: TState;
-}
-
-export interface TurnStateHistoryOptions {
-  readonly offset?: number;
-  readonly limit?: number;
-}
-
-// Access to committed turn-state history for one feature key. The nearest
-// entry is whatever is latest at the point this reader is used: in turn-state
-// prep that means the previous committed state; after prep appends, it means
-// the just-committed state.  Keep this in mind because it does mean you have
-// to be aware of the order of facet execution sometimes.  The expectaion is
-// that you will not implement this directly, but will extend or alias it with
-// the name of your execution stage.
-export interface TurnStateHistoryReader {
-  turnState<TState = unknown>(): TurnStateHistoryEntry<TState> | undefined;
-  turnStates<TState = unknown>(
-    opts?: TurnStateHistoryOptions,
-  ): readonly TurnStateHistoryEntry<TState>[];
-}
-
-// Turn-state prep adds cwd to the same feature-bound history reader. Again,
-// in turn-state prep stage, the most recent state is going to be the committed
-// state from the previous turn, not this turn (since that has not been committed
-// yet, hence us being in prep :D )
-export interface TurnStatePreparationContext extends TurnStateHistoryReader {
-  cwd: string;
-}
-
-export interface PreparedTurnState {
-  state: unknown;
-}
-
-/**
- * A turn-state contribution from a feature. Exactly one per feature.
- * Preparation callbacks are optional — a contribution that declares neither
- * is valid but inert.
- */
-export interface TurnStateContribution {
-  prepareUserSubmitState?: (
-    ctx: TurnStatePreparationContext,
-  ) => MaybePromise<PreparedTurnState | undefined>;
-  prepareAgentEndState?: (
-    ctx: TurnStatePreparationContext,
-  ) => MaybePromise<PreparedTurnState | undefined>;
 }
 
 interface RegisteredTurnStateContribution extends TurnStateContribution {

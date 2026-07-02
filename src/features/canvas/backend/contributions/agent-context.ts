@@ -2,7 +2,7 @@
 
 import { Type } from "typebox";
 
-import type { AgentContextContribution } from "#backend/agent-context/registry";
+import type { AgentContextContribution } from "@uix/api/agent-context";
 import type { AnchoredChange } from "#backend/anchors/document";
 import { createLogger } from "#backend/log";
 

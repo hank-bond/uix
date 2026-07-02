@@ -1,26 +1,18 @@
 // feature contribution registration.
 //
-// This is intentionally not a full feature system. It centralizes the repeated
-// facet-registration/lifetime pattern while canvas is being decomposed into
-// explicit contribution axes.
+// The feature contract types (FeatureDefinition, FeatureContributions,
+// FeatureContext, etc.) now live behind @uix/api and are re-exported here so
+// existing call sites keep compiling. This module owns the runtime registration
+// functions and the per-facet registry shape (FeatureContributionRegistries).
 
-import type {
-  AgentContextContribution,
-  AgentContextRegistry,
-} from "../agent-context/registry";
+import type { AgentContextRegistry } from "../agent-context/registry";
 import { registerAgentContextContributions } from "../agent-context/registry";
-import type {
-  AgentToolContribution,
-  AgentToolRegistry,
-} from "../agent-tools/registry";
+import type { AgentToolRegistry } from "../agent-tools/registry";
 import { registerAgentToolContributions } from "../agent-tools/registry";
-import type { ChannelContribution } from "@uix/api/channels";
 import type { ChannelRegistry } from "../channels/registry";
 import { registerChannelContributions } from "../channels/registry";
-import type { FeatureContext } from "./context";
 import { DisposableBag } from "../lifecycle";
 import type {
-  ResourceContribution,
   ResourceRegistry,
   ResourceSchemeRegistrar,
 } from "../resources/registry";
@@ -28,36 +20,16 @@ import {
   registerResourceContributions,
   registerResourceProtocol,
 } from "../resources/registry";
-import type {
-  TurnStateContribution,
-  TurnStateRegistry,
-} from "../turn-state/registry";
+import type { TurnStateRegistry } from "../turn-state/registry";
 import { registerTurnStateContributions } from "../turn-state/registry";
 
-export type FeaturePreflightContributions = Record<string, never>;
+export type {
+  FeatureDefinition,
+  FeatureContributions,
+  FeaturePreflightContributions,
+} from "@uix/api/feature";
 
-export interface FeatureDefinition<
-  ContributedContext extends Record<string, unknown> = Record<string, unknown>,
-> {
-  id: string;
-  preflight?: FeaturePreflightContributions;
-  /**
-   * Feature-local context hook. Runs first, before any other contribution,
-   * and is the only contribution whose execution order is guaranteed. Its
-   * return value is merged onto the substrate `FeatureContext` and handed to
-   * `contribute` and every facet factory.
-   */
-  context?: (ctx: FeatureContext) => ContributedContext;
-  contribute(ctx: FeatureContext & ContributedContext): FeatureContributions;
-}
-
-export interface FeatureContributions {
-  resources?: readonly ResourceContribution[];
-  channels?: readonly ChannelContribution[];
-  agentTools?: readonly AgentToolContribution[];
-  turnState?: readonly TurnStateContribution[];
-  agentContext?: readonly AgentContextContribution[];
-}
+import type { FeatureDefinition, FeatureContributions } from "@uix/api/feature";
 
 export interface FeatureContributionRegistries {
   resources?: ResourceRegistry;

@@ -7,7 +7,7 @@
 import type {
   PreparedTurnState,
   TurnStateContribution,
-} from "#backend/turn-state/registry";
+} from "@uix/api/turn-state";
 
 import {
   parseCanvasKey,

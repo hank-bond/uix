@@ -1,10 +1,14 @@
-// resource URL builder — the substrate-provided way for features to produce
-// transport URLs and origins from a resource route declaration without
-// importing substrate internals.
+// resource URL builder and contribution type.
 //
-// One builder per resource contribution. Create it once in shared code;
-// pass `.route` into the ResourceContribution and call `.url()` / `.origin()`
-// from workspace renderer code.
+// ResourceContribution is the type feature authors declare in their
+// FeatureContributions.resources array; the substrate registers and dispatches
+// requests through the ResourceRegistry.
+//
+// ResourceAddressBuilder is the substrate-provided way for features to produce
+// transport URLs and origins from a resource route declaration without
+// importing substrate internals. One builder per resource contribution — create
+// it once in shared code, pass `.route` into the ResourceContribution and call
+// `.url()` / `.origin()` from workspace renderer code.
 
 import type { TSchema } from "typebox";
 
@@ -23,6 +27,20 @@ export type {
   ResourceRouteParams,
   ResourceUrl,
 } from "#shared/resource-routes";
+
+export interface ResourceRequestContext {
+  request: Request;
+  params: ResourceRouteParams;
+  query: unknown;
+}
+
+export interface ResourceContribution<Query extends TSchema = TSchema> {
+  /** Local resource name; the substrate derives the resource type as `${featureId}-${name}`. */
+  name: string;
+  /** Normalized route from a `createResourceAddressBuilder` call — pass `builder.route`. */
+  route: NormalizedResourceRoute<Query>;
+  handle: (ctx: ResourceRequestContext) => Response | Promise<Response>;
+}
 
 export interface ResourceRouteDefinition<Query extends TSchema = TSchema> {
   featureId: string;

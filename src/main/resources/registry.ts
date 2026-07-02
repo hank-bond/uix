@@ -4,9 +4,11 @@
 // resource URLs. The local transport is one Electron custom protocol
 // (`uix-resource://...`); a hosted runtime can adapt the same route metadata to
 // HTTP routes.
+//
+// ResourceContribution and ResourceRequestContext are defined in
+// @uix/api/resources and re-exported here so existing call sites keep compiling.
 
 import { protocol } from "electron";
-import type { TSchema } from "typebox";
 
 import type { ResourceCanonicalId } from "#shared/resource-canonical-id";
 import { toResourceCanonicalId } from "#shared/resource-canonical-id";
@@ -16,24 +18,19 @@ import {
   ResourceProtocolScheme,
   type DecodedResourceUrl,
   type NormalizedResourceRoute,
-  type ResourceRouteParams,
 } from "#shared/resource-routes";
 
 import { DisposableBag, disposable } from "../lifecycle";
 
-export interface ResourceRequestContext {
-  request: Request;
-  params: ResourceRouteParams;
-  query: unknown;
-}
+export type {
+  ResourceContribution,
+  ResourceRequestContext,
+} from "@uix/api/resources";
 
-export interface ResourceContribution<Query extends TSchema = TSchema> {
-  /** Local resource name; the substrate derives the resource type as `${featureId}-${name}`. */
-  name: string;
-  /** Normalized route from a `createResourceAddressBuilder` call — pass `builder.route`. */
-  route: NormalizedResourceRoute<Query>;
-  handle: (ctx: ResourceRequestContext) => Response | Promise<Response>;
-}
+import type {
+  ResourceContribution,
+  ResourceRequestContext,
+} from "@uix/api/resources";
 
 interface ResourceRegistration {
   featureId: string;

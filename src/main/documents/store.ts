@@ -3,45 +3,29 @@
 // A document is addressed by namespace + id behind getCurrent/setCurrent; the
 // backing store is hidden so it can later become a git-backed or remote store
 // without touching feature-owned buffers above it.
+//
+// The type-only contract (DocumentStoreFactory, DocumentStore, DocumentVersion,
+// DocumentStoreOptions) lives in @uix/api/documents and is re-exported
+// here so existing call sites keep compiling. The local implementation
+// (createLocalDocumentStoreFactory) satisfies those interfaces.
 
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-export interface DocumentVersion<TMeta = unknown> {
-  readonly id: string;
-  readonly documentId: string;
-  readonly content: string;
-  readonly meta: TMeta;
-  readonly createdAt: string;
-}
+export type {
+  DocumentVersion,
+  DocumentStore,
+  DocumentStoreOptions,
+  DocumentStoreFactory,
+} from "@uix/api/documents";
 
-export interface DocumentStore {
-  // Current plain content for a document, or null if it does not exist yet.
-  getCurrent(documentId: string): Promise<string | null>;
-  // Replace the current mutable latest content.
-  setCurrent(documentId: string, content: string): Promise<void>;
-  // Persist the current content plus caller-owned metadata as an immutable version.
-  snapshotCurrent<TMeta>(
-    documentId: string,
-    meta: TMeta,
-  ): Promise<DocumentVersion<TMeta>>;
-  // Load a previously snapshotted immutable version, or null when absent.
-  getVersion<TMeta>(
-    documentId: string,
-    versionId: string,
-  ): Promise<DocumentVersion<TMeta> | null>;
-}
-
-export interface LocalDocumentStoreOptions {
-  namespace: string;
-  extension?: string;
-  validateDocumentId?: (documentId: string) => void;
-}
-
-export interface DocumentStoreFactory {
-  createStore(opts: LocalDocumentStoreOptions): DocumentStore;
-}
+import type {
+  DocumentStore,
+  DocumentVersion,
+  DocumentStoreOptions,
+  DocumentStoreFactory,
+} from "@uix/api/documents";
 
 export function createLocalDocumentStoreFactory(
   stateRoot: string,
@@ -53,7 +37,7 @@ export function createLocalDocumentStoreFactory(
 
 export function createLocalDocumentStore(
   stateRoot: string,
-  opts: LocalDocumentStoreOptions,
+  opts: DocumentStoreOptions,
 ): DocumentStore {
   const extension = opts.extension ?? "txt";
 
@@ -133,7 +117,7 @@ function documentRoot(stateRoot: string): string {
 
 function currentPath(
   stateRoot: string,
-  opts: LocalDocumentStoreOptions,
+  opts: DocumentStoreOptions,
   documentId: string,
   extension: string,
 ): string {
@@ -148,7 +132,7 @@ function currentPath(
 
 function versionPath(
   stateRoot: string,
-  opts: LocalDocumentStoreOptions,
+  opts: DocumentStoreOptions,
   documentId: string,
   versionId: string,
 ): string {

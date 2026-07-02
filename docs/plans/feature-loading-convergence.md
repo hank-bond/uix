@@ -27,7 +27,9 @@ Acceptance: no `src/main/**` import inside `@uix/api` modules except type-only i
 
 Merge `src/main/extensions/` into `src/main/features/` (`discovery.ts`, `roots.ts`, `loader.ts`, `bundled.ts`, `contributions.ts`). The loader keeps jiti, per-entry bags, sequential activation, error isolation, and single-flight load, but instead of invoking `factory(api)` it takes the entry's default-exported `FeatureDefinition` (validate the shape: `id` string, `contribute` function; a bad export lands in `failed[]` like a throw) and runs it through the same registration path `main/index.ts` runs bundled features through: build `FeatureContext`, run `context?.()`, `registerFeatureContributions(...)` into the per-feature bag. Delete `extensions/context.ts` and `src/shared/extension-types.ts` (`ExtensionAPI`, `ExtensionFactory`, command types); update `@uix/api`'s index. Rename the manifest key `uix.extensions` → `uix.features` and the discovery roots `.uix/extensions/` → `.uix/features/` (including the dogfood dir and the broken-extension canary).
 
-Acceptance: a dogfood `.uix/features/<name>/` package whose entry exports a `FeatureDefinition` gets its contributions registered and torn down on reload; the canary still exercises error isolation; nothing imports `ExtensionAPI`.
+Also close the remaining features-import-internals debt enumerated during F1 review: move `src/main/anchors/` into `src/features/canvas/backend/` (anchors are canvas-private by intent — deliberately not generalized into substrate), and give `FeatureContext` a feature-scoped logger so feature code stops importing `#backend/log`. Sweep the transitional type re-export shims left in the main registries once call sites import from `@uix/api`.
+
+Acceptance: a dogfood `.uix/features/<name>/` package whose entry exports a `FeatureDefinition` gets its contributions registered and torn down on reload; the canary still exercises error isolation; nothing imports `ExtensionAPI`; canvas backend imports nothing from `#backend/*`.
 
 ### F3 — One lifetime: bundled features under the reload bag
 

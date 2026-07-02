@@ -1,13 +1,6 @@
-// feature activation context.
+// feature activation context — re-exported from @uix/api/feature.
 //
-// This is the small service bag handed to bundled/default features while the
-// substrate is being decomposed into contribution facets. It is not a full
-// extension host API yet.
+// FeatureContext is defined alongside FeatureDefinition in the feature contract
+// so both bundled and discovered features can import from a single location.
 
-import type { FeatureEventPublisherFactory } from "@uix/api/channels";
-import type { DocumentStoreFactory } from "../documents/store";
-
-export type FeatureContext = {
-  documents: DocumentStoreFactory;
-  channels: FeatureEventPublisherFactory;
-};
+export type { FeatureContext } from "@uix/api/feature";
