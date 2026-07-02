@@ -107,6 +107,44 @@ export function withHandlers<const C extends ChannelContract>(
   };
 }
 
-export interface FeatureChannelPublisher {
-  publish(name: string, payload: unknown): void;
+/**
+ * Typed backend event publisher — the dual of the frontend {@link EventClient}.
+ * Derived from a {@link ChannelContract}, each declared event becomes a typed
+ * method whose argument is validated against the event schema at compile time.
+ */
+export type FeatureEventPublisher<C extends ChannelContract> = {
+  [K in keyof C["events"] & string]: (
+    event: Static<C["events"][K]["event"]>,
+  ) => void;
+};
+
+/**
+ * The channel capability injected into feature contexts (the channel
+ * counterpart of `DocumentStoreFactory`). The cockpit closes over the
+ * feature id, so the only way a feature obtains publish capability is by
+ * presenting a contract — there is no untyped publish surface.
+ */
+export interface FeatureEventPublisherFactory {
+  createPublisher<const C extends ChannelContract>(
+    contract: C,
+  ): FeatureEventPublisher<C>;
+}
+
+/**
+ * Binds a contract's declared events onto a raw name/payload publish function,
+ * producing a typed {@link FeatureEventPublisher}. The publish function is the
+ * feature-scoped seam the cockpit supplies (it canonicalizes names); it stays
+ * a bare function type rather than a named abstraction.
+ */
+export function createFeatureEventPublisher<const C extends ChannelContract>(
+  publish: (name: string, payload: unknown) => void,
+  contract: C,
+): FeatureEventPublisher<C> {
+  const events = {} as Record<string, (event: unknown) => void>;
+  for (const name of Object.keys(contract.events)) {
+    events[name] = (event: unknown) => {
+      publish(name, event);
+    };
+  }
+  return events as FeatureEventPublisher<C>;
 }

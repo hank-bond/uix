@@ -26,7 +26,10 @@ import {
   registerTurnStateContributions,
 } from "#backend/turn-state/registry";
 
+import { createFeatureEventPublisher } from "@uix/api/channels";
+
 import { CanvasDocumentBuffer } from "../document-buffer";
+import { canvasChannels } from "../../shared/channels";
 import type { CanvasContext } from "../context";
 import type { DocumentStore, DocumentVersion } from "#backend/documents/store";
 import type { FeatureContext } from "#backend/features/context";
@@ -71,12 +74,16 @@ function fakeCanvasContext(
   const store = overrides.store ?? memoryStore();
   const base: FeatureContext = {
     documents: { createStore: () => store },
-    channels: overrides.channels ?? { publish: () => undefined },
+    channels: {
+      createPublisher: (contract) =>
+        createFeatureEventPublisher(() => undefined, contract),
+    },
   };
   return {
     ...base,
     store,
     buffer: overrides.buffer ?? new CanvasDocumentBuffer(store),
+    events: overrides.events ?? base.channels.createPublisher(canvasChannels),
     openCanvasKeys: overrides.openCanvasKeys ?? ["main"],
     agentChangedCanvasKeys: overrides.agentChangedCanvasKeys ?? new Set(),
   };

@@ -27,11 +27,11 @@ import {
 import { withHandlers } from "@uix/api/channels";
 import {
   ChannelRegistry,
-  createFeatureChannelPublisher,
+  createFeatureEventPublisherFactory,
   registerChannelContributions,
 } from "./channels/registry";
 import { TurnStateRegistry } from "./turn-state/registry";
-import { createLocalDocumentStoreProvider } from "./documents/store";
+import { createLocalDocumentStoreFactory } from "./documents/store";
 import { loadExtensions } from "./extensions/loader";
 import { getBundledFeatures } from "./features/bundled";
 import {
@@ -61,7 +61,7 @@ function createWindow(): BrowserWindow {
     width: 1100,
     height: 720,
     title: "UIX",
-    icon: join(__dirname, "../../src/shared/assets/icon-black.png"),
+    icon: join(__dirname, "../../src/shared/assets/icon-black-large.png"),
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       sandbox: true,
@@ -131,7 +131,7 @@ void app.whenReady().then(async () => {
   // logged as `ipc_log_file` when armed.
   ipc.initLogFile(workspace.stateRoot);
 
-  const documents = createLocalDocumentStoreProvider(workspace.stateRoot);
+  const documents = createLocalDocumentStoreFactory(workspace.stateRoot);
 
   // Extensions live under their own child scope so reload can tear
   // down the extension subtree without touching app-lifetime process
@@ -173,12 +173,15 @@ void app.whenReady().then(async () => {
   // Agent publisher: created early so the driver can emit events through the
   // channel transport. The registry's publish transport already broadcasts to
   // all windows.
-  const agentPublisher = createFeatureChannelPublisher("agent", channels);
+  const agentPublisher = createFeatureEventPublisherFactory(
+    "agent",
+    channels,
+  ).createPublisher(agentChannels);
 
   const driver = createAgentDriver({
     onEvent: (event) => {
       logChatContent(event);
-      agentPublisher.publish("event", event);
+      agentPublisher.event(event);
     },
     workspace,
     turnState,
@@ -219,7 +222,7 @@ void app.whenReady().then(async () => {
   for (const feature of bundledFeatures) {
     const baseContext = {
       documents,
-      channels: createFeatureChannelPublisher(feature.id, channels),
+      channels: createFeatureEventPublisherFactory(feature.id, channels),
     };
     const contributedContext = feature.context?.(baseContext) ?? {};
     appBag.add(

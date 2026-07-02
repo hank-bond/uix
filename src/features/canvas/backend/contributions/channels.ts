@@ -2,21 +2,21 @@
 
 import { createLogger } from "#backend/log";
 import type { CanvasKey } from "../../shared/addressing";
-import type {
-  ChannelContribution,
-  FeatureChannelPublisher,
-} from "@uix/api/channels";
+import type { ChannelContribution } from "@uix/api/channels";
 import { withHandlers } from "@uix/api/channels";
-import { canvasChannels, type CanvasChanged } from "../../shared/channels";
+import {
+  canvasChannels,
+  type CanvasEventPublisher,
+} from "../../shared/channels";
 
 import type { CanvasContext } from "../context";
 
 export function publishCanvasChanged(
-  channels: FeatureChannelPublisher,
+  events: CanvasEventPublisher,
   key: CanvasKey,
 ): void {
   createLogger("canvas").debug({ key }, "canvas_changed");
-  channels.publish("changed", { key } satisfies CanvasChanged);
+  events.changed({ key });
 }
 
 export function createCanvasChannelContributions(

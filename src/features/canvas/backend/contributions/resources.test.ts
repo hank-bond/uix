@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { createFeatureEventPublisher } from "@uix/api/channels";
+
 import type { DocumentStore, DocumentVersion } from "#backend/documents/store";
 import type { FeatureContext } from "#backend/features/context";
+import { canvasChannels } from "../../shared/channels";
 import type { CanvasContext } from "../context";
 import { CanvasDocumentBuffer } from "../document-buffer";
 
@@ -32,12 +35,16 @@ function memoryStore(initial: Record<string, string> = {}): DocumentStore {
 function fakeCanvasContext(store: DocumentStore): CanvasContext {
   const base: FeatureContext = {
     documents: { createStore: () => store },
-    channels: { publish: () => undefined },
+    channels: {
+      createPublisher: (contract) =>
+        createFeatureEventPublisher(() => undefined, contract),
+    },
   };
   return {
     ...base,
     store,
     buffer: new CanvasDocumentBuffer(store),
+    events: base.channels.createPublisher(canvasChannels),
     openCanvasKeys: [],
     agentChangedCanvasKeys: new Set(),
   };

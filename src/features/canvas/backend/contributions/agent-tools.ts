@@ -126,7 +126,7 @@ function createWriteTool(
     async execute(_toolCallId, params) {
       const lines = await ctx.buffer.write(params.key, params.html);
       ctx.agentChangedCanvasKeys.add(params.key);
-      publishCanvasChanged(ctx.channels, params.key);
+      publishCanvasChanged(ctx.events, params.key);
       return {
         content: [{ type: "text", text: formatAnchoredText(lines) }],
         details: {},
@@ -152,7 +152,7 @@ function createEditTool(
         replacement: params.replacement,
       });
       ctx.agentChangedCanvasKeys.add(params.key);
-      publishCanvasChanged(ctx.channels, params.key);
+      publishCanvasChanged(ctx.events, params.key);
       return {
         content: [
           {

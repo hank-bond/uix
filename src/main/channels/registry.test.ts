@@ -4,7 +4,7 @@ import { Type } from "typebox";
 
 import {
   ChannelRegistry,
-  createFeatureChannelPublisher,
+  createFeatureEventPublisherFactory,
   registerChannelContributions,
 } from "./registry";
 import {
@@ -176,17 +176,28 @@ describe("ChannelRegistry", () => {
     expect(transport.disposed).toEqual(["canvas.writeback", "canvas.refresh"]);
   });
 
-  it("creates feature-scoped publishers", () => {
+  it("creates typed event publishers from a contract", () => {
     const transport = fakeTransport();
-    const publisher = createFeatureChannelPublisher("canvas", {
+
+    const channels = createFeatureEventPublisherFactory("canvas", {
       publish: (canonicalId, payload) =>
         transport.publish(canonicalId, payload),
     });
 
-    publisher.publish("changed", { key: "main" });
+    const typed = channels.createPublisher({
+      requests: {},
+      events: {
+        changed: { event: Type.Object({ key: Type.String() }) },
+        refreshed: { event: Type.Void() },
+      },
+    } as const);
+
+    typed.changed({ key: "main" });
+    typed.refreshed();
 
     expect(transport.published).toEqual([
       { canonicalId: "canvas.changed", payload: { key: "main" } },
+      { canonicalId: "canvas.refreshed", payload: undefined },
     ]);
   });
 });

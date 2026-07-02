@@ -39,13 +39,13 @@ export interface LocalDocumentStoreOptions {
   validateDocumentId?: (documentId: string) => void;
 }
 
-export interface DocumentStoreProvider {
+export interface DocumentStoreFactory {
   createStore(opts: LocalDocumentStoreOptions): DocumentStore;
 }
 
-export function createLocalDocumentStoreProvider(
+export function createLocalDocumentStoreFactory(
   stateRoot: string,
-): DocumentStoreProvider {
+): DocumentStoreFactory {
   return {
     createStore: (opts) => createLocalDocumentStore(stateRoot, opts),
   };

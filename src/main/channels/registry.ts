@@ -8,8 +8,9 @@
 
 import type {
   ChannelContribution,
-  FeatureChannelPublisher,
+  FeatureEventPublisherFactory,
 } from "@uix/api/channels";
+import { createFeatureEventPublisher } from "@uix/api/channels";
 import {
   toChannelCanonicalId,
   type ChannelCanonicalId,
@@ -98,13 +99,23 @@ export function registerChannelContributions(
   return bag;
 }
 
-export function createFeatureChannelPublisher(
+/**
+ * The `channels` capability handed to a feature's context. The feature id and
+ * the registry are closed over here, so a publisher can only be minted for
+ * the feature's own namespace and only by presenting a contract — there is no
+ * untyped publish surface and no way to emit onto canonical ids nobody
+ * declared.
+ */
+export function createFeatureEventPublisherFactory(
   featureId: string,
   publisher: Pick<ChannelRegistry, "publish">,
-): FeatureChannelPublisher {
+): FeatureEventPublisherFactory {
   return {
-    publish(name: string, payload: unknown) {
-      publisher.publish(toChannelCanonicalId(featureId, name), payload);
-    },
+    createPublisher: (contract) =>
+      createFeatureEventPublisher(
+        (name, payload) =>
+          publisher.publish(toChannelCanonicalId(featureId, name), payload),
+        contract,
+      ),
   };
 }

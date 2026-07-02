@@ -4,10 +4,10 @@
 // substrate is being decomposed into contribution facets. It is not a full
 // extension host API yet.
 
-import type { FeatureChannelPublisher } from "@uix/api/channels";
-import type { DocumentStoreProvider } from "../documents/store";
+import type { FeatureEventPublisherFactory } from "@uix/api/channels";
+import type { DocumentStoreFactory } from "../documents/store";
 
 export type FeatureContext = {
-  documents: DocumentStoreProvider;
-  channels: FeatureChannelPublisher;
+  documents: DocumentStoreFactory;
+  channels: FeatureEventPublisherFactory;
 };

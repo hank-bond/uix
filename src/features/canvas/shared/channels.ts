@@ -1,5 +1,7 @@
 import { Type, type Static } from "typebox";
 
+import type { FeatureEventPublisher } from "@uix/api/channels";
+
 import { CanvasKeySchema } from "./addressing";
 
 export const CanvasChangedSchema = Type.Object({
@@ -26,3 +28,5 @@ export const canvasChannels = {
     },
   },
 } as const;
+
+export type CanvasEventPublisher = FeatureEventPublisher<typeof canvasChannels>;
