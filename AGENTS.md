@@ -32,7 +32,7 @@ For now this is pure on-demand traversal. Preloading the top ~100 summaries brea
 
 ## Core idea
 
-The atomic UIX unit is a **feature**: a loadable definition that contributes to substrate facets — visible **surfaces**, typed **channels**, agent tools, turn state, agent context, resources. A **workspace** (one page, one window) composes enabled feature surfaces over one agent session; on disk it is a directory defined by its `uix.workspace.json` manifest, whose ordered feature entry-file references are the composition — no auto-discovery. Channels let a surface talk to its feature's backend, to other features, and optionally to the pi agent. Chat and canvas are bundled default features, not core app structure. Everything else layers on top.
+The atomic UIX unit is a **feature**: a loadable definition that contributes to substrate facets — visible **surfaces**, typed **channels**, agent tools, turn state, agent context, resources. A **workspace** (one page, one window) composes enabled feature surfaces over one agent session; on disk it is a directory defined by its `uix.workspace.json` manifest, whose ordered feature entry-file references are the composition — no auto-discovery. Channels let a surface talk to its feature's backend, to other features, and optionally to the pi agent. Chat and canvas are default features loaded from source like any manifest entry, not core app structure. Everything else layers on top.
 
 ## Layers
 

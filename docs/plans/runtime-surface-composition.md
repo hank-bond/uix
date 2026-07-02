@@ -7,6 +7,12 @@ status: active
 
 Builds [runtime-surface-pipeline](../decisions/2026-07-02-runtime-surface-pipeline.md). Assumes [workspace-manifest-not-discovery](../decisions/2026-07-02-workspace-manifest-not-discovery.md) (manifest feeds the loader) and [features-are-the-loadable-unit](../decisions/2026-07-01-features-are-the-loadable-unit.md) (definition shape, reload symmetry). Design context: [workspace-feature-composition](../design/workspace-feature-composition.md).
 
+## Progress
+
+S1–S4 landed and verified live: `b054bbb` (S1 seam: surfaces facet + registry, uix channel, contracts carry their owner), `3a55832` (S2 pipeline: esbuild-served modules on the substrate origin, runtime mount), `e256072` (S3: loader alias table for `@uix/api`/typebox value imports), `bc9820a` (S4: chat/canvas load from source, agent contract behind `@uix/api/agent-channels`, `bundled.ts` deleted; plus fixes/cleanups the review surfaced — CORS grants with `corsEnabled` scheme privilege, `@uix/api` made self-contained by moving `resource-routes`/`channel-normalization`/`contribution-id` into `src/api/` and deleting all re-export stubs, canvas's `?raw` vite-ism replaced with `readFileSync(import.meta.url)`).
+
+Remaining: S5, S6. Known S5 wrinkle: canvas's backend imports **parse5**, which resolves by node_modules walk-up inside the repo but not from a scaffolded workspace elsewhere on disk — it needs a loader alias entry, and parse5 is ESM-only with no `require` export condition, so its entry path must be computed (e.g. from the resolved package dir), not `require.resolve`d.
+
 ## Context snapshot
 
 The backend half of feature loading is manifest-driven, but the frontend is still a build-time import list: `src/renderer/workspace/layout.tsx` imports `chatSurface`/`canvasSurface` statically and `SurfaceMount` mints typed channel clients. A manifest-listed feature can contribute channels and agent tools today but no UI. The pieces the pipeline needs already exist or are verified: `uix-resource://` is registered `standard + secure + supportFetchAPI` (dynamic `import()` works), the route model partitions origins by host (feature-origin content is already frame-only under the page's `default-src 'self'` CSP), and esbuild 0.21 bundles feature-local code while passing `.css` imports through external with attributes and rewritten cache-bust queries (tested). Electron 42's Chromium natively executes import maps, import attributes, and CSS module scripts.
