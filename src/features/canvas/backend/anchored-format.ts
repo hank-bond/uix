@@ -1,5 +1,5 @@
-import type { AnchoredChange } from "#backend/anchors/document";
-import { formatAnchoredText } from "#backend/anchors/wire";
+import type { AnchoredChange } from "./anchors/document";
+import { formatAnchoredText } from "./anchors/wire";
 
 export function formatChangeHunks(
   label: string,

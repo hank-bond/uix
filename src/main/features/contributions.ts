@@ -1,9 +1,9 @@
 // feature contribution registration.
 //
 // The feature contract types (FeatureDefinition, FeatureContributions,
-// FeatureContext, etc.) now live behind @uix/api and are re-exported here so
-// existing call sites keep compiling. This module owns the runtime registration
-// functions and the per-facet registry shape (FeatureContributionRegistries).
+// FeatureContext, etc.) live behind @uix/api. This module owns the runtime
+// registration functions and the per-facet registry shape
+// (FeatureContributionRegistries).
 
 import type { AgentContextRegistry } from "../agent-context/registry";
 import { registerAgentContextContributions } from "../agent-context/registry";
@@ -22,12 +22,6 @@ import {
 } from "../resources/registry";
 import type { TurnStateRegistry } from "../turn-state/registry";
 import { registerTurnStateContributions } from "../turn-state/registry";
-
-export type {
-  FeatureDefinition,
-  FeatureContributions,
-  FeaturePreflightContributions,
-} from "@uix/api/feature";
 
 import type { FeatureDefinition, FeatureContributions } from "@uix/api/feature";
 

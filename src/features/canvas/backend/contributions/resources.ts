@@ -6,12 +6,9 @@ import {
   parseCanvasKeyRouteParam,
 } from "../../shared/addressing";
 import type { ResourceContribution } from "@uix/api/resources";
-import { createLogger } from "#backend/log";
 import type { CanvasContext } from "../context";
 
 import { injectCanvasShim } from "../shim";
-
-const log = createLogger("canvas");
 
 export function createCanvasResourceContributions(
   ctx: CanvasContext,
@@ -25,11 +22,11 @@ export function createCanvasResourceContributions(
         const html = key ? await ctx.store.getCurrent(key) : null;
 
         if (key && html !== null) {
-          log.debug({ key }, "canvas_served");
+          ctx.log.debug({ key }, "canvas_served");
           return htmlResponse(injectCanvasShim(html, key), 200);
         }
 
-        log.debug({ key: key ?? "invalid" }, "canvas_not_found");
+        ctx.log.debug({ key: key ?? "invalid" }, "canvas_not_found");
         return htmlResponse(notFoundHtml(key ?? "invalid"), 404);
       },
     },

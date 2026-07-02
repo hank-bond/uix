@@ -22,15 +22,6 @@ import { createLogger } from "../log";
 import { DisposableBag } from "../lifecycle";
 import type { AgentInstaller } from "../agent/installers";
 
-export type {
-  TurnStateHistoryEntry,
-  TurnStateHistoryOptions,
-  TurnStateHistoryReader,
-  TurnStatePreparationContext,
-  PreparedTurnState,
-  TurnStateContribution,
-} from "@uix/api/turn-state";
-
 import type {
   TurnStateContribution,
   TurnStatePreparationContext,

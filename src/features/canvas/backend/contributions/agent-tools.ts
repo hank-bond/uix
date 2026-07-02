@@ -19,7 +19,7 @@ import type {
   AgentToolContribution,
   AgentToolDefinition,
 } from "@uix/api/agent-tools";
-import { formatAnchoredText, parseAnchoredLine } from "#backend/anchors/wire";
+import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
 import type { CanvasContext } from "../context";
 
 import { formatChangeHunks } from "../anchored-format";
@@ -128,7 +128,7 @@ function createWriteTool(
     async execute(_toolCallId, params) {
       const lines = await ctx.buffer.write(params.key, params.html);
       ctx.agentChangedCanvasKeys.add(params.key);
-      publishCanvasChanged(ctx.events, params.key);
+      publishCanvasChanged(ctx, params.key);
       return {
         content: [{ type: "text", text: formatAnchoredText(lines) }],
         details: {},
@@ -154,7 +154,7 @@ function createEditTool(
         replacement: params.replacement,
       });
       ctx.agentChangedCanvasKeys.add(params.key);
-      publishCanvasChanged(ctx.events, params.key);
+      publishCanvasChanged(ctx, params.key);
       return {
         content: [
           {

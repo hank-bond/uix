@@ -31,8 +31,8 @@ import { createFeatureEventPublisher } from "@uix/api/channels";
 import { CanvasDocumentBuffer } from "../document-buffer";
 import { canvasChannels } from "../../shared/channels";
 import type { CanvasContext } from "../context";
-import type { DocumentStore, DocumentVersion } from "#backend/documents/store";
-import type { FeatureContext } from "#backend/features/context";
+import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
+import type { FeatureContext } from "@uix/api/feature";
 
 import { createCanvasAgentToolContributions } from "./agent-tools";
 import { createCanvasTurnStateContributions } from "./turn-state";
@@ -77,6 +77,13 @@ function fakeCanvasContext(
     channels: {
       createPublisher: (contract) =>
         createFeatureEventPublisher(() => undefined, contract),
+    },
+    log: {
+      trace: () => {},
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {},
     },
   };
   return {

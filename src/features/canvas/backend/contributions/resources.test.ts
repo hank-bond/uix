@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { createFeatureEventPublisher } from "@uix/api/channels";
 
-import type { DocumentStore, DocumentVersion } from "#backend/documents/store";
-import type { FeatureContext } from "#backend/features/context";
+import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
+import type { FeatureContext } from "@uix/api/feature";
 import { canvasChannels } from "../../shared/channels";
 import type { CanvasContext } from "../context";
 import { CanvasDocumentBuffer } from "../document-buffer";
@@ -38,6 +38,13 @@ function fakeCanvasContext(store: DocumentStore): CanvasContext {
     channels: {
       createPublisher: (contract) =>
         createFeatureEventPublisher(() => undefined, contract),
+    },
+    log: {
+      trace: () => {},
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {},
     },
   };
   return {

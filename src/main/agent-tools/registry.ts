@@ -8,9 +8,6 @@
 // `name`); the facet derives both ids — see agent-tool-normalization.ts. The
 // registry dedups on the `ContributionId` and the derived pi tool name; the
 // installer forwards the name-stamped `ToolDefinition` to pi.
-//
-// AgentToolContribution is defined in @uix/api/agent-tools and re-exported
-// here so call sites that already import from this module keep compiling.
 
 import { DisposableBag } from "../lifecycle";
 
@@ -20,8 +17,6 @@ import {
 } from "./normalization";
 import type { AgentInstaller } from "../agent/installers";
 import type { AgentToolContribution } from "@uix/api/agent-tools";
-
-export type { AgentToolContribution } from "@uix/api/agent-tools";
 
 export class AgentToolRegistry {
   readonly registeredContributions: AgentToolRegistration[] = [];

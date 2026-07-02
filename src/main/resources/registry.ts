@@ -22,11 +22,6 @@ import {
 
 import { DisposableBag, disposable } from "../lifecycle";
 
-export type {
-  ResourceContribution,
-  ResourceRequestContext,
-} from "@uix/api/resources";
-
 import type {
   ResourceContribution,
   ResourceRequestContext,

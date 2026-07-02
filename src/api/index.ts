@@ -33,3 +33,4 @@ export type {
   DocumentVersion,
   DocumentStoreOptions,
 } from "./documents";
+export type { FeatureLogger, FeatureLogFn } from "./log";

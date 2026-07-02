@@ -35,19 +35,6 @@ import { createLogger } from "../log";
 import { DisposableBag } from "../lifecycle";
 import { createTurnStateHistoryReader } from "../turn-state/registry";
 
-export type {
-  AgentContextMaterialization,
-  AgentContextMaterializationContext,
-  AgentContextContribution,
-  AgentContextUpdater,
-  AgentContextAppender,
-  UpdateBuffer,
-  AppendBuffer,
-  UpdateContribution,
-  AppendContribution,
-  MaterializedContribution,
-} from "@uix/api/agent-context";
-
 import type {
   AgentContextContribution,
   AgentContextMaterialization,

@@ -18,6 +18,7 @@ import type { TurnStateContribution } from "./turn-state";
 import type { AgentContextContribution } from "./agent-context";
 import type { ResourceContribution } from "./resources";
 import type { DocumentStoreFactory } from "./documents";
+import type { FeatureLogger } from "./log";
 
 export type { ChannelContribution } from "./channels";
 export type { AgentToolContribution } from "./agent-tools";
@@ -25,10 +26,13 @@ export type { TurnStateContribution } from "./turn-state";
 export type { AgentContextContribution } from "./agent-context";
 export type { ResourceContribution } from "./resources";
 export type { DocumentStoreFactory } from "./documents";
+export type { FeatureLogger } from "./log";
 
 export type FeatureContext = {
   documents: DocumentStoreFactory;
   channels: FeatureEventPublisherFactory;
+  /** Feature-id-scoped structured logger bound by the cockpit. */
+  log: FeatureLogger;
 };
 
 export type FeaturePreflightContributions = Record<string, never>;

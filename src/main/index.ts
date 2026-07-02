@@ -223,6 +223,7 @@ void app.whenReady().then(async () => {
     const baseContext = {
       documents,
       channels: createFeatureEventPublisherFactory(feature.id, channels),
+      log: createLogger(feature.id),
     };
     const contributedContext = feature.context?.(baseContext) ?? {};
     appBag.add(

@@ -5,9 +5,9 @@ import { createFeatureEventPublisher } from "@uix/api/channels";
 import { CanvasDocumentBuffer } from "../document-buffer";
 import { canvasChannels } from "../../shared/channels";
 import type { CanvasContext } from "../context";
-import type { DocumentStore, DocumentVersion } from "#backend/documents/store";
-import type { FeatureContext } from "#backend/features/context";
-import type { TurnStatePreparationContext } from "#backend/turn-state/registry";
+import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
+import type { FeatureContext } from "@uix/api/feature";
+import type { TurnStatePreparationContext } from "@uix/api/turn-state";
 
 import { createCanvasTurnStateContributions } from "./turn-state";
 
@@ -62,6 +62,13 @@ function captureCanvasState(opts: {
     channels: {
       createPublisher: (contract) =>
         createFeatureEventPublisher(() => undefined, contract),
+    },
+    log: {
+      trace: () => {},
+      debug: () => {},
+      info: () => {},
+      warn: () => {},
+      error: () => {},
     },
   };
   const ctx: CanvasContext = {

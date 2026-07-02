@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { AnchoredDocument } from "#backend/anchors/document";
+import { AnchoredDocument } from "./anchors/document";
 
 import { CanvasDocumentBuffer } from "./document-buffer";
-import type { DocumentStore, DocumentVersion } from "#backend/documents/store";
+import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
 
 // In-memory store standing in for the file-backed one, plus a dump() peek so
 // tests can assert current content.

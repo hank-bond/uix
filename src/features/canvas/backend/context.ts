@@ -9,8 +9,8 @@
 // context.ts depends only on substrate + the buffer; the facet factories
 // depend on context.ts; the feature wiring depends on both.
 
-import type { FeatureContext } from "#backend/features/context";
-import type { DocumentStore } from "#backend/documents/store";
+import type { FeatureContext } from "@uix/api/feature";
+import type { DocumentStore } from "@uix/api/documents";
 
 import { parseCanvasKey } from "../shared/addressing";
 import { canvasChannels, type CanvasEventPublisher } from "../shared/channels";

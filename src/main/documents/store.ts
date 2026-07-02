@@ -5,20 +5,12 @@
 // without touching feature-owned buffers above it.
 //
 // The type-only contract (DocumentStoreFactory, DocumentStore, DocumentVersion,
-// DocumentStoreOptions) lives in @uix/api/documents and is re-exported
-// here so existing call sites keep compiling. The local implementation
+// DocumentStoreOptions) lives in @uix/api/documents; the local implementation
 // (createLocalDocumentStoreFactory) satisfies those interfaces.
 
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-
-export type {
-  DocumentVersion,
-  DocumentStore,
-  DocumentStoreOptions,
-  DocumentStoreFactory,
-} from "@uix/api/documents";
 
 import type {
   DocumentStore,

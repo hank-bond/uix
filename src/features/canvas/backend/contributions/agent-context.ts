@@ -3,8 +3,7 @@
 import { Type } from "typebox";
 
 import type { AgentContextContribution } from "@uix/api/agent-context";
-import type { AnchoredChange } from "#backend/anchors/document";
-import { createLogger } from "#backend/log";
+import type { AnchoredChange } from "../anchors/document";
 
 import {
   parseCanvasKeyFromDocumentResourceId,
@@ -48,7 +47,7 @@ export function createCanvasAgentContextContributions(
         const content = formatCanvasChanges(changes);
         // Human edits are conversation content (level policy: chat-visible is
         // info), even though the message itself is display-hidden.
-        createLogger("canvas").info({ diff: content }, "canvas_diff");
+        ctx.log.info({ diff: content }, "canvas_diff");
         return { content, details: { changes: Object.fromEntries(changes) } };
       },
     },
