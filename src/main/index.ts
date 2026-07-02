@@ -40,7 +40,6 @@ import {
   type FeatureSources,
   type FeatureSubstrate,
 } from "./features/loader";
-import { WorkspaceManifestFileName } from "./features/manifest";
 import { ResourceRegistry } from "./resources/registry";
 import { resolveWorkspace } from "./workspace";
 import * as ipc from "./ipc";
@@ -126,8 +125,10 @@ void app.whenReady().then(async () => {
   appBag.add(installProcessHandlers(createLogger("main")));
 
   // One resolved workspace: stateRoot pins canvases + the session file; agentCwd
-  // is what the agent's tools operate against (see ./workspace.ts).
-  const workspace = resolveWorkspace();
+  // is what the agent's tools operate against (see ./workspace.ts). The target
+  // is a manifest path or workspace dir — `UIX_WORKSPACE` for dev flows, the
+  // picker in M3 — defaulting to the cwd.
+  const workspace = resolveWorkspace(process.env["UIX_WORKSPACE"]);
 
   // Raw IPC payloads spill to a per-run file under the state root; path is
   // logged as `ipc_log_file` when armed.
@@ -140,12 +141,10 @@ void app.whenReady().then(async () => {
   // handlers, the window, the agent driver, or IPC registrations.
   const featuresBag = appBag.add(new DisposableBag());
 
-  // Transitional (M2 flips this): the workspace root is still the cwd, and
-  // the manifest is optional — a cwd without one is a workspace with only
-  // bundled features, keeping `npm run dev` working before the picker exists.
-  // Existence is checked per pass so a manifest created after boot is picked
-  // up by /reload.
-  const manifestPath = join(workspace.stateRoot, WorkspaceManifestFileName);
+  // The manifest is optional until the picker exists: a workspace dir without
+  // one loads bundled features only. Existence is checked per pass so a
+  // manifest created after boot is picked up by /reload.
+  const manifestPath = workspace.manifestPath;
 
   let mainWindow: BrowserWindow | null = createWindow();
   appBag.add(
