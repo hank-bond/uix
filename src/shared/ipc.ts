@@ -13,7 +13,45 @@ import type { ChannelContract } from "@uix/api/channels";
 export const Channels = {
   /** Renderer → main. invoke-style. Reloads cockpit resources in place. */
   reload: "uix:reload",
+  /** Picker → main. invoke-style. Recents for the start picker. */
+  pickerState: "uix:picker:state",
+  /** Picker → main. invoke-style. Open an existing workspace by manifest path. */
+  pickerOpen: "uix:picker:open",
+  /** Picker → main. invoke-style. Create (or adopt) a workspace via dir dialog. */
+  pickerCreate: "uix:picker:create",
 } as const;
+
+/** A previously opened workspace, listed by the start picker. */
+export interface RecentWorkspace {
+  /** Absolute path to the workspace's uix.workspace.json. The identity. */
+  manifestPath: string;
+  /** The manifest's `name` at the time it was opened. */
+  name: string;
+  /** ISO timestamp of the last open, newest first in the recents list. */
+  openedAt: string;
+}
+
+export interface PickerState {
+  recents: RecentWorkspace[];
+}
+
+export interface PickerOpenRequest {
+  manifestPath: string;
+}
+
+export interface PickerCreateRequest {
+  /** Workspace name written into the new manifest; falls back to the dir name. */
+  name: string;
+}
+
+/**
+ * Result of a picker action. `ok: true` means the App is transitioning to the
+ * workspace (the picker window is about to close); `canceled` means the user
+ * dismissed the native dialog and the picker stays up.
+ */
+export type PickerActionResult =
+  | { ok: true }
+  | { ok: false; canceled?: boolean; error?: string };
 
 /** Schema for the `prompt` request payload. */
 export const PromptRequestSchema = Type.Object({

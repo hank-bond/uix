@@ -56,7 +56,12 @@ export default defineConfig({
     build: {
       outDir: "out/renderer",
       rollupOptions: {
-        input: resolve(__dirname, "src/renderer/index.html"),
+        input: {
+          // index is the workspace page; picker is the App-shell start
+          // picker shown when no workspace target is known.
+          index: resolve(__dirname, "src/renderer/index.html"),
+          picker: resolve(__dirname, "src/renderer/picker.html"),
+        },
       },
     },
   },

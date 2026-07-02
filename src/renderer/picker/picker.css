@@ -1,0 +1,144 @@
+/* start picker chrome. Mirrors the workspace theme tokens (styles.css). */
+
+:root {
+  color-scheme: dark;
+  --bg: #0e0e10;
+  --bg-pane: #16161a;
+  --bg-input: #1d1d22;
+  --border: #2a2a2f;
+  --fg: #e6e6e6;
+  --fg-dim: #888;
+  --fg-faint: #5a5a60;
+  --accent: #7aa2f7;
+  --error: #e06c75;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.picker {
+  height: 100%;
+  box-sizing: border-box;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow: auto;
+}
+
+.picker__header h1 {
+  margin: 0;
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+}
+
+.picker__header p {
+  margin: 0.25rem 0 0;
+  color: var(--fg-dim);
+  font-size: 0.85rem;
+}
+
+.picker__section h2 {
+  margin: 0 0 0.5rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+}
+
+.picker__empty {
+  margin: 0;
+  color: var(--fg-faint);
+  font-size: 0.85rem;
+}
+
+.picker__recents {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.picker__recents button {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--bg-pane);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+}
+
+.picker__recents button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.picker__recent-name {
+  font-size: 0.9rem;
+}
+
+.picker__recent-path {
+  font-size: 0.72rem;
+  color: var(--fg-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker__create {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.picker__create input {
+  flex: 1;
+  padding: 0.45rem 0.6rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.picker__create button {
+  padding: 0.45rem 0.75rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.picker__create button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.picker__hint {
+  margin: 0.4rem 0 0;
+  color: var(--fg-faint);
+  font-size: 0.72rem;
+}
+
+.picker__error {
+  margin: 0;
+  color: var(--error);
+  font-size: 0.8rem;
+}

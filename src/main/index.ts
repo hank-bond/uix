@@ -1,22 +1,29 @@
 // main process.
 //
-// Owns app lifecycle, creates the BrowserWindow, and registers the IPC
-// channels declared in src/shared/ipc.ts.
+// Owns App lifecycle: the shell boots, then either opens a workspace
+// directly (explicit UIX_WORKSPACE target, or a cwd that holds a manifest)
+// or shows the start picker, which supplies the workspace to open. One
+// open workspace per App instance (v1); everything workspace-bound lives
+// in openWorkspace().
 //
 // All registrations (IPC handlers, app events, window events) flow
 // through the helpers in src/main/ipc.ts and src/main/lifecycle.ts and
 // land in a single `appBag`. One dispose on `will-quit` tears the whole
 // tree down. See docs/architecture/conventions.md.
 
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, dialog } from "electron";
 import fs from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import process from "node:process";
 
 import {
   type AgentEvent,
   agentChannels,
   Channels,
+  type PickerActionResult,
+  type PickerCreateRequest,
+  type PickerOpenRequest,
+  type PickerState,
   type ReloadResult,
 } from "../shared/ipc";
 import { createAgentDriver } from "./agent/driver";
@@ -40,8 +47,13 @@ import {
   type FeatureSources,
   type FeatureSubstrate,
 } from "./features/loader";
+import {
+  readWorkspaceManifest,
+  WorkspaceManifestFileName,
+} from "./features/manifest";
+import { createRecentsStore, type RecentsStore } from "./recents";
 import { ResourceRegistry } from "./resources/registry";
-import { resolveWorkspace } from "./workspace";
+import { resolveWorkspace, type Workspace } from "./workspace";
 import * as ipc from "./ipc";
 import {
   DisposableBag,
@@ -57,10 +69,13 @@ const LocalWorkspaceId = "local";
 
 registerFeaturePreflightContributions(bundledFeatures);
 
-function createWindow(): BrowserWindow {
+function createShellWindow(page: "index" | "picker"): BrowserWindow {
+  const size =
+    page === "picker"
+      ? { width: 560, height: 480, resizable: false }
+      : { width: 1100, height: 720 };
   const win = new BrowserWindow({
-    width: 1100,
-    height: 720,
+    ...size,
     title: "UIX",
     icon: join(__dirname, "../../src/shared/assets/icon-black-large.png"),
     webPreferences: {
@@ -73,9 +88,9 @@ function createWindow(): BrowserWindow {
 
   const devUrl = process.env["ELECTRON_RENDERER_URL"];
   if (isDev && devUrl) {
-    void win.loadURL(devUrl);
+    void win.loadURL(page === "picker" ? `${devUrl}/picker.html` : devUrl);
   } else {
-    void win.loadFile(join(__dirname, "../renderer/index.html"));
+    void win.loadFile(join(__dirname, `../renderer/${page}.html`));
   }
 
   return win;
@@ -105,31 +120,17 @@ function logChatContent(event: AgentEvent): void {
   }
 }
 
-void app.whenReady().then(async () => {
-  // One bag for everything that lives as long as the app does.
-  // Anything we register goes in here; `will-quit` disposes it.
-  const appBag = new DisposableBag();
-
-  app.setName("UIX");
-
-  if (process.platform === "darwin") {
-    app.dock?.setIcon(
-      join(__dirname, "../../src/shared/assets/icon-black-large.png"),
-    );
-  }
-
-  // Process-level error handlers are the catch-all for anything
-  // that escapes the synchronous call stack — an extension's
-  // interval throwing, a stray promise rejection in cockpit code.
-  // They go in early so they're armed before any user code runs.
-  appBag.add(installProcessHandlers(createLogger("main")));
-
-  // One resolved workspace: stateRoot pins canvases + the session file; agentCwd
-  // is what the agent's tools operate against (see ./workspace.ts). The target
-  // is a manifest path or workspace dir — `UIX_WORKSPACE` for dev flows, the
-  // picker in M3 — defaulting to the cwd.
-  const workspace = resolveWorkspace(process.env["UIX_WORKSPACE"]);
-
+/**
+ * Boot the substrate against a workspace and open its window. Everything
+ * workspace-bound — state root, registries, agent driver, feature load,
+ * reload handler — lives here; the shell above it only decides *which*
+ * workspace to open.
+ */
+async function openWorkspace(
+  appBag: DisposableBag,
+  recents: RecentsStore,
+  workspace: Workspace,
+): Promise<void> {
   // Raw IPC payloads spill to a per-run file under the state root; path is
   // logged as `ipc_log_file` when armed.
   ipc.initLogFile(workspace.stateRoot);
@@ -141,12 +142,12 @@ void app.whenReady().then(async () => {
   // handlers, the window, the agent driver, or IPC registrations.
   const featuresBag = appBag.add(new DisposableBag());
 
-  // The manifest is optional until the picker exists: a workspace dir without
-  // one loads bundled features only. Existence is checked per pass so a
-  // manifest created after boot is picked up by /reload.
+  // The manifest is optional (a dir target without one loads bundled features
+  // only). Existence is checked per pass so a manifest created after boot is
+  // picked up by /reload.
   const manifestPath = workspace.manifestPath;
 
-  let mainWindow: BrowserWindow | null = createWindow();
+  let mainWindow: BrowserWindow | null = createShellWindow("index");
   appBag.add(
     onWindow(mainWindow, "closed", () => {
       mainWindow = null;
@@ -254,6 +255,17 @@ void app.whenReady().then(async () => {
     "activation_complete",
   );
 
+  // Record the recent by manifest name (best-effort: a workspace without a
+  // manifest isn't listable, and a bad manifest was already logged above).
+  if (fs.existsSync(manifestPath)) {
+    try {
+      const { manifest } = await readWorkspaceManifest(manifestPath);
+      recents.record({ manifestPath, name: manifest.name });
+    } catch {
+      recents.record({ manifestPath, name: basename(workspace.stateRoot) });
+    }
+  }
+
   // Eager, off the boot path: loads the session file so getHistory() resolves
   // fast. The auth-bearing live agent stays lazy until the first prompt.
   driver.init();
@@ -298,7 +310,7 @@ void app.whenReady().then(async () => {
   appBag.add(
     onApp("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
-        mainWindow = createWindow();
+        mainWindow = createShellWindow("index");
         appBag.add(
           onWindow(mainWindow, "closed", () => {
             mainWindow = null;
@@ -307,6 +319,103 @@ void app.whenReady().then(async () => {
       }
     }),
   );
+}
+
+/**
+ * The start picker: a small shell window (not a feature, not a workspace
+ * page) offering recents and create-new. Its IPC handlers live in a child
+ * bag disposed on transition, so the workspace boot starts clean.
+ */
+function openPicker(appBag: DisposableBag, recents: RecentsStore): void {
+  const pickerBag = appBag.add(new DisposableBag());
+  const win = createShellWindow("picker");
+
+  // Respond to the invoke first, then tear the picker down and boot the
+  // workspace — disposing the handler that is currently answering would
+  // race its own response.
+  const transition = (target: string): void => {
+    setImmediate(() => {
+      pickerBag[Symbol.dispose]();
+      if (!win.isDestroyed()) win.close();
+      openWorkspace(appBag, recents, resolveWorkspace(target)).catch(
+        (thrown: unknown) => {
+          const error =
+            thrown instanceof Error ? thrown : new Error(String(thrown));
+          createLogger("main").error(
+            { err: error.message, stack: error.stack },
+            "workspace_open_failed",
+          );
+        },
+      );
+    });
+  };
+
+  pickerBag.add(
+    ipc.handle<void, PickerState>(Channels.pickerState, () => ({
+      recents: recents.list(),
+    })),
+  );
+
+  pickerBag.add(
+    ipc.handle<PickerOpenRequest, PickerActionResult>(
+      Channels.pickerOpen,
+      (req) => {
+        if (!fs.existsSync(req.manifestPath)) {
+          return { ok: false, error: "That workspace no longer exists." };
+        }
+        transition(req.manifestPath);
+        return { ok: true };
+      },
+    ),
+  );
+
+  pickerBag.add(
+    ipc.handle<PickerCreateRequest, PickerActionResult>(
+      Channels.pickerCreate,
+      async (req) => {
+        const result = await dialog.showOpenDialog(win, {
+          title: "Choose a workspace folder",
+          buttonLabel: "Use folder",
+          properties: ["openDirectory", "createDirectory"],
+        });
+        const dir = result.filePaths[0];
+        if (result.canceled || !dir) return { ok: false, canceled: true };
+
+        // A folder that already holds a manifest is an existing workspace:
+        // adopt it rather than overwriting the user's composition.
+        const manifestPath = join(dir, WorkspaceManifestFileName);
+        if (!fs.existsSync(manifestPath)) {
+          const name = req.name.trim() || basename(dir);
+          fs.writeFileSync(
+            manifestPath,
+            `${JSON.stringify({ name, features: [] }, null, 2)}\n`,
+          );
+        }
+        transition(manifestPath);
+        return { ok: true };
+      },
+    ),
+  );
+}
+
+void app.whenReady().then(async () => {
+  // One bag for everything that lives as long as the app does.
+  // Anything we register goes in here; `will-quit` disposes it.
+  const appBag = new DisposableBag();
+
+  app.setName("UIX");
+
+  if (process.platform === "darwin") {
+    app.dock?.setIcon(
+      join(__dirname, "../../src/shared/assets/icon-black-large.png"),
+    );
+  }
+
+  // Process-level error handlers are the catch-all for anything
+  // that escapes the synchronous call stack — a feature's
+  // interval throwing, a stray promise rejection in cockpit code.
+  // They go in early so they're armed before any user code runs.
+  appBag.add(installProcessHandlers(createLogger("main")));
 
   appBag.add(
     onApp("window-all-closed", () => {
@@ -323,4 +432,23 @@ void app.whenReady().then(async () => {
   app.on("will-quit", () => {
     appBag[Symbol.dispose]();
   });
+
+  const recents = createRecentsStore(
+    join(app.getPath("userData"), "recent-workspaces.json"),
+  );
+
+  // Which workspace? An explicit target (UIX_WORKSPACE — manifest path or
+  // workspace dir) opens directly; so does a cwd that already holds a
+  // manifest (the repo dev flow). Otherwise the start picker decides.
+  const envTarget = process.env["UIX_WORKSPACE"];
+  if (envTarget) {
+    await openWorkspace(appBag, recents, resolveWorkspace(envTarget));
+    return;
+  }
+  const cwdWorkspace = resolveWorkspace();
+  if (fs.existsSync(cwdWorkspace.manifestPath)) {
+    await openWorkspace(appBag, recents, cwdWorkspace);
+    return;
+  }
+  openPicker(appBag, recents);
 });
