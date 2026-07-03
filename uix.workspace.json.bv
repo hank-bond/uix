@@ -1,8 +1,0 @@
-{
-  "name": "uix dev",
-  "features": [
-    "./src/features/chat/index.ts",
-    "./src/features/canvas/index.ts",
-    "./.uix/features/broken.mjs"
-  ]
-}
