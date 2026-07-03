@@ -1,6 +1,6 @@
-// chat pane.
+// chat surface.
 //
-// One transcript item shape feeds the pane. Startup history supplies completed
+// One transcript item shape feeds the surface. Startup history supplies completed
 // durable items; live events append the same items, stream compact partials
 // into them, and replace them whole at completion.
 
@@ -89,7 +89,7 @@ export function Chat({ client }: ChatProps) {
     <>
       <div className="chat__scroll" ref={scrollRef}>
         {items.length === 0 ? (
-          <div className="pane__body--placeholder">
+          <div className="surface-panel__body--placeholder">
             {hydrated
               ? "send a prompt — main echoes it back"
               : "loading transcript…"}

@@ -96,7 +96,7 @@ interface RuntimeSurfaceState {
 /**
  * Loads a runtime surface entry: dynamic-imports the pipeline-built module,
  * validates its default export, and mounts it behind an error boundary.
- * Returns the pane name (the module's, once loaded) plus the body to render.
+ * Returns the surface name (the module's, once loaded) plus the body to render.
  */
 export function useRuntimeSurface(entry: SurfaceEntry): RuntimeSurfaceState {
   const [loaded, setLoaded] = useState<

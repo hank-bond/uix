@@ -1,6 +1,6 @@
-/* chat pane defaults.
+/* chat surface defaults.
  *
- * Chat styling is scoped to the pane root so future panes can define
+ * Chat styling is scoped to the surface root so future surfaces can define
  * their own local vocabulary without inheriting chat-specific block styles.
  */
 
@@ -12,17 +12,17 @@
   font-display: swap;
 }
 
-[data-uix-pane="chat"] {
+[data-uix-surface="chat"] {
   --uix-chat-code-font: "UIX Iosevka";
 }
 
-[data-uix-pane="chat"] .pane__body--chat {
+[data-uix-surface="chat"] .surface-panel__body--chat {
   padding: 0;
   display: grid;
   grid-template-rows: 1fr auto;
 }
 
-[data-uix-pane="chat"] .chat__scroll {
+[data-uix-surface="chat"] .chat__scroll {
   overflow: auto;
   padding: 0.75rem 1rem;
   display: flex;
@@ -31,7 +31,7 @@
   min-width: 0;
 }
 
-[data-uix-pane="chat"] .msg {
+[data-uix-surface="chat"] .msg {
   display: grid;
   grid-template-columns: 5rem minmax(0, 1fr);
   gap: 0.5rem;
@@ -41,7 +41,7 @@
   max-width: 100%;
 }
 
-[data-uix-pane="chat"] .msg__role {
+[data-uix-surface="chat"] .msg__role {
   font-size: 0.68rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -49,7 +49,7 @@
   padding-top: 0.15rem;
 }
 
-[data-uix-pane="chat"] .msg__text {
+[data-uix-surface="chat"] .msg__text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -57,36 +57,36 @@
   max-width: 100%;
 }
 
-[data-uix-pane="chat"] .msg--user .msg__text,
-[data-uix-pane="chat"] .msg--assistant .msg__text {
+[data-uix-surface="chat"] .msg--user .msg__text,
+[data-uix-surface="chat"] .msg--assistant .msg__text {
   color: var(--fg);
 }
 
 /* Optimistic pending row: dimmed until main confirms it with the canonical
    born-keyed row. */
-[data-uix-pane="chat"] .msg[data-uix-unconfirmed] .msg__text {
+[data-uix-surface="chat"] .msg[data-uix-unconfirmed] .msg__text {
   color: var(--fg-dim);
 }
 
-[data-uix-pane="chat"] .msg--tool .msg__text {
+[data-uix-surface="chat"] .msg--tool .msg__text {
   color: var(--fg-dim);
 }
 
-[data-uix-pane="chat"] .tool-block {
+[data-uix-surface="chat"] .tool-block {
   display: grid;
   gap: 0.45rem;
   min-width: 0;
   font-size: 0.86rem;
 }
 
-[data-uix-pane="chat"] .tool-block__header {
+[data-uix-surface="chat"] .tool-block__header {
   display: flex;
   align-items: center;
   gap: 0.45rem;
   min-width: 0;
 }
 
-[data-uix-pane="chat"] .tool-block__status {
+[data-uix-surface="chat"] .tool-block__status {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 0.05rem 0.4rem;
@@ -96,7 +96,7 @@
   text-transform: uppercase;
 }
 
-[data-uix-pane="chat"] .tool-block__name {
+[data-uix-surface="chat"] .tool-block__name {
   color: var(--fg);
   font-weight: 600;
   overflow: hidden;
@@ -104,8 +104,8 @@
   white-space: nowrap;
 }
 
-[data-uix-pane="chat"] .tool-block__payload,
-[data-uix-pane="chat"] .tool-block__details pre {
+[data-uix-surface="chat"] .tool-block__payload,
+[data-uix-surface="chat"] .tool-block__details pre {
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -117,18 +117,18 @@
   line-height: 1.45;
 }
 
-[data-uix-pane="chat"] .tool-block__details summary {
+[data-uix-surface="chat"] .tool-block__details summary {
   cursor: pointer;
   color: var(--fg-faint);
   font-size: 0.78rem;
 }
 
-[data-uix-pane="chat"] .canvas-tool-block__payload {
+[data-uix-surface="chat"] .canvas-tool-block__payload {
   display: grid;
   gap: 0.2rem;
 }
 
-[data-uix-pane="chat"] .canvas-tool-block__toggle {
+[data-uix-surface="chat"] .canvas-tool-block__toggle {
   justify-self: start;
   background: transparent;
   border: 0;
@@ -139,32 +139,32 @@
   cursor: pointer;
 }
 
-[data-uix-pane="chat"] .canvas-tool-block__toggle:hover {
+[data-uix-surface="chat"] .canvas-tool-block__toggle:hover {
   color: var(--accent);
 }
 
-[data-uix-pane="chat"] .msg--tool-error .tool-block__status {
+[data-uix-surface="chat"] .msg--tool-error .tool-block__status {
   border-color: color-mix(in srgb, var(--error), transparent 45%);
   color: var(--error);
 }
 
-[data-uix-pane="chat"] .msg--tool-error .msg__role,
-[data-uix-pane="chat"] .msg--tool-error .msg__text,
-[data-uix-pane="chat"] .msg--error .msg__role,
-[data-uix-pane="chat"] .msg--error .msg__text {
+[data-uix-surface="chat"] .msg--tool-error .msg__role,
+[data-uix-surface="chat"] .msg--tool-error .msg__text,
+[data-uix-surface="chat"] .msg--error .msg__role,
+[data-uix-surface="chat"] .msg--error .msg__text {
   color: var(--error);
 }
 
-[data-uix-pane="chat"] .composer {
+[data-uix-surface="chat"] .composer {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.5rem;
   padding: 0.6rem 0.75rem;
   border-top: 1px solid var(--border);
-  background: var(--bg-pane);
+  background: var(--bg-surface-panel);
 }
 
-[data-uix-pane="chat"] .composer__input {
+[data-uix-surface="chat"] .composer__input {
   background: var(--bg-input);
   color: var(--fg);
   border: 1px solid var(--border);
@@ -176,11 +176,11 @@
   outline: none;
 }
 
-[data-uix-pane="chat"] .composer__input:focus {
+[data-uix-surface="chat"] .composer__input:focus {
   border-color: var(--accent);
 }
 
-[data-uix-pane="chat"] .composer__send {
+[data-uix-surface="chat"] .composer__send {
   background: transparent;
   color: var(--fg);
   border: 1px solid var(--border);
@@ -191,12 +191,12 @@
   cursor: pointer;
 }
 
-[data-uix-pane="chat"] .composer__send:hover:not(:disabled) {
+[data-uix-surface="chat"] .composer__send:hover:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent);
 }
 
-[data-uix-pane="chat"] .composer__send:disabled {
+[data-uix-surface="chat"] .composer__send:disabled {
   color: var(--fg-faint);
   cursor: not-allowed;
 }

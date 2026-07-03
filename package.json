@@ -31,6 +31,7 @@
     "pino": "^10.3.1",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "react-resizable-panels": "^4.12.0",
     "typebox": "^1.1.38"
   },
   "devDependencies": {

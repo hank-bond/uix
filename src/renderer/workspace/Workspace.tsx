@@ -1,13 +1,19 @@
 // workspace surface composition.
 //
 // Renders the composed surface list from useSurfaces(). Each surface
-// provides a render function; the workspace composes them into a CSS grid.
-// Channel clients are created by SurfaceMount, not by feature code. An
-// empty composition renders an explanatory card instead of a blank window —
-// which of the two empty states (no manifest vs. no surfaces) it names, so
-// the create-manifest-after-boot flow is visible instead of dark.
+// provides a render function; the workspace composes them into a persisted
+// horizontal resize row. Channel clients are created by SurfaceMount, not by
+// feature code. An empty composition renders an explanatory card instead of a
+// blank window — which of the two empty states (no manifest vs. no surfaces)
+// it names, so the create-manifest-after-boot flow is visible instead of dark.
 
-import type { ReactNode } from "react";
+import { Fragment, useMemo, type ReactNode } from "react";
+import {
+  Group as ResizablePanelGroup,
+  Panel as ResizablePanel,
+  Separator as ResizablePanelSeparator,
+  useDefaultLayout,
+} from "react-resizable-panels";
 
 import {
   useRuntimeSurface,
@@ -20,22 +26,66 @@ export function Workspace() {
   const composition = useSurfaces();
   // Not yet fetched — render the bare shell, no empty-state flash.
   if (!composition) return <div className="workspace" />;
+  if (composition.surfaces.length === 0) {
+    return (
+      <div className="workspace workspace--empty">
+        <EmptyWorkspaceCard composition={composition} />
+      </div>
+    );
+  }
+
   return (
     <div className="workspace">
-      {composition.surfaces.length === 0 ? (
-        <EmptyWorkspaceCard composition={composition} />
-      ) : (
-        composition.surfaces.map((entry, i) => (
-          <RuntimeSurfacePane
-            // The URL is content-hashed, so it doubles as the remount key: a
-            // reload that changed the module remounts, an unchanged one doesn't.
-            key={entry.url ?? `${entry.featureId}:${String(i)}`}
-            entry={entry}
-          />
-        ))
-      )}
+      <ResizableSurfaceRow composition={composition} />
     </div>
   );
+}
+
+function ResizableSurfaceRow({
+  composition,
+}: {
+  composition: SurfaceComposition;
+}) {
+  const panelIds = useMemo(
+    () => composition.surfaces.map(surfacePanelId),
+    [composition.surfaces],
+  );
+  const savedLayout = useDefaultLayout({
+    id: `uix:surface-layout:${composition.manifestPath}`,
+    panelIds,
+    onlySaveAfterUserInteractions: true,
+  });
+
+  return (
+    <ResizablePanelGroup
+      key={panelIds.join("|")}
+      className="workspace-panels"
+      orientation="horizontal"
+      defaultLayout={savedLayout.defaultLayout}
+      onLayoutChanged={savedLayout.onLayoutChanged}
+    >
+      {composition.surfaces.map((entry, i) => {
+        const panelId = panelIds[i];
+        return (
+          <Fragment key={entry.url ?? panelId}>
+            {i > 0 ? (
+              <ResizablePanelSeparator
+                id={`${panelId}:resize-separator`}
+                className="workspace-resize-separator"
+              />
+            ) : undefined}
+            <ResizablePanel id={panelId} minSize="14rem">
+              <RuntimeSurfacePanel entry={entry} />
+            </ResizablePanel>
+          </Fragment>
+        );
+      })}
+    </ResizablePanelGroup>
+  );
+}
+
+function surfacePanelId(entry: SurfaceEntry): string {
+  return `surface-${encodeURIComponent(entry.featureId)}-${encodeURIComponent(entry.entry)}`;
 }
 
 function EmptyWorkspaceCard({
@@ -62,7 +112,7 @@ function EmptyWorkspaceCard({
   );
 }
 
-function SurfacePane({
+function SurfacePanel({
   name,
   children,
 }: {
@@ -71,17 +121,19 @@ function SurfacePane({
 }) {
   return (
     <section
-      className={`pane pane--${name}`}
-      data-uix-pane={name}
+      className={`surface-panel surface-panel--${name}`}
+      data-uix-surface={name}
       aria-label={name}
     >
-      <header className="pane__header">{name}</header>
-      <div className={`pane__body pane__body--${name}`}>{children}</div>
+      <header className="surface-panel__header">{name}</header>
+      <div className={`surface-panel__body surface-panel__body--${name}`}>
+        {children}
+      </div>
     </section>
   );
 }
 
-function RuntimeSurfacePane({ entry }: { entry: SurfaceEntry }) {
+function RuntimeSurfacePanel({ entry }: { entry: SurfaceEntry }) {
   const { name, body } = useRuntimeSurface(entry);
-  return <SurfacePane name={name}>{body}</SurfacePane>;
+  return <SurfacePanel name={name}>{body}</SurfacePanel>;
 }

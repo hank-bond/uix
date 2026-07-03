@@ -8,7 +8,7 @@
 :root {
   color-scheme: dark;
   --bg: #0e0e10;
-  --bg-pane: #16161a;
+  --bg-surface-panel: #16161a;
   --bg-input: #1d1d22;
   --border: #2a2a2f;
   --fg: #e6e6e6;
@@ -30,21 +30,42 @@ body,
 
 .workspace {
   height: 100%;
-  display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(420px, 1.4fr);
-  gap: 1px;
   background: var(--border);
 }
 
-.pane {
-  background: var(--bg-pane);
+.workspace--empty {
+  display: grid;
+  place-items: center;
+}
+
+.workspace-panels {
+  width: 100%;
+  height: 100%;
+}
+
+.workspace-resize-separator {
+  width: 1px;
+  background: var(--border);
+  cursor: col-resize;
+  transition: background 120ms ease;
+}
+
+.workspace-resize-separator:hover,
+.workspace-resize-separator[data-separator="active"],
+.workspace-resize-separator[data-separator="focus"] {
+  background: var(--accent);
+}
+
+.surface-panel {
+  height: 100%;
+  background: var(--bg-surface-panel);
   display: grid;
   grid-template-rows: auto 1fr;
   min-width: 0;
   min-height: 0;
 }
 
-.pane__header {
+.surface-panel__header {
   padding: 0.5rem 0.75rem;
   font-size: 0.72rem;
   letter-spacing: 0.08em;
@@ -53,13 +74,13 @@ body,
   border-bottom: 1px solid var(--border);
 }
 
-.pane__body {
+.surface-panel__body {
   padding: 1rem;
   overflow: auto;
   min-height: 0;
 }
 
-.pane__body--placeholder {
+.surface-panel__body--placeholder {
   display: grid;
   place-items: center;
   color: var(--fg-dim);
@@ -68,7 +89,7 @@ body,
   text-align: center;
 }
 
-.pane__body--canvas {
+.surface-panel__body--canvas {
   padding: 0;
   overflow: hidden;
 }
@@ -87,7 +108,7 @@ body,
   padding: 12px 14px;
   border: 1px solid var(--error);
   border-radius: 6px;
-  background: color-mix(in srgb, var(--error) 8%, var(--bg-pane));
+  background: color-mix(in srgb, var(--error) 8%, var(--bg-surface-panel));
   font-size: 0.85rem;
   overflow-wrap: anywhere;
 }
@@ -109,15 +130,13 @@ body,
   color: var(--fg-dim);
 }
 
-/* Empty composition: spans the whole grid so it doesn't sit in one column. */
+/* Empty composition. */
 .workspace-empty {
-  grid-column: 1 / -1;
-  place-self: center;
   max-width: 480px;
   padding: 18px 22px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: var(--bg-pane);
+  background: var(--bg-surface-panel);
   font-size: 0.9rem;
   text-align: center;
 }
