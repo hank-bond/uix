@@ -32,6 +32,7 @@ export class WorkspaceSettings implements Disposable {
   readonly #flushDebounceMs: number;
   readonly #settings = new Map<string, JsonObject>();
   readonly #schemas = new Map<string, Map<string, RegisteredSetting>>();
+  readonly #featureManifestIndexes = new Map<string, number>();
   readonly #dirtyFeatures = new Set<string>();
   readonly #listeners = new Map<string, Set<Listener>>();
   #rawManifest: JsonObject | undefined;
@@ -44,26 +45,29 @@ export class WorkspaceSettings implements Disposable {
   }
 
   async reload(): Promise<void> {
+    const rawManifest = await readRawManifest(this.#manifestPath);
+
     this.#clearFlushTimer();
     this.#dirtyFeatures.clear();
     this.#schemas.clear();
+    this.#featureManifestIndexes.clear();
     this.#settings.clear();
-    this.#rawManifest = await readRawManifest(this.#manifestPath);
-
-    for (const feature of manifestFeatureEntries(this.#rawManifest)) {
-      this.#settings.set(feature.id, cloneJsonObject(feature.settings));
-    }
+    this.#rawManifest = rawManifest;
   }
 
   hydrateFeature(
     featureId: string,
+    manifestIndex: number,
     definitions: readonly FeatureSettingDefinition[],
   ): void {
     if (this.#disposed) {
       throw new Error("WorkspaceSettings is disposed");
     }
     const rawManifest = this.requireRawManifest();
-    const featureEntry = requireManifestFeatureEntry(rawManifest, featureId);
+    const featureEntry = requireManifestFeatureEntry(
+      rawManifest,
+      manifestIndex,
+    );
     const current = cloneJsonObject(featureEntry.settings);
     const schemas = new Map<string, RegisteredSetting>();
 
@@ -73,19 +77,30 @@ export class WorkspaceSettings implements Disposable {
           `Duplicate setting key for feature ${featureId}: ${definition.key}`,
         );
       }
+      schemas.set(definition.key, { schema: definition.schema });
+    }
+
+    for (const key of Object.keys(current)) {
+      if (!schemas.has(key)) {
+        throw new Error(`Unknown setting for feature ${featureId}: ${key}`);
+      }
+    }
+
+    for (const definition of definitions) {
       const persisted = cloneJson(current[definition.key]);
       const hydrated = hydrateSetting(
         definition.schema,
-        cloneJson(current[definition.key]),
+        definition.default,
+        persisted,
       );
       if (!jsonEqual(persisted, hydrated)) {
         current[definition.key] = hydrated;
         this.#dirtyFeatures.add(featureId);
       }
-      schemas.set(definition.key, { schema: definition.schema });
     }
 
     this.#schemas.set(featureId, schemas);
+    this.#featureManifestIndexes.set(featureId, manifestIndex);
     this.#settings.set(featureId, current);
     featureEntry["settings"] = current;
     this.#scheduleFlush();
@@ -116,12 +131,13 @@ export class WorkspaceSettings implements Disposable {
     const featureSettings = this.#settings.get(featureId) ?? {};
     featureSettings[key] = parsed;
     this.#settings.set(featureId, featureSettings);
-    requireManifestFeatureEntry(this.requireRawManifest(), featureId)[
-      "settings"
-    ] = featureSettings;
+    requireManifestFeatureEntry(
+      this.requireRawManifest(),
+      this.requireManifestIndex(featureId),
+    )["settings"] = featureSettings;
     this.#dirtyFeatures.add(featureId);
-    this.#notify(featureId, key, parsed);
     this.#scheduleFlush();
+    this.#notify(featureId, key, parsed);
   }
 
   onChange(featureId: string, key: string, handler: Listener): () => void {
@@ -146,11 +162,20 @@ export class WorkspaceSettings implements Disposable {
   async flush(): Promise<void> {
     this.#clearFlushTimer();
     if (this.#dirtyFeatures.size === 0) return;
-    this.#dirtyFeatures.clear();
-    await atomicWriteFile(
-      this.#manifestPath,
-      `${JSON.stringify(this.requireRawManifest(), null, 2)}\n`,
-    );
+    const flushing = new Set(this.#dirtyFeatures);
+    try {
+      await atomicWriteFile(
+        this.#manifestPath,
+        `${JSON.stringify(this.requireRawManifest(), null, 2)}\n`,
+      );
+    } catch (err) {
+      this.#scheduleFlush();
+      throw err;
+    }
+    for (const featureId of flushing) {
+      this.#dirtyFeatures.delete(featureId);
+    }
+    this.#scheduleFlush();
   }
 
   [Symbol.dispose](): void {
@@ -166,6 +191,16 @@ export class WorkspaceSettings implements Disposable {
       throw new Error(`Unknown setting for feature ${featureId}: ${key}`);
     }
     return setting;
+  }
+
+  requireManifestIndex(featureId: string): number {
+    const manifestIndex = this.#featureManifestIndexes.get(featureId);
+    if (manifestIndex === undefined) {
+      throw new Error(
+        `Unknown settings manifest entry for feature ${featureId}`,
+      );
+    }
+    return manifestIndex;
   }
 
   requireRawManifest(): JsonObject {
@@ -227,45 +262,45 @@ async function readRawManifest(manifestPath: string): Promise<JsonObject> {
   return parsed;
 }
 
-function hydrateSetting(schema: TSchema, persisted: unknown): unknown {
-  const withDefaults = Value.Default(schema, persisted ?? {});
-  return Value.Parse(schema, withDefaults);
+function hydrateSetting(
+  schema: TSchema,
+  defaultValue: unknown,
+  persisted: unknown,
+): unknown {
+  const parsedDefault = Value.Parse(schema, cloneJson(defaultValue));
+  if (persisted === undefined) return parsedDefault;
+  const merged = mergeJsonDefaults(parsedDefault, cloneJson(persisted));
+  return Value.Parse(schema, merged);
 }
 
-function manifestFeatureEntries(rawManifest: JsonObject): Array<{
-  id: string;
-  settings: JsonObject;
-}> {
-  const features = rawManifest["features"];
-  if (!Array.isArray(features)) return [];
-  return features.flatMap((feature) => {
-    if (!isRecord(feature)) return [];
-    if (typeof feature["id"] !== "string") return [];
-    return [
-      {
-        id: feature["id"],
-        settings: asRecord(feature["settings"]) ?? {},
-      },
-    ];
-  });
+function mergeJsonDefaults(defaultValue: unknown, persisted: unknown): unknown {
+  if (!isRecord(defaultValue) || !isRecord(persisted)) {
+    return persisted;
+  }
+  const merged = cloneJsonObject(defaultValue);
+  for (const [key, value] of Object.entries(persisted)) {
+    merged[key] = mergeJsonDefaults(merged[key], value);
+  }
+  return merged;
 }
 
 function requireManifestFeatureEntry(
   rawManifest: JsonObject,
-  featureId: string,
+  manifestIndex: number,
 ): JsonObject & { settings: JsonObject } {
   const features = rawManifest["features"];
   if (!Array.isArray(features)) {
     throw new Error("workspace manifest features is not an array");
   }
-  for (const feature of features) {
-    if (!isRecord(feature)) continue;
-    if (feature["id"] !== featureId) continue;
+  const feature = (features as unknown[])[manifestIndex];
+  if (isRecord(feature)) {
     const settings = asRecord(feature["settings"]) ?? {};
     feature["settings"] = settings;
     return feature as JsonObject & { settings: JsonObject };
   }
-  throw new Error(`workspace manifest has no feature entry for ${featureId}`);
+  throw new Error(
+    `workspace manifest has no feature entry at index ${String(manifestIndex)}`,
+  );
 }
 
 async function atomicWriteFile(

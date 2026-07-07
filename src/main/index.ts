@@ -297,9 +297,6 @@ async function openWorkspace(
   // keeps strict semantics (a bad manifest rejects, tree intact).
   let activation: ActivationResult;
   try {
-    if (fs.existsSync(manifestPath)) {
-      await workspaceSettings.reload();
-    }
     activation = await loadFeatures(currentSources(), featuresBag, substrate);
   } catch (thrown) {
     const error = thrown instanceof Error ? thrown : new Error(String(thrown));
@@ -333,9 +330,6 @@ async function openWorkspace(
       reloadLog.debug({}, "reload_started");
 
       try {
-        if (fs.existsSync(manifestPath)) {
-          await workspaceSettings.reload();
-        }
         const featureResult = await loadFeatures(
           currentSources(),
           featuresBag,

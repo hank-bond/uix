@@ -104,8 +104,10 @@ const createFeatureJiti = (apiModuleDir?: string) =>
 const ReservedFeatureIds: ReadonlySet<string> = new Set(["agent", "uix"]);
 
 interface FeatureSettingsFactory {
+  reload(): Promise<void>;
   hydrateFeature(
     featureId: string,
+    manifestIndex: number,
     definitions: NonNullable<FeatureDefinition["settings"]>,
   ): void;
   forFeature(featureId: string): FeatureSettings;
@@ -218,6 +220,34 @@ const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
   if (def.context !== undefined && typeof def.context !== "function") {
     throw new Error(`FeatureDefinition ${def.id} context is not a function`);
   }
+  if (def.settings !== undefined) {
+    if (!Array.isArray(def.settings)) {
+      throw new Error(`FeatureDefinition ${def.id} settings is not an array`);
+    }
+    for (const [index, setting] of def.settings.entries()) {
+      if (typeof setting !== "object" || setting === null) {
+        throw new Error(
+          `FeatureDefinition ${def.id} settings[${String(index)}] is not an object`,
+        );
+      }
+      const partial = setting as Record<string, unknown>;
+      if (typeof partial["key"] !== "string" || partial["key"] === "") {
+        throw new Error(
+          `FeatureDefinition ${def.id} settings[${String(index)}].key is missing or invalid`,
+        );
+      }
+      if (!("schema" in partial)) {
+        throw new Error(
+          `FeatureDefinition ${def.id} setting ${partial["key"]} is missing schema`,
+        );
+      }
+      if (!("default" in partial)) {
+        throw new Error(
+          `FeatureDefinition ${def.id} setting ${partial["key"]} is missing default`,
+        );
+      }
+    }
+  }
   return def as FeatureDefinition;
 };
 
@@ -243,7 +273,7 @@ export const activateFeatures = async (
   const jiti = createFeatureJiti(substrate.apiModuleDir);
 
   const activate = async (
-    manifestId: string,
+    manifestIndex: number,
     displayName: string,
     entry: string,
     loadDefinition: () => unknown,
@@ -262,11 +292,6 @@ export const activateFeatures = async (
     try {
       const definition = validateFeatureDefinition(await loadDefinition());
 
-      if (definition.id !== manifestId) {
-        throw new Error(
-          `Feature id mismatch: manifest declares ${manifestId}, entry exports ${definition.id}`,
-        );
-      }
       if (ReservedFeatureIds.has(definition.id)) {
         throw new Error(`Feature id is reserved: ${definition.id}`);
       }
@@ -276,6 +301,7 @@ export const activateFeatures = async (
 
       substrate.settings.hydrateFeature(
         definition.id,
+        manifestIndex,
         definition.settings ?? [],
       );
       const baseContext = buildFeatureContext(definition.id, substrate, bag);
@@ -307,9 +333,9 @@ export const activateFeatures = async (
     }
   };
 
-  for (const { id, ref, entry } of entries) {
+  for (const { index, ref, entry } of entries) {
     await activate(
-      id,
+      index,
       ref,
       entry,
       () => jiti.import<unknown>(entry, { default: true }),
@@ -356,6 +382,7 @@ export const loadFeatures = (
         "manifest_read",
       );
       entries = features;
+      await substrate.settings.reload();
     }
     featuresBag.clear();
     return activateFeatures(entries, featuresBag, substrate);

@@ -26,6 +26,7 @@ const documents: DocumentStoreFactory = {
 };
 
 const settings = {
+  reload: async () => {},
   hydrateFeature: () => {},
   forFeature: () => ({
     get: () => undefined,
@@ -78,7 +79,6 @@ async function writeWorkspace(
       name: "test workspace",
       features: (refs ?? Object.keys(files).map((f) => `./${f}`)).map(
         (ref) => ({
-          id: manifestIdFor(files, ref),
           entry: ref,
           settings: {},
         }),
@@ -86,19 +86,6 @@ async function writeWorkspace(
     }),
   );
   return join(dir, WorkspaceManifestFileName);
-}
-
-function manifestIdFor(files: Record<string, string>, ref: string): string {
-  const file = ref.replace(/^\.\//, "");
-  const source = files[file];
-  const match = source?.match(/id:\s*["']([^"']+)["']/);
-  return (
-    match?.[1] ??
-    file
-      .split(/[\\/]/)
-      .pop()!
-      .replace(/\.[^.]+$/, "")
-  );
 }
 
 const toolFeature = (id: string, tool = "greet") => `

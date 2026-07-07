@@ -1,8 +1,9 @@
-import type { TSchema } from "typebox";
+import type { Static, TSchema } from "typebox";
 
 export interface FeatureSettingDefinition<Schema extends TSchema = TSchema> {
   key: string;
   schema: Schema;
+  default: Static<Schema>;
 }
 
 export interface FeatureSettings {

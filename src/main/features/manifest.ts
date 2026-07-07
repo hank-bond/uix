@@ -1,8 +1,8 @@
 // workspace manifest.
 //
 // `uix.workspace.json` in the workspace root is the composition: a name plus
-// an explicit ordered array of feature entries with ids, entry-file references
-// (relative to the manifest, or absolute for shared/cross-workspace features),
+// an explicit ordered array of feature entries with entry-file references
+// (relative to the manifest, or absolute for shared/cross-workspace features)
 // and feature-local settings. Manifest order
 // is load order; there is no auto-discovery. Extra fields are tolerated so
 // later additions (layout, agent config, links) don't break older readers.
@@ -17,7 +17,6 @@ import { Value } from "typebox/value";
 export const WorkspaceManifestFileName = "uix.workspace.json";
 
 export const WorkspaceManifestFeatureSchema = Type.Object({
-  id: Type.String(),
   entry: Type.String(),
   settings: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
 });
@@ -35,14 +34,12 @@ export type WorkspaceManifestFeature = Static<
 
 /** A manifest feature reference resolved to an absolute entry path. */
 export interface ManifestFeatureRef {
-  /** The manifest-declared feature id, verified against the loaded definition. */
-  id: string;
+  /** The manifest entry index, used to bind settings before the feature id is known. */
+  index: number;
   /** The entry ref as written in the manifest — the human/agent-facing label. */
   ref: string;
   /** Absolute entry-file path, resolved against the manifest's directory. */
   entry: string;
-  /** Settings object as written for this feature entry. */
-  settings: Record<string, unknown>;
 }
 
 /**
@@ -87,11 +84,10 @@ export async function readWorkspaceManifest(
   const dir = path.dirname(manifestPath);
   return {
     manifest,
-    features: manifest.features.map((feature) => ({
-      id: feature.id,
+    features: manifest.features.map((feature, index) => ({
+      index,
       ref: feature.entry,
       entry: path.resolve(dir, feature.entry),
-      settings: feature.settings ?? {},
     })),
   };
 }
