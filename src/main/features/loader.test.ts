@@ -25,6 +25,15 @@ const documents: DocumentStoreFactory = {
   },
 };
 
+const settings = {
+  hydrateFeature: () => {},
+  forFeature: () => ({
+    get: () => undefined,
+    set: () => {},
+    onChange: () => () => {},
+  }),
+};
+
 function makeSubstrate() {
   const agentTools = new AgentToolRegistry();
   const surfaces = new SurfaceRegistry();
@@ -41,6 +50,7 @@ function makeSubstrate() {
   });
   const substrate: FeatureSubstrate = {
     documents,
+    settings,
     channels,
     registries: { agentTools, channels, surfaces },
     // The repo's API source — what the composition root supplies in dev.
@@ -66,10 +76,29 @@ async function writeWorkspace(
     join(dir, WorkspaceManifestFileName),
     JSON.stringify({
       name: "test workspace",
-      features: refs ?? Object.keys(files).map((f) => `./${f}`),
+      features: (refs ?? Object.keys(files).map((f) => `./${f}`)).map(
+        (ref) => ({
+          id: manifestIdFor(files, ref),
+          entry: ref,
+          settings: {},
+        }),
+      ),
     }),
   );
   return join(dir, WorkspaceManifestFileName);
+}
+
+function manifestIdFor(files: Record<string, string>, ref: string): string {
+  const file = ref.replace(/^\.\//, "");
+  const source = files[file];
+  const match = source?.match(/id:\s*["']([^"']+)["']/);
+  return (
+    match?.[1] ??
+    file
+      .split(/[\\/]/)
+      .pop()!
+      .replace(/\.[^.]+$/, "")
+  );
 }
 
 const toolFeature = (id: string, tool = "greet") => `

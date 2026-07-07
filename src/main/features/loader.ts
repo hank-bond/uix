@@ -49,12 +49,14 @@ import { dirname } from "node:path";
 
 import type { FeatureContext, FeatureDefinition } from "@uix/api/feature";
 import type { DocumentStoreFactory } from "@uix/api/documents";
+import type { FeatureSettings } from "@uix/api/settings";
 import { createJiti } from "jiti";
 
 import { createFeatureEventPublisherFactory } from "../channels/registry";
 import type { ChannelRegistry } from "../channels/registry";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
+import { bindFeatureSettings } from "../workspace-settings";
 import { isIdToken } from "@uix/api/contribution-id";
 
 import {
@@ -101,9 +103,18 @@ const createFeatureJiti = (apiModuleDir?: string) =>
  */
 const ReservedFeatureIds: ReadonlySet<string> = new Set(["agent", "uix"]);
 
+interface FeatureSettingsFactory {
+  hydrateFeature(
+    featureId: string,
+    definitions: NonNullable<FeatureDefinition["settings"]>,
+  ): void;
+  forFeature(featureId: string): FeatureSettings;
+}
+
 /** What the loader needs from the substrate to activate a feature. */
 export interface FeatureSubstrate {
   documents: DocumentStoreFactory;
+  settings: FeatureSettingsFactory;
   channels: ChannelRegistry;
   registries: FeatureContributionRegistries;
   /**
@@ -132,9 +143,14 @@ export interface FeatureSources {
 export function buildFeatureContext(
   featureId: string,
   substrate: FeatureSubstrate,
+  bag: DisposableBag,
 ): FeatureContext {
   return {
     documents: substrate.documents,
+    settings: bindFeatureSettings(
+      substrate.settings.forFeature(featureId),
+      bag,
+    ),
     channels: createFeatureEventPublisherFactory(featureId, substrate.channels),
     log: createLogger(featureId),
   };
@@ -227,6 +243,7 @@ export const activateFeatures = async (
   const jiti = createFeatureJiti(substrate.apiModuleDir);
 
   const activate = async (
+    manifestId: string,
     displayName: string,
     entry: string,
     loadDefinition: () => unknown,
@@ -245,6 +262,11 @@ export const activateFeatures = async (
     try {
       const definition = validateFeatureDefinition(await loadDefinition());
 
+      if (definition.id !== manifestId) {
+        throw new Error(
+          `Feature id mismatch: manifest declares ${manifestId}, entry exports ${definition.id}`,
+        );
+      }
       if (ReservedFeatureIds.has(definition.id)) {
         throw new Error(`Feature id is reserved: ${definition.id}`);
       }
@@ -252,7 +274,11 @@ export const activateFeatures = async (
         throw new Error(`Feature id already registered: ${definition.id}`);
       }
 
-      const baseContext = buildFeatureContext(definition.id, substrate);
+      substrate.settings.hydrateFeature(
+        definition.id,
+        definition.settings ?? [],
+      );
+      const baseContext = buildFeatureContext(definition.id, substrate, bag);
       const contributedContext = definition.context?.(baseContext) ?? {};
       bag.add(
         registerFeatureContributions(
@@ -281,8 +307,9 @@ export const activateFeatures = async (
     }
   };
 
-  for (const { ref, entry } of entries) {
+  for (const { id, ref, entry } of entries) {
     await activate(
+      id,
       ref,
       entry,
       () => jiti.import<unknown>(entry, { default: true }),

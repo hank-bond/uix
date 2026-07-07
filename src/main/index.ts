@@ -68,6 +68,7 @@ import {
   onWindow,
 } from "./lifecycle";
 import { createLogger } from "./log";
+import { WorkspaceSettings } from "./workspace-settings";
 
 const isDev = !app.isPackaged;
 const LocalWorkspaceId = "local";
@@ -144,6 +145,9 @@ async function openWorkspace(
   ipc.initLogFile(workspace.stateRoot);
 
   const documents = createLocalDocumentStoreFactory(workspace.stateRoot);
+  const workspaceSettings = appBag.add(
+    new WorkspaceSettings(workspace.manifestPath),
+  );
 
   // The feature composition lives under its own child scope so reload can
   // tear down the feature subtree without touching app-lifetime process
@@ -272,6 +276,7 @@ async function openWorkspace(
   const apiModuleDir = join(app.getAppPath(), "src/api");
   const substrate: FeatureSubstrate = {
     documents,
+    settings: workspaceSettings,
     channels,
     ...(fs.existsSync(apiModuleDir) && { apiModuleDir }),
     registries: {
@@ -292,6 +297,9 @@ async function openWorkspace(
   // keeps strict semantics (a bad manifest rejects, tree intact).
   let activation: ActivationResult;
   try {
+    if (fs.existsSync(manifestPath)) {
+      await workspaceSettings.reload();
+    }
     activation = await loadFeatures(currentSources(), featuresBag, substrate);
   } catch (thrown) {
     const error = thrown instanceof Error ? thrown : new Error(String(thrown));
@@ -325,6 +333,9 @@ async function openWorkspace(
       reloadLog.debug({}, "reload_started");
 
       try {
+        if (fs.existsSync(manifestPath)) {
+          await workspaceSettings.reload();
+        }
         const featureResult = await loadFeatures(
           currentSources(),
           featuresBag,

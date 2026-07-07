@@ -96,9 +96,11 @@ export async function scaffoldWorkspace(
 
   const manifest = {
     name,
-    features: DefaultFeatures.map(
-      (feature) => `./features/${feature}/index.ts`,
-    ),
+    features: DefaultFeatures.map((feature) => ({
+      id: feature,
+      entry: `./features/${feature}/index.ts`,
+      settings: {},
+    })),
   };
   await writeFile(
     path.join(workspaceDir, WorkspaceManifestFileName),

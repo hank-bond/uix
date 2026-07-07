@@ -5,7 +5,7 @@ status: active
 
 # State model
 
-UIX currently exposes no public state-persistence API for UIX extensions.
+UIX exposes feature-scoped workspace settings for durable JSON preferences via `ctx.settings`. See [`settings.md`](./settings.md).
 
 Current shipped state behavior:
 
@@ -13,6 +13,7 @@ Current shipped state behavior:
 - Canvas HTML is stored by key in the local document store (`src/main/documents/store.ts`) under the `canvas` namespace.
 - Canvas keys are validated slash-namespaced slugs, not filesystem paths.
 - Canvas writes go through the `canvas__anchor_write` tool and broadcast `canvasChanged { key }`.
+- Feature backend code can use `ctx.settings.get/set/onChange` for declared, schema-validated workspace settings persisted on that feature's manifest entry in `uix.workspace.json`.
 - UIX extensions can currently call `registerCommand(...)`; the command-shaped contribution is lifetime-scoped but not persisted and not invokable through UIX.
 
 A package that also contains pi extension resources should use pi's own documented state APIs from the pi side. The current `@uix/api` surface does not provide access to the cockpit-owned pi session manager, custom session entries, file watchers, or a UIX extension storage directory.

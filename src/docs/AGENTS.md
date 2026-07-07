@@ -22,6 +22,7 @@ Pages marked _(stub)_ are placeholders that fill in as the corresponding primiti
 - **[contributions](./contributions.md)** _(active)_ — Extension entry files can call registerCommand only; the registration is logged and lifetime-scoped but not yet invokable through a command registry.
 - **[extensions](./extensions.md)** _(active)_ — Trusted local TS/JS packages default-export a factory that receives the injected type-only @uix/api; entries are discovered from .uix/extensions and ~/.uix/extensions, loaded with jiti, and lifetime-scoped across reloads.
 - **[lifetimes](./lifetimes.md)** _(active)_ — DisposableBag owns cleanup for the app, extension reload, window registrations, and the agent driver; extension authors get cleanup only through registrations made on the injected API.
+- **[settings](./settings.md)** _(active)_ — Feature-scoped durable workspace settings: features declare TypeBox schemas with defaults, the loader hydrates missing fields into each manifest feature entry, and backend code reads/writes validated values through ctx.settings.
 - **[state](./state.md)** _(active)_ — The cockpit uses an in-memory pi session and stores canvas HTML in the local document store; there is no public UIX-extension state API yet beyond lifetime-scoped registerCommand cleanup.
 
 <!-- INDEX:END -->

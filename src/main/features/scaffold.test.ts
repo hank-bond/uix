@@ -60,11 +60,14 @@ describe("scaffoldWorkspace", () => {
 
     const manifest = JSON.parse(
       await readFile(join(workspaceDir, WorkspaceManifestFileName), "utf8"),
-    ) as { name: string; features: string[] };
+    ) as {
+      name: string;
+      features: Array<{ id: string; entry: string; settings: unknown }>;
+    };
     expect(manifest.name).toBe("My Workspace");
     expect(manifest.features).toEqual([
-      "./features/chat/index.ts",
-      "./features/canvas/index.ts",
+      { id: "chat", entry: "./features/chat/index.ts", settings: {} },
+      { id: "canvas", entry: "./features/canvas/index.ts", settings: {} },
     ]);
 
     const rootPackage = JSON.parse(
