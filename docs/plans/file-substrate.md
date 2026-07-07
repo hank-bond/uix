@@ -1,5 +1,5 @@
 ---
-summary: "A manifest-backed workspace settings service hydrates feature-declared TypeBox setting schemas into feature entries, exposes validated ctx.settings, and writes atomically without live filesystem watching; tracked document publication is the future file-change primitive."
+summary: "A manifest-backed workspace settings service hydrates feature-declared TypeBox schemas plus explicit defaults into feature entries, exposes validated ctx.settings, and writes atomically without live filesystem watching; tracked document publication is the future file-change primitive."
 status: active
 ---
 
@@ -29,7 +29,6 @@ Move workspace feature entries to objects:
   "name": "My Workspace",
   "features": [
     {
-      "id": "chat",
       "entry": "./features/chat/index.ts",
       "settings": {}
     }
@@ -37,7 +36,7 @@ Move workspace feature entries to objects:
 }
 ```
 
-The loader verifies that `features[i].id` matches the loaded `FeatureDefinition.id`. Settings are colocated with the feature they tune; there is no top-level `settings[featureId]` map in this version.
+The manifest entry does not repeat the feature id. The loaded `FeatureDefinition.id` is the only feature identity; settings are colocated with the manifest entry being activated, and there is no top-level `settings[featureId]` map in this version.
 
 ## W1 — Feature-declared setting schemas
 
@@ -47,15 +46,22 @@ Settings are declared on `FeatureDefinition`, before `context()` and `contribute
 import { Type } from "typebox";
 
 const StatusBarSettings = Type.Object({
-  order: Type.Array(Type.String(), {
-    default: ["model", "thinking", "context"],
-  }),
-  hidden: Type.Array(Type.String(), { default: [] }),
+  order: Type.Array(Type.String()),
+  hidden: Type.Array(Type.String()),
 });
 
 export default {
   id: "chat",
-  settings: [{ key: "statusBar", schema: StatusBarSettings }],
+  settings: [
+    {
+      key: "statusBar",
+      schema: StatusBarSettings,
+      default: {
+        order: ["model", "thinking", "context"],
+        hidden: [],
+      },
+    },
+  ],
   contribute(ctx) {
     const statusBar = ctx.settings.get("statusBar");
     return {};
@@ -63,7 +69,7 @@ export default {
 };
 ```
 
-Hydration uses TypeBox field-level defaults. Defaults fill only missing keys/fields and never overwrite existing persisted values. If a feature changes a default after a workspace has already materialized the old value, the workspace keeps its current value. New fields get added with defaults. Invalid persisted values fail loudly rather than being silently replaced.
+Hydration uses each setting's explicit `default`, not TypeBox field defaults. Missing values hydrate from the default; plain objects merge recursively so new fields get added without overwriting existing fields; arrays, scalars, and `null` are atomic. `null` is an explicit value and must be allowed by the schema. Unknown persisted setting keys and invalid persisted values fail that feature loudly rather than being silently deleted or replaced.
 
 ## W2 — Feature-scoped settings API
 
