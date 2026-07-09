@@ -1,67 +1,162 @@
 ---
-summary: "Make the cockpit usable without pre-authing pi in a terminal. The driver hoists AuthStorage/ModelRegistry off the session path and the substrate agent contract grows auth/model/status channels (A0); a StatusBar below the composer renders model/thinking/context cells with a gear-driven reorder modal (A1); an OAuth login modal drives pi's headless login handlers, with an empty-state connect card and a send guard (A2)."
+summary: "Add the first cockpit agent control: a chat status-bar model pill backed by available pi models, workspace-level default-model settings, native pi model_change entries for live/branch state, and a searchable picker."
 status: active
 ---
 
 # Spec: agent controls
 
-Today a user must load pi in a terminal, authenticate, and pick a model _before_ opening the cockpit — the driver only builds `AuthStorage`/`ModelRegistry` inside `openSession()`, which first runs on the first prompt, and there is no UI to log in or choose a model. This plan builds the cockpit's own frontend for both.
+Build the first useful chat status-bar control: a model pill that shows the current/default model, opens a searchable picker, and lets the pilot select an available pi model without leaving UIX.
 
-Three units. **A0** (the driver hoist + contract) is the highest-value single piece — it alone unblocks anyone who already authed pi elsewhere, since UIX and pi share `auth.json`. A1 (StatusBar) depends on the settings store from [file-substrate](./file-substrate.md) (F1) for durable cell layout; A0/A2 don't touch it. A2 needs A0's channel bridge.
-
-No users yet beyond the author, so breaking changes to the agent channel contract are free — favor the right shape over back-compat.
+This is intentionally smaller than a full auth/control surface. v1 assumes pi auth is already configured elsewhere and lists **available models only**. OAuth/API-key UI, thinking-level controls, context usage, and reorderable status-bar cells remain later work.
 
 ## Decisions assumed
 
-- [pilot substrate](../decisions/2026-05-30-uix-is-a-pilot-substrate.md) / [pi self-extension ethos](../decisions/2026-06-05-pi-self-extension-ethos.md) — the StatusBar is a small composition primitive with cells as entries, not hardcoded chrome; auth/model machinery stays pi's, UIX only renders it.
-- [features are the loadable unit](../decisions/2026-07-01-features-are-the-loadable-unit.md) — the agent channels live behind `@uix/api`; chat consumes them like any feature could.
-- [no agent UI manipulation](../decisions/2026-05-30-no-agent-ui-manipulation.md) — StatusBar layout persists via the settings store (an ordinary file edit), never a channel the agent drives.
+- [pilot substrate](../decisions/2026-05-30-uix-is-a-pilot-substrate.md) / [pi self-extension ethos](../decisions/2026-06-05-pi-self-extension-ethos.md) — UIX renders controls over pi's model/auth machinery; it does not fork provider/model logic.
+- [features are the loadable unit](../decisions/2026-07-01-features-are-the-loadable-unit.md) — chat consumes substrate-owned agent channels like any feature could; model control belongs to the agent substrate, not a chat-private backend.
+- [no agent UI manipulation](../decisions/2026-05-30-no-agent-ui-manipulation.md) — persistent defaults change through workspace settings in `uix.workspace.json`, not through an agent-side UI API.
+- [agent-state-messages](../design/agent-state-messages.md) — model/thinking status is transcript-native pi state (`model_change` / `thinking_level_change`), not a new `uix.turn-state` cache.
 
-## Verified pi facts (2026-07-02, dist source)
+## Verified pi facts
 
-- **Auth** (`core/auth-storage.d.ts`): `AuthStorage.create(authPath?)` reads `auth.json`; `AuthStorage.fromStorage(backend)` accepts any `AuthStorageBackend` (the hosting seam). `getOAuthProviders()` lists providers; `login(providerId, callbacks: OAuthLoginCallbacks)` runs the flow; `logout(provider)`; `set(provider, { type: "api_key", key })` for plain keys; `getAuthStatus(provider)` returns `{ configured, source?, label? }` without exposing secrets or refreshing tokens.
-- **OAuth login handlers** (pi's `OAuthLoginCallbacks`, `pi-ai/dist/utils/oauth/types.d.ts`): `onAuth({ url, instructions? })`, `onDeviceCode({ userCode, verificationUri, ... })`, `onPrompt(prompt) => Promise<string>`, `onSelect(prompt) => Promise<string | undefined>`, `onManualCodeInput?() => Promise<string>` (the paste-the-code fallback — the local flow's safety net), `onProgress?(msg)`, `signal?: AbortSignal`. `onPrompt`/`onSelect`/`onManualCodeInput` are **main-asks-renderer**, the inverse of a normal request; bridge as an event carrying a prompt id, answered by a `loginInput` request keyed to that id. Providers with `usesCallbackServer` spin up a localhost redirect server — works locally because browser and pi share the machine.
-- **Models** (`core/model-registry.d.ts`, `core/agent-session.d.ts`): `ModelRegistry.create(authStorage)`; `getAll()`, `getAvailable()` (= auth configured), `find(provider, id)`, `isUsingOAuth(model)`, `getProviderDisplayName(provider)`. On the session: `setModel(model)` (throws if no auth), `model` getter, thinking-level getters/setters + `getAvailableThinkingLevels()` (clamps per model).
-- **Persisting choices** (`core/settings-manager.d.ts`): `Settings.defaultModel`; `setDefaultModelAndProvider(provider, id)`, `setDefaultThinkingLevel(level)` — persist across sessions so the StatusBar reflects prior choice pre-session.
-- **Context usage** (`core/agent-session.d.ts` `getContextUsage()` → `core/extensions/types.d.ts ContextUsage`): `{ tokens: number | null, contextWindow: number, percent: number | null }`. `tokens`/`percent` are **null right after compaction and before the next LLM response** — the context cell must render `—` in that window. Usage only moves when a turn completes, so recompute on `turn_end`/`agent_end`, never poll.
+- `ModelRegistry.create(authStorage)` can list known models; `getAvailable()` returns only models with configured auth.
+- `AgentSession.setModel(model)` validates auth, updates the live agent model, appends a native `model_change` entry, persists pi's default model/provider, reclamps thinking level, and emits model-select hooks.
+- `SessionManager` persists native `model_change` entries with `{ provider, modelId }`; `createAgentSession(...)` restores the current model from branch history before falling back to configured defaults.
+- pi's `SettingsManager` has default provider/model APIs, but UIX wants a **workspace default** in the workspace manifest rather than a global/project pi default as the cockpit source of truth.
 
-## A0 — Driver hoist + agent channel contract
+## Target model
 
-- **Hoist** `AuthStorage.create()` + `ModelRegistry.create(authStorage)` out of `openSession()` (`src/main/agent/driver.ts:168-169`) to **driver scope**, created eagerly (or on first `init()`), so auth status and the model list are queryable **before any session exists** — the exact state a fresh user is stuck in. `openSession()` reuses the hoisted instances. This alone unblocks anyone who already authed pi elsewhere (shared `auth.json`).
-- **Extend the substrate agent contract** (`src/api/agent-channels.ts` `agentChannels` — chat already renders this connection, so it's the right home; not a chat-private channel):
-  - requests: `authOverview` (providers + status + which have available models), `listModels`, `selectModel({ provider, id })` (persists default via `setDefaultModelAndProvider` **and** hot-switches the live session if one is open), `setApiKey({ provider, key })`, `login({ provider })`, `cancelLogin({ id })`, `logout({ provider })`, `loginInput({ id, value })` (answers an `onPrompt`/`onSelect`/`onManualCodeInput`), `agentStatus` (→ `{ model, thinkingLevel, contextUsage, providersConfigured }`), `setThinkingLevel({ level })`.
-  - events: `login_step` (carries `{ id, kind }` for auth-url / device-code / progress / prompt / select / done / error), `status_changed` (model/thinking/context/auth moved), `auth_changed`.
-- **Driver emits** `status_changed` after `selectModel`/`setThinkingLevel`, after `auth_changed`, and at `turn_end`/`agent_end` for `contextUsage` (`getContextUsage()`; render `—` when `tokens`/`percent` null). Pre-session, `contextUsage` is undefined and model/thinking come from settings defaults — the bar renders fully before the first prompt.
-- Handlers merge via `withHandlers(agentChannels, {...})` alongside the existing `prompt`/`history` in `src/main/index.ts:241`, closing over the driver.
+There are two distinct pieces of state:
 
-## A1 — StatusBar (discrete component, below the composer)
+1. **Current/live model** — pi-owned, branch-aware session state. When a session exists, selecting a model calls `session.setModel(model)`, producing a native `model_change` entry. History/branch replay should derive current model from pi's branch, not from UIX turn state.
+2. **Workspace default model** — UIX workspace setting. Used before a pi session exists and as the default for new sessions/branches that do not already carry a `model_change` entry.
 
-A dedicated `StatusBar` component the chat surface renders **below** the composer form (matching where pi's TUI footer sits). Dense single row of **cells**; each cell is compact text/icon and opens its own anchored popover on click; a gear icon at the far end opens the reorder modal.
+Workspace settings are substrate-owned and manifest-level, not feature-scoped:
 
-- **Cell model** — an ordered array of `{ id, cell: Component, popover?: Component }`, not hardcoded JSX. This is the seam for "more things later" and makes the reorder modal fall out of the same list. **Registry is chat-local** — no cross-feature cell contribution (no cross-feature type system today; explicitly out of scope).
-- **v1 cells**:
-  - **model** — name + auth dot; popover is the model picker grouped by provider (current marked; unauthenticated providers show dimmed models + a `connect` affordance that launches A2). Selecting calls `selectModel`.
-  - **thinking** — current level; popover lists levels valid for the current model (`getAvailableThinkingLevels`), calls `setThinkingLevel`. _Cuttable from v1_ if it complicates the strip; model + context are the load-bearing two.
-  - **context** — `ctx 42%`; `ctx —` when null (post-compaction / pre-response). Popover shows tokens/window/percent; natural future home for a "compact now" action.
-  - **gear** — opens the reorder modal: drag-drop list of cells (allow hide/show while there — same modal, one toggle). **Plain HTML drag events or a small pointer-based list; no dnd dependency** (substrate ships no design system; keep the feature dep-light).
-- **Persistence via file-substrate F1**: `ctx.settings.get("statusBar")` → `{ order, hidden }` at mount; `set` on modal save; `onChange` keeps it live if the agent or a hand edit changes it. This is the only cross-plan dependency.
-- Data via A0: subscribe `status_changed`, seed from `agentStatus`.
+```json
+{
+  "name": "My Workspace",
+  "settings": {
+    "agent": {
+      "defaultModel": {
+        "provider": "anthropic",
+        "id": "claude-sonnet-4-5"
+      }
+    }
+  },
+  "features": []
+}
+```
 
-## A2 — OAuth login modal (local flow)
+For now, workspace settings are not user-registerable. The substrate owns the small schema set it needs, beginning with `agent.defaultModel`.
 
-A focused modal (blocks only the chat surface while logging in — login is rare) launched from the model popover's `connect`, driven by pi's `login(provider, callbacks)` through the A0 channel bridge:
+## A0 — Workspace-level settings
 
-- Driver builds `OAuthLoginCallbacks` that translate to `login_step` events and (for the async ones) await a `loginInput` request keyed by prompt id:
-  - `onAuth({ url })` → main fires `shell.openExternal(url)` **and** emits a step so the modal shows an "opened browser / reopen link" affordance; pi's localhost callback server catches the redirect.
-  - `onDeviceCode` → show code + verification URI.
-  - `onManualCodeInput` → always-visible "paste code manually" input (the local-flow safety net) → resolves via `loginInput`.
-  - `onPrompt`/`onSelect` → render inline input/selector → `loginInput`.
-  - `onProgress` → status line. `signal` wired to the modal's cancel (`cancelLogin`).
-- **API-key providers**: same modal, single key field → `setApiKey` → `authStorage.set(provider, { type: "api_key", key })`.
-- On success: modal closes, `auth_changed` refreshes the popover, the provider's models light up. **Empty state**: when `authOverview` reports nothing configured, replace the transcript placeholder with a "connect a provider to start" card that opens this modal — fixes today's failure where the first prompt dies deep in `openSession()` with an opaque error row. **Send guard**: composer disables send with a hint when no model is selectable, rather than letting the prompt fail.
-- **Web/hosted note (not built here)**: hosted swaps this for paste-a-token (user logs in infrequently, doesn't mind) — same channel contract, different `OAuthLoginCallbacks` impl + an `AuthStorageBackend` other than `auth.json`. The contract is transport-agnostic on purpose; building the local flow doesn't corner the hosted one.
+Extend `WorkspaceSettingsStore` with substrate-owned workspace settings alongside existing feature settings.
 
-## Boundary / non-goals
+- Keep feature settings under each manifest feature entry unchanged.
+- Add manifest-level `settings` object keyed by substrate namespace, initially `agent.defaultModel`.
+- Add store operations for workspace settings, e.g. `getWorkspaceSetting(namespace, key)`, `setWorkspaceSetting(namespace, key, value)`, and change subscription for substrate callers.
+- Reuse the same semantics as feature settings: TypeBox schema, explicit default or optional value policy, JSON cloning, validated set, debounced atomic manifest write, reload disk-wins.
+- Expose workspace settings to main-process substrate code; optionally expose a read/write handle on `FeatureContext` only if a feature has a real need. Model selection itself should go through agent channels, not by surfaces directly mutating `agent.defaultModel`.
 
-- No cross-feature cell contribution, no generic settings UI surface, no hosted paste-a-token flow, no OS sandbox for pi bash — future-column ([backlog](./backlog.md)).
-- Depends on [file-substrate](./file-substrate.md) F1 for A1 only; A0 is independently shippable and is the fastest path to "usable without a terminal."
+Acceptance:
+
+- Missing manifest-level settings hydrate or read as the schema's default/undefined policy without touching feature entries.
+- Setting `agent.defaultModel` persists to `uix.workspace.json` and notifies subscribers.
+- Existing feature settings tests still pass unchanged.
+
+## A1 — Agent driver model service
+
+Hoist pi auth/model services to driver scope so model status is available before the first prompt opens an `AgentSession`.
+
+- Create/reuse `AuthStorage` and `ModelRegistry` outside `openSession()`.
+- `openSession()` reuses the hoisted instances and applies the workspace default model when no branch model overrides it.
+- Add driver methods:
+  - `listModels()` — returns available models only.
+  - `status()` — returns current live model if a session exists, else workspace default when set.
+  - `selectModel({ provider, id })` — validates the model exists in available models, writes workspace default, and if a session exists calls `session.setModel(model)`.
+- Emit a status changed callback after `selectModel`, after session creation when the selected/restored model becomes known, and after live pi model changes if those are observed through session events/hooks.
+
+Acceptance:
+
+- A fresh workspace can list models before any prompt is sent.
+- Selecting before session creation updates workspace default only.
+- Selecting after session creation also switches the live session via `setModel`, producing native pi state.
+
+## A2 — Agent channel contract
+
+Extend `@uix/api/agent-channels` with model/status requests and events.
+
+Requests:
+
+- `list_models`: `void -> { models: ModelOption[] }`
+- `agent_status`: `void -> AgentStatus`
+- `select_model`: `{ provider: string; id: string } -> AgentStatus`
+
+Events:
+
+- `status_changed`: `AgentStatus`
+
+Initial public shapes:
+
+```ts
+interface ModelRef {
+  provider: string;
+  id: string;
+}
+
+interface ModelOption extends ModelRef {
+  name: string;
+}
+
+interface AgentStatus {
+  model?: ModelRef;
+  defaultModel?: ModelRef;
+}
+```
+
+`list_models` returns **available models only**. If no models are available, the UI shows an empty state; auth/connect UI is a later unit.
+
+Acceptance:
+
+- Renderer can fetch models/status and select a model through the typed channel client.
+- Main validates every select request against pi's available model registry.
+- Status events reach all mounted chat surfaces.
+
+## A3 — Chat status-bar model pill + picker
+
+Replace the current status-bar smoke test with the first real cell.
+
+- Render a compact model pill below the composer.
+- Seed from `agent_status`; subscribe to `status_changed`.
+- Pill label priority: live/current model, workspace default model, then `select model` empty state.
+- Clicking opens a small anchored popover/modal scoped to the chat surface.
+- The picker has a focused text input and filters by provider, id, and display name.
+- Selecting a row calls `select_model`, updates status from the response, and closes the picker.
+- Empty state: `No authenticated models found. Configure pi auth, then reload.`
+
+Acceptance:
+
+- The smoke-test `model/thinking/context` chips are gone.
+- A user can search and select an available model.
+- The selected model persists as workspace default and is reflected by the pill on reload.
+
+## A4 — Docs and tests
+
+- Update `src/docs/settings.md` with manifest-level workspace settings and the feature-vs-workspace split.
+- Update `src/docs/agent.md` with model list/status/select channel behavior.
+- Update architecture current-state after implementation.
+- Tests:
+  - workspace settings hydrate/set/reload behavior;
+  - agent channel schemas/client behavior;
+  - driver model selection with a fake/isolated pi surface where practical;
+  - chat picker filtering and select behavior at the component/client boundary if the current test setup supports it.
+
+## Boundary / later
+
+- No auth/login UI in this slice.
+- No unavailable-model rows in this slice; list only authenticated/available models.
+- No thinking-level picker yet, though native pi state already exists.
+- No context-usage cell yet.
+- No generic status-bar cell registry or reorder modal yet; the model pill is the first concrete cell.
+- No use of `uix.turn-state` for model selection; current model is pi native session state.

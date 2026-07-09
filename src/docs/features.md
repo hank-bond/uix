@@ -70,6 +70,6 @@ The renderer bridge exposes substrate reload as:
 await window.uix.reload();
 ```
 
-Reload re-reads the workspace manifest, refreshes workspace settings from disk, clears the current feature subtree, activates manifest entries again, publishes surface changes, and delegates to pi's native `session.reload()` path if a pi session already exists.
+Reload re-reads the workspace manifest, refreshes workspace settings from disk, clears the current feature subtree, activates manifest entries again, publishes surface changes, and delegates to pi's native `session.reload()` path if a pi session already exists. It mirrors first load: disk wins over pending debounced in-memory settings.
 
 Malformed manifests fail before clearing the current feature tree. Per-feature failures, including bad exports, reserved/duplicate ids, invalid settings, or throwing contribution code, are isolated: the failed entry is reported in the reload result and sibling entries continue activating.

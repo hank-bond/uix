@@ -69,7 +69,7 @@ During feature activation the loader validates each declared setting's default, 
 
 Rules:
 
-- every declared setting must have `key`, `schema`, and explicit `default`;
+- every declared setting entry must have `schema` and explicit `default`; the settings object's property name is the key;
 - missing / `undefined` values hydrate from the default;
 - `null` is an explicit persisted value and must be allowed by the schema;
 - plain objects merge recursively so newly added default fields materialize without clobbering existing fields;
@@ -89,7 +89,7 @@ ctx.settings.set("statusBar", { order: ["context", "model"], hidden: [] });
 const unsubscribe = ctx.settings.onChange("statusBar", (next) => {});
 ```
 
-`set()` validates against the declared schema, updates memory, schedules an atomic write to `uix.workspace.json`, and fires `onChange` synchronously. External edits to the workspace file are picked up on `/reload`; there is no public file watcher API.
+`set()` validates against the declared schema, updates memory, schedules an atomic write to `uix.workspace.json`, and fires `onChange` synchronously. External edits to the workspace file are picked up on `/reload`; there is no public file watcher API. Reload mirrors first load: the manifest on disk is the source of truth, so pending debounced in-memory settings that have not flushed are discarded.
 
 ## Surface API
 
