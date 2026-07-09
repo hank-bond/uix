@@ -15,6 +15,7 @@ export const SurfaceSharedModules = [
   "typebox",
   "typebox/value",
   "@uix/api/workspace",
+  "@uix/api/settings",
   "@uix/api/agent-channels",
   "@uix/api/resources",
 ] as const;

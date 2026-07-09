@@ -1,5 +1,5 @@
 ---
-summary: "Canonical UIX concept vocabulary: feature, facet, installer, driver, hook, contribution point, contribution, capability handle, registry, coordinator, assembler, reload reconciliation, and agent-context-local terms, with boundaries from pi extension vocabulary."
+summary: "Canonical UIX concept vocabulary: feature, facet, installer, driver, hook, contribution point, contribution, capability handle, registry, store, buffer, coordinator, assembler, reload reconciliation, and agent-context-local terms, with boundaries from pi extension vocabulary."
 status: active
 ---
 
@@ -110,6 +110,18 @@ A **registry** is the substrate-owned collection of currently registered contrib
 A registry is working memory, not durable authority. Durable state lives in Pi session entries, content stores, or other explicitly owned stores. The registry answers: what contributions are live right now?
 
 A registry is not a `DisposableBag`. The registry owns the live contribution index and invariants such as duplicate-id checks; the `Disposable` returned by `register(...)` removes that one contribution; a caller-owned bag decides when that removal happens. Hosted extension APIs should auto-scope registration disposables to the extension's lifetime bag, and first-party wiring should add registration disposables to an explicit bag when the contribution lifetime is shorter than the app.
+
+## Store
+
+A **store** is a durable source-of-truth API or implementation for a state domain. It owns the persistence semantics for that domain — local files, a future git/object-store backend, or another backing implementation are hidden behind the store interface. Callers address store values by stable ids, not by implementation paths.
+
+A store may expose a change feed when the change semantics are generic at that layer. If liveness is domain-specific, the feature or buffer above the store publishes the higher-level invalidation event instead. For example, `DocumentStore` persists current document bytes and immutable versions but does not emit canvas refresh events; the canvas feature publishes `canvas.changed` when an agent-originated document write should refresh the iframe.
+
+## Buffer
+
+A **buffer** is a live, feature-specific working projection over a store. It may cache regenerable session state, normalize or validate writes, reconcile editor state, and translate between feature semantics and the store's generic durable shape.
+
+A buffer is not durable authority. It writes authoritative state through its backing store and can rebuild from store contents when needed. For example, `CanvasDocumentBuffer` keeps anchored document projections, canonicalizes HTML, and reconciles anchors while `DocumentStore` remains the durable current/version store underneath.
 
 ## Facet
 

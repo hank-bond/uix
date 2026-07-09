@@ -33,4 +33,13 @@ export type {
   DocumentStoreOptions,
 } from "./documents";
 export type { FeatureLogger, FeatureLogFn } from "./log";
-export type { FeatureSettingDefinition, FeatureSettings } from "./settings";
+export {
+  defineFeatureSettings,
+  FeatureSettingAddressSchema,
+  FeatureSettingValueEnvelopeSchema,
+  type FeatureSetting,
+  type FeatureSettingAddress,
+  type FeatureSettingValueEnvelope,
+  type FeatureSettings,
+  type FeatureSettingsStore,
+} from "./settings";

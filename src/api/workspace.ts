@@ -1,10 +1,22 @@
-import type { Static } from "typebox";
+import type { Static, TSchema } from "typebox";
 import { Value } from "typebox/value";
-import { createContext, createElement, useContext } from "react";
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 import { toChannelCanonicalId } from "./channel-normalization";
 import { isIdToken } from "./contribution-id";
 import type { ChannelContract } from "./channels";
+import {
+  FeatureSettingValueEnvelopeSchema,
+  type FeatureSettings,
+} from "./settings";
 
 export interface WorkspaceClient {
   readonly workspaceId: string;
@@ -47,6 +59,156 @@ export function useWorkspaceClient(): WorkspaceClient {
   return client;
 }
 
+const FeatureSettingsContext = createContext<FeatureSettingsClient | undefined>(
+  undefined,
+);
+
+type FeatureSettingValue<
+  Settings extends FeatureSettings,
+  Key extends keyof Settings,
+> = Static<Settings[Key]["schema"]>;
+
+export interface FeatureSettingsClient<
+  Settings extends FeatureSettings = FeatureSettings,
+> {
+  get<Key extends keyof Settings & string>(
+    key: Key,
+  ): Promise<FeatureSettingValue<Settings, Key> | undefined>;
+  set<Key extends keyof Settings & string>(
+    key: Key,
+    value: FeatureSettingValue<Settings, Key>,
+  ): Promise<void>;
+  onChange<Key extends keyof Settings & string>(
+    key: Key,
+    handler: (value: FeatureSettingValue<Settings, Key>) => void,
+  ): () => void;
+}
+
+export interface FeatureSettingsProviderProps {
+  client: FeatureSettingsClient;
+  children: ReactNode;
+}
+
+export function FeatureSettingsProvider({
+  client,
+  children,
+}: FeatureSettingsProviderProps): ReactNode {
+  return createElement(
+    FeatureSettingsContext.Provider,
+    { value: client },
+    children,
+  );
+}
+
+function useFeatureSettingsClient(): FeatureSettingsClient {
+  const client = useContext(FeatureSettingsContext);
+  if (!client) {
+    throw new Error("FeatureSettingsProvider is missing");
+  }
+  return client;
+}
+
+export interface FeatureSettingState<Value> {
+  value: Value | undefined;
+  loading: boolean;
+  error: Error | undefined;
+  set(value: Value): Promise<void>;
+}
+
+export function useFeatureSetting<
+  const Settings extends FeatureSettings,
+  const Key extends keyof Settings & string,
+>(
+  featureSettings: Settings,
+  key: Key,
+): FeatureSettingState<FeatureSettingValue<Settings, Key>> {
+  const settings = useFeatureSettingsClient();
+  const schema = featureSettings[key].schema;
+  const [value, setValue] = useState<
+    FeatureSettingValue<Settings, Key> | undefined
+  >(undefined);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | undefined>(undefined);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setError(undefined);
+    void settings
+      .get(key)
+      .then((raw) => {
+        if (!alive) return;
+        setValue(parseFeatureSettingValue(schema, raw));
+      })
+      .catch((thrown: unknown) => {
+        if (!alive) return;
+        setError(thrown instanceof Error ? thrown : new Error(String(thrown)));
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+
+    const unsubscribe = settings.onChange(key, (raw) => {
+      setValue(parseFeatureSettingValue(schema, raw));
+    });
+    return () => {
+      alive = false;
+      unsubscribe();
+    };
+  }, [key, schema, settings]);
+
+  const set = useCallback(
+    async (next: FeatureSettingValue<Settings, Key>) => {
+      await settings.set(key, next);
+      setValue(parseFeatureSettingValue(schema, next));
+    },
+    [key, schema, settings],
+  );
+
+  return useMemo(
+    () => ({ value, loading, error, set }),
+    [value, loading, error, set],
+  );
+}
+
+export function createFeatureSettingsClient(
+  workspace: WorkspaceClient,
+  featureId: string,
+): FeatureSettingsClient {
+  return {
+    get: (key) =>
+      workspace.request(toChannelCanonicalId("uix", "get_setting"), {
+        featureId,
+        key,
+      }),
+    set: async (key, value) => {
+      await workspace.request(toChannelCanonicalId("uix", "set_setting"), {
+        featureId,
+        key,
+        value,
+      });
+    },
+    onChange: (key, handler) =>
+      workspace.subscribe(
+        toChannelCanonicalId("uix", "setting_changed"),
+        (raw) => {
+          const event = Value.Parse(FeatureSettingValueEnvelopeSchema, raw);
+          if (event.featureId === featureId && event.key === key) {
+            handler(event.value);
+          }
+        },
+      ),
+  };
+}
+
+function parseFeatureSettingValue<Value>(
+  schema: TSchema,
+  value: unknown,
+): Value | undefined {
+  if (value === undefined) return undefined;
+  return Value.Parse(schema, value) as Value;
+}
+
 type RequestClient<C extends ChannelContract> = {
   [K in keyof C["requests"] & string]: (
     req: Static<C["requests"][K]["requestSchema"]>,
@@ -61,7 +223,7 @@ type EventClient<C extends ChannelContract> = {
 
 export interface ChannelClient<C extends ChannelContract> {
   requests: RequestClient<C>;
-  subscriptions: EventClient<C>;
+  events: EventClient<C>;
 }
 
 export function createChannelClient<const C extends ChannelContract>(
@@ -75,18 +237,18 @@ export function createChannelClient<const C extends ChannelContract>(
       workspace.request(canonicalId, payload);
   }
 
-  const subscriptions = {} as Record<string, unknown>;
+  const events = {} as Record<string, unknown>;
   for (const [name, evt] of Object.entries(contract.events)) {
     const canonicalId = toChannelCanonicalId(contract.feature, name);
     // Events cross the transport unvalidated (the registry only parses
     // request/response payloads), so the schema check lives here.
-    subscriptions[name] = (handler: (payload: unknown) => void) =>
+    events[name] = (handler: (payload: unknown) => void) =>
       workspace.subscribe(canonicalId, (raw: unknown) =>
         handler(Value.Parse(evt.event, raw)),
       );
   }
 
-  return { requests, subscriptions } as ChannelClient<C>;
+  return { requests, events } as ChannelClient<C>;
 }
 
 /**

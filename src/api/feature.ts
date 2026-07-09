@@ -19,7 +19,7 @@ import type { AgentContextContribution } from "./agent-context";
 import type { ResourceContribution } from "./resources";
 import type { DocumentStoreFactory } from "./documents";
 import type { FeatureLogger } from "./log";
-import type { FeatureSettingDefinition, FeatureSettings } from "./settings";
+import type { FeatureSettings, FeatureSettingsStore } from "./settings";
 
 export type { ChannelContribution } from "./channels";
 export type { AgentToolContribution } from "./agent-tools";
@@ -28,11 +28,11 @@ export type { AgentContextContribution } from "./agent-context";
 export type { ResourceContribution } from "./resources";
 export type { DocumentStoreFactory } from "./documents";
 export type { FeatureLogger } from "./log";
-export type { FeatureSettingDefinition, FeatureSettings } from "./settings";
+export type { FeatureSettings, FeatureSettingsStore } from "./settings";
 
 export type FeatureContext = {
   documents: DocumentStoreFactory;
-  settings: FeatureSettings;
+  settings: FeatureSettingsStore;
   channels: FeatureEventPublisherFactory;
   /** Feature-id-scoped structured logger bound by the cockpit. */
   log: FeatureLogger;
@@ -65,7 +65,7 @@ export interface FeatureDefinition<
    * loader can hydrate defaults and validate persisted values before
    * handing `ctx.settings` to `context()` and `contribute()`.
    */
-  settings?: readonly FeatureSettingDefinition[];
+  settings?: FeatureSettings;
   /**
    * Feature-local context hook. Runs first, before any other contribution,
    * and is the only contribution whose execution order is guaranteed. Its

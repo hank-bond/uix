@@ -15,6 +15,8 @@ import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
 import { uixChannels, type SurfaceEntry } from "#shared/ipc";
 import {
   createChannelClient,
+  createFeatureSettingsClient,
+  FeatureSettingsProvider,
   useWorkspaceClient,
   type SurfaceContribution,
 } from "@uix/api/workspace";
@@ -48,7 +50,7 @@ export function useSurfaces(): SurfaceComposition | undefined {
       });
     };
     refresh();
-    const unsubscribe = client.subscriptions.surfaces_changed(refresh);
+    const unsubscribe = client.events.surfaces_changed(refresh);
     return () => {
       alive = false;
       unsubscribe();
@@ -58,8 +60,14 @@ export function useSurfaces(): SurfaceComposition | undefined {
   return composition;
 }
 
-/** Creates the typed channel client and passes it to the surface render. */
-export function SurfaceMount({ surface }: { surface: SurfaceContribution }) {
+/** Creates feature-bound clients and mounts the surface runtime context. */
+export function SurfaceMount({
+  entry,
+  surface,
+}: {
+  entry: SurfaceEntry;
+  surface: SurfaceContribution;
+}) {
   const workspace = useWorkspaceClient();
   // Memoized so surface effects keyed on the client don't tear down and
   // re-run (resubscribing, re-fetching history) every workspace render.
@@ -69,6 +77,10 @@ export function SurfaceMount({ surface }: { surface: SurfaceContribution }) {
         ? createChannelClient(workspace, surface.contract)
         : undefined,
     [workspace, surface],
+  );
+  const settings = useMemo(
+    () => createFeatureSettingsClient(workspace, entry.featureId),
+    [workspace, entry.featureId],
   );
 
   // A surface's sheets apply only while it is mounted — unmount (or a
@@ -85,7 +97,11 @@ export function SurfaceMount({ surface }: { surface: SurfaceContribution }) {
     };
   }, [surface]);
 
-  return <>{surface.render(client)}</>;
+  return (
+    <FeatureSettingsProvider client={settings}>
+      {surface.render(client)}
+    </FeatureSettingsProvider>
+  );
 }
 
 interface RuntimeSurfaceState {
@@ -148,7 +164,7 @@ export function useRuntimeSurface(entry: SurfaceEntry): RuntimeSurfaceState {
     name: loaded.surface.name,
     body: (
       <SurfaceErrorBoundary entry={entry}>
-        <SurfaceMount surface={loaded.surface} />
+        <SurfaceMount entry={entry} surface={loaded.surface} />
       </SurfaceErrorBoundary>
     ),
   };

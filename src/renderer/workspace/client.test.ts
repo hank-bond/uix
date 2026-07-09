@@ -3,7 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { canvasChannels } from "#features/canvas/shared/channels";
 import { parseCanvasKey } from "#features/canvas/shared/addressing";
 import { agentChannels } from "@uix/api/agent-channels";
-import { createChannelClient, type WorkspaceClient } from "@uix/api/workspace";
+import {
+  createChannelClient,
+  createFeatureSettingsClient,
+  type WorkspaceClient,
+} from "@uix/api/workspace";
 
 function fakeWorkspaceClient() {
   const request = vi.fn((_name: string, _req: unknown) =>
@@ -37,7 +41,7 @@ describe("channel clients", () => {
       key: parseCanvasKey("main"),
       html: "<main />",
     });
-    canvas.subscriptions.changed(onChanged);
+    canvas.events.changed(onChanged);
 
     expect(request).toHaveBeenCalledWith("canvas.writeback", {
       key: "main",
@@ -62,10 +66,47 @@ describe("channel clients", () => {
 
     await agent.requests.prompt({ text: "hi" });
     await agent.requests.history(undefined);
-    agent.subscriptions.event(onEvent);
+    agent.events.event(onEvent);
 
     expect(request).toHaveBeenCalledWith("agent.prompt", { text: "hi" });
     expect(request).toHaveBeenCalledWith("agent.history", undefined);
     expect(subscribe).toHaveBeenCalledWith("agent.event", expect.any(Function));
+  });
+
+  it("creates a feature-bound settings client", async () => {
+    const { client, request, subscribe } = fakeWorkspaceClient();
+    const settings = createFeatureSettingsClient(client, "chat");
+    const onStatusBar = vi.fn();
+
+    await settings.get("statusBar");
+    await settings.set("statusBar", { order: ["model"], hidden: [] });
+    settings.onChange("statusBar", onStatusBar);
+
+    expect(request).toHaveBeenCalledWith("uix.get_setting", {
+      featureId: "chat",
+      key: "statusBar",
+    });
+    expect(request).toHaveBeenCalledWith("uix.set_setting", {
+      featureId: "chat",
+      key: "statusBar",
+      value: { order: ["model"], hidden: [] },
+    });
+    expect(subscribe).toHaveBeenCalledWith(
+      "uix.setting_changed",
+      expect.any(Function),
+    );
+
+    const wrapped = subscribe.mock.calls[0]?.[1];
+    wrapped?.({ featureId: "canvas", key: "statusBar", value: "ignored" });
+    wrapped?.({
+      featureId: "chat",
+      key: "statusBar",
+      value: { order: ["context"], hidden: [] },
+    });
+    expect(onStatusBar).toHaveBeenCalledTimes(1);
+    expect(onStatusBar).toHaveBeenCalledWith({
+      order: ["context"],
+      hidden: [],
+    });
   });
 });

@@ -52,16 +52,15 @@ const StatusBarSettings = Type.Object({
 
 export default {
   id: "chat",
-  settings: [
-    {
-      key: "statusBar",
+  settings: {
+    statusBar: {
       schema: StatusBarSettings,
       default: {
         order: ["model", "thinking", "context"],
         hidden: [],
       },
     },
-  ],
+  },
   contribute(ctx) {
     const statusBar = ctx.settings.get("statusBar");
     return {};
@@ -76,7 +75,7 @@ Hydration uses each setting's explicit `default`, not TypeBox field defaults. Mi
 Inject `ctx.settings` on the backend feature context:
 
 ```ts
-interface FeatureSettings {
+interface FeatureSettingsStore {
   get<T = unknown>(key: string): T | undefined;
   set(key: string, value: unknown): void;
   onChange(key: string, handler: (value: unknown) => void): () => void;
@@ -85,7 +84,7 @@ interface FeatureSettings {
 
 Semantics:
 
-- keys must be declared by that feature's `settings` definitions;
+- keys must be declared by that feature's `settings`;
 - values are validated against the declared TypeBox schema;
 - memory is authoritative while running;
 - `set()` updates memory and fires `onChange` synchronously;
@@ -97,7 +96,7 @@ The first consumer is StatusBar layout in [agent-controls](./agent-controls.md) 
 
 ## Boundary / future
 
-- **Surface access**: surfaces should not read the manifest directly. If/when surfaces need generic settings access, add a substrate-owned feature-bound settings channel/client (`get`/`set`/`subscribe`) rather than per-feature boilerplate channels.
+- **Surface access**: surfaces do not read the manifest directly. The substrate provides a feature-bound settings channel/client (`get`/`set`/`subscribe`) to mounted surfaces, with typed React helpers driven by the feature's shared `FeatureSettings`.
 - **Tracked documents, not arbitrary watchers**: future Monaco/source/document features should use document-store tracked publication. A document can be published to a visible path; external/bash edits import new document versions and notify surfaces. This is the backlog item, not W0-W2.
 - **Live external config edits**: if `/reload` is too coarse for settings, add a manifest-specific watcher inside the settings service; do not expose arbitrary `ctx.files.watch` to features for this.
 - Not here: process-isolation fs enforcement, Deno/worker feature host, generic settings UI surface, source buffer service.

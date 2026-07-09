@@ -62,13 +62,14 @@ import {
 import { resolveWorkspace, type Workspace } from "./workspace";
 import * as ipc from "./ipc";
 import {
+  disposable,
   DisposableBag,
   installProcessHandlers,
   onApp,
   onWindow,
 } from "./lifecycle";
 import { createLogger } from "./log";
-import { WorkspaceSettings } from "./workspace-settings";
+import { WorkspaceSettingsStore } from "./workspace-settings-store";
 
 const isDev = !app.isPackaged;
 const LocalWorkspaceId = "local";
@@ -146,7 +147,7 @@ async function openWorkspace(
 
   const documents = createLocalDocumentStoreFactory(workspace.stateRoot);
   const workspaceSettings = appBag.add(
-    new WorkspaceSettings(workspace.manifestPath),
+    new WorkspaceSettingsStore(workspace.manifestPath),
   );
 
   // The feature composition lives under its own child scope so reload can
@@ -225,6 +226,13 @@ async function openWorkspace(
     channels,
   ).createPublisher(uixChannels);
   appBag.add(
+    disposable(
+      workspaceSettings.onAnyChange((featureId, key, value) => {
+        uixPublisher.setting_changed({ featureId, key, value });
+      }),
+    ),
+  );
+  appBag.add(
     registerChannelContributions(channels, "uix", [
       withHandlers(uixChannels, {
         surfaces: {
@@ -233,6 +241,14 @@ async function openWorkspace(
             manifestPath,
             manifestFound: fs.existsSync(manifestPath),
           }),
+        },
+        get_setting: {
+          handle: (req) => workspaceSettings.get(req.featureId, req.key),
+        },
+        set_setting: {
+          handle: (req) => {
+            workspaceSettings.set(req.featureId, req.key, req.value);
+          },
         },
       }),
     ]),

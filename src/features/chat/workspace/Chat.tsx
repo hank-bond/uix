@@ -7,10 +7,11 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
-import type { ChannelClient } from "@uix/api/workspace";
+import { useFeatureSetting, type ChannelClient } from "@uix/api/workspace";
 import type { agentChannels } from "@uix/api/agent-channels";
 import { ChatBlock } from "./blocks/ChatBlock";
 import { isPendingUserId, pendingUserId } from "./pending";
+import { chatSettings } from "../shared/settings";
 
 type AgentChannelClient = ChannelClient<typeof agentChannels>;
 
@@ -24,9 +25,10 @@ export function Chat({ client }: ChatProps) {
   const [pending, setPending] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const statusBar = useFeatureSetting(chatSettings, "statusBar");
 
   useEffect(() => {
-    return client.subscriptions.event((event: AgentEvent) => {
+    return client.events.event((event: AgentEvent) => {
       setItems((prev) => reduce(prev, event));
       if (event.type === "agent_end") {
         setPending(false);
@@ -125,7 +127,49 @@ export function Chat({ client }: ChatProps) {
           {pending ? "…" : "send"}
         </button>
       </form>
+      <StatusBar
+        order={statusBar.value?.order ?? []}
+        hidden={statusBar.value?.hidden ?? []}
+        loading={statusBar.loading}
+        error={statusBar.error}
+      />
     </>
+  );
+}
+
+function StatusBar({
+  order,
+  hidden,
+  loading,
+  error,
+}: {
+  order: readonly string[];
+  hidden: readonly string[];
+  loading: boolean;
+  error: Error | undefined;
+}) {
+  const visible = order.filter((id) => !hidden.includes(id));
+  return (
+    <div
+      className="status-bar"
+      aria-label="Chat status bar settings smoke test"
+    >
+      {error ? (
+        <span className="status-bar__item status-bar__item--error">
+          settings error: {error.message}
+        </span>
+      ) : loading ? (
+        <span className="status-bar__item">loading settings…</span>
+      ) : visible.length === 0 ? (
+        <span className="status-bar__item">status bar hidden</span>
+      ) : (
+        visible.map((id) => (
+          <span className="status-bar__item" key={id}>
+            {id}
+          </span>
+        ))
+      )}
+    </div>
   );
 }
 

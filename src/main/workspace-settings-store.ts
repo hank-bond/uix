@@ -3,10 +3,7 @@ import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
-import type {
-  FeatureSettingDefinition,
-  FeatureSettings,
-} from "@uix/api/settings";
+import type { FeatureSettings, FeatureSettingsStore } from "@uix/api/settings";
 import type { TSchema } from "typebox";
 import { Value } from "typebox/value";
 
@@ -15,19 +12,20 @@ import { createLogger } from "./log";
 
 const log = createLogger("workspace-settings");
 
-interface WorkspaceSettingsOptions {
+interface WorkspaceSettingsStoreOptions {
   flushDebounceMs?: number;
 }
 
 type JsonObject = Record<string, unknown>;
 
 type Listener = (value: unknown) => void;
+type AnyListener = (featureId: string, key: string, value: unknown) => void;
 
 interface RegisteredSetting {
   schema: TSchema;
 }
 
-export class WorkspaceSettings implements Disposable {
+export class WorkspaceSettingsStore implements Disposable {
   readonly #manifestPath: string;
   readonly #flushDebounceMs: number;
   readonly #settings = new Map<string, JsonObject>();
@@ -35,11 +33,12 @@ export class WorkspaceSettings implements Disposable {
   readonly #featureManifestIndexes = new Map<string, number>();
   readonly #dirtyFeatures = new Set<string>();
   readonly #listeners = new Map<string, Set<Listener>>();
+  readonly #anyListeners = new Set<AnyListener>();
   #rawManifest: JsonObject | undefined;
   #flushTimer: NodeJS.Timeout | undefined;
   #disposed = false;
 
-  constructor(manifestPath: string, opts: WorkspaceSettingsOptions = {}) {
+  constructor(manifestPath: string, opts: WorkspaceSettingsStoreOptions = {}) {
     this.#manifestPath = manifestPath;
     this.#flushDebounceMs = opts.flushDebounceMs ?? 5000;
   }
@@ -58,26 +57,21 @@ export class WorkspaceSettings implements Disposable {
   hydrateFeature(
     featureId: string,
     manifestIndex: number,
-    definitions: readonly FeatureSettingDefinition[],
+    settings: FeatureSettings,
   ): void {
     if (this.#disposed) {
-      throw new Error("WorkspaceSettings is disposed");
+      throw new Error("WorkspaceSettingsStore is disposed");
     }
-    const rawManifest = this.requireRawManifest();
+    const rawManifest = this.#requireRawManifest();
     const featureEntry = requireManifestFeatureEntry(
       rawManifest,
       manifestIndex,
     );
-    const current = cloneJsonObject(featureEntry.settings);
+    const current = cloneJsonObject(asRecord(featureEntry["settings"]) ?? {});
     const schemas = new Map<string, RegisteredSetting>();
 
-    for (const definition of definitions) {
-      if (schemas.has(definition.key)) {
-        throw new Error(
-          `Duplicate setting key for feature ${featureId}: ${definition.key}`,
-        );
-      }
-      schemas.set(definition.key, { schema: definition.schema });
+    for (const [key, setting] of Object.entries(settings)) {
+      schemas.set(key, { schema: setting.schema });
     }
 
     for (const key of Object.keys(current)) {
@@ -86,19 +80,21 @@ export class WorkspaceSettings implements Disposable {
       }
     }
 
-    for (const definition of definitions) {
-      const persisted = cloneJson(current[definition.key]);
+    let featureDirty = false;
+    for (const [key, setting] of Object.entries(settings)) {
+      const persisted = cloneJson(current[key]);
       const hydrated = hydrateSetting(
-        definition.schema,
-        definition.default,
+        setting.schema,
+        setting.default,
         persisted,
       );
       if (!jsonEqual(persisted, hydrated)) {
-        current[definition.key] = hydrated;
-        this.#dirtyFeatures.add(featureId);
+        current[key] = hydrated;
+        featureDirty = true;
       }
     }
 
+    if (featureDirty) this.#dirtyFeatures.add(featureId);
     this.#schemas.set(featureId, schemas);
     this.#featureManifestIndexes.set(featureId, manifestIndex);
     this.#settings.set(featureId, current);
@@ -106,7 +102,7 @@ export class WorkspaceSettings implements Disposable {
     this.#scheduleFlush();
   }
 
-  forFeature(featureId: string): FeatureSettings {
+  forFeature(featureId: string): FeatureSettingsStore {
     return {
       get: <T = unknown>(key: string) =>
         this.get(featureId, key) as T | undefined,
@@ -116,7 +112,7 @@ export class WorkspaceSettings implements Disposable {
   }
 
   get(featureId: string, key: string): unknown {
-    this.requireSetting(featureId, key);
+    this.#requireSetting(featureId, key);
     const value = this.#settings.get(featureId)?.[key];
     if (value === undefined) return undefined;
     return cloneJson(value);
@@ -124,16 +120,16 @@ export class WorkspaceSettings implements Disposable {
 
   set(featureId: string, key: string, value: unknown): void {
     if (this.#disposed) {
-      throw new Error("WorkspaceSettings is disposed");
+      throw new Error("WorkspaceSettingsStore is disposed");
     }
-    const setting = this.requireSetting(featureId, key);
+    const setting = this.#requireSetting(featureId, key);
     const parsed = Value.Parse(setting.schema, cloneJson(value));
     const featureSettings = this.#settings.get(featureId) ?? {};
     featureSettings[key] = parsed;
     this.#settings.set(featureId, featureSettings);
     requireManifestFeatureEntry(
-      this.requireRawManifest(),
-      this.requireManifestIndex(featureId),
+      this.#requireRawManifest(),
+      this.#requireManifestIndex(featureId),
     )["settings"] = featureSettings;
     this.#dirtyFeatures.add(featureId);
     this.#scheduleFlush();
@@ -142,9 +138,9 @@ export class WorkspaceSettings implements Disposable {
 
   onChange(featureId: string, key: string, handler: Listener): () => void {
     if (this.#disposed) {
-      throw new Error("WorkspaceSettings is disposed");
+      throw new Error("WorkspaceSettingsStore is disposed");
     }
-    this.requireSetting(featureId, key);
+    this.#requireSetting(featureId, key);
     const listenerKey = toListenerKey(featureId, key);
     const listeners = this.#listeners.get(listenerKey) ?? new Set<Listener>();
     listeners.add(handler);
@@ -159,21 +155,36 @@ export class WorkspaceSettings implements Disposable {
     };
   }
 
+  onAnyChange(handler: AnyListener): () => void {
+    if (this.#disposed) {
+      throw new Error("WorkspaceSettingsStore is disposed");
+    }
+    this.#anyListeners.add(handler);
+
+    let disposed = false;
+    return () => {
+      if (disposed) return;
+      disposed = true;
+      this.#anyListeners.delete(handler);
+    };
+  }
+
   async flush(): Promise<void> {
     this.#clearFlushTimer();
     if (this.#dirtyFeatures.size === 0) return;
     const flushing = new Set(this.#dirtyFeatures);
+    this.#dirtyFeatures.clear();
     try {
       await atomicWriteFile(
         this.#manifestPath,
-        `${JSON.stringify(this.requireRawManifest(), null, 2)}\n`,
+        `${JSON.stringify(this.#requireRawManifest(), null, 2)}\n`,
       );
     } catch (err) {
+      for (const featureId of flushing) {
+        this.#dirtyFeatures.add(featureId);
+      }
       this.#scheduleFlush();
       throw err;
-    }
-    for (const featureId of flushing) {
-      this.#dirtyFeatures.delete(featureId);
     }
     this.#scheduleFlush();
   }
@@ -183,9 +194,10 @@ export class WorkspaceSettings implements Disposable {
     this.#disposed = true;
     this.#clearFlushTimer();
     this.#listeners.clear();
+    this.#anyListeners.clear();
   }
 
-  requireSetting(featureId: string, key: string): RegisteredSetting {
+  #requireSetting(featureId: string, key: string): RegisteredSetting {
     const setting = this.#schemas.get(featureId)?.get(key);
     if (!setting) {
       throw new Error(`Unknown setting for feature ${featureId}: ${key}`);
@@ -193,7 +205,7 @@ export class WorkspaceSettings implements Disposable {
     return setting;
   }
 
-  requireManifestIndex(featureId: string): number {
+  #requireManifestIndex(featureId: string): number {
     const manifestIndex = this.#featureManifestIndexes.get(featureId);
     if (manifestIndex === undefined) {
       throw new Error(
@@ -203,19 +215,34 @@ export class WorkspaceSettings implements Disposable {
     return manifestIndex;
   }
 
-  requireRawManifest(): JsonObject {
+  #requireRawManifest(): JsonObject {
     if (!this.#rawManifest) {
-      throw new Error("WorkspaceSettings has not loaded a manifest");
+      throw new Error("WorkspaceSettingsStore has not loaded a manifest");
     }
     return this.#rawManifest;
   }
 
   #notify(featureId: string, key: string, value: unknown): void {
-    const listeners = this.#listeners.get(toListenerKey(featureId, key));
-    if (!listeners) return;
-    for (const listener of listeners) {
-      listener(cloneJson(value));
+    const cloned = cloneJson(value);
+    const errors: unknown[] = [];
+    const notify = (run: () => void) => {
+      try {
+        run();
+      } catch (err) {
+        errors.push(err);
+      }
+    };
+
+    for (const listener of this.#anyListeners) {
+      notify(() => listener(featureId, key, cloneJson(cloned)));
     }
+    const listeners = this.#listeners.get(toListenerKey(featureId, key));
+    if (listeners) {
+      for (const listener of listeners) {
+        notify(() => listener(cloneJson(cloned)));
+      }
+    }
+    if (errors.length > 0) throw errors[0];
   }
 
   #scheduleFlush(): void {
@@ -238,10 +265,10 @@ export class WorkspaceSettings implements Disposable {
   }
 }
 
-export function bindFeatureSettings(
-  settings: FeatureSettings,
+export function bindFeatureSettingsStore(
+  settings: FeatureSettingsStore,
   bag: { add<D extends Disposable>(item: D): D },
-): FeatureSettings {
+): FeatureSettingsStore {
   return {
     get: (key) => settings.get(key),
     set: (key, value) => settings.set(key, value),
@@ -287,16 +314,14 @@ function mergeJsonDefaults(defaultValue: unknown, persisted: unknown): unknown {
 function requireManifestFeatureEntry(
   rawManifest: JsonObject,
   manifestIndex: number,
-): JsonObject & { settings: JsonObject } {
+): JsonObject {
   const features = rawManifest["features"];
   if (!Array.isArray(features)) {
     throw new Error("workspace manifest features is not an array");
   }
   const feature = (features as unknown[])[manifestIndex];
   if (isRecord(feature)) {
-    const settings = asRecord(feature["settings"]) ?? {};
-    feature["settings"] = settings;
-    return feature as JsonObject & { settings: JsonObject };
+    return feature;
   }
   throw new Error(
     `workspace manifest has no feature entry at index ${String(manifestIndex)}`,

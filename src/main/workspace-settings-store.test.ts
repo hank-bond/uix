@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -6,7 +6,10 @@ import { Type } from "typebox";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { DisposableBag } from "./lifecycle";
-import { bindFeatureSettings, WorkspaceSettings } from "./workspace-settings";
+import {
+  bindFeatureSettingsStore,
+  WorkspaceSettingsStore,
+} from "./workspace-settings-store";
 
 const roots: string[] = [];
 
@@ -43,7 +46,7 @@ afterEach(async () => {
   );
 });
 
-describe("WorkspaceSettings", () => {
+describe("WorkspaceSettingsStore", () => {
   it("hydrates missing object fields from explicit feature defaults", async () => {
     const manifestPath = await tempManifest({
       name: "Demo",
@@ -54,19 +57,18 @@ describe("WorkspaceSettings", () => {
         },
       ],
     });
-    const settings = new WorkspaceSettings(manifestPath, {
+    const settings = new WorkspaceSettingsStore(manifestPath, {
       flushDebounceMs: 1000,
     });
 
     try {
       await settings.reload();
-      settings.hydrateFeature("chat", 0, [
-        {
-          key: "statusBar",
+      settings.hydrateFeature("chat", 0, {
+        statusBar: {
           schema: StatusBarSchema,
           default: StatusBarDefault,
         },
-      ]);
+      });
 
       expect(settings.forFeature("chat").get("statusBar")).toEqual({
         order: ["model", "context"],
@@ -106,15 +108,14 @@ describe("WorkspaceSettings", () => {
         },
       ],
     });
-    const settings = new WorkspaceSettings(manifestPath, {
+    const settings = new WorkspaceSettingsStore(manifestPath, {
       flushDebounceMs: 1000,
     });
 
     try {
       await settings.reload();
-      settings.hydrateFeature("chat", 0, [
-        {
-          key: "statusBar",
+      settings.hydrateFeature("chat", 0, {
+        statusBar: {
           schema: StatusBarSchema,
           default: {
             order: ["new"],
@@ -122,7 +123,7 @@ describe("WorkspaceSettings", () => {
             nested: { density: "compact" },
           },
         },
-      ]);
+      });
 
       expect(settings.forFeature("chat").get("statusBar")).toEqual({
         order: ["old"],
@@ -144,20 +145,19 @@ describe("WorkspaceSettings", () => {
         },
       ],
     });
-    const settings = new WorkspaceSettings(manifestPath, {
+    const settings = new WorkspaceSettingsStore(manifestPath, {
       flushDebounceMs: 1000,
     });
 
     try {
       await settings.reload();
-      settings.hydrateFeature("chat", 0, [
-        { key: "enabled", schema: Type.Boolean(), default: true },
-        {
-          key: "selected",
+      settings.hydrateFeature("chat", 0, {
+        enabled: { schema: Type.Boolean(), default: true },
+        selected: {
           schema: Type.Union([Type.String(), Type.Null()]),
           default: "main",
         },
-      ]);
+      });
 
       expect(settings.forFeature("chat").get("enabled")).toBe(true);
       expect(settings.forFeature("chat").get("selected")).toBeNull();
@@ -176,21 +176,48 @@ describe("WorkspaceSettings", () => {
         },
       ],
     });
-    const settings = new WorkspaceSettings(manifestPath, {
+    const settings = new WorkspaceSettingsStore(manifestPath, {
       flushDebounceMs: 1000,
     });
 
     try {
       await settings.reload();
       expect(() =>
-        settings.hydrateFeature("chat", 0, [
-          {
-            key: "statusBar",
+        settings.hydrateFeature("chat", 0, {
+          statusBar: {
             schema: StatusBarSchema,
             default: StatusBarDefault,
           },
-        ]),
+        }),
       ).toThrow("Unknown setting for feature chat: stale");
+    } finally {
+      settings[Symbol.dispose]();
+    }
+  });
+
+  it("does not commit manifest changes when hydration fails", async () => {
+    const manifest = {
+      name: "Demo",
+      features: [{ entry: "./feature.ts" }],
+    };
+    const manifestPath = await tempManifest(manifest);
+    const settings = new WorkspaceSettingsStore(manifestPath, {
+      flushDebounceMs: 1000,
+    });
+
+    try {
+      await settings.reload();
+      expect(() =>
+        settings.hydrateFeature("chat", 0, {
+          enabled: { schema: Type.Boolean(), default: true },
+          broken: { schema: Type.Boolean(), default: "yes" },
+        }),
+      ).toThrow();
+
+      await settings.flush();
+      expect(JSON.parse(await readFile(manifestPath, "utf8"))).toEqual(
+        manifest,
+      );
     } finally {
       settings[Symbol.dispose]();
     }
@@ -205,20 +232,19 @@ describe("WorkspaceSettings", () => {
       ],
       unknown: { preserved: true },
     });
-    const settings = new WorkspaceSettings(manifestPath, {
+    const settings = new WorkspaceSettingsStore(manifestPath, {
       flushDebounceMs: 1000,
     });
     const changes: unknown[] = [];
 
     try {
       await settings.reload();
-      settings.hydrateFeature("chat", 0, [
-        {
-          key: "statusBar",
+      settings.hydrateFeature("chat", 0, {
+        statusBar: {
           schema: StatusBarSchema,
           default: StatusBarDefault,
         },
-      ]);
+      });
       const chat = settings.forFeature("chat");
       chat.onChange("statusBar", (value) => changes.push(value));
 
@@ -250,24 +276,69 @@ describe("WorkspaceSettings", () => {
     }
   });
 
-  it("schedules persistence before notifying change listeners", async () => {
-    const manifestPath = await tempManifest({
+  it("keeps dirty settings after a failed flush", async () => {
+    const initialManifest = {
       name: "Demo",
       features: [{ entry: "./feature.ts", settings: {} }],
-    });
-    const settings = new WorkspaceSettings(manifestPath, {
+    };
+    const manifestPath = await tempManifest(initialManifest);
+    const settings = new WorkspaceSettingsStore(manifestPath, {
       flushDebounceMs: 1000,
     });
 
     try {
       await settings.reload();
-      settings.hydrateFeature("chat", 0, [
-        {
-          key: "statusBar",
+      settings.hydrateFeature("chat", 0, {
+        statusBar: {
           schema: StatusBarSchema,
           default: StatusBarDefault,
         },
-      ]);
+      });
+      settings.forFeature("chat").set("statusBar", {
+        order: ["model"],
+        hidden: [],
+      });
+
+      const root = path.dirname(manifestPath);
+      await rm(root, { recursive: true, force: true });
+      await expect(settings.flush()).rejects.toThrow();
+
+      await mkdir(root, { recursive: true });
+      await writeFile(
+        manifestPath,
+        `${JSON.stringify(initialManifest, null, 2)}\n`,
+        "utf8",
+      );
+      await settings.flush();
+
+      const written = JSON.parse(await readFile(manifestPath, "utf8")) as {
+        features: Array<{ settings: Record<string, unknown> }>;
+      };
+      expect(written.features[0]?.settings).toEqual({
+        statusBar: { order: ["model"], hidden: [] },
+      });
+    } finally {
+      settings[Symbol.dispose]();
+    }
+  });
+
+  it("schedules persistence before notifying change listeners", async () => {
+    const manifestPath = await tempManifest({
+      name: "Demo",
+      features: [{ entry: "./feature.ts", settings: {} }],
+    });
+    const settings = new WorkspaceSettingsStore(manifestPath, {
+      flushDebounceMs: 1000,
+    });
+
+    try {
+      await settings.reload();
+      settings.hydrateFeature("chat", 0, {
+        statusBar: {
+          schema: StatusBarSchema,
+          default: StatusBarDefault,
+        },
+      });
       settings.forFeature("chat").onChange("statusBar", () => {
         throw new Error("listener failed");
       });
@@ -301,19 +372,18 @@ describe("WorkspaceSettings", () => {
         },
       ],
     });
-    const settings = new WorkspaceSettings(manifestPath, {
+    const settings = new WorkspaceSettingsStore(manifestPath, {
       flushDebounceMs: 1000,
     });
 
     try {
       await settings.reload();
-      settings.hydrateFeature("chat", 0, [
-        {
-          key: "statusBar",
+      settings.hydrateFeature("chat", 0, {
+        statusBar: {
           schema: StatusBarSchema,
           default: StatusBarDefault,
         },
-      ]);
+      });
       await writeFile(manifestPath, "{ not json", "utf8");
 
       await expect(settings.reload()).rejects.toThrow("Expected property name");
@@ -337,19 +407,18 @@ describe("WorkspaceSettings", () => {
         },
       ],
     });
-    const settings = new WorkspaceSettings(manifestPath, {
+    const settings = new WorkspaceSettingsStore(manifestPath, {
       flushDebounceMs: 1000,
     });
 
     try {
       await settings.reload();
-      settings.hydrateFeature("chat", 0, [
-        {
-          key: "statusBar",
+      settings.hydrateFeature("chat", 0, {
+        statusBar: {
           schema: StatusBarSchema,
           default: StatusBarDefault,
         },
-      ]);
+      });
       settings.forFeature("chat").set("statusBar", {
         order: ["context"],
         hidden: [],
@@ -373,13 +442,12 @@ describe("WorkspaceSettings", () => {
       );
 
       await settings.reload();
-      settings.hydrateFeature("chat", 0, [
-        {
-          key: "statusBar",
+      settings.hydrateFeature("chat", 0, {
+        statusBar: {
           schema: StatusBarSchema,
           default: StatusBarDefault,
         },
-      ]);
+      });
 
       expect(settings.forFeature("chat").get("statusBar")).toEqual({
         order: ["thinking"],
@@ -391,12 +459,12 @@ describe("WorkspaceSettings", () => {
     }
   });
 
-  it("binds settings subscriptions to a DisposableBag", async () => {
+  it("binds settings change listeners to a DisposableBag", async () => {
     const manifestPath = await tempManifest({
       name: "Demo",
       features: [{ entry: "./feature.ts", settings: {} }],
     });
-    const settings = new WorkspaceSettings(manifestPath, {
+    const settings = new WorkspaceSettingsStore(manifestPath, {
       flushDebounceMs: 1000,
     });
     const bag = new DisposableBag();
@@ -404,14 +472,13 @@ describe("WorkspaceSettings", () => {
 
     try {
       await settings.reload();
-      settings.hydrateFeature("chat", 0, [
-        {
-          key: "statusBar",
+      settings.hydrateFeature("chat", 0, {
+        statusBar: {
           schema: StatusBarSchema,
           default: StatusBarDefault,
         },
-      ]);
-      const chat = bindFeatureSettings(settings.forFeature("chat"), bag);
+      });
+      const chat = bindFeatureSettingsStore(settings.forFeature("chat"), bag);
       chat.onChange("statusBar", (value) => changes.push(value));
       bag.clear();
 

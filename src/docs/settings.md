@@ -5,29 +5,36 @@ status: active
 
 # Settings
 
-Features declare durable settings on their `FeatureDefinition`, before `context()` and `contribute()` run:
+Features declare durable settings on their `FeatureDefinition`, before `context()` and `contribute()` run. Put the keyed feature settings in feature-shared code so backend and workspace surface code import the same keys, schemas, defaults, and TypeScript types:
 
 ```ts
-import type { FeatureDefinition } from "@uix/api";
+// features/chat/shared/settings.ts
+import { defineFeatureSettings } from "@uix/api/settings";
 import { Type } from "typebox";
 
-const StatusBarSettings = Type.Object({
-  order: Type.Array(Type.String()),
-  hidden: Type.Array(Type.String()),
+export const chatSettings = defineFeatureSettings({
+  statusBar: {
+    schema: Type.Object({
+      order: Type.Array(Type.String()),
+      hidden: Type.Array(Type.String()),
+    }),
+    default: {
+      order: ["model", "context"],
+      hidden: [],
+    },
+  },
 });
+```
+
+```ts
+// features/chat/index.ts
+import type { FeatureDefinition } from "@uix/api";
+
+import { chatSettings } from "./shared/settings";
 
 export default {
   id: "chat",
-  settings: [
-    {
-      key: "statusBar",
-      schema: StatusBarSettings,
-      default: {
-        order: ["model", "context"],
-        hidden: [],
-      },
-    },
-  ],
+  settings: chatSettings,
   contribute(ctx) {
     const statusBar = ctx.settings.get("statusBar");
     // ...
@@ -74,7 +81,7 @@ Defaults fill missing values only. If a later feature version changes a default 
 
 ## Backend API
 
-Backend feature code uses `ctx.settings`:
+Backend feature code uses feature-bound `ctx.settings`:
 
 ```ts
 const value = ctx.settings.get("statusBar");
@@ -83,3 +90,24 @@ const unsubscribe = ctx.settings.onChange("statusBar", (next) => {});
 ```
 
 `set()` validates against the declared schema, updates memory, schedules an atomic write to `uix.workspace.json`, and fires `onChange` synchronously. External edits to the workspace file are picked up on `/reload`; there is no public file watcher API.
+
+## Surface API
+
+Workspace surfaces receive a feature-bound settings client through the surface host. Surface code imports its own shared feature settings for types and frontend validation:
+
+```tsx
+import { useFeatureSetting } from "@uix/api/workspace";
+
+import { chatSettings } from "../shared/settings";
+
+function StatusBar() {
+  const statusBar = useFeatureSetting(chatSettings, "statusBar");
+
+  if (statusBar.loading) return null;
+  if (statusBar.error) return <p>{statusBar.error.message}</p>;
+
+  return statusBar.value?.order.map((id) => <span key={id}>{id}</span>);
+}
+```
+
+`defineFeatureSettings(...)` preserves the exact setting keys and type-checks each default against that setting's TypeBox schema. `useFeatureSetting(featureSettings, key)` type-checks `key` against the shared settings and types the returned value and setter from that key's schema. The main process remains authoritative and validates every `set()` against the registered backend schema.

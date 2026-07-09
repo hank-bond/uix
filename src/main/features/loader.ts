@@ -49,14 +49,16 @@ import { dirname } from "node:path";
 
 import type { FeatureContext, FeatureDefinition } from "@uix/api/feature";
 import type { DocumentStoreFactory } from "@uix/api/documents";
-import type { FeatureSettings } from "@uix/api/settings";
 import { createJiti } from "jiti";
 
 import { createFeatureEventPublisherFactory } from "../channels/registry";
 import type { ChannelRegistry } from "../channels/registry";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
-import { bindFeatureSettings } from "../workspace-settings";
+import {
+  bindFeatureSettingsStore,
+  type WorkspaceSettingsStore,
+} from "../workspace-settings-store";
 import { isIdToken } from "@uix/api/contribution-id";
 
 import {
@@ -103,20 +105,15 @@ const createFeatureJiti = (apiModuleDir?: string) =>
  */
 const ReservedFeatureIds: ReadonlySet<string> = new Set(["agent", "uix"]);
 
-interface FeatureSettingsFactory {
-  reload(): Promise<void>;
-  hydrateFeature(
-    featureId: string,
-    manifestIndex: number,
-    definitions: NonNullable<FeatureDefinition["settings"]>,
-  ): void;
-  forFeature(featureId: string): FeatureSettings;
-}
+type FeatureActivationSettings = Pick<
+  WorkspaceSettingsStore,
+  "reload" | "hydrateFeature" | "forFeature"
+>;
 
 /** What the loader needs from the substrate to activate a feature. */
 export interface FeatureSubstrate {
   documents: DocumentStoreFactory;
-  settings: FeatureSettingsFactory;
+  settings: FeatureActivationSettings;
   channels: ChannelRegistry;
   registries: FeatureContributionRegistries;
   /**
@@ -149,7 +146,7 @@ export function buildFeatureContext(
 ): FeatureContext {
   return {
     documents: substrate.documents,
-    settings: bindFeatureSettings(
+    settings: bindFeatureSettingsStore(
       substrate.settings.forFeature(featureId),
       bag,
     ),
@@ -221,29 +218,33 @@ const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
     throw new Error(`FeatureDefinition ${def.id} context is not a function`);
   }
   if (def.settings !== undefined) {
-    if (!Array.isArray(def.settings)) {
-      throw new Error(`FeatureDefinition ${def.id} settings is not an array`);
+    if (
+      typeof def.settings !== "object" ||
+      def.settings === null ||
+      Array.isArray(def.settings)
+    ) {
+      throw new Error(`FeatureDefinition ${def.id} settings is not an object`);
     }
-    for (const [index, setting] of def.settings.entries()) {
+    for (const [key, setting] of Object.entries(def.settings)) {
+      if (key === "") {
+        throw new Error(
+          `FeatureDefinition ${def.id} setting key is missing or invalid`,
+        );
+      }
       if (typeof setting !== "object" || setting === null) {
         throw new Error(
-          `FeatureDefinition ${def.id} settings[${String(index)}] is not an object`,
+          `FeatureDefinition ${def.id} setting ${key} is not an object`,
         );
       }
-      const partial = setting as Record<string, unknown>;
-      if (typeof partial["key"] !== "string" || partial["key"] === "") {
-        throw new Error(
-          `FeatureDefinition ${def.id} settings[${String(index)}].key is missing or invalid`,
-        );
-      }
+      const partial = setting as unknown as Record<string, unknown>;
       if (!("schema" in partial)) {
         throw new Error(
-          `FeatureDefinition ${def.id} setting ${partial["key"]} is missing schema`,
+          `FeatureDefinition ${def.id} setting ${key} is missing schema`,
         );
       }
       if (!("default" in partial)) {
         throw new Error(
-          `FeatureDefinition ${def.id} setting ${partial["key"]} is missing default`,
+          `FeatureDefinition ${def.id} setting ${key} is missing default`,
         );
       }
     }
@@ -302,7 +303,7 @@ export const activateFeatures = async (
       substrate.settings.hydrateFeature(
         definition.id,
         manifestIndex,
-        definition.settings ?? [],
+        definition.settings ?? {},
       );
       const baseContext = buildFeatureContext(definition.id, substrate, bag);
       const contributedContext = definition.context?.(baseContext) ?? {};

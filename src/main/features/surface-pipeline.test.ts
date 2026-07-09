@@ -29,11 +29,14 @@ const surfaceSource = `
 import { useState } from "react";
 import { helper } from "./helper";
 import sheet from "./styles.css" with { type: "css" };
+import { defineFeatureSettings } from "@uix/api/settings";
 import { defineSurface } from "@uix/api/workspace";
+
+const settings = defineFeatureSettings({ demo: { schema: { type: "string" }, default: "ok" } });
 
 function Panel() {
   const [n] = useState(1);
-  return <p>{helper()}{n}</p>;
+  return <p>{helper()}{settings.demo.default}{n}</p>;
 }
 
 export default defineSurface({
@@ -80,6 +83,9 @@ describe("SurfaceModulePipeline", () => {
     expect(code).toContain(`globalThis.__uixSharedModules["react"]`);
     expect(code).toContain(
       `globalThis.__uixSharedModules["@uix/api/workspace"]`,
+    );
+    expect(code).toContain(
+      `globalThis.__uixSharedModules["@uix/api/settings"]`,
     );
     // CSS stays a native module script: external, hash-busted, attribute kept.
     expect(code).toMatch(

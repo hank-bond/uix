@@ -52,6 +52,8 @@ bag[Symbol.dispose]();
   - `readX` only for real reads from disk, stores, streams, or similarly I/O-shaped sources.
 - React components are the exception: keep PascalCase noun names such as `Conversation` or `ChoiceButton`.
 - Anything implementing `Disposable` is fine to add to a bag — no ceremony needed.
+- Use `Store` for durable source-of-truth APIs/implementations. A store may expose a change feed when the change semantics are generic at that layer; otherwise domain-specific buffers/features publish higher-level invalidation events.
+- Use `Buffer` for live, feature-specific working projections over a store. Buffers may cache regenerable state, normalize writes, and reconcile feature/editor semantics, but durable authority stays in the backing store.
 
 ## Comments
 
