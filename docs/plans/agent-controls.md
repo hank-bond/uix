@@ -51,19 +51,31 @@ For now, workspace settings are not user-registerable. The substrate owns the sm
 
 ## A0 — Workspace-level settings
 
-Extend `WorkspaceSettingsStore` with substrate-owned workspace settings alongside existing feature settings.
+Add manifest-level `settings` keyed by substrate namespace (initially `agent.defaultModel`) alongside feature-entry settings — and split the settings substrate so persistence and state stop sharing a class.
 
-- Keep feature settings under each manifest feature entry unchanged.
-- Add manifest-level `settings` object keyed by substrate namespace, initially `agent.defaultModel`.
-- Add store operations for workspace settings, e.g. `getWorkspaceSetting(namespace, key)`, `setWorkspaceSetting(namespace, key, value)`, and change subscription for substrate callers.
-- Reuse the same semantics as feature settings: TypeBox schema, explicit default or optional value policy, JSON cloning, validated set, debounced atomic manifest write, reload disk-wins.
-- Expose workspace settings to main-process substrate code; optionally expose a read/write handle on `FeatureContext` only if a feature has a real need. Model selection itself should go through agent channels, not by surfaces directly mutating `agent.defaultModel`.
+The single `WorkspaceSettingsStore` decomposes into persistence, pure schema logic, and state:
+
+- **`WorkspaceManifestStore`** owns `uix.workspace.json` as a file: parse, raw tree, transactional disk-wins `reload()`, dirty flag, debounced atomic flush. It mints opaque **location handles** — `{ read(): object | undefined; install(values): void }` — through purpose-built accessors (`featureEntrySettings(index)`, `settingsNamespace(name)`), so knowledge of _where things live in the JSON_ concentrates here. `install` aliases the live values object into the tree and marks dirty; flush serializes the whole tree, so persistence needs no further participation from callers. Future manifest regions (layout, etc.) are new accessors on this store; the settings layer never sees them.
+- **`hydrateSettings()`** is a pure function: `(definitions, persisted) → { values, changed }` — schema validation, default fill, unknown-key rejection. No file, no registry.
+- **`hydrateScope()`** is a free choreography function for the common case: `location.read() → hydrateSettings() → location.install() when changed`, returning a finished scope (schemas, values, write-back hook).
+- **`SettingsRegistry`** owns live state and routing: a flat scope map where feature ids and substrate namespaces share one unprefixed id space (duplicate scope ids throw), `addScope(id, scope)` as the only mutation entry, validated `set`, change listeners, `forScope(id) → SettingsHandle`. The registry never touches locations, files, or hydration — persistence exists for it only as each scope's injected write-back hook, so non-persisted (ephemeral/test) scopes are free.
+- A composition-root **facade** preserves the loader interface (`reload` / `hydrateFeature` / `forFeature`) and adds `forNamespace(namespace)`. Feature activation uses `hydrateScope` (per-scope immediacy is correct; features fail independently). Facade `reload` stages: manifest reload → reject unknown namespaces under manifest-level `settings` → hydrate **all** namespaces via the pure function → commit the registry — so a bad persisted namespace value can't leave half the namespaces registered.
+
+Substrate namespaces register before any feature loads, so a feature id colliding with a namespace fails naturally on the registry's duplicate check — registration-order enforcement, no `ReservedFeatureIds` involvement (`agent` happens to be reserved there anyway, for channel-registry reasons; see backlog seed on migrating that list to this pattern).
+
+Settings semantics carry over unchanged: TypeBox schema, JSON cloning, validated set, debounced atomic manifest write, reload disk-wins. Two API adjustments in `@uix/api/settings`:
+
+- `FeatureSettingsStore` renames to **`SettingsHandle`** — the get/set/onChange shape is scope-neutral now.
+- `FeatureSetting.default` becomes **optional**: omitting it declares an optional setting that reads `undefined` and writes nothing to the manifest until first `set()` — the policy `agent.defaultModel` needs (a fresh manifest gains no `settings` block until a model is actually chosen).
+
+Workspace settings stay main-process-only (no `FeatureContext` exposure until a feature demonstrates a need). Model selection goes through agent channels, not by surfaces mutating `agent.defaultModel`.
 
 Acceptance:
 
-- Missing manifest-level settings hydrate or read as the schema's default/undefined policy without touching feature entries.
-- Setting `agent.defaultModel` persists to `uix.workspace.json` and notifies subscribers.
-- Existing feature settings tests still pass unchanged.
+- Missing manifest-level settings hydrate or read as the schema's default/undefined policy without touching feature entries; a manifest with no chosen model gains no `settings` block.
+- Setting `agent.defaultModel` via `forNamespace("agent")` persists to `uix.workspace.json` under top-level `settings.agent` and notifies subscribers.
+- Unknown namespaces under manifest-level `settings` reject on reload; a feature id colliding with a registered namespace fails activation.
+- Existing feature settings behavior is preserved: prior test scenarios pass against the facade unchanged (mechanical API renames aside).
 
 ## A1 — Agent driver model service
 
