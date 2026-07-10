@@ -12,7 +12,7 @@ export const chatSettings = defineSettings({
   statusBar: {
     schema: ChatStatusBarSettingsSchema,
     default: {
-      order: ["model", "thinking", "context"],
+      order: ["model"],
       hidden: [],
     },
   },

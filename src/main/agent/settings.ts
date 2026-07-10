@@ -5,15 +5,10 @@
 // feature id colliding with the namespace fails on the registry's
 // duplicate-scope check.
 
+import { ModelRefSchema } from "@uix/api/agent-channels";
 import { defineSettings } from "@uix/api/settings";
-import { Type } from "typebox";
 
 export const AgentSettingsNamespace = "agent";
-
-export const ModelRefSchema = Type.Object({
-  provider: Type.String(),
-  id: Type.String(),
-});
 
 export const agentWorkspaceSettings = defineSettings({
   /**

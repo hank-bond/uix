@@ -216,6 +216,12 @@ async function openWorkspace(
     turnState,
     agentContext,
     agentInstallers: [createAgentToolInstaller(agentTools)],
+    // Lazy handle: the `agent` scope registers during the settings reload
+    // inside loadFeatures(), before any driver method can read it.
+    agentSettings: workspaceSettings.forScope(AgentSettingsNamespace),
+    onStatusChange: (status) => {
+      agentPublisher.status_changed(status);
+    },
   });
   appBag.add(driver);
 
@@ -290,6 +296,15 @@ async function openWorkspace(
               ref: driver.sessionFile(),
             }),
           },
+        },
+        list_models: {
+          handle: async () => ({ models: await driver.listModels() }),
+        },
+        agent_status: {
+          handle: () => driver.status(),
+        },
+        select_model: {
+          handle: (ref) => driver.selectModel(ref),
         },
       }),
     ]),

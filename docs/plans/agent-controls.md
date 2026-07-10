@@ -30,6 +30,8 @@ There are two distinct pieces of state:
 1. **Current/live model** — pi-owned, branch-aware session state. When a session exists, selecting a model calls `session.setModel(model)`, producing a native `model_change` entry. History/branch replay should derive current model from pi's branch, not from UIX turn state.
 2. **Workspace default model** — UIX workspace setting. Used before a pi session exists and as the default for new sessions/branches that do not already carry a `model_change` entry.
 
+With no workspace default set, UIX invents no fallback of its own: session creation defers entirely to pi's resolution (pi settings default, first available, or — when no provider is authenticated — no model at all), and status reports both fields absent so the UI renders an explicit "no model chosen" state.
+
 Workspace settings are substrate-owned and manifest-level, not feature-scoped:
 
 ```json
@@ -85,7 +87,7 @@ Hoist pi auth/model services to driver scope so model status is available before
 - `openSession()` reuses the hoisted instances and applies the workspace default model when no branch model overrides it.
 - Add driver methods:
   - `listModels()` — returns available models only.
-  - `status()` — returns current live model if a session exists, else workspace default when set.
+  - `status()` — returns the current live model (when a session exists and pi resolved one) alongside the workspace default (when set); both absent is the "no model chosen" state.
   - `selectModel({ provider, id })` — validates the model exists in available models, writes workspace default, and if a session exists calls `session.setModel(model)`.
 - Emit a status changed callback after `selectModel`, after session creation when the selected/restored model becomes known, and after live pi model changes if those are observed through session events/hooks.
 

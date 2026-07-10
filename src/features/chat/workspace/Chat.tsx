@@ -10,6 +10,7 @@ import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
 import { useFeatureSetting, type ChannelClient } from "@uix/api/workspace";
 import type { agentChannels } from "@uix/api/agent-channels";
 import { ChatBlock } from "./blocks/ChatBlock";
+import { ModelPill } from "./ModelPill";
 import { isPendingUserId, pendingUserId } from "./pending";
 import { chatSettings } from "../shared/settings";
 
@@ -128,6 +129,7 @@ export function Chat({ client }: ChatProps) {
         </button>
       </form>
       <StatusBar
+        client={client}
         order={statusBar.value?.order ?? []}
         hidden={statusBar.value?.hidden ?? []}
         loading={statusBar.loading}
@@ -137,12 +139,18 @@ export function Chat({ client }: ChatProps) {
   );
 }
 
+// Renders the known cells the settings order names — today just the model
+// pill. Unknown ids are ignored, so manifests persisted before a cell
+// existed (or after one is retired) stay harmless. A generic cell registry
+// and reordering UI are deferred (plan: agent-controls, boundary).
 function StatusBar({
+  client,
   order,
   hidden,
   loading,
   error,
 }: {
+  client: AgentChannelClient;
   order: readonly string[];
   hidden: readonly string[];
   loading: boolean;
@@ -150,24 +158,13 @@ function StatusBar({
 }) {
   const visible = order.filter((id) => !hidden.includes(id));
   return (
-    <div
-      className="status-bar"
-      aria-label="Chat status bar settings smoke test"
-    >
+    <div className="status-bar" aria-label="Chat status bar">
       {error ? (
         <span className="status-bar__item status-bar__item--error">
           settings error: {error.message}
         </span>
-      ) : loading ? (
-        <span className="status-bar__item">loading settings…</span>
-      ) : visible.length === 0 ? (
-        <span className="status-bar__item">status bar hidden</span>
-      ) : (
-        visible.map((id) => (
-          <span className="status-bar__item" key={id}>
-            {id}
-          </span>
-        ))
+      ) : loading ? null : (
+        visible.includes("model") && <ModelPill client={client} />
       )}
     </div>
   );

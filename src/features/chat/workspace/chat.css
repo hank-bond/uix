@@ -1,7 +1,10 @@
 /* chat surface defaults.
  *
- * Chat styling is scoped to the surface root so future surfaces can define
- * their own local vocabulary without inheriting chat-specific block styles.
+ * Selectors are written unscoped: the substrate wraps every surface sheet in
+ * `@scope ([data-uix-surface="chat"])` at adoption, so nothing here can style
+ * other surfaces or the cockpit chrome. Name-global at-rules (@font-face,
+ * @keyframes) are the exception — their names share one document-wide space,
+ * so keep them feature-prefixed (hence "UIX Iosevka").
  */
 
 @font-face {
@@ -12,17 +15,17 @@
   font-display: swap;
 }
 
-[data-uix-surface="chat"] {
+:scope {
   --uix-chat-code-font: "UIX Iosevka";
 }
 
-[data-uix-surface="chat"] .surface-panel__body--chat {
+.surface-panel__body--chat {
   padding: 0;
   display: grid;
   grid-template-rows: 1fr auto;
 }
 
-[data-uix-surface="chat"] .chat__scroll {
+.chat__scroll {
   overflow: auto;
   padding: 0.75rem 1rem;
   display: flex;
@@ -31,7 +34,7 @@
   min-width: 0;
 }
 
-[data-uix-surface="chat"] .msg {
+.msg {
   display: grid;
   grid-template-columns: 5rem minmax(0, 1fr);
   gap: 0.5rem;
@@ -41,7 +44,7 @@
   max-width: 100%;
 }
 
-[data-uix-surface="chat"] .msg__role {
+.msg__role {
   font-size: 0.68rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -49,7 +52,7 @@
   padding-top: 0.15rem;
 }
 
-[data-uix-surface="chat"] .msg__text {
+.msg__text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -57,36 +60,36 @@
   max-width: 100%;
 }
 
-[data-uix-surface="chat"] .msg--user .msg__text,
-[data-uix-surface="chat"] .msg--assistant .msg__text {
+.msg--user .msg__text,
+.msg--assistant .msg__text {
   color: var(--fg);
 }
 
 /* Optimistic pending row: dimmed until main confirms it with the canonical
    born-keyed row. */
-[data-uix-surface="chat"] .msg[data-uix-unconfirmed] .msg__text {
+.msg[data-uix-unconfirmed] .msg__text {
   color: var(--fg-dim);
 }
 
-[data-uix-surface="chat"] .msg--tool .msg__text {
+.msg--tool .msg__text {
   color: var(--fg-dim);
 }
 
-[data-uix-surface="chat"] .tool-block {
+.tool-block {
   display: grid;
   gap: 0.45rem;
   min-width: 0;
   font-size: 0.86rem;
 }
 
-[data-uix-surface="chat"] .tool-block__header {
+.tool-block__header {
   display: flex;
   align-items: center;
   gap: 0.45rem;
   min-width: 0;
 }
 
-[data-uix-surface="chat"] .tool-block__status {
+.tool-block__status {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 0.05rem 0.4rem;
@@ -96,7 +99,7 @@
   text-transform: uppercase;
 }
 
-[data-uix-surface="chat"] .tool-block__name {
+.tool-block__name {
   color: var(--fg);
   font-weight: 600;
   overflow: hidden;
@@ -104,8 +107,8 @@
   white-space: nowrap;
 }
 
-[data-uix-surface="chat"] .tool-block__payload,
-[data-uix-surface="chat"] .tool-block__details pre {
+.tool-block__payload,
+.tool-block__details pre {
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -117,18 +120,18 @@
   line-height: 1.45;
 }
 
-[data-uix-surface="chat"] .tool-block__details summary {
+.tool-block__details summary {
   cursor: pointer;
   color: var(--fg-faint);
   font-size: 0.78rem;
 }
 
-[data-uix-surface="chat"] .canvas-tool-block__payload {
+.canvas-tool-block__payload {
   display: grid;
   gap: 0.2rem;
 }
 
-[data-uix-surface="chat"] .canvas-tool-block__toggle {
+.canvas-tool-block__toggle {
   justify-self: start;
   background: transparent;
   border: 0;
@@ -139,23 +142,23 @@
   cursor: pointer;
 }
 
-[data-uix-surface="chat"] .canvas-tool-block__toggle:hover {
+.canvas-tool-block__toggle:hover {
   color: var(--accent);
 }
 
-[data-uix-surface="chat"] .msg--tool-error .tool-block__status {
+.msg--tool-error .tool-block__status {
   border-color: color-mix(in srgb, var(--error), transparent 45%);
   color: var(--error);
 }
 
-[data-uix-surface="chat"] .msg--tool-error .msg__role,
-[data-uix-surface="chat"] .msg--tool-error .msg__text,
-[data-uix-surface="chat"] .msg--error .msg__role,
-[data-uix-surface="chat"] .msg--error .msg__text {
+.msg--tool-error .msg__role,
+.msg--tool-error .msg__text,
+.msg--error .msg__role,
+.msg--error .msg__text {
   color: var(--error);
 }
 
-[data-uix-surface="chat"] .composer {
+.composer {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.5rem;
@@ -164,7 +167,7 @@
   background: var(--bg-surface-panel);
 }
 
-[data-uix-surface="chat"] .composer__input {
+.composer__input {
   background: var(--bg-input);
   color: var(--fg);
   border: 1px solid var(--border);
@@ -176,11 +179,11 @@
   outline: none;
 }
 
-[data-uix-surface="chat"] .composer__input:focus {
+.composer__input:focus {
   border-color: var(--accent);
 }
 
-[data-uix-surface="chat"] .composer__send {
+.composer__send {
   background: transparent;
   color: var(--fg);
   border: 1px solid var(--border);
@@ -191,17 +194,17 @@
   cursor: pointer;
 }
 
-[data-uix-surface="chat"] .composer__send:hover:not(:disabled) {
+.composer__send:hover:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent);
 }
 
-[data-uix-surface="chat"] .composer__send:disabled {
+.composer__send:disabled {
   color: var(--fg-faint);
   cursor: not-allowed;
 }
 
-[data-uix-surface="chat"] .status-bar {
+.status-bar {
   display: flex;
   gap: 0.4rem;
   align-items: center;
@@ -213,12 +216,97 @@
   font-size: 0.75rem;
 }
 
-[data-uix-surface="chat"] .status-bar__item {
+.status-bar__item {
   border: 1px solid var(--border);
   border-radius: 999px;
   padding: 0.1rem 0.45rem;
 }
 
-[data-uix-surface="chat"] .status-bar__item--error {
+.status-bar__item--error {
+  color: var(--error);
+}
+
+.model-pill {
+  position: relative;
+  display: inline-flex;
+}
+
+.model-pill__button {
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.model-pill__button:hover {
+  color: var(--fg);
+  border-color: var(--fg-faint);
+}
+
+/* Anchored above the pill (the status bar hugs the pane's bottom edge). */
+.model-picker {
+  position: absolute;
+  bottom: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  width: 20rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-surface-panel);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.35);
+}
+
+.model-picker__input {
+  margin: 0.4rem;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--fg);
+  font: inherit;
+}
+
+.model-picker__list {
+  overflow: auto;
+  max-height: 14rem;
+  margin: 0;
+  padding: 0 0.25rem 0.25rem;
+  list-style: none;
+}
+
+.model-picker__option {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.3rem 0.45rem;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.model-picker__option:hover,
+.model-picker__option:focus-visible {
+  background: var(--bg-input);
+}
+
+.model-picker__ref {
+  color: var(--fg-muted);
+  font-size: 0.7rem;
+}
+
+.model-picker__note {
+  padding: 0.15rem 0.65rem 0.5rem;
+  color: var(--fg-muted);
+}
+
+.model-picker__note--error {
   color: var(--error);
 }
