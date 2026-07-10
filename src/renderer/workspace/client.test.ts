@@ -73,6 +73,39 @@ describe("channel clients", () => {
     expect(subscribe).toHaveBeenCalledWith("agent.event", expect.any(Function));
   });
 
+  it("covers the agent model channels and validates status events", async () => {
+    const { client, request, subscribe } = fakeWorkspaceClient();
+    const agent = createChannelClient(client, agentChannels);
+    const onStatus = vi.fn();
+
+    await agent.requests.list_models(undefined);
+    await agent.requests.agent_status(undefined);
+    await agent.requests.select_model({
+      provider: "anthropic",
+      id: "claude-sonnet-4-5",
+    });
+    agent.events.status_changed(onStatus);
+
+    expect(request).toHaveBeenCalledWith("agent.list_models", undefined);
+    expect(request).toHaveBeenCalledWith("agent.agent_status", undefined);
+    expect(request).toHaveBeenCalledWith("agent.select_model", {
+      provider: "anthropic",
+      id: "claude-sonnet-4-5",
+    });
+    expect(subscribe).toHaveBeenCalledWith(
+      "agent.status_changed",
+      expect.any(Function),
+    );
+
+    const wrapped = subscribe.mock.calls[0]?.[1];
+    // Full status and the both-absent "no model chosen" status both pass.
+    wrapped?.({ model: { provider: "anthropic", id: "claude-sonnet-4-5" } });
+    wrapped?.({});
+    expect(onStatus).toHaveBeenCalledTimes(2);
+    // Malformed status events reject at the contract schema.
+    expect(() => wrapped?.({ model: { provider: 42 } })).toThrow();
+  });
+
   it("creates a feature-bound settings client", async () => {
     const { client, request, subscribe } = fakeWorkspaceClient();
     const settings = createFeatureSettingsClient(client, "chat");

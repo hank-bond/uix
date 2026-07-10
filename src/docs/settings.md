@@ -1,9 +1,13 @@
 ---
-summary: "Feature-scoped durable workspace settings: features declare TypeBox schemas with explicit defaults, the loader hydrates missing values into manifest feature entries, and backend code reads/writes validated values through ctx.settings."
+summary: "Durable settings in uix.workspace.json, two scopes: feature settings declared as TypeBox schemas and hydrated into manifest feature entries, and substrate-owned workspace namespaces (e.g. agent.defaultModel) under top-level settings."
 status: active
 ---
 
 # Settings
+
+Durable settings live in `uix.workspace.json` in two scopes: **feature settings**, declared by a feature and stored on its manifest feature entry, and **workspace settings**, owned by the substrate and stored under the manifest's top-level `settings` object keyed by namespace. Both scopes share one validation/persistence substrate and one flat scope-id space — a feature id can never collide with a workspace namespace (activation fails on the duplicate).
+
+## Feature settings
 
 Features declare durable settings on their `FeatureDefinition`, before `context()` and `contribute()` run. Put the keyed feature settings in feature-shared code so backend and workspace surface code import the same keys, schemas, defaults, and TypeScript types:
 
@@ -69,8 +73,9 @@ During feature activation the loader validates each declared setting's default, 
 
 Rules:
 
-- every declared setting entry must have `schema` and explicit `default`; the settings object's property name is the key;
-- missing / `undefined` values hydrate from the default;
+- every declared setting entry has a `schema`; the settings object's property name is the key;
+- `default` is optional: omitting it declares an **optional setting** that reads `undefined` and writes nothing to the manifest until the first `set()`;
+- missing / `undefined` values hydrate from the default (when one is declared);
 - `null` is an explicit persisted value and must be allowed by the schema;
 - plain objects merge recursively so newly added default fields materialize without clobbering existing fields;
 - arrays, scalars, and `null` are atomic values;
@@ -81,7 +86,7 @@ Defaults fill missing values only. If a later feature version changes a default 
 
 ## Backend API
 
-Backend feature code uses feature-bound `ctx.settings`:
+Backend feature code uses feature-bound `ctx.settings` (a `SettingsHandle` — the same scope-neutral get/set/onChange shape workspace namespaces use):
 
 ```ts
 const value = ctx.settings.get("statusBar");
@@ -111,3 +116,33 @@ function StatusBar() {
 ```
 
 `defineSettings(...)` preserves the exact setting keys and type-checks each default against that setting's TypeBox schema. `useFeatureSetting(featureSettings, key)` type-checks `key` against the shared settings and types the returned value and setter from that key's schema. The main process remains authoritative and validates every `set()` against the registered backend schema.
+
+## Workspace settings
+
+The substrate owns a small set of workspace-level settings, keyed by namespace under the manifest's **top-level** `settings` object — beside `features`, not inside any feature entry:
+
+```json
+{
+  "name": "My Workspace",
+  "settings": {
+    "agent": {
+      "defaultModel": {
+        "provider": "anthropic",
+        "id": "claude-sonnet-4-5"
+      }
+    }
+  },
+  "features": []
+}
+```
+
+Workspace namespaces are **not user-registerable**: the substrate registers the namespaces it needs before any feature loads. Today that set is exactly one:
+
+- **`agent.defaultModel`** _(optional)_ — the workspace default model, used before a pi session exists and as the default for new sessions/branches that carry no `model_change` entry. Absent until the pilot first selects a model; a fresh manifest gains no `settings` block until then. See [`agent.md`](./agent.md) for how selection flows through the agent channels.
+
+Rules:
+
+- hydration and validation are the same as feature settings (same schema pass, same unknown-key rejection, same debounced atomic write, same disk-wins `/reload`);
+- an unknown namespace under manifest-level `settings` rejects the load pass;
+- namespaces register before features, so a feature whose id collides with a namespace fails activation on the duplicate-scope check;
+- workspace settings are main-process-only — features get no handle to them. Model selection, for example, goes through the agent channels (`select_model`), never by a surface mutating `agent.defaultModel` directly.

@@ -17,12 +17,12 @@ Pages marked _(stub)_ are placeholders that fill in as the corresponding primiti
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
 
-- **[agent](./agent.md)** _(active)_ — How the substrate drives the agent today: it lazily owns a persisted pi AgentSession, forwards a UIX-shaped event stream to the renderer, delegates reload, binds the core anchored document read/write/edit tools, and flushes registered agent-context contributions as display-hidden custom entries at agent-run prep.
+- **[agent](./agent.md)** _(active)_ — How the substrate drives the agent today: it lazily owns a persisted pi AgentSession, forwards a UIX-shaped event stream to the renderer, exposes model list/status/select channels over pi's model registry, delegates reload, binds the core anchored document read/write/edit tools, and flushes registered agent-context contributions as display-hidden custom entries at agent-run prep.
 - **[channels](./channels.md)** _(stub)_ — Feature channel contracts declare request handlers and backend-published events with shared schemas; the current Workspace client and preload bridge consume those contracts directly while the public packaged-feature API is still forming.
 - **[contributions](./contributions.md)** _(active)_ — FeatureDefinition.contribute returns facet contributions for resources, channels, agent tools, turn state, agent context, and surfaces; the substrate registers each facet under the feature id with reload-scoped lifetimes.
 - **[features](./features.md)** _(active)_ — Feature entries are trusted local TS/JS modules listed explicitly in uix.workspace.json; each default-exports a FeatureDefinition loaded with jiti, lifetime-scoped under the reload bag, and wired only through @uix/api.
 - **[lifetimes](./lifetimes.md)** _(active)_ — DisposableBag owns cleanup for app lifetime, reloadable feature activations, window registrations, and the agent driver; feature authors get cleanup through registered contributions rather than direct bag access.
-- **[settings](./settings.md)** _(active)_ — Feature-scoped durable workspace settings: features declare TypeBox schemas with explicit defaults, the loader hydrates missing values into manifest feature entries, and backend code reads/writes validated values through ctx.settings.
+- **[settings](./settings.md)** _(active)_ — Durable settings in uix.workspace.json, two scopes: feature settings declared as TypeBox schemas and hydrated into manifest feature entries, and substrate-owned workspace namespaces (e.g. agent.defaultModel) under top-level settings.
 - **[state](./state.md)** _(active)_ — UIX persists the pi session under the workspace state root, stores canvas documents in the local document store, and exposes feature-scoped durable JSON preferences through ctx.settings.
 
 <!-- INDEX:END -->

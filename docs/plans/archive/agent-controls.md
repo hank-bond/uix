@@ -1,6 +1,6 @@
 ---
 summary: "Add the first cockpit agent control: a chat status-bar model pill backed by available pi models, workspace-level default-model settings, native pi model_change entries for live/branch state, and a searchable picker."
-status: active
+status: landed
 ---
 
 # Spec: agent controls

@@ -1,5 +1,5 @@
 ---
-summary: "How the substrate drives the agent today: it lazily owns a persisted pi AgentSession, forwards a UIX-shaped event stream to the renderer, delegates reload, binds the core anchored document read/write/edit tools, and flushes registered agent-context contributions as display-hidden custom entries at agent-run prep."
+summary: "How the substrate drives the agent today: it lazily owns a persisted pi AgentSession, forwards a UIX-shaped event stream to the renderer, exposes model list/status/select channels over pi's model registry, delegates reload, binds the core anchored document read/write/edit tools, and flushes registered agent-context contributions as display-hidden custom entries at agent-run prep."
 status: active
 ---
 
@@ -10,11 +10,24 @@ UIX owns one pi `AgentSession` for the workspace, created lazily the first time 
 Current behavior:
 
 - the session is resumed or created under the workspace state root;
-- renderer prompts call `window.uix.sendPrompt({ text })`, which invokes the main-process driver;
-- the renderer receives a UIX-shaped event stream over typed Electron IPC: transcript item appends, compact in-flight partials (`transcript_partial`: streamed assistant text appends, tool progress snapshots overwrite), whole-item replacements at completion, plus basic lifecycle markers; live in-flight tool partials are discarded when the final item arrives;
-- `window.uix.getHistory()` replays the same durable transcript item shape from pi's persisted session branch;
-- `window.uix.reload()` reloads manifest features and delegates to `session.reload()` only if a pi session already exists;
+- surfaces talk to the driver through the substrate-owned agent channel contract (`@uix/api/agent-channels`, registered under the reserved `agent` id) via the typed channel client — chat is an ordinary feature consuming channels any feature could;
+- the `prompt` request invokes the main-process driver; the renderer receives a UIX-shaped event stream on the `event` channel: transcript item appends, compact in-flight partials (`transcript_partial`: streamed assistant text appends, tool progress snapshots overwrite), whole-item replacements at completion, plus basic lifecycle markers; live in-flight tool partials are discarded when the final item arrives;
+- the `history` request replays the same durable transcript item shape from pi's persisted session branch;
+- reload (typed IPC, not an agent channel) reloads manifest features and workspace settings and delegates to `session.reload()` only if a pi session already exists;
 - core substrate tools are registered through internal agent installers (`AgentInstaller`), not through feature contributions.
+
+## Model control
+
+The driver hoists pi's `AuthStorage`/`ModelRegistry` above the session, so model questions are answerable before the first prompt opens one. Three requests and one event on the agent contract:
+
+- `list_models` (`void → { models: ModelOption[] }`) — **available (auth-configured) models only**, refreshed from pi's registry on each call. If nothing is authenticated the list is empty; auth/connect UI is not part of this slice.
+- `agent_status` (`void → AgentStatus`) — `model` is the live session model (absent until a session exists, and absent even then when pi resolved none); `defaultModel` is the workspace default (absent until first selected). Both absent means "no model chosen": the UI renders that state, UIX invents no fallback.
+- `select_model` (`ModelRef → AgentStatus`) — validated against pi's available models (unknown/unauthenticated refs reject), persisted as the workspace default (`agent.defaultModel`, see [`settings.md`](./settings.md)), and — when a live session exists — switched via `session.setModel`, producing a native pi `model_change` entry.
+- `status_changed` (event, `AgentStatus`) — fired on selection, when a session opens and its model becomes known, and on any live pi model change (setModel, cycle commands, restore), mirrored through pi's `model_select` extension event.
+
+Two distinct pieces of state, deliberately: the **current model** is pi-owned, branch-aware session state (`model_change` entries; branch replay restores it), while the **workspace default** is a UIX workspace setting applied at session open only when the branch carries no `model_change` of its own. With neither, session creation defers entirely to pi's resolution. Surfaces never mutate `agent.defaultModel` directly — selection goes through `select_model`.
+
+The chat status bar's model pill (`src/features/chat/workspace/ModelPill.tsx`) is the first consumer: it seeds from `agent_status`, subscribes to `status_changed`, labels by live model → workspace default → explicit "select model" empty state, and opens a searchable picker over `list_models`.
 
 ## Transcript projection
 

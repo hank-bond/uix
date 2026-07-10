@@ -15,6 +15,8 @@ import type {
 } from "@uix/api/agent-channels";
 import type { ChannelClient } from "@uix/api/workspace";
 
+import { filterModels } from "./model-filter";
+
 type AgentChannelClient = ChannelClient<typeof agentChannels>;
 
 export function ModelPill({ client }: { client: AgentChannelClient }) {
@@ -117,14 +119,7 @@ function ModelPicker({
     };
   }, [onClose]);
 
-  const filter = query.trim().toLowerCase();
-  const filtered = (models ?? []).filter(
-    (model) =>
-      !filter ||
-      model.provider.toLowerCase().includes(filter) ||
-      model.id.toLowerCase().includes(filter) ||
-      model.name.toLowerCase().includes(filter),
-  );
+  const filtered = filterModels(models ?? [], query);
 
   const select = async (model: ModelOption) => {
     try {

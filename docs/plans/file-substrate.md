@@ -5,7 +5,7 @@ status: active
 
 # Spec: workspace settings
 
-The immediate need is durable workspace/feature settings, not a public arbitrary file-watching primitive. StatusBar layout in [agent-controls](./agent-controls.md) needs cross-session feature-scoped settings that are visible and agent-editable as ordinary workspace data. If the agent or a human edits `uix.workspace.json` while UIX is running, the user runs `/reload` to pick it up.
+The immediate need is durable workspace/feature settings, not a public arbitrary file-watching primitive. StatusBar layout in [agent-controls](./archive/agent-controls.md) needs cross-session feature-scoped settings that are visible and agent-editable as ordinary workspace data. If the agent or a human edits `uix.workspace.json` while UIX is running, the user runs `/reload` to pick it up.
 
 This plan replaces the earlier `ctx.files.watch/write` F0 with a smaller settings service. File watching remains valuable, but the better future primitive is tracked document publication: documents loaded into the document store can be published to visible paths and only those tracked paths are watched/imported. That design is now a backlog seed, not part of this settings slice.
 
@@ -92,7 +92,7 @@ Semantics:
 - `/reload` re-reads settings from disk;
 - no live filesystem watcher in v1.
 
-The first consumer is StatusBar layout in [agent-controls](./agent-controls.md) A1. Model/thinking selection is not workspace settings: pi already records model/thinking changes as branch-aware session entries, so agent controls should derive those through the agent/session status path.
+The first consumer is StatusBar layout in [agent-controls](./archive/agent-controls.md) A1. Model/thinking selection is not workspace settings: pi already records model/thinking changes as branch-aware session entries, so agent controls should derive those through the agent/session status path.
 
 ## Boundary / future
 
