@@ -35,6 +35,11 @@ function memoryStore(initial: Record<string, string> = {}): DocumentStore {
 function fakeCanvasContext(store: DocumentStore): CanvasContext {
   const base: FeatureContext = {
     documents: { createStore: () => store },
+    settings: {
+      get: () => undefined,
+      set: () => {},
+      onChange: () => () => {},
+    },
     channels: {
       createPublisher: (contract) =>
         createFeatureEventPublisher(() => undefined, contract),

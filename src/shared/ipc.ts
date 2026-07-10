@@ -8,6 +8,10 @@
 
 import { Type, type Static } from "typebox";
 import type { ChannelContract } from "@uix/api/channels";
+import {
+  FeatureSettingAddressSchema,
+  FeatureSettingValueEnvelopeSchema,
+} from "@uix/api/settings";
 
 /** Substrate channel names. Keep this list small — features register their own. */
 export const Channels = {
@@ -101,10 +105,21 @@ export const uixChannels = {
         manifestFound: Type.Boolean(),
       }),
     },
+    get_setting: {
+      requestSchema: FeatureSettingAddressSchema,
+      responseSchema: Type.Unknown(),
+    },
+    set_setting: {
+      requestSchema: FeatureSettingValueEnvelopeSchema,
+      responseSchema: Type.Void(),
+    },
   },
   events: {
     surfaces_changed: {
       event: Type.Object({}),
+    },
+    setting_changed: {
+      event: FeatureSettingValueEnvelopeSchema,
     },
   },
 } as const satisfies ChannelContract;

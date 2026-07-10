@@ -1,5 +1,5 @@
 ---
-summary: "Code conventions for the cockpit — lifetimes, naming, comments, module exports, validation, logging, imports, lifecycle helpers; most are main-process, but naming and comments apply to all UIX code."
+summary: "Code conventions for the cockpit — lifetimes, naming (including the verb taxonomy), capability handles, comments, module exports, validation, logging, imports, lifecycle helpers; most are main-process, but naming and comments apply to all UIX code."
 status: active
 ---
 
@@ -48,10 +48,47 @@ bag[Symbol.dispose]();
   - `toX` for deterministic conversions/derivations where inputs are expected to already be valid;
   - `encodeX` / `decodeX` for reversible representation transforms;
   - `isX` / `hasX` for predicates and type guards;
-  - `createX` / `buildX` for construction from known inputs;
   - `readX` only for real reads from disk, stores, streams, or similarly I/O-shaped sources.
+- Module-level and lifecycle verbs. Each verb earns its slot by meaning something the others don't; don't introduce a synonym when an existing verb fits:
+  - `createX` for construction from known inputs — factories, contexts, wired object bags. Don't use `makeX`; it's the same act.
+  - `buildX` is **reserved for compilation/bundling pipelines** (the surface module pipeline's esbuild passes). Plain object assembly is `createX`, not `buildX`.
+  - `readX` (disk → parsed data, no runtime side effects) vs `loadX` (persisted or external content → its **live, registered runtime form**; side effects expected — `loadFeatures`, `loadScope`). A load typically contains a read.
+  - `hydrateX` for the pure schema pass between the two: fill defaults into persisted values and validate, no storage or registration (`hydrateSettings`).
+  - `openX` for starting a long-lived stateful thing whose lifetime someone must own (`openWorkspace`, `openSession`).
+  - `registerX` for putting an item into a registry; registries' own mutation methods use the same verb (`register`, `registerScope`).
+  - `resolveX` for mapping a reference to the concrete thing it denotes (`resolveWorkspace`).
+  - `bindX` for attaching an existing thing to a lifetime or context (`bindSettingsHandle`).
+  - `defineX` for public-API identity/type-checking helpers around plain data (`defineSettings`, `defineSurface`).
+  - `forX(id)` for minting a capability handle scoped to one owner (`forScope`); see the handle convention below.
 - React components are the exception: keep PascalCase noun names such as `Conversation` or `ChoiceButton`.
 - Anything implementing `Disposable` is fine to add to a bag — no ceremony needed.
+- Use `Store` for durable source-of-truth APIs/implementations. A store may expose a change feed when the change semantics are generic at that layer; otherwise domain-specific buffers/features publish higher-level invalidation events.
+- Use `Buffer` for live, feature-specific working projections over a store. Buffers may cache regenerable state, normalize writes, and reconcile feature/editor semantics, but durable authority stays in the backing store.
+- Use `Registry` for central in-memory maps of contributed things plus their routing (`ChannelRegistry`, `SettingsRegistry`); registries don't persist.
+
+## Central ownership, capability handles
+
+**Rule.** State lives in one central owner (a store or registry); consumers never get the owner itself. They get a **handle**: a small object of functions closed over exactly the slice they may touch, minted by the owner (`forX(id)`, an accessor returning a location, a factory pre-bound to an id). A handle's method signatures carry no addressing parameter — the closure already chose the target.
+
+**Why.** Hiding by construction, not enforcement. Code that only holds `get(key)` cannot _accidentally_ couple to another owner's slice; a module's entire reach is legible from the handles its context receives; and because nothing crosses the boundary except what the handle carries, moving consumers to another process later is a mechanical transport swap, not a redesign. This is a trust-model convention, not a sandbox — in-process code can always escape a closure if it tries; containment for untrusted code is the iframe transport's job.
+
+**Pattern.** The same shape at every layer:
+
+```ts
+// registry mints a scope-bound settings handle: get(key), not get(scopeId, key)
+const settings = registry.forScope(featureId);
+
+// store mints a location: two methods over one tree position, path pre-bound
+const location = manifest.settingsNamespace("agent");
+
+// FeatureContext is a bag of these: settings handle, publisher factory
+// pre-bound to the feature id, id-scoped logger, per-feature DisposableBag
+```
+
+Two corollaries:
+
+- **The owner's own API may be open** (`registry.get(scopeId, key)`) for trusted composition-root code and channel handlers; the narrowing happens at the point where a handle is doled out, and each consumer gets the narrowest handle that serves it.
+- **Handles resolve lazily by id, not by captured object reference**, wherever the owner's contents can be replaced underneath (reload). A handle minted before a reload keeps working after it; an unknown target fails on first _use_, not at mint time.
 
 ## Comments
 

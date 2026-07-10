@@ -19,14 +19,19 @@
 import type {
   AgentSession,
   AgentSessionEvent,
+  ModelRegistry,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 
 import type {
   AgentEvent,
+  AgentStatus,
+  ModelOption,
+  ModelRef,
   TranscriptItem,
   TranscriptSnapshot,
 } from "@uix/api/agent-channels";
+import type { SettingsHandle } from "@uix/api/settings";
 import type { Workspace } from "../workspace";
 
 import { join } from "node:path";
@@ -76,6 +81,16 @@ export interface AgentDriver extends Disposable {
    * is open — and, for a fresh session, until pi first persists an entry.
    */
   sessionFile(): string | undefined;
+  /** Available (auth-configured) models. Answerable before any session. */
+  listModels(): Promise<ModelOption[]>;
+  /** Live session model (when known) plus the workspace default. */
+  status(): AgentStatus;
+  /**
+   * Validate against pi's available models, persist as the workspace
+   * default, and — when a live session exists — switch it via
+   * `session.setModel`, producing native pi `model_change` state.
+   */
+  selectModel(ref: ModelRef): Promise<AgentStatus>;
 }
 
 export interface AgentDriverOptions {
@@ -89,6 +104,15 @@ export interface AgentDriverOptions {
   agentContext?: AgentContextRegistry;
   /** State root (pins the session dir) + agent cwd. */
   workspace: Workspace;
+  /**
+   * Workspace `agent` settings namespace; holds the optional `defaultModel`.
+   * When absent (or unset), UIX passes no model and pi's own resolution
+   * applies — including resolving to no model at all when nothing is
+   * authenticated.
+   */
+  agentSettings?: SettingsHandle;
+  /** Fired whenever live/default model status changes. */
+  onStatusChange?: (status: AgentStatus) => void;
 }
 
 export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
@@ -129,6 +153,39 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   // inside the wire log's describeResult, which can't await the driver).
   let openedManager: SessionManager | undefined;
 
+  // Model service tier: auth + model registry, hoisted above the session so
+  // listModels()/status()/selectModel() answer before the first prompt opens
+  // one. Lazy-cached like the manager; cleared on failure so the next caller
+  // retries.
+  let registryPromise: Promise<ModelRegistry> | undefined;
+
+  // Live-model mirror for the sync status() read: set when a session opens,
+  // updated by pi's model_select extension event, cleared on dispose.
+  let liveSession: AgentSession | undefined;
+  let liveModel: ModelRef | undefined;
+
+  function registry(): Promise<ModelRegistry> {
+    return (registryPromise ??= (async () => {
+      const sdk = await import("@earendil-works/pi-coding-agent");
+      return sdk.ModelRegistry.create(sdk.AuthStorage.create());
+    })().catch((err) => {
+      registryPromise = undefined;
+      throw err;
+    }));
+  }
+
+  function status(): AgentStatus {
+    const defaultModel = opts.agentSettings?.get<ModelRef>("defaultModel");
+    return {
+      ...(liveModel && { model: liveModel }),
+      ...(defaultModel && { defaultModel }),
+    };
+  }
+
+  function emitStatus(): void {
+    opts.onStatusChange?.(status());
+  }
+
   // Single accessor so both tiers share one manager. On failure, clear the
   // cache so the next caller retries instead of replaying a stale rejection.
   function manager(): Promise<SessionManager> {
@@ -165,8 +222,27 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   async function openSession(): Promise<AgentSession> {
     const sdk = await import("@earendil-works/pi-coding-agent");
     const sessionManager = await manager();
-    const authStorage = sdk.AuthStorage.create();
-    const modelRegistry = sdk.ModelRegistry.create(authStorage);
+    const modelRegistry = await registry();
+    const authStorage = modelRegistry.authStorage;
+
+    // The workspace default model applies only when the branch carries no
+    // model_change of its own; otherwise pi restores the branch model. With
+    // neither (or an unavailable default), pass nothing and let pi resolve —
+    // its settings default, first available, or no model at all.
+    let initialModel: ReturnType<ModelRegistry["find"]>;
+    if (
+      !sessionManager.getBranch().some((entry) => entry.type === "model_change")
+    ) {
+      const ref = opts.agentSettings?.get<ModelRef>("defaultModel");
+      if (ref) {
+        const found = modelRegistry.find(ref.provider, ref.id);
+        if (found && modelRegistry.hasConfiguredAuth(found)) {
+          initialModel = found;
+        } else {
+          log.warn({ model: ref }, "workspace_default_model_unavailable");
+        }
+      }
+    }
 
     // UIX-core agent installers (tools + run-prep hooks) ride a single in-process
     // pi extension. Load it through a DefaultResourceLoader
@@ -181,6 +257,15 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         createAgentContextVocabularyInstaller(opts.agentContext),
       );
     }
+    // Mirror pi's live model into driver state so status() tracks every
+    // change — setModel, cycle commands, restore — not just UIX-initiated
+    // selection.
+    agentInstallers.push((pi) => {
+      pi.on("model_select", (event) => {
+        liveModel = { provider: event.model.provider, id: event.model.id };
+        emitStatus();
+      });
+    });
 
     const resourceLoader = new sdk.DefaultResourceLoader({
       cwd: opts.workspace.agentCwd,
@@ -195,7 +280,17 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       authStorage,
       modelRegistry,
       resourceLoader,
+      ...(initialModel && { model: initialModel }),
     });
+
+    liveSession = session;
+    // The model_select installer usually beat us here (pi emits it during
+    // creation); this read covers the paths that don't fire it and settles
+    // the no-model state.
+    liveModel = session.model
+      ? { provider: session.model.provider, id: session.model.id }
+      : undefined;
+    emitStatus();
 
     // Both registrations land in the bag, so a single dispose tears
     // them down in LIFO order: the subscription first, then the
@@ -220,6 +315,41 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       // Fire the eager manager load; swallow rejection here so an early failure
       // doesn't surface as an unhandled rejection. prompt()/history() retry.
       void manager().catch(() => {});
+    },
+
+    status,
+
+    async listModels() {
+      const modelRegistry = await registry();
+      // Pick up models.json edits and freshly configured auth since the
+      // registry was created.
+      modelRegistry.refresh();
+      return modelRegistry.getAvailable().map((model) => ({
+        provider: model.provider,
+        id: model.id,
+        name: model.name,
+      }));
+    },
+
+    async selectModel(ref) {
+      const modelRegistry = await registry();
+      const model = modelRegistry.find(ref.provider, ref.id);
+      if (!model || !modelRegistry.hasConfiguredAuth(model)) {
+        throw new Error(`Model is not available: ${ref.provider}/${ref.id}`);
+      }
+      opts.agentSettings?.set("defaultModel", {
+        provider: ref.provider,
+        id: ref.id,
+      });
+      if (liveSession) {
+        // Native pi state: appends a model_change entry, persists pi's own
+        // defaults, reclamps thinking. The model_select installer mirrors
+        // liveModel; the extra emit below is a same-payload no-op then.
+        await liveSession.setModel(model);
+        liveModel = { provider: ref.provider, id: ref.id };
+      }
+      emitStatus();
+      return status();
     },
 
     async history() {
@@ -323,6 +453,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       bag[Symbol.dispose]();
       sessionPromise = undefined;
       managerPromise = undefined;
+      registryPromise = undefined;
+      liveSession = undefined;
+      liveModel = undefined;
     },
   };
 }

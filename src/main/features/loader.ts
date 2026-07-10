@@ -55,6 +55,8 @@ import { createFeatureEventPublisherFactory } from "../channels/registry";
 import type { ChannelRegistry } from "../channels/registry";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
+import { bindSettingsHandle } from "../settings-registry";
+import type { WorkspaceSettings } from "../workspace-settings";
 import { isIdToken } from "@uix/api/contribution-id";
 
 import {
@@ -101,9 +103,15 @@ const createFeatureJiti = (apiModuleDir?: string) =>
  */
 const ReservedFeatureIds: ReadonlySet<string> = new Set(["agent", "uix"]);
 
+type FeatureActivationSettings = Pick<
+  WorkspaceSettings,
+  "reload" | "loadFeatureScope" | "forScope"
+>;
+
 /** What the loader needs from the substrate to activate a feature. */
 export interface FeatureSubstrate {
   documents: DocumentStoreFactory;
+  settings: FeatureActivationSettings;
   channels: ChannelRegistry;
   registries: FeatureContributionRegistries;
   /**
@@ -132,9 +140,11 @@ export interface FeatureSources {
 export function buildFeatureContext(
   featureId: string,
   substrate: FeatureSubstrate,
+  bag: DisposableBag,
 ): FeatureContext {
   return {
     documents: substrate.documents,
+    settings: bindSettingsHandle(substrate.settings.forScope(featureId), bag),
     channels: createFeatureEventPublisherFactory(featureId, substrate.channels),
     log: createLogger(featureId),
   };
@@ -202,6 +212,38 @@ const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
   if (def.context !== undefined && typeof def.context !== "function") {
     throw new Error(`FeatureDefinition ${def.id} context is not a function`);
   }
+  if (def.settings !== undefined) {
+    if (
+      typeof def.settings !== "object" ||
+      def.settings === null ||
+      Array.isArray(def.settings)
+    ) {
+      throw new Error(`FeatureDefinition ${def.id} settings is not an object`);
+    }
+    for (const [key, setting] of Object.entries(def.settings)) {
+      if (key === "") {
+        throw new Error(
+          `FeatureDefinition ${def.id} setting key is missing or invalid`,
+        );
+      }
+      if (typeof setting !== "object" || setting === null) {
+        throw new Error(
+          `FeatureDefinition ${def.id} setting ${key} is not an object`,
+        );
+      }
+      const partial = setting as unknown as Record<string, unknown>;
+      if (!("schema" in partial)) {
+        throw new Error(
+          `FeatureDefinition ${def.id} setting ${key} is missing schema`,
+        );
+      }
+      if (!("default" in partial)) {
+        throw new Error(
+          `FeatureDefinition ${def.id} setting ${key} is missing default`,
+        );
+      }
+    }
+  }
   return def as FeatureDefinition;
 };
 
@@ -227,6 +269,7 @@ export const activateFeatures = async (
   const jiti = createFeatureJiti(substrate.apiModuleDir);
 
   const activate = async (
+    manifestIndex: number,
     displayName: string,
     entry: string,
     loadDefinition: () => unknown,
@@ -252,7 +295,12 @@ export const activateFeatures = async (
         throw new Error(`Feature id already registered: ${definition.id}`);
       }
 
-      const baseContext = buildFeatureContext(definition.id, substrate);
+      substrate.settings.loadFeatureScope(
+        definition.id,
+        manifestIndex,
+        definition.settings ?? {},
+      );
+      const baseContext = buildFeatureContext(definition.id, substrate, bag);
       const contributedContext = definition.context?.(baseContext) ?? {};
       bag.add(
         registerFeatureContributions(
@@ -281,8 +329,9 @@ export const activateFeatures = async (
     }
   };
 
-  for (const { ref, entry } of entries) {
+  for (const { index, ref, entry } of entries) {
     await activate(
+      index,
       ref,
       entry,
       () => jiti.import<unknown>(entry, { default: true }),
@@ -329,6 +378,7 @@ export const loadFeatures = (
         "manifest_read",
       );
       entries = features;
+      await substrate.settings.reload();
     }
     featuresBag.clear();
     return activateFeatures(entries, featuresBag, substrate);

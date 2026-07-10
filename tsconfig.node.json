@@ -12,7 +12,6 @@
     "noEmit": true,
     "lib": ["ES2022", "ESNext.Disposable"],
     "types": ["node"],
-    "baseUrl": ".",
     "paths": {
       "@uix/api": ["./src/api/index.ts"],
       "@uix/api/*": ["./src/api/*.ts"],

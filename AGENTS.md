@@ -81,7 +81,7 @@ Two doc trees — `src/docs/` is the user-facing substrate reference (building o
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
 
-- **[src/docs/](./src/docs/AGENTS.md)** _(active)_ — The shipped, user-facing substrate reference for building on UIX — panes, channels, agent, extensions, lifetimes, state — kept in lockstep with current code.
+- **[src/docs/](./src/docs/AGENTS.md)** _(active)_ — The shipped, user-facing substrate reference for building on UIX — surfaces, channels, agent, features, lifetimes, state — kept in lockstep with current code.
 - **[docs/](./docs/AGENTS.md)** _(active)_ — Dev-facing meta docs — decisions, design threads, architecture records, and plans — and the map for routing into them.
 - **[website/](./website/AGENTS.md)** _(active)_ — The public uix.sh marketing site — a zero-build static landing page (plain HTML/CSS/JS) whose centerpiece is a scroll-driven brandmark morph, with all motion gated behind prefers-reduced-motion. _Read when editing the public landing page at uix.sh — its markup, the scroll-driven logo animation/CSS, or the favicon._
 

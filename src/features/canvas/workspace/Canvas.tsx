@@ -25,7 +25,7 @@ export function Canvas({ canvasKey, client }: CanvasProps) {
   const [token, setToken] = useState(0);
 
   useEffect(() => {
-    return client.subscriptions.changed((event) => {
+    return client.events.changed((event) => {
       if (event.key === canvasKey) {
         setToken((prev) => prev + 1);
       }

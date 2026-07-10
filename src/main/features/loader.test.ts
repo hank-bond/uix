@@ -25,6 +25,16 @@ const documents: DocumentStoreFactory = {
   },
 };
 
+const settings = {
+  reload: async () => {},
+  loadFeatureScope: () => {},
+  forScope: () => ({
+    get: () => undefined,
+    set: () => {},
+    onChange: () => () => {},
+  }),
+};
+
 function makeSubstrate() {
   const agentTools = new AgentToolRegistry();
   const surfaces = new SurfaceRegistry();
@@ -41,6 +51,7 @@ function makeSubstrate() {
   });
   const substrate: FeatureSubstrate = {
     documents,
+    settings,
     channels,
     registries: { agentTools, channels, surfaces },
     // The repo's API source — what the composition root supplies in dev.
@@ -66,7 +77,12 @@ async function writeWorkspace(
     join(dir, WorkspaceManifestFileName),
     JSON.stringify({
       name: "test workspace",
-      features: refs ?? Object.keys(files).map((f) => `./${f}`),
+      features: (refs ?? Object.keys(files).map((f) => `./${f}`)).map(
+        (ref) => ({
+          entry: ref,
+          settings: {},
+        }),
+      ),
     }),
   );
   return join(dir, WorkspaceManifestFileName);

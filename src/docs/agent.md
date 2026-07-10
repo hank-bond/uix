@@ -1,20 +1,33 @@
 ---
-summary: "How the cockpit drives the agent today: it lazily owns a persisted pi AgentSession, forwards a UIX-shaped event stream to the renderer, delegates reload, binds the core anchored document read/write/edit tools, and flushes registered agent-context contributions as display-hidden custom entries at agent-run prep."
+summary: "How the substrate drives the agent today: it lazily owns a persisted pi AgentSession, forwards a UIX-shaped event stream to the renderer, exposes model list/status/select channels over pi's model registry, delegates reload, binds the core anchored document read/write/edit tools, and flushes registered agent-context contributions as display-hidden custom entries at agent-run prep."
 status: active
 ---
 
 # Agent integration
 
-UIX owns one pi `AgentSession` for the cockpit, created lazily the first time the renderer sends a prompt. The current driver lives in `src/main/agent/driver.ts`.
+UIX owns one pi `AgentSession` for the workspace, created lazily the first time the renderer sends a prompt. The current driver lives in `src/main/agent/driver.ts`.
 
 Current behavior:
 
 - the session is resumed or created under the workspace state root;
-- renderer prompts call `window.uix.sendPrompt({ text })`, which invokes the main-process driver;
-- the renderer receives a UIX-shaped event stream over typed Electron IPC: transcript item appends, compact in-flight partials (`transcript_partial`: streamed assistant text appends, tool progress snapshots overwrite), whole-item replacements at completion, plus basic lifecycle markers; live in-flight tool partials are discarded when the final item arrives;
-- `window.uix.getHistory()` replays the same durable transcript item shape from pi's persisted session branch;
-- `window.uix.reload()` reloads UIX extensions and delegates to `session.reload()` only if a pi session already exists;
-- core substrate tools are registered through internal agent installers (`AgentInstaller`), not through the public UIX extension API.
+- surfaces talk to the driver through the substrate-owned agent channel contract (`@uix/api/agent-channels`, registered under the reserved `agent` id) via the typed channel client — chat is an ordinary feature consuming channels any feature could;
+- the `prompt` request invokes the main-process driver; the renderer receives a UIX-shaped event stream on the `event` channel: transcript item appends, compact in-flight partials (`transcript_partial`: streamed assistant text appends, tool progress snapshots overwrite), whole-item replacements at completion, plus basic lifecycle markers; live in-flight tool partials are discarded when the final item arrives;
+- the `history` request replays the same durable transcript item shape from pi's persisted session branch;
+- reload (typed IPC, not an agent channel) reloads manifest features and workspace settings and delegates to `session.reload()` only if a pi session already exists;
+- core substrate tools are registered through internal agent installers (`AgentInstaller`), not through feature contributions.
+
+## Model control
+
+The driver hoists pi's `AuthStorage`/`ModelRegistry` above the session, so model questions are answerable before the first prompt opens one. Three requests and one event on the agent contract:
+
+- `list_models` (`void → { models: ModelOption[] }`) — **available (auth-configured) models only**, refreshed from pi's registry on each call. If nothing is authenticated the list is empty; auth/connect UI is not part of this slice.
+- `agent_status` (`void → AgentStatus`) — `model` is the live session model (absent until a session exists, and absent even then when pi resolved none); `defaultModel` is the workspace default (absent until first selected). Both absent means "no model chosen": the UI renders that state, UIX invents no fallback.
+- `select_model` (`ModelRef → AgentStatus`) — validated against pi's available models (unknown/unauthenticated refs reject), persisted as the workspace default (`agent.defaultModel`, see [`settings.md`](./settings.md)), and — when a live session exists — switched via `session.setModel`, producing a native pi `model_change` entry.
+- `status_changed` (event, `AgentStatus`) — fired on selection, when a session opens and its model becomes known, and on any live pi model change (setModel, cycle commands, restore), mirrored through pi's `model_select` extension event.
+
+Two distinct pieces of state, deliberately: the **current model** is pi-owned, branch-aware session state (`model_change` entries; branch replay restores it), while the **workspace default** is a UIX workspace setting applied at session open only when the branch carries no `model_change` of its own. With neither, session creation defers entirely to pi's resolution. Surfaces never mutate `agent.defaultModel` directly — selection goes through `select_model`.
+
+The chat status bar's model pill (`src/features/chat/workspace/ModelPill.tsx`) is the first consumer: it seeds from `agent_status`, subscribes to `status_changed`, labels by live model → workspace default → explicit "select model" empty state, and opens a searchable picker over `list_models`.
 
 ## Transcript projection
 
@@ -36,12 +49,12 @@ Canvases are addressed by key through the substrate document store (`src/main/do
 
 ## State messages
 
-Cockpit state reaches the agent through **agent context** (`src/main/agent/agent-contexts.ts`), never by rewriting the human's prompt text. Features declare contributions with a local `name` and optional buffer semantics; the substrate derives the canonical id (`${featureId}.${name}`, e.g. `canvas.pane-visibility`) which becomes both the dedup key and the inner section tag (used directly: `<canvas.pane-visibility>`). An **update** buffer carries a TypeBox schema and returns a handle with `update(payload)`; UIX retains the latest value and flushes it only when its post-materialized body differs from the nearest persisted section on the branch. An **append** buffer returns a handle with `append(payload)`; UIX queues values, materializes the pending list, and clears the confirmed batch only after the branch shows it was persisted. A contribution with no buffer supplies `materialize()`, called while UIX prepares an agent run, for state that must be created from the owner's live store at that boundary. The driver installs the assembler into pi at extension activation; on activation it captures the installed registrations and computes the vocabulary section once (a byte-stable prefix). When anything flushed, it ships **one combined `display: false` custom message per run**: a single `<uix-state>` envelope containing one inner tag per section (e.g. `<canvas.pane-visibility>`, `<canvas.canvas-diff>`), persisted as one `uix.state` session entry — hidden from the chat, model-visible. The inner tags carry "what kind" on the wire because pi strips customType from LLM context; section bodies are freeform per type (default JSON for buffered payloads, anchored lines for diffs), and `details` carries any structured sidecar. Update buffers are **change-only**; append buffers are **pending-event queues**; no-buffer materializers decide whether to send by returning a message or `undefined`.
+Substrate state reaches the agent through **agent context** (`src/main/agent-context/registry.ts`), never by rewriting the human's prompt text. Features declare contributions with a local `name` and optional buffer semantics; the substrate derives the canonical id (`${featureId}.${name}`, e.g. `canvas.pane-visibility`) which becomes both the dedup key and the inner section tag (used directly: `<canvas.pane-visibility>`). An **update** buffer carries a TypeBox schema and returns a handle with `update(payload)`; UIX retains the latest value and flushes it only when its post-materialized body differs from the nearest persisted section on the branch. An **append** buffer returns a handle with `append(payload)`; UIX queues values, materializes the pending list, and clears the confirmed batch only after the branch shows it was persisted. A contribution with no buffer supplies `materialize()`, called while UIX prepares an agent run, for state that must be created from the owner's live store at that boundary. The driver installs the assembler into pi when it opens the session and captures the installed registrations for that session. When anything flushed, it ships **one combined `display: false` custom message per run**: a single `<uix-state>` envelope containing one inner tag per section (e.g. `<canvas.pane-visibility>`, `<canvas.canvas-diff>`), persisted as one `uix.state` session entry — hidden from the chat, model-visible. The inner tags carry "what kind" on the wire because pi strips customType from LLM context; section bodies are freeform per type (default JSON for buffered payloads, anchored lines for diffs), and `details` carries any structured sidecar. Update buffers are **change-only**; append buffers are **pending-event queues**; no-buffer materializers decide whether to send by returning a message or `undefined`.
 
 Features never call individual registration methods — `registerAgentContextContributions(agentContext, featureId, contributions)` is the sole registration path, accepting the author-facing `AgentContextContribution[]` and returning a `Disposable`.
 
 The canvas agent-context contribution factory (`src/features/canvas/backend/contributions/agent-contexts.ts`) returns two contributions: `pane-visibility` (`{"canvases_open": [...]}`, change-only, canonical id `canvas.pane-visibility`) and `canvas-diff` (the anchored human-edit hunks, a consuming read computed at the boundary, always sent when present, canonical id `canvas.canvas-diff`). The substrate `registerAgentContextContributions(agentContext, featureId, contributions)` helper owns registration and disposal.
 
-There is no public UIX-extension API today for contributing pi tools, agent context, or agent-turn triggers from pane/channel events.
+Feature contributions can register agent tools and agent context through the manifest feature path. There is no public API today for agent-turn triggers from arbitrary surface/channel events.
 
-See [`panes.md`](./panes.md), [`extensions.md`](./extensions.md).
+See [`features.md`](./features.md), [`contributions.md`](./contributions.md), [`channels.md`](./channels.md).

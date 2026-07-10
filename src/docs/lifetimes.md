@@ -1,5 +1,5 @@
 ---
-summary: "DisposableBag owns cleanup for the app, extension reload, window registrations, and the agent driver; extension authors get cleanup only through registrations made on the injected API."
+summary: "DisposableBag owns cleanup for app lifetime, reloadable feature activations, window registrations, and the agent driver; feature authors get cleanup through registered contributions rather than direct bag access."
 status: active
 ---
 
@@ -9,11 +9,13 @@ UIX uses `DisposableBag` in `src/main/lifecycle.ts` to own cleanup-requiring reg
 
 Current main-process lifetime scopes:
 
-- `appBag` — app lifetime; owns process handlers, protocol registration, IPC handlers, app/window listeners, the extension subtree, and the agent driver.
-- `extensionsBag` — child of `appBag`; cleared on UIX extension reload and disposed on app shutdown.
-- per-entry extension bag — created for each activated `uix.extensions` entry and enrolled into `extensionsBag` after successful activation.
+- `appBag` — app lifetime; owns process handlers, protocol registration, IPC handlers, app/window listeners, the reloadable feature subtree, workspace settings, and the agent driver.
+- `featuresBag` — child of `appBag`; cleared on feature reload and disposed on app shutdown.
+- per-feature bag — created for each activated manifest feature entry and enrolled into `featuresBag` after successful activation.
 - agent driver bag — internal to `createAgentDriver`; owns the pi event subscription and session disposal after a session exists.
 
-Extension authors do not receive a `DisposableBag` object directly. Anything registered through the injected `uix` API is enrolled in the current extension entry's bag by the cockpit. Today that means `registerCommand(...)` cleanup is automatic on reload/deactivation.
+Feature authors do not receive a `DisposableBag` object directly. Anything registered through `FeatureDefinition.contribute(ctx)` is enrolled in that activation's per-feature bag by the substrate. Reload disposes the old bags and then activates fresh feature definitions from the manifest.
 
-For cockpit-internal registration rules, see [`../../docs/architecture/conventions.md`](../../docs/architecture/conventions.md).
+Malformed manifests fail before `featuresBag` is cleared, leaving the current feature tree intact. Per-feature activation failures dispose that feature's partially built bag and continue with sibling entries.
+
+For substrate-internal registration rules, see [`../../docs/architecture/conventions.md`](../../docs/architecture/conventions.md).

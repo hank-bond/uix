@@ -62,12 +62,20 @@ import {
 import { resolveWorkspace, type Workspace } from "./workspace";
 import * as ipc from "./ipc";
 import {
+  disposable,
   DisposableBag,
   installProcessHandlers,
   onApp,
   onWindow,
 } from "./lifecycle";
 import { createLogger } from "./log";
+import {
+  agentWorkspaceSettings,
+  AgentSettingsNamespace,
+} from "./agent/settings";
+import { SettingsRegistry } from "./settings-registry";
+import { WorkspaceManifestStore } from "./workspace-manifest-store";
+import { createWorkspaceSettings } from "./workspace-settings";
 
 const isDev = !app.isPackaged;
 const LocalWorkspaceId = "local";
@@ -144,6 +152,15 @@ async function openWorkspace(
   ipc.initLogFile(workspace.stateRoot);
 
   const documents = createLocalDocumentStoreFactory(workspace.stateRoot);
+  const workspaceManifest = appBag.add(
+    new WorkspaceManifestStore(workspace.manifestPath),
+  );
+  const settingsRegistry = appBag.add(new SettingsRegistry());
+  const workspaceSettings = createWorkspaceSettings(
+    workspaceManifest,
+    settingsRegistry,
+    { [AgentSettingsNamespace]: agentWorkspaceSettings },
+  );
 
   // The feature composition lives under its own child scope so reload can
   // tear down the feature subtree without touching app-lifetime process
@@ -199,6 +216,12 @@ async function openWorkspace(
     turnState,
     agentContext,
     agentInstallers: [createAgentToolInstaller(agentTools)],
+    // Lazy handle: the `agent` scope registers during the settings reload
+    // inside loadFeatures(), before any driver method can read it.
+    agentSettings: workspaceSettings.forScope(AgentSettingsNamespace),
+    onStatusChange: (status) => {
+      agentPublisher.status_changed(status);
+    },
   });
   appBag.add(driver);
 
@@ -221,6 +244,13 @@ async function openWorkspace(
     channels,
   ).createPublisher(uixChannels);
   appBag.add(
+    disposable(
+      settingsRegistry.onAnyChange((scopeId, key, value) => {
+        uixPublisher.setting_changed({ featureId: scopeId, key, value });
+      }),
+    ),
+  );
+  appBag.add(
     registerChannelContributions(channels, "uix", [
       withHandlers(uixChannels, {
         surfaces: {
@@ -229,6 +259,14 @@ async function openWorkspace(
             manifestPath,
             manifestFound: fs.existsSync(manifestPath),
           }),
+        },
+        get_setting: {
+          handle: (req) => settingsRegistry.get(req.featureId, req.key),
+        },
+        set_setting: {
+          handle: (req) => {
+            settingsRegistry.set(req.featureId, req.key, req.value);
+          },
         },
       }),
     ]),
@@ -259,6 +297,15 @@ async function openWorkspace(
             }),
           },
         },
+        list_models: {
+          handle: async () => ({ models: await driver.listModels() }),
+        },
+        agent_status: {
+          handle: () => driver.status(),
+        },
+        select_model: {
+          handle: (ref) => driver.selectModel(ref),
+        },
       }),
     ]),
   );
@@ -272,6 +319,7 @@ async function openWorkspace(
   const apiModuleDir = join(app.getAppPath(), "src/api");
   const substrate: FeatureSubstrate = {
     documents,
+    settings: workspaceSettings,
     channels,
     ...(fs.existsSync(apiModuleDir) && { apiModuleDir }),
     registries: {

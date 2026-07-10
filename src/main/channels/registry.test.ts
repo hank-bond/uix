@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { Type } from "typebox";
 
+import { agentChannels, type AgentStatus } from "@uix/api/agent-channels";
+import { withHandlers } from "@uix/api/channels";
+
 import {
   ChannelRegistry,
   createFeatureEventPublisherFactory,
@@ -201,6 +204,59 @@ describe("ChannelRegistry", () => {
       { canonicalId: "canvas.changed", payload: { key: "main" } },
       { canonicalId: "canvas.refreshed", payload: undefined },
     ]);
+  });
+
+  it("validates the agent model channels through the real contract", async () => {
+    const transport = fakeTransport();
+    const registry = new ChannelRegistry({
+      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
+    });
+
+    const status: AgentStatus = {
+      defaultModel: { provider: "anthropic", id: "claude-sonnet-4-5" },
+    };
+    registerChannelContributions(registry, "agent", [
+      withHandlers(agentChannels, {
+        prompt: { handle: () => undefined },
+        history: { handle: () => ({ items: [] }) },
+        list_models: {
+          handle: () => ({
+            models: [
+              {
+                provider: "anthropic",
+                id: "claude-sonnet-4-5",
+                name: "Claude Sonnet 4.5",
+              },
+            ],
+          }),
+        },
+        // Both fields absent — the explicit "no model chosen" status.
+        agent_status: { handle: () => ({}) },
+        select_model: { handle: () => status },
+      }),
+    ]);
+
+    await expect(
+      transport.handlers.get("agent.select_model")?.({
+        provider: "anthropic",
+        id: "claude-sonnet-4-5",
+      }),
+    ).resolves.toEqual(status);
+    // The both-absent "no model chosen" status is a valid response shape.
+    await expect(
+      transport.handlers.get("agent.agent_status")?.(undefined),
+    ).resolves.toEqual({});
+
+    // Malformed select requests reject at the schema, before any handler.
+    await expect(
+      transport.handlers.get("agent.select_model")?.({ provider: "anthropic" }),
+    ).rejects.toThrow();
+    await expect(
+      transport.handlers.get("agent.select_model")?.({
+        provider: "anthropic",
+        id: 42,
+      }),
+    ).rejects.toThrow();
   });
 
   it("rejects registering channels under another contract's owner", () => {

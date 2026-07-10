@@ -7,8 +7,11 @@
 
 import type { FeatureDefinition } from "@uix/api/feature";
 
+import { chatSettings } from "./shared/settings";
+
 const feature: FeatureDefinition = {
   id: "chat",
+  settings: chatSettings,
   contribute: () => ({
     surfaces: ["./workspace/surface.tsx"],
   }),

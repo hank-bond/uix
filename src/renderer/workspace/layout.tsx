@@ -15,6 +15,8 @@ import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
 import { uixChannels, type SurfaceEntry } from "#shared/ipc";
 import {
   createChannelClient,
+  createFeatureSettingsClient,
+  FeatureSettingsProvider,
   useWorkspaceClient,
   type SurfaceContribution,
 } from "@uix/api/workspace";
@@ -48,7 +50,7 @@ export function useSurfaces(): SurfaceComposition | undefined {
       });
     };
     refresh();
-    const unsubscribe = client.subscriptions.surfaces_changed(refresh);
+    const unsubscribe = client.events.surfaces_changed(refresh);
     return () => {
       alive = false;
       unsubscribe();
@@ -58,8 +60,14 @@ export function useSurfaces(): SurfaceComposition | undefined {
   return composition;
 }
 
-/** Creates the typed channel client and passes it to the surface render. */
-export function SurfaceMount({ surface }: { surface: SurfaceContribution }) {
+/** Creates feature-bound clients and mounts the surface runtime context. */
+export function SurfaceMount({
+  entry,
+  surface,
+}: {
+  entry: SurfaceEntry;
+  surface: SurfaceContribution;
+}) {
   const workspace = useWorkspaceClient();
   // Memoized so surface effects keyed on the client don't tear down and
   // re-run (resubscribing, re-fetching history) every workspace render.
@@ -70,22 +78,71 @@ export function SurfaceMount({ surface }: { surface: SurfaceContribution }) {
         : undefined,
     [workspace, surface],
   );
+  const settings = useMemo(
+    () => createFeatureSettingsClient(workspace, entry.featureId),
+    [workspace, entry.featureId],
+  );
 
   // A surface's sheets apply only while it is mounted — unmount (or a
   // reload that drops the surface) removes them, so styles can't leak
-  // across composition changes.
+  // across composition changes. Adoption also wraps every sheet in the
+  // surface's @scope, so containment is structural rather than an authoring
+  // convention (see scopeToSurface).
   useEffect(() => {
     const sheets = surface.styles;
     if (!sheets?.length) return;
-    document.adoptedStyleSheets.push(...sheets);
+    const scoped = sheets.map((sheet) => scopeToSurface(sheet, surface.name));
+    document.adoptedStyleSheets.push(...scoped);
     return () => {
       document.adoptedStyleSheets = document.adoptedStyleSheets.filter(
-        (sheet) => !sheets.includes(sheet),
+        (sheet) => !scoped.includes(sheet),
       );
     };
   }, [surface]);
 
-  return <>{surface.render(client)}</>;
+  return (
+    <FeatureSettingsProvider client={settings}>
+      {surface.render(client)}
+    </FeatureSettingsProvider>
+  );
+}
+
+/**
+ * Rebuild a surface's sheet with every rule wrapped in
+ * `@scope ([data-uix-surface="<name>"])`, so feature CSS cannot style other
+ * surfaces or the cockpit chrome no matter how its selectors are written.
+ * Feature authors write plain selectors; the substrate owns containment.
+ *
+ * Name-global at-rules (@font-face, @keyframes, @property) are hoisted out
+ * of the wrap: scoping cannot contain them — their names are document-global
+ * by CSS's design — and inside @scope they would be ignored. Collisions
+ * there remain a (documented) naming responsibility.
+ *
+ * The scope root is the surface panel element, which itself is in scope —
+ * selectors that still spell the old `[data-uix-surface="…"]` prefix keep
+ * matching, so pre-scoping feature CSS works unchanged.
+ */
+function scopeToSurface(sheet: CSSStyleSheet, name: string): CSSStyleSheet {
+  const global: string[] = [];
+  const scoped: string[] = [];
+  for (const rule of Array.from(sheet.cssRules)) {
+    if (
+      rule instanceof CSSFontFaceRule ||
+      rule instanceof CSSKeyframesRule ||
+      rule instanceof CSSPropertyRule
+    ) {
+      global.push(rule.cssText);
+    } else {
+      scoped.push(rule.cssText);
+    }
+  }
+  const out = new CSSStyleSheet();
+  // Surface names are validated id tokens (defineSurface), so the attribute
+  // value needs no escaping.
+  out.replaceSync(
+    `${global.join("\n")}\n@scope ([data-uix-surface="${name}"]) {\n${scoped.join("\n")}\n}`,
+  );
+  return out;
 }
 
 interface RuntimeSurfaceState {
@@ -148,7 +205,7 @@ export function useRuntimeSurface(entry: SurfaceEntry): RuntimeSurfaceState {
     name: loaded.surface.name,
     body: (
       <SurfaceErrorBoundary entry={entry}>
-        <SurfaceMount surface={loaded.surface} />
+        <SurfaceMount entry={entry} surface={loaded.surface} />
       </SurfaceErrorBoundary>
     ),
   };

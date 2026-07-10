@@ -13,7 +13,6 @@
     "isolatedModules": true,
     "noEmit": true,
     "types": ["vite/client"],
-    "baseUrl": ".",
     "paths": {
       "@uix/api": ["./src/api/index.ts"],
       "@uix/api/*": ["./src/api/*.ts"],

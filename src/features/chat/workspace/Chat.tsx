@@ -7,10 +7,12 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
-import type { ChannelClient } from "@uix/api/workspace";
+import { useFeatureSetting, type ChannelClient } from "@uix/api/workspace";
 import type { agentChannels } from "@uix/api/agent-channels";
 import { ChatBlock } from "./blocks/ChatBlock";
+import { ModelPill } from "./ModelPill";
 import { isPendingUserId, pendingUserId } from "./pending";
+import { chatSettings } from "../shared/settings";
 
 type AgentChannelClient = ChannelClient<typeof agentChannels>;
 
@@ -24,9 +26,10 @@ export function Chat({ client }: ChatProps) {
   const [pending, setPending] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const statusBar = useFeatureSetting(chatSettings, "statusBar");
 
   useEffect(() => {
-    return client.subscriptions.event((event: AgentEvent) => {
+    return client.events.event((event: AgentEvent) => {
       setItems((prev) => reduce(prev, event));
       if (event.type === "agent_end") {
         setPending(false);
@@ -125,7 +128,45 @@ export function Chat({ client }: ChatProps) {
           {pending ? "…" : "send"}
         </button>
       </form>
+      <StatusBar
+        client={client}
+        order={statusBar.value?.order ?? []}
+        hidden={statusBar.value?.hidden ?? []}
+        loading={statusBar.loading}
+        error={statusBar.error}
+      />
     </>
+  );
+}
+
+// Renders the known cells the settings order names — today just the model
+// pill. Unknown ids are ignored, so manifests persisted before a cell
+// existed (or after one is retired) stay harmless. A generic cell registry
+// and reordering UI are deferred (plan: agent-controls, boundary).
+function StatusBar({
+  client,
+  order,
+  hidden,
+  loading,
+  error,
+}: {
+  client: AgentChannelClient;
+  order: readonly string[];
+  hidden: readonly string[];
+  loading: boolean;
+  error: Error | undefined;
+}) {
+  const visible = order.filter((id) => !hidden.includes(id));
+  return (
+    <div className="status-bar" aria-label="Chat status bar">
+      {error ? (
+        <span className="status-bar__item status-bar__item--error">
+          settings error: {error.message}
+        </span>
+      ) : loading ? null : (
+        visible.includes("model") && <ModelPill client={client} />
+      )}
+    </div>
   );
 }
 

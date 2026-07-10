@@ -89,6 +89,40 @@ export interface TranscriptSnapshot {
   items: TranscriptItem[];
 }
 
+/** Provider-qualified model reference. */
+export const ModelRefSchema = Type.Object({
+  provider: Type.String(),
+  id: Type.String(),
+});
+export type ModelRef = Static<typeof ModelRefSchema>;
+
+/** A selectable model: a ref plus its display name. */
+export const ModelOptionSchema = Type.Object({
+  provider: Type.String(),
+  id: Type.String(),
+  name: Type.String(),
+});
+export type ModelOption = Static<typeof ModelOptionSchema>;
+
+/**
+ * Model status shown by agent controls. `model` is the live session model —
+ * absent until a session exists, and absent even then when pi resolved no
+ * model (e.g. no provider is authenticated). `defaultModel` is the workspace
+ * default — absent until the pilot first selects one. Both absent means
+ * "no model chosen": the UI renders that state rather than inventing a
+ * fallback.
+ */
+export const AgentStatusSchema = Type.Object({
+  model: Type.Optional(ModelRefSchema),
+  defaultModel: Type.Optional(ModelRefSchema),
+});
+export type AgentStatus = Static<typeof AgentStatusSchema>;
+
+export const ModelListSchema = Type.Object({
+  models: Type.Array(ModelOptionSchema),
+});
+export type ModelList = Static<typeof ModelListSchema>;
+
 // Agent channel contract — the single source of truth for substrate agent
 // channels. `Type.Unsafe` is used for the complex union types (`AgentEvent`,
 // `TranscriptSnapshot`) whose full TypeBox encoding would be
@@ -110,10 +144,30 @@ export const agentChannels = {
       requestSchema: Type.Void(),
       responseSchema: TranscriptSnapshotSchema,
     },
+    /** Available (auth-configured) models only. */
+    list_models: {
+      requestSchema: Type.Void(),
+      responseSchema: ModelListSchema,
+    },
+    agent_status: {
+      requestSchema: Type.Void(),
+      responseSchema: AgentStatusSchema,
+    },
+    /**
+     * Validated against pi's available models; persists the workspace
+     * default and switches the live session when one exists.
+     */
+    select_model: {
+      requestSchema: ModelRefSchema,
+      responseSchema: AgentStatusSchema,
+    },
   },
   events: {
     event: {
       event: AgentEventSchema,
+    },
+    status_changed: {
+      event: AgentStatusSchema,
     },
   },
 } as const satisfies ChannelContract;
