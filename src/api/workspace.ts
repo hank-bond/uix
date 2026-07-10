@@ -15,7 +15,7 @@ import { isIdToken } from "./contribution-id";
 import type { ChannelContract } from "./channels";
 import {
   FeatureSettingValueEnvelopeSchema,
-  type FeatureSettings,
+  type SettingDefinitions,
 } from "./settings";
 
 export interface WorkspaceClient {
@@ -64,12 +64,12 @@ const FeatureSettingsContext = createContext<FeatureSettingsClient | undefined>(
 );
 
 type FeatureSettingValue<
-  Settings extends FeatureSettings,
+  Settings extends SettingDefinitions,
   Key extends keyof Settings,
 > = Static<Settings[Key]["schema"]>;
 
 export interface FeatureSettingsClient<
-  Settings extends FeatureSettings = FeatureSettings,
+  Settings extends SettingDefinitions = SettingDefinitions,
 > {
   get<Key extends keyof Settings & string>(
     key: Key,
@@ -116,7 +116,7 @@ export interface FeatureSettingState<Value> {
 }
 
 export function useFeatureSetting<
-  const Settings extends FeatureSettings,
+  const Settings extends SettingDefinitions,
   const Key extends keyof Settings & string,
 >(
   featureSettings: Settings,

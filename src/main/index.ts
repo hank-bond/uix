@@ -69,7 +69,13 @@ import {
   onWindow,
 } from "./lifecycle";
 import { createLogger } from "./log";
-import { WorkspaceSettingsStore } from "./workspace-settings-store";
+import {
+  agentWorkspaceSettings,
+  AgentSettingsNamespace,
+} from "./agent/settings";
+import { SettingsRegistry } from "./settings-registry";
+import { WorkspaceManifestStore } from "./workspace-manifest-store";
+import { createWorkspaceSettings } from "./workspace-settings";
 
 const isDev = !app.isPackaged;
 const LocalWorkspaceId = "local";
@@ -146,8 +152,14 @@ async function openWorkspace(
   ipc.initLogFile(workspace.stateRoot);
 
   const documents = createLocalDocumentStoreFactory(workspace.stateRoot);
-  const workspaceSettings = appBag.add(
-    new WorkspaceSettingsStore(workspace.manifestPath),
+  const workspaceManifest = appBag.add(
+    new WorkspaceManifestStore(workspace.manifestPath),
+  );
+  const settingsRegistry = appBag.add(new SettingsRegistry());
+  const workspaceSettings = createWorkspaceSettings(
+    workspaceManifest,
+    settingsRegistry,
+    { [AgentSettingsNamespace]: agentWorkspaceSettings },
   );
 
   // The feature composition lives under its own child scope so reload can
@@ -227,8 +239,8 @@ async function openWorkspace(
   ).createPublisher(uixChannels);
   appBag.add(
     disposable(
-      workspaceSettings.onAnyChange((featureId, key, value) => {
-        uixPublisher.setting_changed({ featureId, key, value });
+      settingsRegistry.onAnyChange((scopeId, key, value) => {
+        uixPublisher.setting_changed({ featureId: scopeId, key, value });
       }),
     ),
   );
@@ -243,11 +255,11 @@ async function openWorkspace(
           }),
         },
         get_setting: {
-          handle: (req) => workspaceSettings.get(req.featureId, req.key),
+          handle: (req) => settingsRegistry.get(req.featureId, req.key),
         },
         set_setting: {
           handle: (req) => {
-            workspaceSettings.set(req.featureId, req.key, req.value);
+            settingsRegistry.set(req.featureId, req.key, req.value);
           },
         },
       }),

@@ -52,7 +52,7 @@ The `FeatureDefinition` shape is:
 ```ts
 interface FeatureDefinition {
   id: string;
-  settings?: FeatureSettings;
+  settings?: SettingDefinitions;
   context?: (ctx: FeatureContext) => Record<string, unknown>;
   contribute(ctx: FeatureContext): FeatureContributions;
 }

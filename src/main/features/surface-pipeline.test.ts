@@ -29,10 +29,10 @@ const surfaceSource = `
 import { useState } from "react";
 import { helper } from "./helper";
 import sheet from "./styles.css" with { type: "css" };
-import { defineFeatureSettings } from "@uix/api/settings";
+import { defineSettings } from "@uix/api/settings";
 import { defineSurface } from "@uix/api/workspace";
 
-const settings = defineFeatureSettings({ demo: { schema: { type: "string" }, default: "ok" } });
+const settings = defineSettings({ demo: { schema: { type: "string" }, default: "ok" } });
 
 function Panel() {
   const [n] = useState(1);

@@ -34,12 +34,12 @@ export type {
 } from "./documents";
 export type { FeatureLogger, FeatureLogFn } from "./log";
 export {
-  defineFeatureSettings,
+  defineSettings,
   FeatureSettingAddressSchema,
   FeatureSettingValueEnvelopeSchema,
-  type FeatureSetting,
+  type SettingDefinition,
   type FeatureSettingAddress,
   type FeatureSettingValueEnvelope,
-  type FeatureSettings,
-  type FeatureSettingsStore,
+  type SettingDefinitions,
+  type SettingsHandle,
 } from "./settings";

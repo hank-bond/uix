@@ -9,10 +9,10 @@ Features declare durable settings on their `FeatureDefinition`, before `context(
 
 ```ts
 // features/chat/shared/settings.ts
-import { defineFeatureSettings } from "@uix/api/settings";
+import { defineSettings } from "@uix/api/settings";
 import { Type } from "typebox";
 
-export const chatSettings = defineFeatureSettings({
+export const chatSettings = defineSettings({
   statusBar: {
     schema: Type.Object({
       order: Type.Array(Type.String()),
@@ -110,4 +110,4 @@ function StatusBar() {
 }
 ```
 
-`defineFeatureSettings(...)` preserves the exact setting keys and type-checks each default against that setting's TypeBox schema. `useFeatureSetting(featureSettings, key)` type-checks `key` against the shared settings and types the returned value and setter from that key's schema. The main process remains authoritative and validates every `set()` against the registered backend schema.
+`defineSettings(...)` preserves the exact setting keys and type-checks each default against that setting's TypeBox schema. `useFeatureSetting(featureSettings, key)` type-checks `key` against the shared settings and types the returned value and setter from that key's schema. The main process remains authoritative and validates every `set()` against the registered backend schema.

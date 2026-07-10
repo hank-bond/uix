@@ -1,6 +1,6 @@
 import { Type, type Static } from "typebox";
 
-import { defineFeatureSettings } from "@uix/api/settings";
+import { defineSettings } from "@uix/api/settings";
 
 export const ChatStatusBarSettingsSchema = Type.Object({
   order: Type.Array(Type.String()),
@@ -8,7 +8,7 @@ export const ChatStatusBarSettingsSchema = Type.Object({
 });
 export type ChatStatusBarSettings = Static<typeof ChatStatusBarSettingsSchema>;
 
-export const chatSettings = defineFeatureSettings({
+export const chatSettings = defineSettings({
   statusBar: {
     schema: ChatStatusBarSettingsSchema,
     default: {

@@ -55,10 +55,8 @@ import { createFeatureEventPublisherFactory } from "../channels/registry";
 import type { ChannelRegistry } from "../channels/registry";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
-import {
-  bindFeatureSettingsStore,
-  type WorkspaceSettingsStore,
-} from "../workspace-settings-store";
+import { bindSettingsHandle } from "../settings-registry";
+import type { WorkspaceSettings } from "../workspace-settings";
 import { isIdToken } from "@uix/api/contribution-id";
 
 import {
@@ -106,8 +104,8 @@ const createFeatureJiti = (apiModuleDir?: string) =>
 const ReservedFeatureIds: ReadonlySet<string> = new Set(["agent", "uix"]);
 
 type FeatureActivationSettings = Pick<
-  WorkspaceSettingsStore,
-  "reload" | "hydrateFeature" | "forFeature"
+  WorkspaceSettings,
+  "reload" | "loadFeatureScope" | "forScope"
 >;
 
 /** What the loader needs from the substrate to activate a feature. */
@@ -146,10 +144,7 @@ export function buildFeatureContext(
 ): FeatureContext {
   return {
     documents: substrate.documents,
-    settings: bindFeatureSettingsStore(
-      substrate.settings.forFeature(featureId),
-      bag,
-    ),
+    settings: bindSettingsHandle(substrate.settings.forScope(featureId), bag),
     channels: createFeatureEventPublisherFactory(featureId, substrate.channels),
     log: createLogger(featureId),
   };
@@ -300,7 +295,7 @@ export const activateFeatures = async (
         throw new Error(`Feature id already registered: ${definition.id}`);
       }
 
-      substrate.settings.hydrateFeature(
+      substrate.settings.loadFeatureScope(
         definition.id,
         manifestIndex,
         definition.settings ?? {},

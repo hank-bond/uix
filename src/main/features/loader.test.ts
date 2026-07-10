@@ -27,8 +27,8 @@ const documents: DocumentStoreFactory = {
 
 const settings = {
   reload: async () => {},
-  hydrateFeature: () => {},
-  forFeature: () => ({
+  loadFeatureScope: () => {},
+  forScope: () => ({
     get: () => undefined,
     set: () => {},
     onChange: () => () => {},
