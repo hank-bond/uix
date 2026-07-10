@@ -29,6 +29,8 @@ The substrate registers every facet under the owning feature id. That id prefixe
 - **Agent context** — model-visible hidden context sections materialized at agent-run prep.
 - **Surfaces** — frontend surface entry files, resolved relative to the feature entry's directory; each module default-exports a `defineSurface(...)` result.
 
+A surface's `styles` sheets are wrapped in `@scope ([data-uix-surface="<name>"])` when the substrate adopts them at mount, so write selectors unscoped — they cannot reach other surfaces or the cockpit chrome. The exception is name-global at-rules (`@font-face`, `@keyframes`, `@property`): CSS gives their names one document-wide space no scoping can contain, so prefix those names with your feature (e.g. `"UIX Iosevka"`).
+
 Surface refs are strings in the contribution because the surface pipeline bundles them on demand from disk:
 
 ```ts
