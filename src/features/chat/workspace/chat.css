@@ -17,6 +17,7 @@
 
 :scope {
   --uix-chat-code-font: "UIX Iosevka";
+  --uix-chat-connected: #8bd49c;
 }
 
 .surface-panel__body--chat {
@@ -426,13 +427,6 @@
   font-size: 0.85rem;
 }
 
-.provider-list__status {
-  display: block;
-  margin-top: 0.15rem;
-  color: var(--fg-muted);
-  font-size: 0.7rem;
-}
-
 .provider-list__methods {
   display: flex;
   flex-wrap: nowrap;
@@ -445,7 +439,7 @@
   padding: 0.3rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: 4px;
-  background: none;
+  background: var(--bg-input);
   color: var(--fg);
   font: inherit;
   font-size: 0.78rem;
@@ -454,4 +448,10 @@
 .provider-list__action:disabled {
   color: var(--fg-muted);
   cursor: not-allowed;
+}
+
+.provider-list__action[data-connected] {
+  border-color: var(--uix-chat-connected);
+  background: color-mix(in srgb, var(--uix-chat-connected) 14%, transparent);
+  color: var(--uix-chat-connected);
 }

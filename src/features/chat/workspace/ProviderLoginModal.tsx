@@ -56,18 +56,19 @@ export function ProviderLoginModal({ controls }: { controls: AgentControls }) {
           <ul className="provider-list">
             {controls.providers.map((provider) => (
               <li className="provider-list__row" key={provider.id}>
-                <span>
-                  <strong>{provider.name}</strong>
-                  {provider.methods.some((method) => method.connection) && (
-                    <span className="provider-list__status">Connected</span>
-                  )}
-                </span>
+                <strong>{provider.name}</strong>
                 <span className="provider-list__methods">
                   {provider.methods.map((method) => (
                     <button
                       key={method.id}
                       type="button"
                       className="provider-list__action"
+                      data-connected={method.connection ? "" : undefined}
+                      aria-label={
+                        method.connection
+                          ? `${method.label}, connected`
+                          : undefined
+                      }
                       disabled
                       title="Provider authentication is wired in the next slice"
                     >
