@@ -64,15 +64,13 @@ export function ProviderLoginModal({ controls }: { controls: AgentControls }) {
                       type="button"
                       className="provider-list__action"
                       data-connected={method.connection ? "" : undefined}
-                      aria-label={
-                        method.connection
-                          ? `${method.label}, connected`
-                          : undefined
-                      }
                       disabled
                       title="Provider authentication is wired in the next slice"
                     >
                       {method.label}
+                      {method.connection && (
+                        <span className="visually-hidden">, connected</span>
+                      )}
                     </button>
                   ))}
                 </span>

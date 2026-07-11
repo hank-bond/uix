@@ -1,5 +1,5 @@
 ---
-summary: "Code conventions for the cockpit — lifetimes, naming (including the verb taxonomy), capability handles, comments, module exports, validation, logging, imports, lifecycle helpers; most are main-process, but naming and comments apply to all UIX code."
+summary: "Code conventions for the cockpit — lifetimes, naming, capability handles, comments, accessible UI, module exports, validation, logging, imports, and lifecycle helpers."
 status: active
 ---
 
@@ -99,6 +99,24 @@ Two corollaries:
 **Only stable placement context.** Keep a comment only when its context is both (a) necessary to place the code in the system and (b) unlikely to change across revisions. If a reader could rediscover the context ad-hoc — who calls this, how it is wired — leave it out; rediscovery is cheaper than keeping a comment honest. Comments that narrate _future_ intentions ("a `diff` method joins here when versioning lands") are the most expensive kind: unverifiable, and they rot silently.
 
 **What earns a comment.** A warning or an explanation the code cannot carry itself: "this must not move or the session file is orphaned," "read defensively because pi may add block kinds," "order is load-bearing — pi has no priority field." Each saves a reader from a wrong assumption.
+
+## Accessible UI
+
+**Rule.** Preserve equivalent meaning and operation across visual, keyboard, and accessibility-tree presentations. Prefer browser standards and semantic HTML; use ARIA only to fill a semantic gap.
+
+Apply these rules in order:
+
+1. **Use the native element.** Prefer `button`, `dialog`, `label`, `fieldset`/`legend`, headings, lists, and native state such as `disabled`. Use the browser's interaction behavior instead of rebuilding its keyboard, focus, or modal semantics.
+2. **Give every control an accessible name.** Visible text is the first choice. When a visual treatment conveys extra meaning, add visually hidden DOM text. Reserve `aria-label` for controls without an adequate textual name; when it is necessary, include any visible label text in the accessible name.
+3. **Use ARIA for the exact missing semantic.** Examples: `aria-expanded` for disclosure state, `aria-labelledby` for a relationship to visible text, and `aria-describedby` for supplemental instructions. Do not duplicate native semantics or use an unrelated ARIA state because it sounds close.
+4. **Choose hiding deliberately.** `display: none` removes content from visual and accessibility presentation; visually hidden content remains available non-visually; `aria-hidden="true"` excludes otherwise rendered content from the accessibility tree and is only for redundant/decorative presentation.
+5. **Do not rely on color alone.** Pair color with text, shape, border weight, iconography, or another perceptible cue, and expose the same meaning semantically.
+6. **Preserve keyboard and focus behavior.** Every action is keyboard-operable, focus remains visibly indicated, transient UI chooses a useful initial focus, and closing it restores focus to a durable invoking control.
+7. **Label and group forms natively.** Every input has an associated `label`; placeholders are hints, not labels. Related choices use `fieldset` and `legend`. Associate field help or validation details with `aria-describedby` when needed.
+8. **Announce meaningful asynchronous changes.** Use `role="status"` for polite progress and completion updates. Use `role="alert"` sparingly for failures requiring immediate attention; ordinary instructions and validation hints remain normal or described text.
+9. **Respect presentation preferences.** Nonessential motion honors `prefers-reduced-motion`, and text, controls, focus indicators, and state cues maintain sufficient contrast.
+
+A visually hidden helper must clip content rather than use `display: none` or `visibility: hidden`, because those remove it from the accessibility tree. Keep the helper local until a second consumer justifies a shared renderer utility.
 
 ## Module API surface
 
