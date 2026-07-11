@@ -143,10 +143,8 @@ export function Chat({ client }: ChatProps) {
   );
 }
 
-// Renders the known cells the settings order names — today just the model
-// pill. Unknown ids are ignored, so manifests persisted before a cell
-// existed (or after one is retired) stay harmless. A generic cell registry
-// and reordering UI are deferred (plan: agent-controls, boundary).
+// Unknown cell ids are ignored so settings persisted before a cell existed,
+// or after one is retired, remain harmless.
 function StatusBar({
   controls,
   order,

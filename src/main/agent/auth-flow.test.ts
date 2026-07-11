@@ -30,7 +30,6 @@ function createHarness(options: {
     }): Promise<string | undefined>;
     signal?: AbortSignal;
   }) => Promise<void>;
-  connected?: boolean;
   usesCallbackServer?: boolean;
 }) {
   const states: OAuthFlowState[] = [];
@@ -45,7 +44,6 @@ function createHarness(options: {
         usesCallbackServer: options.usesCallbackServer ?? true,
       },
     ],
-    getAuthStatus: () => ({ configured: options.connected ?? false }),
     login: (_providerId: string, callbacks: LoginCallbacks) =>
       options.login(callbacks),
   };
@@ -73,22 +71,6 @@ async function settle(): Promise<void> {
 }
 
 describe("OAuth flow coordinator", () => {
-  it("lists provider display and connection state without credentials", async () => {
-    const { coordinator } = createHarness({
-      connected: true,
-      login: async () => {},
-    });
-
-    await expect(coordinator.listProviders()).resolves.toEqual([
-      {
-        id: "fake",
-        name: "Fake Provider",
-        connected: true,
-        usesCallbackServer: true,
-      },
-    ]);
-  });
-
   it("drives Pi's generic callback vocabulary through one correlated flow", async () => {
     const answers: string[] = [];
     const harness = createHarness({

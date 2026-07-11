@@ -85,18 +85,23 @@ export function ProviderLoginModal({ controls }: { controls: AgentControls }) {
                 <li className="provider-list__row" key={provider.id}>
                   <span>
                     <strong>{provider.name}</strong>
-                    {provider.connected && (
+                    {provider.methods.some((method) => method.connection) && (
                       <span className="provider-list__status">Connected</span>
                     )}
                   </span>
-                  <button
-                    type="button"
-                    className="provider-list__action"
-                    disabled
-                    title="Provider login is wired in the next slice"
-                  >
-                    {provider.connected ? "Reconnect" : "Connect"}
-                  </button>
+                  <span className="provider-list__methods">
+                    {provider.methods.map((method) => (
+                      <button
+                        key={method.id}
+                        type="button"
+                        className="provider-list__action"
+                        disabled
+                        title="Provider authentication is wired in the next slice"
+                      >
+                        {method.label}
+                      </button>
+                    ))}
+                  </span>
                 </li>
               ))}
             </ul>

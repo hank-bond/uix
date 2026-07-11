@@ -111,7 +111,7 @@ describe("channel clients", () => {
     const agent = createChannelClient(client, agentChannels);
     const onFlow = vi.fn();
 
-    await agent.requests.list_oauth_providers(undefined);
+    await agent.requests.list_auth_providers(undefined);
     await agent.requests.begin_oauth_flow({ providerId: "anthropic" });
     await agent.requests.answer_oauth_flow({
       flowId: "flow-1",
@@ -121,7 +121,7 @@ describe("channel clients", () => {
     agent.events.oauth_flow_changed(onFlow);
 
     expect(request).toHaveBeenCalledWith(
-      "agent.list_oauth_providers",
+      "agent.list_auth_providers",
       undefined,
     );
     expect(request).toHaveBeenCalledWith("agent.begin_oauth_flow", {

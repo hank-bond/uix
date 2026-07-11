@@ -27,10 +27,10 @@ import type {
 import type {
   AgentEvent,
   AgentStatus,
+  AuthProvider,
   ModelOption,
   ModelRef,
   OAuthFlowState,
-  OAuthProviderOption,
   TranscriptItem,
   TranscriptSnapshot,
 } from "@uix/api/agent-channels";
@@ -50,6 +50,7 @@ import {
 } from "../turn-state/registry";
 
 import { createOAuthFlowCoordinator } from "./auth-flow";
+import { listAuthProviders as discoverAuthProviders } from "./auth-providers";
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { createTranscriptIdentity, type TranscriptIdentity } from "./identity";
 import {
@@ -95,7 +96,7 @@ export interface AgentDriver extends Disposable {
    * `session.setModel`, producing native pi `model_change` state.
    */
   selectModel(ref: ModelRef): Promise<AgentStatus>;
-  listOAuthProviders(): Promise<OAuthProviderOption[]>;
+  listAuthProviders(): Promise<AuthProvider[]>;
   currentOAuthFlow(): OAuthFlowState | undefined;
   beginOAuthFlow(providerId: string): Promise<{ flowId: string }>;
   answerOAuthFlow(flowId: string, promptId: string, value: string): void;
@@ -348,7 +349,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       }));
     },
 
-    listOAuthProviders: () => oauth.listProviders(),
+    listAuthProviders: async () => discoverAuthProviders(await registry()),
     currentOAuthFlow: () => oauth.current(),
     beginOAuthFlow: (providerId) => oauth.begin(providerId),
     answerOAuthFlow: (flowId, promptId, value) =>

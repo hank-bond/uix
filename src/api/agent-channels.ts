@@ -123,16 +123,55 @@ export const ModelListSchema = Type.Object({
 });
 export type ModelList = Static<typeof ModelListSchema>;
 
-export const OAuthProviderOptionSchema = Type.Object({
+const ProviderConnectionSchema = Type.Object({
+  source: Type.Union([
+    Type.Literal("stored"),
+    Type.Literal("environment"),
+    Type.Literal("runtime"),
+    Type.Literal("configuration"),
+  ]),
+});
+
+const ProviderAuthMethodBaseSchema = Type.Object({
+  providerId: Type.String(),
+  label: Type.String(),
+  connection: Type.Optional(ProviderConnectionSchema),
+});
+
+export const ProviderAuthMethodSchema = Type.Union([
+  Type.Object({
+    id: Type.Literal("oauth"),
+    type: Type.Literal("oauth"),
+    ...ProviderAuthMethodBaseSchema.properties,
+  }),
+  Type.Object({
+    id: Type.String(),
+    type: Type.Literal("credentials"),
+    ...ProviderAuthMethodBaseSchema.properties,
+    description: Type.Optional(Type.String()),
+    fields: Type.Array(
+      Type.Object({
+        id: Type.String(),
+        label: Type.String(),
+        secret: Type.Boolean(),
+        required: Type.Boolean(),
+        placeholder: Type.Optional(Type.String()),
+      }),
+    ),
+    helpUrl: Type.Optional(Type.String()),
+  }),
+]);
+export type ProviderAuthMethod = Static<typeof ProviderAuthMethodSchema>;
+
+export const AuthProviderSchema = Type.Object({
   id: Type.String(),
   name: Type.String(),
-  connected: Type.Boolean(),
-  usesCallbackServer: Type.Boolean(),
+  methods: Type.Array(ProviderAuthMethodSchema),
 });
-export type OAuthProviderOption = Static<typeof OAuthProviderOptionSchema>;
+export type AuthProvider = Static<typeof AuthProviderSchema>;
 
-export const OAuthProviderListSchema = Type.Object({
-  providers: Type.Array(OAuthProviderOptionSchema),
+export const AuthProviderListSchema = Type.Object({
+  providers: Type.Array(AuthProviderSchema),
 });
 
 export const OAuthFlowIdSchema = Type.Object({ flowId: Type.String() });
@@ -237,9 +276,9 @@ export const agentChannels = {
       requestSchema: ModelRefSchema,
       responseSchema: AgentStatusSchema,
     },
-    list_oauth_providers: {
+    list_auth_providers: {
       requestSchema: Type.Void(),
-      responseSchema: OAuthProviderListSchema,
+      responseSchema: AuthProviderListSchema,
     },
     current_oauth_flow: {
       requestSchema: Type.Void(),

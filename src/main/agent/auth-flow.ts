@@ -1,7 +1,4 @@
-import type {
-  OAuthFlowState,
-  OAuthProviderOption,
-} from "@uix/api/agent-channels";
+import type { OAuthFlowState } from "@uix/api/agent-channels";
 
 interface OAuthCallbacks {
   onAuth(info: { url: string; instructions?: string }): void;
@@ -31,7 +28,6 @@ interface AuthService {
     name: string;
     usesCallbackServer?: boolean;
   }>;
-  getAuthStatus(providerId: string): { configured: boolean };
   login(providerId: string, callbacks: OAuthCallbacks): Promise<void>;
 }
 
@@ -65,7 +61,6 @@ interface CreateOAuthFlowCoordinatorOptions {
 }
 
 export interface OAuthFlowCoordinator extends Disposable {
-  listProviders(): Promise<OAuthProviderOption[]>;
   begin(providerId: string): Promise<{ flowId: string }>;
   answer(flowId: string, promptId: string, value: string): void;
   reopen(flowId: string): Promise<void>;
@@ -216,16 +211,6 @@ export function createOAuthFlowCoordinator(
   }
 
   return {
-    async listProviders() {
-      const registry = await opts.modelRegistry();
-      return registry.authStorage.getOAuthProviders().map((provider) => ({
-        id: provider.id,
-        name: provider.name,
-        connected: registry.authStorage.getAuthStatus(provider.id).configured,
-        usesCallbackServer: provider.usesCallbackServer ?? false,
-      }));
-    },
-
     async begin(providerId) {
       if (disposed) throw new Error("OAuth coordinator is disposed");
       if (active) throw new Error(`OAuth flow already active: ${active.id}`);

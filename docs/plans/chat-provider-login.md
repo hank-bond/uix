@@ -1,5 +1,5 @@
 ---
-summary: "Add chat-first provider connection UX: a no-model onboarding takeover, a persistent model-picker connection entry, a durable OAuth modal over Pi's auth callbacks, secure redaction at the channel boundary, and normal unfiltered model selection after login."
+summary: "Add chat-first provider connection UX: unified OAuth and credential setup, guided cloud-provider recipes, a no-model onboarding takeover, secure channel redaction, and normal unfiltered model selection after login."
 status: active
 ---
 
@@ -7,7 +7,7 @@ status: active
 
 Add the first-run path from an unconfigured UIX workspace to a usable Pi model without requiring the pilot to leave the cockpit and run Pi separately. Chat renders the experience, but authentication remains an agent-substrate capability over Pi's existing `AuthStorage` and `ModelRegistry`.
 
-The initial vertical slice is OAuth/subscription login. It uses Pi's registered OAuth provider list and callback protocol directly. API-key entry is a later unit: Pi does not currently expose the interactive TUI's API-key-provider capability list through its public SDK, and UIX should not copy Pi's private provider heuristics.
+The connection surface unifies OAuth/subscription login with API-key and guided cloud credential entry. Ordinary providers derive from Pi's model registry rather than a UIX-maintained list; registered OAuth capabilities are merged onto those providers. A small UIX setup-recipe catalog may replace the generic API-key form for stable multi-field cloud setups, while all submitted values remain owned and persisted by Pi's `AuthStorage`.
 
 ## Decisions assumed
 
@@ -41,7 +41,7 @@ choose provider
   -> success | failure | cancelled
 ```
 
-Provider rows come from Pi and show their Pi display names. Already-connected providers are visibly marked; selecting one is a reconnect action rather than a silent credential replacement.
+Provider rows derive from Pi's provider IDs and display names, with small setup-recipe presentation overrides where layperson-facing grouping or naming is clearer. Model providers default to a generic `API` method; setup recipes replace that default only when a provider needs different behavior. Recipes may also combine backend provider IDs into one layperson-facing row: `openai` API auth and `openai-codex` subscription auth appear together as `OpenAI (ChatGPT)`, while each method retains the Pi provider ID it actually configures. Already-connected providers are visibly marked; selecting one is a reconnect action rather than a silent credential replacement. Rows first split into connected/configured and unconnected groups. Within each group the same practical ordering applies: subscription-capable providers, OpenRouter, and all remaining providers, alphabetically within each category.
 
 The callback presentations are deliberately generic because custom Pi OAuth providers use the same vocabulary:
 
@@ -82,7 +82,7 @@ Add provider-login requests/events to the substrate-owned agent contract and imp
 
 The contract needs operations equivalent to:
 
-- list OAuth providers and non-secret connection status;
+- list model and OAuth providers, their generic auth methods, and non-secret connection status;
 - begin a provider login and return a flow id;
 - answer a provider prompt/selection/manual-code request by flow id plus prompt id;
 - reopen the current authorization URL;
@@ -135,7 +135,7 @@ Update the shipped agent reference and architecture-of-record to describe auth l
 
 ## Boundary / later
 
-- API-key entry waits for a Pi-owned/public provider-auth capability list; do not copy `InteractiveMode`'s private provider heuristics into UIX.
+- Setup recipes cover stable, exceptional cloud-provider forms only; ordinary API-key providers continue to derive from Pi's model registry.
 - Credential removal/account-management UI is separate. Reconnecting an OAuth provider is supported because it is required to recover stale credentials.
 - No unavailable/locked model catalog and no model-first auth initiation.
 - No post-auth provider filter and no automatic model selection.

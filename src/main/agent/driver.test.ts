@@ -32,10 +32,21 @@ const sdk = vi.hoisted(() => {
   };
 
   const registry = {
-    authStorage: { kind: "auth" },
+    authStorage: {
+      kind: "auth",
+      getOAuthProviders: () => [],
+      getAuthStatus: () => ({ configured: false }),
+      get: () => undefined,
+    },
     refresh: () => {},
     getAll: () => state.models,
     getAvailable: () => state.models.filter((m) => m.authed),
+    getProviderDisplayName: (provider: string) => provider,
+    getProviderAuthStatus: (provider: string) => ({
+      configured: state.models.some(
+        (model) => model.provider === provider && model.authed,
+      ),
+    }),
     find: (provider: string, id: string) =>
       state.models.find((m) => m.provider === provider && m.id === id),
     hasConfiguredAuth: (model: FakeModel) => model.authed,

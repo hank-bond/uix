@@ -315,9 +315,9 @@ async function openWorkspace(
         select_model: {
           handle: (ref) => driver.selectModel(ref),
         },
-        list_oauth_providers: {
+        list_auth_providers: {
           handle: async () => ({
-            providers: await driver.listOAuthProviders(),
+            providers: await driver.listAuthProviders(),
           }),
         },
         current_oauth_flow: {

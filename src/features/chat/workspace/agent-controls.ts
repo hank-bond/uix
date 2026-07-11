@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   agentChannels,
   AgentStatus,
+  AuthProvider,
   ModelOption,
-  OAuthProviderOption,
 } from "@uix/api/agent-channels";
 import type { ChannelClient } from "@uix/api/workspace";
 
@@ -16,7 +16,7 @@ export function useAgentControls(client: AgentChannelClient) {
   const [modelError, setModelError] = useState<string>();
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
   const [providerModalOpen, setProviderModalOpen] = useState(false);
-  const [providers, setProviders] = useState<OAuthProviderOption[]>();
+  const [providers, setProviders] = useState<AuthProvider[]>();
   const [providerError, setProviderError] = useState<string>();
   const modalInvoker = useRef<HTMLElement>();
 
@@ -46,6 +46,14 @@ export function useAgentControls(client: AgentChannelClient) {
 
   useEffect(refreshModels, [refreshModels]);
 
+  const toggleModelPicker = useCallback(() => {
+    setModelPickerOpen((open) => !open);
+  }, []);
+
+  const closeModelPicker = useCallback(() => {
+    setModelPickerOpen(false);
+  }, []);
+
   const selectModel = useCallback(
     async (model: ModelOption) => {
       const nextStatus = await client.requests.select_model({
@@ -66,7 +74,7 @@ export function useAgentControls(client: AgentChannelClient) {
       setProviders(undefined);
       setProviderError(undefined);
       void client.requests
-        .list_oauth_providers(undefined)
+        .list_auth_providers(undefined)
         .then((list) => setProviders(list.providers))
         .catch((error: unknown) => setProviderError(String(error)));
     },
@@ -83,14 +91,14 @@ export function useAgentControls(client: AgentChannelClient) {
     models,
     modelError,
     modelPickerOpen,
-    setModelPickerOpen,
+    toggleModelPicker,
+    closeModelPicker,
     selectModel,
     providerModalOpen,
     providers,
     providerError,
     openProviderModal,
     closeProviderModal,
-    refreshModels,
   };
 }
 

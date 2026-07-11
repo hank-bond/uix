@@ -16,9 +16,7 @@ export function ModelPill({ controls }: { controls: AgentControls }) {
         className="status-bar__item model-pill__button"
         aria-haspopup="listbox"
         aria-expanded={controls.modelPickerOpen}
-        onClick={() =>
-          controls.setModelPickerOpen((previous: boolean) => !previous)
-        }
+        onClick={controls.toggleModelPicker}
       >
         {current ? `${current.provider}/${current.id}` : "select model"}
       </button>
@@ -29,7 +27,7 @@ export function ModelPill({ controls }: { controls: AgentControls }) {
             if (buttonRef.current)
               controls.openProviderModal(buttonRef.current);
           }}
-          onClose={() => controls.setModelPickerOpen(false)}
+          onClose={controls.closeModelPicker}
         />
       )}
     </span>

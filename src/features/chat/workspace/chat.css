@@ -436,8 +436,15 @@
   font-size: 0.7rem;
 }
 
+.provider-list__methods {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
 .provider-list__action {
-  min-width: 5.5rem;
+  min-width: 7rem;
   padding: 0.3rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: 4px;
