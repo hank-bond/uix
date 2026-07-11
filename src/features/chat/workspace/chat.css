@@ -310,3 +310,144 @@
 .model-picker__note--error {
   color: var(--error);
 }
+
+.model-picker__connect {
+  margin: 0.25rem;
+  padding: 0.4rem 0.45rem;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.model-picker__connect:hover,
+.model-picker__connect:focus-visible {
+  color: var(--fg);
+}
+
+.provider-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 0.55);
+}
+
+.provider-modal {
+  width: min(30rem, 100%);
+  max-height: min(36rem, calc(100vh - 2rem));
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-surface-panel);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.45);
+}
+
+.provider-modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.provider-modal__header h2,
+.provider-modal__header p {
+  margin: 0;
+}
+
+.provider-modal__header h2 {
+  color: var(--fg);
+  font-size: 1rem;
+}
+
+.provider-modal__header p {
+  margin-top: 0.3rem;
+  color: var(--fg-muted);
+  font-size: 0.8rem;
+}
+
+.provider-modal__close {
+  border: 0;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.provider-modal__close:hover,
+.provider-modal__close:focus-visible {
+  color: var(--fg);
+}
+
+.provider-modal__body {
+  padding: 0.5rem;
+}
+
+.provider-modal__note,
+.provider-modal__error {
+  margin: 0;
+  padding: 0.75rem;
+  color: var(--fg-muted);
+}
+
+.provider-modal__error {
+  color: var(--error);
+}
+
+.provider-list {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.provider-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 5px;
+}
+
+.provider-list__row:hover {
+  background: var(--bg-input);
+}
+
+.provider-list__row strong {
+  color: var(--fg);
+  font-size: 0.85rem;
+}
+
+.provider-list__status {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--fg-muted);
+  font-size: 0.7rem;
+}
+
+.provider-list__action {
+  min-width: 5.5rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.provider-list__action:disabled {
+  color: var(--fg-muted);
+  cursor: not-allowed;
+}

@@ -9,9 +9,11 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
 import { useFeatureSetting, type ChannelClient } from "@uix/api/workspace";
 import type { agentChannels } from "@uix/api/agent-channels";
+import { useAgentControls, type AgentControls } from "./agent-controls";
 import { ChatBlock } from "./blocks/ChatBlock";
 import { ModelPill } from "./ModelPill";
 import { isPendingUserId, pendingUserId } from "./pending";
+import { ProviderLoginModal } from "./ProviderLoginModal";
 import { chatSettings } from "../shared/settings";
 
 type AgentChannelClient = ChannelClient<typeof agentChannels>;
@@ -27,6 +29,7 @@ export function Chat({ client }: ChatProps) {
   const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const statusBar = useFeatureSetting(chatSettings, "statusBar");
+  const controls = useAgentControls(client);
 
   useEffect(() => {
     return client.events.event((event: AgentEvent) => {
@@ -129,12 +132,13 @@ export function Chat({ client }: ChatProps) {
         </button>
       </form>
       <StatusBar
-        client={client}
+        controls={controls}
         order={statusBar.value?.order ?? []}
         hidden={statusBar.value?.hidden ?? []}
         loading={statusBar.loading}
         error={statusBar.error}
       />
+      <ProviderLoginModal controls={controls} />
     </>
   );
 }
@@ -144,13 +148,13 @@ export function Chat({ client }: ChatProps) {
 // existed (or after one is retired) stay harmless. A generic cell registry
 // and reordering UI are deferred (plan: agent-controls, boundary).
 function StatusBar({
-  client,
+  controls,
   order,
   hidden,
   loading,
   error,
 }: {
-  client: AgentChannelClient;
+  controls: AgentControls;
   order: readonly string[];
   hidden: readonly string[];
   loading: boolean;
@@ -164,7 +168,7 @@ function StatusBar({
           settings error: {error.message}
         </span>
       ) : loading ? null : (
-        visible.includes("model") && <ModelPill client={client} />
+        visible.includes("model") && <ModelPill controls={controls} />
       )}
     </div>
   );
