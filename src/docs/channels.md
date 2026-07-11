@@ -35,4 +35,8 @@ For example, canvas keys travel over the wire as strings, but the schema validat
 
 Use the same pattern for other deserialization points, including agent tool input and user-provided identifiers: validate at ingress, emit the branded/domain type, and keep internal code from re-validating plain strings repeatedly.
 
+## Sensitive wire logging
+
+Every renderer/main request, response, and event crossing is observable in the terminal IPC log and, when enabled, the raw NDJSON wire log. Channel descriptors may attach typed logging descriptions with `describeRequest`, `describeResponse`, or `describeEvent`. The crossing is still recorded, but the returned description replaces the payload in both log sinks. Contracts carrying credentials, authorization URLs, codes, or other secrets must describe every potentially sensitive direction; ordinary channels keep raw-payload logging by default.
+
 Agent events/history/prompt are still substrate-owned bridge operations. Canvas writeback/refresh/changed are feature channels. See [`agent.md`](./agent.md).

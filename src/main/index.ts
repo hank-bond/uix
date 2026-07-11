@@ -188,9 +188,11 @@ async function openWorkspace(
     transportHandle(canonicalId, fn, logOpts) {
       return ipc.handle(canonicalId, fn, logOpts);
     },
-    publish(channel, payload) {
+    publish(channel, payload, logOpts) {
       for (const win of BrowserWindow.getAllWindows()) {
-        ipc.send(win, channel, payload);
+        ipc.send(win, channel, payload, {
+          describePayload: logOpts?.describeEvent,
+        });
       }
     },
   });
@@ -291,7 +293,7 @@ async function openWorkspace(
             // A snapshot is the entire persisted transcript, already on
             // disk — the wire log records a pointer instead of duplicating
             // it.
-            describeResult: (snap) => ({
+            describeResponse: (snap) => ({
               items: snap.items.length,
               ref: driver.sessionFile(),
             }),

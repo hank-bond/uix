@@ -9,8 +9,8 @@
 import type {
   ChannelContribution,
   ChannelEventContribution,
-  ChannelLogOptions,
   ChannelRequestContribution,
+  ChannelRequestLogOptions,
 } from "./channels";
 import type { TSchema } from "typebox";
 
@@ -88,7 +88,7 @@ export type ChannelRegistration<Req = unknown, Res = unknown> = {
   requestSchema: TSchema;
   responseSchema: TSchema;
   handle: (req: Req) => Res | Promise<Res>;
-  log?: ChannelLogOptions<Res>;
+  log?: ChannelRequestLogOptions<Req, Res>;
 };
 
 export function normalizeChannelContribution<

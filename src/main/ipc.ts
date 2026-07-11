@@ -18,15 +18,16 @@
 //    `npx pino-pretty < file`.
 //
 // The boundary is pure mechanism: it records whatever crosses and knows
-// nothing about any channel's payload shape. Per-channel policy — eliding a
-// huge result (`describeResult`), demoting per-token noise (`trace`) — lives
-// with the call sites that know the payload type.
+// nothing about any channel's payload shape. Per-channel policy — redacting a
+// sensitive payload, summarizing a huge response, demoting per-token noise —
+// lives with the contract or call site that knows the payload type.
 
 import { join } from "node:path";
 
 import { type BrowserWindow, ipcMain } from "electron";
 import pino from "pino";
 
+import { recordWireCrossing } from "./ipc-wire-log";
 import { disposable } from "./lifecycle";
 import { createLogger } from "./log";
 
@@ -56,12 +57,11 @@ export function initLogFile(stateRoot: string): void {
 }
 
 /** Per-registration wire-log policy. The boundary itself is payload-agnostic. */
-export interface HandleLogOptions<Res> {
-  /**
-   * Substitute recorded in the wire log in place of the raw result — for
-   * channels whose results are too large to spool and already live on disk.
-   */
-  describeResult?: (res: Res) => unknown;
+export interface HandleLogOptions<Req, Res> {
+  /** Substitute recorded in place of the raw request. */
+  describeRequest?: (req: Req) => unknown;
+  /** Substitute recorded in place of the raw response. */
+  describeResponse?: (res: Res) => unknown;
 }
 
 /**
@@ -71,15 +71,19 @@ export interface HandleLogOptions<Res> {
 export function handle<Req, Res>(
   channel: string,
   fn: (req: Req) => Res | Promise<Res>,
-  logOpts?: HandleLogOptions<Res>,
+  logOpts?: HandleLogOptions<Req, Res>,
 ): Disposable {
   ipcMain.handle(channel, async (_event, req: Req) => {
-    record(`in:${channel}`, req);
+    recordWireCrossing({ terminal: log, file: fileLog }, `in:${channel}`, req, {
+      describe: logOpts?.describeRequest,
+    });
     try {
       const res = await fn(req);
-      record(
+      recordWireCrossing(
+        { terminal: log, file: fileLog },
         `result:${channel}`,
-        logOpts?.describeResult ? logOpts.describeResult(res) : res,
+        res,
+        { describe: logOpts?.describeResponse },
       );
       return res;
     } catch (err) {
@@ -93,7 +97,7 @@ export function handle<Req, Res>(
 }
 
 /** Per-send wire-log policy. The boundary itself is payload-agnostic. */
-export interface SendOptions {
+export interface SendOptions<Payload = unknown> {
   /**
    * The payload is an in-flight partial that repeats at streaming cadence
    * (per token / per progress tick). Consequence today: the terminal line
@@ -102,21 +106,26 @@ export interface SendOptions {
    * flag, not off new parameters.
    */
   partial?: boolean;
+  /** Substitute recorded in place of the raw event payload. */
+  describePayload?: (payload: Payload) => unknown;
 }
 
 /** Push one message to a window. */
-export function send(
+export function send<Payload>(
   win: BrowserWindow,
   channel: string,
-  payload: unknown,
-  opts?: SendOptions,
+  payload: Payload,
+  opts?: SendOptions<Payload>,
 ): void {
   if (win.isDestroyed()) return;
-  record(`out:${channel}`, payload, opts?.partial ?? false);
+  recordWireCrossing(
+    { terminal: log, file: fileLog },
+    `out:${channel}`,
+    payload,
+    {
+      partial: opts?.partial,
+      describe: opts?.describePayload,
+    },
+  );
   win.webContents.send(channel, payload);
-}
-
-function record(msg: string, payload: unknown, partial = false): void {
-  fileLog?.info({ payload }, msg);
-  log[partial ? "trace" : "debug"]({ payload }, msg);
 }

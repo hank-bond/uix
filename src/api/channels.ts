@@ -1,7 +1,12 @@
 import type { Static, TSchema } from "typebox";
 
-export interface ChannelLogOptions<Res> {
-  describeResult?: (res: Res) => unknown;
+export interface ChannelRequestLogOptions<Req, Res> {
+  describeRequest?: (req: Req) => unknown;
+  describeResponse?: (res: Res) => unknown;
+}
+
+export interface ChannelEventLogOptions<Event> {
+  describeEvent?: (event: Event) => unknown;
 }
 
 /**
@@ -15,6 +20,7 @@ export interface ChannelRequestSchema<
 > {
   readonly requestSchema: Req;
   readonly responseSchema: Res;
+  readonly log?: ChannelRequestLogOptions<Static<Req>, Static<Res>>;
 }
 
 /**
@@ -22,6 +28,7 @@ export interface ChannelRequestSchema<
  */
 export interface ChannelEventSchema<Event extends TSchema = TSchema> {
   readonly event: Event;
+  readonly log?: ChannelEventLogOptions<Static<Event>>;
 }
 
 /** Backend request contribution = schema + handler. */
@@ -30,7 +37,7 @@ export interface ChannelRequestContribution<
   Res extends TSchema = TSchema,
 > extends ChannelRequestSchema<Req, Res> {
   readonly handle: (req: unknown) => unknown;
-  readonly log?: ChannelLogOptions<unknown>;
+  readonly log?: ChannelRequestLogOptions<unknown, unknown>;
 }
 
 /** Backend event contribution = schema (same as frontend). */
@@ -74,7 +81,8 @@ export type ChannelHandlers<C extends ChannelContract> = {
     ) =>
       | Static<C["requests"][K]["responseSchema"]>
       | Promise<Static<C["requests"][K]["responseSchema"]>>;
-    readonly log?: ChannelLogOptions<
+    readonly log?: ChannelRequestLogOptions<
+      Static<C["requests"][K]["requestSchema"]>,
       Static<C["requests"][K]["responseSchema"]>
     >;
   };
@@ -96,7 +104,7 @@ export function withHandlers<const C extends ChannelContract>(
     string,
     {
       readonly handle: (req: unknown) => unknown;
-      readonly log?: ChannelLogOptions<unknown>;
+      readonly log?: ChannelRequestLogOptions<unknown, unknown>;
     }
   >;
   const requests = {} as Record<string, ChannelRequestContribution>;
@@ -106,7 +114,9 @@ export function withHandlers<const C extends ChannelContract>(
       requestSchema: schema.requestSchema,
       responseSchema: schema.responseSchema,
       handle: entry.handle,
-      ...(entry.log ? { log: entry.log } : {}),
+      ...(schema.log || entry.log
+        ? { log: { ...schema.log, ...entry.log } }
+        : {}),
     };
   }
   return {
@@ -146,13 +156,17 @@ export interface FeatureEventPublisherFactory {
  * a bare function type rather than a named abstraction.
  */
 export function createFeatureEventPublisher<const C extends ChannelContract>(
-  publish: (name: string, payload: unknown) => void,
+  publish: (
+    name: string,
+    payload: unknown,
+    log?: ChannelEventLogOptions<unknown>,
+  ) => void,
   contract: C,
 ): FeatureEventPublisher<C> {
   const events = {} as Record<string, (event: unknown) => void>;
-  for (const name of Object.keys(contract.events)) {
+  for (const [name, descriptor] of Object.entries(contract.events)) {
     events[name] = (event: unknown) => {
-      publish(name, event);
+      publish(name, event, descriptor.log);
     };
   }
   return events as FeatureEventPublisher<C>;

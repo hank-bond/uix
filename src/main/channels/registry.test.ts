@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import { Type } from "typebox";
 
 import { agentChannels, type AgentStatus } from "@uix/api/agent-channels";
-import { withHandlers } from "@uix/api/channels";
+import {
+  type ChannelEventLogOptions,
+  type ChannelRequestLogOptions,
+  withHandlers,
+} from "@uix/api/channels";
 
 import {
   ChannelRegistry,
@@ -19,26 +23,41 @@ import { toContributionId } from "@uix/api/contribution-id";
 function fakeTransport() {
   const handlers = new Map<string, (req: unknown) => Promise<unknown>>();
   const disposed: string[] = [];
+  const handleLogs = new Map<
+    string,
+    ChannelRequestLogOptions<unknown, unknown> | undefined
+  >();
   const published: Array<{ canonicalId: string; payload: unknown }> = [];
+  const publishLogs: Array<ChannelEventLogOptions<unknown> | undefined> = [];
 
   return {
     handlers,
     disposed,
+    handleLogs,
     published,
+    publishLogs,
     handle(
       canonicalId: ChannelCanonicalId,
       fn: (req: unknown) => Promise<unknown>,
+      logOpts?: ChannelRequestLogOptions<unknown, unknown>,
     ) {
       handlers.set(canonicalId, fn);
+      handleLogs.set(canonicalId, logOpts);
       return {
         [Symbol.dispose]() {
           disposed.push(canonicalId);
           handlers.delete(canonicalId);
+          handleLogs.delete(canonicalId);
         },
       };
     },
-    publish(canonicalId: ChannelCanonicalId, payload: unknown) {
+    publish(
+      canonicalId: ChannelCanonicalId,
+      payload: unknown,
+      logOpts?: ChannelEventLogOptions<unknown>,
+    ) {
       published.push({ canonicalId: canonicalId, payload });
+      publishLogs.push(logOpts);
     },
   };
 }
@@ -142,6 +161,52 @@ describe("ChannelRegistry", () => {
     expect(transport.published).toEqual([
       { canonicalId: "canvas.changed", payload: { key: "main" } },
     ]);
+  });
+
+  it("propagates request, response, and event log descriptions", () => {
+    const transport = fakeTransport();
+    const registry = new ChannelRegistry({
+      transportHandle: (canonicalId, fn, logOpts) =>
+        transport.handle(canonicalId, fn, logOpts),
+      publish: (canonicalId, payload, logOpts) =>
+        transport.publish(canonicalId, payload, logOpts),
+    });
+    const describeRequest = () => ({ redacted: "auth request" });
+    const describeResponse = () => ({ redacted: "auth response" });
+    const describeEvent = () => ({ redacted: "auth event" });
+    const contract = {
+      feature: "agent",
+      requests: {
+        auth_response: {
+          requestSchema: Type.Object({ code: Type.String() }),
+          responseSchema: Type.Void(),
+          log: { describeRequest, describeResponse },
+        },
+      },
+      events: {
+        auth_flow: {
+          event: Type.Object({ authorizationUrl: Type.String() }),
+          log: { describeEvent },
+        },
+      },
+    } as const;
+
+    registerChannelContributions(registry, "agent", [
+      withHandlers(contract, {
+        auth_response: { handle: () => undefined },
+      }),
+    ]);
+    const publisher = createFeatureEventPublisherFactory(
+      "agent",
+      registry,
+    ).createPublisher(contract);
+    publisher.auth_flow({ authorizationUrl: "https://secret.example" });
+
+    expect(transport.handleLogs.get("agent.auth_response")).toEqual({
+      describeRequest,
+      describeResponse,
+    });
+    expect(transport.publishLogs).toEqual([{ describeEvent }]);
   });
 
   it("registers contribution groups and disposes them together", () => {

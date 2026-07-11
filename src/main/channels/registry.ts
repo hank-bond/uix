@@ -8,6 +8,7 @@
 
 import type {
   ChannelContribution,
+  ChannelEventLogOptions,
   FeatureEventPublisherFactory,
 } from "@uix/api/channels";
 import { createFeatureEventPublisher } from "@uix/api/channels";
@@ -28,12 +29,13 @@ import { DisposableBag, disposable } from "../lifecycle";
 export type ChannelTransportHandle = (
   canonicalId: ChannelCanonicalId,
   fn: (req: unknown) => Promise<unknown>,
-  logOpts?: HandleLogOptions<unknown>,
+  logOpts?: HandleLogOptions<unknown, unknown>,
 ) => Disposable;
 
 export type ChannelTransportPublish = (
   canonicalId: ChannelCanonicalId,
   payload: unknown,
+  logOpts?: ChannelEventLogOptions<unknown>,
 ) => void;
 
 export interface ChannelRegistryOptions {
@@ -51,8 +53,12 @@ export class ChannelRegistry {
     this.#publish = opts.publish ?? (() => undefined);
   }
 
-  publish(canonicalId: ChannelCanonicalId, payload: unknown): void {
-    this.#publish(canonicalId, payload);
+  publish(
+    canonicalId: ChannelCanonicalId,
+    payload: unknown,
+    logOpts?: ChannelEventLogOptions<unknown>,
+  ): void {
+    this.#publish(canonicalId, payload, logOpts);
   }
 
   register<Req, Res>(
@@ -71,7 +77,7 @@ export class ChannelRegistry {
         const res = await channelRegistration.handle(req as Req);
         return Value.Parse(channelRegistration.responseSchema, res);
       },
-      channelRegistration.log as HandleLogOptions<unknown> | undefined,
+      channelRegistration.log as HandleLogOptions<unknown, unknown> | undefined,
     );
 
     let disposed = false;
@@ -126,8 +132,12 @@ export function createFeatureEventPublisherFactory(
         );
       }
       return createFeatureEventPublisher(
-        (name, payload) =>
-          publisher.publish(toChannelCanonicalId(featureId, name), payload),
+        (name, payload, logOpts) =>
+          publisher.publish(
+            toChannelCanonicalId(featureId, name),
+            payload,
+            logOpts,
+          ),
         contract,
       );
     },
