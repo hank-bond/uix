@@ -328,24 +328,21 @@
   color: var(--fg);
 }
 
-.provider-modal__backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  place-items: center;
-  padding: 1rem;
-  background: rgb(0 0 0 / 0.55);
-}
-
 .provider-modal {
-  width: min(30rem, 100%);
+  box-sizing: border-box;
+  width: min(30rem, calc(100vw - 2rem));
   max-height: min(36rem, calc(100vh - 2rem));
+  padding: 0;
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg-surface-panel);
+  color: var(--fg);
   box-shadow: 0 12px 40px rgb(0 0 0 / 0.45);
+}
+
+.provider-modal::backdrop {
+  background: rgb(0 0 0 / 0.55);
 }
 
 .provider-modal__header {
