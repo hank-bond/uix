@@ -23,6 +23,7 @@ const providerSetupRecipes: Record<string, ProviderSetupRecipe> = {
 interface ProviderAuthStatus {
   configured: boolean;
   source?: string;
+  label?: string;
 }
 
 interface ProviderRegistry {
@@ -32,7 +33,9 @@ interface ProviderRegistry {
   authStorage: {
     getOAuthProviders(): Array<{ id: string; name: string }>;
     getAuthStatus(providerId: string): ProviderAuthStatus;
-    get(providerId: string): { type: "oauth" | "api_key" } | undefined;
+    get(
+      providerId: string,
+    ): { type: "oauth" } | { type: "api_key"; key?: string } | undefined;
   };
 }
 
@@ -42,7 +45,10 @@ interface ProviderRegistry {
  * setup recipe replaces it; OAuth-only extension providers remain discoverable
  * without inventing a model entry.
  */
-export function listAuthProviders(registry: ProviderRegistry): AuthProvider[] {
+export function listAuthProviders(
+  registry: ProviderRegistry,
+  environment: Readonly<Record<string, string | undefined>> = {},
+): AuthProvider[] {
   const providers = new Map<string, AuthProvider>();
   const modelProviderIds = new Set(
     registry.getAll().map((model) => model.provider),
@@ -64,6 +70,7 @@ export function listAuthProviders(registry: ProviderRegistry): AuthProvider[] {
           id,
           registry.getProviderAuthStatus(id),
           "api_key",
+          environment,
         ),
       ),
     );
@@ -76,6 +83,7 @@ export function listAuthProviders(registry: ProviderRegistry): AuthProvider[] {
       oauth.id,
       registry.authStorage.getAuthStatus(oauth.id),
       "oauth",
+      environment,
     );
     provider.methods.unshift({
       id: "oauth",
@@ -166,11 +174,40 @@ function toMethodConnection(
   providerId: string,
   status: ProviderAuthStatus,
   credentialType: "oauth" | "api_key",
+  environment: Readonly<Record<string, string | undefined>>,
 ): MethodConnection | undefined {
   if (!status.configured && status.source === undefined) return undefined;
   const credential = registry.authStorage.get(providerId);
   if (credential && credential.type !== credentialType) return undefined;
   if (!credential && credentialType === "oauth") return undefined;
+  const storedEnvironmentName =
+    credential?.type === "api_key"
+      ? toEnvironmentName(credential.key)
+      : undefined;
+  const credentialReference = storedEnvironmentName
+    ? ({ type: "environment", name: storedEnvironmentName } as const)
+    : credential?.type === "api_key" && credential.key?.startsWith("!")
+      ? ({ type: "command", location: "auth_file" } as const)
+      : status.source === "environment" && status.label
+        ? ({ type: "environment", name: status.label } as const)
+        : status.source === "models_json_command"
+          ? ({
+              type: "command",
+              location: "provider_configuration",
+            } as const)
+          : undefined;
+  const environmentValue =
+    credentialReference?.type === "environment" &&
+    isEnvironmentName(credentialReference.name)
+      ? environment[credentialReference.name]
+      : undefined;
+  const keySuffix =
+    credentialType === "api_key"
+      ? (toSafeKeySuffix(environmentValue) ??
+        (credential?.type === "api_key"
+          ? toSafeKeySuffix(credential.key)
+          : undefined))
+      : undefined;
   return {
     source:
       status.source === "stored" ||
@@ -178,5 +215,29 @@ function toMethodConnection(
       status.source === "runtime"
         ? status.source
         : "configuration",
+    ...(credentialReference && { credentialReference }),
+    ...(keySuffix && { keySuffix }),
   };
+}
+
+function toSafeKeySuffix(key: string | undefined): string | undefined {
+  // Config expressions may name environment variables or execute commands;
+  // neither their source nor resolved output is display metadata. Restrict
+  // hints to ordinary literal keys with an unremarkable four-character tail.
+  if (!key || key.length < 8 || key.startsWith("!") || key.includes("$")) {
+    return undefined;
+  }
+  const suffix = key.slice(-4);
+  return /^[\x21-\x7e]{4}$/.test(suffix) ? suffix : undefined;
+}
+
+function toEnvironmentName(key: string | undefined): string | undefined {
+  if (!key) return undefined;
+  const match =
+    /^\$(?:([a-zA-Z_][a-zA-Z0-9_]*)|\{([a-zA-Z_][a-zA-Z0-9_]*)\})$/.exec(key);
+  return match?.[1] ?? match?.[2];
+}
+
+function isEnvironmentName(value: string): boolean {
+  return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(value);
 }

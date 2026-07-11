@@ -23,6 +23,7 @@ export function ModelPill({ controls }: { controls: AgentControls }) {
       {controls.modelPickerOpen && (
         <ModelPicker
           controls={controls}
+          initialQuery={controls.modelPickerInitialQuery}
           onConnect={() => {
             if (buttonRef.current)
               controls.openProviderModal(buttonRef.current);
@@ -36,15 +37,17 @@ export function ModelPill({ controls }: { controls: AgentControls }) {
 
 function ModelPicker({
   controls,
+  initialQuery,
   onConnect,
   onClose,
 }: {
   controls: AgentControls;
+  initialQuery: string;
   onConnect: () => void;
   onClose: () => void;
 }) {
   const [error, setError] = useState<string>();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLSpanElement>(null);
 

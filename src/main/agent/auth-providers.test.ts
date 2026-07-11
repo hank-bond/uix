@@ -6,7 +6,10 @@ import {
 } from "./auth-providers";
 
 function registry() {
-  const statuses: Record<string, { configured: boolean; source?: string }> = {
+  const statuses: Record<
+    string,
+    { configured: boolean; source?: string; label?: string }
+  > = {
     anthropic: { configured: true, source: "stored" },
     openrouter: { configured: false },
     copilot: { configured: false },
@@ -27,8 +30,10 @@ function registry() {
         { id: "copilot", name: "GitHub Copilot" },
       ],
       getAuthStatus: (id: string) => statuses[id] ?? { configured: false },
-      get: (id: string) =>
-        id === "anthropic" ? ({ type: "api_key" } as const) : undefined,
+      get: (id: string): { type: "api_key"; key: string } | undefined =>
+        id === "anthropic"
+          ? { type: "api_key", key: "sk-ant-secret-a1b2" }
+          : undefined,
     },
   };
 }
@@ -140,13 +145,84 @@ describe("auth provider discovery", () => {
     value.getProviderAuthStatus = () => ({
       configured: false,
       source: "environment",
+      label: "OPENROUTER_API_KEY",
     });
 
     expect(
-      listAuthProviders(value)
+      listAuthProviders(value, {
+        OPENROUTER_API_KEY: "sk-or-secret-z9y8",
+      })
         .find(({ id }) => id === "openrouter")
         ?.methods.find(({ type }) => type === "credentials")?.connection,
-    ).toEqual({ source: "environment" });
+    ).toEqual({
+      source: "environment",
+      credentialReference: {
+        type: "environment",
+        name: "OPENROUTER_API_KEY",
+      },
+      keySuffix: "z9y8",
+    });
+  });
+
+  it("exposes only a safe suffix for stored literal API keys", () => {
+    const value = registry();
+    const apiConnection = (
+      environment: Readonly<Record<string, string | undefined>> = {},
+    ) =>
+      listAuthProviders(value, environment)
+        .find(({ id }) => id === "anthropic")
+        ?.methods.find(({ type }) => type === "credentials")?.connection;
+
+    expect(apiConnection()).toEqual({
+      source: "stored",
+      keySuffix: "a1b2",
+    });
+
+    value.authStorage.get = () => ({
+      type: "api_key",
+      key: "$ANTHROPIC_API_KEY",
+    });
+    expect(
+      apiConnection({ ANTHROPIC_API_KEY: "sk-ant-from-env-c3d4" }),
+    ).toEqual({
+      source: "stored",
+      credentialReference: {
+        type: "environment",
+        name: "ANTHROPIC_API_KEY",
+      },
+      keySuffix: "c3d4",
+    });
+
+    value.authStorage.get = () => ({
+      type: "api_key",
+      key: "!op read 'op://vault/anthropic/key'",
+    });
+    expect(apiConnection()).toEqual({
+      source: "stored",
+      credentialReference: { type: "command", location: "auth_file" },
+    });
+
+    value.authStorage.get = () => ({
+      type: "api_key",
+      key: "sk-ant-secret-ab==",
+    });
+    expect(apiConnection()).toEqual({ source: "stored", keySuffix: "ab==" });
+
+    value.authStorage.get = () => ({ type: "api_key", key: "short" });
+    expect(apiConnection()).toEqual({ source: "stored" });
+
+    value.authStorage.get = () => undefined;
+    value.getProviderAuthStatus = () => ({
+      configured: true,
+      source: "models_json_command",
+    });
+    expect(apiConnection()).toEqual({
+      source: "configuration",
+      credentialReference: {
+        type: "command",
+        location: "provider_configuration",
+      },
+    });
   });
 
   it("finds only credential methods currently offered by the catalog", () => {

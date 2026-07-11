@@ -15,6 +15,7 @@ export function useAgentControls(client: AgentChannelClient) {
   const [models, setModels] = useState<ModelOption[]>();
   const [modelError, setModelError] = useState<string>();
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
+  const [modelPickerInitialQuery, setModelPickerInitialQuery] = useState("");
   const [providerModalOpen, setProviderModalOpen] = useState(false);
   const [providers, setProviders] = useState<AuthProvider[]>();
   const [providerError, setProviderError] = useState<string>();
@@ -36,18 +37,32 @@ export function useAgentControls(client: AgentChannelClient) {
     };
   }, [client]);
 
-  const refreshModels = useCallback(() => {
+  const refreshModels = useCallback(async () => {
     setModelError(undefined);
-    void client.requests
-      .list_models(undefined)
-      .then((list) => setModels(list.models))
-      .catch((error: unknown) => setModelError(String(error)));
+    try {
+      const list = await client.requests.list_models(undefined);
+      setModels(list.models);
+    } catch (error) {
+      setModelError(String(error));
+    }
   }, [client]);
 
-  useEffect(refreshModels, [refreshModels]);
+  useEffect(() => {
+    void refreshModels();
+  }, [refreshModels]);
+  useEffect(
+    () =>
+      client.events.model_availability_changed(() => {
+        void refreshModels();
+      }),
+    [client, refreshModels],
+  );
 
   const toggleModelPicker = useCallback(() => {
-    setModelPickerOpen((open) => !open);
+    setModelPickerOpen((open) => {
+      if (!open) setModelPickerInitialQuery("");
+      return !open;
+    });
   }, []);
 
   const closeModelPicker = useCallback(() => {
@@ -66,19 +81,25 @@ export function useAgentControls(client: AgentChannelClient) {
     [client],
   );
 
+  const refreshProviders = useCallback(async () => {
+    setProviderError(undefined);
+    try {
+      const list = await client.requests.list_auth_providers(undefined);
+      setProviders(list.providers);
+    } catch (error) {
+      setProviderError(String(error));
+    }
+  }, [client]);
+
   const openProviderModal = useCallback(
     (invoker: HTMLElement) => {
       modalInvoker.current = invoker;
       setModelPickerOpen(false);
       setProviderModalOpen(true);
       setProviders(undefined);
-      setProviderError(undefined);
-      void client.requests
-        .list_auth_providers(undefined)
-        .then((list) => setProviders(list.providers))
-        .catch((error: unknown) => setProviderError(String(error)));
+      void refreshProviders();
     },
-    [client],
+    [refreshProviders],
   );
 
   const closeProviderModal = useCallback(() => {
@@ -86,11 +107,32 @@ export function useAgentControls(client: AgentChannelClient) {
     requestAnimationFrame(() => modalInvoker.current?.focus());
   }, []);
 
+  const saveProviderCredentials = useCallback(
+    async (credentials: {
+      providerId: string;
+      methodId: string;
+      values: Record<string, string>;
+    }) => {
+      await client.requests.save_provider_credentials(credentials);
+      await Promise.all([refreshProviders(), refreshModels()]);
+    },
+    [client, refreshModels, refreshProviders],
+  );
+
+  const chooseModelForProvider = useCallback((providerId: string) => {
+    // This is an explicit handoff from the modal's success action, so do not
+    // restore focus to its invoker; the picker will focus its search input.
+    setProviderModalOpen(false);
+    setModelPickerInitialQuery(providerId);
+    setModelPickerOpen(true);
+  }, []);
+
   return {
     status,
     models,
     modelError,
     modelPickerOpen,
+    modelPickerInitialQuery,
     toggleModelPicker,
     closeModelPicker,
     selectModel,
@@ -99,6 +141,8 @@ export function useAgentControls(client: AgentChannelClient) {
     providerError,
     openProviderModal,
     closeProviderModal,
+    saveProviderCredentials,
+    chooseModelForProvider,
   };
 }
 

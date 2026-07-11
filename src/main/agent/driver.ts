@@ -39,6 +39,7 @@ import type { SettingsHandle } from "@uix/api/settings";
 import type { Workspace } from "../workspace";
 
 import { join } from "node:path";
+import process from "node:process";
 
 import { disposable, DisposableBag, subscribe } from "../lifecycle";
 import { createLogger } from "../log";
@@ -354,7 +355,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       }));
     },
 
-    listAuthProviders: async () => discoverAuthProviders(await registry()),
+    listAuthProviders: async () =>
+      discoverAuthProviders(await registry(), process.env),
 
     async saveProviderCredentials({ providerId, methodId, values }) {
       const modelRegistry = await registry();

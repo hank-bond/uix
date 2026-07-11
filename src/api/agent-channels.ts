@@ -130,6 +130,25 @@ const ProviderConnectionSchema = Type.Object({
     Type.Literal("runtime"),
     Type.Literal("configuration"),
   ]),
+  credentialReference: Type.Optional(
+    Type.Union([
+      Type.Object({
+        type: Type.Literal("environment"),
+        name: Type.String(),
+      }),
+      Type.Object({
+        type: Type.Literal("command"),
+        location: Type.Union([
+          Type.Literal("auth_file"),
+          Type.Literal("provider_configuration"),
+        ]),
+      }),
+    ]),
+  ),
+  /** Last four characters of a stored literal API key, when safe to expose. */
+  keySuffix: Type.Optional(
+    Type.String({ minLength: 4, maxLength: 4, pattern: "^[\\x21-\\x7e]{4}$" }),
+  ),
 });
 
 const ProviderAuthMethodBaseSchema = Type.Object({

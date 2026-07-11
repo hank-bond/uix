@@ -26,22 +26,13 @@ The chat surface has three primary availability states:
 2. **No available models** — when the transcript is empty, show a front-and-center onboarding takeover with `Connect to a provider` as the dominant action. Disable or cover the composer because submitting cannot produce a run. If durable transcript history exists, keep it readable and use a compact blocking connection panel near the composer rather than obscuring the conversation.
 3. **Models available** — render ordinary chat. The model picker lists Pi's normal available-model result and keeps a pinned `Connect to a provider` action below the searchable/scrollable model area, including while the search has no matches.
 
-A provider connection and a selected model remain separate concepts. Successful login refreshes Pi's available models and returns to the ordinary, unfiltered model picker. UIX does not add a provider filter, expose unavailable models, or silently choose a provider default.
+A provider connection and a selected model remain separate concepts. Successful login refreshes Pi's available models and confirms the connection in place; an explicit `Choose a model` handoff then opens the ordinary picker with its search seeded to the connected backend provider. The query is editable and clearing it restores the complete available-only list. UIX does not expose unavailable models or silently choose a provider default.
 
 ### Connection modal
 
-Authentication runs in a persistent modal rather than the model popover. The model picker and first-run takeover are entry points into the same modal state. Light-dismiss does not cancel a browser round trip; only an explicit cancel action does.
+Authentication runs in a persistent modal rather than the model popover. The model picker and first-run takeover are entry points into the same modal state. Provider rows stay visible while their active method expands inline: `API` toggles a descriptor-derived credential form, while `Subscription` begins OAuth and presents any provider prompt/device/progress states in that row. Light-dismiss does not cancel a browser round trip; only an explicit cancel action does.
 
-The modal state machine is:
-
-```text
-choose provider
-  -> provider-defined selection or prompt
-  -> browser authorization / device code / waiting / progress
-  -> success | failure | cancelled
-```
-
-Provider rows derive from Pi's provider IDs and display names, with small setup-recipe presentation overrides where layperson-facing grouping or naming is clearer. Model providers default to a generic `API` method; setup recipes replace that default only when a provider needs different behavior. Recipes may also combine backend provider IDs into one layperson-facing row: `openai` API auth and `openai-codex` subscription auth appear together as `OpenAI (ChatGPT)`, while each method retains the Pi provider ID it actually configures. Already-connected providers are visibly marked; selecting one is a reconnect action rather than a silent credential replacement. Rows first split into connected/configured and unconnected groups. Within each group the same practical ordering applies: subscription-capable providers, OpenRouter, and all remaining providers, alphabetically within each category.
+Provider rows derive from Pi's provider IDs and display names, with small setup-recipe presentation overrides where layperson-facing grouping or naming is clearer. Model providers default to a generic `API` method; setup recipes replace that default only when a provider needs different behavior. Recipes may also combine backend provider IDs into one layperson-facing row: `openai` API auth and `openai-codex` subscription auth appear together as `OpenAI (ChatGPT)`, while each method retains the Pi provider ID it actually configures. Already-connected providers are visibly marked; a reopened API form shows the active environment-variable reference and, when safely available for either environment or stored-literal auth, a masked last-four key hint in its empty replacement input. Command-backed credentials show `!command`, never the raw command. A small source-help popover explains the current source and makes replacement semantics explicit: saving writes a literal key to Pi's `auth.json`, does not mutate the environment variable, command, provider configuration, or external secret source, and takes precedence for future use. Complete values and command/OAuth details remain undisclosed. Selecting a connected method is a reconnect action rather than a silent credential replacement. Rows first split into connected/configured and unconnected groups. Within each group the same practical ordering applies: subscription-capable providers, OpenRouter, and all remaining providers, alphabetically within each category.
 
 The callback presentations are deliberately generic because custom Pi OAuth providers use the same vocabulary:
 
@@ -51,7 +42,7 @@ The callback presentations are deliberately generic because custom Pi OAuth prov
 - `onSelect` — render provider-supplied choices;
 - `onProgress` — update concise progress text without creating transcript entries.
 
-Failures remain in the modal with `Retry` and `Choose another provider`. Cancellation returns to provider selection or closes the modal; it never creates a transcript error. Reopening the modal while a login is active resumes that flow rather than starting a concurrent one.
+Failures remain in the expanded row with `Retry`; collapsing it returns to the provider list without creating a transcript error. Reopening the modal while a login is active resumes that flow rather than starting a concurrent one.
 
 ### Completion
 
@@ -59,8 +50,9 @@ On successful login:
 
 1. Pi persists credentials in its normal global auth store;
 2. the agent substrate refreshes model availability and notifies consumers;
-3. the modal closes;
-4. the normal model picker opens over the refreshed, available-only list.
+3. the method turns visibly connected with a reduced-motion-safe one-shot confirmation;
+4. the expanded row offers `Back to providers` and a primary `Choose a model` action;
+5. that explicit action closes the modal and opens the normal model picker with the connected backend provider seeded into its editable search.
 
 If Pi still reports no models, the existing generic no-model state remains in place. This is not a separate provider-specific UI state.
 
@@ -104,13 +96,13 @@ Acceptance:
 
 Add the chat-owned modal and a single renderer-side controls owner shared by the onboarding entry and model pill.
 
-Build the provider chooser first, then the generic callback screens. The modal subscribes before beginning a flow, survives the model popover closing, does not light-dismiss an active login, and restores the active state if reopened. Accessibility basics are part of the slice: dialog labeling, initial focus, Escape as explicit cancellation when safe, keyboard-operable choices, and focus restoration to the invoking control.
+Build the provider chooser first, then inline credential and generic callback panels. The modal subscribes before beginning a flow, survives the model popover closing, does not light-dismiss an active login, and restores the active state if reopened. Accessibility basics are part of the slice: dialog labeling, initial focus, Escape as explicit cancellation when safe, keyboard-operable choices, status announcements, reduced-motion-safe confirmation, and focus restoration or intentional handoff.
 
 Acceptance:
 
 - A provider can be selected and the complete fake OAuth flow can be driven from the chat surface.
 - Browser, device-code, prompt, selection, waiting, progress, retry, and cancel states are understandable without transcript output.
-- Successful login closes the modal and opens the normal model picker.
+- Successful login confirms in place; its explicit handoff closes the modal and opens the normal model picker with an editable provider search.
 
 ## L3 — First-run takeover and model-picker entry
 
@@ -120,7 +112,7 @@ Wire model availability into the chat surface:
 - show the centered `Connect to a provider` takeover for an empty transcript with no available models;
 - preserve historical transcript visibility with a compact blocked-composer connection panel;
 - add the pinned connection action to the model picker in every list/search state;
-- refresh the ordinary available-only model list after auth changes, with no post-auth provider filter.
+- refresh the ordinary available-only model list after auth changes; the explicit success handoff may seed its ordinary search with the connected provider.
 
 Acceptance:
 
@@ -138,6 +130,6 @@ Update the shipped agent reference and architecture-of-record to describe auth l
 - Setup recipes cover stable, exceptional cloud-provider forms only; ordinary API-key providers continue to derive from Pi's model registry.
 - Credential removal/account-management UI is separate. Reconnecting an OAuth provider is supported because it is required to recover stale credentials.
 - No unavailable/locked model catalog and no model-first auth initiation.
-- No post-auth provider filter and no automatic model selection.
+- No persistent provider-only model mode and no automatic model selection; the success handoff only seeds the ordinary editable search.
 - No provider-specific OAuth components; registered providers use the generic Pi callback vocabulary.
 - No transcript entries for auth progress, success, cancellation, or failure.

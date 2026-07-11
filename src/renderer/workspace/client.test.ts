@@ -112,6 +112,11 @@ describe("channel clients", () => {
     const onFlow = vi.fn();
 
     await agent.requests.list_auth_providers(undefined);
+    await agent.requests.save_provider_credentials({
+      providerId: "openrouter",
+      methodId: "api-key",
+      values: { apiKey: "secret-key" },
+    });
     await agent.requests.begin_oauth_flow({ providerId: "anthropic" });
     await agent.requests.answer_oauth_flow({
       flowId: "flow-1",
@@ -124,6 +129,11 @@ describe("channel clients", () => {
       "agent.list_auth_providers",
       undefined,
     );
+    expect(request).toHaveBeenCalledWith("agent.save_provider_credentials", {
+      providerId: "openrouter",
+      methodId: "api-key",
+      values: { apiKey: "secret-key" },
+    });
     expect(request).toHaveBeenCalledWith("agent.begin_oauth_flow", {
       providerId: "anthropic",
     });
