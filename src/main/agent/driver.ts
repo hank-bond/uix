@@ -19,6 +19,7 @@
 import type {
   AgentSession,
   AgentSessionEvent,
+  AgentSessionServices,
   ModelRegistry,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
@@ -153,25 +154,50 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   // inside the wire log's describeResult, which can't await the driver).
   let openedManager: SessionManager | undefined;
 
-  // Model service tier: auth + model registry, hoisted above the session so
-  // listModels()/status()/selectModel() answer before the first prompt opens
-  // one. Lazy-cached like the manager; cleared on failure so the next caller
-  // retries.
-  let registryPromise: Promise<ModelRegistry> | undefined;
+  // Pi's cwd-bound services tier: auth, models, settings, and one loaded
+  // resource/extension set. It starts before a session whenever model/auth
+  // availability needs it, then the eventual session reuses it.
+  let servicesPromise: Promise<AgentSessionServices> | undefined;
 
   // Live-model mirror for the sync status() read: set when a session opens,
   // updated by pi's model_select extension event, cleared on dispose.
   let liveSession: AgentSession | undefined;
   let liveModel: ModelRef | undefined;
 
-  function registry(): Promise<ModelRegistry> {
-    return (registryPromise ??= (async () => {
+  const agentInstallers = [...(opts.agentInstallers ?? [])];
+  if (opts.turnState) {
+    agentInstallers.push(createTurnStateCoordinator(opts.turnState));
+  }
+  if (opts.agentContext) {
+    agentInstallers.push(
+      createAgentContextVocabularyInstaller(opts.agentContext),
+    );
+  }
+  agentInstallers.push((pi) => {
+    pi.on("model_select", (event) => {
+      liveModel = { provider: event.model.provider, id: event.model.id };
+      emitStatus();
+    });
+  });
+
+  function services(): Promise<AgentSessionServices> {
+    return (servicesPromise ??= (async () => {
       const sdk = await import("@earendil-works/pi-coding-agent");
-      return sdk.ModelRegistry.create(sdk.AuthStorage.create());
+      return sdk.createAgentSessionServices({
+        cwd: opts.workspace.agentCwd,
+        agentDir: sdk.getAgentDir(),
+        resourceLoaderOptions: {
+          extensionFactories: [createUixCoreExtension(agentInstallers)],
+        },
+      });
     })().catch((err) => {
-      registryPromise = undefined;
+      servicesPromise = undefined;
       throw err;
     }));
+  }
+
+  async function registry(): Promise<ModelRegistry> {
+    return (await services()).modelRegistry;
   }
 
   function status(): AgentStatus {
@@ -222,8 +248,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   async function openSession(): Promise<AgentSession> {
     const sdk = await import("@earendil-works/pi-coding-agent");
     const sessionManager = await manager();
-    const modelRegistry = await registry();
-    const authStorage = modelRegistry.authStorage;
+    const sessionServices = await services();
+    const modelRegistry = sessionServices.modelRegistry;
 
     // The workspace default model applies only when the branch carries no
     // model_change of its own; otherwise pi restores the branch model. With
@@ -244,42 +270,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       }
     }
 
-    // UIX-core agent installers (tools + run-prep hooks) ride a single in-process
-    // pi extension. Load it through a DefaultResourceLoader
-    // with the same cwd/agentDir createAgentSession would default to, so user
-    // pi resources still discover and our factory holds the live ExtensionAPI.
-    const agentInstallers = [...(opts.agentInstallers ?? [])];
-    if (opts.turnState) {
-      agentInstallers.push(createTurnStateCoordinator(opts.turnState));
-    }
-    if (opts.agentContext) {
-      agentInstallers.push(
-        createAgentContextVocabularyInstaller(opts.agentContext),
-      );
-    }
-    // Mirror pi's live model into driver state so status() tracks every
-    // change — setModel, cycle commands, restore — not just UIX-initiated
-    // selection.
-    agentInstallers.push((pi) => {
-      pi.on("model_select", (event) => {
-        liveModel = { provider: event.model.provider, id: event.model.id };
-        emitStatus();
-      });
-    });
-
-    const resourceLoader = new sdk.DefaultResourceLoader({
-      cwd: opts.workspace.agentCwd,
-      agentDir: sdk.getAgentDir(),
-      extensionFactories: [createUixCoreExtension(agentInstallers)],
-    });
-    await resourceLoader.reload();
-
-    const { session } = await sdk.createAgentSession({
-      cwd: opts.workspace.agentCwd,
+    const { session } = await sdk.createAgentSessionFromServices({
+      services: sessionServices,
       sessionManager,
-      authStorage,
-      modelRegistry,
-      resourceLoader,
       ...(initialModel && { model: initialModel }),
     });
 
@@ -366,13 +359,18 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     },
 
     async reload() {
-      // Do not create a pi session solely to service a cockpit reload.
-      // If a session is already open (or opening), delegate to pi's own
-      // reload path so pi extensions, skills, prompts, themes, settings,
-      // and context files are refreshed with pi's native semantics.
-      if (!sessionPromise) return false;
-      const session = await sessionPromise;
-      await session.reload();
+      // Reload only tiers already in use. A live session owns Pi's native
+      // extension rebind; before a session exists, recreate the coherent
+      // services tier so extension provider registrations cannot accumulate.
+      if (sessionPromise) {
+        const session = await sessionPromise;
+        await session.reload();
+        return true;
+      }
+      if (!servicesPromise) return false;
+      await servicesPromise;
+      servicesPromise = undefined;
+      await services();
       return true;
     },
 
@@ -453,7 +451,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       bag[Symbol.dispose]();
       sessionPromise = undefined;
       managerPromise = undefined;
-      registryPromise = undefined;
+      servicesPromise = undefined;
       liveSession = undefined;
       liveModel = undefined;
     },

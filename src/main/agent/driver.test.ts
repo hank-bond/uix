@@ -27,6 +27,8 @@ const sdk = vi.hoisted(() => {
     extensionHandlers: new Map<string, (event: unknown) => void>(),
     session: undefined as Record<string, unknown> | undefined,
     lastCreateOptions: undefined as Record<string, unknown> | undefined,
+    servicesLoads: 0,
+    pendingProviderModels: [] as FakeModel[],
   };
 
   const registry = {
@@ -71,45 +73,47 @@ const sdk = vi.hoisted(() => {
     manager,
     makeSession,
     module: {
-      AuthStorage: { create: () => registry.authStorage },
-      ModelRegistry: { create: () => registry },
       SessionManager: {
         continueRecent: () => manager,
         create: () => manager,
       },
-      DefaultResourceLoader: class {
-        options: { extensionFactories: ((pi: unknown) => Promise<void>)[] };
-        constructor(options: {
-          extensionFactories: ((pi: unknown) => Promise<void>)[];
-        }) {
-          this.options = options;
-        }
-        async reload() {}
-      },
       getAgentDir: () => "/tmp/pi-agent",
-      createAgentSession: async (options: {
-        model?: FakeModel;
-        resourceLoader: {
-          options: { extensionFactories: ((pi: unknown) => Promise<void>)[] };
+      createAgentSessionServices: async (options: {
+        resourceLoaderOptions: {
+          extensionFactories: ((pi: unknown) => Promise<void>)[];
         };
       }) => {
-        state.lastCreateOptions = options;
-        // Run the in-process extension so the driver's installers register,
-        // handing them a pi handle that records event subscriptions.
+        state.servicesLoads += 1;
+        for (const model of state.pendingProviderModels) {
+          const index = state.models.findIndex(
+            (current) =>
+              current.provider === model.provider && current.id === model.id,
+          );
+          if (index === -1) state.models.push(model);
+          else state.models[index] = model;
+        }
         const pi = {
           on: (event: string, handler: (e: unknown) => void) => {
             state.extensionHandlers.set(event, handler);
           },
         };
-        for (const factory of options.resourceLoader.options
+        for (const factory of options.resourceLoaderOptions
           .extensionFactories) {
           await factory(pi);
         }
+        return {
+          modelRegistry: registry,
+          authStorage: registry.authStorage,
+          resourceLoader: { reload: async () => {} },
+        };
+      },
+      createAgentSessionFromServices: (options: { model?: FakeModel }) => {
+        state.lastCreateOptions = options;
         // Mirror pi's resolution shape: explicit model wins, else first
         // available, else none.
         const model = options.model ?? state.models.filter((m) => m.authed)[0];
         state.session = makeSession(model);
-        return { session: state.session };
+        return Promise.resolve({ session: state.session });
       },
     },
   };
@@ -175,6 +179,8 @@ beforeEach(() => {
   sdk.state.extensionHandlers.clear();
   sdk.state.session = undefined;
   sdk.state.lastCreateOptions = undefined;
+  sdk.state.servicesLoads = 0;
+  sdk.state.pendingProviderModels = [];
 });
 
 describe("driver model service (pre-session)", () => {
@@ -188,6 +194,38 @@ describe("driver model service (pre-session)", () => {
       },
       { provider: "openai", id: "gpt-5", name: "GPT-5" },
     ]);
+    expect(sdk.state.session).toBeUndefined();
+    expect(sdk.state.servicesLoads).toBe(1);
+  });
+
+  it("loads extension-provided models before session creation", async () => {
+    sdk.state.pendingProviderModels = [
+      {
+        provider: "extension-provider",
+        id: "extension-model",
+        name: "Extension Model",
+        authed: true,
+      },
+    ];
+    const { driver } = createDriver();
+
+    expect(await driver.listModels()).toContainEqual({
+      provider: "extension-provider",
+      id: "extension-model",
+      name: "Extension Model",
+    });
+    expect(sdk.state.session).toBeUndefined();
+  });
+
+  it("does not initialize services on reload until they have been used", async () => {
+    const { driver } = createDriver();
+
+    await expect(driver.reload()).resolves.toBe(false);
+    expect(sdk.state.servicesLoads).toBe(0);
+
+    await driver.listModels();
+    await expect(driver.reload()).resolves.toBe(true);
+    expect(sdk.state.servicesLoads).toBe(2);
     expect(sdk.state.session).toBeUndefined();
   });
 
@@ -238,6 +276,7 @@ describe("driver model service (session open)", () => {
     await driver.prompt("hi");
 
     expect(sdk.state.lastCreateOptions?.["model"]).toEqual(openai);
+    expect(sdk.state.servicesLoads).toBe(1);
     expect(driver.status()).toEqual({
       model: { provider: "openai", id: "gpt-5" },
       defaultModel: { provider: "openai", id: "gpt-5" },

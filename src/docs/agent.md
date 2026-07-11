@@ -13,12 +13,12 @@ Current behavior:
 - surfaces talk to the driver through the substrate-owned agent channel contract (`@uix/api/agent-channels`, registered under the reserved `agent` id) via the typed channel client — chat is an ordinary feature consuming channels any feature could;
 - the `prompt` request invokes the main-process driver; the renderer receives a UIX-shaped event stream on the `event` channel: transcript item appends, compact in-flight partials (`transcript_partial`: streamed assistant text appends, tool progress snapshots overwrite), whole-item replacements at completion, plus basic lifecycle markers; live in-flight tool partials are discarded when the final item arrives;
 - the `history` request replays the same durable transcript item shape from pi's persisted session branch;
-- reload (typed IPC, not an agent channel) reloads manifest features and workspace settings and delegates to `session.reload()` only if a pi session already exists;
+- reload (typed IPC, not an agent channel) reloads manifest features and workspace settings; it recreates Pi's services tier if model/auth resources were already used before a session, delegates to `session.reload()` once a session exists, and initializes neither solely for reload;
 - core substrate tools are registered through internal agent installers (`AgentInstaller`), not through feature contributions.
 
 ## Model control
 
-The driver hoists pi's `AuthStorage`/`ModelRegistry` above the session, so model questions are answerable before the first prompt opens one. Three requests and one event on the agent contract:
+The driver owns one lazy Pi `AgentSessionServices` tier above the session: `AuthStorage`, `ModelRegistry`, settings, and the loaded resource/extension set. Model questions are therefore answerable before the first prompt, including models registered by Pi extensions; session creation reuses the same services rather than loading an overlapping copy. Three requests and one event on the agent contract:
 
 - `list_models` (`void → { models: ModelOption[] }`) — **available (auth-configured) models only**, refreshed from pi's registry on each call. If nothing is authenticated the list is empty; auth/connect UI is not part of this slice.
 - `agent_status` (`void → AgentStatus`) — `model` is the live session model (absent until a session exists, and absent even then when pi resolved none); `defaultModel` is the workspace default (absent until first selected). Both absent means "no model chosen": the UI renders that state, UIX invents no fallback.
