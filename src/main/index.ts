@@ -320,6 +320,9 @@ async function openWorkspace(
             providers: await driver.listAuthProviders(),
           }),
         },
+        save_provider_credentials: {
+          handle: (credentials) => driver.saveProviderCredentials(credentials),
+        },
         current_oauth_flow: {
           handle: () => driver.currentOAuthFlow() ?? null,
         },

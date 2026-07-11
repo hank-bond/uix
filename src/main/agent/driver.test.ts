@@ -37,8 +37,9 @@ const sdk = vi.hoisted(() => {
       getOAuthProviders: () => [],
       getAuthStatus: () => ({ configured: false }),
       get: () => undefined,
+      set: vi.fn(),
     },
-    refresh: () => {},
+    refresh: vi.fn(),
     getAll: () => state.models,
     getAvailable: () => state.models.filter((m) => m.authed),
     getProviderDisplayName: (provider: string) => provider,
@@ -167,6 +168,7 @@ function fakeSettings(initial?: ModelRef): SettingsHandle & {
 
 function createDriver(settings?: SettingsHandle) {
   const statuses: AgentStatus[] = [];
+  let availabilityChanges = 0;
   const driver = createAgentDriver({
     onEvent: (event) => {
       if (event.type === "transcript_append" && event.item.kind === "error") {
@@ -182,9 +184,17 @@ function createDriver(settings?: SettingsHandle) {
     onStatusChange: (status) => statuses.push(status),
     openExternal: () => undefined,
     onOAuthFlowState: () => undefined,
-    onModelAvailabilityChange: () => undefined,
+    onModelAvailabilityChange: () => {
+      availabilityChanges += 1;
+    },
   });
-  return { driver, statuses };
+  return {
+    driver,
+    statuses,
+    get availabilityChanges() {
+      return availabilityChanges;
+    },
+  };
 }
 
 beforeEach(() => {
@@ -195,6 +205,8 @@ beforeEach(() => {
   sdk.state.lastCreateOptions = undefined;
   sdk.state.servicesLoads = 0;
   sdk.state.pendingProviderModels = [];
+  sdk.registry.authStorage.set.mockClear();
+  sdk.registry.refresh.mockClear();
 });
 
 describe("driver model service (pre-session)", () => {
@@ -278,6 +290,54 @@ describe("driver model service (pre-session)", () => {
       driver.selectModel({ provider: "nope", id: "missing" }),
     ).rejects.toThrow("not available");
     expect(settings.values.size).toBe(0);
+  });
+});
+
+describe("driver provider credentials (pre-session)", () => {
+  it("saves an offered API key, refreshes models, and notifies", async () => {
+    const result = createDriver();
+
+    await result.driver.saveProviderCredentials({
+      providerId: "google",
+      methodId: "api-key",
+      values: { apiKey: "  secret-key  " },
+    });
+
+    expect(sdk.registry.authStorage.set).toHaveBeenCalledWith("google", {
+      type: "api_key",
+      key: "  secret-key  ",
+    });
+    expect(sdk.registry.refresh).toHaveBeenCalledOnce();
+    expect(result.availabilityChanges).toBe(1);
+    expect(sdk.state.session).toBeUndefined();
+  });
+
+  it("rejects methods that are not offered", async () => {
+    const { driver } = createDriver();
+
+    await expect(
+      driver.saveProviderCredentials({
+        providerId: "missing",
+        methodId: "api-key",
+        values: { apiKey: "secret-key" },
+      }),
+    ).rejects.toThrow("not currently offered");
+    expect(sdk.registry.authStorage.set).not.toHaveBeenCalled();
+    expect(sdk.registry.refresh).not.toHaveBeenCalled();
+  });
+
+  it("rejects empty required fields", async () => {
+    const { driver } = createDriver();
+
+    await expect(
+      driver.saveProviderCredentials({
+        providerId: "google",
+        methodId: "api-key",
+        values: { apiKey: "   " },
+      }),
+    ).rejects.toThrow("Credential field is required: apiKey");
+    expect(sdk.registry.authStorage.set).not.toHaveBeenCalled();
+    expect(sdk.registry.refresh).not.toHaveBeenCalled();
   });
 });
 

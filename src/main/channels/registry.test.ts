@@ -274,7 +274,8 @@ describe("ChannelRegistry", () => {
   it("validates the agent model channels through the real contract", async () => {
     const transport = fakeTransport();
     const registry = new ChannelRegistry({
-      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
+      transportHandle: (canonicalId, fn, logOpts) =>
+        transport.handle(canonicalId, fn, logOpts),
     });
 
     const status: AgentStatus = {
@@ -299,6 +300,7 @@ describe("ChannelRegistry", () => {
         agent_status: { handle: () => ({}) },
         select_model: { handle: () => status },
         list_auth_providers: { handle: () => ({ providers: [] }) },
+        save_provider_credentials: { handle: () => undefined },
         current_oauth_flow: { handle: () => null },
         begin_oauth_flow: { handle: () => ({ flowId: "flow-1" }) },
         answer_oauth_flow: { handle: () => undefined },
@@ -317,6 +319,21 @@ describe("ChannelRegistry", () => {
     await expect(
       transport.handlers.get("agent.agent_status")?.(undefined),
     ).resolves.toEqual({});
+
+    const credentialLog = transport.handleLogs.get(
+      "agent.save_provider_credentials",
+    );
+    const credentialDescription = credentialLog?.describeRequest?.({
+      providerId: "openrouter",
+      methodId: "api-key",
+      values: { apiKey: "test-secret-api-key" },
+    });
+    expect(credentialDescription).toEqual({
+      redacted: "provider authentication payload",
+    });
+    expect(JSON.stringify(credentialDescription)).not.toContain(
+      "test-secret-api-key",
+    );
 
     // Malformed select requests reject at the schema, before any handler.
     await expect(

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { listAuthProviders } from "./auth-providers";
+import {
+  findOfferedCredentialMethod,
+  listAuthProviders,
+} from "./auth-providers";
 
 function registry() {
   const statuses: Record<string, { configured: boolean; source?: string }> = {
@@ -144,5 +147,23 @@ describe("auth provider discovery", () => {
         .find(({ id }) => id === "openrouter")
         ?.methods.find(({ type }) => type === "credentials")?.connection,
     ).toEqual({ source: "environment" });
+  });
+
+  it("finds only credential methods currently offered by the catalog", () => {
+    const value = registry();
+
+    expect(
+      findOfferedCredentialMethod(value, "openrouter", "api-key"),
+    ).toMatchObject({
+      type: "credentials",
+      providerId: "openrouter",
+      id: "api-key",
+    });
+    expect(
+      findOfferedCredentialMethod(value, "copilot", "oauth"),
+    ).toBeUndefined();
+    expect(
+      findOfferedCredentialMethod(value, "missing", "api-key"),
+    ).toBeUndefined();
   });
 });

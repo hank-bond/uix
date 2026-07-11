@@ -31,6 +31,7 @@ import type {
   ModelOption,
   ModelRef,
   OAuthFlowState,
+  ProviderCredentials,
   TranscriptItem,
   TranscriptSnapshot,
 } from "@uix/api/agent-channels";
@@ -50,7 +51,10 @@ import {
 } from "../turn-state/registry";
 
 import { createOAuthFlowCoordinator } from "./auth-flow";
-import { listAuthProviders as discoverAuthProviders } from "./auth-providers";
+import {
+  findOfferedCredentialMethod,
+  listAuthProviders as discoverAuthProviders,
+} from "./auth-providers";
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { createTranscriptIdentity, type TranscriptIdentity } from "./identity";
 import {
@@ -97,6 +101,7 @@ export interface AgentDriver extends Disposable {
    */
   selectModel(ref: ModelRef): Promise<AgentStatus>;
   listAuthProviders(): Promise<AuthProvider[]>;
+  saveProviderCredentials(credentials: ProviderCredentials): Promise<void>;
   currentOAuthFlow(): OAuthFlowState | undefined;
   beginOAuthFlow(providerId: string): Promise<{ flowId: string }>;
   answerOAuthFlow(flowId: string, promptId: string, value: string): void;
@@ -350,6 +355,45 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     },
 
     listAuthProviders: async () => discoverAuthProviders(await registry()),
+
+    async saveProviderCredentials({ providerId, methodId, values }) {
+      const modelRegistry = await registry();
+      const method = findOfferedCredentialMethod(
+        modelRegistry,
+        providerId,
+        methodId,
+      );
+      if (!method) {
+        throw new Error(
+          `Credential method is not currently offered: ${providerId}/${methodId}`,
+        );
+      }
+      for (const field of method.fields) {
+        if (
+          field.required &&
+          (values[field.id] === undefined || values[field.id].trim() === "")
+        ) {
+          throw new Error(`Credential field is required: ${field.id}`);
+        }
+      }
+
+      // The generic method currently offered by the catalog is an API key.
+      // Keep the wire shape generic without adding a serializer framework
+      // before another credential method needs one.
+      const apiKey = values.apiKey;
+      if (method.id !== "api-key" || apiKey === undefined) {
+        throw new Error(
+          `Credential method is not supported: ${providerId}/${methodId}`,
+        );
+      }
+      modelRegistry.authStorage.set(providerId, {
+        type: "api_key",
+        key: apiKey,
+      });
+      modelRegistry.refresh();
+      opts.onModelAvailabilityChange();
+    },
+
     currentOAuthFlow: () => oauth.current(),
     beginOAuthFlow: (providerId) => oauth.begin(providerId),
     answerOAuthFlow: (flowId, promptId, value) =>

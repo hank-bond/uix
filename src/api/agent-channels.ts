@@ -174,6 +174,13 @@ export const AuthProviderListSchema = Type.Object({
   providers: Type.Array(AuthProviderSchema),
 });
 
+export const ProviderCredentialsSchema = Type.Object({
+  providerId: Type.String(),
+  methodId: Type.String(),
+  values: Type.Record(Type.String(), Type.String()),
+});
+export type ProviderCredentials = Static<typeof ProviderCredentialsSchema>;
+
 export const OAuthFlowIdSchema = Type.Object({ flowId: Type.String() });
 
 export const OAuthFlowAnswerSchema = Type.Object({
@@ -234,7 +241,7 @@ export const OAuthFlowStateSchema = Type.Union([
 ]);
 export type OAuthFlowState = Static<typeof OAuthFlowStateSchema>;
 
-const describeOAuthPayload = () => ({
+const describeProviderAuthenticationPayload = () => ({
   redacted: "provider authentication payload",
 });
 
@@ -280,10 +287,15 @@ export const agentChannels = {
       requestSchema: Type.Void(),
       responseSchema: AuthProviderListSchema,
     },
+    save_provider_credentials: {
+      requestSchema: ProviderCredentialsSchema,
+      responseSchema: Type.Void(),
+      log: { describeRequest: describeProviderAuthenticationPayload },
+    },
     current_oauth_flow: {
       requestSchema: Type.Void(),
       responseSchema: Type.Union([OAuthFlowStateSchema, Type.Null()]),
-      log: { describeResponse: describeOAuthPayload },
+      log: { describeResponse: describeProviderAuthenticationPayload },
     },
     begin_oauth_flow: {
       requestSchema: Type.Object({ providerId: Type.String() }),
@@ -292,7 +304,7 @@ export const agentChannels = {
     answer_oauth_flow: {
       requestSchema: OAuthFlowAnswerSchema,
       responseSchema: Type.Void(),
-      log: { describeRequest: describeOAuthPayload },
+      log: { describeRequest: describeProviderAuthenticationPayload },
     },
     reopen_oauth_flow: {
       requestSchema: OAuthFlowIdSchema,
@@ -312,7 +324,7 @@ export const agentChannels = {
     },
     oauth_flow_changed: {
       event: OAuthFlowStateSchema,
-      log: { describeEvent: describeOAuthPayload },
+      log: { describeEvent: describeProviderAuthenticationPayload },
     },
     model_availability_changed: {
       event: Type.Void(),

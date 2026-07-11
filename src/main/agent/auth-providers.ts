@@ -92,6 +92,22 @@ export function listAuthProviders(registry: ProviderRegistry): AuthProvider[] {
   });
 }
 
+/** Resolve only credential methods present in the catalog offered to surfaces. */
+export function findOfferedCredentialMethod(
+  registry: ProviderRegistry,
+  providerId: string,
+  methodId: string,
+): CredentialMethod | undefined {
+  for (const provider of listAuthProviders(registry)) {
+    const method = provider.methods.find(
+      (candidate) =>
+        candidate.providerId === providerId && candidate.id === methodId,
+    );
+    if (method?.type === "credentials") return method;
+  }
+  return undefined;
+}
+
 function getOrCreateAuthProvider(
   providers: Map<string, AuthProvider>,
   backendId: string,
