@@ -106,6 +106,44 @@ describe("channel clients", () => {
     expect(() => wrapped?.({ model: { provider: 42 } })).toThrow();
   });
 
+  it("covers provider login requests and validates flow events", async () => {
+    const { client, request, subscribe } = fakeWorkspaceClient();
+    const agent = createChannelClient(client, agentChannels);
+    const onFlow = vi.fn();
+
+    await agent.requests.list_oauth_providers(undefined);
+    await agent.requests.begin_oauth_flow({ providerId: "anthropic" });
+    await agent.requests.answer_oauth_flow({
+      flowId: "flow-1",
+      promptId: "prompt-1",
+      value: "secret-code",
+    });
+    agent.events.oauth_flow_changed(onFlow);
+
+    expect(request).toHaveBeenCalledWith(
+      "agent.list_oauth_providers",
+      undefined,
+    );
+    expect(request).toHaveBeenCalledWith("agent.begin_oauth_flow", {
+      providerId: "anthropic",
+    });
+    expect(subscribe).toHaveBeenCalledWith(
+      "agent.oauth_flow_changed",
+      expect.any(Function),
+    );
+
+    const wrapped = subscribe.mock.calls[0]?.[1];
+    wrapped?.({
+      type: "prompt",
+      flowId: "flow-1",
+      promptId: "prompt-1",
+      message: "Paste code",
+      allowEmpty: false,
+    });
+    expect(onFlow).toHaveBeenCalledOnce();
+    expect(() => wrapped?.({ type: "prompt", flowId: "flow-1" })).toThrow();
+  });
+
   it("creates a feature-bound settings client", async () => {
     const { client, request, subscribe } = fakeWorkspaceClient();
     const settings = createFeatureSettingsClient(client, "chat");

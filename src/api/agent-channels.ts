@@ -123,6 +123,82 @@ export const ModelListSchema = Type.Object({
 });
 export type ModelList = Static<typeof ModelListSchema>;
 
+export const OAuthProviderOptionSchema = Type.Object({
+  id: Type.String(),
+  name: Type.String(),
+  connected: Type.Boolean(),
+  usesCallbackServer: Type.Boolean(),
+});
+export type OAuthProviderOption = Static<typeof OAuthProviderOptionSchema>;
+
+export const OAuthProviderListSchema = Type.Object({
+  providers: Type.Array(OAuthProviderOptionSchema),
+});
+
+export const OAuthFlowIdSchema = Type.Object({ flowId: Type.String() });
+
+export const OAuthFlowAnswerSchema = Type.Object({
+  flowId: Type.String(),
+  promptId: Type.String(),
+  value: Type.String(),
+});
+
+export const OAuthFlowStateSchema = Type.Union([
+  Type.Object({
+    type: Type.Literal("authorization"),
+    flowId: Type.String(),
+    url: Type.String(),
+    instructions: Type.Optional(Type.String()),
+    supportsManualInput: Type.Boolean(),
+  }),
+  Type.Object({
+    type: Type.Literal("device_code"),
+    flowId: Type.String(),
+    verificationUrl: Type.String(),
+    userCode: Type.String(),
+    intervalSeconds: Type.Optional(Type.Number()),
+    expiresInSeconds: Type.Optional(Type.Number()),
+  }),
+  Type.Object({
+    type: Type.Literal("prompt"),
+    flowId: Type.String(),
+    promptId: Type.String(),
+    message: Type.String(),
+    placeholder: Type.Optional(Type.String()),
+    allowEmpty: Type.Boolean(),
+  }),
+  Type.Object({
+    type: Type.Literal("select"),
+    flowId: Type.String(),
+    promptId: Type.String(),
+    message: Type.String(),
+    options: Type.Array(
+      Type.Object({ id: Type.String(), label: Type.String() }),
+    ),
+  }),
+  Type.Object({
+    type: Type.Literal("progress"),
+    flowId: Type.String(),
+    message: Type.String(),
+  }),
+  Type.Object({
+    type: Type.Literal("success"),
+    flowId: Type.String(),
+    providerId: Type.String(),
+  }),
+  Type.Object({
+    type: Type.Literal("failure"),
+    flowId: Type.String(),
+    message: Type.String(),
+  }),
+  Type.Object({ type: Type.Literal("cancelled"), flowId: Type.String() }),
+]);
+export type OAuthFlowState = Static<typeof OAuthFlowStateSchema>;
+
+const describeOAuthPayload = () => ({
+  redacted: "provider authentication payload",
+});
+
 // Agent channel contract — the single source of truth for substrate agent
 // channels. `Type.Unsafe` is used for the complex union types (`AgentEvent`,
 // `TranscriptSnapshot`) whose full TypeBox encoding would be
@@ -161,6 +237,32 @@ export const agentChannels = {
       requestSchema: ModelRefSchema,
       responseSchema: AgentStatusSchema,
     },
+    list_oauth_providers: {
+      requestSchema: Type.Void(),
+      responseSchema: OAuthProviderListSchema,
+    },
+    current_oauth_flow: {
+      requestSchema: Type.Void(),
+      responseSchema: Type.Union([OAuthFlowStateSchema, Type.Null()]),
+      log: { describeResponse: describeOAuthPayload },
+    },
+    begin_oauth_flow: {
+      requestSchema: Type.Object({ providerId: Type.String() }),
+      responseSchema: OAuthFlowIdSchema,
+    },
+    answer_oauth_flow: {
+      requestSchema: OAuthFlowAnswerSchema,
+      responseSchema: Type.Void(),
+      log: { describeRequest: describeOAuthPayload },
+    },
+    reopen_oauth_flow: {
+      requestSchema: OAuthFlowIdSchema,
+      responseSchema: Type.Void(),
+    },
+    cancel_oauth_flow: {
+      requestSchema: OAuthFlowIdSchema,
+      responseSchema: Type.Void(),
+    },
   },
   events: {
     event: {
@@ -168,6 +270,13 @@ export const agentChannels = {
     },
     status_changed: {
       event: AgentStatusSchema,
+    },
+    oauth_flow_changed: {
+      event: OAuthFlowStateSchema,
+      log: { describeEvent: describeOAuthPayload },
+    },
+    model_availability_changed: {
+      event: Type.Void(),
     },
   },
 } as const satisfies ChannelContract;

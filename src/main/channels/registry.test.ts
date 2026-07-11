@@ -298,6 +298,12 @@ describe("ChannelRegistry", () => {
         // Both fields absent — the explicit "no model chosen" status.
         agent_status: { handle: () => ({}) },
         select_model: { handle: () => status },
+        list_oauth_providers: { handle: () => ({ providers: [] }) },
+        current_oauth_flow: { handle: () => null },
+        begin_oauth_flow: { handle: () => ({ flowId: "flow-1" }) },
+        answer_oauth_flow: { handle: () => undefined },
+        reopen_oauth_flow: { handle: () => undefined },
+        cancel_oauth_flow: { handle: () => undefined },
       }),
     ]);
 

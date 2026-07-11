@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createOAuthFlowCoordinator, type OAuthFlowState } from "./auth-flow";
+import type { OAuthFlowState } from "@uix/api/agent-channels";
+
+import { createOAuthFlowCoordinator } from "./auth-flow";
 
 type LoginCallbacks = Parameters<
   Parameters<typeof createHarness>[0]["login"]

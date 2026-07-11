@@ -1,45 +1,7 @@
-export interface OAuthProviderSummary {
-  id: string;
-  name: string;
-  connected: boolean;
-  usesCallbackServer: boolean;
-}
-
-export type OAuthFlowState =
-  | {
-      type: "authorization";
-      flowId: string;
-      url: string;
-      instructions?: string;
-      supportsManualInput: boolean;
-    }
-  | {
-      type: "device_code";
-      flowId: string;
-      verificationUrl: string;
-      userCode: string;
-      intervalSeconds?: number;
-      expiresInSeconds?: number;
-    }
-  | {
-      type: "prompt";
-      flowId: string;
-      promptId: string;
-      message: string;
-      placeholder?: string;
-      allowEmpty: boolean;
-    }
-  | {
-      type: "select";
-      flowId: string;
-      promptId: string;
-      message: string;
-      options: Array<{ id: string; label: string }>;
-    }
-  | { type: "progress"; flowId: string; message: string }
-  | { type: "success"; flowId: string; providerId: string }
-  | { type: "failure"; flowId: string; message: string }
-  | { type: "cancelled"; flowId: string };
+import type {
+  OAuthFlowState,
+  OAuthProviderOption,
+} from "@uix/api/agent-channels";
 
 interface OAuthCallbacks {
   onAuth(info: { url: string; instructions?: string }): void;
@@ -63,14 +25,12 @@ interface OAuthCallbacks {
   signal?: AbortSignal;
 }
 
-interface OAuthProvider {
-  id: string;
-  name: string;
-  usesCallbackServer?: boolean;
-}
-
 interface AuthService {
-  getOAuthProviders(): OAuthProvider[];
+  getOAuthProviders(): Array<{
+    id: string;
+    name: string;
+    usesCallbackServer?: boolean;
+  }>;
   getAuthStatus(providerId: string): { configured: boolean };
   login(providerId: string, callbacks: OAuthCallbacks): Promise<void>;
 }
@@ -105,7 +65,7 @@ interface CreateOAuthFlowCoordinatorOptions {
 }
 
 export interface OAuthFlowCoordinator extends Disposable {
-  listProviders(): Promise<OAuthProviderSummary[]>;
+  listProviders(): Promise<OAuthProviderOption[]>;
   begin(providerId: string): Promise<{ flowId: string }>;
   answer(flowId: string, promptId: string, value: string): void;
   reopen(flowId: string): Promise<void>;

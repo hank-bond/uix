@@ -29,6 +29,8 @@ import type {
   AgentStatus,
   ModelOption,
   ModelRef,
+  OAuthFlowState,
+  OAuthProviderOption,
   TranscriptItem,
   TranscriptSnapshot,
 } from "@uix/api/agent-channels";
@@ -47,6 +49,7 @@ import {
   TurnStateRegistry,
 } from "../turn-state/registry";
 
+import { createOAuthFlowCoordinator } from "./auth-flow";
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { createTranscriptIdentity, type TranscriptIdentity } from "./identity";
 import {
@@ -92,6 +95,12 @@ export interface AgentDriver extends Disposable {
    * `session.setModel`, producing native pi `model_change` state.
    */
   selectModel(ref: ModelRef): Promise<AgentStatus>;
+  listOAuthProviders(): Promise<OAuthProviderOption[]>;
+  currentOAuthFlow(): OAuthFlowState | undefined;
+  beginOAuthFlow(providerId: string): Promise<{ flowId: string }>;
+  answerOAuthFlow(flowId: string, promptId: string, value: string): void;
+  reopenOAuthFlow(flowId: string): Promise<void>;
+  cancelOAuthFlow(flowId: string): void;
 }
 
 export interface AgentDriverOptions {
@@ -114,6 +123,12 @@ export interface AgentDriverOptions {
   agentSettings?: SettingsHandle;
   /** Fired whenever live/default model status changes. */
   onStatusChange?: (status: AgentStatus) => void;
+  /** Opens only URLs supplied by the active Pi OAuth provider. */
+  openExternal: (url: string) => void | Promise<void>;
+  /** Fired for generic provider-login state transitions. */
+  onOAuthFlowState: (state: OAuthFlowState) => void;
+  /** Fired after auth changes refresh available models. */
+  onModelAvailabilityChange: () => void;
 }
 
 export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
@@ -199,6 +214,15 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   async function registry(): Promise<ModelRegistry> {
     return (await services()).modelRegistry;
   }
+
+  const oauth = bag.add(
+    createOAuthFlowCoordinator({
+      modelRegistry: registry,
+      openExternal: opts.openExternal,
+      onState: opts.onOAuthFlowState,
+      onAvailabilityChange: opts.onModelAvailabilityChange,
+    }),
+  );
 
   function status(): AgentStatus {
     const defaultModel = opts.agentSettings?.get<ModelRef>("defaultModel");
@@ -323,6 +347,14 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         name: model.name,
       }));
     },
+
+    listOAuthProviders: () => oauth.listProviders(),
+    currentOAuthFlow: () => oauth.current(),
+    beginOAuthFlow: (providerId) => oauth.begin(providerId),
+    answerOAuthFlow: (flowId, promptId, value) =>
+      oauth.answer(flowId, promptId, value),
+    reopenOAuthFlow: (flowId) => oauth.reopen(flowId),
+    cancelOAuthFlow: (flowId) => oauth.cancel(flowId),
 
     async selectModel(ref) {
       const modelRegistry = await registry();

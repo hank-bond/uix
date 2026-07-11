@@ -29,6 +29,14 @@ Two distinct pieces of state, deliberately: the **current model** is pi-owned, b
 
 The chat status bar's model pill (`src/features/chat/workspace/ModelPill.tsx`) is the first consumer: it seeds from `agent_status`, subscribes to `status_changed`, labels by live model → workspace default → explicit "select model" empty state, and opens a searchable picker over `list_models`.
 
+## Provider authentication
+
+The same agent contract exposes Pi's registered OAuth providers and one driver-owned login flow. `list_oauth_providers` returns provider IDs, Pi display names, callback-server capability, and non-secret connection status. `begin_oauth_flow`, `answer_oauth_flow`, `reopen_oauth_flow`, and `cancel_oauth_flow` drive Pi's generic auth/device-code/prompt/select callback vocabulary; `current_oauth_flow` restores an active modal, while `oauth_flow_changed` publishes transitions. Flow and prompt IDs reject delayed responses, and driver disposal aborts pending callbacks.
+
+Electron's composition root injects the system-browser opener. It only receives the active URL supplied by Pi; surfaces do not receive a general arbitrary-URL capability. Pi writes credentials to its global `auth.json`; UIX receives no completed credentials and stores none in workspace settings or session history. Success refreshes the shared `ModelRegistry` and emits `model_availability_changed` so consumers can re-fetch the ordinary available-only model list.
+
+Auth answers, current flow snapshots, and flow events use channel log descriptions: the IPC crossing remains observable, but callback URLs, authorization/device codes, and provider input are absent from terminal and NDJSON payload logs.
+
 ## Transcript projection
 
 UIX keeps three related units distinct:

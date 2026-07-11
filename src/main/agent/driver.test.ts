@@ -169,6 +169,9 @@ function createDriver(settings?: SettingsHandle) {
     },
     ...(settings && { agentSettings: settings }),
     onStatusChange: (status) => statuses.push(status),
+    openExternal: () => undefined,
+    onOAuthFlowState: () => undefined,
+    onModelAvailabilityChange: () => undefined,
   });
   return { driver, statuses };
 }

@@ -11,7 +11,7 @@
 // land in a single `appBag`. One dispose on `will-quit` tears the whole
 // tree down. See docs/architecture/conventions.md.
 
-import { app, BrowserWindow, dialog } from "electron";
+import { app, BrowserWindow, dialog, shell } from "electron";
 import fs from "node:fs";
 import { basename, join } from "node:path";
 import process from "node:process";
@@ -224,6 +224,13 @@ async function openWorkspace(
     onStatusChange: (status) => {
       agentPublisher.status_changed(status);
     },
+    openExternal: (url) => shell.openExternal(url),
+    onOAuthFlowState: (state) => {
+      agentPublisher.oauth_flow_changed(state);
+    },
+    onModelAvailabilityChange: () => {
+      agentPublisher.model_availability_changed();
+    },
   });
   appBag.add(driver);
 
@@ -307,6 +314,30 @@ async function openWorkspace(
         },
         select_model: {
           handle: (ref) => driver.selectModel(ref),
+        },
+        list_oauth_providers: {
+          handle: async () => ({
+            providers: await driver.listOAuthProviders(),
+          }),
+        },
+        current_oauth_flow: {
+          handle: () => driver.currentOAuthFlow() ?? null,
+        },
+        begin_oauth_flow: {
+          handle: ({ providerId }) => driver.beginOAuthFlow(providerId),
+        },
+        answer_oauth_flow: {
+          handle: ({ flowId, promptId, value }) => {
+            driver.answerOAuthFlow(flowId, promptId, value);
+          },
+        },
+        reopen_oauth_flow: {
+          handle: ({ flowId }) => driver.reopenOAuthFlow(flowId),
+        },
+        cancel_oauth_flow: {
+          handle: ({ flowId }) => {
+            driver.cancelOAuthFlow(flowId);
+          },
         },
       }),
     ]),
