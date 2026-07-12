@@ -79,6 +79,11 @@ describe("channel clients", () => {
     const onStatus = vi.fn();
 
     await agent.requests.list_models(undefined);
+    await agent.requests.set_model_favorite({
+      provider: "anthropic",
+      id: "claude-sonnet-4-5",
+      favorite: true,
+    });
     await agent.requests.agent_status(undefined);
     await agent.requests.select_model({
       provider: "anthropic",
@@ -87,6 +92,11 @@ describe("channel clients", () => {
     agent.events.status_changed(onStatus);
 
     expect(request).toHaveBeenCalledWith("agent.list_models", undefined);
+    expect(request).toHaveBeenCalledWith("agent.set_model_favorite", {
+      provider: "anthropic",
+      id: "claude-sonnet-4-5",
+      favorite: true,
+    });
     expect(request).toHaveBeenCalledWith("agent.agent_status", undefined);
     expect(request).toHaveBeenCalledWith("agent.select_model", {
       provider: "anthropic",

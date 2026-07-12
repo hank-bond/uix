@@ -92,6 +92,18 @@ export function useAgentControls(client: AgentChannelClient) {
     [client],
   );
 
+  const setModelFavorite = useCallback(
+    async (model: ModelOption, favorite: boolean) => {
+      const list = await client.requests.set_model_favorite({
+        provider: model.provider,
+        id: model.id,
+        favorite,
+      });
+      setModels(list.models);
+    },
+    [client],
+  );
+
   const refreshProviders = useCallback(async () => {
     setProviderError(undefined);
     try {
@@ -246,6 +258,7 @@ export function useAgentControls(client: AgentChannelClient) {
     toggleModelPicker,
     closeModelPicker,
     selectModel,
+    setModelFavorite,
     providerModalOpen,
     providers,
     providerError,

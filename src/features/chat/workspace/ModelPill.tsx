@@ -1,9 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import type { ModelOption } from "@uix/api/agent-channels";
 
 import type { AgentControls } from "./agent-controls";
-import { filterModels, toModelSource } from "./model-filter";
+import {
+  filterModels,
+  getInitialModelScope,
+  getModelsForScope,
+  type ModelPickerScope,
+  toModelSource,
+} from "./model-filter";
 
 export function ModelPill({ controls }: { controls: AgentControls }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -12,12 +18,12 @@ export function ModelPill({ controls }: { controls: AgentControls }) {
     (model) => model.provider === current?.provider && model.id === current?.id,
   );
   return (
-    <span className="model-pill">
+    <div className="model-pill">
       <button
         ref={buttonRef}
         type="button"
         className="status-bar__item model-pill__button"
-        aria-haspopup="listbox"
+        aria-haspopup="dialog"
         aria-expanded={controls.modelPickerOpen}
         onClick={controls.toggleModelPicker}
       >
@@ -34,7 +40,7 @@ export function ModelPill({ controls }: { controls: AgentControls }) {
           onClose={controls.closeModelPicker}
         />
       )}
-    </span>
+    </div>
   );
 }
 
@@ -51,12 +57,25 @@ function ModelPicker({
 }) {
   const [error, setError] = useState<string>();
   const [query, setQuery] = useState(initialQuery);
+  const [scope, setScope] = useState<ModelPickerScope | undefined>(() =>
+    controls.models === undefined
+      ? undefined
+      : getInitialModelScope(controls.models, initialQuery),
+  );
+  const [favoritePending, setFavoritePending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const rootRef = useRef<HTMLSpanElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const inputId = useId();
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (scope === undefined && controls.models !== undefined) {
+      setScope(getInitialModelScope(controls.models, initialQuery));
+    }
+  }, [controls.models, initialQuery, scope]);
 
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
@@ -66,9 +85,13 @@ function ModelPicker({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [onClose]);
 
-  const filtered = filterModels(controls.models ?? [], query);
+  const activeScope = scope ?? "all";
+  const scopedModels = getModelsForScope(controls.models ?? [], activeScope);
+  const filtered = filterModels(scopedModels, query);
+  const current = controls.status?.model ?? controls.status?.defaultModel;
 
   const select = async (model: ModelOption) => {
+    setError(undefined);
     try {
       await controls.selectModel(model);
     } catch (selectError) {
@@ -76,56 +99,134 @@ function ModelPicker({
     }
   };
 
+  const toggleFavorite = async (model: ModelOption) => {
+    setError(undefined);
+    setFavoritePending(true);
+    try {
+      await controls.setModelFavorite(model, !model.favorite);
+    } catch (favoriteError) {
+      setError(String(favoriteError));
+    } finally {
+      setFavoritePending(false);
+    }
+  };
+
   return (
-    <span className="model-picker" ref={rootRef}>
+    <div
+      className="model-picker"
+      ref={rootRef}
+      role="dialog"
+      aria-label="Choose a model"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.stopPropagation();
+          onClose();
+        }
+      }}
+    >
+      <div className="model-picker__tabs" role="group" aria-label="Models">
+        <button
+          type="button"
+          className="model-picker__tab"
+          aria-pressed={activeScope === "favorites"}
+          onClick={() => setScope("favorites")}
+        >
+          Favorites
+        </button>
+        <button
+          type="button"
+          className="model-picker__tab"
+          aria-pressed={activeScope === "all"}
+          onClick={() => setScope("all")}
+        >
+          All models
+        </button>
+      </div>
+      <label className="visually-hidden" htmlFor={inputId}>
+        Search models
+      </label>
       <input
+        id={inputId}
         ref={inputRef}
         className="model-picker__input"
         placeholder="search models…"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key === "Escape") onClose();
           if (event.key === "Enter" && filtered.length > 0) {
             void select(filtered[0]);
           }
         }}
       />
-      {(error ?? controls.modelError) ? (
-        <span className="model-picker__note model-picker__note--error">
+      {(error ?? controls.modelError) && (
+        <div className="model-picker__note model-picker__note--error">
           {error ?? controls.modelError}
-        </span>
-      ) : controls.models === undefined ? (
-        <span className="model-picker__note">loading models…</span>
-      ) : controls.models.length === 0 ? (
-        <span className="model-picker__note">
-          No authenticated models found.
-        </span>
-      ) : filtered.length === 0 ? (
-        <span className="model-picker__note">no matches</span>
-      ) : (
-        <ul className="model-picker__list" role="listbox">
-          {filtered.map((model) => (
-            <li key={`${model.provider}/${model.id}`} role="option">
-              <button
-                type="button"
-                className="model-picker__option"
-                onClick={() => void select(model)}
-              >
-                <span className="model-picker__name" title={model.name}>
-                  {model.name}
-                </span>
-                <span
-                  className="model-picker__source"
-                  title={toModelSource(model)}
-                >
-                  {toModelSource(model)}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        </div>
       )}
+      <div>
+        {controls.models === undefined ? (
+          <div className="model-picker__note">loading models…</div>
+        ) : controls.models.length === 0 ? (
+          <div className="model-picker__note">
+            No authenticated models found.
+          </div>
+        ) : activeScope === "favorites" && scopedModels.length === 0 ? (
+          <div className="model-picker__note">
+            Star models under All models to add favorites.
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="model-picker__note">no matches</div>
+        ) : (
+          <ul className="model-picker__list">
+            {filtered.map((model) => {
+              const key = `${model.provider}/${model.id}`;
+              const source = toModelSource(model);
+              const isCurrent =
+                model.provider === current?.provider && model.id === current.id;
+              return (
+                <li className="model-picker__row" key={key}>
+                  <button
+                    type="button"
+                    className="model-picker__option"
+                    aria-current={isCurrent ? "true" : undefined}
+                    onClick={() => void select(model)}
+                  >
+                    <span className="model-picker__name" title={model.name}>
+                      <span className="model-picker__label">{model.name}</span>
+                      {isCurrent && (
+                        <>
+                          <span
+                            className="model-picker__current"
+                            aria-hidden="true"
+                          >
+                            ✓
+                          </span>
+                          <span className="visually-hidden">
+                            , current model
+                          </span>
+                        </>
+                      )}
+                    </span>
+                    <span className="model-picker__source" title={source}>
+                      {source}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="model-picker__favorite"
+                    aria-label={`${model.favorite ? "Remove" : "Add"} ${model.name} (${source}) ${model.favorite ? "from" : "to"} favorites`}
+                    aria-pressed={model.favorite}
+                    disabled={favoritePending}
+                    onClick={() => void toggleFavorite(model)}
+                  >
+                    <span aria-hidden="true">{model.favorite ? "★" : "☆"}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
       <button
         type="button"
         className="model-picker__connect"
@@ -133,6 +234,6 @@ function ModelPicker({
       >
         Connect to a provider…
       </button>
-    </span>
+    </div>
   );
 }

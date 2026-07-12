@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { ModelOption } from "@uix/api/agent-channels";
 
-import { filterModels, toModelSource } from "./model-filter";
+import {
+  filterModels,
+  getInitialModelScope,
+  getModelsForScope,
+  toModelSource,
+} from "./model-filter";
 
 const models: ModelOption[] = [
   {
@@ -19,6 +24,28 @@ const models: ModelOption[] = [
   },
   { provider: "openai", id: "gpt-5", name: "GPT-5", favorite: false },
 ];
+
+describe("model scopes", () => {
+  it("opens favorites when favorites exist", () => {
+    const favorited = models.map((model, index) => ({
+      ...model,
+      favorite: index === 1,
+    }));
+    expect(getInitialModelScope(favorited, "")).toBe("favorites");
+    expect(getModelsForScope(favorited, "favorites")).toEqual([favorited[1]]);
+  });
+
+  it("opens all models without favorites or with a seeded search", () => {
+    expect(getInitialModelScope(models, "")).toBe("all");
+    expect(
+      getInitialModelScope(
+        models.map((model) => ({ ...model, favorite: true })),
+        "openrouter",
+      ),
+    ).toBe("all");
+    expect(getModelsForScope(models, "all")).toEqual(models);
+  });
+});
 
 describe("toModelSource", () => {
   it("uses the provider for a model id without a path", () => {

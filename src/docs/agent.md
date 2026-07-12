@@ -30,7 +30,7 @@ The driver owns one lazy Pi `AgentSessionServices` tier above the session: `Auth
 
 Two distinct pieces of state, deliberately: the **current model** is pi-owned, branch-aware session state (`model_change` entries; branch replay restores it), while the **workspace default** is a UIX workspace setting applied at session open only when the branch carries no `model_change` of its own. With neither, session creation defers entirely to pi's resolution. Surfaces never mutate `agent.defaultModel` directly — selection goes through `select_model`.
 
-The chat status bar's model pill (`src/features/chat/workspace/ModelPill.tsx`) is the first consumer: it seeds from `agent_status`, subscribes to `status_changed`, labels by live model → workspace default → explicit "select model" empty state, and opens a searchable picker over `list_models`.
+The chat status bar's model pill (`src/features/chat/workspace/ModelPill.tsx`) is the first consumer: it seeds from `agent_status`, subscribes to `status_changed`, labels by live model → workspace default → explicit "select model" empty state, and opens a searchable Favorites / All models picker over `list_models`. Each row selects the model independently from its star control; stars update through `set_model_favorite`, and a provider-login handoff opens All models with its provider-seeded search rather than hiding matches behind Favorites.
 
 ## Provider authentication
 
