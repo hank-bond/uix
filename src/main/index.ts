@@ -28,6 +28,8 @@ import {
 } from "../shared/ipc";
 import { createAgentDriver } from "./agent/driver";
 import { AgentContextRegistry } from "./agent-context/registry";
+import { AgentSystemPromptRegistry } from "./agent-system-prompt/registry";
+import { AgentSkillRegistry } from "./agent-skills/registry";
 import {
   createAgentToolInstaller,
   AgentToolRegistry,
@@ -199,6 +201,8 @@ async function openWorkspace(
   });
   const turnState = new TurnStateRegistry();
   const agentTools = new AgentToolRegistry();
+  const agentSystemPrompt = new AgentSystemPromptRegistry();
+  const agentSkills = new AgentSkillRegistry();
   const agentContext = new AgentContextRegistry();
   const surfaces = new SurfaceRegistry();
 
@@ -218,6 +222,8 @@ async function openWorkspace(
     workspace,
     piProfileDir,
     turnState,
+    agentSystemPrompt,
+    agentSkills,
     agentContext,
     agentInstallers: [createAgentToolInstaller(agentTools)],
     // Lazy handle: the `agent` scope registers during the settings reload
@@ -370,6 +376,8 @@ async function openWorkspace(
       resources,
       channels,
       agentTools,
+      agentSystemPrompt,
+      agentSkills,
       turnState,
       agentContext,
       surfaces,

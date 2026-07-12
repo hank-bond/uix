@@ -51,8 +51,6 @@ import type {
 
 const log = createLogger("agent-context");
 
-import type { AgentInstaller } from "../agent/installers";
-
 type MaybePromise<T> = T | Promise<T>;
 
 // ---- canonical id brand ----
@@ -246,33 +244,18 @@ export interface AgentContextMessage {
   details?: Record<string, unknown>;
 }
 
-/**
- * Install the system-prompt vocabulary section for agent-context contributions.
- * The message flush is handled by the driver (see buildAgentContextMessage) so
- * the uix.state entry is ordered before the user message in the session tree.
- */
-export function createAgentContextVocabularyInstaller(
-  stateMessageRegistry: AgentContextRegistry,
-): AgentInstaller {
-  return (pi) => {
-    const installedContributions = [
-      ...stateMessageRegistry.registeredContributions,
-    ];
-    const vocabulary = installedContributions.length
-      ? vocabularySection(
-          installedContributions.map((contribution) => ({
-            canonicalId: contribution.canonicalId,
-            description: contribution.description,
-          })),
-        )
-      : undefined;
-
-    if (!vocabulary) return;
-
-    pi.on("before_agent_start", (event, _ctx) => ({
-      systemPrompt: `${event.systemPrompt}\n\n${vocabulary}`,
-    }));
-  };
+/** Build the stable system-prompt vocabulary for registered context tags. */
+export function buildAgentContextVocabularySection(
+  registry: AgentContextRegistry,
+): string | undefined {
+  const contributions = registry.registeredContributions;
+  if (contributions.length === 0) return undefined;
+  return vocabularySection(
+    contributions.map((contribution) => ({
+      canonicalId: contribution.canonicalId,
+      description: contribution.description,
+    })),
+  );
 }
 
 /**

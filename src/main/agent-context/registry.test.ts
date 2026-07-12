@@ -9,7 +9,7 @@ import { Type } from "typebox";
 import {
   AgentContextRegistry,
   buildAgentContextMessage,
-  createAgentContextVocabularyInstaller,
+  buildAgentContextVocabularySection,
   registerAgentContextContributions,
 } from "./registry";
 
@@ -43,7 +43,7 @@ function turnStateEntry(
 }
 
 describe("AgentContextRegistry", () => {
-  it("installs vocabulary section with a bullet per registered tag", async () => {
+  it("builds vocabulary with a bullet per registered tag", () => {
     const sm = new AgentContextRegistry();
     sm.register("test", {
       name: "pane-visibility",
@@ -56,43 +56,17 @@ describe("AgentContextRegistry", () => {
       materialize: () => undefined,
     });
 
-    const handlers: Array<
-      (event: unknown, ctx: unknown) => Promise<{ systemPrompt?: string }>
-    > = [];
-    void createAgentContextVocabularyInstaller(sm)({
-      on: (_event: string, handler: (typeof handlers)[0]) => {
-        handlers.push(handler);
-      },
-    } as Parameters<
-      ReturnType<typeof createAgentContextVocabularyInstaller>
-    >[0]);
-    expect(handlers).toHaveLength(1);
+    const vocabulary = buildAgentContextVocabularySection(sm);
 
-    const result = await handlers[0]({ systemPrompt: "BASE" }, {});
-
-    expect(result.systemPrompt).toContain("BASE");
-    expect(result.systemPrompt).toContain("## UIX cockpit state messages");
-    expect(result.systemPrompt).toContain(
-      "- `<test.pane-visibility>` — open keys",
-    );
-    expect(result.systemPrompt).toContain(
-      "- `<test.canvas-diff>` — human hunks",
-    );
+    expect(vocabulary).toContain("## UIX cockpit state messages");
+    expect(vocabulary).toContain("- `<test.pane-visibility>` — open keys");
+    expect(vocabulary).toContain("- `<test.canvas-diff>` — human hunks");
   });
 
-  it("does not install vocabulary with no registrations", () => {
-    const handlers: Array<
-      (event: unknown, ctx: unknown) => Promise<{ systemPrompt?: string }>
-    > = [];
-    void createAgentContextVocabularyInstaller(new AgentContextRegistry())({
-      on: (_event: string, handler: (typeof handlers)[0]) => {
-        handlers.push(handler);
-      },
-    } as Parameters<
-      ReturnType<typeof createAgentContextVocabularyInstaller>
-    >[0]);
-    // No vocabulary → no handler installed.
-    expect(handlers).toHaveLength(0);
+  it("does not build vocabulary with no registrations", () => {
+    expect(
+      buildAgentContextVocabularySection(new AgentContextRegistry()),
+    ).toBeUndefined();
   });
 
   it("bulk-registers contributions, applies initial update values, and disposes them together", async () => {

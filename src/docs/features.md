@@ -60,7 +60,7 @@ interface FeatureDefinition {
 
 `context()` runs before `contribute()` and may return feature-local objects merged onto the context handed to `contribute()`. `settings`, when present, are declared before either hook runs so the loader can hydrate and validate workspace settings first.
 
-`contribute()` returns facet contributions such as resources, channels, agent tools, turn state, agent context, and surfaces. See [`contributions.md`](./contributions.md), [`channels.md`](./channels.md), [`settings.md`](./settings.md), and [`lifetimes.md`](./lifetimes.md).
+`contribute()` returns facet contributions such as resources, channels, agent tools, Agent system-prompt sections, Pi skills, turn state, agent context, and surfaces. See [`contributions.md`](./contributions.md), [`channels.md`](./channels.md), [`settings.md`](./settings.md), and [`lifetimes.md`](./lifetimes.md).
 
 ## Reload
 

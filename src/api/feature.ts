@@ -14,6 +14,8 @@ import type {
   FeatureEventPublisherFactory,
 } from "./channels";
 import type { AgentToolContribution } from "./agent-tools";
+import type { AgentSystemPromptContribution } from "./agent-system-prompt";
+import type { AgentSkillContribution } from "./agent-skills";
 import type { TurnStateContribution } from "./turn-state";
 import type { AgentContextContribution } from "./agent-context";
 import type { ResourceContribution } from "./resources";
@@ -23,6 +25,8 @@ import type { SettingDefinitions, SettingsHandle } from "./settings";
 
 export type { ChannelContribution } from "./channels";
 export type { AgentToolContribution } from "./agent-tools";
+export type { AgentSystemPromptContribution } from "./agent-system-prompt";
+export type { AgentSkillContribution } from "./agent-skills";
 export type { TurnStateContribution } from "./turn-state";
 export type { AgentContextContribution } from "./agent-context";
 export type { ResourceContribution } from "./resources";
@@ -44,6 +48,10 @@ export interface FeatureContributions {
   resources?: readonly ResourceContribution[];
   channels?: readonly ChannelContribution[];
   agentTools?: readonly AgentToolContribution[];
+  /** Stable Markdown appended to the agent system prompt while this feature is active. */
+  agentSystemPrompt?: AgentSystemPromptContribution;
+  /** Pi skill files/directories, resolved relative to the feature entry file. */
+  agentSkills?: readonly AgentSkillContribution[];
   turnState?: readonly TurnStateContribution[];
   agentContext?: readonly AgentContextContribution[];
   /**

@@ -32,7 +32,7 @@ For now this is pure on-demand traversal. Preloading the top ~100 summaries brea
 
 ## Core idea
 
-The atomic UIX unit is a **feature**: a loadable definition that contributes to substrate facets — visible **surfaces**, typed **channels**, agent tools, turn state, agent context, resources. A **workspace** (one page, one window) composes enabled feature surfaces over one agent session; on disk it is a directory defined by its `uix.workspace.json` manifest, whose ordered feature entry-file references are the composition — no auto-discovery. Channels let a surface talk to its feature's backend, to other features, and optionally to the pi agent. Chat and canvas are default features loaded from source like any manifest entry, not core app structure. Everything else layers on top.
+The atomic UIX unit is a **feature**: a loadable definition that contributes to substrate facets — visible **surfaces**, typed **channels**, agent tools, system-prompt sections, Pi skills, turn state, agent context, resources. A **workspace** (one page, one window) composes enabled feature surfaces over one agent session; on disk it is a directory defined by its `uix.workspace.json` manifest, whose ordered feature entry-file references are the composition — no auto-discovery. Channels let a surface talk to its feature's backend, to other features, and optionally to the pi agent. Chat and canvas are default features loaded from source like any manifest entry, not core app structure. Everything else layers on top.
 
 ## Layers
 
@@ -40,7 +40,7 @@ The atomic UIX unit is a **feature**: a loadable definition that contributes to 
 pi                  agent sessions, tools, prompts, skills, providers, events
 UIX main            feature loading, lifetimes, facet registries, agent session ownership
 UIX workspace       surface composition, layout, typed channel clients
-UIX features        surfaces, channels, agent tools, turn state, agent context, resources
+UIX features        surfaces, channels, agent tools/system prompts/skills, turn state, agent context, resources
 surface content     React (trusted feature UI) or iframe HTML (contained/authored content)
 ```
 

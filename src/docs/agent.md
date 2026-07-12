@@ -1,5 +1,5 @@
 ---
-summary: "How the substrate drives the agent today: it lazily owns a persisted pi AgentSession, forwards a UIX-shaped event stream to the renderer, exposes model list/favorite/status/select channels over pi's model registry, delegates reload, binds the core anchored document read/write/edit tools, and flushes registered agent-context contributions as display-hidden custom entries at agent-run prep."
+summary: "How the substrate drives the agent today: it lazily owns a persisted pi AgentSession, assembles feature system-prompt sections and Pi skills at runtime start/reload, forwards a UIX-shaped event stream, exposes model controls, binds tools, and flushes agent context."
 status: active
 ---
 
@@ -15,6 +15,12 @@ Current behavior:
 - the `history` request replays the same durable transcript item shape from pi's persisted session branch;
 - reload (typed IPC, not an agent channel) reloads manifest features and workspace settings; it recreates Pi's services tier if model/auth resources were already used before a session, delegates to `session.reload()` once a session exists, and initializes neither solely for reload;
 - core substrate tools are registered through internal agent installers (`AgentInstaller`), not through feature contributions.
+
+## Feature guidance
+
+Features can contribute two forms of stable Agent guidance. `agentSystemPrompt` is one Markdown section per feature for short semantics the Agent must always know; UIX assembles active sections in manifest order together with the generated agent-context vocabulary, snapshots that suffix when Pi's extension runtime starts or reloads, and appends the unchanged suffix to Pi's base system prompt at each run. `agentSkills` lists skill files or directories relative to the feature entry file; one UIX-owned `resources_discover` handler supplies the resolved paths at runtime start/reload, after which Pi owns skill validation, the compact system-prompt catalog, and on-demand `SKILL.md` loading.
+
+Changing/per-turn information does not belong in either mechanism: it uses agent context. Tool schemas and descriptions remain mechanical invocation contracts. The Canvas feature is the first combined consumer: its system-prompt section states the persisted-interaction and `data-uix-prompt` contract, while its `canvas-authoring` skill contains detailed HTML state, accessibility, and interaction guidance.
 
 Electron gives Pi one app-owned profile at `<userData>/pi`, shared by every UIX workspace and isolated from the host Pi CLI profile. Pi stores profile-level credentials, settings, custom models, extensions, skills, prompts, and context there. The workspace `agentCwd` still supplies project-local `.pi` settings and resources, while session history remains under that workspace's `.uix/sessions`. UIX does not copy or fall back to the host profile; process environment variables remain available to Pi.
 
@@ -68,6 +74,6 @@ Features never call individual registration methods — `registerAgentContextCon
 
 The canvas agent-context contribution factory (`src/features/canvas/backend/contributions/agent-contexts.ts`) returns two contributions: `pane-visibility` (`{"canvases_open": [...]}`, change-only, canonical id `canvas.pane-visibility`) and `canvas-diff` (the anchored human-edit hunks, a consuming read computed at the boundary, always sent when present, canonical id `canvas.canvas-diff`). The substrate `registerAgentContextContributions(agentContext, featureId, contributions)` helper owns registration and disposal.
 
-Feature contributions can register agent tools and agent context through the manifest feature path. There is no public API today for agent-turn triggers from arbitrary surface/channel events.
+Feature contributions can register agent tools, system-prompt sections, Pi skills, and agent context through the manifest feature path. Canvas HTML can initiate an intentional Agent turn through the narrow trusted-click `data-uix-prompt` shim action described in [`channels.md`](./channels.md); canvas content does not receive direct channel access.
 
 See [`features.md`](./features.md), [`contributions.md`](./contributions.md), [`channels.md`](./channels.md).

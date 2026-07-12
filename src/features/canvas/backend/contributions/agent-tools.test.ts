@@ -11,9 +11,10 @@ import type {
 import {
   AgentContextRegistry,
   buildAgentContextMessage,
-  createAgentContextVocabularyInstaller,
+  buildAgentContextVocabularySection,
   registerAgentContextContributions,
 } from "#backend/agent-context/registry";
+import { createSystemPromptAssembler } from "#backend/agent/system-prompt";
 import {
   createAgentToolInstaller,
   AgentToolRegistry,
@@ -174,7 +175,9 @@ function setup() {
       if (event === "before_agent_start") vocabHandlers.push(handler);
     },
   } as unknown as ExtensionAPI;
-  void createAgentContextVocabularyInstaller(agentContext)(vocabPi);
+  void createSystemPromptAssembler([
+    () => buildAgentContextVocabularySection(agentContext),
+  ])(vocabPi);
 
   const extCtx = {
     cwd: "/work",

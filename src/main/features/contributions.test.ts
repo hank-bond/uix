@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { Type } from "typebox";
 
 import { AgentContextRegistry } from "../agent-context/registry";
+import { AgentSystemPromptRegistry } from "../agent-system-prompt/registry";
+import { AgentSkillRegistry } from "../agent-skills/registry";
 import { AgentToolRegistry } from "../agent-tools/registry";
 import { ChannelRegistry } from "../channels/registry";
 import { ResourceRegistry } from "../resources/registry";
@@ -64,16 +66,29 @@ describe("registerFeatureContributions", () => {
       }),
     });
     const agentTools = new AgentToolRegistry();
+    const agentSystemPrompt = new AgentSystemPromptRegistry();
+    const agentSkills = new AgentSkillRegistry();
     const turnState = new TurnStateRegistry();
     const agentContext = new AgentContextRegistry();
 
+    const registries = {
+      resources,
+      channels,
+      agentTools,
+      agentSystemPrompt,
+      agentSkills,
+      turnState,
+      agentContext,
+    };
     const registration = registerFeatureContributions(
-      { resources, channels, agentTools, turnState, agentContext },
+      registries,
       "canvas",
       {
         resources: [resourceContribution()],
         channels: [channelContribution()],
         agentTools: [agentTool("anchor_read")],
+        agentSystemPrompt: "Canvas guidance",
+        agentSkills: ["./skills/canvas-authoring"],
         turnState: [{ prepareUserSubmitState: () => ({ state: {} }) }],
         agentContext: [
           {
@@ -83,6 +98,7 @@ describe("registerFeatureContributions", () => {
           },
         ],
       },
+      { entryDir: "/workspace/features/canvas" },
     );
 
     expect(() =>
@@ -105,6 +121,14 @@ describe("registerFeatureContributions", () => {
         ],
       }),
     ).toThrow("Agent tool already registered: canvas__anchor_read");
+    expect(() =>
+      registerFeatureContributions({ agentSystemPrompt }, "canvas", {
+        agentSystemPrompt: "Again",
+      }),
+    ).toThrow("Agent system prompt already registered: canvas");
+    expect(agentSkills.list()).toEqual([
+      "/workspace/features/canvas/skills/canvas-authoring",
+    ]);
     expect(() =>
       registerFeatureContributions({ turnState }, "canvas", {
         turnState: [{}],
@@ -137,12 +161,14 @@ describe("registerFeatureContributions", () => {
 
     expect(() =>
       registerFeatureContributions(
-        { resources, channels, agentTools, turnState, agentContext },
+        registries,
         "canvas",
         {
           resources: [resourceContribution()],
           channels: [channelContribution()],
           agentTools: [agentTool("anchor_read")],
+          agentSystemPrompt: "Reloaded guidance",
+          agentSkills: ["./skills/canvas-authoring"],
           turnState: [{}],
           agentContext: [
             {
@@ -152,6 +178,7 @@ describe("registerFeatureContributions", () => {
             },
           ],
         },
+        { entryDir: "/workspace/features/canvas" },
       ),
     ).not.toThrow();
   });
@@ -179,6 +206,25 @@ describe("registerFeatureContributions", () => {
       }),
     ).toThrow(
       "Feature canvas contributes agent tools but no agent tool registry was provided",
+    );
+
+    expect(() =>
+      registerFeatureContributions({}, "canvas", {
+        agentSystemPrompt: "Canvas guidance",
+      }),
+    ).toThrow(
+      "Feature canvas contributes an agent system prompt but no agent-system-prompt registry was provided",
+    );
+
+    expect(() =>
+      registerFeatureContributions(
+        {},
+        "canvas",
+        { agentSkills: ["./skill"] },
+        { entryDir: "/feature" },
+      ),
+    ).toThrow(
+      "Feature canvas contributes agent skills but no agent-skills registry was provided",
     );
 
     expect(() =>
@@ -210,7 +256,16 @@ describe("registerFeatureContributions", () => {
     );
   });
 
-  it("rejects surface contributions without an entry directory", () => {
+  it("rejects path contributions without an entry directory", () => {
+    const agentSkills = new AgentSkillRegistry();
+    expect(() =>
+      registerFeatureContributions({ agentSkills }, "canvas", {
+        agentSkills: ["./skill"],
+      }),
+    ).toThrow(
+      "Feature canvas contributes agent skills but was activated without an entry directory",
+    );
+
     const surfaces = new SurfaceRegistry();
     expect(() =>
       registerFeatureContributions({ surfaces }, "canvas", {

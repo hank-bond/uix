@@ -62,9 +62,18 @@ import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { createTranscriptIdentity, type TranscriptIdentity } from "./identity";
 import {
   buildAgentContextMessage,
-  createAgentContextVocabularyInstaller,
+  buildAgentContextVocabularySection,
   type AgentContextRegistry,
 } from "../agent-context/registry";
+import {
+  buildAgentSystemPromptSection,
+  type AgentSystemPromptRegistry,
+} from "../agent-system-prompt/registry";
+import {
+  createAgentSkillInstaller,
+  type AgentSkillRegistry,
+} from "../agent-skills/registry";
+import { createSystemPromptAssembler } from "./system-prompt";
 import {
   extractTranscriptText,
   parseCustomTranscriptItem,
@@ -124,6 +133,10 @@ export interface AgentDriverOptions {
   agentInstallers?: readonly AgentInstaller[];
   /** Cockpit-private turn-state registry, installed by the driver. */
   turnState?: TurnStateRegistry;
+  /** Stable feature-owned system-prompt sections. */
+  agentSystemPrompt?: AgentSystemPromptRegistry;
+  /** Feature-supplied Pi skills discovered at session start/reload. */
+  agentSkills?: AgentSkillRegistry;
   /** Cockpit→agent context registry, installed by the driver. */
   agentContext?: AgentContextRegistry;
   /** State root (pins the session dir) + agent cwd. */
@@ -198,9 +211,21 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   if (opts.turnState) {
     agentInstallers.push(createTurnStateCoordinator(opts.turnState));
   }
-  if (opts.agentContext) {
+  if (opts.agentSkills) {
+    agentInstallers.push(createAgentSkillInstaller(opts.agentSkills));
+  }
+  const systemPromptRegistry = opts.agentSystemPrompt;
+  const contextRegistry = opts.agentContext;
+  if (systemPromptRegistry || contextRegistry) {
     agentInstallers.push(
-      createAgentContextVocabularyInstaller(opts.agentContext),
+      createSystemPromptAssembler([
+        ...(systemPromptRegistry
+          ? [() => buildAgentSystemPromptSection(systemPromptRegistry)]
+          : []),
+        ...(contextRegistry
+          ? [() => buildAgentContextVocabularySection(contextRegistry)]
+          : []),
+      ]),
     );
   }
   agentInstallers.push((pi) => {

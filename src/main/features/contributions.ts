@@ -7,6 +7,10 @@
 
 import type { AgentContextRegistry } from "../agent-context/registry";
 import { registerAgentContextContributions } from "../agent-context/registry";
+import type { AgentSystemPromptRegistry } from "../agent-system-prompt/registry";
+import { registerAgentSystemPromptContribution } from "../agent-system-prompt/registry";
+import type { AgentSkillRegistry } from "../agent-skills/registry";
+import { registerAgentSkillContributions } from "../agent-skills/registry";
 import type { AgentToolRegistry } from "../agent-tools/registry";
 import { registerAgentToolContributions } from "../agent-tools/registry";
 import type { ChannelRegistry } from "../channels/registry";
@@ -31,6 +35,8 @@ export interface FeatureContributionRegistries {
   resources?: ResourceRegistry;
   channels?: ChannelRegistry;
   agentTools?: AgentToolRegistry;
+  agentSystemPrompt?: AgentSystemPromptRegistry;
+  agentSkills?: AgentSkillRegistry;
   turnState?: TurnStateRegistry;
   agentContext?: AgentContextRegistry;
   surfaces?: SurfaceRegistry;
@@ -95,6 +101,42 @@ export function registerFeatureContributions(
         registries.agentTools,
         featureId,
         contributions.agentTools,
+      ),
+    );
+  }
+
+  if (contributions.agentSystemPrompt !== undefined) {
+    if (!registries.agentSystemPrompt) {
+      throw new Error(
+        `Feature ${featureId} contributes an agent system prompt but no agent-system-prompt registry was provided`,
+      );
+    }
+    bag.add(
+      registerAgentSystemPromptContribution(
+        registries.agentSystemPrompt,
+        featureId,
+        contributions.agentSystemPrompt,
+      ),
+    );
+  }
+
+  if (contributions.agentSkills?.length) {
+    if (!registries.agentSkills) {
+      throw new Error(
+        `Feature ${featureId} contributes agent skills but no agent-skills registry was provided`,
+      );
+    }
+    if (!origin.entryDir) {
+      throw new Error(
+        `Feature ${featureId} contributes agent skills but was activated without an entry directory to resolve them against`,
+      );
+    }
+    bag.add(
+      registerAgentSkillContributions(
+        registries.agentSkills,
+        featureId,
+        contributions.agentSkills,
+        origin.entryDir,
       ),
     );
   }
