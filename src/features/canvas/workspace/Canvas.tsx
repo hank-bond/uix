@@ -4,15 +4,25 @@
 // Human edits flow back to the store via postMessage writeback.
 // The channel client is provided by the surface host via props.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { agentChannels } from "@uix/api/agent-channels";
+import {
+  createChannelClient,
+  useWorkspaceClient,
+  type ChannelClient,
+} from "@uix/api/workspace";
 
 import {
   toResourceOrigin,
   toResourceUrl,
   type CanvasKey,
 } from "../shared/addressing";
-import { useWorkspaceClient, type ChannelClient } from "@uix/api/workspace";
 import { canvasChannels } from "../shared/channels";
+import {
+  forwardCanvasFrameMessage,
+  parseCanvasFrameMessage,
+} from "./frame-messages";
 
 export interface CanvasProps {
   canvasKey: CanvasKey;
@@ -21,6 +31,10 @@ export interface CanvasProps {
 
 export function Canvas({ canvasKey, client }: CanvasProps) {
   const workspace = useWorkspaceClient();
+  const agent = useMemo(
+    () => createChannelClient(workspace, agentChannels),
+    [workspace],
+  );
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [token, setToken] = useState(0);
 
@@ -33,22 +47,25 @@ export function Canvas({ canvasKey, client }: CanvasProps) {
   }, [client, canvasKey]);
 
   useEffect(() => {
-    // The shim postMessages human edits up from the sandboxed canvas frame.
-    // Trust only this feature's isolated origin, this exact iframe window, and
-    // this canvas key. The origin is feature-scoped rather than per-document.
+    // The shim postMessages human edits and trusted-click prompt actions up
+    // from the sandboxed canvas frame. Trust only this feature's isolated
+    // origin, this exact iframe window, and this canvas key. The origin is
+    // feature-scoped rather than per-document.
     const origin = toResourceOrigin(workspace.workspaceId);
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== origin) return;
       if (event.source !== frameRef.current?.contentWindow) return;
-      const msg = event.data as { type?: string; key?: string; html?: string };
-      if (msg?.type !== "uix:canvas-writeback" || msg.key !== canvasKey) return;
-      // Guard against a malformed message blanking the stored canvas.
-      if (typeof msg.html !== "string" || msg.html === "") return;
-      void client.requests.writeback({ key: canvasKey, html: msg.html });
+      const message = parseCanvasFrameMessage(event.data, canvasKey);
+      if (!message) return;
+      void forwardCanvasFrameMessage(
+        message,
+        client.requests.writeback,
+        agent.requests.prompt,
+      );
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [client, canvasKey, workspace.workspaceId]);
+  }, [agent, client, canvasKey, workspace.workspaceId]);
 
   return (
     <iframe
