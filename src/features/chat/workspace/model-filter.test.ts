@@ -2,13 +2,39 @@ import { describe, expect, it } from "vitest";
 
 import type { ModelOption } from "@uix/api/agent-channels";
 
-import { filterModels } from "./model-filter";
+import { filterModels, toModelSource } from "./model-filter";
 
 const models: ModelOption[] = [
   { provider: "anthropic", id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5" },
   { provider: "anthropic", id: "claude-opus-4-1", name: "Claude Opus 4.1" },
   { provider: "openai", id: "gpt-5", name: "GPT-5" },
 ];
+
+describe("toModelSource", () => {
+  it("uses the provider for a model id without a path", () => {
+    expect(toModelSource(models[0])).toBe("anthropic");
+  });
+
+  it("includes the model-id path before its final segment", () => {
+    expect(
+      toModelSource({
+        provider: "openrouter",
+        id: "anthropic/claude-opus-4.5",
+        name: "Anthropic: Claude Opus 4.5",
+      }),
+    ).toBe("openrouter/anthropic");
+  });
+
+  it("preserves deeper source paths", () => {
+    expect(
+      toModelSource({
+        provider: "gateway",
+        id: "team/anthropic/claude-opus",
+        name: "Claude Opus",
+      }),
+    ).toBe("gateway/team/anthropic");
+  });
+});
 
 describe("filterModels", () => {
   it("keeps every model on a blank or whitespace-only query", () => {

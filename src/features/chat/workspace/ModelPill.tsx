@@ -3,11 +3,14 @@ import { useEffect, useRef, useState } from "react";
 import type { ModelOption } from "@uix/api/agent-channels";
 
 import type { AgentControls } from "./agent-controls";
-import { filterModels } from "./model-filter";
+import { filterModels, toModelSource } from "./model-filter";
 
 export function ModelPill({ controls }: { controls: AgentControls }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const current = controls.status?.model ?? controls.status?.defaultModel;
+  const currentOption = controls.models?.find(
+    (model) => model.provider === current?.provider && model.id === current?.id,
+  );
   return (
     <span className="model-pill">
       <button
@@ -18,7 +21,7 @@ export function ModelPill({ controls }: { controls: AgentControls }) {
         aria-expanded={controls.modelPickerOpen}
         onClick={controls.toggleModelPicker}
       >
-        {current ? `${current.provider}/${current.id}` : "select model"}
+        {currentOption?.name ?? current?.id ?? "select model"}
       </button>
       {controls.modelPickerOpen && (
         <ModelPicker
@@ -109,9 +112,14 @@ function ModelPicker({
                 className="model-picker__option"
                 onClick={() => void select(model)}
               >
-                <span className="model-picker__name">{model.name}</span>
-                <span className="model-picker__ref">
-                  {model.provider}/{model.id}
+                <span className="model-picker__name" title={model.name}>
+                  {model.name}
+                </span>
+                <span
+                  className="model-picker__source"
+                  title={toModelSource(model)}
+                >
+                  {toModelSource(model)}
                 </span>
               </button>
             </li>
