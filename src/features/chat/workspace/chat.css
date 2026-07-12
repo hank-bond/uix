@@ -494,13 +494,92 @@
   animation: chat-connected-pulse 700ms ease-out;
 }
 
-.provider-credentials {
+.provider-credentials,
+.provider-oauth {
   display: grid;
   gap: 0.65rem;
   padding: 0.75rem;
   border: 1px solid var(--border);
   border-radius: 5px;
   background: var(--bg-surface-panel);
+}
+
+.provider-oauth__status,
+.provider-oauth__note,
+.provider-oauth__url,
+.provider-oauth__success,
+.provider-oauth__error {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.provider-oauth__status {
+  color: var(--fg);
+}
+
+.provider-oauth__note,
+.provider-oauth__url {
+  color: var(--fg-dim);
+}
+
+.provider-oauth__url {
+  overflow-wrap: anywhere;
+  font-family: var(--code-font), monospace;
+}
+
+.provider-oauth__success {
+  color: var(--success);
+}
+
+.provider-oauth__error {
+  color: var(--error);
+}
+
+.provider-oauth__code {
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--fg);
+  font-family: var(--code-font), monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+  user-select: all;
+}
+
+.provider-oauth__prompt,
+.provider-oauth__choices {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.provider-oauth__prompt label {
+  color: var(--fg);
+  font-size: 0.8rem;
+}
+
+.provider-oauth__prompt input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--fg);
+  font: inherit;
+}
+
+.provider-oauth__prompt input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.provider-oauth__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .provider-credentials__description,

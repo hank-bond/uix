@@ -162,6 +162,13 @@ export const ProviderAuthMethodSchema = Type.Union([
     id: Type.Literal("oauth"),
     type: Type.Literal("oauth"),
     ...ProviderAuthMethodBaseSchema.properties,
+    startActions: Type.Array(
+      Type.Object({
+        id: Type.String(),
+        label: Type.String(),
+        primary: Type.Boolean(),
+      }),
+    ),
   }),
   Type.Object({
     id: Type.String(),
@@ -208,17 +215,23 @@ export const OAuthFlowAnswerSchema = Type.Object({
   value: Type.String(),
 });
 
+const OAuthFlowProviderSchema = Type.Object({
+  flowId: Type.String(),
+  providerId: Type.String(),
+  actionId: Type.String(),
+});
+
 export const OAuthFlowStateSchema = Type.Union([
   Type.Object({
     type: Type.Literal("authorization"),
-    flowId: Type.String(),
+    ...OAuthFlowProviderSchema.properties,
     url: Type.String(),
     instructions: Type.Optional(Type.String()),
     supportsManualInput: Type.Boolean(),
   }),
   Type.Object({
     type: Type.Literal("device_code"),
-    flowId: Type.String(),
+    ...OAuthFlowProviderSchema.properties,
     verificationUrl: Type.String(),
     userCode: Type.String(),
     intervalSeconds: Type.Optional(Type.Number()),
@@ -226,7 +239,7 @@ export const OAuthFlowStateSchema = Type.Union([
   }),
   Type.Object({
     type: Type.Literal("prompt"),
-    flowId: Type.String(),
+    ...OAuthFlowProviderSchema.properties,
     promptId: Type.String(),
     message: Type.String(),
     placeholder: Type.Optional(Type.String()),
@@ -234,7 +247,7 @@ export const OAuthFlowStateSchema = Type.Union([
   }),
   Type.Object({
     type: Type.Literal("select"),
-    flowId: Type.String(),
+    ...OAuthFlowProviderSchema.properties,
     promptId: Type.String(),
     message: Type.String(),
     options: Type.Array(
@@ -243,20 +256,22 @@ export const OAuthFlowStateSchema = Type.Union([
   }),
   Type.Object({
     type: Type.Literal("progress"),
-    flowId: Type.String(),
+    ...OAuthFlowProviderSchema.properties,
     message: Type.String(),
   }),
   Type.Object({
     type: Type.Literal("success"),
-    flowId: Type.String(),
-    providerId: Type.String(),
+    ...OAuthFlowProviderSchema.properties,
   }),
   Type.Object({
     type: Type.Literal("failure"),
-    flowId: Type.String(),
+    ...OAuthFlowProviderSchema.properties,
     message: Type.String(),
   }),
-  Type.Object({ type: Type.Literal("cancelled"), flowId: Type.String() }),
+  Type.Object({
+    type: Type.Literal("cancelled"),
+    ...OAuthFlowProviderSchema.properties,
+  }),
 ]);
 export type OAuthFlowState = Static<typeof OAuthFlowStateSchema>;
 
@@ -317,7 +332,10 @@ export const agentChannels = {
       log: { describeResponse: describeProviderAuthenticationPayload },
     },
     begin_oauth_flow: {
-      requestSchema: Type.Object({ providerId: Type.String() }),
+      requestSchema: Type.Object({
+        providerId: Type.String(),
+        actionId: Type.String(),
+      }),
       responseSchema: OAuthFlowIdSchema,
     },
     answer_oauth_flow: {

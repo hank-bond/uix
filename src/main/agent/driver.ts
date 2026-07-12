@@ -55,6 +55,7 @@ import { createOAuthFlowCoordinator } from "./auth-flow";
 import {
   findOfferedCredentialMethod,
   listAuthProviders as discoverAuthProviders,
+  resolveOAuthStartAction,
 } from "./auth-providers";
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { createTranscriptIdentity, type TranscriptIdentity } from "./identity";
@@ -104,7 +105,10 @@ export interface AgentDriver extends Disposable {
   listAuthProviders(): Promise<AuthProvider[]>;
   saveProviderCredentials(credentials: ProviderCredentials): Promise<void>;
   currentOAuthFlow(): OAuthFlowState | undefined;
-  beginOAuthFlow(providerId: string): Promise<{ flowId: string }>;
+  beginOAuthFlow(
+    providerId: string,
+    actionId: string,
+  ): Promise<{ flowId: string }>;
   answerOAuthFlow(flowId: string, promptId: string, value: string): void;
   reopenOAuthFlow(flowId: string): Promise<void>;
   cancelOAuthFlow(flowId: string): void;
@@ -399,7 +403,17 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     },
 
     currentOAuthFlow: () => oauth.current(),
-    beginOAuthFlow: (providerId) => oauth.begin(providerId),
+    beginOAuthFlow(providerId, actionId) {
+      const action = resolveOAuthStartAction(providerId, actionId);
+      if (!action) {
+        return Promise.reject(
+          new Error(
+            `OAuth start action is not offered: ${providerId}/${actionId}`,
+          ),
+        );
+      }
+      return oauth.begin(providerId, actionId, action.initialSelection);
+    },
     answerOAuthFlow: (flowId, promptId, value) =>
       oauth.answer(flowId, promptId, value),
     reopenOAuthFlow: (flowId) => oauth.reopen(flowId),

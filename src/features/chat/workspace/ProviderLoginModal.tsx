@@ -1,25 +1,49 @@
 import { useEffect, useRef, useState } from "react";
 
-import type { AuthProvider, ProviderAuthMethod } from "@uix/api/agent-channels";
+import type {
+  AuthProvider,
+  OAuthFlowState,
+  ProviderAuthMethod,
+} from "@uix/api/agent-channels";
 
 import type { AgentControls } from "./agent-controls";
+import { OAuthFlowPanel } from "./OAuthFlowPanel";
 
 type CredentialMethod = Extract<ProviderAuthMethod, { type: "credentials" }>;
 type CredentialReference = NonNullable<
   NonNullable<CredentialMethod["connection"]>["credentialReference"]
 >;
 
-interface ExpandedCredentials {
+interface ExpandedMethod {
   key: string;
   providerName: string;
-  method: CredentialMethod;
+  method: ProviderAuthMethod;
 }
 
 export function ProviderLoginModal({ controls }: { controls: AgentControls }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const [expanded, setExpanded] = useState<ExpandedCredentials>();
+  const [expanded, setExpanded] = useState<ExpandedMethod>();
   const [justConnected, setJustConnected] = useState<string>();
+  const oauthProviderId = controls.oauthActivity?.providerId;
+
+  useEffect(() => {
+    if (!oauthProviderId || !controls.providers) return;
+    for (const provider of controls.providers) {
+      const method = provider.methods.find(
+        (candidate) =>
+          candidate.type === "oauth" &&
+          candidate.providerId === oauthProviderId,
+      );
+      if (!method) continue;
+      setExpanded({
+        key: `${method.providerId}:${method.id}`,
+        providerName: provider.name,
+        method,
+      });
+      return;
+    }
+  }, [oauthProviderId, controls.providers]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -61,6 +85,11 @@ export function ProviderLoginModal({ controls }: { controls: AgentControls }) {
       </header>
 
       <div className="provider-modal__body">
+        {controls.oauthError && (
+          <p className="provider-modal__error" role="alert">
+            {controls.oauthError}
+          </p>
+        )}
         {controls.providerError ? (
           <p className="provider-modal__error" role="alert">
             {controls.providerError}
@@ -79,11 +108,18 @@ export function ProviderLoginModal({ controls }: { controls: AgentControls }) {
                 justConnected={justConnected}
                 onToggle={(next) => {
                   setJustConnected(undefined);
-                  setExpanded((current) =>
-                    current?.key === next.key ? undefined : next,
-                  );
+                  if (
+                    expanded?.method.type === "oauth" &&
+                    isTerminalOAuthFlow(controls.oauthActivity?.flow)
+                  ) {
+                    controls.dismissOAuthFlow();
+                  }
+                  if (expanded?.key === next.key) {
+                    setExpanded(undefined);
+                    return;
+                  }
+                  setExpanded(next);
                 }}
-                onBack={() => setExpanded(undefined)}
                 onConnected={(key) => setJustConnected(key)}
                 controls={controls}
               />
@@ -100,20 +136,16 @@ function ProviderRow({
   expanded,
   justConnected,
   onToggle,
-  onBack,
   onConnected,
   controls,
 }: {
   provider: AuthProvider;
-  expanded: ExpandedCredentials | undefined;
+  expanded: ExpandedMethod | undefined;
   justConnected: string | undefined;
-  onToggle: (next: ExpandedCredentials) => void;
-  onBack: () => void;
+  onToggle: (next: ExpandedMethod) => void;
   onConnected: (key: string) => void;
   controls: AgentControls;
 }) {
-  const methodButtons = useRef(new Map<string, HTMLButtonElement>());
-
   return (
     <li className="provider-list__row">
       <div className="provider-list__summary">
@@ -121,30 +153,24 @@ function ProviderRow({
         <span className="provider-list__methods">
           {provider.methods.map((method) => {
             const key = `${method.providerId}:${method.id}`;
-            const panelId = `provider-credentials-${toDomId(key)}`;
+            const panelId = `provider-auth-${toDomId(key)}`;
             const isCredentials = method.type === "credentials";
             const isExpanded = expanded?.key === key;
             return (
               <button
                 key={key}
-                ref={(button) => {
-                  if (button) methodButtons.current.set(key, button);
-                  else methodButtons.current.delete(key);
-                }}
                 type="button"
                 className="provider-list__action"
                 data-connected={method.connection ? "" : undefined}
                 data-just-connected={justConnected === key ? "" : undefined}
-                disabled={!isCredentials}
-                title={
-                  isCredentials
-                    ? undefined
-                    : "Subscription authentication is wired in the next slice"
+                disabled={
+                  !isCredentials &&
+                  controls.oauthActivity !== undefined &&
+                  controls.oauthActivity.providerId !== method.providerId
                 }
-                aria-expanded={isCredentials ? isExpanded : undefined}
-                aria-controls={isCredentials ? panelId : undefined}
+                aria-expanded={isExpanded}
+                aria-controls={panelId}
                 onClick={() => {
-                  if (!isCredentials) return;
                   onToggle({
                     key,
                     providerName: provider.name,
@@ -162,24 +188,31 @@ function ProviderRow({
         </span>
       </div>
 
-      {expanded &&
+      {expanded?.method.type === "credentials" &&
         provider.methods.some(
           (method) =>
             method.type === "credentials" &&
             `${method.providerId}:${method.id}` === expanded.key,
         ) && (
           <CredentialForm
-            id={`provider-credentials-${toDomId(expanded.key)}`}
+            id={`provider-auth-${toDomId(expanded.key)}`}
             providerName={expanded.providerName}
             method={expanded.method}
-            onBack={() => {
-              const key = expanded.key;
-              onBack();
-              requestAnimationFrame(() =>
-                methodButtons.current.get(key)?.focus(),
-              );
-            }}
             onConnected={() => onConnected(expanded.key)}
+            controls={controls}
+          />
+        )}
+
+      {expanded?.method.type === "oauth" &&
+        provider.methods.some(
+          (method) =>
+            method.type === "oauth" &&
+            `${method.providerId}:${method.id}` === expanded.key,
+        ) && (
+          <OAuthFlowPanel
+            id={`provider-auth-${toDomId(expanded.key)}`}
+            providerName={expanded.providerName}
+            method={expanded.method}
             controls={controls}
           />
         )}
@@ -191,14 +224,12 @@ function CredentialForm({
   id,
   providerName,
   method,
-  onBack,
   onConnected,
   controls,
 }: {
   id: string;
   providerName: string;
   method: CredentialMethod;
-  onBack: () => void;
   onConnected: () => void;
   controls: AgentControls;
 }) {
@@ -219,14 +250,6 @@ function CredentialForm({
           {providerName} is connected.
         </p>
         <div className="provider-credentials__actions">
-          <button
-            type="button"
-            className="chat-button"
-            data-variant="secondary"
-            onClick={onBack}
-          >
-            Back to providers
-          </button>
           <button
             ref={chooseModelRef}
             type="button"
@@ -355,6 +378,14 @@ function CredentialForm({
   );
 }
 
+function isTerminalOAuthFlow(flow: OAuthFlowState | undefined): boolean {
+  return (
+    flow?.type === "success" ||
+    flow?.type === "failure" ||
+    flow?.type === "cancelled"
+  );
+}
+
 function readCredentialValues(
   form: HTMLFormElement,
   method: CredentialMethod,
@@ -400,7 +431,11 @@ function CredentialSourceHelp({
   id: string;
   reference: CredentialReference;
 }) {
-  const authFile = <code>~/.pi/agent/auth.json</code>;
+  const authFile = (
+    <>
+      UIX’s app-owned Pi profile (<code>auth.json</code>)
+    </>
+  );
   return (
     <div
       id={id}

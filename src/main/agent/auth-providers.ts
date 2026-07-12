@@ -4,21 +4,61 @@ type AuthMethod = AuthProvider["methods"][number];
 type CredentialMethod = Extract<AuthMethod, { type: "credentials" }>;
 type MethodConnection = NonNullable<AuthMethod["connection"]>;
 
+interface OAuthStartActionRecipe {
+  id: string;
+  label: string;
+  primary: boolean;
+  /** Pre-answer the provider's first matching onSelect callback. */
+  initialSelection?: string;
+}
+
 interface ProviderSetupRecipe {
   displayName?: string;
   /** Combines this backend provider into another presentation row. */
   mergeInto?: string;
   /** Model providers offer generic API-key setup unless explicitly disabled. */
   api?: false;
+  oauthStartActions?: readonly OAuthStartActionRecipe[];
 }
 
 const providerSetupRecipes: Record<string, ProviderSetupRecipe> = {
-  anthropic: { displayName: "Anthropic (Claude)" },
+  anthropic: {
+    displayName: "Anthropic (Claude)",
+    oauthStartActions: [
+      { id: "browser", label: "Sign in with browser", primary: true },
+    ],
+  },
+  "github-copilot": {
+    oauthStartActions: [
+      { id: "device-code", label: "Sign in with GitHub", primary: true },
+    ],
+  },
   openai: { displayName: "OpenAI (ChatGPT)" },
   // ChatGPT subscription tokens authenticate the Codex provider. Standard
   // OpenAI API keys belong to the separate `openai` model provider.
-  "openai-codex": { api: false, mergeInto: "openai" },
+  "openai-codex": {
+    api: false,
+    mergeInto: "openai",
+    oauthStartActions: [
+      {
+        id: "browser",
+        label: "Browser login",
+        primary: true,
+        initialSelection: "browser",
+      },
+      {
+        id: "device-code",
+        label: "Device code login",
+        primary: false,
+        initialSelection: "device_code",
+      },
+    ],
+  },
 };
+
+const defaultOAuthStartActions: readonly OAuthStartActionRecipe[] = [
+  { id: "sign-in", label: "Sign in", primary: true },
+];
 
 interface ProviderAuthStatus {
   configured: boolean;
@@ -90,6 +130,9 @@ export function listAuthProviders(
       type: "oauth",
       providerId: oauth.id,
       label: "Subscription",
+      startActions: oauthStartActions(oauth.id).map(
+        ({ id, label, primary }) => ({ id, label, primary }),
+      ),
       ...(currentConnection && { connection: currentConnection }),
     });
   }
@@ -98,6 +141,19 @@ export function listAuthProviders(
     const rank = toProviderRank(a) - toProviderRank(b);
     return rank || a.name.localeCompare(b.name);
   });
+}
+
+export function resolveOAuthStartAction(
+  providerId: string,
+  actionId: string,
+): { initialSelection?: string } | undefined {
+  const action = oauthStartActions(providerId).find(
+    (candidate) => candidate.id === actionId,
+  );
+  if (!action) return undefined;
+  return action.initialSelection === undefined
+    ? {}
+    : { initialSelection: action.initialSelection };
 }
 
 /** Resolve only credential methods present in the catalog offered to surfaces. */
@@ -114,6 +170,15 @@ export function findOfferedCredentialMethod(
     if (method?.type === "credentials") return method;
   }
   return undefined;
+}
+
+function oauthStartActions(
+  providerId: string,
+): readonly OAuthStartActionRecipe[] {
+  return (
+    providerSetupRecipes[providerId]?.oauthStartActions ??
+    defaultOAuthStartActions
+  );
 }
 
 function getOrCreateAuthProvider(

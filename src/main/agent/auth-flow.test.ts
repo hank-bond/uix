@@ -101,14 +101,22 @@ describe("OAuth flow coordinator", () => {
       },
     });
 
-    const { flowId } = await harness.coordinator.begin("fake");
+    const { flowId } = await harness.coordinator.begin("fake", "sign-in");
     expect(harness.states.map((state) => state.type)).toEqual([
       "authorization",
       "device_code",
       "progress",
       "prompt",
     ]);
-    expect(harness.opened).toEqual(["https://provider.example/authorize"]);
+    expect(
+      harness.states.every(
+        (state) => state.providerId === "fake" && state.actionId === "sign-in",
+      ),
+    ).toBe(true);
+    expect(harness.opened).toEqual([
+      "https://provider.example/authorize",
+      "https://provider.example/device",
+    ]);
 
     const prompt = harness.coordinator.current();
     expect(prompt?.type).toBe("prompt");
@@ -142,9 +150,40 @@ describe("OAuth flow coordinator", () => {
       type: "success",
       flowId,
       providerId: "fake",
+      actionId: "sign-in",
     });
     expect(harness.refresh).toHaveBeenCalledOnce();
     expect(harness.availabilityChanged).toHaveBeenCalledOnce();
+  });
+
+  it("consumes a validated initial selection before publishing provider flow state", async () => {
+    const selected: string[] = [];
+    const harness = createHarness({
+      login: async (callbacks) => {
+        selected.push(
+          (await callbacks.onSelect({
+            message: "Choose login method",
+            options: [
+              { id: "browser", label: "Browser" },
+              { id: "device_code", label: "Device code" },
+            ],
+          })) ?? "",
+        );
+        callbacks.onAuth({ url: "https://provider.example/authorize" });
+        await new Promise<void>((resolve) =>
+          callbacks.signal?.addEventListener("abort", () => resolve()),
+        );
+      },
+    });
+
+    await harness.coordinator.begin("fake", "browser", "browser");
+    await settle();
+
+    expect(selected).toEqual(["browser"]);
+    expect(harness.states.map((state) => state.type)).toEqual([
+      "authorization",
+    ]);
+    expect(harness.opened).toEqual(["https://provider.example/authorize"]);
   });
 
   it("reopens only the active provider-supplied URL", async () => {
@@ -156,7 +195,7 @@ describe("OAuth flow coordinator", () => {
         );
       },
     });
-    const { flowId } = await harness.coordinator.begin("fake");
+    const { flowId } = await harness.coordinator.begin("fake", "sign-in");
 
     await harness.coordinator.reopen(flowId);
 
@@ -172,9 +211,9 @@ describe("OAuth flow coordinator", () => {
         await callbacks.onPrompt({ message: "Code" });
       },
     });
-    const { flowId } = await harness.coordinator.begin("fake");
+    const { flowId } = await harness.coordinator.begin("fake", "sign-in");
 
-    await expect(harness.coordinator.begin("fake")).rejects.toThrow(
+    await expect(harness.coordinator.begin("fake", "sign-in")).rejects.toThrow(
       "already active",
     );
     expect(() =>
@@ -199,14 +238,19 @@ describe("OAuth flow coordinator", () => {
         }
       },
     });
-    const { flowId } = await harness.coordinator.begin("fake");
+    const { flowId } = await harness.coordinator.begin("fake", "sign-in");
 
     harness.coordinator.cancel(flowId);
     await settle();
 
     expect(signal?.aborted).toBe(true);
     expect(promptRejected).toBe(true);
-    expect(harness.states.at(-1)).toEqual({ type: "cancelled", flowId });
+    expect(harness.states.at(-1)).toEqual({
+      type: "cancelled",
+      flowId,
+      providerId: "fake",
+      actionId: "sign-in",
+    });
 
     const second = createHarness({
       login: async (callbacks) => {
@@ -214,7 +258,7 @@ describe("OAuth flow coordinator", () => {
         await callbacks.onPrompt({ message: "Code" });
       },
     });
-    await second.coordinator.begin("fake");
+    await second.coordinator.begin("fake", "sign-in");
     second.coordinator[Symbol.dispose]();
     await settle();
     expect(signal?.aborted).toBe(true);
@@ -225,12 +269,14 @@ describe("OAuth flow coordinator", () => {
     const harness = createHarness({
       login: () => Promise.reject(new Error("provider unavailable")),
     });
-    const { flowId } = await harness.coordinator.begin("fake");
+    const { flowId } = await harness.coordinator.begin("fake", "sign-in");
     await settle();
 
     expect(harness.states).toContainEqual({
       type: "failure",
       flowId,
+      providerId: "fake",
+      actionId: "sign-in",
       message: "provider unavailable",
     });
     expect(harness.refresh).not.toHaveBeenCalled();

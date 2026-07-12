@@ -1,5 +1,11 @@
 import type { OAuthFlowState } from "@uix/api/agent-channels";
 
+type OAuthFlowStateInput = OAuthFlowState extends infer State
+  ? State extends OAuthFlowState
+    ? Omit<State, "providerId" | "actionId">
+    : never
+  : never;
+
 interface OAuthCallbacks {
   onAuth(info: { url: string; instructions?: string }): void;
   onDeviceCode(info: {
@@ -46,11 +52,13 @@ interface PendingAnswer {
 interface ActiveFlow {
   id: string;
   providerId: string;
+  actionId: string;
   usesCallbackServer: boolean;
   abort: AbortController;
   currentUrl?: string;
   state?: OAuthFlowState;
   pending?: PendingAnswer;
+  initialSelection?: string;
 }
 
 interface CreateOAuthFlowCoordinatorOptions {
@@ -61,7 +69,11 @@ interface CreateOAuthFlowCoordinatorOptions {
 }
 
 export interface OAuthFlowCoordinator extends Disposable {
-  begin(providerId: string): Promise<{ flowId: string }>;
+  begin(
+    providerId: string,
+    actionId: string,
+    initialSelection?: string,
+  ): Promise<{ flowId: string }>;
   answer(flowId: string, promptId: string, value: string): void;
   reopen(flowId: string): Promise<void>;
   cancel(flowId: string): void;
@@ -83,8 +95,13 @@ export function createOAuthFlowCoordinator(
     return active;
   }
 
-  function publish(flow: ActiveFlow, state: OAuthFlowState): void {
+  function publish(flow: ActiveFlow, input: OAuthFlowStateInput): void {
     if (active !== flow || flow.abort.signal.aborted) return;
+    const state = {
+      ...input,
+      providerId: flow.providerId,
+      actionId: flow.actionId,
+    };
     flow.state = state;
     opts.onState(state);
   }
@@ -92,8 +109,14 @@ export function createOAuthFlowCoordinator(
   function waitForAnswer(
     flow: ActiveFlow,
     state:
-      | Omit<Extract<OAuthFlowState, { type: "prompt" }>, "promptId">
-      | Omit<Extract<OAuthFlowState, { type: "select" }>, "promptId">,
+      | Omit<
+          Extract<OAuthFlowState, { type: "prompt" }>,
+          "providerId" | "actionId" | "promptId"
+        >
+      | Omit<
+          Extract<OAuthFlowState, { type: "select" }>,
+          "providerId" | "actionId" | "promptId"
+        >,
     allowEmpty: boolean,
   ): Promise<string> {
     flow.pending?.reject(new Error("OAuth prompt was replaced"));
@@ -114,7 +137,12 @@ export function createOAuthFlowCoordinator(
     rejectPending(flow, "OAuth login cancelled");
     if (active !== flow) return;
     if (publishCancellation) {
-      const state = { type: "cancelled", flowId: flow.id } as const;
+      const state = {
+        type: "cancelled",
+        flowId: flow.id,
+        providerId: flow.providerId,
+        actionId: flow.actionId,
+      } as const;
       flow.state = state;
       opts.onState(state);
     }
@@ -149,6 +177,9 @@ export function createOAuthFlowCoordinator(
               expiresInSeconds: info.expiresInSeconds,
             }),
           });
+          void Promise.resolve(opts.openExternal(info.verificationUri)).catch(
+            () => {},
+          );
         },
         onPrompt: (prompt) =>
           waitForAnswer(
@@ -175,8 +206,18 @@ export function createOAuthFlowCoordinator(
             },
             false,
           ),
-        onSelect: (prompt) =>
-          waitForAnswer(
+        onSelect: (prompt) => {
+          if (flow.initialSelection !== undefined) {
+            const selection = flow.initialSelection;
+            flow.initialSelection = undefined;
+            if (!prompt.options.some((option) => option.id === selection)) {
+              return Promise.reject(
+                new Error(`OAuth selection is not offered: ${selection}`),
+              );
+            }
+            return Promise.resolve(selection);
+          }
+          return waitForAnswer(
             flow,
             {
               type: "select",
@@ -185,7 +226,8 @@ export function createOAuthFlowCoordinator(
               options: prompt.options,
             },
             false,
-          ),
+          );
+        },
         signal: flow.abort.signal,
       });
       if (active !== flow || flow.abort.signal.aborted) return;
@@ -194,7 +236,6 @@ export function createOAuthFlowCoordinator(
       publish(flow, {
         type: "success",
         flowId: flow.id,
-        providerId: flow.providerId,
       });
       active = undefined;
       opts.onAvailabilityChange();
@@ -211,7 +252,7 @@ export function createOAuthFlowCoordinator(
   }
 
   return {
-    async begin(providerId) {
+    async begin(providerId, actionId, initialSelection) {
       if (disposed) throw new Error("OAuth coordinator is disposed");
       if (active) throw new Error(`OAuth flow already active: ${active.id}`);
       const registry = await opts.modelRegistry();
@@ -222,8 +263,10 @@ export function createOAuthFlowCoordinator(
       const flow: ActiveFlow = {
         id: `flow-${nextFlowId++}`,
         providerId,
+        actionId,
         usesCallbackServer: provider.usesCallbackServer ?? false,
         abort: new AbortController(),
+        ...(initialSelection !== undefined && { initialSelection }),
       };
       active = flow;
       void run(flow, registry);

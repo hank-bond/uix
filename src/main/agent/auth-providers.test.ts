@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   findOfferedCredentialMethod,
   listAuthProviders,
+  resolveOAuthStartAction,
 } from "./auth-providers";
 
 function registry() {
@@ -52,6 +53,9 @@ describe("auth provider discovery", () => {
         type: "oauth",
         providerId: "anthropic",
         label: "Subscription",
+        startActions: [
+          { id: "browser", label: "Sign in with browser", primary: true },
+        ],
       },
       {
         type: "credentials",
@@ -126,6 +130,14 @@ describe("auth provider discovery", () => {
           type: "oauth",
           providerId: "openai-codex",
           label: "Subscription",
+          startActions: [
+            { id: "browser", label: "Browser login", primary: true },
+            {
+              id: "device-code",
+              label: "Device code login",
+              primary: false,
+            },
+          ],
         },
         {
           id: "api-key",
@@ -138,6 +150,20 @@ describe("auth provider discovery", () => {
     expect(
       listAuthProviders(value).some(({ id }) => id === "openai-codex"),
     ).toBe(false);
+  });
+
+  it("resolves catalog action ids to provider runtime selections", () => {
+    expect(resolveOAuthStartAction("openai-codex", "browser")).toEqual({
+      initialSelection: "browser",
+    });
+    expect(resolveOAuthStartAction("openai-codex", "device-code")).toEqual({
+      initialSelection: "device_code",
+    });
+    expect(resolveOAuthStartAction("github-copilot", "device-code")).toEqual(
+      {},
+    );
+    expect(resolveOAuthStartAction("custom", "sign-in")).toEqual({});
+    expect(resolveOAuthStartAction("openai-codex", "missing")).toBeUndefined();
   });
 
   it("treats externally sourced auth as connected", () => {

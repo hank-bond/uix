@@ -117,7 +117,10 @@ describe("channel clients", () => {
       methodId: "api-key",
       values: { apiKey: "secret-key" },
     });
-    await agent.requests.begin_oauth_flow({ providerId: "anthropic" });
+    await agent.requests.begin_oauth_flow({
+      providerId: "openai-codex",
+      actionId: "browser",
+    });
     await agent.requests.answer_oauth_flow({
       flowId: "flow-1",
       promptId: "prompt-1",
@@ -135,7 +138,8 @@ describe("channel clients", () => {
       values: { apiKey: "secret-key" },
     });
     expect(request).toHaveBeenCalledWith("agent.begin_oauth_flow", {
-      providerId: "anthropic",
+      providerId: "openai-codex",
+      actionId: "browser",
     });
     expect(subscribe).toHaveBeenCalledWith(
       "agent.oauth_flow_changed",
@@ -146,6 +150,8 @@ describe("channel clients", () => {
     wrapped?.({
       type: "prompt",
       flowId: "flow-1",
+      providerId: "anthropic",
+      actionId: "browser",
       promptId: "prompt-1",
       message: "Paste code",
       allowEmpty: false,

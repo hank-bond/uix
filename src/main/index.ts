@@ -329,7 +329,8 @@ async function openWorkspace(
           handle: () => driver.currentOAuthFlow() ?? null,
         },
         begin_oauth_flow: {
-          handle: ({ providerId }) => driver.beginOAuthFlow(providerId),
+          handle: ({ providerId, actionId }) =>
+            driver.beginOAuthFlow(providerId, actionId),
         },
         answer_oauth_flow: {
           handle: ({ flowId, promptId, value }) => {
