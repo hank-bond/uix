@@ -273,11 +273,6 @@
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.35);
 }
 
-.model-picker:focus-within {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-
 .model-picker__tabs {
   display: flex;
   gap: 0.2rem;
@@ -318,6 +313,7 @@
 .model-picker__list {
   overflow: auto;
   max-height: 14rem;
+  scroll-behavior: auto;
   margin: 0;
   padding: 0 0.25rem 0.25rem;
   list-style: none;

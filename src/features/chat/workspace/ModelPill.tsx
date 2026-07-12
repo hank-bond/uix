@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
 import type { ModelOption } from "@uix/api/agent-channels";
 
@@ -64,14 +64,19 @@ function ModelPicker({
   );
   const [favoritePending, setFavoritePending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const positionedScopes = useRef<Set<ModelPickerScope>>(
+    new Set(initialQuery ? ["all"] : []),
+  );
+  const scopeScrollPositions = useRef(new Map<ModelPickerScope, number>());
   const inputId = useId();
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (scope === undefined && controls.models !== undefined) {
       setScope(getInitialModelScope(controls.models, initialQuery));
     }
@@ -89,6 +94,53 @@ function ModelPicker({
   const scopedModels = getModelsForScope(controls.models ?? [], activeScope);
   const filtered = filterModels(scopedModels, query);
   const current = controls.status?.model ?? controls.status?.defaultModel;
+
+  useLayoutEffect(() => {
+    if (scope === undefined || controls.models === undefined) return;
+
+    const list = listRef.current;
+    if (positionedScopes.current.has(scope)) {
+      const savedScrollTop = scopeScrollPositions.current.get(scope);
+      if (list && savedScrollTop !== undefined) {
+        list.scrollTop = savedScrollTop;
+      }
+      return;
+    }
+    if (query) {
+      positionedScopes.current.add(scope);
+      if (list) list.scrollTop = 0;
+      scopeScrollPositions.current.set(scope, 0);
+      return;
+    }
+    if (!current) return;
+
+    const row = list?.querySelector<HTMLElement>('[data-current-model="true"]');
+    positionedScopes.current.add(scope);
+    if (!list || !row) {
+      if (list) list.scrollTop = 0;
+      scopeScrollPositions.current.set(scope, 0);
+      return;
+    }
+
+    const listBounds = list.getBoundingClientRect();
+    const rowBounds = row.getBoundingClientRect();
+    const rowOffsetInViewport = rowBounds.top - listBounds.top;
+    const scrollTop = Math.max(
+      0,
+      list.scrollTop +
+        rowOffsetInViewport -
+        (list.clientHeight - rowBounds.height) / 2,
+    );
+    list.scrollTop = scrollTop;
+    scopeScrollPositions.current.set(scope, list.scrollTop);
+  }, [controls.models, current, query, scope]);
+
+  const switchScope = (nextScope: ModelPickerScope) => {
+    if (listRef.current) {
+      scopeScrollPositions.current.set(activeScope, listRef.current.scrollTop);
+    }
+    setScope(nextScope);
+  };
 
   const select = async (model: ModelOption) => {
     setError(undefined);
@@ -129,7 +181,7 @@ function ModelPicker({
           type="button"
           className="model-picker__tab"
           aria-pressed={activeScope === "favorites"}
-          onClick={() => setScope("favorites")}
+          onClick={() => switchScope("favorites")}
         >
           Favorites
         </button>
@@ -137,7 +189,7 @@ function ModelPicker({
           type="button"
           className="model-picker__tab"
           aria-pressed={activeScope === "all"}
-          onClick={() => setScope("all")}
+          onClick={() => switchScope("all")}
         >
           All models
         </button>
@@ -177,14 +229,27 @@ function ModelPicker({
         ) : filtered.length === 0 ? (
           <div className="model-picker__note">no matches</div>
         ) : (
-          <ul className="model-picker__list">
+          <ul
+            className="model-picker__list"
+            ref={listRef}
+            onScroll={(event) =>
+              scopeScrollPositions.current.set(
+                activeScope,
+                event.currentTarget.scrollTop,
+              )
+            }
+          >
             {filtered.map((model) => {
               const key = `${model.provider}/${model.id}`;
               const source = toModelSource(model);
               const isCurrent =
                 model.provider === current?.provider && model.id === current.id;
               return (
-                <li className="model-picker__row" key={key}>
+                <li
+                  className="model-picker__row"
+                  key={key}
+                  data-current-model={isCurrent ? "true" : undefined}
+                >
                   <button
                     type="button"
                     className="model-picker__option"
