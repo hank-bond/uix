@@ -5,9 +5,19 @@ import type { ModelOption } from "@uix/api/agent-channels";
 import { filterModels, toModelSource } from "./model-filter";
 
 const models: ModelOption[] = [
-  { provider: "anthropic", id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5" },
-  { provider: "anthropic", id: "claude-opus-4-1", name: "Claude Opus 4.1" },
-  { provider: "openai", id: "gpt-5", name: "GPT-5" },
+  {
+    provider: "anthropic",
+    id: "claude-sonnet-4-5",
+    name: "Claude Sonnet 4.5",
+    favorite: false,
+  },
+  {
+    provider: "anthropic",
+    id: "claude-opus-4-1",
+    name: "Claude Opus 4.1",
+    favorite: false,
+  },
+  { provider: "openai", id: "gpt-5", name: "GPT-5", favorite: false },
 ];
 
 describe("toModelSource", () => {
@@ -21,6 +31,7 @@ describe("toModelSource", () => {
         provider: "openrouter",
         id: "anthropic/claude-opus-4.5",
         name: "Anthropic: Claude Opus 4.5",
+        favorite: false,
       }),
     ).toBe("openrouter/anthropic");
   });
@@ -31,6 +42,7 @@ describe("toModelSource", () => {
         provider: "gateway",
         id: "team/anthropic/claude-opus",
         name: "Claude Opus",
+        favorite: false,
       }),
     ).toBe("gateway/team/anthropic");
   });

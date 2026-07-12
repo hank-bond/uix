@@ -6,6 +6,7 @@
 // duplicate-scope check.
 
 import { ModelRefSchema } from "@uix/api/agent-channels";
+import { Type } from "typebox";
 import { defineSettings } from "@uix/api/settings";
 
 export const AgentSettingsNamespace = "agent";
@@ -18,5 +19,9 @@ export const agentWorkspaceSettings = defineSettings({
    */
   defaultModel: {
     schema: ModelRefSchema,
+  },
+  /** Workspace-local shortlist; unavailable entries remain for reconnects. */
+  favoriteModels: {
+    schema: Type.Array(ModelRefSchema),
   },
 });

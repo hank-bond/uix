@@ -292,9 +292,13 @@ describe("ChannelRegistry", () => {
                 provider: "anthropic",
                 id: "claude-sonnet-4-5",
                 name: "Claude Sonnet 4.5",
+                favorite: false,
               },
             ],
           }),
+        },
+        set_model_favorite: {
+          handle: () => ({ models: [] }),
         },
         // Both fields absent — the explicit "no model chosen" status.
         agent_status: { handle: () => ({}) },
@@ -319,6 +323,13 @@ describe("ChannelRegistry", () => {
     await expect(
       transport.handlers.get("agent.agent_status")?.(undefined),
     ).resolves.toEqual({});
+    await expect(
+      transport.handlers.get("agent.set_model_favorite")?.({
+        provider: "anthropic",
+        id: "claude-sonnet-4-5",
+        favorite: true,
+      }),
+    ).resolves.toEqual({ models: [] });
 
     const credentialLog = transport.handleLogs.get(
       "agent.save_provider_credentials",
@@ -334,6 +345,14 @@ describe("ChannelRegistry", () => {
     expect(JSON.stringify(credentialDescription)).not.toContain(
       "test-secret-api-key",
     );
+
+    await expect(
+      transport.handlers.get("agent.set_model_favorite")?.({
+        provider: "anthropic",
+        id: "claude-sonnet-4-5",
+        favorite: "yes",
+      }),
+    ).rejects.toThrow();
 
     // Malformed select requests reject at the schema, before any handler.
     await expect(

@@ -1,5 +1,5 @@
 ---
-summary: "How the substrate drives the agent today: it lazily owns a persisted pi AgentSession, forwards a UIX-shaped event stream to the renderer, exposes model list/status/select channels over pi's model registry, delegates reload, binds the core anchored document read/write/edit tools, and flushes registered agent-context contributions as display-hidden custom entries at agent-run prep."
+summary: "How the substrate drives the agent today: it lazily owns a persisted pi AgentSession, forwards a UIX-shaped event stream to the renderer, exposes model list/favorite/status/select channels over pi's model registry, delegates reload, binds the core anchored document read/write/edit tools, and flushes registered agent-context contributions as display-hidden custom entries at agent-run prep."
 status: active
 ---
 
@@ -20,9 +20,10 @@ Electron gives Pi one app-owned profile at `<userData>/pi`, shared by every UIX 
 
 ## Model control
 
-The driver owns one lazy Pi `AgentSessionServices` tier above the session: `AuthStorage`, `ModelRegistry`, settings, and the loaded resource/extension set. Model questions are therefore answerable before the first prompt, including models registered by Pi extensions; session creation reuses the same services rather than loading an overlapping copy. Three requests and one event on the agent contract:
+The driver owns one lazy Pi `AgentSessionServices` tier above the session: `AuthStorage`, `ModelRegistry`, settings, and the loaded resource/extension set. Model questions are therefore answerable before the first prompt, including models registered by Pi extensions; session creation reuses the same services rather than loading an overlapping copy. Four requests and one event on the agent contract:
 
-- `list_models` (`void → { models: ModelOption[] }`) — **available (auth-configured) models only**, refreshed from pi's registry on each call. If nothing is authenticated the list is empty; provider authentication changes emit `model_availability_changed` so consumers can fetch it again.
+- `list_models` (`void → { models: ModelOption[] }`) — **available (auth-configured) models only**, refreshed from pi's registry on each call and decorated with each model's workspace-local `favorite` status. If nothing is authenticated the list is empty; provider authentication changes emit `model_availability_changed` so consumers can fetch it again.
+- `set_model_favorite` (`ModelRef & { favorite: boolean } → { models: ModelOption[] }`) — idempotently adds or removes a model from `agent.favoriteModels`, then returns the refreshed available-model list. Favorite references survive provider disconnection and become visible again after reconnecting.
 - `agent_status` (`void → AgentStatus`) — `model` is the live session model (absent until a session exists, and absent even then when pi resolved none); `defaultModel` is the workspace default (absent until first selected). Both absent means "no model chosen": the UI renders that state, UIX invents no fallback.
 - `select_model` (`ModelRef → AgentStatus`) — validated against pi's available models (unknown/unauthenticated refs reject), persisted as the workspace default (`agent.defaultModel`, see [`settings.md`](./settings.md)), and — when a live session exists — switched via `session.setModel`, producing a native pi `model_change` entry.
 - `status_changed` (event, `AgentStatus`) — fired on selection, when a session opens and its model becomes known, and on any live pi model change (setModel, cycle commands, restore), mirrored through pi's `model_select` extension event.

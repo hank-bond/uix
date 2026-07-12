@@ -96,13 +96,20 @@ export const ModelRefSchema = Type.Object({
 });
 export type ModelRef = Static<typeof ModelRefSchema>;
 
-/** A selectable model: a ref plus its display name. */
+/** A selectable model plus its workspace-local favorite status. */
 export const ModelOptionSchema = Type.Object({
   provider: Type.String(),
   id: Type.String(),
   name: Type.String(),
+  favorite: Type.Boolean(),
 });
 export type ModelOption = Static<typeof ModelOptionSchema>;
+
+export const ModelFavoriteUpdateSchema = Type.Object({
+  ...ModelRefSchema.properties,
+  favorite: Type.Boolean(),
+});
+export type ModelFavoriteUpdate = Static<typeof ModelFavoriteUpdateSchema>;
 
 /**
  * Model status shown by agent controls. `model` is the live session model —
@@ -300,9 +307,13 @@ export const agentChannels = {
       requestSchema: Type.Void(),
       responseSchema: TranscriptSnapshotSchema,
     },
-    /** Available (auth-configured) models only. */
+    /** Available (auth-configured) models with workspace favorite status. */
     list_models: {
       requestSchema: Type.Void(),
+      responseSchema: ModelListSchema,
+    },
+    set_model_favorite: {
+      requestSchema: ModelFavoriteUpdateSchema,
       responseSchema: ModelListSchema,
     },
     agent_status: {

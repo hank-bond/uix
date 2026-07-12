@@ -1,6 +1,6 @@
-// Driver model-service behavior (plan: agent-controls A1) against a mocked
-// pi sdk: list/status/select before any session, workspace-default
-// application at session open, and live model mirroring afterward.
+// Driver model-service behavior against a mocked pi sdk: list/favorite/status/
+// select before any session, workspace-default application at session open,
+// and live model mirroring afterward.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -225,8 +225,14 @@ describe("driver model service (pre-session)", () => {
         provider: "anthropic",
         id: "claude-sonnet-4-5",
         name: "Claude Sonnet 4.5",
+        favorite: false,
       },
-      { provider: "openai", id: "gpt-5", name: "GPT-5" },
+      {
+        provider: "openai",
+        id: "gpt-5",
+        name: "GPT-5",
+        favorite: false,
+      },
     ]);
     expect(sdk.state.session).toBeUndefined();
     expect(sdk.state.servicesLoads).toBe(1);
@@ -250,8 +256,73 @@ describe("driver model service (pre-session)", () => {
       provider: "extension-provider",
       id: "extension-model",
       name: "Extension Model",
+      favorite: false,
     });
     expect(sdk.state.session).toBeUndefined();
+  });
+
+  it("decorates available models from workspace favorites", async () => {
+    const settings = fakeSettings();
+    settings.values.set("favoriteModels", [
+      { provider: "openai", id: "gpt-5" },
+      { provider: "google", id: "gemini" },
+    ]);
+    const { driver } = createDriver(settings);
+
+    expect(await driver.listModels()).toEqual([
+      {
+        provider: "anthropic",
+        id: "claude-sonnet-4-5",
+        name: "Claude Sonnet 4.5",
+        favorite: false,
+      },
+      {
+        provider: "openai",
+        id: "gpt-5",
+        name: "GPT-5",
+        favorite: true,
+      },
+    ]);
+    expect(settings.values.get("favoriteModels")).toEqual([
+      { provider: "openai", id: "gpt-5" },
+      { provider: "google", id: "gemini" },
+    ]);
+  });
+
+  it("adds and removes favorites idempotently", async () => {
+    const settings = fakeSettings();
+    const { driver } = createDriver(settings);
+    const update = {
+      provider: "anthropic",
+      id: "claude-sonnet-4-5",
+      favorite: true,
+    };
+
+    await driver.setModelFavorite(update);
+    const models = await driver.setModelFavorite(update);
+
+    expect(settings.values.get("favoriteModels")).toEqual([
+      { provider: "anthropic", id: "claude-sonnet-4-5" },
+    ]);
+    expect(models[0]?.favorite).toBe(true);
+
+    await driver.setModelFavorite({ ...update, favorite: false });
+    await driver.setModelFavorite({ ...update, favorite: false });
+    expect(settings.values.get("favoriteModels")).toEqual([]);
+  });
+
+  it("rejects adding an unknown model without changing favorites", async () => {
+    const settings = fakeSettings();
+    const { driver } = createDriver(settings);
+
+    await expect(
+      driver.setModelFavorite({
+        provider: "missing",
+        id: "unknown",
+        favorite: true,
+      }),
+    ).rejects.toThrow("Unknown model");
+    expect(settings.values.has("favoriteModels")).toBe(false);
   });
 
   it("does not initialize services on reload until they have been used", async () => {

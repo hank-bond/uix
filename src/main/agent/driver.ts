@@ -28,6 +28,7 @@ import type {
   AgentEvent,
   AgentStatus,
   AuthProvider,
+  ModelFavoriteUpdate,
   ModelOption,
   ModelRef,
   OAuthFlowState,
@@ -92,8 +93,10 @@ export interface AgentDriver extends Disposable {
    * is open — and, for a fresh session, until pi first persists an entry.
    */
   sessionFile(): string | undefined;
-  /** Available (auth-configured) models. Answerable before any session. */
+  /** Available models with workspace-local favorite status. */
   listModels(): Promise<ModelOption[]>;
+  /** Persist a favorite update and return the refreshed available model list. */
+  setModelFavorite(update: ModelFavoriteUpdate): Promise<ModelOption[]>;
   /** Live session model (when known) plus the workspace default. */
   status(): AgentStatus;
   /**
@@ -128,10 +131,9 @@ export interface AgentDriverOptions {
   /** App-owned Pi profile shared across UIX workspaces. */
   piProfileDir: string;
   /**
-   * Workspace `agent` settings namespace; holds the optional `defaultModel`.
-   * When absent (or unset), UIX passes no model and pi's own resolution
-   * applies — including resolving to no model at all when nothing is
-   * authenticated.
+   * Workspace `agent` settings namespace; holds model defaults and favorites.
+   * Without a default, UIX passes no model and pi's own resolution applies —
+   * including resolving to no model at all when nothing is authenticated.
    */
   agentSettings?: SettingsHandle;
   /** Fired whenever live/default model status changes. */
@@ -249,6 +251,26 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     opts.onStatusChange?.(status());
   }
 
+  function getFavoriteModels(): ModelRef[] {
+    return opts.agentSettings?.get<ModelRef[]>("favoriteModels") ?? [];
+  }
+
+  async function listModels(): Promise<ModelOption[]> {
+    const modelRegistry = await registry();
+    // Pick up models.json edits and freshly configured auth since the
+    // registry was created.
+    modelRegistry.refresh();
+    const favorites = getFavoriteModels();
+    return modelRegistry.getAvailable().map((model) => ({
+      provider: model.provider,
+      id: model.id,
+      name: model.name,
+      favorite: favorites.some(
+        (ref) => ref.provider === model.provider && ref.id === model.id,
+      ),
+    }));
+  }
+
   // Single accessor so both tiers share one manager. On failure, clear the
   // cache so the next caller retries instead of replaying a stale rejection.
   function manager(): Promise<SessionManager> {
@@ -348,17 +370,35 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     },
 
     status,
+    listModels,
 
-    async listModels() {
-      const modelRegistry = await registry();
-      // Pick up models.json edits and freshly configured auth since the
-      // registry was created.
-      modelRegistry.refresh();
-      return modelRegistry.getAvailable().map((model) => ({
-        provider: model.provider,
-        id: model.id,
-        name: model.name,
-      }));
+    async setModelFavorite({ provider, id, favorite }) {
+      if (!opts.agentSettings) {
+        throw new Error("Workspace agent settings are unavailable");
+      }
+
+      const current = getFavoriteModels();
+      const alreadyFavorite = current.some(
+        (ref) => ref.provider === provider && ref.id === id,
+      );
+      if (favorite && !alreadyFavorite) {
+        const modelRegistry = await registry();
+        modelRegistry.refresh();
+        if (!modelRegistry.find(provider, id)) {
+          throw new Error(`Unknown model: ${provider}/${id}`);
+        }
+        opts.agentSettings.set("favoriteModels", [
+          ...current,
+          { provider, id },
+        ]);
+      } else if (!favorite && alreadyFavorite) {
+        opts.agentSettings.set(
+          "favoriteModels",
+          current.filter((ref) => ref.provider !== provider || ref.id !== id),
+        );
+      }
+
+      return listModels();
     },
 
     listAuthProviders: async () =>

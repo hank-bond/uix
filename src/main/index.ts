@@ -311,6 +311,11 @@ async function openWorkspace(
         list_models: {
           handle: async () => ({ models: await driver.listModels() }),
         },
+        set_model_favorite: {
+          handle: async (update) => ({
+            models: await driver.setModelFavorite(update),
+          }),
+        },
         agent_status: {
           handle: () => driver.status(),
         },
