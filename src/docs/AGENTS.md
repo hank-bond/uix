@@ -23,6 +23,6 @@ Pages marked _(stub)_ are placeholders that fill in as the corresponding primiti
 - **[features](./features.md)** _(active)_ — Feature entries are trusted local TS/JS modules listed explicitly in uix.workspace.json; each default-exports a FeatureDefinition loaded with jiti, lifetime-scoped under the reload bag, and wired only through @uix/api.
 - **[lifetimes](./lifetimes.md)** _(active)_ — DisposableBag owns cleanup for app lifetime, reloadable feature activations, window registrations, and the agent driver; feature authors get cleanup through registered contributions rather than direct bag access.
 - **[settings](./settings.md)** _(active)_ — Durable settings in uix.workspace.json, two scopes: feature settings declared as TypeBox schemas and hydrated into manifest feature entries, and substrate-owned workspace namespaces (e.g. agent.defaultModel) under top-level settings.
-- **[state](./state.md)** _(active)_ — UIX persists the pi session under the workspace state root, stores canvas documents in the local document store, and exposes feature-scoped durable JSON preferences through ctx.settings.
+- **[state](./state.md)** _(active)_ — UIX persists each pi session under its workspace state root, shares one app-owned Pi profile across workspaces, stores canvas documents in the local document store, and exposes feature-scoped durable JSON preferences through ctx.settings.
 
 <!-- INDEX:END -->

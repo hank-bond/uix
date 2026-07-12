@@ -1,5 +1,5 @@
 ---
-summary: "UIX persists the pi session under the workspace state root, stores canvas documents in the local document store, and exposes feature-scoped durable JSON preferences through ctx.settings."
+summary: "UIX persists each pi session under its workspace state root, shares one app-owned Pi profile across workspaces, stores canvas documents in the local document store, and exposes feature-scoped durable JSON preferences through ctx.settings."
 status: active
 ---
 
@@ -10,6 +10,7 @@ UIX exposes feature-scoped workspace settings for durable JSON preferences via `
 Current shipped state behavior:
 
 - The substrate-owned pi session is resumed or created under the workspace state root (`src/main/agent/driver.ts`).
+- Pi's profile-level auth, settings, models, and resources live in the app-owned `<userData>/pi`, shared across UIX workspaces and isolated from the host Pi profile; project-local `.pi` settings and resources still derive from the workspace agent cwd.
 - Canvas HTML is stored by key in the local document store (`src/main/documents/store.ts`) under the `canvas` namespace.
 - Canvas keys are validated slash-namespaced slugs, not filesystem paths.
 - Canvas writes go through the `canvas__anchor_write` tool and broadcast `canvasChanged { key }`.

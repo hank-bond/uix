@@ -121,6 +121,8 @@ export interface AgentDriverOptions {
   agentContext?: AgentContextRegistry;
   /** State root (pins the session dir) + agent cwd. */
   workspace: Workspace;
+  /** App-owned Pi profile shared across UIX workspaces. */
+  piProfileDir: string;
   /**
    * Workspace `agent` settings namespace; holds the optional `defaultModel`.
    * When absent (or unset), UIX passes no model and pi's own resolution
@@ -207,7 +209,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       const sdk = await import("@earendil-works/pi-coding-agent");
       return sdk.createAgentSessionServices({
         cwd: opts.workspace.agentCwd,
-        agentDir: sdk.getAgentDir(),
+        agentDir: opts.piProfileDir,
         resourceLoaderOptions: {
           extensionFactories: [createUixCoreExtension(agentInstallers)],
         },

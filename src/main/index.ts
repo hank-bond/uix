@@ -146,6 +146,7 @@ async function openWorkspace(
   appBag: DisposableBag,
   recents: RecentsStore,
   workspace: Workspace,
+  piProfileDir: string,
 ): Promise<void> {
   // Raw IPC payloads spill to a per-run file under the state root; path is
   // logged as `ipc_log_file` when armed.
@@ -215,6 +216,7 @@ async function openWorkspace(
       agentPublisher.event(event);
     },
     workspace,
+    piProfileDir,
     turnState,
     agentContext,
     agentInstallers: [createAgentToolInstaller(agentTools)],
@@ -467,7 +469,11 @@ async function openWorkspace(
  * page) offering recents and create-new. Its IPC handlers live in a child
  * bag disposed on transition, so the workspace boot starts clean.
  */
-function openPicker(appBag: DisposableBag, recents: RecentsStore): void {
+function openPicker(
+  appBag: DisposableBag,
+  recents: RecentsStore,
+  piProfileDir: string,
+): void {
   const pickerBag = appBag.add(new DisposableBag());
   const win = createShellWindow("picker");
 
@@ -478,16 +484,19 @@ function openPicker(appBag: DisposableBag, recents: RecentsStore): void {
     setImmediate(() => {
       pickerBag[Symbol.dispose]();
       if (!win.isDestroyed()) win.close();
-      openWorkspace(appBag, recents, resolveWorkspace(target)).catch(
-        (thrown: unknown) => {
-          const error =
-            thrown instanceof Error ? thrown : new Error(String(thrown));
-          createLogger("main").error(
-            { err: error.message, stack: error.stack },
-            "workspace_open_failed",
-          );
-        },
-      );
+      openWorkspace(
+        appBag,
+        recents,
+        resolveWorkspace(target),
+        piProfileDir,
+      ).catch((thrown: unknown) => {
+        const error =
+          thrown instanceof Error ? thrown : new Error(String(thrown));
+        createLogger("main").error(
+          { err: error.message, stack: error.stack },
+          "workspace_open_failed",
+        );
+      });
     });
   };
 
@@ -597,8 +606,10 @@ void app.whenReady().then(async () => {
     appBag[Symbol.dispose]();
   });
 
+  const userDataDir = app.getPath("userData");
+  const piProfileDir = join(userDataDir, "pi");
   const recents = createRecentsStore(
-    join(app.getPath("userData"), "recent-workspaces.json"),
+    join(userDataDir, "recent-workspaces.json"),
   );
 
   // Which workspace? An explicit target (UIX_WORKSPACE — manifest path or
@@ -606,13 +617,18 @@ void app.whenReady().then(async () => {
   // manifest (the repo dev flow). Otherwise the start picker decides.
   const envTarget = process.env["UIX_WORKSPACE"];
   if (envTarget) {
-    await openWorkspace(appBag, recents, resolveWorkspace(envTarget));
+    await openWorkspace(
+      appBag,
+      recents,
+      resolveWorkspace(envTarget),
+      piProfileDir,
+    );
     return;
   }
   const cwdWorkspace = resolveWorkspace();
   if (fs.existsSync(cwdWorkspace.manifestPath)) {
-    await openWorkspace(appBag, recents, cwdWorkspace);
+    await openWorkspace(appBag, recents, cwdWorkspace, piProfileDir);
     return;
   }
-  openPicker(appBag, recents);
+  openPicker(appBag, recents, piProfileDir);
 });

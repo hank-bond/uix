@@ -28,6 +28,7 @@ const sdk = vi.hoisted(() => {
     session: undefined as Record<string, unknown> | undefined,
     lastCreateOptions: undefined as Record<string, unknown> | undefined,
     servicesLoads: 0,
+    servicesOptions: [] as Array<{ cwd: string; agentDir: string }>,
     pendingProviderModels: [] as FakeModel[],
   };
 
@@ -75,7 +76,7 @@ const sdk = vi.hoisted(() => {
       subscribe: () => () => {},
       dispose: () => {},
       prompt: vi.fn(async () => {}),
-      reload: async () => {},
+      reload: vi.fn(async () => {}),
     };
   }
 
@@ -89,13 +90,18 @@ const sdk = vi.hoisted(() => {
         continueRecent: () => manager,
         create: () => manager,
       },
-      getAgentDir: () => "/tmp/pi-agent",
       createAgentSessionServices: async (options: {
+        cwd: string;
+        agentDir: string;
         resourceLoaderOptions: {
           extensionFactories: ((pi: unknown) => Promise<void>)[];
         };
       }) => {
         state.servicesLoads += 1;
+        state.servicesOptions.push({
+          cwd: options.cwd,
+          agentDir: options.agentDir,
+        });
         for (const model of state.pendingProviderModels) {
           const index = state.models.findIndex(
             (current) =>
@@ -180,6 +186,7 @@ function createDriver(settings?: SettingsHandle) {
       agentCwd: "/tmp/ws",
       manifestPath: "/tmp/ws/uix.workspace.json",
     },
+    piProfileDir: "/tmp/uix-pi-profile",
     ...(settings && { agentSettings: settings }),
     onStatusChange: (status) => statuses.push(status),
     openExternal: () => undefined,
@@ -204,6 +211,7 @@ beforeEach(() => {
   sdk.state.session = undefined;
   sdk.state.lastCreateOptions = undefined;
   sdk.state.servicesLoads = 0;
+  sdk.state.servicesOptions = [];
   sdk.state.pendingProviderModels = [];
   sdk.registry.authStorage.set.mockClear();
   sdk.registry.refresh.mockClear();
@@ -222,6 +230,9 @@ describe("driver model service (pre-session)", () => {
     ]);
     expect(sdk.state.session).toBeUndefined();
     expect(sdk.state.servicesLoads).toBe(1);
+    expect(sdk.state.servicesOptions).toEqual([
+      { cwd: "/tmp/ws", agentDir: "/tmp/uix-pi-profile" },
+    ]);
   });
 
   it("loads extension-provided models before session creation", async () => {
@@ -252,6 +263,10 @@ describe("driver model service (pre-session)", () => {
     await driver.listModels();
     await expect(driver.reload()).resolves.toBe(true);
     expect(sdk.state.servicesLoads).toBe(2);
+    expect(sdk.state.servicesOptions).toEqual([
+      { cwd: "/tmp/ws", agentDir: "/tmp/uix-pi-profile" },
+      { cwd: "/tmp/ws", agentDir: "/tmp/uix-pi-profile" },
+    ]);
     expect(sdk.state.session).toBeUndefined();
   });
 
@@ -351,6 +366,9 @@ describe("driver model service (session open)", () => {
 
     expect(sdk.state.lastCreateOptions?.["model"]).toEqual(openai);
     expect(sdk.state.servicesLoads).toBe(1);
+    expect(sdk.state.servicesOptions).toEqual([
+      { cwd: "/tmp/ws", agentDir: "/tmp/uix-pi-profile" },
+    ]);
     expect(driver.status()).toEqual({
       model: { provider: "openai", id: "gpt-5" },
       defaultModel: { provider: "openai", id: "gpt-5" },
@@ -390,6 +408,20 @@ describe("driver model service (session open)", () => {
 });
 
 describe("driver model service (live session)", () => {
+  it("reloads the live session without replacing its profiled services", async () => {
+    const { driver } = createDriver();
+    await driver.prompt("hi");
+
+    await expect(driver.reload()).resolves.toBe(true);
+
+    const session = sdk.state.session as { reload: ReturnType<typeof vi.fn> };
+    expect(session.reload).toHaveBeenCalledOnce();
+    expect(sdk.state.servicesLoads).toBe(1);
+    expect(sdk.state.servicesOptions).toEqual([
+      { cwd: "/tmp/ws", agentDir: "/tmp/uix-pi-profile" },
+    ]);
+  });
+
   it("selectModel switches the live session via setModel", async () => {
     const settings = fakeSettings();
     const { driver } = createDriver(settings);

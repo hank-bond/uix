@@ -48,7 +48,7 @@ Failures remain in the expanded row with `Retry`; collapsing it returns to the p
 
 On successful login:
 
-1. Pi persists credentials in its normal global auth store;
+1. Pi persists credentials in UIX's app-owned auth store, shared across UIX workspaces;
 2. the agent substrate refreshes model availability and notifies consumers;
 3. the method turns visibly connected with a reduced-motion-safe one-shot confirmation;
 4. the expanded row offers `Back to providers` and a primary `Choose a model` action;
@@ -83,7 +83,7 @@ The contract needs operations equivalent to:
 
 The coordinator owns one active flow, pending callback resolvers, an `AbortController`, stale-response rejection, and disposal. Browser opening is injected by the Electron composition root and only reopens the URL Pi supplied; the renderer never gets a general arbitrary-URL opener.
 
-Provider discovery must use Pi's registered OAuth providers after the relevant Pi resource/extensions tier is initialized, so extension-provided OAuth is not replaced by a UIX-maintained provider list. Credentials remain exclusively in Pi's global `auth.json`; UIX workspace settings and transcript/session entries carry none of them.
+Provider discovery must use Pi's registered OAuth providers after the relevant Pi resource/extensions tier is initialized, so extension-provided OAuth is not replaced by a UIX-maintained provider list. Credentials remain exclusively in the app-owned Pi profile's `auth.json`, shared across UIX workspaces and isolated from the host Pi profile; UIX workspace settings and transcript/session entries carry none of them.
 
 Acceptance:
 
