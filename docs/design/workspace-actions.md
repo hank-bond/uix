@@ -15,16 +15,20 @@ The substrate supplies an action registry and keybinding dispatch, not a command
 
 An **action is a renderer workflow**. Its callback may change feature-local UI state, open a native `<dialog>`, invoke another action, or call a typed channel request. UIX should not add a parallel main-process action-handler system: channels already own typed backend validation, logging, events, and durable effects. Even a backend-only operation is represented by a small renderer callback over a channel request.
 
-Actions are authored as nested groups and leaves. Group/action titles produce paths such as `Chat > Conversation > Compact`; a palette may flatten leaves and search title, canonical id, keywords, and path, while menu/tree features preserve the hierarchy. Invocation identity is separate from placement: each leaf has a feature-local id unique across that feature's complete tree, and the registry derives `${featureId}.${localId}`. Moving an action between groups does not break callers or saved bindings.
+Actions are contributed as nested keyed objects. Each object key is a local name, never a caller-supplied id; the feature-scoped registration facet derives the canonical id from the feature owner and complete key path, such as `chat.conversation.compact`. Group/action titles are display-only and produce paths such as `Chat > Conversation > Compact`, so titles may change without changing identity. Moving a contribution to a different keyed path intentionally gives it a new identity; its old saved binding remains as a harmless dormant entry.
+
+The renderer registry flattens contributed leaves in authored order. The key path retains identity and each descriptor's title path retains enough presentation structure for palette, menu, and tree features; no normalized public group objects are exposed until a concrete consumer needs group metadata that paths cannot express. A palette searches title, canonical id, and path.
 
 One workspace renderer registry holds two views:
 
-- the private registration retains the callback;
-- the public catalog contains JSON-safe descriptors: id, owner, title, path, optional description/keywords, resolved binding, enabled/running state, and conflicts.
+- the private registrations retain callbacks and contributed defaults;
+- the public catalog is a flat list of JSON-safe descriptors: id, owner, title, path, optional description, resolved binding, enabled/running state, and conflicts.
 
 Any surface can subscribe to the catalog and invoke an id. The registry executes the owner's private callback, so cross-feature composition exposes neither callback references nor another feature's channels. The callback normally closes over the state and typed client of the surface that registered it. Substrate-scoped channel contracts remain available where intended, as Chat already demonstrates with the `agent` contract.
 
-Action invocation is asynchronous and errors return to the invoking UI; keybinding-triggered errors need a central observable diagnostic because there is no direct caller UI. Registration lifetime owns callback lifetime. The first implementation should settle same-action re-entry and cancellation on unmount/reload rather than leave stale async callbacks implicit.
+Action invocation is asynchronous and errors return to the invoking UI; keybinding-triggered errors need a central observable diagnostic because there is no direct caller UI. Each action id has one in-flight invocation slot: another invocation while its callback promise is pending returns `already_running` and is not queued. Registration lifetime owns callback availability, but unregistering does not claim to cancel work the callback already started.
+
+Long-running operation lifecycle belongs to the feature or backend that understands it, not to the action registry. A start action normally finishes once a typed channel accepts the operation; progress, cancellation, deduplication, and any queue remain feature-owned state exposed through channel events and requests. The feature can contribute separate start/cancel/show-progress actions whose enabled state follows that operation. This avoids a generic queue guessing whether repeated intents should be dropped, merged, supersede one another, or execute sequentially.
 
 ### Surface composition
 
@@ -51,9 +55,7 @@ Renderer actions do not run without an attached workspace renderer, access Node/
 
 ## Open questions
 
-- What nested TypeScript helper gives useful inference and explicit order without duplicating the normalized catalog shape?
 - Does v1 need more than one modified-key chord per action? Key sequences, multiple bindings, and focus/context expressions can wait unless a first consumer forces them.
-- Should the registry reject same-action re-entry by default, and what cancellation signal is meaningful when a channel request is already in flight?
 - What panel visibility/focus API should follow once an action-triggered sidebar is concrete?
 - Should the default palette eventually include a binding editor, or should that be a separate replaceable feature?
 
@@ -68,3 +70,11 @@ The catalog retains nested menu semantics rather than flattening at registration
 Chat's provider modal corrected an unnecessary proposed primitive: UIX does not need a custom overlay host. Native `<dialog>.showModal()` already enters Chromium's top layer across the shared page and remains under the feature surface's scoped-CSS root. The needed composition extension is an ambient surface that stays mounted without consuming grid space, which keeps the palette removable and replaceable.
 
 Every contributed default binding materializes into the workspace manifest. Active conflicts are detected centrally and disabled rather than resolved by load order or automatic conflict edits. Renderer features can update bindings through a narrow API; humans and agents can edit the manifest directly and reload.
+
+### 2026-07-12 — single-flight invocation, feature-owned operations
+
+We separated an action invocation from a long-running operation. The registry gets one non-queued in-flight slot per action id and reports `already_running` for duplicate invocation. It does not provide generic user cancellation or a task queue: a feature starts cancellable or queued work through its typed backend API, owns progress and cancellation there, and projects that state back into action enabled states or separate cancel actions.
+
+### 2026-07-12 — keyed contributions and a flat public catalog
+
+We aligned actions with the facet-wide identifier rule: authors never supply ids. A surface registers a nested keyed contribution object, and its feature-scoped registry handle derives canonical ids from the feature plus key path. Titles remain display-only. Normalization emits private callback registrations and a flat public descriptor list; title paths preserve enough grouping for current palette/menu/tree consumers, so public group descriptors and keyword metadata were dropped.

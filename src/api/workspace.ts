@@ -18,6 +18,16 @@ import {
   type SettingDefinitions,
 } from "./settings";
 
+export type {
+  ActionContribution,
+  ActionDescriptor,
+  ActionGroupContribution,
+  ActionLeafContribution,
+  ActionInvocationResult,
+  ActionNotInvokedReason,
+  ActionRun,
+} from "./actions";
+
 export interface WorkspaceClient {
   readonly workspaceId: string;
   readonly request: <Req, Res = void>(name: string, req: Req) => Promise<Res>;

@@ -16,7 +16,7 @@ Build the action layer settled in [workspace-actions](../design/workspace-action
 
 ## Build invariants
 
-- Canonical `${featureId}.${localActionId}` identity is independent from display-tree placement.
+- Authors supply nested local-name keys, never ids; the facet derives canonical `${featureId}.${keyPath}` identity, while display titles do not participate.
 - Public descriptors are serializable; callbacks stay private to their registration.
 - Palette, menu, surface, recursive, and keyboard invocation share `invokeAction(id)`.
 - Backend work uses typed channel requests; there is no backend action-handler facet.
@@ -28,15 +28,15 @@ Build the action layer settled in [workspace-actions](../design/workspace-action
 
 Define the renderer-facing types and pure normalization before adding React or persistence.
 
-The authored form is an ordered nested tree of titled groups and action leaves. A leaf has a feature-local id, title, optional description/keywords/default binding, current enabled state, and async-capable callback. Normalization receives the feature owner separately, validates ids and uniqueness across the whole tree, and produces an ordered tree plus searchable leaf projection with canonical ids and title paths.
+The authored form is an ordered nested keyed object of titled groups and action leaves. Keys are local names; a leaf has a title, optional description/default binding, current enabled state, and async-capable callback. The feature-scoped registration boundary supplies the owner, so authors never provide ids. Normalization validates every key and derives canonical ids from the feature plus complete key path, then emits a flat searchable descriptor list in depth-first authored order. Display-title paths retain grouping without exposing public group nodes.
 
-Keep executable and public shapes explicit: only the internal registration retains `run`; `ActionDescriptor` must survive JSON serialization. Settle the minimal invocation result/error shape, same-action re-entry behavior, and teardown cancellation contract here.
+Keep executable and public shapes explicit: only the internal registration retains `run` and contributed defaults; `ActionDescriptor` must survive JSON serialization. Invocation callbacks return `void | Promise<void>` and callback failures reject to the invoking UI. Each action id has one non-queued in-flight slot; a duplicate invocation returns `already_running`.
 
 Acceptance:
 
-- Moving a leaf between groups changes its path but not canonical id.
-- Duplicate local ids fail loudly.
-- Descriptor projection contains no function or React value.
+- Canonical ids derive only from the feature owner and keyed path; changing a title does not change identity.
+- Moving a leaf to another keyed path intentionally changes identity.
+- Descriptor projection is flat and contains no function, React value, or group node.
 - Ordering is deterministic and normalization has focused tests.
 
 ## A1 — Renderer registry and surface registration
@@ -49,11 +49,11 @@ Use Chat as the first proof: register actions from the component owning model co
 
 Acceptance:
 
-- A surface can register, update, invoke, and unregister a tree.
+- A surface can register, update, invoke, and unregister a keyed action contribution.
 - Consumers see descriptors and invoke ids, never callbacks.
 - Duplicate canonical ids across registrations fail with owner attribution.
 - Chat actions open the requested picker scope and preserve existing focus behavior.
-- Unmount/reload leaves no stale callback or in-flight state owner.
+- Unmount/reload removes callback availability and safely observes any pending completion without claiming to cancel feature-owned work.
 
 ## A2 — Durable bindings and conflict projection
 
@@ -105,7 +105,7 @@ Acceptance:
 
 Add a normal manifest-composed feature whose ambient surface renders the default palette. It registers `palette.open` with a default binding, subscribes to the public catalog, and invokes selected ids without privileged callback/channel access.
 
-Search flattens leaves over title, canonical id, keywords, and group titles while displaying paths such as `Chat > Models > Favorite Models`. Results show resolved shortcuts and disabled/running/conflict state. Opening focuses search; keyboard navigation, Enter, light dismiss/Escape, reduced motion, and focus restoration are included. Close the palette before invoking so the chosen action can immediately open another native dialog.
+Search covers title, canonical id, and title path while displaying paths such as `Chat > Models > Favorite Models`. Results show resolved shortcuts and disabled/running/conflict state. Opening focuses search; keyboard navigation, Enter, light dismiss/Escape, reduced motion, and focus restoration are included. Close the palette before invoking so the chosen action can immediately open another native dialog.
 
 Ranking, styling, and any recents are palette-owned. Recents, if included, are renderer-local presentation cache rather than registry or manifest state.
 
@@ -129,6 +129,7 @@ Archive the plan only when new workspace scaffolding includes the palette throug
 
 - New-conversation session replacement is separate agent-runtime work. Once its typed request/event exists, a normal renderer action can wrap it and optionally collect a name.
 - No backend action-handler facet, agent invocation of actions, or automatic Pi slash-command import.
+- No generic action queue or user-facing action cancellation. Long-running work owns progress, cancellation, deduplication, and queuing in its feature/backend task model; actions only start or operate on it.
 - No process-global shortcuts, native OS menu, key sequences, multiple bindings, or context-expression language in v1.
 - No general panel visibility, surface instances, or multi-copy surfaces. Those wait for a concrete sidebar/tree or multi-agent design.
 - The default palette need not own keybinding editing; any feature can build it over the narrow API.

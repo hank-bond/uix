@@ -1,0 +1,130 @@
+import { describe, expect, it } from "vitest";
+
+import type { ActionContribution } from "@uix/api/actions";
+
+import { normalizeActions, toActionId } from "./action-normalization";
+
+const run = (): void => undefined;
+
+function chatActions(groupTitle = "Models"): ActionContribution {
+  return {
+    models: {
+      title: groupTitle,
+      children: {
+        favorites: {
+          title: "Favorite Models",
+          description: "Choose from favorite models",
+          defaultBinding: "mod+shift+m",
+          run,
+        },
+      },
+    },
+    all_models: {
+      title: "All Models",
+      enabled: false,
+      run,
+    },
+  };
+}
+
+describe("toActionId", () => {
+  it("derives canonical identity from the feature and keyed path", () => {
+    expect(toActionId("chat", ["models", "favorites"]) as string).toBe(
+      "chat.models.favorites",
+    );
+  });
+
+  it("rejects invalid owners, names, and empty paths", () => {
+    expect(() => toActionId("Chat", ["models"])).toThrow(
+      "Invalid feature id: Chat",
+    );
+    expect(() => toActionId("chat", ["favorite.models"])).toThrow(
+      "Invalid action name: favorite.models",
+    );
+    expect(() => toActionId("chat", [])).toThrow(
+      "requires at least one local name",
+    );
+  });
+});
+
+describe("normalizeActions", () => {
+  it("flattens contributions in authored order with derived ids and title paths", () => {
+    const normalized = normalizeActions("chat", chatActions());
+
+    expect(normalized.descriptors).toEqual([
+      {
+        id: "chat.models.favorites",
+        owner: "chat",
+        title: "Favorite Models",
+        path: ["Models", "Favorite Models"],
+        description: "Choose from favorite models",
+        enabled: true,
+        running: false,
+        conflictsWith: [],
+      },
+      {
+        id: "chat.all_models",
+        owner: "chat",
+        title: "All Models",
+        path: ["All Models"],
+        enabled: false,
+        running: false,
+        conflictsWith: [],
+      },
+    ]);
+    expect(
+      normalized.registrations.map(({ descriptor }) => descriptor),
+    ).toEqual(normalized.descriptors);
+    expect(normalized.registrations[0]).toMatchObject({
+      id: "chat.models.favorites",
+      defaultBinding: "mod+shift+m",
+      run,
+    });
+  });
+
+  it("keeps identity stable when display titles change", () => {
+    const models = normalizeActions("chat", chatActions("Models"));
+    const settings = normalizeActions("chat", chatActions("Model Settings"));
+
+    expect(models.descriptors[0]?.id).toBe(settings.descriptors[0]?.id);
+    expect(models.descriptors[0]?.path).toEqual(["Models", "Favorite Models"]);
+    expect(settings.descriptors[0]?.path).toEqual([
+      "Model Settings",
+      "Favorite Models",
+    ]);
+  });
+
+  it("derives different identities when keyed placement changes", () => {
+    const nested = normalizeActions("chat", chatActions());
+    const root = normalizeActions("chat", {
+      favorites: { title: "Favorite Models", run },
+    });
+
+    expect(nested.descriptors[0]?.id).toBe("chat.models.favorites");
+    expect(root.descriptors[0]?.id).toBe("chat.favorites");
+  });
+
+  it("projects JSON-safe descriptors without callbacks or group nodes", () => {
+    const normalized = normalizeActions("chat", chatActions());
+    const projected = JSON.parse(
+      JSON.stringify(normalized.descriptors),
+    ) as unknown;
+
+    expect(projected).toEqual(normalized.descriptors);
+    expect(normalized.descriptors[0]).not.toHaveProperty("run");
+    expect(normalized.descriptors[0]).not.toHaveProperty("children");
+  });
+
+  it("rejects invalid contribution keys and empty titles", () => {
+    expect(() =>
+      normalizeActions("chat", {
+        "favorite.models": { title: "Favorite Models", run },
+      }),
+    ).toThrow("Invalid action name: favorite.models");
+    expect(() =>
+      normalizeActions("chat", {
+        models: { title: " ", run },
+      }),
+    ).toThrow("titles must not be empty");
+  });
+});
