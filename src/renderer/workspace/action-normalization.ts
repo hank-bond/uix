@@ -12,7 +12,7 @@ type ActionId = string & {
   readonly [ActionIdBrand]: true;
 };
 
-interface NormalizedActionRegistration {
+export interface ActionRegistration {
   readonly id: ActionId;
   readonly descriptor: ActionDescriptor;
   readonly defaultBinding?: string;
@@ -21,7 +21,7 @@ interface NormalizedActionRegistration {
 
 interface NormalizedActions {
   readonly descriptors: readonly ActionDescriptor[];
-  readonly registrations: readonly NormalizedActionRegistration[];
+  readonly registrations: readonly ActionRegistration[];
 }
 
 export function toActionId(owner: string, path: readonly string[]): ActionId {
@@ -35,12 +35,12 @@ export function toActionId(owner: string, path: readonly string[]): ActionId {
   return [owner, ...path].join(".") as ActionId;
 }
 
-export function normalizeActions(
+export function normalizeActionContribution(
   owner: string,
   contribution: ActionContribution,
 ): NormalizedActions {
   assertActionToken("feature id", owner);
-  const registrations: NormalizedActionRegistration[] = [];
+  const registrations: ActionRegistration[] = [];
 
   normalizeContribution(owner, contribution, [], [], registrations);
   return {
@@ -54,7 +54,7 @@ function normalizeContribution(
   contribution: ActionContribution,
   namePath: readonly string[],
   titlePath: readonly string[],
-  registrations: NormalizedActionRegistration[],
+  registrations: ActionRegistration[],
 ): void {
   for (const [name, node] of Object.entries(contribution)) {
     assertActionToken("action name", name);
@@ -81,7 +81,7 @@ function normalizeAction(
   contribution: ActionLeafContribution,
   namePath: readonly string[],
   titlePath: readonly string[],
-): NormalizedActionRegistration {
+): ActionRegistration {
   const id = toActionId(owner, [...namePath, name]);
   const descriptor: ActionDescriptor = {
     id,

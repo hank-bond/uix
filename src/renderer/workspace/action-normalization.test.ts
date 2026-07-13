@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { ActionContribution } from "@uix/api/actions";
 
-import { normalizeActions, toActionId } from "./action-normalization";
+import {
+  normalizeActionContribution,
+  toActionId,
+} from "./action-normalization";
 
 const run = (): void => undefined;
 
@@ -47,9 +50,9 @@ describe("toActionId", () => {
   });
 });
 
-describe("normalizeActions", () => {
+describe("normalizeActionContribution", () => {
   it("flattens contributions in authored order with derived ids and title paths", () => {
-    const normalized = normalizeActions("chat", chatActions());
+    const normalized = normalizeActionContribution("chat", chatActions());
 
     expect(normalized.descriptors).toEqual([
       {
@@ -83,8 +86,11 @@ describe("normalizeActions", () => {
   });
 
   it("keeps identity stable when display titles change", () => {
-    const models = normalizeActions("chat", chatActions("Models"));
-    const settings = normalizeActions("chat", chatActions("Model Settings"));
+    const models = normalizeActionContribution("chat", chatActions("Models"));
+    const settings = normalizeActionContribution(
+      "chat",
+      chatActions("Model Settings"),
+    );
 
     expect(models.descriptors[0]?.id).toBe(settings.descriptors[0]?.id);
     expect(models.descriptors[0]?.path).toEqual(["Models", "Favorite Models"]);
@@ -95,8 +101,8 @@ describe("normalizeActions", () => {
   });
 
   it("derives different identities when keyed placement changes", () => {
-    const nested = normalizeActions("chat", chatActions());
-    const root = normalizeActions("chat", {
+    const nested = normalizeActionContribution("chat", chatActions());
+    const root = normalizeActionContribution("chat", {
       favorites: { title: "Favorite Models", run },
     });
 
@@ -105,7 +111,7 @@ describe("normalizeActions", () => {
   });
 
   it("projects JSON-safe descriptors without callbacks or group nodes", () => {
-    const normalized = normalizeActions("chat", chatActions());
+    const normalized = normalizeActionContribution("chat", chatActions());
     const projected = JSON.parse(
       JSON.stringify(normalized.descriptors),
     ) as unknown;
@@ -117,12 +123,12 @@ describe("normalizeActions", () => {
 
   it("rejects invalid contribution keys and empty titles", () => {
     expect(() =>
-      normalizeActions("chat", {
+      normalizeActionContribution("chat", {
         "favorite.models": { title: "Favorite Models", run },
       }),
     ).toThrow("Invalid action name: favorite.models");
     expect(() =>
-      normalizeActions("chat", {
+      normalizeActionContribution("chat", {
         models: { title: " ", run },
       }),
     ).toThrow("titles must not be empty");
