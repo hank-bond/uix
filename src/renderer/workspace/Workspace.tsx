@@ -21,8 +21,20 @@ import {
   type SurfaceComposition,
 } from "./layout";
 import type { SurfaceEntry } from "#shared/ipc";
+import { ActionRegistry } from "./action-registry";
+import { ActionRegistryProvider } from "./action-context";
+
+const actionRegistry = new ActionRegistry();
 
 export function Workspace() {
+  return (
+    <ActionRegistryProvider registry={actionRegistry}>
+      <WorkspaceContent />
+    </ActionRegistryProvider>
+  );
+}
+
+function WorkspaceContent() {
   const composition = useSurfaces();
   // Not yet fetched — render the bare shell, no empty-state flash.
   if (!composition) return <div className="workspace" />;

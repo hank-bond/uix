@@ -1,7 +1,9 @@
 import type {
   ActionContribution,
+  ActionContributionUpdater,
   ActionDescriptor,
   ActionInvocationResult,
+  RegisterActionContribution,
 } from "@uix/api/actions";
 
 import {
@@ -10,14 +12,6 @@ import {
 } from "./action-normalization";
 
 type Listener = () => void;
-
-export interface ActionContributionRegistration extends Disposable {
-  update(contribution: ActionContribution): void;
-}
-
-export type RegisterActionContribution = (
-  contribution: ActionContribution,
-) => ActionContributionRegistration;
 
 interface RegisteredAction {
   registration: ActionRegistration;
@@ -94,7 +88,7 @@ export class ActionRegistry implements Disposable {
   #registerContribution(
     owner: string,
     contribution: ActionContribution,
-  ): ActionContributionRegistration {
+  ): ActionContributionUpdater {
     this.#assertActive();
     const normalized = normalizeActionContribution(owner, contribution);
     this.#assertIdsAvailable(normalized.registrations);

@@ -6,8 +6,11 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type { ReactNode } from "react";
 import { toChannelCanonicalId } from "./channel-normalization";
@@ -27,6 +30,117 @@ export type {
   ActionNotInvokedReason,
   ActionRun,
 } from "./actions";
+import type {
+  ActionContribution,
+  ActionContributionUpdater,
+  ActionDescriptor,
+  ActionInvocationResult,
+  RegisterActionContribution,
+} from "./actions";
+
+type GetActionSnapshot = () => readonly ActionDescriptor[];
+type SubscribeToActions = (listener: () => void) => () => void;
+type InvokeAction = (id: string) => Promise<ActionInvocationResult>;
+
+const RegisterActionContributionContext = createContext<
+  RegisterActionContribution | undefined
+>(undefined);
+const GetActionSnapshotContext = createContext<GetActionSnapshot | undefined>(
+  undefined,
+);
+const SubscribeToActionsContext = createContext<SubscribeToActions | undefined>(
+  undefined,
+);
+const InvokeActionContext = createContext<InvokeAction | undefined>(undefined);
+
+export interface WorkspaceActionsProviderProps {
+  getSnapshot: GetActionSnapshot;
+  subscribe: SubscribeToActions;
+  invoke: InvokeAction;
+  children: ReactNode;
+}
+
+export function WorkspaceActionsProvider({
+  getSnapshot,
+  subscribe,
+  invoke,
+  children,
+}: WorkspaceActionsProviderProps): ReactNode {
+  return createElement(
+    GetActionSnapshotContext.Provider,
+    { value: getSnapshot },
+    createElement(
+      SubscribeToActionsContext.Provider,
+      { value: subscribe },
+      createElement(InvokeActionContext.Provider, { value: invoke }, children),
+    ),
+  );
+}
+
+export interface FeatureActionsProviderProps {
+  register: RegisterActionContribution;
+  children: ReactNode;
+}
+
+export function FeatureActionsProvider({
+  register,
+  children,
+}: FeatureActionsProviderProps): ReactNode {
+  return createElement(
+    RegisterActionContributionContext.Provider,
+    { value: register },
+    children,
+  );
+}
+
+export function useActionContribution(contribution: ActionContribution): void {
+  const register = useContext(RegisterActionContributionContext);
+  if (!register) {
+    throw new Error("FeatureActionsProvider is missing");
+  }
+
+  const contributionRef = useRef(contribution);
+  contributionRef.current = contribution;
+  const registrationRef = useRef<ActionContributionUpdater>();
+  const registeredValueRef = useRef<ActionContribution>();
+
+  useLayoutEffect(() => {
+    const registeredValue = contributionRef.current;
+    const registration = register(registeredValue);
+    registrationRef.current = registration;
+    registeredValueRef.current = registeredValue;
+    return () => {
+      registration[Symbol.dispose]();
+      if (registrationRef.current === registration) {
+        registrationRef.current = undefined;
+        registeredValueRef.current = undefined;
+      }
+    };
+  }, [register]);
+
+  useLayoutEffect(() => {
+    if (registeredValueRef.current === contribution) return;
+    registrationRef.current?.update(contribution);
+    registeredValueRef.current = contribution;
+  }, [contribution]);
+}
+
+export function useActionCatalog(): readonly ActionDescriptor[] {
+  const getSnapshot = useContext(GetActionSnapshotContext);
+  const subscribe = useContext(SubscribeToActionsContext);
+  if (!getSnapshot || !subscribe) {
+    throw new Error("WorkspaceActionsProvider is missing");
+  }
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+export function useInvokeAction(): InvokeAction {
+  const invoke = useContext(InvokeActionContext);
+  if (!invoke) {
+    throw new Error("WorkspaceActionsProvider is missing");
+  }
+  return invoke;
+}
 
 export interface WorkspaceClient {
   readonly workspaceId: string;

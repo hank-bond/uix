@@ -16,10 +16,12 @@ import { uixChannels, type SurfaceEntry } from "#shared/ipc";
 import {
   createChannelClient,
   createFeatureSettingsClient,
+  FeatureActionsProvider,
   FeatureSettingsProvider,
   useWorkspaceClient,
   type SurfaceContribution,
 } from "@uix/api/workspace";
+import { useActionRegistry } from "./action-context";
 
 /** The composed surface list plus where it came from (or didn't). */
 export interface SurfaceComposition {
@@ -69,6 +71,11 @@ export function SurfaceMount({
   surface: SurfaceContribution;
 }) {
   const workspace = useWorkspaceClient();
+  const actionRegistry = useActionRegistry();
+  const registerActions = useMemo(
+    () => actionRegistry.forFeature(entry.featureId),
+    [actionRegistry, entry.featureId],
+  );
   // Memoized so surface effects keyed on the client don't tear down and
   // re-run (resubscribing, re-fetching history) every workspace render.
   const client = useMemo(
@@ -101,9 +108,11 @@ export function SurfaceMount({
   }, [surface]);
 
   return (
-    <FeatureSettingsProvider client={settings}>
-      {surface.render(client)}
-    </FeatureSettingsProvider>
+    <FeatureActionsProvider register={registerActions}>
+      <FeatureSettingsProvider client={settings}>
+        {surface.render(client)}
+      </FeatureSettingsProvider>
+    </FeatureActionsProvider>
   );
 }
 

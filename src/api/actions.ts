@@ -17,6 +17,14 @@ export type ActionContribution = Readonly<
   Record<string, ActionLeafContribution | ActionGroupContribution>
 >;
 
+export interface ActionContributionUpdater extends Disposable {
+  update(contribution: ActionContribution): void;
+}
+
+export type RegisterActionContribution = (
+  contribution: ActionContribution,
+) => ActionContributionUpdater;
+
 export interface ActionDescriptor {
   readonly id: string;
   readonly owner: string;
