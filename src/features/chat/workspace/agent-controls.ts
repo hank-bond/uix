@@ -8,8 +8,14 @@ import type {
   OAuthFlowState,
 } from "@uix/api/agent-channels";
 import type { ChannelClient } from "@uix/api/workspace";
+import { getInitialModelScope, type ModelPickerScope } from "./model-filter";
 
 type AgentChannelClient = ChannelClient<typeof agentChannels>;
+
+interface ModelPickerState {
+  scope: ModelPickerScope;
+  initialQuery: string;
+}
 
 interface OAuthActivity {
   providerId: string;
@@ -22,8 +28,7 @@ export function useAgentControls(client: AgentChannelClient) {
   const [status, setStatus] = useState<AgentStatus>();
   const [models, setModels] = useState<ModelOption[]>();
   const [modelError, setModelError] = useState<string>();
-  const [modelPickerOpen, setModelPickerOpen] = useState(false);
-  const [modelPickerInitialQuery, setModelPickerInitialQuery] = useState("");
+  const [modelPicker, setModelPicker] = useState<ModelPickerState>();
   const [providerModalOpen, setProviderModalOpen] = useState(false);
   const [providers, setProviders] = useState<AuthProvider[]>();
   const [providerError, setProviderError] = useState<string>();
@@ -70,14 +75,26 @@ export function useAgentControls(client: AgentChannelClient) {
   );
 
   const toggleModelPicker = useCallback(() => {
-    setModelPickerOpen((open) => {
-      if (!open) setModelPickerInitialQuery("");
-      return !open;
-    });
+    setModelPicker((current) =>
+      current
+        ? undefined
+        : {
+            scope: getInitialModelScope(models ?? [], ""),
+            initialQuery: "",
+          },
+    );
+  }, [models]);
+
+  const openModelPicker = useCallback((scope: ModelPickerScope) => {
+    setModelPicker({ scope, initialQuery: "" });
   }, []);
 
   const closeModelPicker = useCallback(() => {
-    setModelPickerOpen(false);
+    setModelPicker(undefined);
+  }, []);
+
+  const setModelPickerScope = useCallback((scope: ModelPickerScope) => {
+    setModelPicker((current) => (current ? { ...current, scope } : undefined));
   }, []);
 
   const selectModel = useCallback(
@@ -87,7 +104,7 @@ export function useAgentControls(client: AgentChannelClient) {
         id: model.id,
       });
       setStatus(nextStatus);
-      setModelPickerOpen(false);
+      setModelPicker(undefined);
     },
     [client],
   );
@@ -135,7 +152,7 @@ export function useAgentControls(client: AgentChannelClient) {
   const openProviderModal = useCallback(
     (invoker: HTMLElement) => {
       modalInvoker.current = invoker;
-      setModelPickerOpen(false);
+      setModelPicker(undefined);
       setProviderModalOpen(true);
       setProviders(undefined);
       setOAuthActivity(undefined);
@@ -245,18 +262,18 @@ export function useAgentControls(client: AgentChannelClient) {
     // This is an explicit handoff from the modal's success action, so do not
     // restore focus to its invoker; the picker will focus its search input.
     setProviderModalOpen(false);
-    setModelPickerInitialQuery(providerId);
-    setModelPickerOpen(true);
+    setModelPicker({ scope: "all", initialQuery: providerId });
   }, []);
 
   return {
     status,
     models,
     modelError,
-    modelPickerOpen,
-    modelPickerInitialQuery,
+    modelPicker,
     toggleModelPicker,
+    openModelPicker,
     closeModelPicker,
+    setModelPickerScope,
     selectModel,
     setModelFavorite,
     providerModalOpen,

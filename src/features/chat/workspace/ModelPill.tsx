@@ -1,17 +1,30 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import type { ModelOption } from "@uix/api/agent-channels";
+import { useActionContribution } from "@uix/api/workspace";
 
 import type { AgentControls } from "./agent-controls";
 import {
   filterModels,
-  getInitialModelScope,
   getModelsForScope,
   type ModelPickerScope,
   toModelSource,
 } from "./model-filter";
+import { createModelActions } from "./model-actions";
 
 export function ModelPill({ controls }: { controls: AgentControls }) {
+  const actions = useMemo(
+    () => createModelActions(controls.openModelPicker),
+    [controls.openModelPicker],
+  );
+  useActionContribution(actions);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const current = controls.status?.model ?? controls.status?.defaultModel;
   const currentOption = controls.models?.find(
@@ -24,20 +37,22 @@ export function ModelPill({ controls }: { controls: AgentControls }) {
         type="button"
         className="status-bar__item model-pill__button"
         aria-haspopup="dialog"
-        aria-expanded={controls.modelPickerOpen}
+        aria-expanded={controls.modelPicker !== undefined}
         onClick={controls.toggleModelPicker}
       >
         {currentOption?.name ?? current?.id ?? "select model"}
       </button>
-      {controls.modelPickerOpen && (
+      {controls.modelPicker && (
         <ModelPicker
           controls={controls}
-          initialQuery={controls.modelPickerInitialQuery}
+          initialQuery={controls.modelPicker.initialQuery}
+          scope={controls.modelPicker.scope}
           onConnect={() => {
             if (buttonRef.current)
               controls.openProviderModal(buttonRef.current);
           }}
           onClose={controls.closeModelPicker}
+          onScopeChange={controls.setModelPickerScope}
         />
       )}
     </div>
@@ -47,21 +62,20 @@ export function ModelPill({ controls }: { controls: AgentControls }) {
 function ModelPicker({
   controls,
   initialQuery,
+  scope,
   onConnect,
   onClose,
+  onScopeChange,
 }: {
   controls: AgentControls;
   initialQuery: string;
+  scope: ModelPickerScope;
   onConnect: () => void;
   onClose: () => void;
+  onScopeChange: (scope: ModelPickerScope) => void;
 }) {
   const [error, setError] = useState<string>();
   const [query, setQuery] = useState(initialQuery);
-  const [scope, setScope] = useState<ModelPickerScope | undefined>(() =>
-    controls.models === undefined
-      ? undefined
-      : getInitialModelScope(controls.models, initialQuery),
-  );
   const [favoritePending, setFavoritePending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -76,12 +90,6 @@ function ModelPicker({
     inputRef.current?.focus();
   }, []);
 
-  useLayoutEffect(() => {
-    if (scope === undefined && controls.models !== undefined) {
-      setScope(getInitialModelScope(controls.models, initialQuery));
-    }
-  }, [controls.models, initialQuery, scope]);
-
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) onClose();
@@ -90,13 +98,13 @@ function ModelPicker({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [onClose]);
 
-  const activeScope = scope ?? "all";
+  const activeScope = scope;
   const scopedModels = getModelsForScope(controls.models ?? [], activeScope);
   const filtered = filterModels(scopedModels, query);
   const current = controls.status?.model ?? controls.status?.defaultModel;
 
   useLayoutEffect(() => {
-    if (scope === undefined || controls.models === undefined) return;
+    if (controls.models === undefined) return;
 
     const list = listRef.current;
     if (positionedScopes.current.has(scope)) {
@@ -139,7 +147,7 @@ function ModelPicker({
     if (listRef.current) {
       scopeScrollPositions.current.set(activeScope, listRef.current.scrollTop);
     }
-    setScope(nextScope);
+    onScopeChange(nextScope);
   };
 
   const select = async (model: ModelOption) => {
