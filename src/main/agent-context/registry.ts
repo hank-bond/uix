@@ -91,25 +91,29 @@ export function registerAgentContextContributions(
 ): Disposable {
   const bag = new DisposableBag();
 
-  for (const contribution of contributions) {
-    if (isUpdateContribution(contribution)) {
-      const handle = agentContext.register(featureId, contribution);
-      if (contribution.initialValue !== undefined) {
-        handle.update(contribution.initialValue);
+  try {
+    for (const contribution of contributions) {
+      if (isUpdateContribution(contribution)) {
+        const handle = bag.add(agentContext.register(featureId, contribution));
+        if (contribution.initialValue !== undefined) {
+          handle.update(contribution.initialValue);
+        }
+        continue;
       }
-      bag.add(handle);
-      continue;
-    }
 
-    if (isAppendContribution(contribution)) {
+      if (isAppendContribution(contribution)) {
+        bag.add(agentContext.register(featureId, contribution));
+        continue;
+      }
+
       bag.add(agentContext.register(featureId, contribution));
-      continue;
     }
 
-    bag.add(agentContext.register(featureId, contribution));
+    return bag;
+  } catch (err) {
+    bag[Symbol.dispose]();
+    throw err;
   }
-
-  return bag;
 }
 
 function isUpdateContribution(

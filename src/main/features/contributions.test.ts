@@ -183,6 +183,29 @@ describe("registerFeatureContributions", () => {
     ).not.toThrow();
   });
 
+  it("rolls back earlier facets when a later facet fails", () => {
+    const resources = new ResourceRegistry({
+      workspaceId: "local",
+      handle: () => undefined,
+      unhandle: () => undefined,
+    });
+
+    expect(() =>
+      registerFeatureContributions({ resources }, "canvas", {
+        resources: [resourceContribution()],
+        channels: [channelContribution()],
+      }),
+    ).toThrow(
+      "Feature canvas contributes channels but no channel registry was provided",
+    );
+
+    expect(() =>
+      registerFeatureContributions({ resources }, "canvas", {
+        resources: [resourceContribution()],
+      }),
+    ).not.toThrow();
+  });
+
   it("rejects contribution groups when the matching registry is missing", () => {
     expect(() =>
       registerFeatureContributions({}, "canvas", {

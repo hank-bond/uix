@@ -72,6 +72,22 @@ describe("AgentToolRegistry", () => {
     ]);
   });
 
+  it("rolls back earlier tools when bulk registration fails", () => {
+    const registry = new AgentToolRegistry();
+    const contribution = { name: "anchor_read", tool: body("read") };
+
+    expect(() =>
+      registerAgentToolContributions(registry, "canvas", [
+        contribution,
+        contribution,
+      ]),
+    ).toThrow("Agent tool already registered: canvas__anchor_read");
+
+    expect(() =>
+      registerAgentToolContributions(registry, "canvas", [contribution]),
+    ).not.toThrow();
+  });
+
   it("bulk-registers contributions and installs active tools with derived names", () => {
     const registry = new AgentToolRegistry();
     const registrations = registerAgentToolContributions(registry, "canvas", [

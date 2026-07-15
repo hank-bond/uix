@@ -70,22 +70,33 @@ export class ChannelRegistry {
     }
 
     this.#canonicalIds.add(canonicalId);
-    const transportRegistration = this.#transportHandle(
-      canonicalId,
-      async (rawReq) => {
-        const req = Value.Parse(channelRegistration.requestSchema, rawReq);
-        const res = await channelRegistration.handle(req as Req);
-        return Value.Parse(channelRegistration.responseSchema, res);
-      },
-      channelRegistration.log as HandleLogOptions<unknown, unknown> | undefined,
-    );
+    let transportRegistration: Disposable;
+    try {
+      transportRegistration = this.#transportHandle(
+        canonicalId,
+        async (rawReq) => {
+          const req = Value.Parse(channelRegistration.requestSchema, rawReq);
+          const res = await channelRegistration.handle(req as Req);
+          return Value.Parse(channelRegistration.responseSchema, res);
+        },
+        channelRegistration.log as
+          | HandleLogOptions<unknown, unknown>
+          | undefined,
+      );
+    } catch (err) {
+      this.#canonicalIds.delete(canonicalId);
+      throw err;
+    }
 
     let disposed = false;
     return disposable(() => {
       if (disposed) return;
       disposed = true;
-      transportRegistration[Symbol.dispose]();
-      this.#canonicalIds.delete(canonicalId);
+      try {
+        transportRegistration[Symbol.dispose]();
+      } finally {
+        this.#canonicalIds.delete(canonicalId);
+      }
     });
   }
 }
@@ -96,21 +107,26 @@ export function registerChannelContributions(
   contributions: readonly ChannelContribution[],
 ): Disposable {
   const bag = new DisposableBag();
-  for (const contribution of contributions) {
-    // The contract states its owner once, where it's defined; a mismatch
-    // here means a feature is registering handlers under someone else's
-    // channel namespace — always a wiring bug, never valid.
-    if (contribution.feature !== featureId) {
-      throw new Error(
-        `Feature ${featureId} cannot register channels owned by ${contribution.feature}`,
-      );
+  try {
+    for (const contribution of contributions) {
+      // The contract states its owner once, where it's defined; a mismatch
+      // here means a feature is registering handlers under someone else's
+      // channel namespace — always a wiring bug, never valid.
+      if (contribution.feature !== featureId) {
+        throw new Error(
+          `Feature ${featureId} cannot register channels owned by ${contribution.feature}`,
+        );
+      }
+      const contract = normalizeChannelContribution(featureId, contribution);
+      for (const registration of channelRequestRegistrations(contract)) {
+        bag.add(registry.register(registration));
+      }
     }
-    const contract = normalizeChannelContribution(featureId, contribution);
-    for (const registration of channelRequestRegistrations(contract)) {
-      bag.add(registry.register(registration));
-    }
+    return bag;
+  } catch (err) {
+    bag[Symbol.dispose]();
+    throw err;
   }
-  return bag;
 }
 
 /**

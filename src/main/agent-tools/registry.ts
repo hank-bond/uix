@@ -49,14 +49,19 @@ export function registerAgentToolContributions(
   contributions: readonly AgentToolContribution[],
 ): Disposable {
   const bag = new DisposableBag();
-  for (const contribution of contributions) {
-    bag.add(
-      registry.register(
-        normalizeAgentToolContribution(featureId, contribution),
-      ),
-    );
+  try {
+    for (const contribution of contributions) {
+      bag.add(
+        registry.register(
+          normalizeAgentToolContribution(featureId, contribution),
+        ),
+      );
+    }
+    return bag;
+  } catch (err) {
+    bag[Symbol.dispose]();
+    throw err;
   }
-  return bag;
 }
 
 export function createAgentToolInstaller(

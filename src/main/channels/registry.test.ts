@@ -124,6 +124,52 @@ describe("ChannelRegistry", () => {
     ).not.toThrow();
   });
 
+  it("releases a reserved id when transport acquisition throws", () => {
+    const canonicalId = toChannelCanonicalId("canvas", "refresh");
+    let shouldThrow = true;
+    const registry = new ChannelRegistry({
+      transportHandle: () => {
+        if (shouldThrow) throw new Error("transport failed");
+        return { [Symbol.dispose]() {} };
+      },
+    });
+    const registration = {
+      contributionId: toContributionId("canvas", "channel", "refresh"),
+      canonicalId,
+      requestSchema: Type.Object({}),
+      responseSchema: Type.Void(),
+      handle: () => undefined,
+    };
+
+    expect(() => registry.register(registration)).toThrow("transport failed");
+    shouldThrow = false;
+    expect(() => registry.register(registration)).not.toThrow();
+  });
+
+  it("releases its id even when transport disposal throws", () => {
+    const canonicalId = toChannelCanonicalId("canvas", "refresh");
+    let disposalThrows = true;
+    const registry = new ChannelRegistry({
+      transportHandle: () => ({
+        [Symbol.dispose]() {
+          if (disposalThrows) throw new Error("transport disposal failed");
+        },
+      }),
+    });
+    const registration = {
+      contributionId: toContributionId("canvas", "channel", "refresh"),
+      canonicalId,
+      requestSchema: Type.Object({}),
+      responseSchema: Type.Void(),
+      handle: () => undefined,
+    };
+
+    const handle = registry.register(registration);
+    expect(() => handle[Symbol.dispose]()).toThrow("transport disposal failed");
+    disposalThrows = false;
+    expect(() => registry.register(registration)).not.toThrow();
+  });
+
   it("validates requests and responses when schemas are provided", async () => {
     const transport = fakeTransport();
     const registry = new ChannelRegistry({
@@ -243,6 +289,35 @@ describe("ChannelRegistry", () => {
 
     expect(transport.handlers.size).toBe(0);
     expect(transport.disposed).toEqual(["canvas.writeback", "canvas.refresh"]);
+  });
+
+  it("rolls back earlier channels when bulk registration fails", () => {
+    const transport = fakeTransport();
+    const registry = new ChannelRegistry({
+      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
+    });
+    const owned = {
+      feature: "canvas",
+      requests: {
+        refresh: {
+          requestSchema: Type.Object({}),
+          responseSchema: Type.Void(),
+          handle: () => undefined,
+        },
+      },
+      events: {},
+    } as const;
+
+    expect(() =>
+      registerChannelContributions(registry, "canvas", [
+        owned,
+        { ...owned, feature: "other" },
+      ]),
+    ).toThrow("Feature canvas cannot register channels owned by other");
+    expect(transport.handlers.size).toBe(0);
+    expect(() =>
+      registerChannelContributions(registry, "canvas", [owned]),
+    ).not.toThrow();
   });
 
   it("creates typed event publishers from a contract", () => {

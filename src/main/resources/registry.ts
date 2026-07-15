@@ -155,10 +155,17 @@ export function registerResourceContributions(
   contributions: readonly ResourceContribution[],
 ): Disposable {
   const bag = new DisposableBag();
-  for (const contribution of contributions) {
-    bag.add(registry.register(toResourceRegistration(featureId, contribution)));
+  try {
+    for (const contribution of contributions) {
+      bag.add(
+        registry.register(toResourceRegistration(featureId, contribution)),
+      );
+    }
+    return bag;
+  } catch (err) {
+    bag[Symbol.dispose]();
+    throw err;
   }
-  return bag;
 }
 
 function toResourceRegistration(

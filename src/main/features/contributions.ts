@@ -60,139 +60,144 @@ export function registerFeatureContributions(
 ): Disposable {
   const bag = new DisposableBag();
 
-  if (contributions.resources?.length) {
-    if (!registries.resources) {
-      throw new Error(
-        `Feature ${featureId} contributes resources but no resource registry was provided`,
+  try {
+    if (contributions.resources?.length) {
+      if (!registries.resources) {
+        throw new Error(
+          `Feature ${featureId} contributes resources but no resource registry was provided`,
+        );
+      }
+      bag.add(
+        registerResourceContributions(
+          registries.resources,
+          featureId,
+          contributions.resources,
+        ),
       );
     }
-    bag.add(
-      registerResourceContributions(
-        registries.resources,
-        featureId,
-        contributions.resources,
-      ),
-    );
-  }
 
-  if (contributions.channels?.length) {
-    if (!registries.channels) {
-      throw new Error(
-        `Feature ${featureId} contributes channels but no channel registry was provided`,
+    if (contributions.channels?.length) {
+      if (!registries.channels) {
+        throw new Error(
+          `Feature ${featureId} contributes channels but no channel registry was provided`,
+        );
+      }
+      bag.add(
+        registerChannelContributions(
+          registries.channels,
+          featureId,
+          contributions.channels,
+        ),
       );
     }
-    bag.add(
-      registerChannelContributions(
-        registries.channels,
-        featureId,
-        contributions.channels,
-      ),
-    );
-  }
 
-  if (contributions.agentTools?.length) {
-    if (!registries.agentTools) {
-      throw new Error(
-        `Feature ${featureId} contributes agent tools but no agent tool registry was provided`,
+    if (contributions.agentTools?.length) {
+      if (!registries.agentTools) {
+        throw new Error(
+          `Feature ${featureId} contributes agent tools but no agent tool registry was provided`,
+        );
+      }
+      bag.add(
+        registerAgentToolContributions(
+          registries.agentTools,
+          featureId,
+          contributions.agentTools,
+        ),
       );
     }
-    bag.add(
-      registerAgentToolContributions(
-        registries.agentTools,
-        featureId,
-        contributions.agentTools,
-      ),
-    );
-  }
 
-  if (contributions.agentSystemPrompt !== undefined) {
-    if (!registries.agentSystemPrompt) {
-      throw new Error(
-        `Feature ${featureId} contributes an agent system prompt but no agent-system-prompt registry was provided`,
+    if (contributions.agentSystemPrompt !== undefined) {
+      if (!registries.agentSystemPrompt) {
+        throw new Error(
+          `Feature ${featureId} contributes an agent system prompt but no agent-system-prompt registry was provided`,
+        );
+      }
+      bag.add(
+        registerAgentSystemPromptContribution(
+          registries.agentSystemPrompt,
+          featureId,
+          contributions.agentSystemPrompt,
+        ),
       );
     }
-    bag.add(
-      registerAgentSystemPromptContribution(
-        registries.agentSystemPrompt,
-        featureId,
-        contributions.agentSystemPrompt,
-      ),
-    );
-  }
 
-  if (contributions.agentSkills?.length) {
-    if (!registries.agentSkills) {
-      throw new Error(
-        `Feature ${featureId} contributes agent skills but no agent-skills registry was provided`,
+    if (contributions.agentSkills?.length) {
+      if (!registries.agentSkills) {
+        throw new Error(
+          `Feature ${featureId} contributes agent skills but no agent-skills registry was provided`,
+        );
+      }
+      if (!origin.entryDir) {
+        throw new Error(
+          `Feature ${featureId} contributes agent skills but was activated without an entry directory to resolve them against`,
+        );
+      }
+      bag.add(
+        registerAgentSkillContributions(
+          registries.agentSkills,
+          featureId,
+          contributions.agentSkills,
+          origin.entryDir,
+        ),
       );
     }
-    if (!origin.entryDir) {
-      throw new Error(
-        `Feature ${featureId} contributes agent skills but was activated without an entry directory to resolve them against`,
-      );
-    }
-    bag.add(
-      registerAgentSkillContributions(
-        registries.agentSkills,
-        featureId,
-        contributions.agentSkills,
-        origin.entryDir,
-      ),
-    );
-  }
 
-  if (contributions.turnState?.length) {
-    if (!registries.turnState) {
-      throw new Error(
-        `Feature ${featureId} contributes turn state but no turn-state registry was provided`,
+    if (contributions.turnState?.length) {
+      if (!registries.turnState) {
+        throw new Error(
+          `Feature ${featureId} contributes turn state but no turn-state registry was provided`,
+        );
+      }
+      bag.add(
+        registerTurnStateContributions(
+          registries.turnState,
+          featureId,
+          contributions.turnState,
+        ),
       );
     }
-    bag.add(
-      registerTurnStateContributions(
-        registries.turnState,
-        featureId,
-        contributions.turnState,
-      ),
-    );
-  }
 
-  if (contributions.agentContext?.length) {
-    if (!registries.agentContext) {
-      throw new Error(
-        `Feature ${featureId} contributes agent context but no agent-context registry was provided`,
+    if (contributions.agentContext?.length) {
+      if (!registries.agentContext) {
+        throw new Error(
+          `Feature ${featureId} contributes agent context but no agent-context registry was provided`,
+        );
+      }
+      bag.add(
+        registerAgentContextContributions(
+          registries.agentContext,
+          featureId,
+          contributions.agentContext,
+        ),
       );
     }
-    bag.add(
-      registerAgentContextContributions(
-        registries.agentContext,
-        featureId,
-        contributions.agentContext,
-      ),
-    );
-  }
 
-  if (contributions.surfaces?.length) {
-    if (!registries.surfaces) {
-      throw new Error(
-        `Feature ${featureId} contributes surfaces but no surface registry was provided`,
+    if (contributions.surfaces?.length) {
+      if (!registries.surfaces) {
+        throw new Error(
+          `Feature ${featureId} contributes surfaces but no surface registry was provided`,
+        );
+      }
+      if (!origin.entryDir) {
+        throw new Error(
+          `Feature ${featureId} contributes surfaces but was activated without an entry directory to resolve them against`,
+        );
+      }
+      bag.add(
+        registerSurfaceContributions(
+          registries.surfaces,
+          featureId,
+          contributions.surfaces,
+          origin.entryDir,
+        ),
       );
     }
-    if (!origin.entryDir) {
-      throw new Error(
-        `Feature ${featureId} contributes surfaces but was activated without an entry directory to resolve them against`,
-      );
-    }
-    bag.add(
-      registerSurfaceContributions(
-        registries.surfaces,
-        featureId,
-        contributions.surfaces,
-        origin.entryDir,
-      ),
-    );
-  }
 
-  return bag;
+    return bag;
+  } catch (err) {
+    bag[Symbol.dispose]();
+    throw err;
+  }
 }
 
 export function registerFeaturePreflightContributions(

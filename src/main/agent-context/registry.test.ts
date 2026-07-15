@@ -97,6 +97,44 @@ describe("AgentContextRegistry", () => {
     expect(await flush(sm)).toBeUndefined();
   });
 
+  it("rolls back registered context when an initial value is invalid", () => {
+    const sm = new AgentContextRegistry();
+
+    expect(() =>
+      registerAgentContextContributions(sm, "test", [
+        {
+          name: "first",
+          description: "first",
+          materialize: () => undefined,
+        },
+        {
+          name: "pane-visibility",
+          description: "visibility",
+          buffer: {
+            kind: "update",
+            schema: Type.Object({ open: Type.Boolean() }),
+          },
+          initialValue: { open: "yes" } as unknown as { open: boolean },
+        },
+      ]),
+    ).toThrow("Invalid test.pane-visibility payload");
+
+    expect(() =>
+      sm.register("test", {
+        name: "first",
+        description: "replacement",
+        materialize: () => undefined,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      sm.register("test", {
+        name: "pane-visibility",
+        description: "replacement",
+        materialize: () => undefined,
+      }),
+    ).not.toThrow();
+  });
+
   it("flushes updated state as one tagged section inside one uix.state envelope", async () => {
     const sm = new AgentContextRegistry();
     const visibility = sm.register("test", {

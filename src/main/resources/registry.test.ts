@@ -191,6 +191,23 @@ describe("ResourceRegistry", () => {
     ).not.toThrow();
   });
 
+  it("rolls back earlier resources when bulk registration fails", () => {
+    const { registry } = createTestRegistry();
+    const doc = {
+      name: "doc",
+      route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
+      handle: () => new Response("doc"),
+    } as const;
+
+    expect(() =>
+      registerResourceContributions(registry, "canvas", [doc, doc]),
+    ).toThrow("Resource already registered: canvas-doc");
+
+    expect(() =>
+      registerResourceContributions(registry, "canvas", [doc]),
+    ).not.toThrow();
+  });
+
   it("registers contribution groups and disposes them together", async () => {
     const { registry, transport } = createTestRegistry();
 
