@@ -80,9 +80,13 @@ Acceptance:
 - **One binding per action in v1.** Each value is one `Shortcut | null`; multiple bindings remain deferred. A singular value keeps configuration, display, conflict projection, and editing simple, and the project prefers a later direct migration over carrying unused multiplicity now.
 - **Reload, not file watching.** Channel-originated edits update main and all renderers immediately, while human/agent edits to `uix.workspace.json` take effect on substrate reload. This matches the existing disk-wins settings model and avoids introducing general filesystem reactivity as a side effect of keybindings.
 
-### Implementation
+### Landed prerequisites
 
-Migrate current feature and `agent` settings definitions to the one-schema scope shape, make settings registration disposable/provisional with its feature, and make `registerFeatureContributions` dispose registrations already acquired if a later facet throws. Add the `keybindings` workspace definition with an explicit `{}` default, pure shortcut parsing/normalization helpers, and a main channel that reconciles renderer-declared defaults, reads/replaces the complete candidate, and publishes confirmed snapshots.
+The settings/lifetime prerequisites are complete: feature and workspace scopes share the one-schema model; manifest load/reload stages and validates one generation before promotion; settings registrations are provisional, identity-aware, and feature-bag-owned; grouped facet registration has strong exception safety; and rejected workspace candidates retain the prior live generation and handles. A2 builds only on this path—there is no compatibility settings or activation path to maintain.
+
+### Remaining implementation
+
+Add the `keybindings` workspace definition with an explicit `{}` default, pure shortcut parsing/normalization helpers, and a main channel that reconciles renderer-declared defaults, reads/replaces the complete candidate, and publishes confirmed snapshots.
 
 Extend `ActionRegistry` so normalization retains one stable default-template projection independent of enabled/running catalog updates. The workspace binding controller waits for action registration, performs the initial reconciliation handshake, subscribes to confirmed snapshots, gates future keyboard dispatch until confirmation, submits whole-scope edits, and joins active descriptors with bindings/conflicts while projecting unresolved ids separately.
 

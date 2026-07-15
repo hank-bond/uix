@@ -1,11 +1,8 @@
-// Composition facade wiring `WorkspaceManifestStore` and `SettingsRegistry`
-// together for the substrate's two settings scopes: manifest feature entries
-// and substrate-owned workspace namespaces.
-//
-// The loader keeps its narrow interface (`reload` / `loadFeatureScope` /
-// `forScope`) and never learns the manifest concept exists; main-process
-// substrate code reads workspace namespaces through the same `forScope` —
-// feature ids and namespaces share one flat scope-id space.
+// Workspace candidate/settings facade wiring `WorkspaceManifestStore` and
+// `SettingsRegistry`. It stages and promotes one structurally validated
+// manifest generation, returns that generation's accepted composition to the
+// loader, and binds feature/workspace settings scopes to generation locations.
+// Feature ids and substrate namespaces share one flat scope-id space.
 
 import type { SettingsDefinition, SettingsHandle } from "@uix/api/settings";
 
@@ -23,10 +20,10 @@ export type WorkspaceSettingsReload = ParsedWorkspaceManifest;
 
 export interface WorkspaceSettings {
   /**
-   * Disk-wins reload: re-reads the manifest, then re-registers every
-   * substrate namespace before any feature hydrates. Namespaces are staged
-   * all-or-nothing — a bad persisted value rejects the reload without
-   * touching the registry.
+   * Disk-wins reload: stages and validates composition plus every substrate
+   * namespace, then promotes the generation and replaces namespace scopes
+   * before any feature hydrates. Rejection leaves the live store and registry
+   * untouched.
    */
   reload(): Promise<WorkspaceSettingsReload>;
   loadFeatureScope(

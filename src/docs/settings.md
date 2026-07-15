@@ -71,7 +71,7 @@ The manifest entry does not repeat the feature id. The loaded `FeatureDefinition
 
 ## Hydration and validation
 
-During feature activation the loader merges the definition's whole-object default into persisted values, validates the completed scope against its one schema, and writes the materialized settings back to `uix.workspace.json` on a debounce.
+During feature activation the loader merges the definition's whole-object default into persisted values and validates the completed scope against its one schema. The scope registers provisionally before `context()` and `contribute()` run: reads, validated writes, and feature-local listeners work during activation, but defaults and activation-time writes remain detached from `uix.workspace.json`. Only after every returned facet registers successfully does the loader commit the final scope, materialize it into the live manifest, and switch later writes to normal write-through. A throwing hook or facet registration disposes the provisional scope without changing durable settings, and sibling features continue activating.
 
 Rules:
 
@@ -98,7 +98,7 @@ ctx.settings.set("statusBar", { order: ["context", "model"], hidden: [] });
 const unsubscribe = ctx.settings.onChange("statusBar", (next) => {});
 ```
 
-`set()` validates against the declared schema, updates memory, schedules an atomic write to `uix.workspace.json`, and fires `onChange` synchronously. External edits to the workspace file are picked up on `/reload`; there is no public file watcher API. Reload mirrors first load: the manifest on disk is the source of truth, so pending debounced in-memory settings that have not flushed are discarded.
+After activation commits, `set()` clones the current complete scope, replaces one key, validates the complete candidate against the declared schema, updates memory, writes through to the live manifest generation, and fires `onChange` synchronously. Persistence is debounced and atomically replaces `uix.workspace.json`; a final equality check skips no-op file writes. External edits are picked up on `/reload`; there is no public file watcher API. Reload mirrors first load: the manifest on disk is the source of truth, so a successful reload discards pending unflushed memory, while a rejected manifest leaves the previous live generation and its handles intact.
 
 ## Surface API
 
@@ -155,7 +155,8 @@ A fresh manifest materializes the registered namespace as `settings.agent: {}` e
 
 Rules:
 
-- hydration and validation are the same as feature settings (same schema pass, same unknown-key rejection, same debounced atomic write, same disk-wins `/reload`);
+- initial load and reload stage one detached manifest generation, structurally validate composition and all workspace namespaces, hydrate defaults there, and promote it only after every workspace-level check succeeds;
+- hydration and validation are the same as feature settings (same schema pass, same unknown-key rejection, same debounced atomic write, same disk-wins reload);
 - an unknown namespace under manifest-level `settings` rejects the load pass;
 - namespaces register before features, so a feature whose id collides with a namespace fails activation on the duplicate-scope check;
 - workspace settings are main-process-only — features get no handle to them. Model selection and favorite changes go through the agent channels (`select_model` and `set_model_favorite`), never by a surface mutating `agent` settings directly.

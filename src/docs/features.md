@@ -58,7 +58,7 @@ interface FeatureDefinition {
 }
 ```
 
-`context()` runs before `contribute()` and may return feature-local objects merged onto the context handed to `contribute()`. `settings`, when present, are declared before either hook runs so the loader can hydrate and validate workspace settings first.
+`context()` runs before `contribute()` and may return feature-local objects merged onto the context handed to `contribute()`. `settings`, when present, are declared before either hook runs so the loader can hydrate and validate a provisional feature scope first. Both hooks may use that scope; its defaults and writes commit only after every returned facet registers successfully.
 
 `contribute()` returns facet contributions such as resources, channels, agent tools, Agent system-prompt sections, Pi skills, turn state, agent context, and surfaces. See [`contributions.md`](./contributions.md), [`channels.md`](./channels.md), [`settings.md`](./settings.md), and [`lifetimes.md`](./lifetimes.md).
 
@@ -70,6 +70,6 @@ The renderer bridge exposes substrate reload as:
 await window.uix.reload();
 ```
 
-Reload re-reads the workspace manifest, refreshes workspace settings from disk, clears the current feature subtree, activates manifest entries again, publishes surface changes, and delegates to pi's native `session.reload()` path if a pi session already exists. It mirrors first load: disk wins over pending debounced in-memory settings.
+Reload stages one manifest generation from disk, validates its composition and workspace namespaces, promotes it, clears the current feature subtree, activates the accepted entries, publishes surface changes, and delegates to pi's native `session.reload()` path if a pi session already exists. It mirrors first load: a successful reload is disk-wins over pending debounced in-memory settings.
 
-Malformed manifests fail before clearing the current feature tree. Per-feature failures, including bad exports, reserved/duplicate ids, invalid settings, or throwing contribution code, are isolated: the failed entry is reported in the reload result and sibling entries continue activating.
+Malformed manifests or workspace settings fail before promotion or feature-tree clearing, leaving the previous live generation intact. Per-feature failures after promotion, including bad exports, reserved/duplicate ids, invalid feature settings, or throwing contribution code, dispose that feature's provisional registrations, report the failed entry, and continue with siblings.
