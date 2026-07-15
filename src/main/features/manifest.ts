@@ -8,7 +8,6 @@
 // later additions (layout, agent config, links) don't break older readers.
 // See docs/decisions/2026-07-02-workspace-manifest-not-discovery.md.
 
-import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { Type, type Static } from "typebox";
@@ -22,7 +21,10 @@ export const WorkspaceManifestFeatureSchema = Type.Object({
 });
 
 export const WorkspaceManifestSchema = Type.Object({
-  name: Type.String(),
+  name: Type.String({ minLength: 1 }),
+  settings: Type.Optional(
+    Type.Record(Type.String(), Type.Record(Type.String(), Type.Unknown())),
+  ),
   /** Ordered feature entries; order is registration order. */
   features: Type.Array(WorkspaceManifestFeatureSchema),
 });
@@ -42,35 +44,16 @@ export interface ManifestFeatureRef {
   entry: string;
 }
 
-/**
- * Reads and validates a workspace manifest, resolving its feature refs.
- * Throws with a message naming the file and what's wrong — the caller
- * decides whether that fails startup soft (bundled-only) or rejects a
- * reload (leaving the current tree intact).
- */
-export async function readWorkspaceManifest(
+export interface ParsedWorkspaceManifest {
+  manifest: WorkspaceManifest;
+  features: ManifestFeatureRef[];
+}
+
+/** Validates and resolves one already-read manifest tree. */
+export function parseWorkspaceManifest(
+  parsed: unknown,
   manifestPath: string,
-): Promise<{ manifest: WorkspaceManifest; features: ManifestFeatureRef[] }> {
-  let raw: string;
-  try {
-    raw = await readFile(manifestPath, "utf8");
-  } catch (err) {
-    throw new Error(
-      `workspace manifest unreadable: ${manifestPath} (${(err as Error).message})`,
-      { cause: err },
-    );
-  }
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (err) {
-    throw new Error(
-      `workspace manifest is not valid JSON: ${manifestPath} (${(err as Error).message})`,
-      { cause: err },
-    );
-  }
-
+): ParsedWorkspaceManifest {
   let manifest: WorkspaceManifest;
   try {
     manifest = Value.Parse(WorkspaceManifestSchema, parsed);

@@ -49,10 +49,7 @@ import {
   type FeatureSources,
   type FeatureSubstrate,
 } from "./features/loader";
-import {
-  readWorkspaceManifest,
-  WorkspaceManifestFileName,
-} from "./features/manifest";
+import { WorkspaceManifestFileName } from "./features/manifest";
 import { scaffoldWorkspace } from "./features/scaffold";
 import { SurfaceModulePipeline } from "./features/surface-pipeline";
 import { SurfaceRegistry } from "./features/surfaces";
@@ -407,12 +404,10 @@ async function openWorkspace(
   // Record the recent by manifest name (best-effort: a workspace without a
   // manifest isn't listable, and a bad manifest was already logged above).
   if (fs.existsSync(manifestPath)) {
-    try {
-      const { manifest } = await readWorkspaceManifest(manifestPath);
-      recents.record({ manifestPath, name: manifest.name });
-    } catch {
-      recents.record({ manifestPath, name: basename(workspace.stateRoot) });
-    }
+    recents.record({
+      manifestPath,
+      name: activation.workspaceName ?? basename(workspace.stateRoot),
+    });
   }
 
   // Eager, off the boot path: loads the session file so getHistory() resolves

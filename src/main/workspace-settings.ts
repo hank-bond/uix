@@ -9,6 +9,7 @@
 
 import type { SettingsDefinition, SettingsHandle } from "@uix/api/settings";
 
+import type { ParsedWorkspaceManifest } from "./features/manifest";
 import { DisposableBag } from "./lifecycle";
 import {
   hydrateSettings,
@@ -18,6 +19,8 @@ import {
 } from "./settings-registry";
 import type { WorkspaceManifestStore } from "./workspace-manifest-store";
 
+export type WorkspaceSettingsReload = ParsedWorkspaceManifest;
+
 export interface WorkspaceSettings {
   /**
    * Disk-wins reload: re-reads the manifest, then re-registers every
@@ -25,7 +28,7 @@ export interface WorkspaceSettings {
    * all-or-nothing — a bad persisted value rejects the reload without
    * touching the registry.
    */
-  reload(): Promise<void>;
+  reload(): Promise<WorkspaceSettingsReload>;
   loadFeatureScope(
     featureId: string,
     manifestIndex: number,
@@ -48,25 +51,28 @@ export function createWorkspaceSettings(
 
   return {
     async reload() {
-      await manifest.reload();
-      for (const namespace of manifest.settingsNamespaces()) {
+      const next = await manifest.stageFromDisk();
+      const { composition } = next;
+      for (const namespace of Object.keys(
+        composition.manifest.settings ?? {},
+      )) {
         if (!(namespace in namespaces)) {
           throw new Error(`Unknown workspace settings namespace: ${namespace}`);
         }
       }
 
-      // Stage every namespace against the fresh tree before committing
-      // anything — registry entries and manifest installs alike — so one
-      // bad namespace can't leave the others half-registered or the tree
-      // partially dirtied.
+      // Every fallible read/hydration stays detached. Returning from this
+      // preparation means promotion and namespace registration contain no
+      // user code or schema work and can run synchronously as one adoption.
       const staged: {
         namespace: string;
         scope: SettingsScope;
       }[] = [];
       for (const [namespace, definition] of Object.entries(namespaces)) {
         const label = `workspace namespace ${namespace}`;
-        const location = manifest.settingsNamespace(namespace);
+        const location = next.settingsNamespace(namespace);
         const values = hydrateSettings(definition, location.read(), label);
+        location.write(values);
         staged.push({
           namespace,
           scope: {
@@ -74,12 +80,13 @@ export function createWorkspaceSettings(
             definition,
             values,
             onWrite: (v) => {
-              location.install(v);
+              location.write(v);
             },
           },
         });
       }
 
+      manifest.promote(next);
       registry.clearScopes();
       namespaceBag.clear();
       for (const { namespace, scope } of staged) {
@@ -88,6 +95,7 @@ export function createWorkspaceSettings(
         );
         registration.commit();
       }
+      return composition;
     },
 
     loadFeatureScope(featureId, manifestIndex, settings) {
@@ -98,7 +106,7 @@ export function createWorkspaceSettings(
         label,
         definition: settings,
         values,
-        onWrite: (next) => location.install(next),
+        onWrite: (next) => location.write(next),
       });
     },
 

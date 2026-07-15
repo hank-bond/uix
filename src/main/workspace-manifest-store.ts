@@ -1,32 +1,50 @@
 // Persistence owner for `uix.workspace.json`.
 //
-// Holds the parsed manifest tree and everything file-shaped about it: read,
-// transactional disk-wins reload, dirty tracking, debounced atomic flush.
-// Consumers never touch the tree directly — the store mints opaque
-// `ManifestLocation` handles through purpose-built accessors, so knowledge
-// of where things live in the JSON concentrates here. Future manifest
-// regions are new accessors on this store; existing consumers never see
-// them.
+// The store keeps one active manifest generation and stages disk reads as
+// separate mutable generations. Callers validate and hydrate a staged
+// generation before promoting it; rejection leaves the active generation and
+// its pending flush untouched. Purpose-built location handles keep tree shape
+// knowledge here and remain bound to the generation that minted them.
 
 import { randomBytes } from "node:crypto";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
+import {
+  parseWorkspaceManifest,
+  type ParsedWorkspaceManifest,
+} from "./features/manifest";
 import { createLogger } from "./log";
 
 const log = createLogger("workspace-manifest");
 
 type JsonObject = Record<string, unknown>;
+type GenerationStatus = "staged" | "active" | "stale";
+
+interface ManifestGenerationState {
+  raw: JsonObject;
+  diskBaseline: string;
+  status: GenerationStatus;
+}
 
 /**
- * A spot in the manifest tree where one settings object lives. `install`
- * aliases the given values object into the tree (creating parents) and marks
- * the manifest dirty only when the JSON value changed.
+ * A spot in one manifest generation where a settings object lives. `write`
+ * aliases the given values into that generation. Staged writes stay detached;
+ * active writes mark the store dirty only when the JSON value changed; stale
+ * writes reject.
  */
 export interface ManifestLocation {
   read(): JsonObject | undefined;
-  install(values: JsonObject): void;
+  write(values: JsonObject): void;
+}
+
+/** A mutable manifest generation read from disk but not yet made live. */
+export interface StagedWorkspaceManifest {
+  readonly manifestPath: string;
+  readonly composition: ParsedWorkspaceManifest;
+  featureEntrySettings(manifestIndex: number): ManifestLocation;
+  settingsNamespace(namespace: string): ManifestLocation;
 }
 
 interface WorkspaceManifestStoreOptions {
@@ -36,7 +54,12 @@ interface WorkspaceManifestStoreOptions {
 export class WorkspaceManifestStore implements Disposable {
   readonly #manifestPath: string;
   readonly #flushDebounceMs: number;
-  #raw: JsonObject | undefined;
+  readonly #staged = new WeakMap<
+    StagedWorkspaceManifest,
+    ManifestGenerationState
+  >();
+  #active: ManifestGenerationState | undefined;
+  #persistedJson: string | undefined;
   #dirty = false;
   #flushTimer: NodeJS.Timeout | undefined;
   #disposed = false;
@@ -46,84 +69,130 @@ export class WorkspaceManifestStore implements Disposable {
     this.#flushDebounceMs = opts.flushDebounceMs ?? 5000;
   }
 
-  /** Disk wins: replaces the tree only after the new read parses clean. */
-  async reload(): Promise<void> {
-    const raw = await readRawManifest(this.#manifestPath);
-    const settings = raw["settings"];
-    if (settings !== undefined && !isRecord(settings)) {
-      throw new Error(
-        `workspace manifest settings is not an object: ${this.#manifestPath}`,
-      );
+  /**
+   * Reads disk into an independent mutable generation. The active generation,
+   * dirty state, and pending flush remain untouched until `promote` succeeds.
+   */
+  async stageFromDisk(): Promise<StagedWorkspaceManifest> {
+    if (this.#disposed) {
+      throw new Error("WorkspaceManifestStore is disposed");
     }
+    const parsed = await readRawManifest(this.#manifestPath);
+    const composition = parseWorkspaceManifest(parsed, this.#manifestPath);
+    const state: ManifestGenerationState = {
+      raw: parsed as JsonObject,
+      diskBaseline: JSON.stringify(parsed),
+      status: "staged",
+    };
+    const staged: StagedWorkspaceManifest = {
+      manifestPath: this.#manifestPath,
+      composition,
+      featureEntrySettings: (manifestIndex) =>
+        this.#featureEntrySettings(state, manifestIndex),
+      settingsNamespace: (namespace) =>
+        this.#settingsNamespace(state, namespace),
+    };
+    this.#staged.set(staged, state);
+    return staged;
+  }
+
+  /** Promotes one staged generation to active exactly once. */
+  promote(staged: StagedWorkspaceManifest): void {
+    if (this.#disposed) {
+      throw new Error("WorkspaceManifestStore is disposed");
+    }
+    const next = this.#staged.get(staged);
+    if (!next) {
+      throw new Error("Workspace manifest was not staged by this store");
+    }
+    if (next.status !== "staged") {
+      throw new Error(`Workspace manifest is already ${next.status}`);
+    }
+    if (this.#active) this.#active.status = "stale";
     this.#clearFlushTimer();
-    this.#dirty = false;
-    this.#raw = raw;
+    this.#active = next;
+    next.status = "active";
+    this.#persistedJson = next.diskBaseline;
+    this.#dirty = JSON.stringify(next.raw) !== next.diskBaseline;
+    this.#scheduleFlush();
   }
 
-  /** Namespace keys persisted under the manifest-level `settings` object. */
-  settingsNamespaces(): string[] {
-    return Object.keys(asRecord(this.#requireRaw()["settings"]) ?? {});
-  }
-
-  /** Location of `features[manifestIndex].settings`. */
+  /** Location of `features[manifestIndex].settings` in the active generation. */
   featureEntrySettings(manifestIndex: number): ManifestLocation {
+    return this.#featureEntrySettings(this.#requireActive(), manifestIndex);
+  }
+
+  async flush(): Promise<void> {
+    this.#clearFlushTimer();
+    if (!this.#dirty) return;
+
+    const active = this.#requireActive();
+    const currentJson = JSON.stringify(active.raw);
+    if (currentJson === this.#persistedJson) {
+      this.#dirty = false;
+      return;
+    }
+
+    this.#dirty = false;
+    try {
+      await atomicWriteFile(
+        this.#manifestPath,
+        `${JSON.stringify(active.raw, null, 2)}\n`,
+      );
+      this.#persistedJson = currentJson;
+    } catch (err) {
+      this.#dirty = true;
+      this.#scheduleFlush();
+      throw err;
+    }
+  }
+
+  [Symbol.dispose](): void {
+    if (this.#disposed) return;
+    this.#disposed = true;
+    if (this.#active) this.#active.status = "stale";
+    this.#clearFlushTimer();
+  }
+
+  #featureEntrySettings(
+    state: ManifestGenerationState,
+    manifestIndex: number,
+  ): ManifestLocation {
     return this.#location(
+      state,
       (raw) => requireManifestFeatureEntry(raw, manifestIndex),
       "settings",
     );
   }
 
-  /** Location of `settings[namespace]` at the manifest top level. */
-  settingsNamespace(namespace: string): ManifestLocation {
-    // Only `install` may create the top-level `settings` object — a read
-    // of an absent namespace must not grow the manifest.
+  #settingsNamespace(
+    state: ManifestGenerationState,
+    namespace: string,
+  ): ManifestLocation {
     return this.#location(
+      state,
       (raw, create) =>
         create ? getOrCreateRecord(raw, "settings") : asRecord(raw["settings"]),
       namespace,
     );
   }
 
-  async flush(): Promise<void> {
-    this.#clearFlushTimer();
-    if (!this.#dirty) return;
-    this.#dirty = false;
-    try {
-      await atomicWriteFile(
-        this.#manifestPath,
-        `${JSON.stringify(this.#requireRaw(), null, 2)}\n`,
-      );
-    } catch (err) {
-      this.#dirty = true;
-      this.#scheduleFlush();
-      throw err;
-    }
-    this.#scheduleFlush();
-  }
-
-  [Symbol.dispose](): void {
-    if (this.#disposed) return;
-    this.#disposed = true;
-    this.#clearFlushTimer();
-  }
-
   #location(
+    state: ManifestGenerationState,
     parent: (raw: JsonObject, create: boolean) => JsonObject | undefined,
     key: string,
   ): ManifestLocation {
     return {
-      read: () => asRecord(parent(this.#requireRaw(), false)?.[key]),
-      install: (values) => {
-        if (this.#disposed) {
-          throw new Error("WorkspaceManifestStore is disposed");
-        }
-        const target = parent(this.#requireRaw(), true);
+      read: () => asRecord(parent(state.raw, false)?.[key]),
+      write: (values) => {
+        this.#assertWritable(state);
+        const target = parent(state.raw, true);
         if (!target) {
           throw new Error(`workspace manifest has no parent for ${key}`);
         }
         const changed = !isJsonEqual(target[key], values);
         target[key] = values;
-        if (changed) {
+        if (changed && state.status === "active") {
           this.#dirty = true;
           this.#scheduleFlush();
         }
@@ -131,11 +200,20 @@ export class WorkspaceManifestStore implements Disposable {
     };
   }
 
-  #requireRaw(): JsonObject {
-    if (!this.#raw) {
-      throw new Error("WorkspaceManifestStore has not loaded a manifest");
+  #assertWritable(state: ManifestGenerationState): void {
+    if (this.#disposed) {
+      throw new Error("WorkspaceManifestStore is disposed");
     }
-    return this.#raw;
+    if (state.status === "stale") {
+      throw new Error("Workspace manifest generation is stale");
+    }
+  }
+
+  #requireActive(): ManifestGenerationState {
+    if (!this.#active) {
+      throw new Error("WorkspaceManifestStore has no active manifest");
+    }
+    return this.#active;
   }
 
   #scheduleFlush(): void {
@@ -158,11 +236,25 @@ export class WorkspaceManifestStore implements Disposable {
   }
 }
 
-async function readRawManifest(manifestPath: string): Promise<JsonObject> {
-  const raw = await readFile(manifestPath, "utf8");
-  const parsed = JSON.parse(raw) as unknown;
-  if (!isRecord(parsed)) {
-    throw new Error(`workspace manifest is not a JSON object: ${manifestPath}`);
+async function readRawManifest(manifestPath: string): Promise<unknown> {
+  let raw: string;
+  try {
+    raw = await readFile(manifestPath, "utf8");
+  } catch (err) {
+    throw new Error(
+      `workspace manifest unreadable: ${manifestPath} (${(err as Error).message})`,
+      { cause: err },
+    );
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(
+      `workspace manifest is not valid JSON: ${manifestPath} (${(err as Error).message})`,
+      { cause: err },
+    );
   }
   return parsed;
 }
@@ -171,14 +263,9 @@ function requireManifestFeatureEntry(
   rawManifest: JsonObject,
   manifestIndex: number,
 ): JsonObject {
-  const features = rawManifest["features"];
-  if (!Array.isArray(features)) {
-    throw new Error("workspace manifest features is not an array");
-  }
-  const feature = (features as unknown[])[manifestIndex];
-  if (isRecord(feature)) {
-    return feature;
-  }
+  const features = rawManifest["features"] as JsonObject[];
+  const feature = features[manifestIndex];
+  if (feature) return feature;
   throw new Error(
     `workspace manifest has no feature entry at index ${String(manifestIndex)}`,
   );

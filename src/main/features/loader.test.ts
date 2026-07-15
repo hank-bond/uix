@@ -14,6 +14,7 @@ import type { DocumentStoreFactory } from "@uix/api/documents";
 import { AgentToolRegistry } from "../agent-tools/registry";
 import { ChannelRegistry } from "../channels/registry";
 import { DisposableBag } from "../lifecycle";
+import { WorkspaceManifestStore } from "../workspace-manifest-store";
 
 import { loadFeatures, type FeatureSubstrate } from "./loader";
 import { WorkspaceManifestFileName } from "./manifest";
@@ -25,16 +26,25 @@ const documents: DocumentStoreFactory = {
   },
 };
 
-function makeSubstrate() {
+function makeSubstrate(manifestPath?: string) {
+  const manifestStore = manifestPath
+    ? new WorkspaceManifestStore(manifestPath)
+    : undefined;
   const settingsScopes = new Map<
     string,
     { committed: boolean; values: Map<string, unknown> }
   >();
   const committedSettings: string[] = [];
   const settings = {
-    reload: () => {
+    reload: async () => {
+      if (!manifestStore || !manifestPath) {
+        throw new Error("Test settings have no manifest path");
+      }
+      const next = await manifestStore.stageFromDisk();
+      const { composition } = next;
+      manifestStore.promote(next);
       settingsScopes.clear();
-      return Promise.resolve();
+      return composition;
     },
     loadFeatureScope: (featureId: string) => {
       if (settingsScopes.has(featureId)) {
@@ -160,7 +170,7 @@ describe("loadFeatures", () => {
       "greeter.ts": toolFeature("greeter"),
     });
     const { substrate, agentTools, settingsScopes, committedSettings } =
-      makeSubstrate();
+      makeSubstrate(manifestPath);
     const bag = new DisposableBag();
 
     const result = await loadFeatures({ manifestPath }, bag, substrate);
@@ -189,7 +199,7 @@ describe("loadFeatures", () => {
       },
       ["./zzz.ts", "./aaa.ts"],
     );
-    const { substrate, agentTools } = makeSubstrate();
+    const { substrate, agentTools } = makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },
@@ -217,7 +227,7 @@ describe("loadFeatures", () => {
     const manifestPath = await writeWorkspace({
       "greeter.ts": toolFeature("greeter"),
     });
-    const { substrate, agentTools } = makeSubstrate();
+    const { substrate, agentTools } = makeSubstrate(manifestPath);
     const bag = new DisposableBag();
 
     await loadFeatures({ manifestPath }, bag, substrate);
@@ -245,7 +255,7 @@ describe("loadFeatures", () => {
       },
       ["./broken.mjs", "./greeter.ts"],
     );
-    const { substrate, agentTools } = makeSubstrate();
+    const { substrate, agentTools } = makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },
@@ -269,7 +279,8 @@ export default {
 };
 `,
     });
-    const { substrate, settingsScopes, committedSettings } = makeSubstrate();
+    const { substrate, settingsScopes, committedSettings } =
+      makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },
@@ -294,7 +305,8 @@ export default {
 };
 `,
     });
-    const { substrate, settingsScopes, committedSettings } = makeSubstrate();
+    const { substrate, settingsScopes, committedSettings } =
+      makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },
@@ -321,7 +333,7 @@ export default {
       ["./broken.ts", "./recovered.ts"],
     );
     const { substrate, agentTools, settingsScopes, committedSettings } =
-      makeSubstrate();
+      makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },
@@ -343,7 +355,7 @@ export default {
       { "greeter.ts": toolFeature("greeter") },
       ["./missing.ts", "./greeter.ts"],
     );
-    const { substrate } = makeSubstrate();
+    const { substrate } = makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },
@@ -361,7 +373,7 @@ export default {
     const sharedEntry = join(sharedDir, "shared.ts");
     await writeFile(sharedEntry, toolFeature("shared"));
     const manifestPath = await writeWorkspace({}, [sharedEntry]);
-    const { substrate } = makeSubstrate();
+    const { substrate } = makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },
@@ -378,7 +390,7 @@ export default {
     const manifestPath = await writeWorkspace({
       "bad.mjs": `export default function activate() {};`,
     });
-    const { substrate } = makeSubstrate();
+    const { substrate } = makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },
@@ -397,7 +409,7 @@ export default {
       "impostor.ts": toolFeature("agent"),
       "impostor2.ts": toolFeature("uix"),
     });
-    const { substrate } = makeSubstrate();
+    const { substrate } = makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },
@@ -419,7 +431,7 @@ export default {
       },
       ["./first.ts", "./second.ts"],
     );
-    const { substrate } = makeSubstrate();
+    const { substrate } = makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },
@@ -444,7 +456,7 @@ export default {
       ["./greeter.ts", "./waver.ts"],
     );
     const sources = { manifestPath };
-    const { substrate, agentTools } = makeSubstrate();
+    const { substrate, agentTools } = makeSubstrate(manifestPath);
     const bag = new DisposableBag();
 
     await loadFeatures(sources, bag, substrate);
@@ -464,7 +476,7 @@ export default {
 };
 `,
     });
-    const { substrate, surfaces } = makeSubstrate();
+    const { substrate, surfaces } = makeSubstrate(manifestPath);
     const bag = new DisposableBag();
 
     const result = await loadFeatures({ manifestPath }, bag, substrate);
@@ -508,7 +520,7 @@ export default {
 };
 `,
     });
-    const { substrate, channelIds } = makeSubstrate();
+    const { substrate, channelIds } = makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },

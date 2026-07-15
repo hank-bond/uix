@@ -65,7 +65,7 @@ import {
   registerFeatureContributions,
   type FeatureContributionRegistries,
 } from "./contributions";
-import { readWorkspaceManifest, type ManifestFeatureRef } from "./manifest";
+import type { ManifestFeatureRef } from "./manifest";
 
 const log = createLogger("features");
 
@@ -188,6 +188,8 @@ export interface FailedFeature {
 export interface ActivationResult {
   loaded: LoadedFeature[];
   failed: FailedFeature[];
+  /** Accepted workspace name, when this pass loaded a manifest. */
+  workspaceName?: string;
 }
 
 const normalize = (thrown: unknown): Error =>
@@ -359,10 +361,9 @@ export const loadFeatures = (
 
   inFlightFeatureLoad = (async () => {
     let entries: readonly ManifestFeatureRef[] = [];
+    let workspaceName: string | undefined;
     if (sources.manifestPath) {
-      const { manifest, features } = await readWorkspaceManifest(
-        sources.manifestPath,
-      );
+      const { manifest, features } = await substrate.settings.reload();
       log.debug(
         {
           manifest: sources.manifestPath,
@@ -372,10 +373,14 @@ export const loadFeatures = (
         "manifest_read",
       );
       entries = features;
-      await substrate.settings.reload();
+      workspaceName = manifest.name;
     }
     featuresBag.clear();
-    return activateFeatures(entries, featuresBag, substrate);
+    const activated = await activateFeatures(entries, featuresBag, substrate);
+    return {
+      ...activated,
+      ...(workspaceName !== undefined && { workspaceName }),
+    };
   })().finally(() => {
     inFlightFeatureLoad = undefined;
   });

@@ -539,6 +539,28 @@ describe("workspace namespace settings", () => {
     );
   });
 
+  it("rejects an empty workspace name at the manifest schema", async () => {
+    const manifestPath = await tempManifest({ name: "", features: [] });
+    using harness = createHarness(manifestPath);
+
+    await expect(harness.settings.reload()).rejects.toThrow(
+      "workspace manifest does not match schema",
+    );
+  });
+
+  it("rejects non-object namespace values at the manifest schema", async () => {
+    const manifestPath = await tempManifest({
+      name: "Demo",
+      settings: { agent: 5 },
+      features: [],
+    });
+    using harness = createHarness(manifestPath, { agent: agentNamespace });
+
+    await expect(harness.settings.reload()).rejects.toThrow(
+      "workspace manifest does not match schema",
+    );
+  });
+
   it("throws on first use of an unknown scope handle", async () => {
     const manifestPath = await tempManifest({ name: "Demo", features: [] });
     using harness = createHarness(manifestPath, { agent: agentNamespace });
@@ -580,7 +602,7 @@ describe("workspace namespace settings", () => {
       features: [],
     });
     using harness = createHarness(manifestPath, { agent: agentNamespace });
-    const { settings } = harness;
+    const { settings, manifest } = harness;
 
     await settings.reload();
     await writeFile(
@@ -601,6 +623,18 @@ describe("workspace namespace settings", () => {
     expect(settings.forScope("agent").get("defaultModel")).toEqual({
       provider: "anthropic",
       id: "claude",
+    });
+
+    settings.forScope("agent").set("defaultModel", {
+      provider: "openai",
+      id: "gpt",
+    });
+    await manifest.flush();
+    const written = (await readManifest(manifestPath)) as {
+      settings: Record<string, unknown>;
+    };
+    expect(written.settings).toEqual({
+      agent: { defaultModel: { provider: "openai", id: "gpt" } },
     });
   });
 
