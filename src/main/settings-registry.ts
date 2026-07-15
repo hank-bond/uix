@@ -8,38 +8,30 @@
 //
 // The registry never reads files, resolves manifest locations, or hydrates
 // defaults — `registerScope` takes a finished scope, and persistence exists here
-// only as each scope's injected write-back hook. The choreography that
-// builds a scope from a manifest location lives in `loadScope`
-// (read → hydrate → install), with the schema logic in the pure
-// `hydrateSettings`.
+// only as each scope's injected write-back hook. The workspace facade owns
+// location choreography, while the schema logic stays in the pure
+// `hydrateSettings` pass.
 
 import type { SettingsDefinition, SettingsHandle } from "@uix/api/settings";
 import type { TSchema } from "typebox";
 import { Value } from "typebox/value";
 
 import { disposable } from "./lifecycle";
-import type { ManifestLocation } from "./workspace-manifest-store";
 
 type JsonObject = Record<string, unknown>;
 
 type Listener = (value: unknown) => void;
 type AnyListener = (scopeId: string, key: string, value: unknown) => void;
 
-export interface HydratedValues {
-  values: JsonObject;
-  changed: boolean;
-}
-
 /**
  * Pure schema pass over one complete scope: merge explicit defaults into
- * persisted values, then validate the resulting object. `changed` reports
- * whether the materialized value needs writing back.
+ * persisted values, then validate the resulting object.
  */
 export function hydrateSettings(
   definition: SettingsDefinition,
   persisted: JsonObject | undefined,
   label: string,
-): HydratedValues {
+): JsonObject {
   let values: JsonObject;
   try {
     const defaults =
@@ -56,7 +48,7 @@ export function hydrateSettings(
       },
     );
   }
-  return { values, changed: !jsonEqual(persisted, values) };
+  return values;
 }
 
 /** A finished scope, ready for `SettingsRegistry.registerScope`. */
@@ -65,35 +57,8 @@ export interface SettingsScope {
   label: string;
   definition: SettingsDefinition;
   values: JsonObject;
-  /** Persistence hook invoked after every validated `set`. Omit for ephemeral scopes. */
+  /** Persistence hook invoked at provisional commit and after committed `set`s. */
   onWrite?: (values: JsonObject) => void;
-}
-
-/**
- * The common scope-boot choreography over a manifest location:
- * read persisted → hydrate → install when changed. Callers that need a
- * different transaction boundary (e.g. hydrate-all-then-commit on reload)
- * use `hydrateSettings` and assemble the scope themselves.
- */
-export function loadScope(
-  definition: SettingsDefinition,
-  location: ManifestLocation,
-  label: string,
-): SettingsScope {
-  const { values, changed } = hydrateSettings(
-    definition,
-    location.read(),
-    label,
-  );
-  if (changed) location.install(values);
-  return {
-    label,
-    definition,
-    values,
-    onWrite: (v) => {
-      location.install(v);
-    },
-  };
 }
 
 interface ScopeState {
@@ -101,6 +66,12 @@ interface ScopeState {
   schema: TSchema;
   values: JsonObject;
   onWrite?: (values: JsonObject) => void;
+  committed: boolean;
+}
+
+/** A live provisional scope; commit accepts its values for write-through use. */
+export interface SettingsScopeRegistration extends Disposable {
+  commit(): void;
 }
 
 export class SettingsRegistry implements Disposable {
@@ -109,19 +80,45 @@ export class SettingsRegistry implements Disposable {
   readonly #anyListeners = new Set<AnyListener>();
   #disposed = false;
 
-  registerScope(scopeId: string, scope: SettingsScope): void {
+  registerScope(
+    scopeId: string,
+    scope: SettingsScope,
+  ): SettingsScopeRegistration {
     if (this.#disposed) {
       throw new Error("SettingsRegistry is disposed");
     }
     if (this.#scopes.has(scopeId)) {
       throw new Error(`Settings scope already registered: ${scopeId}`);
     }
-    this.#scopes.set(scopeId, {
+    const state: ScopeState = {
       label: scope.label,
       schema: scope.definition.schema,
       values: scope.values,
       ...(scope.onWrite && { onWrite: scope.onWrite }),
-    });
+      committed: false,
+    };
+    this.#scopes.set(scopeId, state);
+
+    let disposed = false;
+    return {
+      commit: () => {
+        if (disposed || this.#scopes.get(scopeId) !== state) {
+          throw new Error(
+            `Settings scope registration is no longer active: ${scopeId}`,
+          );
+        }
+        if (state.committed) return;
+        state.onWrite?.(state.values);
+        state.committed = true;
+      },
+      [Symbol.dispose]: () => {
+        if (disposed) return;
+        disposed = true;
+        if (this.#scopes.get(scopeId) === state) {
+          this.#scopes.delete(scopeId);
+        }
+      },
+    };
   }
 
   /**
@@ -155,6 +152,10 @@ export class SettingsRegistry implements Disposable {
     candidate[key] = cloneJson(value);
     const parsed = Value.Parse(scope.schema, candidate) as JsonObject;
     scope.values = parsed;
+    if (!scope.committed) {
+      this.#notify(scopeId, key, parsed[key], false);
+      return;
+    }
     scope.onWrite?.(parsed);
     this.#notify(scopeId, key, parsed[key]);
   }
@@ -229,7 +230,12 @@ export class SettingsRegistry implements Disposable {
     throw new Error(`Unknown setting for ${scope.label}: ${key}`);
   }
 
-  #notify(scopeId: string, key: string, value: unknown): void {
+  #notify(
+    scopeId: string,
+    key: string,
+    value: unknown,
+    includeAnyListeners = true,
+  ): void {
     const cloned = cloneJson(value);
     const errors: unknown[] = [];
     const notify = (run: () => void) => {
@@ -240,8 +246,10 @@ export class SettingsRegistry implements Disposable {
       }
     };
 
-    for (const listener of this.#anyListeners) {
-      notify(() => listener(scopeId, key, cloneJson(cloned)));
+    if (includeAnyListeners) {
+      for (const listener of this.#anyListeners) {
+        notify(() => listener(scopeId, key, cloneJson(cloned)));
+      }
     }
     const listeners = this.#listeners.get(toListenerKey(scopeId, key));
     if (listeners) {
@@ -293,10 +301,6 @@ function cloneJson(value: unknown): unknown {
     throw new Error("Settings values must be JSON-serializable");
   }
   return JSON.parse(json) as unknown;
-}
-
-function jsonEqual(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function isRecord(value: unknown): value is JsonObject {

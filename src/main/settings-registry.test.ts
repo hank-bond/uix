@@ -38,15 +38,24 @@ function scope(overrides: Partial<SettingsScope> = {}): SettingsScope {
   };
 }
 
+function registerCommitted(
+  registry: SettingsRegistry,
+  scopeId: string,
+  settingsScope: SettingsScope,
+): Disposable {
+  const registration = registry.registerScope(scopeId, settingsScope);
+  registration.commit();
+  return registration;
+}
+
 describe("hydrateSettings", () => {
   it("hydrates missing object fields from explicit defaults", () => {
-    const { values, changed } = hydrateSettings(
+    const values = hydrateSettings(
       StatusSettings,
       { statusBar: { hidden: ["context"] } },
       "feature chat",
     );
 
-    expect(changed).toBe(true);
     expect(values).toEqual({
       statusBar: {
         order: ["model", "context"],
@@ -56,20 +65,15 @@ describe("hydrateSettings", () => {
     });
   });
 
-  it("does not report change when persisted values already match", () => {
+  it("preserves persisted values that already match", () => {
     const persisted = { statusBar: structuredClone(StatusBarDefault) };
-    const { values, changed } = hydrateSettings(
-      StatusSettings,
-      persisted,
-      "feature chat",
-    );
+    const values = hydrateSettings(StatusSettings, persisted, "feature chat");
 
-    expect(changed).toBe(false);
     expect(values).toEqual(persisted);
   });
 
   it("hydrates scalar defaults and treats null as an explicit value", () => {
-    const { values } = hydrateSettings(
+    const values = hydrateSettings(
       defineSettings({
         schema: Type.Object({
           enabled: Type.Boolean(),
@@ -86,7 +90,7 @@ describe("hydrateSettings", () => {
   });
 
   it("materializes an empty registered scope while leaving optional values absent", () => {
-    const { values, changed } = hydrateSettings(
+    const values = hydrateSettings(
       defineSettings({
         schema: Type.Object({
           defaultModel: Type.Optional(Type.Object({ id: Type.String() })),
@@ -96,7 +100,6 @@ describe("hydrateSettings", () => {
       "workspace namespace agent",
     );
 
-    expect(changed).toBe(true);
     expect(values).toEqual({});
   });
 
@@ -107,12 +110,11 @@ describe("hydrateSettings", () => {
       }),
     });
 
-    const { values, changed } = hydrateSettings(
+    const values = hydrateSettings(
       definition,
       { defaultModel: { id: "claude" } },
       "workspace namespace agent",
     );
-    expect(changed).toBe(false);
     expect(values).toEqual({ defaultModel: { id: "claude" } });
 
     expect(() =>
@@ -143,7 +145,7 @@ describe("hydrateSettings", () => {
         keybindings,
         { "chat.models": "mod+m", "chat.disabled": null },
         "workspace namespace keybindings",
-      ).values,
+      ),
     ).toEqual({ "chat.models": "mod+m", "chat.disabled": null });
     expect(() =>
       hydrateSettings(
@@ -158,21 +160,71 @@ describe("hydrateSettings", () => {
 describe("SettingsRegistry", () => {
   it("rejects duplicate scope ids", () => {
     using registry = new SettingsRegistry();
-    registry.registerScope("chat", scope());
+    registerCommitted(registry, "chat", scope());
 
     expect(() => registry.registerScope("chat", scope())).toThrow(
       "Settings scope already registered: chat",
     );
   });
 
+  it("disposes only the exact scope registration it created", () => {
+    using registry = new SettingsRegistry();
+    const stale = registry.registerScope("chat", scope());
+
+    registry.clearScopes();
+    registerCommitted(registry, "chat", scope());
+    stale[Symbol.dispose]();
+
+    expect(registry.get("chat", "statusBar")).toEqual(StatusBarDefault);
+  });
+
+  it("buffers provisional writes until commit", () => {
+    using registry = new SettingsRegistry();
+    const written: unknown[] = [];
+    const scopedChanges: unknown[] = [];
+    const globalChanges: unknown[] = [];
+    const registration = registry.registerScope(
+      "chat",
+      scope({ onWrite: (values) => written.push(structuredClone(values)) }),
+    );
+    registry.onChange("chat", "statusBar", (value) =>
+      scopedChanges.push(value),
+    );
+    registry.onAnyChange((_scopeId, _key, value) => globalChanges.push(value));
+
+    registry.set("chat", "statusBar", { order: ["context"], hidden: [] });
+
+    expect(registry.get("chat", "statusBar")).toEqual({
+      order: ["context"],
+      hidden: [],
+    });
+    expect(scopedChanges).toEqual([{ order: ["context"], hidden: [] }]);
+    expect(globalChanges).toEqual([]);
+    expect(written).toEqual([]);
+
+    registration.commit();
+    expect(written).toEqual([
+      { statusBar: { order: ["context"], hidden: [] } },
+    ]);
+
+    registry.set("chat", "statusBar", { order: ["model"], hidden: [] });
+    expect(written).toEqual([
+      { statusBar: { order: ["context"], hidden: [] } },
+      { statusBar: { order: ["model"], hidden: [] } },
+    ]);
+    expect(globalChanges).toEqual([{ order: ["model"], hidden: [] }]);
+  });
+
   it("serves validated get/set and notifies listeners", () => {
     using registry = new SettingsRegistry();
     const written: unknown[] = [];
     const changes: unknown[] = [];
-    registry.registerScope(
+    registerCommitted(
+      registry,
       "chat",
       scope({ onWrite: (values) => written.push(structuredClone(values)) }),
     );
+    written.length = 0;
     const chat = registry.forScope("chat");
     chat.onChange("statusBar", (value) => changes.push(value));
 
@@ -193,7 +245,7 @@ describe("SettingsRegistry", () => {
     using registry = new SettingsRegistry();
     const written: unknown[] = [];
     const changes: unknown[] = [];
-    registry.registerScope("agent", {
+    registerCommitted(registry, "agent", {
       label: "workspace namespace agent",
       definition: defineSettings({
         schema: Type.Object({ favorite: Type.Optional(Type.String()) }),
@@ -201,6 +253,7 @@ describe("SettingsRegistry", () => {
       values: {},
       onWrite: (values) => written.push(structuredClone(values)),
     });
+    written.length = 0;
     registry.onChange("agent", "favorite", (value) => changes.push(value));
 
     expect(() => registry.set("agent", "favorite", undefined)).toThrow(
@@ -214,10 +267,12 @@ describe("SettingsRegistry", () => {
   it("invokes the write hook before notifying listeners", () => {
     using registry = new SettingsRegistry();
     const order: string[] = [];
-    registry.registerScope(
+    registerCommitted(
+      registry,
       "chat",
       scope({ onWrite: () => order.push("write") }),
     );
+    order.length = 0;
     registry.onChange("chat", "statusBar", () => {
       order.push("notify");
       throw new Error("listener failed");
@@ -231,7 +286,7 @@ describe("SettingsRegistry", () => {
 
   it("supports ephemeral scopes without a write hook", () => {
     using registry = new SettingsRegistry();
-    registry.registerScope("chat", scope());
+    registerCommitted(registry, "chat", scope());
 
     registry.set("chat", "statusBar", { order: [], hidden: [] });
 
@@ -243,7 +298,7 @@ describe("SettingsRegistry", () => {
 
   it("routes dynamically validated record keys through normal get and set", () => {
     using registry = new SettingsRegistry();
-    registry.registerScope("keybindings", {
+    registerCommitted(registry, "keybindings", {
       label: "workspace namespace keybindings",
       definition: defineSettings({
         schema: Type.Record(
@@ -270,7 +325,7 @@ describe("SettingsRegistry", () => {
 
   it("throws for unknown scopes and unknown keys", () => {
     using registry = new SettingsRegistry();
-    registry.registerScope("chat", scope());
+    registerCommitted(registry, "chat", scope());
 
     expect(() => registry.get("canvas", "zoom")).toThrow(
       "Unknown settings scope: canvas",
@@ -282,21 +337,21 @@ describe("SettingsRegistry", () => {
 
   it("clearScopes drops scopes so ids can re-register", () => {
     using registry = new SettingsRegistry();
-    registry.registerScope("chat", scope());
+    registerCommitted(registry, "chat", scope());
 
     registry.clearScopes();
 
     expect(() => registry.get("chat", "statusBar")).toThrow(
       "Unknown settings scope: chat",
     );
-    registry.registerScope("chat", scope());
+    registerCommitted(registry, "chat", scope());
     expect(registry.get("chat", "statusBar")).toEqual(StatusBarDefault);
   });
 
   it("notifies onAnyChange with the scope id", () => {
     using registry = new SettingsRegistry();
     const seen: [string, string, unknown][] = [];
-    registry.registerScope("agent", {
+    registerCommitted(registry, "agent", {
       label: "workspace namespace agent",
       definition: defineSettings({
         schema: Type.Object({
@@ -322,7 +377,7 @@ describe("SettingsRegistry", () => {
     using registry = new SettingsRegistry();
     const bag = new DisposableBag();
     const changes: unknown[] = [];
-    registry.registerScope("chat", scope());
+    registerCommitted(registry, "chat", scope());
     const chat = bindSettingsHandle(registry.forScope("chat"), bag);
     chat.onChange("statusBar", (value) => changes.push(value));
     bag.clear();

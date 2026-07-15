@@ -88,6 +88,21 @@ async function readManifest(manifestPath: string): Promise<unknown> {
   return JSON.parse(await readFile(manifestPath, "utf8")) as unknown;
 }
 
+function activateFeatureSettings(
+  settings: WorkspaceSettings,
+  featureId: string,
+  manifestIndex: number,
+  definition: SettingsDefinition,
+): Disposable {
+  const registration = settings.loadFeatureScope(
+    featureId,
+    manifestIndex,
+    definition,
+  );
+  registration.commit();
+  return registration;
+}
+
 afterEach(async () => {
   await Promise.all(
     roots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
@@ -109,7 +124,7 @@ describe("feature settings", () => {
     const { settings, manifest } = harness;
 
     await settings.reload();
-    settings.loadFeatureScope("chat", 0, statusSettings());
+    activateFeatureSettings(settings, "chat", 0, statusSettings());
 
     expect(settings.forScope("chat").get("statusBar")).toEqual({
       order: ["model", "context"],
@@ -130,6 +145,48 @@ describe("feature settings", () => {
     });
   });
 
+  it("discards provisional defaults and writes, then permits same-id recovery", async () => {
+    const initialManifest = {
+      name: "Demo",
+      features: [{ entry: "./feature.ts" }],
+    };
+    const manifestPath = await tempManifest(initialManifest);
+    using harness = createHarness(manifestPath);
+    const { settings, manifest } = harness;
+
+    await settings.reload();
+    const failed = settings.loadFeatureScope("chat", 0, statusSettings());
+    settings.forScope("chat").set("statusBar", {
+      order: ["context"],
+      hidden: [],
+    });
+
+    await manifest.flush();
+    expect(await readManifest(manifestPath)).toEqual(initialManifest);
+
+    failed[Symbol.dispose]();
+    expect(() => settings.forScope("chat").get("statusBar")).toThrow(
+      "Unknown settings scope: chat",
+    );
+
+    const recovered = settings.loadFeatureScope("chat", 0, statusSettings());
+    recovered.commit();
+    await manifest.flush();
+
+    const written = (await readManifest(manifestPath)) as {
+      features: { settings: Record<string, unknown> }[];
+    };
+    expect(written.features[0]?.settings).toEqual({
+      statusBar: StatusBarDefault,
+    });
+
+    recovered[Symbol.dispose]();
+    expect(() => settings.forScope("chat").get("statusBar")).toThrow(
+      "Unknown settings scope: chat",
+    );
+    expect(await readManifest(manifestPath)).toEqual(written);
+  });
+
   it("does not overwrite persisted values when defaults change", async () => {
     const manifestPath = await tempManifest({
       name: "Demo",
@@ -147,10 +204,11 @@ describe("feature settings", () => {
       ],
     });
     using harness = createHarness(manifestPath);
-    const { settings } = harness;
+    const { settings, manifest } = harness;
 
     await settings.reload();
-    settings.loadFeatureScope(
+    activateFeatureSettings(
+      settings,
       "chat",
       0,
       statusSettings({
@@ -165,6 +223,9 @@ describe("feature settings", () => {
       hidden: [],
       nested: { density: "cozy" },
     });
+
+    await rm(path.dirname(manifestPath), { recursive: true, force: true });
+    await expect(manifest.flush()).resolves.toBeUndefined();
   });
 
   it("rejects unknown persisted setting keys", async () => {
@@ -228,7 +289,7 @@ describe("feature settings", () => {
     const changes: unknown[] = [];
 
     await settings.reload();
-    settings.loadFeatureScope("chat", 0, statusSettings());
+    activateFeatureSettings(settings, "chat", 0, statusSettings());
     const chat = settings.forScope("chat");
     chat.onChange("statusBar", (value) => changes.push(value));
 
@@ -267,7 +328,7 @@ describe("feature settings", () => {
     const { settings, manifest } = harness;
 
     await settings.reload();
-    settings.loadFeatureScope("chat", 0, statusSettings());
+    activateFeatureSettings(settings, "chat", 0, statusSettings());
     settings.forScope("chat").set("statusBar", {
       order: ["model"],
       hidden: [],
@@ -302,7 +363,7 @@ describe("feature settings", () => {
     const { settings, manifest } = harness;
 
     await settings.reload();
-    settings.loadFeatureScope("chat", 0, statusSettings());
+    activateFeatureSettings(settings, "chat", 0, statusSettings());
     settings.forScope("chat").onChange("statusBar", () => {
       throw new Error("listener failed");
     });
@@ -337,7 +398,7 @@ describe("feature settings", () => {
     const { settings } = harness;
 
     await settings.reload();
-    settings.loadFeatureScope("chat", 0, statusSettings());
+    activateFeatureSettings(settings, "chat", 0, statusSettings());
     await writeFile(manifestPath, "{ not json", "utf8");
 
     await expect(settings.reload()).rejects.toThrow("Expected property name");
@@ -362,7 +423,7 @@ describe("feature settings", () => {
     const { settings } = harness;
 
     await settings.reload();
-    settings.loadFeatureScope("chat", 0, statusSettings());
+    activateFeatureSettings(settings, "chat", 0, statusSettings());
     settings.forScope("chat").set("statusBar", {
       order: ["context"],
       hidden: [],
@@ -386,7 +447,7 @@ describe("feature settings", () => {
     );
 
     await settings.reload();
-    settings.loadFeatureScope("chat", 0, statusSettings());
+    activateFeatureSettings(settings, "chat", 0, statusSettings());
 
     expect(settings.forScope("chat").get("statusBar")).toEqual({
       order: ["thinking"],

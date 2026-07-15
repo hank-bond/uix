@@ -286,10 +286,12 @@ export const activateFeatures = async (
         throw new Error(`Feature id already registered: ${definition.id}`);
       }
 
-      substrate.settings.loadFeatureScope(
-        definition.id,
-        manifestIndex,
-        definition.settings ?? EmptyFeatureSettings,
+      const settingsRegistration = bag.add(
+        substrate.settings.loadFeatureScope(
+          definition.id,
+          manifestIndex,
+          definition.settings ?? EmptyFeatureSettings,
+        ),
       );
       const baseContext = buildFeatureContext(definition.id, substrate, bag);
       const contributedContext = definition.context?.(baseContext) ?? {};
@@ -301,6 +303,7 @@ export const activateFeatures = async (
           { entryDir },
         ),
       );
+      settingsRegistration.commit();
 
       takenIds.add(definition.id);
       parentBag.add(bag);

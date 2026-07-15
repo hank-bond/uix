@@ -9,11 +9,12 @@
 
 import type { SettingsDefinition, SettingsHandle } from "@uix/api/settings";
 
+import { DisposableBag } from "./lifecycle";
 import {
-  loadScope,
   hydrateSettings,
   SettingsRegistry,
   type SettingsScope,
+  type SettingsScopeRegistration,
 } from "./settings-registry";
 import type { WorkspaceManifestStore } from "./workspace-manifest-store";
 
@@ -29,7 +30,7 @@ export interface WorkspaceSettings {
     featureId: string,
     manifestIndex: number,
     settings: SettingsDefinition,
-  ): void;
+  ): SettingsScopeRegistration;
   /**
    * Handle for any scope — feature id or workspace namespace. Lazy: an
    * unknown scope throws on first use, not here, so handles survive
@@ -43,6 +44,8 @@ export function createWorkspaceSettings(
   registry: SettingsRegistry,
   namespaces: Record<string, SettingsDefinition>,
 ): WorkspaceSettings {
+  const namespaceBag = new DisposableBag();
+
   return {
     async reload() {
       await manifest.reload();
@@ -59,16 +62,11 @@ export function createWorkspaceSettings(
       const staged: {
         namespace: string;
         scope: SettingsScope;
-        install: boolean;
       }[] = [];
       for (const [namespace, definition] of Object.entries(namespaces)) {
         const label = `workspace namespace ${namespace}`;
         const location = manifest.settingsNamespace(namespace);
-        const { values, changed } = hydrateSettings(
-          definition,
-          location.read(),
-          label,
-        );
+        const values = hydrateSettings(definition, location.read(), label);
         staged.push({
           namespace,
           scope: {
@@ -79,26 +77,29 @@ export function createWorkspaceSettings(
               location.install(v);
             },
           },
-          install: changed,
         });
       }
 
       registry.clearScopes();
-      for (const { namespace, scope, install } of staged) {
-        if (install) scope.onWrite?.(scope.values);
-        registry.registerScope(namespace, scope);
+      namespaceBag.clear();
+      for (const { namespace, scope } of staged) {
+        const registration = namespaceBag.add(
+          registry.registerScope(namespace, scope),
+        );
+        registration.commit();
       }
     },
 
     loadFeatureScope(featureId, manifestIndex, settings) {
-      registry.registerScope(
-        featureId,
-        loadScope(
-          settings,
-          manifest.featureEntrySettings(manifestIndex),
-          `feature ${featureId}`,
-        ),
-      );
+      const location = manifest.featureEntrySettings(manifestIndex);
+      const label = `feature ${featureId}`;
+      const values = hydrateSettings(settings, location.read(), label);
+      return registry.registerScope(featureId, {
+        label,
+        definition: settings,
+        values,
+        onWrite: (next) => location.install(next),
+      });
     },
 
     forScope: (scopeId) => registry.forScope(scopeId),

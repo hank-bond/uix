@@ -25,17 +25,53 @@ const documents: DocumentStoreFactory = {
   },
 };
 
-const settings = {
-  reload: async () => {},
-  loadFeatureScope: () => {},
-  forScope: () => ({
-    get: () => undefined,
-    set: () => {},
-    onChange: () => () => {},
-  }),
-};
-
 function makeSubstrate() {
+  const settingsScopes = new Map<
+    string,
+    { committed: boolean; values: Map<string, unknown> }
+  >();
+  const committedSettings: string[] = [];
+  const settings = {
+    reload: () => {
+      settingsScopes.clear();
+      return Promise.resolve();
+    },
+    loadFeatureScope: (featureId: string) => {
+      if (settingsScopes.has(featureId)) {
+        throw new Error(`Settings scope already registered: ${featureId}`);
+      }
+      const state = { committed: false, values: new Map<string, unknown>() };
+      settingsScopes.set(featureId, state);
+      let disposed = false;
+      return {
+        commit() {
+          if (disposed || settingsScopes.get(featureId) !== state) {
+            throw new Error(`Inactive settings scope: ${featureId}`);
+          }
+          if (state.committed) return;
+          state.committed = true;
+          committedSettings.push(featureId);
+        },
+        [Symbol.dispose]() {
+          if (disposed) return;
+          disposed = true;
+          if (settingsScopes.get(featureId) === state) {
+            settingsScopes.delete(featureId);
+          }
+        },
+      };
+    },
+    forScope: (featureId: string) => ({
+      get: <T = unknown>(key: string) =>
+        settingsScopes.get(featureId)?.values.get(key) as T | undefined,
+      set: (key: string, value: unknown) => {
+        const scope = settingsScopes.get(featureId);
+        if (!scope) throw new Error(`Unknown settings scope: ${featureId}`);
+        scope.values.set(key, value);
+      },
+      onChange: () => () => {},
+    }),
+  };
   const agentTools = new AgentToolRegistry();
   const surfaces = new SurfaceRegistry();
   const channelIds = new Set<string>();
@@ -57,7 +93,14 @@ function makeSubstrate() {
     // The repo's API source — what the composition root supplies in dev.
     apiModuleDir: join(__dirname, "../../api"),
   };
-  return { substrate, agentTools, surfaces, channelIds };
+  return {
+    substrate,
+    agentTools,
+    surfaces,
+    channelIds,
+    settingsScopes,
+    committedSettings,
+  };
 }
 
 /**
@@ -116,7 +159,8 @@ describe("loadFeatures", () => {
     const manifestPath = await writeWorkspace({
       "greeter.ts": toolFeature("greeter"),
     });
-    const { substrate, agentTools } = makeSubstrate();
+    const { substrate, agentTools, settingsScopes, committedSettings } =
+      makeSubstrate();
     const bag = new DisposableBag();
 
     const result = await loadFeatures({ manifestPath }, bag, substrate);
@@ -128,10 +172,13 @@ describe("loadFeatures", () => {
     expect(agentTools.registeredContributions[0]?.canonicalId).toBe(
       "greeter__greet",
     );
+    expect(settingsScopes.get("greeter")?.committed).toBe(true);
+    expect(committedSettings).toEqual(["greeter"]);
 
-    // Reload teardown: clearing the bag removes the contribution.
+    // Reload teardown: clearing the bag removes the contribution and scope.
     bag.clear();
     expect(agentTools.registeredContributions).toHaveLength(0);
+    expect(settingsScopes.has("greeter")).toBe(false);
   });
 
   it("registers in manifest order, not filesystem order", async () => {
@@ -210,6 +257,85 @@ describe("loadFeatures", () => {
     expect(result.failed[0]?.error.message).toContain("deliberate canary");
     expect(result.loaded.map((f) => f.id)).toEqual(["greeter"]);
     expect(agentTools.registeredContributions).toHaveLength(1);
+  });
+
+  it("removes a provisional settings scope when context throws", async () => {
+    const manifestPath = await writeWorkspace({
+      "broken.ts": `
+export default {
+  id: "broken",
+  context() { throw new Error("context failed"); },
+  contribute: () => ({}),
+};
+`,
+    });
+    const { substrate, settingsScopes, committedSettings } = makeSubstrate();
+
+    const result = await loadFeatures(
+      { manifestPath },
+      new DisposableBag(),
+      substrate,
+    );
+
+    expect(result.failed[0]?.error.message).toContain("context failed");
+    expect(settingsScopes.has("broken")).toBe(false);
+    expect(committedSettings).toEqual([]);
+  });
+
+  it("removes buffered settings when contribute throws", async () => {
+    const manifestPath = await writeWorkspace({
+      "broken.ts": `
+export default {
+  id: "broken",
+  contribute(ctx) {
+    ctx.settings.set("enabled", true);
+    throw new Error("contribute failed");
+  },
+};
+`,
+    });
+    const { substrate, settingsScopes, committedSettings } = makeSubstrate();
+
+    const result = await loadFeatures(
+      { manifestPath },
+      new DisposableBag(),
+      substrate,
+    );
+
+    expect(result.failed[0]?.error.message).toContain("contribute failed");
+    expect(settingsScopes.has("broken")).toBe(false);
+    expect(committedSettings).toEqual([]);
+  });
+
+  it("recovers the same id after a later-facet activation failure", async () => {
+    const manifestPath = await writeWorkspace(
+      {
+        "broken.ts": `
+export default {
+  id: "recovered",
+  contribute: () => ({ agentSystemPrompt: "missing registry" }),
+};
+`,
+        "recovered.ts": toolFeature("recovered"),
+      },
+      ["./broken.ts", "./recovered.ts"],
+    );
+    const { substrate, agentTools, settingsScopes, committedSettings } =
+      makeSubstrate();
+
+    const result = await loadFeatures(
+      { manifestPath },
+      new DisposableBag(),
+      substrate,
+    );
+
+    expect(result.failed[0]?.error.message).toContain(
+      "no agent-system-prompt registry was provided",
+    );
+    expect(result.loaded.map((feature) => feature.id)).toEqual(["recovered"]);
+    expect(agentTools.registeredContributions).toHaveLength(1);
+    expect(settingsScopes.get("recovered")?.committed).toBe(true);
+    expect(committedSettings).toEqual(["recovered"]);
   });
 
   it("fails a ref whose file is missing without aborting the pass", async () => {

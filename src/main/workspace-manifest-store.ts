@@ -21,10 +21,8 @@ type JsonObject = Record<string, unknown>;
 
 /**
  * A spot in the manifest tree where one settings object lives. `install`
- * aliases the given values object into the tree (creating parents) and
- * schedules a flush; because the whole tree is serialized on flush, later
- * in-place mutations of an installed object need only re-`install` to mark
- * the manifest dirty.
+ * aliases the given values object into the tree (creating parents) and marks
+ * the manifest dirty only when the JSON value changed.
  */
 export interface ManifestLocation {
   read(): JsonObject | undefined;
@@ -123,9 +121,12 @@ export class WorkspaceManifestStore implements Disposable {
         if (!target) {
           throw new Error(`workspace manifest has no parent for ${key}`);
         }
+        const changed = !isJsonEqual(target[key], values);
         target[key] = values;
-        this.#dirty = true;
-        this.#scheduleFlush();
+        if (changed) {
+          this.#dirty = true;
+          this.#scheduleFlush();
+        }
       },
     };
   }
@@ -212,6 +213,10 @@ async function atomicWriteFile(
 
 function asRecord(value: unknown): JsonObject | undefined {
   return isRecord(value) ? value : undefined;
+}
+
+function isJsonEqual(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function isRecord(value: unknown): value is JsonObject {
