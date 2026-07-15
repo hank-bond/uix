@@ -18,7 +18,7 @@ import { isIdToken } from "./contribution-id";
 import type { ChannelContract } from "./channels";
 import {
   FeatureSettingValueEnvelopeSchema,
-  type SettingDefinitions,
+  type SettingsDefinition,
 } from "./settings";
 
 export type {
@@ -187,25 +187,20 @@ const FeatureSettingsContext = createContext<FeatureSettingsClient | undefined>(
   undefined,
 );
 
+type SettingsValue<Settings extends SettingsDefinition> = Static<
+  Settings["schema"]
+>;
+type FeatureSettingKey<Settings extends SettingsDefinition> =
+  keyof SettingsValue<Settings> & string;
 type FeatureSettingValue<
-  Settings extends SettingDefinitions,
-  Key extends keyof Settings,
-> = Static<Settings[Key]["schema"]>;
+  Settings extends SettingsDefinition,
+  Key extends FeatureSettingKey<Settings>,
+> = Exclude<SettingsValue<Settings>[Key], undefined>;
 
-export interface FeatureSettingsClient<
-  Settings extends SettingDefinitions = SettingDefinitions,
-> {
-  get<Key extends keyof Settings & string>(
-    key: Key,
-  ): Promise<FeatureSettingValue<Settings, Key> | undefined>;
-  set<Key extends keyof Settings & string>(
-    key: Key,
-    value: FeatureSettingValue<Settings, Key>,
-  ): Promise<void>;
-  onChange<Key extends keyof Settings & string>(
-    key: Key,
-    handler: (value: FeatureSettingValue<Settings, Key>) => void,
-  ): () => void;
+export interface FeatureSettingsClient {
+  get(key: string): Promise<unknown>;
+  set(key: string, value: unknown): Promise<void>;
+  onChange(key: string, handler: (value: unknown) => void): () => void;
 }
 
 export interface FeatureSettingsProviderProps {
@@ -240,14 +235,14 @@ export interface FeatureSettingState<Value> {
 }
 
 export function useFeatureSetting<
-  const Settings extends SettingDefinitions,
-  const Key extends keyof Settings & string,
+  const Settings extends SettingsDefinition,
+  const Key extends FeatureSettingKey<Settings>,
 >(
   featureSettings: Settings,
   key: Key,
 ): FeatureSettingState<FeatureSettingValue<Settings, Key>> {
   const settings = useFeatureSettingsClient();
-  const schema = featureSettings[key].schema;
+  const schema = settingSchema(featureSettings.schema, key);
   const [value, setValue] = useState<
     FeatureSettingValue<Settings, Key> | undefined
   >(undefined);
@@ -323,6 +318,21 @@ export function createFeatureSettingsClient(
         },
       ),
   };
+}
+
+function settingSchema(schema: TSchema, key: string): TSchema {
+  const objectSchema = schema as TSchema & {
+    properties?: Record<string, TSchema>;
+    patternProperties?: Record<string, TSchema>;
+  };
+  const property = objectSchema.properties?.[key];
+  if (property) return property;
+  for (const [pattern, valueSchema] of Object.entries(
+    objectSchema.patternProperties ?? {},
+  )) {
+    if (new RegExp(pattern).test(key)) return valueSchema;
+  }
+  throw new Error(`Unknown setting: ${key}`);
 }
 
 function parseFeatureSettingValue<Value>(

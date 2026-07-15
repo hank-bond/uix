@@ -1,4 +1,4 @@
-import { Type, type Static, type TSchema } from "typebox";
+import { Type, type Static, type TObject, type TRecord } from "typebox";
 
 export const FeatureSettingAddressSchema = Type.Object({
   featureId: Type.String(),
@@ -16,38 +16,36 @@ export type FeatureSettingValueEnvelope = Static<
 >;
 
 /**
- * One declared setting. Scope-neutral: the same shape declares settings for
- * a manifest feature entry and for a substrate-owned workspace namespace.
+ * One complete settings scope. The schema must describe an object; `default`
+ * is a complete valid scope value whose missing fields hydrate persisted data.
  */
-export interface SettingDefinition<Schema extends TSchema = TSchema> {
-  schema: Schema;
-  /**
-   * Hydrated into the manifest when no value is persisted. Omit to declare
-   * an optional setting: it stays absent (reads as `undefined`) until the
-   * first `set()`.
-   */
-  default?: Static<Schema>;
+type SettingsSchema = TObject | TRecord;
+
+export interface SettingsDefinition<
+  Schema extends SettingsSchema = SettingsSchema,
+> {
+  readonly schema: Schema;
+  readonly default?: Static<Schema>;
 }
 
-export type SettingDefinitions = Record<string, SettingDefinition<TSchema>>;
-
-type SettingDefinitionsInput = Record<
-  string,
-  { schema: TSchema; default?: unknown }
->;
-
-type SettingsWithCheckedDefaults<Settings extends SettingDefinitionsInput> = {
-  [Key in keyof Settings]: Settings[Key] extends {
-    schema: infer Schema extends TSchema;
+/**
+ * Defines one settings scope and closes its object schema. A `Type.Object`
+ * schema gives the scope named keys; a `Type.Record` schema gives it dynamic,
+ * schema-validated keys without introducing a second settings concept.
+ */
+export function defineSettings<const Schema extends SettingsSchema>(
+  definition: SettingsDefinition<Schema>,
+): SettingsDefinition<Schema> {
+  if (!Type.IsObject(definition.schema) && !Type.IsRecord(definition.schema)) {
+    throw new Error("Settings schema must be a Type.Object or Type.Record");
   }
-    ? SettingDefinition<Schema>
-    : never;
-};
-
-export function defineSettings<const Settings extends SettingDefinitionsInput>(
-  settings: Settings & SettingsWithCheckedDefaults<Settings>,
-): Settings {
-  return settings;
+  return {
+    ...definition,
+    schema: {
+      ...definition.schema,
+      additionalProperties: false,
+    },
+  };
 }
 
 /**

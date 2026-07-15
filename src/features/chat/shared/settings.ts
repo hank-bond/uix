@@ -9,9 +9,11 @@ export const ChatStatusBarSettingsSchema = Type.Object({
 export type ChatStatusBarSettings = Static<typeof ChatStatusBarSettingsSchema>;
 
 export const chatSettings = defineSettings({
-  statusBar: {
-    schema: ChatStatusBarSettingsSchema,
-    default: {
+  schema: Type.Object({
+    statusBar: ChatStatusBarSettingsSchema,
+  }),
+  default: {
+    statusBar: {
       order: ["model"],
       hidden: [],
     },

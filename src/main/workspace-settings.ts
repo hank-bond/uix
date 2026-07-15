@@ -7,7 +7,7 @@
 // substrate code reads workspace namespaces through the same `forScope` —
 // feature ids and namespaces share one flat scope-id space.
 
-import type { SettingDefinitions, SettingsHandle } from "@uix/api/settings";
+import type { SettingsDefinition, SettingsHandle } from "@uix/api/settings";
 
 import {
   loadScope,
@@ -28,7 +28,7 @@ export interface WorkspaceSettings {
   loadFeatureScope(
     featureId: string,
     manifestIndex: number,
-    settings: SettingDefinitions,
+    settings: SettingsDefinition,
   ): void;
   /**
    * Handle for any scope — feature id or workspace namespace. Lazy: an
@@ -41,7 +41,7 @@ export interface WorkspaceSettings {
 export function createWorkspaceSettings(
   manifest: WorkspaceManifestStore,
   registry: SettingsRegistry,
-  namespaces: Record<string, SettingDefinitions>,
+  namespaces: Record<string, SettingsDefinition>,
 ): WorkspaceSettings {
   return {
     async reload() {
@@ -61,11 +61,11 @@ export function createWorkspaceSettings(
         scope: SettingsScope;
         install: boolean;
       }[] = [];
-      for (const [namespace, definitions] of Object.entries(namespaces)) {
+      for (const [namespace, definition] of Object.entries(namespaces)) {
         const label = `workspace namespace ${namespace}`;
         const location = manifest.settingsNamespace(namespace);
         const { values, changed } = hydrateSettings(
-          definitions,
+          definition,
           location.read(),
           label,
         );
@@ -73,7 +73,7 @@ export function createWorkspaceSettings(
           namespace,
           scope: {
             label,
-            definitions,
+            definition,
             values,
             onWrite: (v) => {
               location.install(v);

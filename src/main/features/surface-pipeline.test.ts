@@ -31,12 +31,16 @@ import { helper } from "./helper";
 import sheet from "./styles.css" with { type: "css" };
 import { defineSettings } from "@uix/api/settings";
 import { defineSurface } from "@uix/api/workspace";
+import { Type } from "typebox";
 
-const settings = defineSettings({ demo: { schema: { type: "string" }, default: "ok" } });
+const settings = defineSettings({
+  schema: Type.Object({ demo: Type.String() }),
+  default: { demo: "ok" },
+});
 
 function Panel() {
   const [n] = useState(1);
-  return <p>{helper()}{settings.demo.default}{n}</p>;
+  return <p>{helper()}{settings.default.demo}{n}</p>;
 }
 
 export default defineSurface({

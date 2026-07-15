@@ -37,9 +37,8 @@ export {
   defineSettings,
   FeatureSettingAddressSchema,
   FeatureSettingValueEnvelopeSchema,
-  type SettingDefinition,
+  type SettingsDefinition,
   type FeatureSettingAddress,
   type FeatureSettingValueEnvelope,
-  type SettingDefinitions,
   type SettingsHandle,
 } from "./settings";

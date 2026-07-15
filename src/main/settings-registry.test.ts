@@ -1,3 +1,4 @@
+import { defineSettings } from "@uix/api/settings";
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
@@ -23,13 +24,15 @@ const StatusBarDefault = {
   hidden: [],
   nested: { density: "normal" },
 };
+const StatusSettings = defineSettings({
+  schema: Type.Object({ statusBar: StatusBarSchema }),
+  default: { statusBar: StatusBarDefault },
+});
 
 function scope(overrides: Partial<SettingsScope> = {}): SettingsScope {
   return {
     label: "feature chat",
-    definitions: {
-      statusBar: { schema: StatusBarSchema, default: StatusBarDefault },
-    },
+    definition: StatusSettings,
     values: { statusBar: structuredClone(StatusBarDefault) },
     ...overrides,
   };
@@ -38,7 +41,7 @@ function scope(overrides: Partial<SettingsScope> = {}): SettingsScope {
 describe("hydrateSettings", () => {
   it("hydrates missing object fields from explicit defaults", () => {
     const { values, changed } = hydrateSettings(
-      { statusBar: { schema: StatusBarSchema, default: StatusBarDefault } },
+      StatusSettings,
       { statusBar: { hidden: ["context"] } },
       "feature chat",
     );
@@ -56,7 +59,7 @@ describe("hydrateSettings", () => {
   it("does not report change when persisted values already match", () => {
     const persisted = { statusBar: structuredClone(StatusBarDefault) };
     const { values, changed } = hydrateSettings(
-      { statusBar: { schema: StatusBarSchema, default: StatusBarDefault } },
+      StatusSettings,
       persisted,
       "feature chat",
     );
@@ -67,13 +70,13 @@ describe("hydrateSettings", () => {
 
   it("hydrates scalar defaults and treats null as an explicit value", () => {
     const { values } = hydrateSettings(
-      {
-        enabled: { schema: Type.Boolean(), default: true },
-        selected: {
-          schema: Type.Union([Type.String(), Type.Null()]),
-          default: "main",
-        },
-      },
+      defineSettings({
+        schema: Type.Object({
+          enabled: Type.Boolean(),
+          selected: Type.Union([Type.String(), Type.Null()]),
+        }),
+        default: { enabled: true, selected: "main" },
+      }),
       { selected: null },
       "feature chat",
     );
@@ -82,24 +85,30 @@ describe("hydrateSettings", () => {
     expect(values["selected"]).toBeNull();
   });
 
-  it("leaves optional settings absent and unchanged", () => {
+  it("materializes an empty registered scope while leaving optional values absent", () => {
     const { values, changed } = hydrateSettings(
-      { defaultModel: { schema: Type.Object({ id: Type.String() }) } },
+      defineSettings({
+        schema: Type.Object({
+          defaultModel: Type.Optional(Type.Object({ id: Type.String() })),
+        }),
+      }),
       undefined,
       "workspace namespace agent",
     );
 
-    expect(changed).toBe(false);
+    expect(changed).toBe(true);
     expect(values).toEqual({});
   });
 
   it("validates persisted values for optional settings", () => {
-    const definitions = {
-      defaultModel: { schema: Type.Object({ id: Type.String() }) },
-    };
+    const definition = defineSettings({
+      schema: Type.Object({
+        defaultModel: Type.Optional(Type.Object({ id: Type.String() })),
+      }),
+    });
 
     const { values, changed } = hydrateSettings(
-      definitions,
+      definition,
       { defaultModel: { id: "claude" } },
       "workspace namespace agent",
     );
@@ -108,7 +117,7 @@ describe("hydrateSettings", () => {
 
     expect(() =>
       hydrateSettings(
-        definitions,
+        definition,
         { defaultModel: 5 },
         "workspace namespace agent",
       ),
@@ -117,12 +126,32 @@ describe("hydrateSettings", () => {
 
   it("rejects unknown persisted setting keys with the scope label", () => {
     expect(() =>
-      hydrateSettings(
-        { statusBar: { schema: StatusBarSchema, default: StatusBarDefault } },
-        { stale: true },
-        "feature chat",
+      hydrateSettings(StatusSettings, { stale: true }, "feature chat"),
+    ).toThrow("Invalid settings for feature chat");
+  });
+
+  it("validates dynamic record keys and values through the same scope path", () => {
+    const keybindings = defineSettings({
+      schema: Type.Record(
+        Type.String({ pattern: "^[a-z]+(?:\\.[a-z]+)+$" }),
+        Type.Union([Type.String(), Type.Null()]),
       ),
-    ).toThrow("Unknown setting for feature chat: stale");
+    });
+
+    expect(
+      hydrateSettings(
+        keybindings,
+        { "chat.models": "mod+m", "chat.disabled": null },
+        "workspace namespace keybindings",
+      ).values,
+    ).toEqual({ "chat.models": "mod+m", "chat.disabled": null });
+    expect(() =>
+      hydrateSettings(
+        keybindings,
+        { "Chat models": "mod+m" },
+        "workspace namespace keybindings",
+      ),
+    ).toThrow("Invalid settings for workspace namespace keybindings");
   });
 });
 
@@ -160,6 +189,28 @@ describe("SettingsRegistry", () => {
     expect(() => chat.set("statusBar", { order: [1], hidden: [] })).toThrow();
   });
 
+  it("rejects undefined instead of treating it as a persisted deletion", () => {
+    using registry = new SettingsRegistry();
+    const written: unknown[] = [];
+    const changes: unknown[] = [];
+    registry.registerScope("agent", {
+      label: "workspace namespace agent",
+      definition: defineSettings({
+        schema: Type.Object({ favorite: Type.Optional(Type.String()) }),
+      }),
+      values: {},
+      onWrite: (values) => written.push(structuredClone(values)),
+    });
+    registry.onChange("agent", "favorite", (value) => changes.push(value));
+
+    expect(() => registry.set("agent", "favorite", undefined)).toThrow(
+      "favorite cannot be undefined",
+    );
+    expect(registry.get("agent", "favorite")).toBeUndefined();
+    expect(written).toEqual([]);
+    expect(changes).toEqual([]);
+  });
+
   it("invokes the write hook before notifying listeners", () => {
     using registry = new SettingsRegistry();
     const order: string[] = [];
@@ -188,6 +239,33 @@ describe("SettingsRegistry", () => {
       order: [],
       hidden: [],
     });
+  });
+
+  it("routes dynamically validated record keys through normal get and set", () => {
+    using registry = new SettingsRegistry();
+    registry.registerScope("keybindings", {
+      label: "workspace namespace keybindings",
+      definition: defineSettings({
+        schema: Type.Record(
+          Type.String({ pattern: "^[a-z]+(?:\\.[a-z]+)+$" }),
+          Type.Union([
+            Type.String({ pattern: "^(?:mod|ctrl)\\+[a-z]$" }),
+            Type.Null(),
+          ]),
+        ),
+      }),
+      values: {},
+    });
+
+    registry.set("keybindings", "chat.models", "mod+m");
+    registry.set("keybindings", "chat.disabled", null);
+
+    expect(registry.get("keybindings", "chat.models")).toBe("mod+m");
+    expect(registry.get("keybindings", "chat.disabled")).toBeNull();
+    expect(() => registry.set("keybindings", "Chat models", "mod+m")).toThrow(
+      "Unknown setting",
+    );
+    expect(() => registry.set("keybindings", "chat.bad", "shift m")).toThrow();
   });
 
   it("throws for unknown scopes and unknown keys", () => {
@@ -220,11 +298,13 @@ describe("SettingsRegistry", () => {
     const seen: [string, string, unknown][] = [];
     registry.registerScope("agent", {
       label: "workspace namespace agent",
-      definitions: {
-        defaultModel: {
-          schema: Type.Object({ provider: Type.String(), id: Type.String() }),
-        },
-      },
+      definition: defineSettings({
+        schema: Type.Object({
+          defaultModel: Type.Optional(
+            Type.Object({ provider: Type.String(), id: Type.String() }),
+          ),
+        }),
+      }),
       values: {},
     });
     registry.onAnyChange((scopeId, key, value) =>

@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import type { SettingDefinitions } from "@uix/api/settings";
+import { defineSettings, type SettingsDefinition } from "@uix/api/settings";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -34,9 +34,18 @@ const ModelRefSchema = Type.Object({
   provider: Type.String(),
   id: Type.String(),
 });
-const agentNamespace: SettingDefinitions = {
-  defaultModel: { schema: ModelRefSchema },
-};
+const agentNamespace = defineSettings({
+  schema: Type.Object({
+    defaultModel: Type.Optional(ModelRefSchema),
+  }),
+});
+
+function statusSettings(defaultValue = StatusBarDefault): SettingsDefinition {
+  return defineSettings({
+    schema: Type.Object({ statusBar: StatusBarSchema }),
+    default: { statusBar: defaultValue },
+  });
+}
 
 async function tempManifest(content: unknown): Promise<string> {
   const root = await mkdtemp(path.join(tmpdir(), "uix-settings-test-"));
@@ -58,7 +67,7 @@ interface Harness extends Disposable {
 
 function createHarness(
   manifestPath: string,
-  namespaces: Record<string, SettingDefinitions> = {},
+  namespaces: Record<string, SettingsDefinition> = {},
 ): Harness {
   const manifest = new WorkspaceManifestStore(manifestPath, {
     flushDebounceMs: 1000,
@@ -100,9 +109,7 @@ describe("feature settings", () => {
     const { settings, manifest } = harness;
 
     await settings.reload();
-    settings.loadFeatureScope("chat", 0, {
-      statusBar: { schema: StatusBarSchema, default: StatusBarDefault },
-    });
+    settings.loadFeatureScope("chat", 0, statusSettings());
 
     expect(settings.forScope("chat").get("statusBar")).toEqual({
       order: ["model", "context"],
@@ -143,16 +150,15 @@ describe("feature settings", () => {
     const { settings } = harness;
 
     await settings.reload();
-    settings.loadFeatureScope("chat", 0, {
-      statusBar: {
-        schema: StatusBarSchema,
-        default: {
-          order: ["new"],
-          hidden: [],
-          nested: { density: "compact" },
-        },
-      },
-    });
+    settings.loadFeatureScope(
+      "chat",
+      0,
+      statusSettings({
+        order: ["new"],
+        hidden: [],
+        nested: { density: "compact" },
+      }),
+    );
 
     expect(settings.forScope("chat").get("statusBar")).toEqual({
       order: ["old"],
@@ -176,10 +182,8 @@ describe("feature settings", () => {
 
     await settings.reload();
     expect(() =>
-      settings.loadFeatureScope("chat", 0, {
-        statusBar: { schema: StatusBarSchema, default: StatusBarDefault },
-      }),
-    ).toThrow("Unknown setting for feature chat: stale");
+      settings.loadFeatureScope("chat", 0, statusSettings()),
+    ).toThrow("Invalid settings for feature chat");
   });
 
   it("does not commit manifest changes when hydration fails", async () => {
@@ -193,10 +197,17 @@ describe("feature settings", () => {
 
     await settings.reload();
     expect(() =>
-      settings.loadFeatureScope("chat", 0, {
-        enabled: { schema: Type.Boolean(), default: true },
-        broken: { schema: Type.Boolean(), default: "yes" },
-      }),
+      settings.loadFeatureScope(
+        "chat",
+        0,
+        defineSettings({
+          schema: Type.Object({
+            enabled: Type.Boolean(),
+            broken: Type.Boolean(),
+          }),
+          default: { enabled: true, broken: "yes" as unknown as boolean },
+        }),
+      ),
     ).toThrow();
 
     await manifest.flush();
@@ -217,9 +228,7 @@ describe("feature settings", () => {
     const changes: unknown[] = [];
 
     await settings.reload();
-    settings.loadFeatureScope("chat", 0, {
-      statusBar: { schema: StatusBarSchema, default: StatusBarDefault },
-    });
+    settings.loadFeatureScope("chat", 0, statusSettings());
     const chat = settings.forScope("chat");
     chat.onChange("statusBar", (value) => changes.push(value));
 
@@ -258,9 +267,7 @@ describe("feature settings", () => {
     const { settings, manifest } = harness;
 
     await settings.reload();
-    settings.loadFeatureScope("chat", 0, {
-      statusBar: { schema: StatusBarSchema, default: StatusBarDefault },
-    });
+    settings.loadFeatureScope("chat", 0, statusSettings());
     settings.forScope("chat").set("statusBar", {
       order: ["model"],
       hidden: [],
@@ -295,9 +302,7 @@ describe("feature settings", () => {
     const { settings, manifest } = harness;
 
     await settings.reload();
-    settings.loadFeatureScope("chat", 0, {
-      statusBar: { schema: StatusBarSchema, default: StatusBarDefault },
-    });
+    settings.loadFeatureScope("chat", 0, statusSettings());
     settings.forScope("chat").onChange("statusBar", () => {
       throw new Error("listener failed");
     });
@@ -332,9 +337,7 @@ describe("feature settings", () => {
     const { settings } = harness;
 
     await settings.reload();
-    settings.loadFeatureScope("chat", 0, {
-      statusBar: { schema: StatusBarSchema, default: StatusBarDefault },
-    });
+    settings.loadFeatureScope("chat", 0, statusSettings());
     await writeFile(manifestPath, "{ not json", "utf8");
 
     await expect(settings.reload()).rejects.toThrow("Expected property name");
@@ -359,9 +362,7 @@ describe("feature settings", () => {
     const { settings } = harness;
 
     await settings.reload();
-    settings.loadFeatureScope("chat", 0, {
-      statusBar: { schema: StatusBarSchema, default: StatusBarDefault },
-    });
+    settings.loadFeatureScope("chat", 0, statusSettings());
     settings.forScope("chat").set("statusBar", {
       order: ["context"],
       hidden: [],
@@ -385,9 +386,7 @@ describe("feature settings", () => {
     );
 
     await settings.reload();
-    settings.loadFeatureScope("chat", 0, {
-      statusBar: { schema: StatusBarSchema, default: StatusBarDefault },
-    });
+    settings.loadFeatureScope("chat", 0, statusSettings());
 
     expect(settings.forScope("chat").get("statusBar")).toEqual({
       order: ["thinking"],
@@ -417,7 +416,7 @@ describe("workspace namespace settings", () => {
     });
   });
 
-  it("reads optional absent settings as undefined without growing the manifest", async () => {
+  it("materializes an empty namespace while optional values remain absent", async () => {
     const manifestContent = {
       name: "Demo",
       features: [{ entry: "./feature.ts", settings: {} }],
@@ -429,18 +428,12 @@ describe("workspace namespace settings", () => {
     await settings.reload();
     expect(settings.forScope("agent").get("defaultModel")).toBeUndefined();
 
-    // Force a flush via an unrelated feature write; no `settings` block
-    // may appear at the manifest top level.
-    settings.loadFeatureScope("chat", 0, {
-      statusBar: { schema: StatusBarSchema, default: StatusBarDefault },
-    });
     await manifest.flush();
 
-    const written = (await readManifest(manifestPath)) as Record<
-      string,
-      unknown
-    >;
-    expect("settings" in written).toBe(false);
+    const written = (await readManifest(manifestPath)) as {
+      settings: Record<string, unknown>;
+    };
+    expect(written.settings).toEqual({ agent: {} });
   });
 
   it("persists namespace writes under the top-level settings object and notifies", async () => {
@@ -508,9 +501,13 @@ describe("workspace namespace settings", () => {
 
     await settings.reload();
 
-    expect(() => settings.loadFeatureScope("agent", 0, {})).toThrow(
-      "Settings scope already registered: agent",
-    );
+    expect(() =>
+      settings.loadFeatureScope(
+        "agent",
+        0,
+        defineSettings({ schema: Type.Object({}) }),
+      ),
+    ).toThrow("Settings scope already registered: agent");
   });
 
   it("rejects reload on a bad persisted namespace value, keeping memory intact", async () => {
@@ -549,9 +546,10 @@ describe("workspace namespace settings", () => {
   it("hydrates namespace defaults into the manifest when declared", async () => {
     const manifestPath = await tempManifest({ name: "Demo", features: [] });
     using harness = createHarness(manifestPath, {
-      agent: {
-        thinking: { schema: Type.String(), default: "medium" },
-      },
+      agent: defineSettings({
+        schema: Type.Object({ thinking: Type.String() }),
+        default: { thinking: "medium" },
+      }),
     });
     const { settings, manifest } = harness;
 

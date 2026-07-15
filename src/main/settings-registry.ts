@@ -1,7 +1,8 @@
 // Live settings state and routing, with persistence fully externalized.
 //
-// A scope is a flat bag of schema-validated cells. Feature ids and
-// substrate workspace namespaces share one unprefixed scope-id space;
+// A scope is one schema-validated object exposed through keyed convenience
+// operations. Feature ids and substrate workspace namespaces share one
+// unprefixed scope-id space;
 // duplicate registration throws, which is what lets substrate namespaces
 // (registered first, on reload) collide naturally with feature ids.
 //
@@ -12,7 +13,7 @@
 // (read → hydrate → install), with the schema logic in the pure
 // `hydrateSettings`.
 
-import type { SettingDefinitions, SettingsHandle } from "@uix/api/settings";
+import type { SettingsDefinition, SettingsHandle } from "@uix/api/settings";
 import type { TSchema } from "typebox";
 import { Value } from "typebox/value";
 
@@ -30,45 +31,39 @@ export interface HydratedValues {
 }
 
 /**
- * Pure schema pass: validate persisted values against the definitions,
- * fill explicit defaults, reject unknown keys. Definitions without a
- * `default` are optional — absent stays absent. `changed` reports whether
- * `values` differs from what was persisted (i.e. needs writing back).
+ * Pure schema pass over one complete scope: merge explicit defaults into
+ * persisted values, then validate the resulting object. `changed` reports
+ * whether the materialized value needs writing back.
  */
 export function hydrateSettings(
-  definitions: SettingDefinitions,
+  definition: SettingsDefinition,
   persisted: JsonObject | undefined,
   label: string,
 ): HydratedValues {
-  const values = cloneJsonObject(persisted ?? {});
-  for (const key of Object.keys(values)) {
-    if (!(key in definitions)) {
-      throw new Error(`Unknown setting for ${label}: ${key}`);
-    }
-  }
-
-  let changed = false;
-  for (const [key, definition] of Object.entries(definitions)) {
-    const persistedValue = values[key];
-    const hydrated = hydrateValue(
-      definition.schema,
-      definition.default,
-      persistedValue,
+  let values: JsonObject;
+  try {
+    const defaults =
+      definition.default === undefined
+        ? {}
+        : Value.Parse(definition.schema, cloneJson(definition.default));
+    const merged = mergeJsonDefaults(defaults, cloneJson(persisted ?? {}));
+    values = Value.Parse(definition.schema, merged);
+  } catch (err) {
+    throw new Error(
+      `Invalid settings for ${label}: ${(err as Error).message}`,
+      {
+        cause: err,
+      },
     );
-    if (hydrated === undefined) continue;
-    if (!jsonEqual(persistedValue, hydrated)) {
-      values[key] = hydrated;
-      changed = true;
-    }
   }
-  return { values, changed };
+  return { values, changed: !jsonEqual(persisted, values) };
 }
 
 /** A finished scope, ready for `SettingsRegistry.registerScope`. */
 export interface SettingsScope {
   /** Human label for error messages, e.g. `feature chat`. */
   label: string;
-  definitions: SettingDefinitions;
+  definition: SettingsDefinition;
   values: JsonObject;
   /** Persistence hook invoked after every validated `set`. Omit for ephemeral scopes. */
   onWrite?: (values: JsonObject) => void;
@@ -81,19 +76,19 @@ export interface SettingsScope {
  * use `hydrateSettings` and assemble the scope themselves.
  */
 export function loadScope(
-  definitions: SettingDefinitions,
+  definition: SettingsDefinition,
   location: ManifestLocation,
   label: string,
 ): SettingsScope {
   const { values, changed } = hydrateSettings(
-    definitions,
+    definition,
     location.read(),
     label,
   );
   if (changed) location.install(values);
   return {
     label,
-    definitions,
+    definition,
     values,
     onWrite: (v) => {
       location.install(v);
@@ -103,7 +98,7 @@ export function loadScope(
 
 interface ScopeState {
   label: string;
-  schemas: Map<string, TSchema>;
+  schema: TSchema;
   values: JsonObject;
   onWrite?: (values: JsonObject) => void;
 }
@@ -121,13 +116,9 @@ export class SettingsRegistry implements Disposable {
     if (this.#scopes.has(scopeId)) {
       throw new Error(`Settings scope already registered: ${scopeId}`);
     }
-    const schemas = new Map<string, TSchema>();
-    for (const [key, definition] of Object.entries(scope.definitions)) {
-      schemas.set(key, definition.schema);
-    }
     this.#scopes.set(scopeId, {
       label: scope.label,
-      schemas,
+      schema: scope.definition.schema,
       values: scope.values,
       ...(scope.onWrite && { onWrite: scope.onWrite }),
     });
@@ -143,7 +134,7 @@ export class SettingsRegistry implements Disposable {
 
   get(scopeId: string, key: string): unknown {
     const scope = this.#requireScope(scopeId);
-    this.#requireSchema(scope, key);
+    this.#assertKey(scope, key);
     const value = scope.values[key];
     if (value === undefined) return undefined;
     return cloneJson(value);
@@ -154,18 +145,25 @@ export class SettingsRegistry implements Disposable {
       throw new Error("SettingsRegistry is disposed");
     }
     const scope = this.#requireScope(scopeId);
-    const schema = this.#requireSchema(scope, key);
-    const parsed = Value.Parse(schema, cloneJson(value));
-    scope.values[key] = parsed;
-    scope.onWrite?.(scope.values);
-    this.#notify(scopeId, key, parsed);
+    this.#assertKey(scope, key);
+    if (value === undefined) {
+      throw new Error(
+        `Invalid setting for ${scope.label}: ${key} cannot be undefined`,
+      );
+    }
+    const candidate = cloneJsonObject(scope.values);
+    candidate[key] = cloneJson(value);
+    const parsed = Value.Parse(scope.schema, candidate) as JsonObject;
+    scope.values = parsed;
+    scope.onWrite?.(parsed);
+    this.#notify(scopeId, key, parsed[key]);
   }
 
   onChange(scopeId: string, key: string, handler: Listener): () => void {
     if (this.#disposed) {
       throw new Error("SettingsRegistry is disposed");
     }
-    this.#requireSchema(this.#requireScope(scopeId), key);
+    this.#assertKey(this.#requireScope(scopeId), key);
     const listenerKey = toListenerKey(scopeId, key);
     const listeners = this.#listeners.get(listenerKey) ?? new Set<Listener>();
     listeners.add(handler);
@@ -219,12 +217,16 @@ export class SettingsRegistry implements Disposable {
     return scope;
   }
 
-  #requireSchema(scope: ScopeState, key: string): TSchema {
-    const schema = scope.schemas.get(key);
-    if (!schema) {
-      throw new Error(`Unknown setting for ${scope.label}: ${key}`);
+  #assertKey(scope: ScopeState, key: string): void {
+    const schema = scope.schema as TSchema & {
+      properties?: Record<string, TSchema>;
+      patternProperties?: Record<string, TSchema>;
+    };
+    if (schema.properties && Object.hasOwn(schema.properties, key)) return;
+    for (const pattern of Object.keys(schema.patternProperties ?? {})) {
+      if (new RegExp(pattern).test(key)) return;
     }
-    return schema;
+    throw new Error(`Unknown setting for ${scope.label}: ${key}`);
   }
 
   #notify(scopeId: string, key: string, value: unknown): void {
@@ -266,21 +268,6 @@ export function bindSettingsHandle(
   };
 }
 
-function hydrateValue(
-  schema: TSchema,
-  defaultValue: unknown,
-  persisted: unknown,
-): unknown {
-  if (defaultValue === undefined) {
-    if (persisted === undefined) return undefined;
-    return Value.Parse(schema, cloneJson(persisted));
-  }
-  const parsedDefault = Value.Parse(schema, cloneJson(defaultValue));
-  if (persisted === undefined) return parsedDefault;
-  const merged = mergeJsonDefaults(parsedDefault, cloneJson(persisted));
-  return Value.Parse(schema, merged);
-}
-
 function mergeJsonDefaults(defaultValue: unknown, persisted: unknown): unknown {
   if (!isRecord(defaultValue) || !isRecord(persisted)) {
     return persisted;
@@ -301,7 +288,6 @@ function cloneJsonObject(value: JsonObject): JsonObject {
 }
 
 function cloneJson(value: unknown): unknown {
-  if (value === undefined) return undefined;
   const json = JSON.stringify(value);
   if (json === undefined) {
     throw new Error("Settings values must be JSON-serializable");

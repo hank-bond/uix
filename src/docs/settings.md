@@ -9,7 +9,7 @@ Durable settings live in `uix.workspace.json` in two scopes: **feature settings*
 
 ## Feature settings
 
-Features declare durable settings on their `FeatureDefinition`, before `context()` and `contribute()` run. Put the keyed feature settings in feature-shared code so backend and workspace surface code import the same keys, schemas, defaults, and TypeScript types:
+Features declare durable settings on their `FeatureDefinition`, before `context()` and `contribute()` run. Put the feature's complete settings-scope schema and optional whole-object default in feature-shared code so backend and workspace surface code import the same keys, validation, defaults, and TypeScript types:
 
 ```ts
 // features/chat/shared/settings.ts
@@ -17,12 +17,14 @@ import { defineSettings } from "@uix/api/settings";
 import { Type } from "typebox";
 
 export const chatSettings = defineSettings({
-  statusBar: {
-    schema: Type.Object({
+  schema: Type.Object({
+    statusBar: Type.Object({
       order: Type.Array(Type.String()),
       hidden: Type.Array(Type.String()),
     }),
-    default: {
+  }),
+  default: {
+    statusBar: {
       order: ["model", "context"],
       hidden: [],
     },
@@ -69,20 +71,22 @@ The manifest entry does not repeat the feature id. The loaded `FeatureDefinition
 
 ## Hydration and validation
 
-During feature activation the loader validates each declared setting's default, hydrates missing values, and writes the expanded settings back to `uix.workspace.json` on a debounce.
+During feature activation the loader merges the definition's whole-object default into persisted values, validates the completed scope against its one schema, and writes the materialized settings back to `uix.workspace.json` on a debounce.
 
 Rules:
 
-- every declared setting entry has a `schema`; the settings object's property name is the key;
-- `default` is optional: omitting it declares an **optional setting** that reads `undefined` and writes nothing to the manifest until the first `set()`;
-- missing / `undefined` values hydrate from the default (when one is declared);
+- every scope definition has one object schema; `Type.Object` provides named keys and `Type.Record` provides dynamically validated keys through the same path;
+- `defineSettings(...)` closes the object schema so unknown persisted keys fail rather than being silently retained or deleted;
+- the optional `default` must itself be a complete valid scope value;
+- a property with no default must be optional in the TypeBox schema if it may be absent;
+- missing values hydrate from the default object, and registered empty scopes materialize as `{}`;
 - `null` is an explicit persisted value and must be allowed by the schema;
+- `undefined` is not a durable setting value and `set()` rejects it; optional schema properties describe absence during hydration, not a deletion operation;
 - plain objects merge recursively so newly added default fields materialize without clobbering existing fields;
 - arrays, scalars, and `null` are atomic values;
-- unknown persisted setting keys fail that feature's activation rather than being silently deleted;
 - invalid persisted values fail loudly so the user or agent can fix the file.
 
-Defaults fill missing values only. If a later feature version changes a default after a workspace has already materialized a value, the workspace keeps its current value.
+Defaults fill and persist missing values; they are not a runtime fallback layer. If a later feature version changes a default after a workspace has already materialized a value, the workspace keeps its current value.
 
 ## Backend API
 
@@ -115,7 +119,7 @@ function StatusBar() {
 }
 ```
 
-`defineSettings(...)` preserves the exact setting keys and type-checks each default against that setting's TypeBox schema. `useFeatureSetting(featureSettings, key)` type-checks `key` against the shared settings and types the returned value and setter from that key's schema. The main process remains authoritative and validates every `set()` against the registered backend schema.
+`defineSettings(...)` preserves the scope schema's exact keys and type-checks its whole-object default. `useFeatureSetting(featureSettings, key)` type-checks `key` against the shared settings object and types the returned value and setter from that property. The main process remains authoritative and validates the complete candidate scope on every `set()`.
 
 ## Workspace settings
 
@@ -147,7 +151,7 @@ Workspace namespaces are **not user-registerable**: the substrate registers the 
 - **`agent.defaultModel`** — the workspace default model, used before a pi session exists and as the default for new sessions/branches that carry no `model_change` entry. Absent until the pilot first selects a model.
 - **`agent.favoriteModels`** — the workspace-local model shortlist. Each entry is a provider-qualified model reference; unavailable entries remain persisted so favorites return when a provider reconnects.
 
-A fresh manifest gains no `settings` block until one of these values is first changed. See [`agent.md`](./agent.md) for how model selection and favorites flow through the agent channels.
+A fresh manifest materializes the registered namespace as `settings.agent: {}` even before either optional value is chosen. This keeps the available configuration surface visible; later selections fill concrete properties. See [`agent.md`](./agent.md) for how model selection and favorites flow through the agent channels.
 
 Rules:
 

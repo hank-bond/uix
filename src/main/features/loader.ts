@@ -49,7 +49,9 @@ import { dirname } from "node:path";
 
 import type { FeatureContext, FeatureDefinition } from "@uix/api/feature";
 import type { DocumentStoreFactory } from "@uix/api/documents";
+import { defineSettings } from "@uix/api/settings";
 import { createJiti } from "jiti";
+import { Type } from "typebox";
 
 import { createFeatureEventPublisherFactory } from "../channels/registry";
 import type { ChannelRegistry } from "../channels/registry";
@@ -66,6 +68,8 @@ import {
 import { readWorkspaceManifest, type ManifestFeatureRef } from "./manifest";
 
 const log = createLogger("features");
+
+const EmptyFeatureSettings = defineSettings({ schema: Type.Object({}) });
 
 const requireFromLoader = createRequire(__filename);
 
@@ -213,35 +217,22 @@ const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
     throw new Error(`FeatureDefinition ${def.id} context is not a function`);
   }
   if (def.settings !== undefined) {
-    if (
-      typeof def.settings !== "object" ||
-      def.settings === null ||
-      Array.isArray(def.settings)
-    ) {
+    if (typeof def.settings !== "object" || def.settings === null) {
       throw new Error(`FeatureDefinition ${def.id} settings is not an object`);
     }
-    for (const [key, setting] of Object.entries(def.settings)) {
-      if (key === "") {
-        throw new Error(
-          `FeatureDefinition ${def.id} setting key is missing or invalid`,
-        );
-      }
-      if (typeof setting !== "object" || setting === null) {
-        throw new Error(
-          `FeatureDefinition ${def.id} setting ${key} is not an object`,
-        );
-      }
-      const partial = setting as unknown as Record<string, unknown>;
-      if (!("schema" in partial)) {
-        throw new Error(
-          `FeatureDefinition ${def.id} setting ${key} is missing schema`,
-        );
-      }
-      if (!("default" in partial)) {
-        throw new Error(
-          `FeatureDefinition ${def.id} setting ${key} is missing default`,
-        );
-      }
+    const schema = (def.settings as { schema?: unknown }).schema;
+    if (!Type.IsObject(schema) && !Type.IsRecord(schema)) {
+      throw new Error(
+        `FeatureDefinition ${def.id} settings schema must be a Type.Object or Type.Record`,
+      );
+    }
+    if (
+      (schema as { additionalProperties?: unknown }).additionalProperties !==
+      false
+    ) {
+      throw new Error(
+        `FeatureDefinition ${def.id} settings schema must reject unknown properties`,
+      );
     }
   }
   return def as FeatureDefinition;
@@ -298,7 +289,7 @@ export const activateFeatures = async (
       substrate.settings.loadFeatureScope(
         definition.id,
         manifestIndex,
-        definition.settings ?? {},
+        definition.settings ?? EmptyFeatureSettings,
       );
       const baseContext = buildFeatureContext(definition.id, substrate, bag);
       const contributedContext = definition.context?.(baseContext) ?? {};
