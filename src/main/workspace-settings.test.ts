@@ -6,6 +6,10 @@ import { defineSettings, type SettingsDefinition } from "@uix/api/settings";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it } from "vitest";
 
+import {
+  keybindingsWorkspaceSettings,
+  KeybindingsSettingsNamespace,
+} from "./keybindings/settings";
 import { SettingsRegistry } from "./settings-registry";
 import { WorkspaceManifestStore } from "./workspace-manifest-store";
 import {
@@ -524,6 +528,82 @@ describe("workspace namespace settings", () => {
     expect(written.settings).toEqual({
       agent: { defaultModel: { provider: "anthropic", id: "claude" } },
     });
+  });
+
+  it("materializes the empty keybindings namespace", async () => {
+    const manifestPath = await tempManifest({ name: "Demo", features: [] });
+    using harness = createHarness(manifestPath, {
+      [KeybindingsSettingsNamespace]: keybindingsWorkspaceSettings,
+    });
+    const { settings, manifest } = harness;
+
+    await settings.reload();
+    await manifest.flush();
+
+    const written = (await readManifest(manifestPath)) as {
+      settings: Record<string, unknown>;
+    };
+    expect(written.settings).toEqual({ keybindings: {} });
+  });
+
+  it("loads durable shortcuts and explicit unbinding", async () => {
+    const manifestPath = await tempManifest({
+      name: "Demo",
+      settings: {
+        keybindings: {
+          "chat.models.favorites": "mod+shift+m",
+          "chat.models.all": null,
+        },
+      },
+      features: [],
+    });
+    using harness = createHarness(manifestPath, {
+      [KeybindingsSettingsNamespace]: keybindingsWorkspaceSettings,
+    });
+    const { settings } = harness;
+
+    await settings.reload();
+    const keybindings = settings.forScope(KeybindingsSettingsNamespace);
+
+    expect(keybindings.get("chat.models.favorites")).toBe("mod+shift+m");
+    expect(keybindings.get("chat.models.all")).toBeNull();
+  });
+
+  it.each([
+    ["malformed action id", { "Chat.models": "mod+m" }],
+    ["malformed shortcut", { "chat.models": "mod+mod+m" }],
+  ])("rejects a %s while retaining the live bindings", async (_, candidate) => {
+    const manifestPath = await tempManifest({
+      name: "Demo",
+      settings: { keybindings: { "chat.models": "mod+m" } },
+      features: [],
+    });
+    using harness = createHarness(manifestPath, {
+      [KeybindingsSettingsNamespace]: keybindingsWorkspaceSettings,
+    });
+    const { settings } = harness;
+
+    await settings.reload();
+    await writeFile(
+      manifestPath,
+      `${JSON.stringify(
+        {
+          name: "Demo",
+          settings: { keybindings: candidate },
+          features: [],
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+
+    await expect(settings.reload()).rejects.toThrow(
+      "Invalid settings for workspace namespace keybindings",
+    );
+    expect(
+      settings.forScope(KeybindingsSettingsNamespace).get("chat.models"),
+    ).toBe("mod+m");
   });
 
   it("rejects unknown namespaces persisted under manifest settings", async () => {

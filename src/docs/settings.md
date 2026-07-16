@@ -1,5 +1,5 @@
 ---
-summary: "Durable settings in uix.workspace.json, two scopes: feature settings declared as TypeBox schemas and hydrated into manifest feature entries, and substrate-owned workspace namespaces (e.g. agent model defaults and favorites) under top-level settings."
+summary: "Durable settings in uix.workspace.json, two scopes: feature settings declared as TypeBox schemas and hydrated into manifest feature entries, and substrate-owned workspace namespaces such as agent model preferences and the dynamic keybinding map under top-level settings."
 status: active
 ---
 
@@ -140,18 +140,20 @@ The substrate owns a small set of workspace-level settings, keyed by namespace u
           "id": "claude-sonnet-4-5"
         }
       ]
-    }
+    },
+    "keybindings": {}
   },
   "features": []
 }
 ```
 
-Workspace namespaces are **not user-registerable**: the substrate registers the namespaces it needs before any feature loads. Today that set is exactly one, `agent`, with two optional settings:
+Workspace namespaces are **not user-registerable**: the substrate registers the namespaces it needs before any feature loads. Today that set contains `agent` and `keybindings`:
 
 - **`agent.defaultModel`** — the workspace default model, used before a pi session exists and as the default for new sessions/branches that carry no `model_change` entry. Absent until the pilot first selects a model.
 - **`agent.favoriteModels`** — the workspace-local model shortlist. Each entry is a provider-qualified model reference; unavailable entries remain persisted so favorites return when a provider reconnects.
+- **`keybindings`** — a flat dynamic record from canonical dotted action ids to one portable shortcut string or `null` for explicit unbinding. Malformed ids, shortcuts, and unknown value shapes reject the candidate rather than being retained silently.
 
-A fresh manifest materializes the registered namespace as `settings.agent: {}` even before either optional value is chosen. This keeps the available configuration surface visible; later selections fill concrete properties. See [`agent.md`](./agent.md) for how model selection and favorites flow through the agent channels.
+A fresh manifest materializes both `settings.agent: {}` and `settings.keybindings: {}` even before values are chosen. This keeps the available configuration surface visible; later selections fill concrete properties. See [`agent.md`](./agent.md) for how model selection and favorites flow through the agent channels. The keybinding namespace is currently persisted and validated; renderer reconciliation and dispatch are not yet part of the shipped API.
 
 Rules:
 
@@ -159,4 +161,4 @@ Rules:
 - hydration and validation are the same as feature settings (same schema pass, same unknown-key rejection, same debounced atomic write, same disk-wins reload);
 - an unknown namespace under manifest-level `settings` rejects the load pass;
 - namespaces register before features, so a feature whose id collides with a namespace fails activation on the duplicate-scope check;
-- workspace settings are main-process-only — features get no handle to them. Model selection and favorite changes go through the agent channels (`select_model` and `set_model_favorite`), never by a surface mutating `agent` settings directly.
+- workspace settings are main-process-only — features get no handle to them. Model selection and favorite changes go through the agent channels (`select_model` and `set_model_favorite`), never by a surface mutating `agent` settings directly; keybindings currently change through manifest edits plus reload.

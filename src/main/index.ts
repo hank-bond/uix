@@ -72,6 +72,10 @@ import {
   agentWorkspaceSettings,
   AgentSettingsNamespace,
 } from "./agent/settings";
+import {
+  keybindingsWorkspaceSettings,
+  KeybindingsSettingsNamespace,
+} from "./keybindings/settings";
 import { SettingsRegistry } from "./settings-registry";
 import { WorkspaceManifestStore } from "./workspace-manifest-store";
 import { createWorkspaceSettings } from "./workspace-settings";
@@ -159,7 +163,10 @@ async function openWorkspace(
   const workspaceSettings = createWorkspaceSettings(
     workspaceManifest,
     settingsRegistry,
-    { [AgentSettingsNamespace]: agentWorkspaceSettings },
+    {
+      [AgentSettingsNamespace]: agentWorkspaceSettings,
+      [KeybindingsSettingsNamespace]: keybindingsWorkspaceSettings,
+    },
   );
 
   // The feature composition lives under its own child scope so reload can

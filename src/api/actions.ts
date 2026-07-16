@@ -1,9 +1,27 @@
+import { Type, type Static } from "typebox";
+
+import { ShortcutSchema, type Shortcut } from "./shortcuts";
+
+const actionIdTokenPattern = "[a-z][a-z0-9_-]*";
+
+export const ActionIdSchema = Type.String({
+  pattern: `^${actionIdTokenPattern}(?:\\.${actionIdTokenPattern})+$`,
+});
+export type ActionId = Static<typeof ActionIdSchema>;
+
+export const KeybindingMapSchema = Type.Record(
+  ActionIdSchema,
+  Type.Union([ShortcutSchema, Type.Null()]),
+  { additionalProperties: false },
+);
+export type KeybindingMap = Static<typeof KeybindingMapSchema>;
+
 export type ActionRun = () => void | Promise<void>;
 
 export interface ActionLeafContribution {
   readonly title: string;
   readonly description?: string;
-  readonly defaultBinding?: string;
+  readonly defaultBinding?: Shortcut;
   readonly enabled?: boolean;
   readonly run: ActionRun;
 }
@@ -26,13 +44,13 @@ export type RegisterActionContribution = (
 ) => ActionContributionUpdater;
 
 export interface ActionDescriptor {
-  readonly id: string;
+  readonly id: ActionId;
   readonly owner: string;
   readonly title: string;
   /** Group titles followed by this action's title. */
   readonly path: readonly string[];
   readonly description?: string;
-  readonly binding?: string | null;
+  readonly binding?: Shortcut | null;
   readonly enabled: boolean;
   readonly running: boolean;
   readonly conflictsWith: readonly string[];
