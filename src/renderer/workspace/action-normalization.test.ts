@@ -17,7 +17,7 @@ function chatActions(groupTitle = "Models"): ActionContribution {
         favorites: {
           title: "Favorite Models",
           description: "Choose from favorite models",
-          defaultBinding: "mod+shift+m",
+          defaultBinding: "shift+mod+m",
           run,
         },
       },
@@ -32,7 +32,7 @@ function chatActions(groupTitle = "Models"): ActionContribution {
 
 describe("toActionId", () => {
   it("derives canonical identity from the feature and keyed path", () => {
-    expect(toActionId("chat", ["models", "favorites"]) as string).toBe(
+    expect(toActionId("chat", ["models", "favorites"])).toBe(
       "chat.models.favorites",
     );
   });
@@ -54,7 +54,7 @@ describe("normalizeActionContribution", () => {
   it("flattens contributions in authored order with derived ids and title paths", () => {
     const normalized = normalizeActionContribution("chat", chatActions());
 
-    expect(normalized.descriptors).toEqual([
+    expect(normalized.catalogEntries).toEqual([
       {
         id: "chat.models.favorites",
         owner: "chat",
@@ -76,12 +76,15 @@ describe("normalizeActionContribution", () => {
       },
     ]);
     expect(
-      normalized.registrations.map(({ descriptor }) => descriptor),
-    ).toEqual(normalized.descriptors);
+      normalized.registrations.map(({ catalogEntry }) => catalogEntry),
+    ).toEqual(normalized.catalogEntries);
     expect(normalized.registrations[0]).toMatchObject({
       id: "chat.models.favorites",
-      defaultBinding: "mod+shift+m",
       run,
+    });
+    expect(normalized.registrations[0]).not.toHaveProperty("defaultBinding");
+    expect(normalized.defaultBindings).toEqual({
+      "chat.models.favorites": "mod+shift+m",
     });
   });
 
@@ -92,9 +95,12 @@ describe("normalizeActionContribution", () => {
       chatActions("Model Settings"),
     );
 
-    expect(models.descriptors[0]?.id).toBe(settings.descriptors[0]?.id);
-    expect(models.descriptors[0]?.path).toEqual(["Models", "Favorite Models"]);
-    expect(settings.descriptors[0]?.path).toEqual([
+    expect(models.catalogEntries[0]?.id).toBe(settings.catalogEntries[0]?.id);
+    expect(models.catalogEntries[0]?.path).toEqual([
+      "Models",
+      "Favorite Models",
+    ]);
+    expect(settings.catalogEntries[0]?.path).toEqual([
       "Model Settings",
       "Favorite Models",
     ]);
@@ -106,19 +112,31 @@ describe("normalizeActionContribution", () => {
       favorites: { title: "Favorite Models", run },
     });
 
-    expect(nested.descriptors[0]?.id).toBe("chat.models.favorites");
-    expect(root.descriptors[0]?.id).toBe("chat.favorites");
+    expect(nested.catalogEntries[0]?.id).toBe("chat.models.favorites");
+    expect(root.catalogEntries[0]?.id).toBe("chat.favorites");
   });
 
-  it("projects JSON-safe descriptors without callbacks or group nodes", () => {
+  it("projects JSON-safe catalog entries without callbacks or group nodes", () => {
     const normalized = normalizeActionContribution("chat", chatActions());
     const projected = JSON.parse(
-      JSON.stringify(normalized.descriptors),
+      JSON.stringify(normalized.catalogEntries),
     ) as unknown;
 
-    expect(projected).toEqual(normalized.descriptors);
-    expect(normalized.descriptors[0]).not.toHaveProperty("run");
-    expect(normalized.descriptors[0]).not.toHaveProperty("children");
+    expect(projected).toEqual(normalized.catalogEntries);
+    expect(normalized.catalogEntries[0]).not.toHaveProperty("run");
+    expect(normalized.catalogEntries[0]).not.toHaveProperty("children");
+  });
+
+  it("rejects invalid default bindings", () => {
+    expect(() =>
+      normalizeActionContribution("chat", {
+        models: {
+          title: "Models",
+          defaultBinding: "mod+mod+m",
+          run,
+        },
+      }),
+    ).toThrow("Invalid shortcut");
   });
 
   it("rejects invalid contribution keys and empty titles", () => {

@@ -1,5 +1,5 @@
 ---
-summary: "Workspace actions are feature-owned renderer workflows arranged in presentation trees: one renderer registry privately holds callbacks, publicly projects serializable descriptors, resolves durable workspace keybindings and conflicts, and lets replaceable palette/menu/tree features invoke actions by id while backend effects continue through typed channels."
+summary: "Workspace actions are feature-owned renderer workflows arranged in presentation trees: one renderer registry privately holds callbacks, publicly projects serializable action catalog entries, resolves durable workspace keybindings and conflicts, and lets replaceable palette/menu/tree features invoke actions by id while backend effects continue through typed channels."
 status: exploring
 ---
 
@@ -22,7 +22,7 @@ The renderer registry flattens contributed leaves in authored order. The key pat
 One authored action contribution deterministically becomes three renderer projections with the same derived id and lifetime:
 
 - the private registrations retain callbacks and enabled/running state;
-- the public catalog is a flat list of JSON-safe descriptors: id, owner, title, path, optional description, resolved binding, enabled/running state, and conflicts;
+- the public catalog is a flat list of JSON-safe `ActionCatalogEntry` values: id, owner, title, path, optional description, resolved binding, enabled/running state, and conflicts;
 - the default-binding template contains only ids whose leaves declare `defaultBinding` and changes independently from enabled/running-only catalog updates.
 
 Keeping `defaultBinding` on the action leaf is authoring colocation, not runtime coupling: the callback never receives or reads it, and normalization splits the metadata immediately. A separate default contribution tree would duplicate keyed paths, create drift, and add another registration lifetime for no current benefit.
@@ -52,7 +52,7 @@ Defaults create complete configuration rather than participating in runtime reso
 
 Main owns durable configuration and complete-scope replacement; the renderer owns keyboard interpretation and action execution. A renderer customization feature submits one complete candidate map, main validates and atomically replaces it, and main broadcasts the confirmed result. Missing means eligible for materialization, `null` means explicitly unbound, and a shortcut is concrete; UI intents called bind/unbind/reset merely construct the next candidate, with reset copying the current declared default (or omitting an id that has none). Human or agent file edits still require substrate reload, while channel edits publish immediately.
 
-The renderer joins active descriptors with confirmed bindings and computes conflicts centrally after resolving `mod` for its own platform. If multiple active actions resolve to one shortcut, that shortcut invokes none; each action remains invokable by id. Conflicts are included in the public catalog but never persisted because they depend on the active client and composition. A well-formed persisted id with no action is projected in a separate unresolved list, not rejected or represented as a fake action: it may be a typo, or it may belong to a temporarily removed feature. A future settings editor can repair/delete these entries while preserving intentional dormant choices.
+The renderer joins active catalog entries with confirmed bindings and computes conflicts centrally after resolving `mod` for its own platform. If multiple active actions resolve to one shortcut, that shortcut invokes none; each action remains invokable by id. Conflicts are included in the public catalog but never persisted because they depend on the active client and composition. A well-formed persisted id with no action is projected in a separate unresolved list, not rejected or represented as a fake action: it may be a typo, or it may belong to a temporarily removed feature. A future settings editor can repair/delete these entries while preserving intentional dormant choices.
 
 The v1 shortcut grammar follows established editor conventions without a dependency: `+` joins one chord, `mod` means Command on macOS and Control elsewhere, common modifiers and gesture key names normalize deterministically, and one modifier is required. A binding describes the keys a human presses rather than the character those keys produce, so modifiers remain explicit (`shift+1`, never `!`); browser `key`/`code` translation stays inside the dispatcher adapter rather than entering the persisted format. Spaces are reserved for later follow-up sequences, and the internal chord representation can already express no modifiers; pending state, timeout, prefix ambiguity, Escape/context eligibility, and event suppression stay out of v1. The key dispatcher handles only a focused workspace client, not Electron's process-global shortcut facility. Electron accelerators that overlap workspace actions, notably native reload, must yield to the renderer dispatcher, while true App/OS chrome such as quit remains Electron-owned.
 
@@ -83,7 +83,7 @@ We separated an action invocation from a long-running operation. The registry ge
 
 ### 2026-07-12 — keyed contributions and a flat public catalog
 
-We aligned actions with the facet-wide identifier rule: authors never supply ids. A surface registers a nested keyed contribution object, and its feature-scoped registry handle derives canonical ids from the feature plus key path. Titles remain display-only. Normalization emits private callback registrations and a flat public descriptor list; title paths preserve enough grouping for current palette/menu/tree consumers, so public group descriptors and keyword metadata were dropped.
+We aligned actions with the facet-wide identifier rule: authors never supply ids. A surface registers a nested keyed contribution object, and its feature-scoped registry handle derives canonical ids from the feature plus key path. Titles remain display-only. Normalization emits private callback registrations and a flat public action catalog; title paths preserve enough grouping for current palette/menu/tree consumers, so public group entries and keyword metadata were dropped.
 
 ### 2026-07-13 — flat keybinding namespace and the settings-editor pattern
 

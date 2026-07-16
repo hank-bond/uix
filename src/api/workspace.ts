@@ -22,8 +22,9 @@ import {
 } from "./settings";
 
 export type {
+  ActionCatalog,
+  ActionCatalogEntry,
   ActionContribution,
-  ActionDescriptor,
   ActionGroupContribution,
   ActionLeafContribution,
   ActionInvocationResult,
@@ -31,47 +32,47 @@ export type {
   ActionRun,
 } from "./actions";
 import type {
+  ActionCatalog,
   ActionContribution,
   ActionContributionUpdater,
-  ActionDescriptor,
   ActionInvocationResult,
   RegisterActionContribution,
 } from "./actions";
 
-type GetActionSnapshot = () => readonly ActionDescriptor[];
-type SubscribeToActions = (listener: () => void) => () => void;
+type GetActionCatalogSnapshot = () => ActionCatalog;
+type SubscribeToActionCatalog = (listener: () => void) => () => void;
 type InvokeAction = (id: string) => Promise<ActionInvocationResult>;
 
 const RegisterActionContributionContext = createContext<
   RegisterActionContribution | undefined
 >(undefined);
-const GetActionSnapshotContext = createContext<GetActionSnapshot | undefined>(
-  undefined,
-);
-const SubscribeToActionsContext = createContext<SubscribeToActions | undefined>(
-  undefined,
-);
+const GetActionCatalogSnapshotContext = createContext<
+  GetActionCatalogSnapshot | undefined
+>(undefined);
+const SubscribeToActionCatalogContext = createContext<
+  SubscribeToActionCatalog | undefined
+>(undefined);
 const InvokeActionContext = createContext<InvokeAction | undefined>(undefined);
 
 export interface WorkspaceActionsProviderProps {
-  getSnapshot: GetActionSnapshot;
-  subscribe: SubscribeToActions;
+  getCatalogSnapshot: GetActionCatalogSnapshot;
+  subscribeToCatalog: SubscribeToActionCatalog;
   invoke: InvokeAction;
   children: ReactNode;
 }
 
 export function WorkspaceActionsProvider({
-  getSnapshot,
-  subscribe,
+  getCatalogSnapshot,
+  subscribeToCatalog,
   invoke,
   children,
 }: WorkspaceActionsProviderProps): ReactNode {
   return createElement(
-    GetActionSnapshotContext.Provider,
-    { value: getSnapshot },
+    GetActionCatalogSnapshotContext.Provider,
+    { value: getCatalogSnapshot },
     createElement(
-      SubscribeToActionsContext.Provider,
-      { value: subscribe },
+      SubscribeToActionCatalogContext.Provider,
+      { value: subscribeToCatalog },
       createElement(InvokeActionContext.Provider, { value: invoke }, children),
     ),
   );
@@ -125,9 +126,9 @@ export function useActionContribution(contribution: ActionContribution): void {
   }, [contribution]);
 }
 
-export function useActionCatalog(): readonly ActionDescriptor[] {
-  const getSnapshot = useContext(GetActionSnapshotContext);
-  const subscribe = useContext(SubscribeToActionsContext);
+export function useActionCatalog(): ActionCatalog {
+  const getSnapshot = useContext(GetActionCatalogSnapshotContext);
+  const subscribe = useContext(SubscribeToActionCatalogContext);
   if (!getSnapshot || !subscribe) {
     throw new Error("WorkspaceActionsProvider is missing");
   }

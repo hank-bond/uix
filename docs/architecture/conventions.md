@@ -41,6 +41,7 @@ bag[Symbol.dispose]();
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
 - Function names describe the observable contract from the caller's perspective. Include every distinction needed to predict the result; omit implementation details that do not change what callers receive or observe.
 - Apply the ambiguity test: if two materially different operations could reasonably share the name, it is underspecified. Add the distinguishing domain, result, or resolution axis — `enumerateUniqueModifierSequences`, not `permutations`; `resolveShortcutForPlatform`, not `resolveShortcut`.
+- A domain catalog is `XCatalog`; one public item is `XCatalogEntry`. Reserve these names for the catalog concept defined in [concepts](./concepts.md), not arbitrary lists or snapshots; avoid the generic `Descriptor` suffix when the value's actual role is a catalog entry.
 - Private helper functions should generally be operation-shaped so the call site says what operation is happening. Prefer:
   - `parseX` for unknown/external input that validates into `X`; invalid input throws;
   - `asX` / `tryParseX` for non-throwing refinement/parsing helpers that return `X | undefined`;

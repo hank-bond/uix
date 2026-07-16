@@ -1,27 +1,25 @@
 import type {
+  ActionCatalogEntry,
   ActionContribution,
-  ActionDescriptor,
   ActionLeafContribution,
   ActionRun,
+  ActionId,
 } from "@uix/api/actions";
 import { isIdToken } from "@uix/api/contribution-id";
-
-const ActionIdBrand: unique symbol = Symbol("ActionId");
-
-type ActionId = string & {
-  readonly [ActionIdBrand]: true;
-};
+import { normalizeShortcut, type Shortcut } from "@uix/api/shortcuts";
 
 export interface ActionRegistration {
   readonly id: ActionId;
-  readonly descriptor: ActionDescriptor;
-  readonly defaultBinding?: string;
+  readonly catalogEntry: ActionCatalogEntry;
   readonly run: ActionRun;
 }
 
+export type ActionDefaultBindingMap = Readonly<Record<ActionId, Shortcut>>;
+
 interface NormalizedActions {
-  readonly descriptors: readonly ActionDescriptor[];
+  readonly catalogEntries: readonly ActionCatalogEntry[];
   readonly registrations: readonly ActionRegistration[];
+  readonly defaultBindings: ActionDefaultBindingMap;
 }
 
 export function toActionId(owner: string, path: readonly string[]): ActionId {
@@ -32,7 +30,7 @@ export function toActionId(owner: string, path: readonly string[]): ActionId {
   for (const name of path) {
     assertActionToken("action name", name);
   }
-  return [owner, ...path].join(".") as ActionId;
+  return [owner, ...path].join(".");
 }
 
 export function normalizeActionContribution(
@@ -41,11 +39,20 @@ export function normalizeActionContribution(
 ): NormalizedActions {
   assertActionToken("feature id", owner);
   const registrations: ActionRegistration[] = [];
+  const defaultBindings: Record<ActionId, Shortcut> = {};
 
-  normalizeContribution(owner, contribution, [], [], registrations);
-  return {
-    descriptors: registrations.map(({ descriptor }) => descriptor),
+  normalizeContribution(
+    owner,
+    contribution,
+    [],
+    [],
     registrations,
+    defaultBindings,
+  );
+  return {
+    catalogEntries: registrations.map(({ catalogEntry }) => catalogEntry),
+    registrations,
+    defaultBindings,
   };
 }
 
@@ -55,6 +62,7 @@ function normalizeContribution(
   namePath: readonly string[],
   titlePath: readonly string[],
   registrations: ActionRegistration[],
+  defaultBindings: Record<ActionId, Shortcut>,
 ): void {
   for (const [name, node] of Object.entries(contribution)) {
     assertActionToken("action name", name);
@@ -67,11 +75,14 @@ function normalizeContribution(
         [...namePath, name],
         [...titlePath, node.title],
         registrations,
+        defaultBindings,
       );
       continue;
     }
 
-    registrations.push(normalizeAction(owner, name, node, namePath, titlePath));
+    registrations.push(
+      normalizeAction(owner, name, node, namePath, titlePath, defaultBindings),
+    );
   }
 }
 
@@ -81,9 +92,10 @@ function normalizeAction(
   contribution: ActionLeafContribution,
   namePath: readonly string[],
   titlePath: readonly string[],
+  defaultBindings: Record<ActionId, Shortcut>,
 ): ActionRegistration {
   const id = toActionId(owner, [...namePath, name]);
-  const descriptor: ActionDescriptor = {
+  const catalogEntry: ActionCatalogEntry = {
     id,
     owner,
     title: contribution.title,
@@ -96,12 +108,13 @@ function normalizeAction(
     conflictsWith: [],
   };
 
+  if (contribution.defaultBinding !== undefined) {
+    defaultBindings[id] = normalizeShortcut(contribution.defaultBinding);
+  }
+
   return {
     id,
-    descriptor,
-    ...(contribution.defaultBinding !== undefined
-      ? { defaultBinding: contribution.defaultBinding }
-      : {}),
+    catalogEntry,
     run: contribution.run,
   };
 }

@@ -8,11 +8,11 @@ import {
   WorkspaceActionsProvider,
 } from "@uix/api/workspace";
 import type {
-  ActionDescriptor,
+  ActionCatalogEntry,
   ActionInvocationResult,
 } from "@uix/api/actions";
 
-const descriptor: ActionDescriptor = {
+const catalogEntry: ActionCatalogEntry = {
   id: "chat.models.favorites",
   owner: "chat",
   title: "Favorite Models",
@@ -24,7 +24,7 @@ const descriptor: ActionDescriptor = {
 
 describe("workspace action hooks", () => {
   it("reads the catalog and exposes the shared invocation operation", async () => {
-    const getSnapshot = vi.fn(() => [descriptor]);
+    const getSnapshot = vi.fn(() => [catalogEntry]);
     const subscribe = vi.fn(() => () => undefined);
     const invoke = vi.fn(
       (): Promise<ActionInvocationResult> =>
@@ -42,8 +42,8 @@ describe("workspace action hooks", () => {
 
     const html = renderToStaticMarkup(
       <WorkspaceActionsProvider
-        getSnapshot={getSnapshot}
-        subscribe={subscribe}
+        getCatalogSnapshot={getSnapshot}
+        subscribeToCatalog={subscribe}
         invoke={invoke}
       >
         <Probe />

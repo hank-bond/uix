@@ -43,7 +43,7 @@ export type RegisterActionContribution = (
   contribution: ActionContribution,
 ) => ActionContributionUpdater;
 
-export interface ActionDescriptor {
+export interface ActionCatalogEntry {
   readonly id: ActionId;
   readonly owner: string;
   readonly title: string;
@@ -55,6 +55,8 @@ export interface ActionDescriptor {
   readonly running: boolean;
   readonly conflictsWith: readonly string[];
 }
+
+export type ActionCatalog = readonly ActionCatalogEntry[];
 
 export type ActionNotInvokedReason =
   | "not_found"

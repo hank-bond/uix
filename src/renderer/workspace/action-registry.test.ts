@@ -21,7 +21,7 @@ describe("ActionRegistry", () => {
     const registry = new ActionRegistry();
     const registerChatActions = registry.forFeature("chat");
     const listener = vi.fn();
-    const unsubscribe = registry.subscribe(listener);
+    const unsubscribe = registry.subscribeToCatalog(listener);
     const registration = registerChatActions({
       models: {
         title: "Models",
@@ -31,14 +31,14 @@ describe("ActionRegistry", () => {
       },
     });
 
-    expect(registry.getSnapshot()).toMatchObject([
+    expect(registry.getCatalogSnapshot()).toMatchObject([
       {
         id: "chat.models.favorites",
         path: ["Models", "Favorite Models"],
       },
     ]);
-    const registeredSnapshot = registry.getSnapshot();
-    expect(registry.getSnapshot()).toBe(registeredSnapshot);
+    const registeredSnapshot = registry.getCatalogSnapshot();
+    expect(registry.getCatalogSnapshot()).toBe(registeredSnapshot);
 
     registration.update({
       models: {
@@ -50,23 +50,70 @@ describe("ActionRegistry", () => {
       },
     });
 
-    expect(registry.getSnapshot().map(({ id }) => id)).toEqual([
+    expect(registry.getCatalogSnapshot().map(({ id }) => id)).toEqual([
       "chat.models.favorites",
       "chat.models.all",
     ]);
-    expect(registry.getSnapshot()[0]?.path).toEqual([
+    expect(registry.getCatalogSnapshot()[0]?.path).toEqual([
       "Model Settings",
       "Favorites",
     ]);
 
     registration[Symbol.dispose]();
     registration[Symbol.dispose]();
-    expect(registry.getSnapshot()).toEqual([]);
+    expect(registry.getCatalogSnapshot()).toEqual([]);
     expect(() => registration.update({})).toThrow(
       "Action contribution registration is disposed",
     );
     expect(listener).toHaveBeenCalledTimes(3);
     unsubscribe();
+  });
+
+  it("publishes a stable default-binding snapshot only when the template changes", async () => {
+    const registry = new ActionRegistry();
+    const defaultBindingListener = vi.fn();
+    registry.subscribeToDefaultBindings(defaultBindingListener);
+    const registration = registry.forFeature("chat")({
+      models: {
+        title: "Models",
+        defaultBinding: "shift+mod+m",
+        run: () => undefined,
+      },
+    });
+
+    expect(registry.getDefaultBindingsSnapshot()).toEqual({
+      "chat.models": "mod+shift+m",
+    });
+    const initialDefaults = registry.getDefaultBindingsSnapshot();
+    expect(defaultBindingListener).toHaveBeenCalledOnce();
+
+    await registry.invoke("chat.models");
+    registration.update({
+      models: {
+        title: "Choose Model",
+        defaultBinding: "mod+shift+m",
+        run: () => undefined,
+      },
+    });
+
+    expect(registry.getDefaultBindingsSnapshot()).toBe(initialDefaults);
+    expect(defaultBindingListener).toHaveBeenCalledOnce();
+
+    registration.update({
+      models: {
+        title: "Choose Model",
+        defaultBinding: "ctrl+m",
+        run: () => undefined,
+      },
+    });
+    expect(registry.getDefaultBindingsSnapshot()).toEqual({
+      "chat.models": "ctrl+m",
+    });
+    expect(defaultBindingListener).toHaveBeenCalledTimes(2);
+
+    registration[Symbol.dispose]();
+    expect(registry.getDefaultBindingsSnapshot()).toEqual({});
+    expect(defaultBindingListener).toHaveBeenCalledTimes(3);
   });
 
   it("rejects canonical collisions without changing existing registrations", () => {
@@ -81,7 +128,7 @@ describe("ActionRegistry", () => {
         models: { title: "Other Models", run: () => undefined },
       }),
     ).toThrow("Action already registered: chat.models (owner chat)");
-    expect(registry.getSnapshot()).toHaveLength(1);
+    expect(registry.getCatalogSnapshot()).toHaveLength(1);
 
     const second = registerChatActions({
       providers: { title: "Providers", run: () => undefined },
@@ -91,7 +138,7 @@ describe("ActionRegistry", () => {
         models: { title: "Models Again", run: () => undefined },
       }),
     ).toThrow("Action already registered: chat.models (owner chat)");
-    expect(registry.getSnapshot().map(({ id }) => id)).toEqual([
+    expect(registry.getCatalogSnapshot().map(({ id }) => id)).toEqual([
       "chat.models",
       "chat.providers",
     ]);
@@ -135,7 +182,7 @@ describe("ActionRegistry", () => {
 
     const invocation = registry.invoke("chat.refresh");
     expect(
-      registry.getSnapshot().find(({ id }) => id === "chat.refresh"),
+      registry.getCatalogSnapshot().find(({ id }) => id === "chat.refresh"),
     ).toMatchObject({ running: true });
     await expect(registry.invoke("chat.refresh")).resolves.toEqual({
       status: "not_invoked",
@@ -148,7 +195,7 @@ describe("ActionRegistry", () => {
     pending.resolve();
     await expect(invocation).resolves.toEqual({ status: "completed" });
     expect(
-      registry.getSnapshot().find(({ id }) => id === "chat.refresh"),
+      registry.getCatalogSnapshot().find(({ id }) => id === "chat.refresh"),
     ).toMatchObject({ running: false });
     expect(other).toHaveBeenCalledOnce();
   });
@@ -166,7 +213,7 @@ describe("ActionRegistry", () => {
     registration.update({
       refresh: { title: "Refresh Models", run: replacement },
     });
-    expect(registry.getSnapshot()[0]).toMatchObject({
+    expect(registry.getCatalogSnapshot()[0]).toMatchObject({
       title: "Refresh Models",
       running: true,
     });
@@ -199,14 +246,15 @@ describe("ActionRegistry", () => {
       "deliberate failure",
     );
     expect(
-      registry.getSnapshot().find(({ id }) => id === "chat.fail")?.running,
+      registry.getCatalogSnapshot().find(({ id }) => id === "chat.fail")
+        ?.running,
     ).toBe(false);
 
     const invocation = registry.invoke("chat.refresh");
     registration[Symbol.dispose]();
-    expect(registry.getSnapshot()).toEqual([]);
+    expect(registry.getCatalogSnapshot()).toEqual([]);
     pending.resolve();
     await invocation;
-    expect(registry.getSnapshot()).toEqual([]);
+    expect(registry.getCatalogSnapshot()).toEqual([]);
   });
 });

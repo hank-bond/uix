@@ -15,9 +15,12 @@ export function ActionRegistryProvider({
   registry: ActionRegistry;
   children: ReactNode;
 }) {
-  const getSnapshot = useCallback(() => registry.getSnapshot(), [registry]);
-  const subscribe = useCallback(
-    (listener: () => void) => registry.subscribe(listener),
+  const getCatalogSnapshot = useCallback(
+    () => registry.getCatalogSnapshot(),
+    [registry],
+  );
+  const subscribeToCatalog = useCallback(
+    (listener: () => void) => registry.subscribeToCatalog(listener),
     [registry],
   );
   const invoke = useCallback((id: string) => registry.invoke(id), [registry]);
@@ -25,8 +28,8 @@ export function ActionRegistryProvider({
   return (
     <ActionRegistryContext.Provider value={registry}>
       <WorkspaceActionsProvider
-        getSnapshot={getSnapshot}
-        subscribe={subscribe}
+        getCatalogSnapshot={getCatalogSnapshot}
+        subscribeToCatalog={subscribeToCatalog}
         invoke={invoke}
       >
         {children}

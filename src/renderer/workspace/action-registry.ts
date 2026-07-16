@@ -1,13 +1,14 @@
 import type {
   ActionContribution,
+  ActionCatalog,
   ActionContributionUpdater,
-  ActionDescriptor,
   ActionInvocationResult,
   RegisterActionContribution,
 } from "@uix/api/actions";
 
 import {
   normalizeActionContribution,
+  type ActionDefaultBindingMap,
   type ActionRegistration,
 } from "./action-normalization";
 
@@ -21,32 +22,36 @@ interface RegisteredAction {
 interface RegisteredActionContribution {
   readonly owner: string;
   actions: RegisteredAction[];
+  defaultBindings: ActionDefaultBindingMap;
 }
 
 export class ActionRegistry implements Disposable {
   readonly #byId = new Map<string, RegisteredAction>();
   readonly #registeredContributions: RegisteredActionContribution[] = [];
-  readonly #listeners = new Set<Listener>();
-  #snapshot: readonly ActionDescriptor[] = [];
+  readonly #catalogListeners = new Set<Listener>();
+  readonly #defaultBindingListeners = new Set<Listener>();
+  #catalogSnapshot: ActionCatalog = [];
+  #defaultBindingsSnapshot: ActionDefaultBindingMap = Object.freeze({});
   #disposed = false;
 
   forFeature(owner: string): RegisterActionContribution {
     return (contribution) => this.#registerContribution(owner, contribution);
   }
 
-  getSnapshot(): readonly ActionDescriptor[] {
-    return this.#snapshot;
+  getCatalogSnapshot(): ActionCatalog {
+    return this.#catalogSnapshot;
   }
 
-  subscribe(listener: Listener): () => void {
-    this.#assertActive();
-    this.#listeners.add(listener);
-    let subscribed = true;
-    return () => {
-      if (!subscribed) return;
-      subscribed = false;
-      this.#listeners.delete(listener);
-    };
+  subscribeToCatalog(listener: Listener): () => void {
+    return this.#subscribe(this.#catalogListeners, listener);
+  }
+
+  getDefaultBindingsSnapshot(): ActionDefaultBindingMap {
+    return this.#defaultBindingsSnapshot;
+  }
+
+  subscribeToDefaultBindings(listener: Listener): () => void {
+    return this.#subscribe(this.#defaultBindingListeners, listener);
   }
 
   async invoke(id: string): Promise<ActionInvocationResult> {
@@ -58,12 +63,12 @@ export class ActionRegistry implements Disposable {
     if (action.running) {
       return { status: "not_invoked", reason: "already_running" };
     }
-    if (!action.registration.descriptor.enabled) {
+    if (!action.registration.catalogEntry.enabled) {
       return { status: "not_invoked", reason: "disabled" };
     }
 
     action.running = true;
-    this.#publishSnapshot();
+    this.#publishCatalogSnapshot();
     const run = action.registration.run;
     try {
       await run();
@@ -71,7 +76,7 @@ export class ActionRegistry implements Disposable {
     } finally {
       if (this.#byId.get(id) === action) {
         action.running = false;
-        this.#publishSnapshot();
+        this.#publishCatalogSnapshot();
       }
     }
   }
@@ -81,8 +86,10 @@ export class ActionRegistry implements Disposable {
     this.#disposed = true;
     this.#byId.clear();
     this.#registeredContributions.length = 0;
-    this.#listeners.clear();
-    this.#snapshot = [];
+    this.#catalogListeners.clear();
+    this.#defaultBindingListeners.clear();
+    this.#catalogSnapshot = [];
+    this.#defaultBindingsSnapshot = Object.freeze({});
   }
 
   #registerContribution(
@@ -99,10 +106,12 @@ export class ActionRegistry implements Disposable {
         registration,
         running: false,
       })),
+      defaultBindings: normalized.defaultBindings,
     };
     this.#registeredContributions.push(registeredContribution);
     this.#addToIndex(registeredContribution.actions);
-    this.#publishSnapshot();
+    this.#publishCatalogSnapshot();
+    this.#publishDefaultBindingsIfChanged();
 
     return {
       update: (next) => this.#updateContribution(registeredContribution, next),
@@ -145,8 +154,10 @@ export class ActionRegistry implements Disposable {
 
     this.#removeFromIndex(registeredContribution.actions);
     registeredContribution.actions = nextActions;
+    registeredContribution.defaultBindings = normalized.defaultBindings;
     this.#addToIndex(nextActions);
-    this.#publishSnapshot();
+    this.#publishCatalogSnapshot();
+    this.#publishDefaultBindingsIfChanged();
   }
 
   #removeContribution(
@@ -156,7 +167,10 @@ export class ActionRegistry implements Disposable {
     if (index === -1) return;
     this.#removeFromIndex(registeredContribution.actions);
     this.#registeredContributions.splice(index, 1);
-    if (!this.#disposed) this.#publishSnapshot();
+    if (!this.#disposed) {
+      this.#publishCatalogSnapshot();
+      this.#publishDefaultBindingsIfChanged();
+    }
   }
 
   #assertIdsAvailable(
@@ -167,7 +181,7 @@ export class ActionRegistry implements Disposable {
       const existing = this.#byId.get(registration.id);
       if (existing && !replacedActions.has(existing)) {
         throw new Error(
-          `Action already registered: ${registration.id} (owner ${registration.descriptor.owner})`,
+          `Action already registered: ${registration.id} (owner ${registration.catalogEntry.owner})`,
         );
       }
     }
@@ -186,17 +200,53 @@ export class ActionRegistry implements Disposable {
     }
   }
 
-  #publishSnapshot(): void {
-    this.#snapshot = this.#registeredContributions.flatMap((contribution) =>
-      contribution.actions.map((action) => ({
-        ...action.registration.descriptor,
-        running: action.running,
-      })),
+  #publishCatalogSnapshot(): void {
+    this.#catalogSnapshot = this.#registeredContributions.flatMap(
+      (contribution) =>
+        contribution.actions.map((action) => ({
+          ...action.registration.catalogEntry,
+          running: action.running,
+        })),
     );
-    for (const listener of this.#listeners) listener();
+    for (const listener of this.#catalogListeners) listener();
+  }
+
+  #publishDefaultBindingsIfChanged(): void {
+    const next = Object.assign(
+      {},
+      ...this.#registeredContributions.map(
+        (contribution) => contribution.defaultBindings,
+      ),
+    ) as ActionDefaultBindingMap;
+    if (hasSameDefaultBindings(this.#defaultBindingsSnapshot, next)) return;
+    this.#defaultBindingsSnapshot = Object.freeze(next);
+    for (const listener of this.#defaultBindingListeners) listener();
+  }
+
+  #subscribe(listeners: Set<Listener>, listener: Listener): () => void {
+    this.#assertActive();
+    listeners.add(listener);
+    let subscribed = true;
+    return () => {
+      if (!subscribed) return;
+      subscribed = false;
+      listeners.delete(listener);
+    };
   }
 
   #assertActive(): void {
     if (this.#disposed) throw new Error("ActionRegistry is disposed");
   }
+}
+
+function hasSameDefaultBindings(
+  left: ActionDefaultBindingMap,
+  right: ActionDefaultBindingMap,
+): boolean {
+  const leftEntries = Object.entries(left);
+  if (leftEntries.length !== Object.keys(right).length) return false;
+  return leftEntries.every(
+    ([actionId, shortcut]) =>
+      Object.hasOwn(right, actionId) && right[actionId] === shortcut,
+  );
 }

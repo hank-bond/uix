@@ -5,7 +5,7 @@ status: active
 
 # Repository vocabulary coherence
 
-Review the concepts and naming conventions across code and docs, then migrate inconsistent names without changing behavior. The workspace-action pipeline is the seed: `ActionContribution` (author input) → `ActionRegistration` (normalized registry record) → `RegisteredAction` (live runtime state) → `ActionDescriptor` (public projection), with `ActionContributionUpdater` as the update/dispose capability returned by registration.
+Review the concepts and naming conventions across code and docs, then migrate inconsistent names without changing behavior. The workspace-action pipeline is the seed: `ActionContribution` (author input) → `ActionRegistration` (normalized registry record) → `RegisteredAction` (live runtime state) → `ActionCatalogEntry` (public catalog projection), with `ActionContributionUpdater` as the update/dispose capability returned by registration.
 
 The goal is a small semantic vocabulary: names describe the shape and lifecycle stage of a thing, receiver context avoids redundant qualification, and one term does not quietly mean several different things. This is a breaking cleanup—rename integrations to the settled path rather than preserving aliases.
 
