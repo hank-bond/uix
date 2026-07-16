@@ -27,10 +27,10 @@ import type {
 import type {
   AgentEvent,
   AgentStatus,
-  AuthProvider,
+  ModelCatalog,
   ModelFavoriteUpdate,
-  ModelOption,
   ModelRef,
+  ProviderAuthCatalog,
   OAuthFlowState,
   ProviderCredentials,
   TranscriptItem,
@@ -54,8 +54,8 @@ import {
 
 import { createOAuthFlowCoordinator } from "./auth-flow";
 import {
+  createProviderAuthCatalog,
   findOfferedCredentialMethod,
-  listAuthProviders as discoverAuthProviders,
   resolveOAuthStartAction,
 } from "./auth-providers";
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
@@ -103,9 +103,9 @@ export interface AgentDriver extends Disposable {
    */
   sessionFile(): string | undefined;
   /** Available models with workspace-local favorite status. */
-  listModels(): Promise<ModelOption[]>;
-  /** Persist a favorite update and return the refreshed available model list. */
-  setModelFavorite(update: ModelFavoriteUpdate): Promise<ModelOption[]>;
+  listModels(): Promise<ModelCatalog>;
+  /** Persist a favorite update and return the refreshed available model catalog. */
+  setModelFavorite(update: ModelFavoriteUpdate): Promise<ModelCatalog>;
   /** Live session model (when known) plus the workspace default. */
   status(): AgentStatus;
   /**
@@ -114,7 +114,7 @@ export interface AgentDriver extends Disposable {
    * `session.setModel`, producing native pi `model_change` state.
    */
   selectModel(ref: ModelRef): Promise<AgentStatus>;
-  listAuthProviders(): Promise<AuthProvider[]>;
+  listAuthProviders(): Promise<ProviderAuthCatalog>;
   saveProviderCredentials(credentials: ProviderCredentials): Promise<void>;
   currentOAuthFlow(): OAuthFlowState | undefined;
   beginOAuthFlow(
@@ -280,7 +280,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     return opts.agentSettings?.get<ModelRef[]>("favoriteModels") ?? [];
   }
 
-  async function listModels(): Promise<ModelOption[]> {
+  async function listModels(): Promise<ModelCatalog> {
     const modelRegistry = await registry();
     // Pick up models.json edits and freshly configured auth since the
     // registry was created.
@@ -427,7 +427,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     },
 
     listAuthProviders: async () =>
-      discoverAuthProviders(await registry(), process.env),
+      createProviderAuthCatalog(await registry(), process.env),
 
     async saveProviderCredentials({ providerId, methodId, values }) {
       const modelRegistry = await registry();

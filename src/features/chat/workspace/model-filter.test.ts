@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ModelOption } from "@uix/api/agent-channels";
+import type { ModelCatalogEntry } from "@uix/api/agent-channels";
 
 import {
   filterModels,
@@ -9,7 +9,7 @@ import {
   toModelSource,
 } from "./model-filter";
 
-const models: ModelOption[] = [
+const models: ModelCatalogEntry[] = [
   {
     provider: "anthropic",
     id: "claude-sonnet-4-5",

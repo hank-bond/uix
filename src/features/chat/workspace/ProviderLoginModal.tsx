@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import type {
-  AuthProvider,
+  ProviderAuthCatalogEntry,
   OAuthFlowState,
   ProviderAuthMethod,
 } from "@uix/api/agent-channels";
@@ -139,7 +139,7 @@ function ProviderRow({
   onConnected,
   controls,
 }: {
-  provider: AuthProvider;
+  provider: ProviderAuthCatalogEntry;
   expanded: ExpandedMethod | undefined;
   justConnected: string | undefined;
   onToggle: (next: ExpandedMethod) => void;

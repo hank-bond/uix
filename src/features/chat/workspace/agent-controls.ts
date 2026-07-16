@@ -3,9 +3,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   agentChannels,
   AgentStatus,
-  AuthProvider,
-  ModelOption,
+  ModelCatalog,
+  ModelCatalogEntry,
   OAuthFlowState,
+  ProviderAuthCatalog,
 } from "@uix/api/agent-channels";
 import type { ChannelClient } from "@uix/api/workspace";
 import { getInitialModelScope, type ModelPickerScope } from "./model-filter";
@@ -26,11 +27,11 @@ interface OAuthActivity {
 
 export function useAgentControls(client: AgentChannelClient) {
   const [status, setStatus] = useState<AgentStatus>();
-  const [models, setModels] = useState<ModelOption[]>();
+  const [models, setModels] = useState<ModelCatalog>();
   const [modelError, setModelError] = useState<string>();
   const [modelPicker, setModelPicker] = useState<ModelPickerState>();
   const [providerModalOpen, setProviderModalOpen] = useState(false);
-  const [providers, setProviders] = useState<AuthProvider[]>();
+  const [providers, setProviders] = useState<ProviderAuthCatalog>();
   const [providerError, setProviderError] = useState<string>();
   const [oauthActivity, setOAuthActivity] = useState<OAuthActivity>();
   const [oauthError, setOAuthError] = useState<string>();
@@ -98,7 +99,7 @@ export function useAgentControls(client: AgentChannelClient) {
   }, []);
 
   const selectModel = useCallback(
-    async (model: ModelOption) => {
+    async (model: ModelCatalogEntry) => {
       const nextStatus = await client.requests.select_model({
         provider: model.provider,
         id: model.id,
@@ -110,7 +111,7 @@ export function useAgentControls(client: AgentChannelClient) {
   );
 
   const setModelFavorite = useCallback(
-    async (model: ModelOption, favorite: boolean) => {
+    async (model: ModelCatalogEntry, favorite: boolean) => {
       const list = await client.requests.set_model_favorite({
         provider: model.provider,
         id: model.id,

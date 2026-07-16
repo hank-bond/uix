@@ -22,7 +22,7 @@ The goal is a small semantic vocabulary: names describe the shape and lifecycle 
 
 Build a reviewable matrix from `AGENTS.md`, `docs/architecture/{concepts,conventions}.md`, `src/docs/`, `@uix/api`, registries, stores, renderer contexts, and feature code. For each recurring noun and verb, record its intended shape, lifecycle, ownership, representative declarations/call sites, conflicting uses, and proposed disposition.
 
-Cover at least: Feature/extension, Definition, Contribution, Registration/Registered, Descriptor, Registry, Store, Buffer, Client, Provider, capability/Handle, Updater/Appender, Factory, Installer, Driver, Coordinator, Assembler, handler/listener/callback, and the canonical create/define/register/load/hydrate/open/bind/resolve/to/parse/get/read verbs.
+Cover at least: Feature/extension, Definition, Contribution, Registration/Registered, Descriptor, Registry, Catalog/CatalogEntry, Store, Buffer, Client, Provider, capability/Handle, Updater/Appender, Factory, Installer, Driver, Coordinator, Assembler, handler/listener/callback, and the canonical create/define/register/load/hydrate/open/bind/resolve/to/parse/get/read verbs.
 
 Seed findings from workspace actions:
 

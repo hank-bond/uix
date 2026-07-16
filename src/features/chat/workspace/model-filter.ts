@@ -1,11 +1,11 @@
 // Picker filtering, extracted pure so it's testable without a DOM.
 
-import type { ModelOption } from "@uix/api/agent-channels";
+import type { ModelCatalogEntry } from "@uix/api/agent-channels";
 
 export type ModelPickerScope = "favorites" | "all";
 
 export function getInitialModelScope(
-  models: readonly ModelOption[],
+  models: readonly ModelCatalogEntry[],
   initialQuery: string,
 ): ModelPickerScope {
   return !initialQuery && models.some((model) => model.favorite)
@@ -14,16 +14,16 @@ export function getInitialModelScope(
 }
 
 export function getModelsForScope(
-  models: readonly ModelOption[],
+  models: readonly ModelCatalogEntry[],
   scope: ModelPickerScope,
-): ModelOption[] {
+): ModelCatalogEntry[] {
   return scope === "favorites"
     ? models.filter((model) => model.favorite)
     : [...models];
 }
 
 /** Derive the model's source path without repeating its final model id. */
-export function toModelSource(model: ModelOption): string {
+export function toModelSource(model: ModelCatalogEntry): string {
   const idSegments = model.id.split("/");
   return [model.provider, ...idSegments.slice(0, -1)].join("/");
 }
@@ -33,9 +33,9 @@ export function toModelSource(model: ModelOption): string {
  * A blank (or whitespace-only) query keeps every model.
  */
 export function filterModels(
-  models: readonly ModelOption[],
+  models: readonly ModelCatalogEntry[],
   query: string,
-): ModelOption[] {
+): ModelCatalogEntry[] {
   const filter = query.trim().toLowerCase();
   return models.filter(
     (model) =>

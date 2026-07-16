@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 
-import type { ModelOption } from "@uix/api/agent-channels";
+import type { ModelCatalogEntry } from "@uix/api/agent-channels";
 import { useActionContribution } from "@uix/api/workspace";
 
 import type { AgentControls } from "./agent-controls";
@@ -150,7 +150,7 @@ function ModelPicker({
     onScopeChange(nextScope);
   };
 
-  const select = async (model: ModelOption) => {
+  const select = async (model: ModelCatalogEntry) => {
     setError(undefined);
     try {
       await controls.selectModel(model);
@@ -159,7 +159,7 @@ function ModelPicker({
     }
   };
 
-  const toggleFavorite = async (model: ModelOption) => {
+  const toggleFavorite = async (model: ModelCatalogEntry) => {
     setError(undefined);
     setFavoritePending(true);
     try {

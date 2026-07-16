@@ -7,7 +7,7 @@ status: active
 
 Add the first-run path from an unconfigured UIX workspace to a usable Pi model without requiring the pilot to leave the cockpit and run Pi separately. Chat renders the experience, but authentication remains an agent-substrate capability over Pi's existing `AuthStorage` and `ModelRegistry`.
 
-The connection surface unifies OAuth/subscription login with API-key and guided cloud credential entry. Ordinary providers derive from Pi's model registry rather than a UIX-maintained list; registered OAuth capabilities are merged onto those providers. A small UIX setup-recipe catalog may replace the generic API-key form for stable multi-field cloud setups, while all submitted values remain owned and persisted by Pi's `AuthStorage`.
+The connection surface unifies OAuth/subscription login with API-key and guided cloud credential entry. Ordinary providers derive from Pi's model registry rather than a UIX-maintained list; registered OAuth capabilities are merged onto those providers. A small UIX setup-recipe table may replace the generic API-key form for stable multi-field cloud setups, while all submitted values remain owned and persisted by Pi's `AuthStorage`.
 
 ## Decisions assumed
 
@@ -112,7 +112,7 @@ Wire model availability into the chat surface:
 - show the centered `Connect to a provider` takeover for an empty transcript with no available models;
 - preserve historical transcript visibility with a compact blocked-composer connection panel;
 - add the pinned connection action to the model picker in every list/search state;
-- refresh the ordinary available-only model list after auth changes; the explicit success handoff may seed its ordinary search with the connected provider.
+- refresh the ordinary available-only model catalog after auth changes; the explicit success handoff may seed its ordinary search with the connected provider.
 
 Acceptance:
 

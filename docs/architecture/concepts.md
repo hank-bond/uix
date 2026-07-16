@@ -117,6 +117,8 @@ A **catalog** is a consumer-facing, read-only discovery boundary that composes c
 
 A catalog is not a synonym for any array, registry snapshot, or collection of entities. It is intentional cross-owner composition for discovery and selection. The action catalog, for example, projects successfully registered actions into `ActionCatalogEntry` values for palettes and menus while callbacks remain private in `ActionRegistry`; registration updates and disposal change membership, and invocation still resolves the selected id through the registry.
 
+The model catalog composes currently available models across Pi providers and decorates its entries with workspace-local favorite state; selection resolves a provider-qualified entry against Pi's live model registry. The provider-auth catalog composes model providers, OAuth providers, connection state, and UIX setup recipes; credential operations accept only methods offered by its current entries. A future settings catalog may likewise compose editable setting entries without exposing owner-scoped settings handles.
+
 ## Store
 
 A **store** is a durable source-of-truth API or implementation for a state domain. It owns the persistence semantics for that domain — local files, a future git/object-store backend, or another backing implementation are hidden behind the store interface. Callers address store values by stable ids, not by implementation paths.

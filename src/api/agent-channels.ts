@@ -97,13 +97,18 @@ export const ModelRefSchema = Type.Object({
 export type ModelRef = Static<typeof ModelRefSchema>;
 
 /** A selectable model plus its workspace-local favorite status. */
-export const ModelOptionSchema = Type.Object({
+export const ModelCatalogEntrySchema = Type.Object({
   provider: Type.String(),
   id: Type.String(),
   name: Type.String(),
   favorite: Type.Boolean(),
 });
-export type ModelOption = Static<typeof ModelOptionSchema>;
+export type ModelCatalogEntry = Static<typeof ModelCatalogEntrySchema>;
+export type ModelCatalog = readonly ModelCatalogEntry[];
+
+export const ModelCatalogSchema = Type.Unsafe<ModelCatalog>(
+  Type.Array(ModelCatalogEntrySchema),
+);
 
 export const ModelFavoriteUpdateSchema = Type.Object({
   ...ModelRefSchema.properties,
@@ -125,10 +130,9 @@ export const AgentStatusSchema = Type.Object({
 });
 export type AgentStatus = Static<typeof AgentStatusSchema>;
 
-export const ModelListSchema = Type.Object({
-  models: Type.Array(ModelOptionSchema),
+const ModelCatalogResponseSchema = Type.Object({
+  models: ModelCatalogSchema,
 });
-export type ModelList = Static<typeof ModelListSchema>;
 
 const ProviderConnectionSchema = Type.Object({
   source: Type.Union([
@@ -196,15 +200,23 @@ export const ProviderAuthMethodSchema = Type.Union([
 ]);
 export type ProviderAuthMethod = Static<typeof ProviderAuthMethodSchema>;
 
-export const AuthProviderSchema = Type.Object({
+export const ProviderAuthCatalogEntrySchema = Type.Object({
   id: Type.String(),
   name: Type.String(),
   methods: Type.Array(ProviderAuthMethodSchema),
 });
-export type AuthProvider = Static<typeof AuthProviderSchema>;
+export type ProviderAuthCatalogEntry = Static<
+  typeof ProviderAuthCatalogEntrySchema
+>;
 
-export const AuthProviderListSchema = Type.Object({
-  providers: Type.Array(AuthProviderSchema),
+export type ProviderAuthCatalog = readonly ProviderAuthCatalogEntry[];
+
+export const ProviderAuthCatalogSchema = Type.Unsafe<ProviderAuthCatalog>(
+  Type.Array(ProviderAuthCatalogEntrySchema),
+);
+
+const ProviderAuthCatalogResponseSchema = Type.Object({
+  providers: ProviderAuthCatalogSchema,
 });
 
 export const ProviderCredentialsSchema = Type.Object({
@@ -310,11 +322,11 @@ export const agentChannels = {
     /** Available (auth-configured) models with workspace favorite status. */
     list_models: {
       requestSchema: Type.Void(),
-      responseSchema: ModelListSchema,
+      responseSchema: ModelCatalogResponseSchema,
     },
     set_model_favorite: {
       requestSchema: ModelFavoriteUpdateSchema,
-      responseSchema: ModelListSchema,
+      responseSchema: ModelCatalogResponseSchema,
     },
     agent_status: {
       requestSchema: Type.Void(),
@@ -330,7 +342,7 @@ export const agentChannels = {
     },
     list_auth_providers: {
       requestSchema: Type.Void(),
-      responseSchema: AuthProviderListSchema,
+      responseSchema: ProviderAuthCatalogResponseSchema,
     },
     save_provider_credentials: {
       requestSchema: ProviderCredentialsSchema,

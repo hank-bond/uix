@@ -1,6 +1,9 @@
-import type { AuthProvider } from "@uix/api/agent-channels";
+import type {
+  ProviderAuthCatalog,
+  ProviderAuthCatalogEntry,
+} from "@uix/api/agent-channels";
 
-type AuthMethod = AuthProvider["methods"][number];
+type AuthMethod = ProviderAuthCatalogEntry["methods"][number];
 type CredentialMethod = Extract<AuthMethod, { type: "credentials" }>;
 type MethodConnection = NonNullable<AuthMethod["connection"]>;
 
@@ -80,23 +83,23 @@ interface ProviderRegistry {
 }
 
 /**
- * Build one renderer-facing auth catalog from Pi's model and OAuth provider
+ * Build one renderer-facing provider-auth catalog from Pi's model and OAuth provider
  * registries. Model providers receive the generic API-key form unless a
  * setup recipe replaces it; OAuth-only extension providers remain discoverable
  * without inventing a model entry.
  */
-export function listAuthProviders(
+export function createProviderAuthCatalog(
   registry: ProviderRegistry,
   environment: Readonly<Record<string, string | undefined>> = {},
-): AuthProvider[] {
-  const providers = new Map<string, AuthProvider>();
+): ProviderAuthCatalog {
+  const providers = new Map<string, ProviderAuthCatalogEntry>();
   const modelProviderIds = new Set(
     registry.getAll().map((model) => model.provider),
   );
 
   for (const id of modelProviderIds) {
     const recipe = providerSetupRecipes[id];
-    const provider = getOrCreateAuthProvider(
+    const provider = getOrCreateProviderAuthCatalogEntry(
       providers,
       id,
       registry.getProviderDisplayName(id),
@@ -117,7 +120,11 @@ export function listAuthProviders(
   }
 
   for (const oauth of registry.authStorage.getOAuthProviders()) {
-    const provider = getOrCreateAuthProvider(providers, oauth.id, oauth.name);
+    const provider = getOrCreateProviderAuthCatalogEntry(
+      providers,
+      oauth.id,
+      oauth.name,
+    );
     const currentConnection = toMethodConnection(
       registry,
       oauth.id,
@@ -162,7 +169,7 @@ export function findOfferedCredentialMethod(
   providerId: string,
   methodId: string,
 ): CredentialMethod | undefined {
-  for (const provider of listAuthProviders(registry)) {
+  for (const provider of createProviderAuthCatalog(registry)) {
     const method = provider.methods.find(
       (candidate) =>
         candidate.providerId === providerId && candidate.id === methodId,
@@ -181,11 +188,11 @@ function oauthStartActions(
   );
 }
 
-function getOrCreateAuthProvider(
-  providers: Map<string, AuthProvider>,
+function getOrCreateProviderAuthCatalogEntry(
+  providers: Map<string, ProviderAuthCatalogEntry>,
   backendId: string,
   fallbackName: string,
-): AuthProvider {
+): ProviderAuthCatalogEntry {
   const recipe = providerSetupRecipes[backendId];
   const id = recipe?.mergeInto ?? backendId;
   const existing = providers.get(id);
@@ -224,7 +231,7 @@ function createGenericApiKeyMethod(
   };
 }
 
-function toProviderRank(provider: AuthProvider): number {
+function toProviderRank(provider: ProviderAuthCatalogEntry): number {
   const connected = provider.methods.some((method) => method.connection);
   const category = provider.methods.some((method) => method.type === "oauth")
     ? 0
