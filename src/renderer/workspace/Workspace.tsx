@@ -23,6 +23,7 @@ import {
 import type { SurfaceEntry } from "#shared/ipc";
 import { ActionRegistry } from "./action-registry";
 import { ActionRegistryProvider } from "./action-context";
+import { ActionKeyboardDispatcher } from "./action-keyboard-dispatcher";
 import { KeybindingSync } from "./keybinding-sync";
 import { toShortcutPlatform } from "./shortcut-platform";
 
@@ -33,6 +34,7 @@ const actionRegistry = new ActionRegistry({
 export function Workspace() {
   return (
     <ActionRegistryProvider registry={actionRegistry}>
+      <ActionKeyboardDispatcher />
       <KeybindingSync />
       <WorkspaceContent />
     </ActionRegistryProvider>

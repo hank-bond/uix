@@ -14,6 +14,9 @@ describe("createModelActions", () => {
       throw new Error("model picker actions must be leaves");
     }
 
+    expect(favorites.defaultBinding).toBeUndefined();
+    expect(all.defaultBinding).toBe("mod+j");
+
     void favorites.run();
     void all.run();
 

@@ -15,6 +15,7 @@ export function createModelActions(
         },
         all: {
           title: "All Models",
+          defaultBinding: "mod+j",
           run: () => openModelPicker("all"),
         },
       },

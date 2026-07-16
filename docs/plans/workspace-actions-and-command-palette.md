@@ -111,6 +111,14 @@ Specify and test logical-key normalization, `mod`, editable targets, composition
 
 Register `uix.reload` through the same renderer registry. Remove or redirect Electron's native Reload accelerator so Cmd/Ctrl+R reaches this action and calls the existing typed reload operation. Keep App/OS commands such as quit in Electron and preserve a separate development hard-refresh escape hatch. Do not use Electron `globalShortcut`.
 
+### Landed dispatcher foundation
+
+The workspace page now owns one bubble-phase dispatcher gated on the registry's confirmed binding snapshot. Browser events normalize logical/named keys plus Shift/Option-produced characters into resolved gestures; local handlers, composition, and AltGraph retain first refusal. Unique claimants invoke through the registry with a keyboard source, while conflicts, repeats, disabled actions, and running actions fail closed under one browser-default suppression policy. Ctrl/Command/Alt bindings remain global in editable controls, Shift-only bindings do not, callback failures publish an observable registry diagnostic, and disposing the workspace binding removes its listener.
+
+### Remaining implementation
+
+Register the substrate reload action and transfer reload-accelerator ownership from Electron to the workspace dispatcher while retaining a development hard-refresh command.
+
 Acceptance:
 
 - Keyboard, surface, and recursive invocation share one callback path.

@@ -1,7 +1,10 @@
 import type {
   ActionContribution,
   ActionCatalog,
+  ActionCatalogEntry,
+  ActionId,
   ActionContributionUpdater,
+  ActionRun,
   ActionInvocationResult,
   KeybindingMap,
   RegisterActionContribution,
@@ -16,9 +19,17 @@ import {
 } from "./action-normalization";
 
 type Listener = () => void;
+type ActionInvocationSource = "direct" | "keyboard";
+
+interface ActionInvocationDiagnostic {
+  readonly actionId: ActionId;
+  readonly error: unknown;
+}
 
 interface RegisteredAction {
-  registration: ActionRegistration;
+  readonly id: ActionId;
+  catalogEntry: ActionCatalogEntry;
+  run: ActionRun;
   running: boolean;
 }
 
@@ -37,6 +48,9 @@ export class ActionRegistry implements Disposable {
   readonly #registeredContributions: RegisteredActionContribution[] = [];
   readonly #catalogListeners = new Set<Listener>();
   readonly #defaultBindingListeners = new Set<Listener>();
+  readonly #invocationDiagnosticListeners = new Set<
+    (diagnostic: ActionInvocationDiagnostic) => void
+  >();
   readonly #shortcutPlatform: ShortcutPlatform;
   #catalogSnapshot: ActionCatalog = [];
   #defaultBindingsSnapshot: ActionDefaultBindingMap = Object.freeze({});
@@ -89,7 +103,23 @@ export class ActionRegistry implements Disposable {
     this.#publishCatalogSnapshot();
   }
 
-  async invoke(id: string): Promise<ActionInvocationResult> {
+  subscribeToInvocationDiagnostics(
+    listener: (diagnostic: ActionInvocationDiagnostic) => void,
+  ): () => void {
+    this.#assertActive();
+    this.#invocationDiagnosticListeners.add(listener);
+    let subscribed = true;
+    return () => {
+      if (!subscribed) return;
+      subscribed = false;
+      this.#invocationDiagnosticListeners.delete(listener);
+    };
+  }
+
+  async invoke(
+    id: string,
+    source: ActionInvocationSource = "direct",
+  ): Promise<ActionInvocationResult> {
     this.#assertActive();
     const action = this.#byId.get(id);
     if (!action) {
@@ -98,16 +128,27 @@ export class ActionRegistry implements Disposable {
     if (action.running) {
       return { status: "not_invoked", reason: "already_running" };
     }
-    if (!action.registration.catalogEntry.enabled) {
+    if (!action.catalogEntry.enabled) {
       return { status: "not_invoked", reason: "disabled" };
     }
 
     action.running = true;
     this.#publishCatalogSnapshot();
-    const run = action.registration.run;
+    const run = action.run;
     try {
       await run();
       return { status: "completed" };
+    } catch (error) {
+      if (source === "keyboard") {
+        const diagnostic = {
+          actionId: action.id,
+          error,
+        };
+        for (const listener of this.#invocationDiagnosticListeners) {
+          listener(diagnostic);
+        }
+      }
+      throw error;
     } finally {
       if (this.#byId.get(id) === action) {
         action.running = false;
@@ -123,6 +164,7 @@ export class ActionRegistry implements Disposable {
     this.#registeredContributions.length = 0;
     this.#catalogListeners.clear();
     this.#defaultBindingListeners.clear();
+    this.#invocationDiagnosticListeners.clear();
     this.#catalogSnapshot = [];
     this.#defaultBindingsSnapshot = Object.freeze({});
     this.#confirmedBindingsSnapshot = undefined;
@@ -140,7 +182,7 @@ export class ActionRegistry implements Disposable {
     const registeredContribution: RegisteredActionContribution = {
       owner,
       actions: normalized.registrations.map((registration) => ({
-        registration,
+        ...registration,
         running: false,
       })),
       defaultBindings: normalized.defaultBindings,
@@ -175,18 +217,16 @@ export class ActionRegistry implements Disposable {
     );
 
     const previousById = new Map(
-      registeredContribution.actions.map((action) => [
-        action.registration.id,
-        action,
-      ]),
+      registeredContribution.actions.map((action) => [action.id, action]),
     );
     const nextActions = normalized.registrations.map((registration) => {
       const previous = previousById.get(registration.id);
       if (previous) {
-        previous.registration = registration;
+        previous.catalogEntry = registration.catalogEntry;
+        previous.run = registration.run;
         return previous;
       }
-      return { registration, running: false };
+      return { ...registration, running: false };
     });
 
     this.#removeFromIndex(registeredContribution.actions);
@@ -226,13 +266,13 @@ export class ActionRegistry implements Disposable {
 
   #addToIndex(actions: readonly RegisteredAction[]): void {
     for (const action of actions) {
-      this.#byId.set(action.registration.id, action);
+      this.#byId.set(action.id, action);
     }
   }
 
   #removeFromIndex(actions: readonly RegisteredAction[]): void {
     for (const action of actions) {
-      const id = action.registration.id;
+      const id = action.id;
       if (this.#byId.get(id) === action) this.#byId.delete(id);
     }
   }
@@ -241,7 +281,7 @@ export class ActionRegistry implements Disposable {
     const registeredCatalog = this.#registeredContributions.flatMap(
       (contribution) =>
         contribution.actions.map((action) => ({
-          ...action.registration.catalogEntry,
+          ...action.catalogEntry,
           running: action.running,
         })),
     );
