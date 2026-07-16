@@ -23,12 +23,14 @@ import {
 import type { SurfaceEntry } from "#shared/ipc";
 import { ActionRegistry } from "./action-registry";
 import { ActionRegistryProvider } from "./action-context";
+import { KeybindingSync } from "./keybinding-sync";
 
 const actionRegistry = new ActionRegistry();
 
 export function Workspace() {
   return (
     <ActionRegistryProvider registry={actionRegistry}>
+      <KeybindingSync />
       <WorkspaceContent />
     </ActionRegistryProvider>
   );

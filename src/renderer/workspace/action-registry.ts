@@ -3,6 +3,7 @@ import type {
   ActionCatalog,
   ActionContributionUpdater,
   ActionInvocationResult,
+  KeybindingMap,
   RegisterActionContribution,
 } from "@uix/api/actions";
 
@@ -32,6 +33,7 @@ export class ActionRegistry implements Disposable {
   readonly #defaultBindingListeners = new Set<Listener>();
   #catalogSnapshot: ActionCatalog = [];
   #defaultBindingsSnapshot: ActionDefaultBindingMap = Object.freeze({});
+  #confirmedBindingsSnapshot: Readonly<KeybindingMap> | undefined;
   #disposed = false;
 
   forFeature(owner: string): RegisterActionContribution {
@@ -52,6 +54,22 @@ export class ActionRegistry implements Disposable {
 
   subscribeToDefaultBindings(listener: Listener): () => void {
     return this.#subscribe(this.#defaultBindingListeners, listener);
+  }
+
+  getConfirmedBindingsSnapshot(): Readonly<KeybindingMap> | undefined {
+    return this.#confirmedBindingsSnapshot;
+  }
+
+  setConfirmedBindings(bindings: KeybindingMap): void {
+    this.#assertActive();
+    const next = Object.freeze({ ...bindings });
+    if (
+      this.#confirmedBindingsSnapshot &&
+      hasSameBindings(this.#confirmedBindingsSnapshot, next)
+    ) {
+      return;
+    }
+    this.#confirmedBindingsSnapshot = next;
   }
 
   async invoke(id: string): Promise<ActionInvocationResult> {
@@ -90,6 +108,7 @@ export class ActionRegistry implements Disposable {
     this.#defaultBindingListeners.clear();
     this.#catalogSnapshot = [];
     this.#defaultBindingsSnapshot = Object.freeze({});
+    this.#confirmedBindingsSnapshot = undefined;
   }
 
   #registerContribution(
@@ -218,7 +237,7 @@ export class ActionRegistry implements Disposable {
         (contribution) => contribution.defaultBindings,
       ),
     ) as ActionDefaultBindingMap;
-    if (hasSameDefaultBindings(this.#defaultBindingsSnapshot, next)) return;
+    if (hasSameBindings(this.#defaultBindingsSnapshot, next)) return;
     this.#defaultBindingsSnapshot = Object.freeze(next);
     for (const listener of this.#defaultBindingListeners) listener();
   }
@@ -239,9 +258,9 @@ export class ActionRegistry implements Disposable {
   }
 }
 
-function hasSameDefaultBindings(
-  left: ActionDefaultBindingMap,
-  right: ActionDefaultBindingMap,
+function hasSameBindings(
+  left: Readonly<Record<string, string | null>>,
+  right: Readonly<Record<string, string | null>>,
 ): boolean {
   const leftEntries = Object.entries(left);
   if (leftEntries.length !== Object.keys(right).length) return false;

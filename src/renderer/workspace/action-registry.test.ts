@@ -116,6 +116,26 @@ describe("ActionRegistry", () => {
     expect(defaultBindingListener).toHaveBeenCalledTimes(3);
   });
 
+  it("distinguishes unhydrated bindings from a stable confirmed snapshot", () => {
+    const registry = new ActionRegistry();
+
+    expect(registry.getConfirmedBindingsSnapshot()).toBeUndefined();
+    registry.setConfirmedBindings({});
+    expect(registry.getConfirmedBindingsSnapshot()).toEqual({});
+
+    registry.setConfirmedBindings({
+      "chat.models": "mod+m",
+      "chat.all": null,
+    });
+    const confirmed = registry.getConfirmedBindingsSnapshot();
+    registry.setConfirmedBindings({
+      "chat.all": null,
+      "chat.models": "mod+m",
+    });
+
+    expect(registry.getConfirmedBindingsSnapshot()).toBe(confirmed);
+  });
+
   it("rejects canonical collisions without changing existing registrations", () => {
     const registry = new ActionRegistry();
     const registerChatActions = registry.forFeature("chat");
