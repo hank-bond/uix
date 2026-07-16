@@ -41,11 +41,26 @@ export function defineSettings<const Schema extends SettingsSchema>(
   }
   return {
     ...definition,
-    schema: {
-      ...definition.schema,
-      additionalProperties: false,
-    },
+    schema: toClosedSettingsSchema(definition.schema),
   };
+}
+
+function toClosedSettingsSchema<Schema extends SettingsSchema>(
+  schema: Schema,
+): Schema {
+  const schemaObject: object = schema;
+  const prototype = Object.getPrototypeOf(schemaObject) as object | null;
+  // Unknown persisted keys must fail validation rather than survive as
+  // silently ignored configuration.
+  return Object.create(prototype, {
+    ...Object.getOwnPropertyDescriptors(schemaObject),
+    additionalProperties: {
+      configurable: true,
+      enumerable: true,
+      value: false,
+      writable: true,
+    },
+  }) as Schema;
 }
 
 /**
