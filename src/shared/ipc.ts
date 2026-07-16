@@ -7,6 +7,7 @@
 // in sync.
 
 import { Type, type Static } from "typebox";
+import { KeybindingMapSchema } from "@uix/api/actions";
 import type { ChannelContract } from "@uix/api/channels";
 import {
   FeatureSettingAddressSchema,
@@ -113,6 +114,14 @@ export const uixChannels = {
       requestSchema: FeatureSettingValueEnvelopeSchema,
       responseSchema: Type.Void(),
     },
+    reconcile_keybindings: {
+      requestSchema: KeybindingMapSchema,
+      responseSchema: KeybindingMapSchema,
+    },
+    replace_keybindings: {
+      requestSchema: KeybindingMapSchema,
+      responseSchema: KeybindingMapSchema,
+    },
   },
   events: {
     surfaces_changed: {
@@ -120,6 +129,9 @@ export const uixChannels = {
     },
     setting_changed: {
       event: FeatureSettingValueEnvelopeSchema,
+    },
+    keybindings_changed: {
+      event: KeybindingMapSchema,
     },
   },
 } as const satisfies ChannelContract;

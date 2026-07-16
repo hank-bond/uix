@@ -153,7 +153,7 @@ Workspace namespaces are **not user-registerable**: the substrate registers the 
 - **`agent.favoriteModels`** — the workspace-local model shortlist. Each entry is a provider-qualified model reference; unavailable entries remain persisted so favorites return when a provider reconnects.
 - **`keybindings`** — a flat dynamic record from canonical dotted action ids to one portable shortcut string or `null` for explicit unbinding. Malformed ids, shortcuts, and unknown value shapes reject the candidate rather than being retained silently.
 
-A fresh manifest materializes both `settings.agent: {}` and `settings.keybindings: {}` even before values are chosen. This keeps the available configuration surface visible; later selections fill concrete properties. See [`agent.md`](./agent.md) for how model selection and favorites flow through the agent channels. The keybinding namespace is currently persisted and validated; renderer reconciliation and dispatch are not yet part of the shipped API.
+A fresh manifest materializes both `settings.agent: {}` and `settings.keybindings: {}` even before values are chosen. This keeps the available configuration surface visible; later selections fill concrete properties. See [`agent.md`](./agent.md) for how model selection and favorites flow through the agent channels. Bound main request handlers can reconcile defaults and atomically replace the complete map through the reserved workspace channel, publishing a confirmed snapshot when it changes. Renderer reconciliation and dispatch are not yet part of the shipped API.
 
 Rules:
 

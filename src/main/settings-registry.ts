@@ -137,6 +137,44 @@ export class SettingsRegistry implements Disposable {
     return cloneJson(value);
   }
 
+  getScopeSnapshot(scopeId: string): Record<string, unknown> {
+    return cloneJsonObject(this.#requireScope(scopeId).values);
+  }
+
+  replaceScope(scopeId: string, candidate: unknown): Record<string, unknown> {
+    if (this.#disposed) {
+      throw new Error("SettingsRegistry is disposed");
+    }
+    const scope = this.#requireScope(scopeId);
+    const parsed = Value.Parse(
+      scope.schema,
+      cloneJson(candidate),
+    ) as JsonObject;
+    const changedKeys = new Set([
+      ...Object.keys(scope.values),
+      ...Object.keys(parsed),
+    ]);
+    for (const key of [...changedKeys]) {
+      if (Value.Equal(scope.values[key], parsed[key])) {
+        changedKeys.delete(key);
+      }
+    }
+    if (changedKeys.size === 0) return cloneJsonObject(scope.values);
+
+    scope.values = parsed;
+    if (scope.committed) scope.onWrite?.(parsed);
+    const errors: unknown[] = [];
+    for (const key of changedKeys) {
+      try {
+        this.#notify(scopeId, key, parsed[key], scope.committed);
+      } catch (err) {
+        errors.push(err);
+      }
+    }
+    if (errors.length > 0) throw errors[0];
+    return cloneJsonObject(parsed);
+  }
+
   set(scopeId: string, key: string, value: unknown): void {
     if (this.#disposed) {
       throw new Error("SettingsRegistry is disposed");
@@ -236,7 +274,7 @@ export class SettingsRegistry implements Disposable {
     value: unknown,
     includeAnyListeners = true,
   ): void {
-    const cloned = cloneJson(value);
+    const cloned = cloneJsonChangeValue(value);
     const errors: unknown[] = [];
     const notify = (run: () => void) => {
       try {
@@ -248,13 +286,13 @@ export class SettingsRegistry implements Disposable {
 
     if (includeAnyListeners) {
       for (const listener of this.#anyListeners) {
-        notify(() => listener(scopeId, key, cloneJson(cloned)));
+        notify(() => listener(scopeId, key, cloneJsonChangeValue(cloned)));
       }
     }
     const listeners = this.#listeners.get(toListenerKey(scopeId, key));
     if (listeners) {
       for (const listener of listeners) {
-        notify(() => listener(cloneJson(cloned)));
+        notify(() => listener(cloneJsonChangeValue(cloned)));
       }
     }
     if (errors.length > 0) throw errors[0];
@@ -289,6 +327,10 @@ function mergeJsonDefaults(defaultValue: unknown, persisted: unknown): unknown {
 
 function toListenerKey(scopeId: string, key: string): string {
   return `${scopeId}\0${key}`;
+}
+
+function cloneJsonChangeValue(value: unknown): unknown {
+  return value === undefined ? undefined : cloneJson(value);
 }
 
 function cloneJsonObject(value: JsonObject): JsonObject {

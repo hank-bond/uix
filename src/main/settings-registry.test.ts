@@ -1,3 +1,4 @@
+import { KeybindingMapSchema } from "@uix/api/actions";
 import { defineSettings } from "@uix/api/settings";
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
@@ -294,6 +295,67 @@ describe("SettingsRegistry", () => {
       order: [],
       hidden: [],
     });
+  });
+
+  it("replaces one complete scope with one write before keyed notifications", () => {
+    using registry = new SettingsRegistry();
+    const writes: unknown[] = [];
+    const changes: [string, unknown][] = [];
+    registerCommitted(registry, "keybindings", {
+      label: "workspace namespace keybindings",
+      definition: defineSettings({ schema: KeybindingMapSchema }),
+      values: {
+        "chat.models": "mod+m",
+        "chat.removed": "ctrl+r",
+      },
+      onWrite: (values) => writes.push(structuredClone(values)),
+    });
+    writes.length = 0;
+    registry.onAnyChange((_scopeId, key, value) => {
+      changes.push([key, value]);
+    });
+
+    const confirmed = registry.replaceScope("keybindings", {
+      "chat.models": "ctrl+shift+m",
+      "chat.added": null,
+    });
+
+    expect(confirmed).toEqual({
+      "chat.models": "ctrl+shift+m",
+      "chat.added": null,
+    });
+    expect(writes).toEqual([confirmed]);
+    expect(changes).toEqual([
+      ["chat.models", "ctrl+shift+m"],
+      ["chat.removed", undefined],
+      ["chat.added", null],
+    ]);
+  });
+
+  it("returns detached scope snapshots and rejects replacements before mutation", () => {
+    using registry = new SettingsRegistry();
+    const writes: unknown[] = [];
+    registerCommitted(registry, "keybindings", {
+      label: "workspace namespace keybindings",
+      definition: defineSettings({ schema: KeybindingMapSchema }),
+      values: { "chat.models": "mod+m" },
+      onWrite: (values) => writes.push(structuredClone(values)),
+    });
+    writes.length = 0;
+
+    const snapshot = registry.getScopeSnapshot("keybindings");
+    snapshot["chat.models"] = "ctrl+m";
+    expect(registry.get("keybindings", "chat.models")).toBe("mod+m");
+
+    expect(() =>
+      registry.replaceScope("keybindings", {
+        "chat.models": "mod+mod+m",
+      }),
+    ).toThrow();
+    expect(registry.getScopeSnapshot("keybindings")).toEqual({
+      "chat.models": "mod+m",
+    });
+    expect(writes).toEqual([]);
   });
 
   it("routes dynamically validated record keys through normal get and set", () => {

@@ -84,11 +84,9 @@ Acceptance:
 
 The settings/lifetime prerequisites are complete: feature and workspace scopes share the one-schema model; manifest load/reload stages and validates one generation before promotion; settings registrations are provisional, identity-aware, and feature-bag-owned; grouped facet registration has strong exception safety; and rejected workspace candidates retain the prior live generation and handles. A2 builds only on this path—there is no compatibility settings or activation path to maintain.
 
-The pure shortcut grammar now validates and canonicalizes portable one-chord gestures, resolves `mod` for a client platform, and keeps produced characters out of persistence (`shift+1`, not `!`). The composition root also registers `settings.keybindings` as the closed canonical-action-id record `Shortcut | null` with an explicit `{}` default; invalid external candidates retain the prior generation.
+The pure shortcut grammar now validates and canonicalizes portable one-chord gestures, resolves `mod` for a client platform, and keeps produced characters out of persistence (`shift+1`, not `!`). The composition root also registers `settings.keybindings` as the closed canonical-action-id record `Shortcut | null` with an explicit `{}` default; invalid external candidates retain the prior generation. Bound main request handlers serve the two-request `uix` channel: reconciliation with `{}` doubles as read, complete candidate replacement validates before one persistence write, and changed maps publish one confirmed snapshot.
 
 ### Remaining implementation
-
-Add a main channel that reconciles renderer-declared defaults, reads/replaces the complete candidate, and publishes confirmed snapshots.
 
 Extend `ActionRegistry` so normalization retains one stable default-template projection independent of enabled/running catalog updates. The workspace binding controller waits for action registration, performs the initial reconciliation handshake, subscribes to confirmed snapshots, gates future keyboard dispatch until confirmation, submits whole-scope edits, and joins active descriptors with bindings/conflicts while projecting unresolved ids separately.
 

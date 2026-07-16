@@ -17,6 +17,7 @@ import { basename, join } from "node:path";
 import process from "node:process";
 
 import { type AgentEvent, agentChannels } from "@uix/api/agent-channels";
+import type { KeybindingMap } from "@uix/api/actions";
 import {
   Channels,
   type PickerActionResult,
@@ -72,6 +73,7 @@ import {
   agentWorkspaceSettings,
   AgentSettingsNamespace,
 } from "./agent/settings";
+import { createKeybindingRequestHandlers } from "./keybindings/requests";
 import {
   keybindingsWorkspaceSettings,
   KeybindingsSettingsNamespace,
@@ -264,6 +266,20 @@ async function openWorkspace(
     "uix",
     channels,
   ).createPublisher(uixChannels);
+  const keybindingRequestHandlers = createKeybindingRequestHandlers({
+    getBindingsSnapshot: () =>
+      settingsRegistry.getScopeSnapshot(
+        KeybindingsSettingsNamespace,
+      ) as KeybindingMap,
+    replaceBindings: (candidate) =>
+      settingsRegistry.replaceScope(
+        KeybindingsSettingsNamespace,
+        candidate,
+      ) as KeybindingMap,
+    publishBindingsChanged: (bindings) => {
+      uixPublisher.keybindings_changed(bindings);
+    },
+  });
   appBag.add(
     disposable(
       settingsRegistry.onAnyChange((scopeId, key, value) => {
@@ -288,6 +304,14 @@ async function openWorkspace(
           handle: (req) => {
             settingsRegistry.set(req.featureId, req.key, req.value);
           },
+        },
+        reconcile_keybindings: {
+          handle: (defaults) =>
+            keybindingRequestHandlers.reconcileDefaults(defaults),
+        },
+        replace_keybindings: {
+          handle: (candidate) =>
+            keybindingRequestHandlers.replaceBindings(candidate),
         },
       }),
     ]),
