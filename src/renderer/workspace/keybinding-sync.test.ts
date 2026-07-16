@@ -9,6 +9,10 @@ import { bindKeybindingSync } from "./keybinding-sync";
 
 type UixChannelClient = ChannelClient<typeof uixChannels>;
 
+function createActionRegistry(): ActionRegistry {
+  return new ActionRegistry({ shortcutPlatform: "other" });
+}
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((res) => {
@@ -59,7 +63,7 @@ async function flushMicrotasks(): Promise<void> {
 
 describe("bindKeybindingSync", () => {
   it("reconciles the current default template and accepts confirmation", async () => {
-    const registry = new ActionRegistry();
+    const registry = createActionRegistry();
     registry.forFeature("chat")({
       models: {
         title: "Models",
@@ -82,7 +86,7 @@ describe("bindKeybindingSync", () => {
   });
 
   it("batches same-turn default-template changes into one reconciliation", async () => {
-    const registry = new ActionRegistry();
+    const registry = createActionRegistry();
     const fake = createClient((defaults) => Promise.resolve(defaults));
     using binding = bindKeybindingSync(registry, fake.client);
     await flushMicrotasks();
@@ -121,7 +125,7 @@ describe("bindKeybindingSync", () => {
         ? initial.promise
         : Promise.resolve({ "chat.models": "ctrl+m" });
     });
-    const registry = new ActionRegistry();
+    const registry = createActionRegistry();
     using binding = bindKeybindingSync(registry, fake.client);
     await flushMicrotasks();
 
@@ -144,7 +148,7 @@ describe("bindKeybindingSync", () => {
   it("unsubscribes and ignores pending responses when disposed", async () => {
     const pending = deferred<KeybindingMap>();
     const fake = createClient(() => pending.promise);
-    const registry = new ActionRegistry();
+    const registry = createActionRegistry();
     const binding = bindKeybindingSync(registry, fake.client);
     await flushMicrotasks();
 

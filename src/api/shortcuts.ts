@@ -23,6 +23,11 @@ const namedShortcutKeys = [
 export type ShortcutModifier = (typeof shortcutModifiers)[number];
 export type ShortcutPlatform = "macos" | "other";
 
+declare const ResolvedShortcutBrand: unique symbol;
+export type ResolvedShortcut = string & {
+  readonly [ResolvedShortcutBrand]: true;
+};
+
 /**
  * One keyboard gesture. `key` is the named key being pressed, not the
  * character produced by its modifiers (`shift+1`, never `!`).
@@ -73,7 +78,7 @@ export function normalizeShortcut(shortcut: string): Shortcut {
 export function resolveShortcutForPlatform(
   shortcut: string,
   platform: ShortcutPlatform,
-): string {
+): ResolvedShortcut {
   const chord = parseShortcut(shortcut);
   const resolved = new Set(
     chord.modifiers.map((modifier) =>
@@ -83,7 +88,7 @@ export function resolveShortcutForPlatform(
   const modifiers = resolvedShortcutModifiers.filter((modifier) =>
     resolved.has(modifier),
   );
-  return [...modifiers, chord.key].join("+");
+  return [...modifiers, chord.key].join("+") as ResolvedShortcut;
 }
 
 function toShortcut(chord: ShortcutChord): Shortcut {

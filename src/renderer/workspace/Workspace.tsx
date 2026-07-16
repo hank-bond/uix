@@ -24,8 +24,11 @@ import type { SurfaceEntry } from "#shared/ipc";
 import { ActionRegistry } from "./action-registry";
 import { ActionRegistryProvider } from "./action-context";
 import { KeybindingSync } from "./keybinding-sync";
+import { toShortcutPlatform } from "./shortcut-platform";
 
-const actionRegistry = new ActionRegistry();
+const actionRegistry = new ActionRegistry({
+  shortcutPlatform: toShortcutPlatform(navigator),
+});
 
 export function Workspace() {
   return (

@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ActionRegistry } from "./action-registry";
 
+function createActionRegistry(): ActionRegistry {
+  return new ActionRegistry({ shortcutPlatform: "other" });
+}
+
 function deferred(): {
   promise: Promise<void>;
   resolve: () => void;
@@ -18,7 +22,7 @@ function deferred(): {
 
 describe("ActionRegistry", () => {
   it("registers, updates, and removes a feature-scoped contribution", () => {
-    const registry = new ActionRegistry();
+    const registry = createActionRegistry();
     const registerChatActions = registry.forFeature("chat");
     const listener = vi.fn();
     const unsubscribe = registry.subscribeToCatalog(listener);
@@ -70,7 +74,7 @@ describe("ActionRegistry", () => {
   });
 
   it("publishes a stable default-binding snapshot only when the template changes", async () => {
-    const registry = new ActionRegistry();
+    const registry = createActionRegistry();
     const defaultBindingListener = vi.fn();
     registry.subscribeToDefaultBindings(defaultBindingListener);
     const registration = registry.forFeature("chat")({
@@ -117,7 +121,7 @@ describe("ActionRegistry", () => {
   });
 
   it("distinguishes unhydrated bindings from a stable confirmed snapshot", () => {
-    const registry = new ActionRegistry();
+    const registry = createActionRegistry();
 
     expect(registry.getConfirmedBindingsSnapshot()).toBeUndefined();
     registry.setConfirmedBindings({});
@@ -128,16 +132,74 @@ describe("ActionRegistry", () => {
       "chat.all": null,
     });
     const confirmed = registry.getConfirmedBindingsSnapshot();
+    const unresolved = registry.getUnresolvedBindingsSnapshot();
+    expect(unresolved).toEqual({
+      "chat.models": "mod+m",
+      "chat.all": null,
+    });
     registry.setConfirmedBindings({
       "chat.all": null,
       "chat.models": "mod+m",
     });
 
     expect(registry.getConfirmedBindingsSnapshot()).toBe(confirmed);
+    expect(registry.getUnresolvedBindingsSnapshot()).toBe(unresolved);
+  });
+
+  it("projects confirmed bindings across catalog and unresolved entries", () => {
+    const registry = createActionRegistry();
+    const chatRegistration = registry.forFeature("chat")({
+      models: { title: "Models", run: () => undefined },
+    });
+    const canvasRegistration = registry.forFeature("canvas")({
+      refresh: { title: "Refresh", run: () => undefined },
+    });
+
+    expect(registry.getCatalogSnapshot()[0]).not.toHaveProperty("binding");
+    expect(registry.getUnresolvedBindingsSnapshot()).toBeUndefined();
+
+    registry.setConfirmedBindings({
+      "chat.models": "mod+k",
+      "canvas.refresh": "ctrl+k",
+      "removed.open": "ctrl+o",
+    });
+
+    expect(
+      registry.getCatalogSnapshot().map(({ id, binding, conflictsWith }) => ({
+        id,
+        binding,
+        conflictsWith,
+      })),
+    ).toEqual([
+      {
+        id: "chat.models",
+        binding: "ctrl+k",
+        conflictsWith: ["canvas.refresh"],
+      },
+      {
+        id: "canvas.refresh",
+        binding: "ctrl+k",
+        conflictsWith: ["chat.models"],
+      },
+    ]);
+    expect(registry.getUnresolvedBindingsSnapshot()).toEqual({
+      "removed.open": "ctrl+o",
+    });
+    const unresolved = registry.getUnresolvedBindingsSnapshot();
+    chatRegistration.update({
+      models: { title: "Choose Model", run: () => undefined },
+    });
+    expect(registry.getUnresolvedBindingsSnapshot()).toBe(unresolved);
+
+    canvasRegistration[Symbol.dispose]();
+    expect(registry.getUnresolvedBindingsSnapshot()).toEqual({
+      "canvas.refresh": "ctrl+k",
+      "removed.open": "ctrl+o",
+    });
   });
 
   it("rejects canonical collisions without changing existing registrations", () => {
-    const registry = new ActionRegistry();
+    const registry = createActionRegistry();
     const registerChatActions = registry.forFeature("chat");
     const first = registerChatActions({
       models: { title: "Models", run: () => undefined },
@@ -168,7 +230,7 @@ describe("ActionRegistry", () => {
   });
 
   it("invokes enabled actions and reports non-invocation reasons", async () => {
-    const registry = new ActionRegistry();
+    const registry = createActionRegistry();
     const registerChatActions = registry.forFeature("chat");
     const run = vi.fn();
     registerChatActions({
@@ -191,7 +253,7 @@ describe("ActionRegistry", () => {
   });
 
   it("allows one in-flight invocation per action while other actions run", async () => {
-    const registry = new ActionRegistry();
+    const registry = createActionRegistry();
     const registerChatActions = registry.forFeature("chat");
     const pending = deferred();
     const other = vi.fn();
@@ -221,7 +283,7 @@ describe("ActionRegistry", () => {
   });
 
   it("preserves running state across contribution updates", async () => {
-    const registry = new ActionRegistry();
+    const registry = createActionRegistry();
     const registerChatActions = registry.forFeature("chat");
     const pending = deferred();
     const replacement = vi.fn();
@@ -249,7 +311,7 @@ describe("ActionRegistry", () => {
   });
 
   it("propagates callback errors and does not resurrect disposed actions", async () => {
-    const registry = new ActionRegistry();
+    const registry = createActionRegistry();
     const registerChatActions = registry.forFeature("chat");
     const pending = deferred();
     const registration = registerChatActions({

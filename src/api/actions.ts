@@ -1,6 +1,10 @@
 import { Type, type Static } from "typebox";
 
-import { ShortcutSchema, type Shortcut } from "./shortcuts";
+import {
+  ShortcutSchema,
+  type ResolvedShortcut,
+  type Shortcut,
+} from "./shortcuts";
 
 const actionIdTokenPattern = "[a-z][a-z0-9_-]*";
 
@@ -50,10 +54,10 @@ export interface ActionCatalogEntry {
   /** Group titles followed by this action's title. */
   readonly path: readonly string[];
   readonly description?: string;
-  readonly binding?: Shortcut | null;
+  readonly binding?: ResolvedShortcut | null;
   readonly enabled: boolean;
   readonly running: boolean;
-  readonly conflictsWith: readonly string[];
+  readonly conflictsWith: readonly ActionId[];
 }
 
 export type ActionCatalog = readonly ActionCatalogEntry[];

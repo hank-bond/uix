@@ -6,7 +6,9 @@ import type {
   KeybindingMap,
   RegisterActionContribution,
 } from "@uix/api/actions";
+import type { ShortcutPlatform } from "@uix/api/shortcuts";
 
+import { toActionBindingProjection } from "./action-binding-projection";
 import {
   normalizeActionContribution,
   type ActionDefaultBindingMap,
@@ -26,15 +28,25 @@ interface RegisteredActionContribution {
   defaultBindings: ActionDefaultBindingMap;
 }
 
+interface ActionRegistryOptions {
+  shortcutPlatform: ShortcutPlatform;
+}
+
 export class ActionRegistry implements Disposable {
   readonly #byId = new Map<string, RegisteredAction>();
   readonly #registeredContributions: RegisteredActionContribution[] = [];
   readonly #catalogListeners = new Set<Listener>();
   readonly #defaultBindingListeners = new Set<Listener>();
+  readonly #shortcutPlatform: ShortcutPlatform;
   #catalogSnapshot: ActionCatalog = [];
   #defaultBindingsSnapshot: ActionDefaultBindingMap = Object.freeze({});
   #confirmedBindingsSnapshot: Readonly<KeybindingMap> | undefined;
+  #unresolvedBindingsSnapshot: Readonly<KeybindingMap> | undefined;
   #disposed = false;
+
+  constructor(options: ActionRegistryOptions) {
+    this.#shortcutPlatform = options.shortcutPlatform;
+  }
 
   forFeature(owner: string): RegisterActionContribution {
     return (contribution) => this.#registerContribution(owner, contribution);
@@ -60,6 +72,10 @@ export class ActionRegistry implements Disposable {
     return this.#confirmedBindingsSnapshot;
   }
 
+  getUnresolvedBindingsSnapshot(): Readonly<KeybindingMap> | undefined {
+    return this.#unresolvedBindingsSnapshot;
+  }
+
   setConfirmedBindings(bindings: KeybindingMap): void {
     this.#assertActive();
     const next = Object.freeze({ ...bindings });
@@ -70,6 +86,7 @@ export class ActionRegistry implements Disposable {
       return;
     }
     this.#confirmedBindingsSnapshot = next;
+    this.#publishCatalogSnapshot();
   }
 
   async invoke(id: string): Promise<ActionInvocationResult> {
@@ -109,6 +126,7 @@ export class ActionRegistry implements Disposable {
     this.#catalogSnapshot = [];
     this.#defaultBindingsSnapshot = Object.freeze({});
     this.#confirmedBindingsSnapshot = undefined;
+    this.#unresolvedBindingsSnapshot = undefined;
   }
 
   #registerContribution(
@@ -220,13 +238,35 @@ export class ActionRegistry implements Disposable {
   }
 
   #publishCatalogSnapshot(): void {
-    this.#catalogSnapshot = this.#registeredContributions.flatMap(
+    const registeredCatalog = this.#registeredContributions.flatMap(
       (contribution) =>
         contribution.actions.map((action) => ({
           ...action.registration.catalogEntry,
           running: action.running,
         })),
     );
+    if (!this.#confirmedBindingsSnapshot) {
+      this.#catalogSnapshot = registeredCatalog;
+      this.#unresolvedBindingsSnapshot = undefined;
+    } else {
+      const projection = toActionBindingProjection(
+        registeredCatalog,
+        this.#confirmedBindingsSnapshot,
+        this.#shortcutPlatform,
+      );
+      this.#catalogSnapshot = projection.catalog;
+      if (
+        !this.#unresolvedBindingsSnapshot ||
+        !hasSameBindings(
+          this.#unresolvedBindingsSnapshot,
+          projection.unresolvedBindings,
+        )
+      ) {
+        this.#unresolvedBindingsSnapshot = Object.freeze({
+          ...projection.unresolvedBindings,
+        });
+      }
+    }
     for (const listener of this.#catalogListeners) listener();
   }
 
