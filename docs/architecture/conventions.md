@@ -39,10 +39,13 @@ bag[Symbol.dispose]();
 
 - A `DisposableBag` that owns registrations is named after the lifetime it tracks: `appBag`, `windowBag`, `sessionBag`.
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
+- Function names describe the observable contract from the caller's perspective. Include every distinction needed to predict the result; omit implementation details that do not change what callers receive or observe.
+- Apply the ambiguity test: if two materially different operations could reasonably share the name, it is underspecified. Add the distinguishing domain, result, or resolution axis — `enumerateUniqueModifierSequences`, not `permutations`; `resolveShortcutForPlatform`, not `resolveShortcut`.
 - Private helper functions should generally be operation-shaped so the call site says what operation is happening. Prefer:
   - `parseX` for unknown/external input that validates into `X`; invalid input throws;
   - `asX` / `tryParseX` for non-throwing refinement/parsing helpers that return `X | undefined`;
   - `extractX` for pulling data out of a larger value;
+  - `enumerateX` for eagerly deriving every member of a finite possibility set; `listX` retrieves existing items instead of generating possibilities;
   - `getX` for cheap property lookup with no I/O;
   - `requireX` for retrieving an expected value and throwing when absent;
   - `toX` for deterministic conversions/derivations where inputs are expected to already be valid;
@@ -56,7 +59,7 @@ bag[Symbol.dispose]();
   - `hydrateX` for the pure schema pass between the two: fill defaults into persisted values and validate, no storage or registration (`hydrateSettings`).
   - `openX` for starting a long-lived stateful thing whose lifetime someone must own (`openWorkspace`, `openSession`).
   - `registerX` for putting an item into a registry; registries' own mutation methods use the same verb (`register`, `registerScope`).
-  - `resolveX` for mapping a reference to the concrete thing it denotes (`resolveWorkspace`).
+  - `resolveX` for mapping a reference to the concrete thing it denotes (`resolveWorkspace`); include a result-determining axis when the unqualified name permits materially different resolutions (`resolveShortcutForPlatform`).
   - `bindX` for attaching an existing thing to a lifetime or context (`bindSettingsHandle`).
   - `defineX` for public-API identity/type-checking helpers around plain data (`defineSettings`, `defineSurface`).
   - `forX(id)` for minting a capability handle scoped to one owner (`forScope`); see the handle convention below.
