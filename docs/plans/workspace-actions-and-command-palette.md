@@ -167,7 +167,7 @@ Archive the plan only when new workspace scaffolding includes the palette throug
 
 ## Boundary / later
 
-- New-conversation session replacement is separate agent-runtime work. Once its typed request/event exists, a normal renderer action can wrap it and optionally collect a name.
+- New-session replacement is separate agent-runtime work specified in [session history and switching](./session-history-and-switching.md). Once its typed request/event exists, the workspace registers a substrate-owned New Session action with `mod+n` beside Reload so it remains available without Chat; Chat controls and palettes invoke that same action id.
 - No backend action-handler facet, agent invocation of actions, or automatic Pi slash-command import.
 - No generic action queue or user-facing action cancellation. Long-running work owns progress, cancellation, deduplication, and queuing in its feature/backend task model; actions only start or operate on it.
 - No process-global shortcuts, native OS menu, key sequences, multiple bindings, or context-expression language in v1.

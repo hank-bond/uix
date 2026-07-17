@@ -1,5 +1,5 @@
 ---
-summary: "Build keyed-on-persist transcript identity: main observes pi session appends (D0), items go pre-key→keyed with one in-place rekey and born-keyed tool rows (D1), durable block state rides uix.* custom entries written by main with pre-key effects queued (D2), and one branch-walk rehydrator joins state for replay and every uix.* consumer (D3)."
+summary: "Keyed-on-persist observation and row identity have landed (D0–D1); remaining work persists low-frequency block state as session-scoped uix.* custom entries (D2) and projects transcript/block state plus latest named turn-state-cell values through one branch pass shared with history and switching (D3)."
 status: active
 ---
 
@@ -25,13 +25,13 @@ This follows the transcript normalization work in [conversation-render-primitive
 - Custom messages persist via `appendCustomMessageEntry(customType, content, display, details)` — the `CustomMessage` object never reaches the manager, so generic third-party customs cannot correlate by identity; UIX-authored blocks carry an instance id in `details`, and a future pi post-persist event would close the gap properly.
 - _(2026-06-11)_ **Only `content` reaches the model.** `convertToLlm` (`messages.js`, wired at `sdk.js` → run per LLM call at `agent-loop.js`) renders a custom message as a plain user-role text message; `customType`, `details`, and `display` are dropped. Any custom message the model must differentiate needs its kind **in the content text** — the state-message substrate's `<uix-state>`/inner-tag envelope plus system-prompt vocabulary is the established pattern ([agent-state-messages](../design/agent-state-messages.md)).
 
-## D0 — Session append observation
+## D0 — Session append observation · **landed 2026-06-09**
 
 Wrap `appendMessage` (instance patch, original bound) on the `SessionManager` in the driver after opening/creating the manager and before `createAgentSession` receives it. The wrapper calls the original, takes the returned durable id, reads the entry with `getEntry(id)`, and notifies a UIX-owned observer. A local adapter over pi's current API — not a content mutation, not a session-file write; replace it with pi's official post-persist event if one ships. Add `appendCustomMessageEntry` observation only when a concrete custom-message consumer needs live durable ids.
 
 Home the observer state in a dedicated identity module (`src/main/agent/identity.ts`), not forwarder closures — D1 and D2 both consume it.
 
-## D1 — Keyed-on-persist ids
+## D1 — Keyed-on-persist ids · **landed 2026-06-09**
 
 Per row kind:
 
@@ -51,11 +51,11 @@ Block state lives in pi `CustomEntry` records — the hidden-state primitive: tr
 - Action flow: renderer sends a typed, TypeBox-validated signal over a `uix:block-action` invoke channel (`canvasWriteback` is the existing precedent; the payload shape should fold into the future typed-channel substrate unchanged). Main's handler classifies it (ephemeral react vs durable write), validates the id against the session, persists the entry under the canonical id, and emits the updated joined item via `transcript_replace`.
 - Pre-key actions: durable effects queue in main until the row keys (await the identity module's promise); ephemeral effects proceed immediately off the handle.
 
-## D3 — One branch-walk rehydrator
+## D3 — One branch projection and restore lifecycle
 
-Generalize history replay into a single rehydration pass with registered consumers: walk `getBranch()` once (root→leaf ordered), dispatch each entry by `customType`/type to registered reducers. `toTranscriptItems` is already this walk hardcoded — the transcript becomes the first reducer, and block state joins items before they reach the renderer (live items get the same joined state via `transcript_replace` once keyed, no rekey required).
+Generalize history replay into one selected-branch projection: walk `getBranch()` once in root→leaf order, project persisted message entries into the transcript, join durable block state into those items, and retain the latest value for every currently registered named turn-state cell. `toTranscriptItems` is already the transcript portion hardcoded; block state joins items before they reach the renderer (live items get the same joined state via `transcript_replace` once keyed, no rekey required).
 
-Reducer registration lives **with the binding that writes the entries** (composition-root rule: one module owns write + rehydrate per `uix.*` key). Both fold patterns are just reducers over the same pass: accumulate-all (block state, last-per-target) and nearest-wins (the persistence plan's `uix.turn-state`, `uix.pane-visibility` latch). The rehydrator runs on startup, branch navigation, and session switch; future extensions contributing agent bindings register their durable keys the same way.
+Internal folds for UIX-owned custom entries stay beside the binding that writes each `uix.*` key. Feature restoration does not receive raw messages or rerun live message taps: each active state cell receives only its latest complete value or `undefined` for defaults. The lifecycle runs on startup, reload, session switch, and future branch rewind; explicit `session_history` reads consume the transcript projection without activating/restoring that session. Named cell identity, change suppression, and save-then-restore ordering are specified in [session history and switching](./session-history-and-switching.md), while live-only message taps are tracked separately in the [plans backlog](./backlog.md).
 
 ## Boundary
 

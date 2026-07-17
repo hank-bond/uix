@@ -101,11 +101,13 @@ Established by the current code and kept as discipline: **panes never talk to ea
 
 Three relationships, not three transports:
 
-- **Tap (read/observe)** — subscribe to a change-feed, react read-only. Fan-out; coupling is only the feed schema. (`onAgentEvent`; the history-tree watching `session_tree`; the sqlite message-copy.)
+- **Tap (read/observe)** — subscribe to a live change-feed and react read-only. Fan-out; coupling is only the feed schema. (`onAgentEvent`; the history-tree watching `session_tree`; the sqlite message-copy.) Agent message taps are live-only and do not rerun during session restoration.
 - **Message (write/command)** — an effectful request through a channel, addressed to a _store's owner_, not to a pane. The owner processes it and may emit a tap as a consequence. (`sendPrompt`, `writebackCanvas`, `pi.sendUserMessage`.)
 - **Direct integration (shared store)** — two concepts wired to the same main-owned object. The canvas is the live example: agent content tools and the human writeback shim both mutate the _same_ canvas store; neither messages the other. Tightest coupling; lives in main, never in the renderer.
 
 **Durable entries vs ephemeral signals.** Agent-emitted content is a **durable entry** on pi's session stream (persisted, rehydrated, tappable). A human's click is an **ephemeral signal**, meaningless to the agent until a feature's main-side handler **converts** it into a tool result or a user message — at which point it rejoins the entry stream. There is no general renderer-visible "bus"; there is the durable entry stream (outbound) plus a directed renderer→main message channel (inbound) plus the conversion point.
+
+**Live taps are not replay.** A future feature-facing agent message tap reacts only while new messages/turns occur. It may update a feature's live working state, but any result that must survive reload, session switch, restart, or branch rewind must be represented in durable turn state—inline or through stable referenced ids—by an appropriate lifecycle boundary. Buffer state not captured there is intentionally ephemeral. Session restoration does not rerun taps or regex historical messages: the substrate projects the selected branch into the visible transcript plus the latest complete value for each currently registered named turn-state cell, validates those values, and invokes each owning cell's restore callback. This avoids duplicate side effects and remains valid when compaction removes ordinary message history. The renderer-facing agent event stream exists; a backend feature-facing tap contribution does not yet.
 
 ### Destination-agnostic selection
 
@@ -137,6 +139,10 @@ The concepts are a thinking tool, not a build order. Today everything is **relat
 Everything else, hardcode freely. The deferred extractions are already seeded in the [plans backlog](../plans/AGENTS.md) (pane host + slot registry, agent-tool contribution from extensions, default conversation extension, file-watcher service); each earns its place at the second or third instance, or the first userspace contribution.
 
 ## Log
+
+### 2026-07-16 — live message taps produce state; restoration consumes turn state
+
+Session-switch design separated two mechanisms that can share feature-internal logic but not lifecycle semantics. A live message tap observes new agent/user activity and may update working state; it is never rerun merely because a session loads, reloads, or rewinds. Any tap-derived value that must survive those transitions has to reach `uix.turn-state` directly or through stable referenced ids, while uncheckpointed buffer state remains intentionally ephemeral. Restoration walks the selected branch once for transcript projection and the latest complete value of every currently registered named turn-state cell; each owning cell validates and restores that value or resets from `undefined`. Raw message replay is not the feature-state recovery mechanism, avoiding repeated side effects and compaction dependence. The feature-facing live tap remains unbuilt and is tracked in the plans backlog.
 
 ### 2026-07-01 — feature becomes the loadable unit
 
