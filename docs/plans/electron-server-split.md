@@ -1,5 +1,5 @@
 ---
-summary: "Split UIX into a host-neutral workspace runtime, browser client, server host, and Electron host in one monorepo; prove local browser operation first, then make the unbootstrapped server and Electron product independently packageable without pulling Fruition's batteries into the substrate."
+summary: "Split UIX into a host-neutral workspace runtime, browser client, server host, and Electron host in one monorepo; prove local browser operation first, then make the unbootstrapped server and batteries-included Electron product independently packageable."
 status: active
 ---
 
