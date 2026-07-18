@@ -1,15 +1,16 @@
 ---
-summary: "How the substrate drives the agent today: it lazily owns a persisted pi AgentSession, assembles feature system-prompt sections and Pi skills at runtime start/reload, forwards a UIX-shaped event stream, exposes model controls, binds tools, and flushes agent context."
+summary: "How the substrate drives the agent today: it lazily owns a persisted Pi AgentSessionRuntime, assembles feature system-prompt sections and Pi skills per runtime generation/reload, forwards a UIX-shaped event stream, exposes model controls, binds tools, and flushes agent context."
 status: active
 ---
 
 # Agent integration
 
-UIX owns one pi `AgentSession` for the workspace, created lazily the first time the renderer sends a prompt. The current driver lives in `src/main/agent/driver.ts`.
+UIX owns one Pi `AgentSessionRuntime` for the workspace, created lazily the first time the renderer sends a prompt. Its active `AgentSession` is the ephemeral live agent over the selected durable session graph. The current driver lives in `src/main/agent/driver.ts`.
 
 Current behavior:
 
-- the session is resumed or created under the workspace state root;
+- an auth-free `SessionManager` eagerly resumes or creates the selected graph under the workspace state root, so history remains independent from live agent startup;
+- the first prompt creates the runtime from that manager and any Pi services already opened by model/auth UI; later runtime generations recreate cwd-bound services and bind transcript-item identity/observation to their active session;
 - surfaces talk to the driver through the substrate-owned agent channel contract (`@uix/api/agent-channels`, registered under the reserved `agent` id) via the typed channel client — chat is an ordinary feature consuming channels any feature could;
 - the `prompt` request invokes the main-process driver; the renderer receives a UIX-shaped event stream on the `event` channel: transcript item appends, compact in-flight partials (`transcript_partial`: streamed assistant text appends, tool progress snapshots overwrite), whole-item replacements at completion, plus basic lifecycle markers; live in-flight tool partials are discarded when the final item arrives;
 - the `history` request replays the same durable transcript item shape from pi's persisted session branch;

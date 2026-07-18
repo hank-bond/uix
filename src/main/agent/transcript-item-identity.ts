@@ -1,4 +1,4 @@
-// transcript identity (keyed-on-persist).
+// transcript-item identity (keyed-on-persist).
 //
 // Implements docs/decisions/2026-06-09-transcript-keyed-on-persist.md: live
 // transcript rows start under a pre-key transport handle and are rekeyed to
@@ -37,7 +37,7 @@ import {
 
 type OnKeyed = (durableId: string) => void;
 
-export interface TranscriptIdentity {
+export interface TranscriptItemIdentity {
   /** Patch the manager's append methods. Call before pi receives the manager. */
   observe(manager: SessionManager): void;
   /**
@@ -53,7 +53,7 @@ export interface TranscriptIdentity {
   toolRowId(toolCallId: string): string | undefined;
 }
 
-export function createTranscriptIdentity(): TranscriptIdentity {
+export function createTranscriptItemIdentity(): TranscriptItemIdentity {
   let onUser: ((durableId: string, message: unknown) => void) | undefined;
   const customQueue: OnKeyed[] = [];
   const byMessage = new WeakMap<object, OnKeyed>();

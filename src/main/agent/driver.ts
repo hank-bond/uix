@@ -1,7 +1,7 @@
 // agent driver.
 //
-// Wraps `createAgentSession` from `@earendil-works/pi-coding-agent` and
-// normalizes pi's live event stream into the same transcript item model used
+// Wraps Pi's `AgentSessionRuntime` and normalizes each active session's live
+// event stream into the same transcript item model used
 // for persisted history replay in src/shared/ipc.ts.
 //
 // Why dynamic `import()`: pi is an ESM-only package and the main bundle
@@ -19,7 +19,9 @@
 import type {
   AgentSession,
   AgentSessionEvent,
+  AgentSessionRuntime,
   AgentSessionServices,
+  CreateAgentSessionRuntimeFactory,
   ModelRegistry,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
@@ -42,7 +44,7 @@ import type { Workspace } from "../workspace";
 import { join } from "node:path";
 import process from "node:process";
 
-import { disposable, DisposableBag, subscribe } from "../lifecycle";
+import { DisposableBag, subscribe } from "../lifecycle";
 import { createLogger } from "../log";
 
 const log = createLogger("agent");
@@ -59,7 +61,10 @@ import {
   resolveOAuthStartAction,
 } from "./auth-providers";
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
-import { createTranscriptIdentity, type TranscriptIdentity } from "./identity";
+import {
+  createTranscriptItemIdentity,
+  type TranscriptItemIdentity,
+} from "./transcript-item-identity";
 import {
   buildAgentContextMessage,
   buildAgentContextVocabularySection,
@@ -160,52 +165,31 @@ export interface AgentDriverOptions {
 }
 
 export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
-  // Holds everything that needs teardown for this driver's lifetime:
-  // the subscription to pi's event stream, and (once it exists) the
-  // session itself.
-  const bag = new DisposableBag();
+  const driverBag = new DisposableBag();
+  const sessionBag = new DisposableBag();
 
-  // Keyed-on-persist transcript identity: correlates live rows with the
-  // durable session entry ids pi mints at append time. Created with the
-  // driver, installed on the manager in openManager().
-  const identity = createTranscriptIdentity();
-
-  // The renderer shows its own optimistic pending row at submit (composer
-  // state); the authoritative user row is emitted here, born keyed, when pi
-  // persists the message. Same empty-text filter as history replay, so live
-  // and replayed transcripts stay congruent.
-  identity.onUserMessage((durableId, message) => {
-    const text = extractTranscriptText(message);
-    if (!text) return;
-    opts.onEvent({
-      type: "transcript_append",
-      item: { id: durableId, kind: "user", text },
-    });
-  });
-
-  // Two tiers, cached as *promises* so concurrent first-callers share one init.
-  //
-  //   manager — cheap, auth-free: just loads the session file. Eager (init()),
-  //     off the boot path, so history() resolves fast.
-  //   session — expensive: auth + model registry + the live agent. Lazy, on
-  //     first prompt, so app paint never blocks on it.
+  // The manager stays cheap and auth-free so startup history does not create a
+  // model registry or load extensions. The runtime remains lazy until the first
+  // prompt, but owns every live session generation once opened.
   let managerPromise: Promise<SessionManager> | undefined;
-  let sessionPromise: Promise<AgentSession> | undefined;
+  let runtimePromise: Promise<AgentSessionRuntime> | undefined;
 
-  // Resolved value of managerPromise, stashed because a settled promise can't
-  // be read synchronously — and sessionFile() must be sync (it's peeked from
-  // inside the wire log's describeResult, which can't await the driver).
+  // These resolved mirrors support synchronous status/session-file reads while
+  // their owning promises remain asynchronous.
   let openedManager: SessionManager | undefined;
-
-  // Pi's cwd-bound services tier: auth, models, settings, and one loaded
-  // resource/extension set. It starts before a session whenever model/auth
-  // availability needs it, then the eventual session reuses it.
-  let servicesPromise: Promise<AgentSessionServices> | undefined;
-
-  // Live-model mirror for the sync status() read: set when a session opens,
-  // updated by pi's model_select extension event, cleared on dispose.
+  let liveRuntime: AgentSessionRuntime | undefined;
   let liveSession: AgentSession | undefined;
   let liveModel: ModelRef | undefined;
+  let disposed = false;
+
+  // Before a runtime exists, model/auth requests may eagerly create the exact
+  // services generation that the first live session will consume.
+  let servicesPromise: Promise<AgentSessionServices> | undefined;
+
+  const managerIdentities = new WeakMap<
+    SessionManager,
+    TranscriptItemIdentity
+  >();
 
   const agentInstallers = [...(opts.agentInstallers ?? [])];
   if (opts.turnState) {
@@ -235,17 +219,26 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     });
   });
 
+  async function createServices(
+    cwd: string,
+    agentDir: string,
+  ): Promise<AgentSessionServices> {
+    const sdk = await import("@earendil-works/pi-coding-agent");
+    return sdk.createAgentSessionServices({
+      cwd,
+      agentDir,
+      resourceLoaderOptions: {
+        extensionFactories: [createUixCoreExtension(agentInstallers)],
+      },
+    });
+  }
+
   function services(): Promise<AgentSessionServices> {
-    return (servicesPromise ??= (async () => {
-      const sdk = await import("@earendil-works/pi-coding-agent");
-      return sdk.createAgentSessionServices({
-        cwd: opts.workspace.agentCwd,
-        agentDir: opts.piProfileDir,
-        resourceLoaderOptions: {
-          extensionFactories: [createUixCoreExtension(agentInstallers)],
-        },
-      });
-    })().catch((err) => {
+    if (liveRuntime) return Promise.resolve(liveRuntime.services);
+    return (servicesPromise ??= createServices(
+      opts.workspace.agentCwd,
+      opts.piProfileDir,
+    ).catch((err) => {
       servicesPromise = undefined;
       throw err;
     }));
@@ -255,7 +248,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     return (await services()).modelRegistry;
   }
 
-  const oauth = bag.add(
+  const oauth = driverBag.add(
     createOAuthFlowCoordinator({
       modelRegistry: registry,
       openExternal: opts.openExternal,
@@ -321,66 +314,127 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     } catch {
       manager = sdk.SessionManager.create(agentCwd, sessionDir);
     }
-    // Must happen before pi ever holds the manager: the append wrapper is the
-    // only place durable entry ids are observable (pi persists *after* the
-    // message_end listeners run and emits no post-persist event).
-    identity.observe(manager);
     openedManager = manager;
     return manager;
   }
 
-  async function openSession(): Promise<AgentSession> {
-    const sdk = await import("@earendil-works/pi-coding-agent");
-    const sessionManager = await manager();
-    const sessionServices = await services();
-    const modelRegistry = sessionServices.modelRegistry;
+  function observeTranscript(manager: SessionManager): TranscriptItemIdentity {
+    const existing = managerIdentities.get(manager);
+    if (existing) return existing;
 
-    // The workspace default model applies only when the branch carries no
-    // model_change of its own; otherwise pi restores the branch model. With
-    // neither (or an unavailable default), pass nothing and let pi resolve —
-    // its settings default, first available, or no model at all.
-    let initialModel: ReturnType<ModelRegistry["find"]>;
-    if (
-      !sessionManager.getBranch().some((entry) => entry.type === "model_change")
-    ) {
-      const ref = opts.agentSettings?.get<ModelRef>("defaultModel");
-      if (ref) {
-        const found = modelRegistry.find(ref.provider, ref.id);
-        if (found && modelRegistry.hasConfiguredAuth(found)) {
-          initialModel = found;
-        } else {
-          log.warn({ model: ref }, "workspace_default_model_unavailable");
-        }
-      }
+    const identity = createTranscriptItemIdentity();
+    identity.onUserMessage((durableId, message) => {
+      const text = extractTranscriptText(message);
+      if (!text) return;
+      opts.onEvent({
+        type: "transcript_append",
+        item: { id: durableId, kind: "user", text },
+      });
+    });
+    // Pi persists after message_end and has no post-persist event, so this must
+    // wrap the manager before the AgentSession receives it.
+    identity.observe(manager);
+    managerIdentities.set(manager, identity);
+    return identity;
+  }
+
+  function bindActiveSession(session: AgentSession): void {
+    const identity = managerIdentities.get(session.sessionManager);
+    if (!identity) {
+      throw new Error(
+        "Session manager transcript-item identity is unavailable",
+      );
     }
 
-    const { session } = await sdk.createAgentSessionFromServices({
-      services: sessionServices,
-      sessionManager,
-      ...(initialModel && { model: initialModel }),
-    });
-
+    sessionBag.clear();
     liveSession = session;
-    // The model_select installer usually beat us here (pi emits it during
-    // creation); this read covers the paths that don't fire it and settles
-    // the no-model state.
     liveModel = session.model
       ? { provider: session.model.provider, id: session.model.id }
       : undefined;
     emitStatus();
-
-    // Both registrations land in the bag, so a single dispose tears
-    // them down in LIFO order: the subscription first, then the
-    // session itself.
-    bag.add(
+    sessionBag.add(
       subscribe<AgentSessionEvent>(
         session,
         createLiveTranscriptForwarder(opts.onEvent, identity),
       ),
     );
-    bag.add(disposable(() => session.dispose()));
+  }
 
-    return session;
+  async function openRuntime(): Promise<AgentSessionRuntime> {
+    const sdk = await import("@earendil-works/pi-coding-agent");
+    const initialManager = await manager();
+    let initialRuntimeCreated = false;
+
+    const createRuntime: CreateAgentSessionRuntimeFactory = async ({
+      cwd,
+      agentDir,
+      sessionManager,
+      sessionStartEvent,
+    }) => {
+      observeTranscript(sessionManager);
+      // The first runtime consumes any services already opened by model/auth
+      // UI. Replacement generations recreate Pi's cwd-bound resources.
+      const sessionServices = initialRuntimeCreated
+        ? await createServices(cwd, agentDir)
+        : await services();
+      const modelRegistry = sessionServices.modelRegistry;
+
+      // The workspace default applies only when the selected branch carries no
+      // native model change. Otherwise Pi restores branch-owned model state.
+      let initialModel: ReturnType<ModelRegistry["find"]>;
+      if (
+        !sessionManager
+          .getBranch()
+          .some((entry) => entry.type === "model_change")
+      ) {
+        const ref = opts.agentSettings?.get<ModelRef>("defaultModel");
+        if (ref) {
+          const found = modelRegistry.find(ref.provider, ref.id);
+          if (found && modelRegistry.hasConfiguredAuth(found)) {
+            initialModel = found;
+          } else {
+            log.warn({ model: ref }, "workspace_default_model_unavailable");
+          }
+        }
+      }
+
+      const result = await sdk.createAgentSessionFromServices({
+        services: sessionServices,
+        sessionManager,
+        ...(sessionStartEvent && { sessionStartEvent }),
+        ...(initialModel && { model: initialModel }),
+      });
+      openedManager = sessionManager;
+      initialRuntimeCreated = true;
+      return {
+        ...result,
+        services: sessionServices,
+        diagnostics: sessionServices.diagnostics,
+      };
+    };
+
+    const runtime = await sdk.createAgentSessionRuntime(createRuntime, {
+      cwd: opts.workspace.agentCwd,
+      agentDir: opts.piProfileDir,
+      sessionManager: initialManager,
+    });
+    if (disposed) {
+      await runtime.dispose();
+      throw new Error("Agent driver is disposed");
+    }
+    liveRuntime = runtime;
+    servicesPromise = undefined;
+    runtime.setBeforeSessionInvalidate(() => {
+      sessionBag.clear();
+      liveSession = undefined;
+      liveModel = undefined;
+    });
+    runtime.setRebindSession((session) => {
+      bindActiveSession(session);
+      return Promise.resolve();
+    });
+    bindActiveSession(runtime.session);
+    return runtime;
   }
 
   return {
@@ -507,7 +561,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
 
     async history() {
       try {
-        const sessionManager = await manager();
+        const sessionManager =
+          liveRuntime?.session.sessionManager ?? (await manager());
         return { items: toTranscriptItems(sessionManager.getBranch()) };
       } catch (err) {
         log.warn(
@@ -522,9 +577,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       // Reload only tiers already in use. A live session owns Pi's native
       // extension rebind; before a session exists, recreate the coherent
       // services tier so extension provider registrations cannot accumulate.
-      if (sessionPromise) {
-        const session = await sessionPromise;
-        await session.reload();
+      if (runtimePromise) {
+        const runtime = await runtimePromise;
+        await runtime.session.reload();
         return true;
       }
       if (!servicesPromise) return false;
@@ -541,16 +596,14 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       // truthfully contributes no user row to the feed — the renderer's
       // unconfirmed row plus the error item below are the whole record.
       try {
-        // If openSession rejects (e.g. missing auth), clear the cache
-        // so the next prompt tries fresh instead of replaying the
-        // failure forever. Failures *inside* an established session
-        // surface through the event stream, not via a thrown error
-        // from prompt().
-        sessionPromise ??= openSession().catch((err) => {
-          sessionPromise = undefined;
+        // If runtime creation rejects (e.g. missing auth), clear the cache so
+        // the next prompt retries. Failures inside an established session
+        // surface through the event stream instead.
+        runtimePromise ??= openRuntime().catch((err) => {
+          runtimePromise = undefined;
           throw err;
         });
-        const session = await sessionPromise;
+        const session = (await runtimePromise).session;
 
         // Submit-prep ordering: turn-state entries and the hidden uix.state
         // message must be ordered BEFORE the user message in the session tree
@@ -608,19 +661,32 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     },
 
     [Symbol.dispose]() {
-      bag[Symbol.dispose]();
-      sessionPromise = undefined;
+      if (disposed) return;
+      disposed = true;
+      const runtime = liveRuntime;
+      driverBag[Symbol.dispose]();
+      sessionBag[Symbol.dispose]();
+      runtimePromise = undefined;
       managerPromise = undefined;
       servicesPromise = undefined;
+      liveRuntime = undefined;
       liveSession = undefined;
       liveModel = undefined;
+      if (runtime) {
+        void runtime.dispose().catch((err) => {
+          log.warn(
+            { err: err instanceof Error ? err.message : String(err) },
+            "runtime_dispose_failed",
+          );
+        });
+      }
     },
   };
 }
 
 function createLiveTranscriptForwarder(
   emit: (e: AgentEvent) => void,
-  identity: TranscriptIdentity,
+  identity: TranscriptItemIdentity,
 ) {
   let assistant: Extract<TranscriptItem, { kind: "assistant" }> | undefined;
   const tools = new Map<string, Extract<TranscriptItem, { kind: "tool" }>>();

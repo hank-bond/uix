@@ -17,7 +17,7 @@ Pages marked _(stub)_ are placeholders that fill in as the corresponding primiti
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
 
-- **[agent](./agent.md)** _(active)_ — How the substrate drives the agent today: it lazily owns a persisted pi AgentSession, assembles feature system-prompt sections and Pi skills at runtime start/reload, forwards a UIX-shaped event stream, exposes model controls, binds tools, and flushes agent context.
+- **[agent](./agent.md)** _(active)_ — How the substrate drives the agent today: it lazily owns a persisted Pi AgentSessionRuntime, assembles feature system-prompt sections and Pi skills per runtime generation/reload, forwards a UIX-shaped event stream, exposes model controls, binds tools, and flushes agent context.
 - **[channels](./channels.md)** _(stub)_ — Feature channel contracts declare request handlers and backend-published events with shared schemas; the current Workspace client and preload bridge consume those contracts directly while the public packaged-feature API is still forming.
 - **[contributions](./contributions.md)** _(active)_ — FeatureDefinition.contribute returns facet contributions for resources, channels, agent tools, Agent system-prompt sections, Pi skills, turn state, agent context, and surfaces; the substrate registers each facet under the feature id with reload-scoped lifetimes.
 - **[features](./features.md)** _(active)_ — Feature entries are trusted local TS/JS modules listed explicitly in uix.workspace.json; each default-exports a FeatureDefinition loaded with jiti, lifetime-scoped under the reload bag, and wired only through @uix/api.

@@ -9,9 +9,9 @@ import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 
 import type { TranscriptItem } from "@uix/api/agent-channels";
 
-// The single definition of a tool row's durable id. Live rows (identity.ts)
-// and history replay (below) must derive byte-identical ids or state keyed
-// against one would miss the other.
+// The single definition of a tool row's durable id. Live rows
+// (transcript-item-identity.ts) and history replay (below) must derive
+// byte-identical ids; otherwise state keyed against one would miss the other.
 export function toolItemId(entryId: string, toolCallId: string): string {
   return `${entryId}:tool:${toolCallId}`;
 }

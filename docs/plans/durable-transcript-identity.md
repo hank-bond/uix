@@ -29,7 +29,7 @@ This follows the transcript normalization work in [conversation-render-primitive
 
 Wrap `appendMessage` (instance patch, original bound) on the `SessionManager` in the driver after opening/creating the manager and before `createAgentSession` receives it. The wrapper calls the original, takes the returned durable id, reads the entry with `getEntry(id)`, and notifies a UIX-owned observer. A local adapter over pi's current API — not a content mutation, not a session-file write; replace it with pi's official post-persist event if one ships. Add `appendCustomMessageEntry` observation only when a concrete custom-message consumer needs live durable ids.
 
-Home the observer state in a dedicated identity module (`src/main/agent/identity.ts`), not forwarder closures — D1 and D2 both consume it.
+Home the observer state in a dedicated transcript-item identity module (`src/main/agent/transcript-item-identity.ts`), not forwarder closures — D1 and D2 both consume it.
 
 ## D1 — Keyed-on-persist ids · **landed 2026-06-09**
 

@@ -138,7 +138,7 @@ The same rule applies when opening an older session with no state for a feature,
 
 ## Relationship to durable transcript identity, live taps, and persistence
 
-[D0 and D1 of durable transcript identity](./durable-transcript-identity.md) have landed. Live append observation and canonical transcript item derivation remain valid, and their observer/forwarder lifetime follows the active generation owned through Pi's `AgentSessionRuntime`. The runtime migration lands before session mutations.
+[D0 and D1 of durable transcript identity](./durable-transcript-identity.md) have landed. Live append observation and canonical transcript item derivation remain valid, and their observer/forwarder lifetime follows the active generation owned through Pi's `AgentSessionRuntime`. The runtime migration has landed before session mutations.
 
 D3 is the shared branch-projection work. Transcript items and latest values for currently registered turn-state cells come from one selected branch rather than unrelated startup, reload, session-switch, and branch-switch walkers. Transcript consumes persisted messages for display; feature restoration consumes only its named state-cell values.
 
@@ -164,7 +164,7 @@ These decisions remain valuable, but they do not block the early vertical slices
 
 S0–S3 are the shortest correct route to New Session and then visible session switching. S4 adds naming. S5 hardens failures and presentation under the already-settled contracts. Do not introduce temporary compatibility APIs merely to shorten a unit.
 
-### S0 — Pi runtime replacement foundation
+### S0 — Pi runtime replacement foundation · **landed 2026-07-17**
 
 Migrate the driver to Pi's supported `AgentSessionRuntime` while preserving the cheap eager history-manager tier, lazy live agent creation, current prompt/event behavior, and first-render independence. Bind transcript observation and Pi-owned resources to the active runtime generation. This unit changes no visible session behavior; it removes custom replacement mechanics before New Session relies on them.
 

@@ -26,6 +26,9 @@ const sdk = vi.hoisted(() => {
     // Extension `on(event, handler)` registrations from the session open.
     extensionHandlers: new Map<string, (event: unknown) => void>(),
     session: undefined as Record<string, unknown> | undefined,
+    runtimeCreates: 0,
+    runtimeOptions: undefined as Record<string, unknown> | undefined,
+    replaceRuntime: undefined as (() => Promise<void>) | undefined,
     lastCreateOptions: undefined as Record<string, unknown> | undefined,
     servicesLoads: 0,
     servicesOptions: [] as Array<{ cwd: string; agentDir: string }>,
@@ -61,9 +64,15 @@ const sdk = vi.hoisted(() => {
     appendCustomMessageEntry: () => "entry-id",
   };
 
-  function makeSession(model: FakeModel | undefined) {
+  function makeSession(
+    model: FakeModel | undefined,
+    sessionManager: Record<string, unknown> = manager,
+  ) {
+    const unsubscribe = vi.fn();
     return {
       model,
+      sessionManager,
+      unsubscribe,
       setModel: vi.fn((next: FakeModel) => {
         (state.session as { model?: FakeModel }).model = next;
         state.extensionHandlers.get("model_select")?.({
@@ -73,8 +82,8 @@ const sdk = vi.hoisted(() => {
           source: "set",
         });
       }),
-      subscribe: () => () => {},
-      dispose: () => {},
+      subscribe: vi.fn(() => unsubscribe),
+      dispose: vi.fn(),
       prompt: vi.fn(async () => {}),
       reload: vi.fn(async () => {}),
     };
@@ -120,18 +129,72 @@ const sdk = vi.hoisted(() => {
           await factory(pi);
         }
         return {
+          cwd: options.cwd,
+          agentDir: options.agentDir,
           modelRegistry: registry,
           authStorage: registry.authStorage,
           resourceLoader: { reload: async () => {} },
+          diagnostics: [],
         };
       },
-      createAgentSessionFromServices: (options: { model?: FakeModel }) => {
+      createAgentSessionFromServices: (options: {
+        model?: FakeModel;
+        sessionManager?: Record<string, unknown>;
+      }) => {
         state.lastCreateOptions = options;
         // Mirror pi's resolution shape: explicit model wins, else first
         // available, else none.
         const model = options.model ?? state.models.filter((m) => m.authed)[0];
-        state.session = makeSession(model);
+        state.session = makeSession(model, options.sessionManager);
         return Promise.resolve({ session: state.session });
+      },
+      createAgentSessionRuntime: async (
+        createRuntime: (options: Record<string, unknown>) => Promise<{
+          session: Record<string, unknown>;
+          services: Record<string, unknown>;
+        }>,
+        options: Record<string, unknown>,
+      ) => {
+        state.runtimeCreates += 1;
+        state.runtimeOptions = options;
+        const result = await createRuntime(options);
+        let rebindSession:
+          | ((session: Record<string, unknown>) => Promise<void>)
+          | undefined;
+        let beforeSessionInvalidate: (() => void) | undefined;
+        const runtime = {
+          session: result.session,
+          services: result.services,
+          setRebindSession: (
+            callback?: (session: Record<string, unknown>) => Promise<void>,
+          ) => {
+            rebindSession = callback;
+          },
+          setBeforeSessionInvalidate: (callback?: () => void) => {
+            beforeSessionInvalidate = callback;
+          },
+          dispose: vi.fn(() => {
+            beforeSessionInvalidate?.();
+            (runtime.session.dispose as () => void)();
+            return Promise.resolve();
+          }),
+        };
+        state.replaceRuntime = async () => {
+          beforeSessionInvalidate?.();
+          const replacementManager = {
+            ...manager,
+            getSessionFile: () => "/tmp/replacement-session.jsonl",
+          };
+          const replacement = await createRuntime({
+            ...options,
+            sessionManager: replacementManager,
+            sessionStartEvent: { type: "session_start", reason: "new" },
+          });
+          runtime.session = replacement.session;
+          runtime.services = replacement.services;
+          await rebindSession?.(replacement.session);
+        };
+        return runtime;
       },
     },
   };
@@ -209,6 +272,9 @@ beforeEach(() => {
   sdk.state.branch = [];
   sdk.state.extensionHandlers.clear();
   sdk.state.session = undefined;
+  sdk.state.runtimeCreates = 0;
+  sdk.state.runtimeOptions = undefined;
+  sdk.state.replaceRuntime = undefined;
   sdk.state.lastCreateOptions = undefined;
   sdk.state.servicesLoads = 0;
   sdk.state.servicesOptions = [];
@@ -440,6 +506,12 @@ describe("driver model service (session open)", () => {
     expect(sdk.state.servicesOptions).toEqual([
       { cwd: "/tmp/ws", agentDir: "/tmp/uix-pi-profile" },
     ]);
+    expect(sdk.state.runtimeCreates).toBe(1);
+    expect(sdk.state.runtimeOptions).toMatchObject({
+      cwd: "/tmp/ws",
+      agentDir: "/tmp/uix-pi-profile",
+      sessionManager: sdk.manager,
+    });
     expect(driver.status()).toEqual({
       model: { provider: "openai", id: "gpt-5" },
       defaultModel: { provider: "openai", id: "gpt-5" },
@@ -479,6 +551,27 @@ describe("driver model service (session open)", () => {
 });
 
 describe("driver model service (live session)", () => {
+  it("rebinds driver-owned state to a replacement runtime generation", async () => {
+    const { driver } = createDriver(fakeSettings());
+    await driver.prompt("hi");
+    const firstSession = sdk.state.session as {
+      unsubscribe: ReturnType<typeof vi.fn>;
+    };
+
+    await sdk.state.replaceRuntime?.();
+
+    expect(firstSession.unsubscribe).toHaveBeenCalledOnce();
+    expect(sdk.state.servicesLoads).toBe(2);
+    expect(sdk.state.session).not.toBe(firstSession);
+
+    await driver.selectModel({ provider: "openai", id: "gpt-5" });
+    const replacementSession = sdk.state.session as {
+      setModel: ReturnType<typeof vi.fn>;
+    };
+    expect(replacementSession.setModel).toHaveBeenCalledWith(openai);
+    expect(driver.sessionFile()).toBe("/tmp/replacement-session.jsonl");
+  });
+
   it("reloads the live session without replacing its profiled services", async () => {
     const { driver } = createDriver();
     await driver.prompt("hi");
