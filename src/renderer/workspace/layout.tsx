@@ -46,13 +46,13 @@ export function useSurfaces(): SurfaceComposition | undefined {
 
   useEffect(() => {
     let alive = true;
-    let requestGeneration = 0;
+    let requestVersion = 0;
     const refresh = () => {
-      const generation = ++requestGeneration;
+      const version = ++requestVersion;
       void client.requests
         .surfaces(undefined)
         .then((res) => {
-          if (alive && generation === requestGeneration) setComposition(res);
+          if (alive && version === requestVersion) setComposition(res);
         })
         .catch(() => undefined);
     };
@@ -60,7 +60,7 @@ export function useSurfaces(): SurfaceComposition | undefined {
     const unsubscribe = client.events.surfaces_changed(refresh);
     return () => {
       alive = false;
-      requestGeneration += 1;
+      requestVersion += 1;
       unsubscribe();
     };
   }, [client]);

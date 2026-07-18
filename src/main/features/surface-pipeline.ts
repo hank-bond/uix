@@ -117,7 +117,7 @@ export class SurfaceModulePipeline {
   #built = new Map<string, BuiltModule>();
   /** featureId → feature root dir, for the files route. */
   #roots = new Map<string, string>();
-  #buildGeneration = 0;
+  #buildVersion = 0;
 
   constructor(workspaceId: string) {
     this.#workspaceId = workspaceId;
@@ -132,7 +132,7 @@ export class SurfaceModulePipeline {
   async buildAll(
     registrations: readonly SurfaceRegistration[],
   ): Promise<SurfaceEntry[]> {
-    const generation = ++this.#buildGeneration;
+    const version = ++this.#buildVersion;
     const built = new Map<string, BuiltModule>();
     const roots = new Map<string, string>();
     const entries: SurfaceEntry[] = [];
@@ -186,7 +186,7 @@ export class SurfaceModulePipeline {
 
     // Requests can overlap initial hydration and reload notifications. Only the
     // newest requested composition may replace the modules served by routes.
-    if (generation === this.#buildGeneration) {
+    if (version === this.#buildVersion) {
       this.#built = built;
       this.#roots = roots;
     }

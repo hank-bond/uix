@@ -39,6 +39,8 @@ bag[Symbol.dispose]();
 
 **Rule.** Name one authority for current state and keep asynchronous work, cleanup, lookup, and caching separate from it.
 
+**Terminology.** A **generation** is a real replaceable object/lifetime graph, such as a manifest, feature activation, or Pi runtime generation. A **version** is a monotonic scalar that orders async work and rejects stale results (`requestVersion`, `buildVersion`). An **id** or **token** correlates one operation without implying order. Do not call an ordering counter a generation.
+
 | Mechanism | Role | Constraint |
 | --- | --- | --- |
 | Plain field, React state, registry, buffer, or store | Current authority at its layer | Replaced at one explicit generation boundary. |
@@ -74,7 +76,7 @@ function getValue(): Promise<Value> {
 
 A settled promise may own a genuinely write-once value when it is immutable for the owner's entire lifetime and every consumer is asynchronous. Once a value supports replacement, synchronous reads, reload, or generation-specific cleanup, use an explicit current value plus an in-flight operation.
 
-Async projections need two independent protections where applicable: lifetime cancellation rejects results after their owner unmounts/disposes, while a monotonic generation rejects an older request that resolves after a newer one. A boolean `alive` flag provides only the first. Backend candidate builders likewise commit only if their generation is still current, or serialize operations when every requested transition must run.
+Async projections need two independent protections where applicable: lifetime cancellation rejects results after their owner unmounts/disposes, while a monotonic request version rejects an older request that resolves after a newer one. A boolean `alive` flag provides only the first. Backend candidate builders likewise commit only if their build version is still current, or serialize operations when every requested transition must run.
 
 Layer-specific cleanup stays idiomatic: main-process registrations go into lifetime-named bags; renderer subscriptions and requests use React effect cleanup plus latest-request guards. Do not introduce a generic lazy-cell abstraction until multiple consumers need identical mechanics—the explicit fields make ownership and replacement visible.
 
