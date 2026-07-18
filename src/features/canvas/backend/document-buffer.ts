@@ -1,7 +1,7 @@
 // canvas document buffer (session state).
 //
-// Holds one AnchoredDocument per canvas document id for the life of the agent session.
-// The anchor<->line map inside each document is regenerable from content and is
+// Holds one AnchoredDocument per canvas document id for the activated Canvas
+// feature generation. The anchor<->line map inside each document is regenerable from content and is
 // never persisted (so the filesystem stays non-load-bearing): a document is
 // (re)built by canonicalizing the store's current content the first time the
 // session touches it.
@@ -29,6 +29,7 @@ export interface DocumentVersionMeta {
 export class CanvasDocumentBuffer {
   readonly #store: DocumentStore;
   readonly #docs = new Map<string, AnchoredDocument>();
+  readonly #documentOperations = new Map<string, Promise<void>>();
 
   constructor(store: DocumentStore) {
     this.#store = store;
@@ -41,33 +42,39 @@ export class CanvasDocumentBuffer {
     start?: number,
     end?: number,
   ): Promise<readonly AnchoredLine[]> {
-    await this.#sync(docId);
-    const doc = await this.#load(docId);
-    return doc.read(start, end);
+    return this.#runDocumentOperation(docId, async () => {
+      await this.#sync(docId);
+      const doc = await this.#load(docId);
+      return doc.read(start, end);
+    });
   }
 
   // Clobber the document with a full authored HTML body and persist it. Returns
   // fresh anchored lines for the whole new document.
   async write(docId: string, html: string): Promise<readonly AnchoredLine[]> {
-    const doc = await this.#load(docId);
-    const lines = doc.write(canonicalizeHtml(html));
-    await this.#store.setCurrent(docId, plainText(lines));
-    return lines;
+    return this.#runDocumentOperation(docId, async () => {
+      const doc = await this.#load(docId);
+      const lines = doc.write(canonicalizeHtml(html));
+      await this.#store.setCurrent(docId, plainText(lines));
+      return lines;
+    });
   }
 
   // Apply a pane-originated whole-document writeback. If the agent has an
   // active anchor projection for this document, reconcile instead of clobbering
   // so later snapshot diffs can keep stable anchored hunks.
   async writeback(docId: string, html: string): Promise<void> {
-    const canonical = canonicalizeHtml(html);
-    const doc = this.#docs.get(docId);
-    if (!doc) {
-      await this.#store.setCurrent(docId, canonical);
-      return;
-    }
+    await this.#runDocumentOperation(docId, async () => {
+      const canonical = canonicalizeHtml(html);
+      const doc = this.#docs.get(docId);
+      if (!doc) {
+        await this.#store.setCurrent(docId, canonical);
+        return;
+      }
 
-    doc.reconcile(canonical);
-    await this.#store.setCurrent(docId, plainText(doc.read()));
+      doc.reconcile(canonical);
+      await this.#store.setCurrent(docId, plainText(doc.read()));
+    });
   }
 
   // Syncs to the store first: an edit computed against a stale cache would
@@ -84,19 +91,21 @@ export class CanvasDocumentBuffer {
     docId: string,
     edit: AnchoredEdit,
   ): Promise<readonly AnchoredChange[]> {
-    await this.#sync(docId);
-    const doc = await this.#load(docId);
-    const currentLines = doc.read();
-    const { startIndex, endIndex } = findMatchingRange(currentLines, edit);
-    const replacementLines = splitText(edit.replacement);
-    const nextText = [
-      ...currentLines.slice(0, startIndex).map((line) => line.text),
-      ...replacementLines,
-      ...currentLines.slice(endIndex + 1).map((line) => line.text),
-    ].join("\n");
-    const changes = doc.reconcile(canonicalizeHtml(nextText));
-    await this.#store.setCurrent(docId, plainText(doc.read()));
-    return changes;
+    return this.#runDocumentOperation(docId, async () => {
+      await this.#sync(docId);
+      const doc = await this.#load(docId);
+      const currentLines = doc.read();
+      const { startIndex, endIndex } = findMatchingRange(currentLines, edit);
+      const replacementLines = splitText(edit.replacement);
+      const nextText = [
+        ...currentLines.slice(0, startIndex).map((line) => line.text),
+        ...replacementLines,
+        ...currentLines.slice(endIndex + 1).map((line) => line.text),
+      ].join("\n");
+      const changes = doc.reconcile(canonicalizeHtml(nextText));
+      await this.#store.setCurrent(docId, plainText(doc.read()));
+      return changes;
+    });
   }
 
   // Persist current content plus the exact anchor state as immutable versions.
@@ -107,18 +116,20 @@ export class CanvasDocumentBuffer {
   ): Promise<ReadonlyMap<string, DocumentVersion<DocumentVersionMeta>>> {
     const result = new Map<string, DocumentVersion<DocumentVersionMeta>>();
     for (const docId of new Set(docIds)) {
-      await this.#sync(docId);
-      const doc = await this.#load(docId);
-      // Make the mutable latest byte-match the anchor state we are about to
-      // store. This canonicalizes cosmetic iframe/file rewrites at the durable
-      // boundary instead of snapshotting content/meta that disagree.
-      await this.#store.setCurrent(docId, plainText(doc.read()));
-      result.set(
-        docId,
-        await this.#store.snapshotCurrent<DocumentVersionMeta>(docId, {
-          anchors: doc.toSnapshot(),
-        }),
-      );
+      await this.#runDocumentOperation(docId, async () => {
+        await this.#sync(docId);
+        const doc = await this.#load(docId);
+        // Make the mutable latest byte-match the anchor state we are about to
+        // store. This canonicalizes cosmetic iframe/file rewrites at the
+        // durable boundary instead of snapshotting content/meta that disagree.
+        await this.#store.setCurrent(docId, plainText(doc.read()));
+        result.set(
+          docId,
+          await this.#store.snapshotCurrent<DocumentVersionMeta>(docId, {
+            anchors: doc.toSnapshot(),
+          }),
+        );
+      });
     }
     return result;
   }
@@ -159,6 +170,25 @@ export class CanvasDocumentBuffer {
       );
     }
     return version;
+  }
+
+  #runDocumentOperation<T>(
+    docId: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    const previous = this.#documentOperations.get(docId) ?? Promise.resolve();
+    const result = previous.then(operation);
+    const tail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.#documentOperations.set(docId, tail);
+    void tail.then(() => {
+      if (this.#documentOperations.get(docId) === tail) {
+        this.#documentOperations.delete(docId);
+      }
+    });
+    return result;
   }
 
   async #load(docId: string): Promise<AnchoredDocument> {

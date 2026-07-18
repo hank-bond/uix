@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { AnchoredDocument } from "./anchors/document";
 
@@ -68,6 +68,31 @@ describe("CanvasDocumentBuffer", () => {
     const read = await buffer.read("main");
 
     expect(read).toEqual(written);
+  });
+
+  it("serializes concurrent first operations over one document", async () => {
+    const backing = memoryStore();
+    let releaseFirstRead: (() => void) | undefined;
+    let firstRead = true;
+    const getCurrent = vi.fn((docId: string) => {
+      if (!firstRead) return backing.getCurrent(docId);
+      firstRead = false;
+      return new Promise<string | null>((resolve) => {
+        releaseFirstRead = () => resolve(null);
+      });
+    });
+    const store: DocumentStore = { ...backing, getCurrent };
+    const buffer = new CanvasDocumentBuffer(store);
+
+    const first = buffer.write("main", "<body><p>first</p></body>");
+    await Promise.resolve();
+    const second = buffer.write("main", "<body><p>second</p></body>");
+    await Promise.resolve();
+
+    expect(getCurrent).toHaveBeenCalledOnce();
+    releaseFirstRead?.();
+    await Promise.all([first, second]);
+    expect(backing.dump("main")).toContain("<p>second</p>");
   });
 
   it("edits only the target range and preserves untouched anchors", async () => {
