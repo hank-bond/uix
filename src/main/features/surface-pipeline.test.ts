@@ -229,4 +229,21 @@ describe("SurfaceModulePipeline", () => {
     );
     expect(response?.status).toBe(404);
   });
+
+  it("does not let an older overlapping build replace a newer composition", async () => {
+    const reg = await writeFeature({
+      "surface.tsx": `export default { name: "s", render: () => null };`,
+    });
+    const pipeline = new SurfaceModulePipeline("local");
+
+    const olderBuild = pipeline.buildAll([reg]);
+    await pipeline.buildAll([]);
+    await olderBuild;
+
+    const [moduleRoute] = pipeline.resourceContributions();
+    const response = await moduleRoute?.handle(
+      request({ feature: "shiny", file: "0.js" }),
+    );
+    expect(response?.status).toBe(404);
+  });
 });
