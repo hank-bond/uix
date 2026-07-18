@@ -223,6 +223,33 @@ describe("loadFeatures", () => {
     expect(agentTools.registeredContributions).toHaveLength(0);
   });
 
+  it("scopes in-flight loads to their owned feature bags", async () => {
+    const firstManifest = await writeWorkspace({
+      "first.ts": toolFeature("first"),
+    });
+    const secondManifest = await writeWorkspace({
+      "second.ts": toolFeature("second"),
+    });
+    const first = makeSubstrate(firstManifest);
+    const second = makeSubstrate(secondManifest);
+
+    const [firstResult, secondResult] = await Promise.all([
+      loadFeatures(
+        { manifestPath: firstManifest },
+        new DisposableBag(),
+        first.substrate,
+      ),
+      loadFeatures(
+        { manifestPath: secondManifest },
+        new DisposableBag(),
+        second.substrate,
+      ),
+    ]);
+
+    expect(firstResult.loaded.map(({ id }) => id)).toEqual(["first"]);
+    expect(secondResult.loaded.map(({ id }) => id)).toEqual(["second"]);
+  });
+
   it("rejects a malformed manifest and leaves the current tree intact", async () => {
     const manifestPath = await writeWorkspace({
       "greeter.ts": toolFeature("greeter"),

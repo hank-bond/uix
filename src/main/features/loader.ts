@@ -347,19 +347,24 @@ export const activateFeatures = async (
  *
  * The manifest is read and validated before clearing, so a manifest
  * failure (unreadable, bad JSON, schema mismatch) rejects the pass and
- * leaves the current feature tree intact. Concurrent callers share the
- * same in-flight pass so clear/activate never overlaps itself.
+ * leaves the current feature tree intact. Concurrent callers for one owned
+ * feature bag share the same in-flight pass so its clear/activate never
+ * overlaps; independent workspace bags load independently.
  */
-let inFlightFeatureLoad: Promise<ActivationResult> | undefined;
+const inFlightFeatureLoadByBag = new WeakMap<
+  DisposableBag,
+  Promise<ActivationResult>
+>();
 
 export const loadFeatures = (
   sources: FeatureSources,
   featuresBag: DisposableBag,
   substrate: FeatureSubstrate,
 ): Promise<ActivationResult> => {
-  if (inFlightFeatureLoad) return inFlightFeatureLoad;
+  const existing = inFlightFeatureLoadByBag.get(featuresBag);
+  if (existing) return existing;
 
-  inFlightFeatureLoad = (async () => {
+  const load: Promise<ActivationResult> = (async () => {
     let entries: readonly ManifestFeatureRef[] = [];
     let workspaceName: string | undefined;
     if (sources.manifestPath) {
@@ -382,8 +387,11 @@ export const loadFeatures = (
       ...(workspaceName !== undefined && { workspaceName }),
     };
   })().finally(() => {
-    inFlightFeatureLoad = undefined;
+    if (inFlightFeatureLoadByBag.get(featuresBag) === load) {
+      inFlightFeatureLoadByBag.delete(featuresBag);
+    }
   });
 
-  return inFlightFeatureLoad;
+  inFlightFeatureLoadByBag.set(featuresBag, load);
+  return load;
 };
