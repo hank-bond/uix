@@ -1,5 +1,5 @@
 ---
-summary: "Keyed-on-persist observation and row identity have landed (D0–D1); remaining work persists low-frequency block state as session-scoped uix.* custom entries (D2) and projects transcript/block state plus latest named turn-state-cell values through one branch pass shared with history and switching (D3)."
+summary: "Keyed-on-persist observation and row identity have landed (D0–D1); remaining work persists low-frequency block state as session-scoped uix.* custom entries (D2) and derives a transcript/block-state/latest-turn-state-cell projection through one branch pass shared with history and switching (D3)."
 status: active
 ---
 
@@ -53,7 +53,7 @@ Block state lives in pi `CustomEntry` records — the hidden-state primitive: tr
 
 ## D3 — One branch projection and restore lifecycle
 
-Generalize history replay into one selected-branch projection: walk `getBranch()` once in root→leaf order, project persisted message entries into the transcript, join durable block state into those items, and retain the latest value for every currently registered named turn-state cell. `toTranscriptItems` is already the transcript portion hardcoded; block state joins items before they reach the renderer (live items get the same joined state via `transcript_replace` once keyed, no rekey required).
+Generalize history replay into one selected-branch projection: walk `getBranch()` once in root→leaf order, derive the transcript from persisted message entries, join durable block state into those items, and retain the latest value for every currently registered named turn-state cell. `toTranscriptItems` is already the transcript portion hardcoded; block state joins items before they reach the renderer (live items get the same joined state via `transcript_replace` once keyed, no rekey required).
 
 Internal folds for UIX-owned custom entries stay beside the binding that writes each `uix.*` key. Feature restoration does not receive raw messages or rerun live message taps: each active state cell receives only its latest complete value or `undefined` for defaults. The lifecycle runs on startup, reload, session switch, and future branch rewind; explicit `session_history` reads consume the transcript projection without activating/restoring that session. Named cell identity, change suppression, and save-then-restore ordering are specified in [session history and switching](./session-history-and-switching.md), while live-only message taps are tracked separately in the [plans backlog](./backlog.md).
 

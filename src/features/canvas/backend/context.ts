@@ -20,8 +20,6 @@ export type CanvasContext = FeatureContext & {
   store: DocumentStore;
   buffer: CanvasDocumentBuffer;
   events: CanvasEventPublisher;
-  openCanvasKeys: readonly string[];
-  agentChangedCanvasKeys: Set<string>;
 };
 
 export function createCanvasContext(ctx: FeatureContext): CanvasContext {
@@ -37,7 +35,5 @@ export function createCanvasContext(ctx: FeatureContext): CanvasContext {
     store,
     buffer: new CanvasDocumentBuffer(store),
     events: ctx.channels.createPublisher(canvasChannels),
-    openCanvasKeys: ["main"],
-    agentChangedCanvasKeys: new Set<string>(),
   };
 }

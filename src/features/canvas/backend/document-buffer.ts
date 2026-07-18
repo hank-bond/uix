@@ -1,14 +1,12 @@
 // canvas document buffer (session state).
 //
-// Holds one AnchoredDocument per canvas document id for the activated Canvas
-// feature generation. The anchor<->line map inside each document is regenerable from content and is
-// never persisted (so the filesystem stays non-load-bearing): a document is
-// (re)built by canonicalizing the store's current content the first time the
-// session touches it.
+// Holds one AnchoredDocument per canvas document id touched by the activated
+// Canvas feature generation. Mutable current content stays plain HTML; immutable
+// versions persist exact anchor state so turn-state restoration can recreate the
+// working projection without renumbering historical anchors.
 //
-// All three operations keep the canonical-form invariant by normalizing content
-// before it reaches the core, and persist *plain* (un-anchored) content back to
-// the store — anchors are an agent-facing wire detail, not stored state.
+// Operations keep the canonical-form invariant by normalizing content before it
+// reaches the core and persisting plain, un-anchored HTML as current content.
 
 import {
   type AnchoredChange,
@@ -66,12 +64,7 @@ export class CanvasDocumentBuffer {
   async writeback(docId: string, html: string): Promise<void> {
     await this.#enqueueDocumentOperation(docId, async () => {
       const canonical = canonicalizeHtml(html);
-      const doc = this.#docs.get(docId);
-      if (!doc) {
-        await this.#store.setCurrent(docId, canonical);
-        return;
-      }
-
+      const doc = await this.#load(docId);
       doc.reconcile(canonical);
       await this.#store.setCurrent(docId, plainText(doc.read()));
     });
@@ -108,10 +101,9 @@ export class CanvasDocumentBuffer {
     });
   }
 
-  // Persist current content plus the exact anchor state as immutable versions.
-  // Callers pass the document ids that are durable at this run boundary (open
-  // canvases today; dynamic pane ids once the pane host lands).
-  async snapshotCurrent(
+  // Persist current content plus exact anchor state for the working documents
+  // that should be durable at this run boundary.
+  async createSnapshots(
     docIds: Iterable<string>,
   ): Promise<ReadonlyMap<string, DocumentVersion<DocumentVersionMeta>>> {
     const result = new Map<string, DocumentVersion<DocumentVersionMeta>>();
@@ -121,17 +113,57 @@ export class CanvasDocumentBuffer {
         const doc = await this.#load(docId);
         // Make the mutable latest byte-match the anchor state we are about to
         // store. This canonicalizes cosmetic iframe/file rewrites at the
-        // durable boundary instead of snapshotting content/meta that disagree.
+        // durable boundary instead of creating a snapshot whose content and metadata disagree.
         await this.#store.setCurrent(docId, plainText(doc.read()));
         result.set(
           docId,
-          await this.#store.snapshotCurrent<DocumentVersionMeta>(docId, {
+          await this.#store.createSnapshot<DocumentVersionMeta>(docId, {
             anchors: doc.toSnapshot(),
           }),
         );
       });
     }
     return result;
+  }
+
+  listLoadedDocumentIds(): readonly string[] {
+    return [...this.#docs.keys()];
+  }
+
+  async restoreVersions(
+    versions: ReadonlyMap<string, string>,
+  ): Promise<readonly string[]> {
+    const targetIds = new Set(versions.keys());
+    const resetDocumentIds = [...this.#docs.keys()].filter(
+      (docId) => !targetIds.has(docId),
+    );
+    const affectedDocumentIds: string[] = [];
+
+    for (const [docId, versionId] of versions) {
+      await this.#enqueueDocumentOperation(docId, async () => {
+        const version = await this.#requireVersion(docId, versionId);
+        const restored = new AnchoredDocument(version.meta.anchors);
+        const restoredContent = plainText(restored.read());
+        if (restoredContent !== canonicalizeHtml(version.content)) {
+          throw new Error(
+            `Canvas document version content does not match its anchor state: ${docId}@${versionId}`,
+          );
+        }
+        await this.#store.setCurrent(docId, restoredContent);
+        this.#docs.set(docId, restored);
+        affectedDocumentIds.push(docId);
+      });
+    }
+
+    for (const docId of resetDocumentIds) {
+      await this.#enqueueDocumentOperation(docId, async () => {
+        await this.#store.setCurrent(docId, "");
+        this.#docs.delete(docId);
+        affectedDocumentIds.push(docId);
+      });
+    }
+
+    return affectedDocumentIds;
   }
 
   async diffVersions(

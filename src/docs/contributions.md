@@ -14,7 +14,7 @@ interface FeatureContributions {
   agentTools?: readonly AgentToolContribution[];
   agentSystemPrompt?: string;
   agentSkills?: readonly string[];
-  turnState?: readonly TurnStateContribution[];
+  turnState?: TurnStateContributions;
   agentContext?: readonly AgentContextContribution[];
   surfaces?: readonly string[];
 }
@@ -29,9 +29,28 @@ The substrate registers every facet under the owning feature id. That id prefixe
 - **Agent tools** — pi tool definitions installed into the owned agent session.
 - **Agent system prompt** — one stable Markdown section per feature, appended in manifest order when the Pi runtime starts or reloads.
 - **Agent skills** — Pi skill files or directories resolved relative to the feature entry file and supplied through Pi's `resources_discover` lifecycle.
-- **Turn state** — feature-owned preparation of branch-scoped private state refs.
+- **Turn state** — named, schema-bound cells of branch-scoped private state. Each cell creates and restores one complete JSON snapshot independently under a substrate-derived id such as `canvas.documents`; the coordinator commits only changed snapshots.
 - **Agent context** — model-visible hidden context sections materialized at agent-run prep.
 - **Surfaces** — frontend surface entry files, resolved relative to the feature entry's directory; each module default-exports a `defineSurface(...)` result.
+
+Turn-state cells use one TypeBox schema for both directions:
+
+```ts
+turnState: {
+  documents: defineTurnStateCell({
+    schema: DocumentStateSchema,
+    createSnapshot: () => currentDocumentState,
+    restore: (state) => replaceDocumentState(state),
+  }),
+  selection: defineTurnStateCell({
+    schema: SelectionStateSchema,
+    createSnapshot: () => currentSelectionState,
+    restore: (state) => replaceSelectionState(state),
+  }),
+}
+```
+
+`createSnapshot()` always returns that cell's complete current value. The substrate validates it as plain JSON and compares it with the nearest committed value, so changing `selection` does not re-persist `documents`. Nested fields within one cell remain atomic. TypeBox codecs are rejected because persisted and restored values use the same plain-JSON representation. `restore(undefined)` means that the selected branch has no value for the cell and the feature must replace prior working state with its defaults. The restore scheduler is not yet connected to session activation.
 
 The Agent system-prompt section is for short, always-relevant feature semantics and authoring contracts. It is static for one Pi runtime and should not carry per-turn state; use agent context for that. Larger task-specific workflows belong in a skill so Pi can advertise only its description and let the Agent load the full `SKILL.md` on demand. UIX does not parse skills: Pi owns discovery, validation, catalog formatting, and loading.
 

@@ -1,7 +1,7 @@
 import type { ActionCatalog } from "@uix/api/actions";
 import { describe, expect, it } from "vitest";
 
-import { toActionBindingProjection } from "./action-binding-projection";
+import { deriveActionBindingProjection } from "./action-binding-projection";
 
 const catalog: ActionCatalog = [
   {
@@ -33,9 +33,9 @@ const catalog: ActionCatalog = [
   },
 ];
 
-describe("toActionBindingProjection", () => {
+describe("deriveActionBindingProjection", () => {
   it("joins concrete, null, missing, and unresolved bindings", () => {
-    const projection = toActionBindingProjection(
+    const projection = deriveActionBindingProjection(
       catalog,
       {
         "chat.models": "mod+m",
@@ -56,7 +56,7 @@ describe("toActionBindingProjection", () => {
   });
 
   it("marks every active claimant after platform resolution", () => {
-    const projection = toActionBindingProjection(
+    const projection = deriveActionBindingProjection(
       catalog,
       {
         "chat.models": "mod+k",
@@ -76,7 +76,7 @@ describe("toActionBindingProjection", () => {
   });
 
   it("keeps mod and ctrl distinct on macOS", () => {
-    const projection = toActionBindingProjection(
+    const projection = deriveActionBindingProjection(
       catalog,
       {
         "chat.models": "mod+k",

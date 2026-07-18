@@ -53,7 +53,7 @@ export function registerAgentSkillContributions(
   );
 }
 
-/** Snapshot active paths once for this Pi extension runtime. */
+/** Capture one active-path snapshot for this Pi extension runtime. */
 export function createAgentSkillInstaller(
   registry: AgentSkillRegistry,
 ): AgentInstaller {

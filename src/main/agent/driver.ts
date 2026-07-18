@@ -50,13 +50,13 @@ import { createLogger } from "../log";
 const log = createLogger("agent");
 import {
   createTurnStateCoordinator,
-  submitTurnStatePrep,
+  commitTurnStateBeforeSubmit,
   TurnStateRegistry,
 } from "../turn-state/registry";
 
 import { createOAuthFlowCoordinator } from "./auth-flow";
 import {
-  createProviderAuthCatalog,
+  deriveProviderAuthCatalog,
   findOfferedCredentialMethod,
   resolveOAuthStartAction,
 } from "./auth-providers";
@@ -531,7 +531,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     },
 
     listAuthProviders: async () =>
-      createProviderAuthCatalog(await registry(), process.env),
+      deriveProviderAuthCatalog(await registry(), process.env),
 
     async saveProviderCredentials({ providerId, methodId, values }) {
       const modelRegistry = await registry();
@@ -664,7 +664,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         // session.prompt(text).
         if (opts.turnState) {
           log.trace("submitting_turn_state");
-          await submitTurnStatePrep(
+          await commitTurnStateBeforeSubmit(
             session.sessionManager,
             opts.workspace.agentCwd,
             opts.turnState,

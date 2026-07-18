@@ -20,7 +20,7 @@ function memoryStore(
       map.set(docId, content);
       return Promise.resolve();
     },
-    snapshotCurrent(docId, meta) {
+    createSnapshot(docId, meta) {
       const version: DocumentVersion<typeof meta> = {
         id: `v${versions.size + 1}`,
         documentId: docId,
@@ -236,12 +236,12 @@ describe("CanvasDocumentBuffer", () => {
     await expect(buffer.read("main")).resolves.toEqual(before);
   });
 
-  it("snapshots current content with restorable anchor state", async () => {
+  it("creates content snapshots with restorable anchor state", async () => {
     const store = memoryStore();
     const buffer = new CanvasDocumentBuffer(store);
     const lines = await buffer.write("main", "<body>\n<p>a</p>\n</body>");
 
-    const snapshots = await buffer.snapshotCurrent(["main"]);
+    const snapshots = await buffer.createSnapshots(["main"]);
     const version = snapshots.get("main")!;
 
     expect(version.content).toBe(store.dump("main"));
@@ -250,20 +250,20 @@ describe("CanvasDocumentBuffer", () => {
     expect(restored.read()).toEqual(lines);
   });
 
-  it("diffs two snapshotted versions using their persisted anchor state", async () => {
+  it("diffs two snapshot versions using their persisted anchor state", async () => {
     const store = memoryStore();
     const buffer = new CanvasDocumentBuffer(store);
     const initial = await buffer.write(
       "main",
       "<body>\n<p>a</p>\n<p>b</p>\n</body>",
     );
-    const before = (await buffer.snapshotCurrent(["main"])).get("main")!;
+    const before = (await buffer.createSnapshots(["main"])).get("main")!;
 
     await buffer.writeback(
       "main",
       store.dump("main")!.replace("<p>b</p>", "<p>B</p>"),
     );
-    const after = (await buffer.snapshotCurrent(["main"])).get("main")!;
+    const after = (await buffer.createSnapshots(["main"])).get("main")!;
 
     await expect(
       buffer.diffVersions("main", before.id, after.id),

@@ -22,7 +22,7 @@ import {
 } from "#backend/agent-tools/registry";
 import {
   createTurnStateCoordinator,
-  submitTurnStatePrep,
+  commitTurnStateBeforeSubmit,
   TurnStateRegistry,
   registerTurnStateContributions,
 } from "#backend/turn-state/registry";
@@ -48,7 +48,7 @@ function memoryStore(): DocumentStore {
       map.set(docId, content);
       return Promise.resolve();
     },
-    snapshotCurrent: (docId, meta) => {
+    createSnapshot: (docId, meta) => {
       const version: DocumentVersion<typeof meta> = {
         id: `v${versions.size + 1}`,
         documentId: docId,
@@ -97,8 +97,6 @@ function fakeCanvasContext(
     store,
     buffer: overrides.buffer ?? new CanvasDocumentBuffer(store),
     events: overrides.events ?? base.channels.createPublisher(canvasChannels),
-    openCanvasKeys: overrides.openCanvasKeys ?? ["main"],
-    agentChangedCanvasKeys: overrides.agentChangedCanvasKeys ?? new Set(),
   };
 }
 
@@ -198,7 +196,7 @@ function setup() {
         appendCustomEntry: recordEntry,
         getBranch: () => branch,
       } as SessionManager;
-      await submitTurnStatePrep(mgr, "/work", state);
+      await commitTurnStateBeforeSubmit(mgr, "/work", state);
     },
     agentEnd: async () => {
       await agentEndHandlers[0]({}, extCtx as unknown as ExtensionContext);
@@ -221,19 +219,11 @@ function setup() {
 }
 
 describe("canvas agent tool contributions", () => {
-  it("teaches both canvas tags in the system prompt vocabulary", async () => {
+  it("teaches the canvas diff tag in the system prompt vocabulary", async () => {
     const { vocabPrompt } = setup();
     const prompt = await vocabPrompt();
-    expect(prompt).toContain("- `<canvas.pane-visibility>`");
     expect(prompt).toContain("- `<canvas.canvas-diff>`");
-  });
-
-  it("reports open canvases as a sorted JSON body", async () => {
-    const { flushContext } = setup();
-    const content = (await flushContext())!.content;
-    expect(content).toContain(
-      ["<canvas.pane-visibility>", '{"canvases_open":["main"]}'].join("\n"),
-    );
+    expect(prompt).not.toContain("pane-visibility");
   });
 
   it("does not surface pane writebacks without turn-state snapshots", async () => {
@@ -253,7 +243,7 @@ describe("canvas agent tool contributions", () => {
     expect(content).not.toContain("<canvas.canvas-diff>");
   });
 
-  it("keeps pane writeback diff available after input snapshots turn state", async () => {
+  it("keeps pane writeback diff available after the input turn-state commit", async () => {
     const {
       tools,
       entries,
@@ -279,14 +269,14 @@ describe("canvas agent tool contributions", () => {
       {
         customType: "uix.turn-state",
         data: {
-          state: { canvas: { "doc://canvas/main": "v1" } },
+          state: { "canvas.documents": { "doc://canvas/main": "v1" } },
           cwd: "/work",
         },
       },
       {
         customType: "uix.turn-state",
         data: {
-          state: { canvas: { "doc://canvas/main": "v2" } },
+          state: { "canvas.documents": { "doc://canvas/main": "v2" } },
           cwd: "/work",
         },
       },
@@ -306,7 +296,7 @@ describe("canvas agent tool contributions", () => {
       {
         customType: "uix.turn-state",
         data: {
-          state: { canvas: { "doc://canvas/main": "v1" } },
+          state: { "canvas.documents": {} },
           cwd: "/work",
         },
       },
@@ -325,7 +315,7 @@ describe("canvas agent tool contributions", () => {
     expect(entries[1]).toEqual({
       customType: "uix.turn-state",
       data: {
-        state: { canvas: { "doc://canvas/main": "v2" } },
+        state: { "canvas.documents": { "doc://canvas/main": "v1" } },
         cwd: "/work",
       },
     });

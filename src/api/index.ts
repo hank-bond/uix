@@ -5,13 +5,13 @@ export type {
   FeaturePreflightContributions,
 } from "./feature";
 export type { AgentToolContribution, AgentToolDefinition } from "./agent-tools";
-export type {
-  TurnStateContribution,
-  TurnStateHistoryReader,
-  TurnStateHistoryEntry,
-  TurnStateHistoryOptions,
-  TurnStatePreparationContext,
-  PreparedTurnState,
+export {
+  defineTurnStateCell,
+  type TurnStateCellDefinition,
+  type TurnStateContributions,
+  type TurnStateHistoryReader,
+  type TurnStateHistoryEntry,
+  type TurnStateHistoryOptions,
 } from "./turn-state";
 export type {
   AgentContextContribution,

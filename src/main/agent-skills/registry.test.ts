@@ -37,7 +37,7 @@ describe("AgentSkillRegistry", () => {
     ]);
   });
 
-  it("snapshots paths once per Pi runtime installation", () => {
+  it("captures one path snapshot per Pi runtime installation", () => {
     const registry = new AgentSkillRegistry();
     registerAgentSkillContributions(
       registry,

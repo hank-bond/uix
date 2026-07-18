@@ -35,7 +35,7 @@ The workspace file is living workspace state and may persist the currently selec
 
 Recent-session discovery stays off the initial-render path. After the initial surface state renders, Chat can request the active transcript and the recent ten sessions independently; whichever response arrives first updates its own state. Search, additional pages, and non-active transcript reads remain on demand.
 
-For the local recent-summary implementation, order files newest-first by filesystem modification time, select the requested limit, then process those files sequentially. Rename and standalone transition checkpoints count as activity and may move a session upward. At the expected 5–10 MB large-session size, load one whole file as a `Buffer`, byte-search for candidate `session_info` records, and parse only matching records plus the small amount of header/first-message data needed for the label. Avoid Pi's current list path that parses every JSONL entry. Reverse paging, a persistent index, and streamed batches wait for profiling evidence.
+For the local recent-summary implementation, order files newest-first by filesystem modification time, select the requested limit, then process those files sequentially. Rename and standalone turn-state commits count as activity and may move a session upward. At the expected 5–10 MB large-session size, load one whole file as a `Buffer`, byte-search for candidate `session_info` records, and parse only matching records plus the small amount of header/first-message data needed for the label. Avoid Pi's current list path that parses every JSONL entry. Reverse paging, a persistent index, and streamed batches wait for profiling evidence.
 
 The initial session-summary shape is deliberately small:
 
@@ -53,7 +53,7 @@ interface SessionSummary {
 
 `list_session_summaries({ limit })` returns recent summaries newest-first and serves the dropdown/sidebar projection; `limit: 1` is the lightweight newest-session query. There is no singular `session_summary` or ambient `current_session` request. `session_history({ sessionId? })` is the transcript read: omitted id reads the selected session, while an explicit id reads another session without activating it. Its response carries the resolved `SessionSummary` so stale results can be rejected. `new_session(void)` always creates an unnamed fresh graph; naming is separate. `switch_session({ sessionId })` activates the selected graph and returns its `SessionSummary`. `set_session_name({ sessionId, displayName })` targets any session, uses `string` for an explicit name and `null` to clear it, and returns the updated `SessionSummary`. Explicit names trim surrounding whitespace, reject a blank string (`null` clears), preserve internal spaces, and have a 100-character maximum. New/switch/name/history responses provide a directly involved session's summary without another request.
 
-V1 does not broadcast a separate session-change event. New, switch, and selector entry points all go through one workspace session controller. A successful backend request returns only after checkpoint/switch/restore completes; the controller then replaces shared renderer active-session state from that response. Chat observes the active session id, clears stale presentation, and loads that session's history. Feature bags stay mounted during a session switch; backend state cells have already been restored before the response. A broadcast becomes necessary only if session changes later gain an independent source or multiple renderer clients.
+V1 does not broadcast a separate session-change event. New, switch, and selector entry points all go through one workspace session controller. A successful backend request returns only after commit/switch/restore completes; the controller then replaces shared renderer active-session state from that response. Chat observes the active session id, clears stale presentation, and loads that session's history. Feature bags stay mounted during a session switch; backend state cells have already been restored before the response. A broadcast becomes necessary only if session changes later gain an independent source or multiple renderer clients.
 
 Async renderer projections use state-owner-local latest-request guards rather than backend request ids. A React effect uses its cleanup flag; loads triggered outside an effect use a monotonic load version. Starting a history load captures that guard and its target session id; the response applies only if its request is still latest and that session is still active. This also rejects an old A response after an A → B → A sequence. The recent-summary projection has an independent guard, invalidated by a newer list load or a completed session mutation. These guards are in-memory renderer coordination only; they are not transmitted or persisted.
 
@@ -65,42 +65,42 @@ A feature may contribute multiple named turn-state cells as a keyed object. Each
 turnState: {
   documents: {
     schema: DocumentStateSchema,
-    checkpoint: () => completeDocumentState,
+    createSnapshot: () => completeDocumentState,
     restore: (state) => { /* replace live document state */ },
   },
   selection: {
     schema: SelectionStateSchema,
-    checkpoint: () => completeSelectionState,
+    createSnapshot: () => completeSelectionState,
     restore: (state) => { /* replace live selection state */ },
   },
 }
 ```
 
-The substrate derives each persisted identity from the owning feature plus keyed path, such as `canvas.documents` and `canvas.selection`; authors never supply canonical ids. `checkpoint()` is reason-free: the coordinator decides when a durable boundary occurs, while the cell always answers with its complete current value. `restore(latest | undefined)` receives only the latest reconstructed value for that cell; `undefined` means initialize/reset defaults. Event histories belong in event entries, not turn state.
+The substrate derives each persisted identity from the owning feature plus keyed path, such as `canvas.documents` and `canvas.selection`; authors never supply canonical ids. `createSnapshot()` is reason-free: the coordinator decides when a durable commit occurs, while the cell always answers with its complete current value. `restore(latest | undefined)` receives only the latest reconstructed value for that cell; `undefined` means initialize/reset defaults. Event histories belong in event entries, not turn state.
 
-Each cell's required TypeBox schema is the single data contract for both directions. A definition helper carries `Static<typeof schema>` into `checkpoint()`'s return type and `restore()`'s parameter at compile time. At runtime, the substrate validates checkpoint output before JSON persistence; branch projection retains latest cell values as `unknown`, validates each active cell's value once after reaching the leaf, and only then calls its typed restore adapter. State is plain JSON: no custom serializers, classes, or TypeBox transform codecs in this contract.
+Each cell's required TypeBox schema is the single data contract for both directions. A definition helper carries `Static<typeof schema>` into `createSnapshot()`'s return type and `restore()`'s parameter at compile time. At runtime, the substrate validates each snapshot before committing it as JSON; branch projection retains latest cell values as `unknown`, validates each active cell's value once after reaching the leaf, and only then calls its typed restore adapter. State is plain JSON: no custom serializers, classes, or TypeBox transform codecs in this contract.
 
-At every checkpoint boundary the coordinator calls each active cell, validates its complete value, structurally compares that whole cell value with its nearest persisted value, and appends only changed cells to the combined `uix.turn-state` node. Nested values are atomic—there is no recursive diff. A removed/unregistered cell is ignored during restoration, so no deletion tombstone is needed; resetting an active cell uses an explicit default/empty value. Reusing the same cell identity later reconnects to its prior history.
+At every commit boundary the coordinator asks each active cell for a snapshot, validates its complete value, structurally compares that whole cell value with its nearest committed value, and appends only changed cells to the combined `uix.turn-state` node. Nested values are atomic—there is no recursive diff. A removed/unregistered cell is ignored during restoration, so no deletion tombstone is needed; resetting an active cell uses an explicit default/empty value. Reusing the same cell identity later reconnects to its prior history.
 
-This replaces the current singleton-per-feature turn-state shape. Independently changing components/subdomains use separate top-level cells so substrate equality and persistence stay flat; feature authors never implement patches, history folds, equality suppression, or serde.
+This replaces the prior singleton-per-feature turn-state shape. Independently changing components/subdomains use separate top-level cells so substrate equality and persistence stay flat; feature authors never implement patches, history folds, equality suppression, or serde.
 
 A stable cell id is also a persisted schema commitment across the conversation tree. The current schema must accept historical values reachable under that id. When a nested field is no longer produced in the same conversation, keeping that field optional lets both historical values containing it and new values omitting it validate. Removing the entire named cell makes its old entries dormant and ignored; contributing the same identity again reconnects to them. Type-changing schema evolution beyond those settled cases remains open.
 
 ## Settled transition semantics: save source, then replay target
 
-Session switching, reload, and future branch rewind share one state transition lifecycle. If a new/switch/reload request reaches the substrate during an active agent run, the substrate aborts that run and waits for it to settle before checkpointing and continuing the transition. New Session and Reload are substrate-provided workspace actions, so their invokable action guards can read the workspace's current agent state regardless of whether Chat is installed. A busy guard skips the backend request and produces a transient notice. Abort-and-reload is the explicit simple v1 policy for direct backend callers; keep it visible as a policy that may change when a concrete queued or graceful reload workflow is designed.
+Session switching, reload, and future branch rewind share one state transition lifecycle. If a new/switch/reload request reaches the substrate during an active agent run, the substrate aborts that run and waits for it to settle before committing current turn state and continuing the transition. New Session and Reload are substrate-provided workspace actions, so their invokable action guards can read the workspace's current agent state regardless of whether Chat is installed. A busy guard skips the backend request and produces a transient notice. Abort-and-reload is the explicit simple v1 policy for direct backend callers; keep it visible as a policy that may change when a concrete queued or graceful reload workflow is designed.
 
 ### 1. Commit the source state
 
-Before leaving the current branch—or before disposing its feature/Pi bags during reload—run turn-state preparation and append an ordinary `uix.turn-state` node to the current leaf. This is the same durable state representation normally written beside a user/agent boundary, but here it is committed without an adjacent user message.
+Before leaving the current branch—or before disposing its feature/Pi bags during reload—create current cell snapshots and commit an ordinary `uix.turn-state` node to the current leaf. This is the same durable state representation normally written beside a user/agent boundary, but here it is committed without an adjacent user message.
 
-The checkpoint belongs to the source branch. It is never held across the transition, copied into the target branch, or committed after moving the leaf. If saving fails, the transition does not proceed.
+The commit belongs to the source branch. Its snapshots are never held across the transition, copied into the target branch, or committed after moving the leaf. If committing fails, the transition does not proceed.
 
 ### 2. Change the selected graph or leaf
 
 Open another session, reload the current session's runtime/contributions, or—later—move the current session leaf to an earlier/alternate node.
 
-### 3. Project the selected branch
+### 3. Derive the selected-branch projection
 
 Pi's `getBranch()` follows parent links from the selected leaf to the root and returns the resulting linear branch in root-to-leaf order. Walk that branch forward once to produce two distinct projections: persisted message entries for the substrate-owned transcript, and the latest value for every currently registered turn-state cell. Feature restoration does not replay user/assistant/tool messages or rerun live message handlers.
 
@@ -112,27 +112,27 @@ A schema or restore failure fails that owning feature, not the session transitio
 
 A diagnostic exposes a stable searchable error `code`, unique per-occurrence `diagnosticId`, and human-safe summary, not a raw stack. The id is minted at the first capture boundary and preserved through propagation; layers may append bounded, timestamped context frames without replacing the original cause or dumping arbitrary state. The substrate retains the sanitized technical diagnostic—owning feature and phase, cause chain, stack, relevant safe state refs, and runtime/log context—under that id so the future [agent-assisted runtime recovery](./backlog.md) surface can offer **Ask agent to fix** without requiring DevTools or losing the evidence. Workspace failure presentation is driven from that diagnostic rather than a duplicate feature-status registry. The host replaces/overlays the failed feature's owned surface area with a minimal failure presentation containing the safe summary, diagnostic id, and fix-source/reload guidance; a whole-feature failure covers all of that feature's known surfaces. This error presentation counts as settled under the existing first-render gate. Transient notifications may announce a failure later but are not the source of truth.
 
-One restore scheduler applies on initial startup, reload, new/switch, and future rewind. All projected values are validated before restore callbacks begin. Features have no cross-feature initialization dependency, so different features restore concurrently and settle independently. Within one feature, its named cells restore sequentially in contribution declaration order so feature-local state such as documents then selection can establish its own dependencies. A transition becomes observable as complete after every feature restore has either succeeded or failed; its result still identifies the active target so renderer state cannot remain pointed at the source. Startup has the same feature-isolated failure behavior but no source checkpoint or transition response. This work builds the minimal substrate diagnostic registry needed to retain/query `code`, `diagnosticId`, safe summary, and sanitized technical details. The minimal host-owned surface-area failure presentation lands here; expandable diagnostic rendering and the full **Ask agent to fix** recovery interaction remain later work. The exact main-to-renderer diagnostic transport remains unsettled.
+One restore scheduler applies on initial startup, reload, new/switch, and future rewind. All values in the selected-branch projection are validated before restore callbacks begin. Features have no cross-feature initialization dependency, so different features restore concurrently and settle independently. Within one feature, its named cells restore sequentially in contribution declaration order so feature-local state such as documents then selection can establish its own dependencies. A transition becomes observable as complete after every feature restore has either succeeded or failed; its result still identifies the active target so renderer state cannot remain pointed at the source. Startup has the same feature-isolated failure behavior but no source commit or transition response. This work builds the minimal substrate diagnostic registry needed to retain/query `code`, `diagnosticId`, safe summary, and sanitized technical details. The minimal host-owned surface-area failure presentation lands here; expandable diagnostic rendering and the full **Ask agent to fix** recovery interaction remain later work. The exact main-to-renderer diagnostic transport remains unsettled.
 
 ### Future branch behavior
 
 No branch-switch UI or rewind implementation belongs in this workstream. The required future behavior is nevertheless fixed:
 
 ```text
-checkpoint source leaf
+commit source leaf
 → move leaf to target node
 → replay target root→leaf
 → restore target feature state
 → next turn appends from target and naturally creates the branch
 ```
 
-Replay never appends state to the target merely by viewing/restoring it. The next real append creates the branch through Pi's existing parent-link mechanics. Switching back to the source later replays its standalone transition checkpoint for free because that node is already on the source branch.
+Replay never appends state to the target merely by viewing/restoring it. The next real append creates the branch through Pi's existing parent-link mechanics. Switching back to the source later replays its standalone turn-state commit for free because that node is already on the source branch.
 
-Initial application load has no source checkpoint; it opens and projects the selected session, then uses the same concurrent-across-features/sequential-within-feature restore scheduler. Reload does have a source checkpoint: old contributions save first, bags/runtime reload, then new contributions replay the same branch including that checkpoint.
+Initial application load has no source commit; it opens the selected session and derives its projection, then uses the same concurrent-across-features/sequential-within-feature restore scheduler. Reload does have a source commit: old contributions create snapshots first, bags/runtime reload, then new contributions replay the same branch including that commit.
 
 ## Settled empty-history behavior
 
-A newly created session starts every stateful feature from its fresh/default state. UIX checkpoints the source session before leaving but never copies that checkpoint or its snapshot refs into the new graph. The target's missing cell values are meaningful input: each active cell receives `restore(undefined)` and must reset/initialize its value rather than leaving previous working state mounted.
+A newly created session starts every stateful feature from its fresh/default state. UIX commits the source session's current turn state before leaving but never copies that commit or its snapshot refs into the new graph. The target's missing cell values are meaningful input: each active cell receives `restore(undefined)` and must reset/initialize its value rather than leaving previous working state mounted.
 
 The same rule applies when opening an older session with no state for a feature, or when a feature is added to a session that predates its turn-state contribution. A new conversation over cloned state is a **fork**, not `new_session` or `Mod+N`: the forked graph carries the selected source path, including its turn-state nodes, and restores from that copied history without inventing a synthetic initial state.
 
@@ -142,13 +142,13 @@ The same rule applies when opening an older session with no state for a feature,
 
 D3 is the shared branch-projection work. Transcript items and latest values for currently registered turn-state cells come from one selected branch rather than unrelated startup, reload, session-switch, and branch-switch walkers. Transcript consumes persisted messages for display; feature restoration consumes only its named state-cell values.
 
-Live message taps are a separate, unbuilt contribution path. They react only while messages/turns occur and may update feature working state. Anything from a tap that must survive reload, switch, restart, or rewind must reach durable turn state—inline or through stable referenced ids—by an appropriate lifecycle boundary. Uncheckpointed buffer state is intentionally ephemeral. Session restoration never reruns taps or regexes historical messages, avoiding duplicate side effects and remaining valid after compaction. The aligned future tap is tracked in [the plans backlog](./backlog.md) and the [UIX-core composition design](../design/uix-core-composition.md).
+Live message taps are a separate, unbuilt contribution path. They react only while messages/turns occur and may update feature working state. Anything from a tap that must survive reload, switch, restart, or rewind must reach durable turn state—inline or through stable referenced ids—by an appropriate lifecycle boundary. Uncommitted buffer state is intentionally ephemeral. Session restoration never reruns taps or regexes historical messages, avoiding duplicate side effects and remaining valid after compaction. The aligned future tap is tracked in [the plans backlog](./backlog.md) and the [UIX-core composition design](../design/uix-core-composition.md).
 
-The restore half intersects [persistence and session foundation](./persistence-and-session-foundation.md): each named state cell contributes schema, checkpoint, and restore together under one lifetime and identity. This plan fixes projection/restoration, complete-value/schema semantics, and feature-isolated no-rollback failure behavior; diagnostic transport and recovery presentation are later hardening.
+The restore half intersects [persistence and session foundation](./persistence-and-session-foundation.md): each named state cell contributes schema, snapshot creation, and restore together under one lifetime and identity. This plan fixes projection/restoration, complete-value/schema semantics, and feature-isolated no-rollback failure behavior; diagnostic transport and recovery presentation are later hardening.
 
 ## Relationship to TypeScript feature admission
 
-The schema-bound contribution shape gives ordinary TypeScript compile-time agreement between `checkpoint()` and `restore()`, and runtime contribution validation requires a TypeBox schema plus both functions. The running app does **not** yet execute the planned TS7 source-admission check before loading arbitrary workspace features. Until [feature source admission](../design/feature-source-admission.md) lands, repository typecheck protects in-tree features and runtime validation protects actual checkpoint/persisted values, but the loader cannot promise that every arbitrary feature candidate passed the compiler before execution.
+The schema-bound contribution shape gives ordinary TypeScript compile-time agreement between `createSnapshot()` and `restore()`, and runtime contribution validation requires a TypeBox schema plus both functions. The running app does **not** yet execute the planned TS7 source-admission check before loading arbitrary workspace features. Until [feature source admission](../design/feature-source-admission.md) lands, repository typecheck protects in-tree features and runtime validation protects actual snapshot/persisted values, but the loader cannot promise that every arbitrary feature candidate passed the compiler before execution.
 
 The future TS7 admission gate should reject a candidate whose state-cell callbacks do not typecheck against their shared schema before replacing the live feature generation. It complements rather than replaces TypeBox: source typing proves the declared callback contract, while runtime checks prove the actual produced and persisted values. A restore-time schema failure makes that feature unavailable while siblings and the selected session remain active; richer diagnostics land in the later robustness unit.
 
@@ -168,21 +168,23 @@ S0–S3 are the shortest correct route to New Session and then visible session s
 
 Migrate the driver to Pi's supported `AgentSessionRuntime` while preserving the cheap eager history-manager tier, lazy live agent creation, current prompt/event behavior, and first-render independence. Bind transcript observation and Pi-owned resources to the active runtime generation. This unit changes no visible session behavior; it removes custom replacement mechanics before New Session relies on them.
 
-### S1 — Named state cells and transition restoration
+### S1 — Named state cells and transition restoration · **in progress**
 
-Migrate turn state from one singleton per feature to keyed schema/checkpoint/restore cells with substrate-derived identities, TypeBox compile-time/runtime agreement, complete-value change suppression, and plain-JSON persistence. Project one selected branch into transcript items plus the latest raw value per active cell, validate once at the leaf, and use the shared restore scheduler on startup/reload. Checkpoint source state before reload/transition. Restore features concurrently and each feature's cells sequentially. Prove Canvas recreates its working documents from `documents` and resets every active cell on `undefined`.
+**Progress.** The keyed schema/snapshot/restore contract, substrate-derived identities, plain-JSON validation, per-cell complete-value change suppression, cell-scoped history reads, and Canvas `documents` snapshot/restore implementation have landed. Shared selected-branch projection plus startup/reload restoration and source commits remain.
+
+Migrate turn state from one singleton per feature to keyed schema/snapshot/restore cells with substrate-derived identities, TypeBox compile-time/runtime agreement, complete-value change suppression, and plain-JSON persistence. Derive one selected-branch projection containing transcript items plus the latest raw value per active cell, validate once at the leaf, and use the shared restore scheduler on startup/reload. Commit source state before reload/transition. Restore features concurrently and each feature's cells sequentially. Prove Canvas recreates its working documents from `documents` and resets every active cell on `undefined`.
 
 This is the minimum correctness foundation for New Session. Use existing structured failure logging while building this happy path; the diagnostic registry and host failure overlays intentionally wait for S5. This unit fulfills the D3 overlap and does not build TS7 admission or live message taps.
 
 ### S2 — New Session vertical slice
 
-Add payload-free `new_session`, persisted selected-session identity/cache, and the workspace session controller. A backend request aborts and settles an active run, checkpoints the source, asks `AgentSessionRuntime` for a fresh graph, restores every active cell from `undefined`, and returns the new `SessionSummary` only after restoration settles. The controller updates shared active-session state from that response; Chat clears/loads against the new id.
+Add payload-free `new_session`, persisted selected-session identity/cache, and the workspace session controller. A backend request aborts and settles an active run, commits the source state, asks `AgentSessionRuntime` for a fresh graph, restores every active cell from `undefined`, and returns the new `SessionSummary` only after restoration settles. The controller updates shared active-session state from that response; Chat clears/loads against the new id.
 
 Register substrate-owned New Session with `mod+n` beside Reload so it exists without Chat. Keep the action invokable but guard on current workspace agent state; if busy it does not call the backend. Rich transient-notice presentation follows later rather than blocking this slice. Verify a new session never clones source turn-state refs.
 
 ### S3 — Session Switching vertical slice
 
-Add `session_history`, the mtime-ordered `list_session_summaries`, and `switch_session({ sessionId })`. Implement the lightweight recent-file reader and its explicit-name → first-user-message → `New conversation` label projection, independent active-history/recent-list hydration, renderer-local latest-request guards, and a minimal recent-session selector. Every selector entry uses the same workspace session controller: abort/settle if a direct request reached main, checkpoint source, switch through `AgentSessionRuntime`, project/restore target, then update shared renderer state from the response. No session-change broadcast is added.
+Add `session_history`, the mtime-ordered `list_session_summaries`, and `switch_session({ sessionId })`. Implement the lightweight recent-file reader and its explicit-name → first-user-message → `New conversation` label projection, independent active-history/recent-list hydration, renderer-local latest-request guards, and a minimal recent-session selector. Every selector entry uses the same workspace session controller: abort/settle if a direct request reached main, commit source state, switch through `AgentSessionRuntime`, derive the target projection, restore it, then update shared renderer state from the response. No session-change broadcast is added.
 
 This unit delivers visible switching before rename polish, diagnostic UI, search, pagination, or indexing.
 

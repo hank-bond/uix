@@ -13,7 +13,7 @@ interface ActionBindingProjection {
   readonly unresolvedBindings: Readonly<KeybindingMap>;
 }
 
-export function toActionBindingProjection(
+export function deriveActionBindingProjection(
   catalog: ActionCatalog,
   bindings: Readonly<KeybindingMap>,
   platform: ShortcutPlatform,

@@ -27,16 +27,16 @@ UIX uses two id grammars for different things.
 
 **Contribution ids** are derived by the facets, never hand-authored. A feature author gives a local `name`; the facet derives two ids:
 
-- **`ContributionId`** — the registry dedup key. One uniform brand across all facets, constructed by `toContributionId(featureId, facet, name)` → `${featureId}.<facet>.<name>`. Examples: `canvas.channel.writeback`, `canvas.agent.anchor_read`, `canvas.agent-context.pane-visibility`.
+- **`ContributionId`** — the registry dedup key. One uniform brand across all facets, constructed by `toContributionId(featureId, facet, name)` → `${featureId}.<facet>.<name>`. Examples: `canvas.channel.writeback`, `canvas.agent.anchor_read`, `canvas.agent-context.canvas-diff`, `canvas.turn-state.documents`.
 - **`…CanonicalId`** — the downstream-system address (transport channel, pi tool name, resource type key, persisted-section key, storage blob key). One brand per facet, because each downstream system has its own naming convention. The facet segment is **dropped** from the canonical id, because within the downstream system the channel/tool/resource kind is implicit. Examples: `ChannelCanonicalId` `canvas.writeback`, `AgentToolCanonicalId` `canvas__anchor_read` (pi's double-underscore), `ResourceCanonicalId` `canvas-doc` (resource type; resource URL scheme is substrate-owned).
 
 Both are nominal brands constructed only by their validated helper; internal code (registry Sets, resolved `…Registration` shapes) carries the brand, and genuine external string boundaries (Electron IPC channel, pi `tool.name`, URL/path strings) cast inline (`id as string`, the `CanvasKey` precedent). The public `@uix/api` modules expose author shapes only — `…Contribution` types with a `name` field, no id fields, no brands. The cross-facet `ContributionId` grammar lives in `#shared` (`src/shared/contribution-id.ts`); per-facet canonical-id helpers and resolved `…Registration` shapes live with their consumer — in `#shared` for facets with a renderer consumer (channels in `src/shared/channel-normalization.ts`, resources in `src/shared/resource-canonical-id.ts`), in `src/main/` for main-only facets (agent tools, agent context, turn state).
 
-Envelope and customType ids stay substrate-owned and are not feature-scoped: `uix.state` (the display-hidden agent-context envelope), `uix.turn-state` (the persisted turn-state entry). Only the inner contribution tags go feature-scoped (e.g. `<canvas.pane-visibility>` inside `<uix-state>`).
+Envelope and customType ids stay substrate-owned and are not feature-scoped: `uix.state` (the display-hidden agent-context envelope), `uix.turn-state` (the persisted turn-state entry). Inner contributions use feature-scoped canonical ids: `<canvas.canvas-diff>` inside `<uix-state>`, or `canvas.documents` as a named cell inside a `uix.turn-state` entry.
 
 Event payload shapes are defined by the emitting substrate facet. If a pane-originated write causes a document event, `sourceId: "canvas.pane.writeback"` is provenance, but the payload is still the document facet's `DocumentWriteEvent` shape. A contribution in one facet may call another facet; `eventType`/channel tells you what happened, and `sourceId` tells you which contribution caused it.
 
-**Resource ids** name addressable things. URI schemes identify substrate resource managers: `doc://canvas/main` is a document-engine resource in the canvas namespace; `workspace://src/main.ts` is a workspace file interpreted relative to the turn's recorded cwd. Feature/facet organization does not appear inside resource paths — the same resource may be read by a pane, edited by an agent tool, snapshotted by state, and restored by the coordinator.
+**Resource ids** name addressable things. URI schemes identify substrate resource managers: `doc://canvas/main` is a document-engine resource in the canvas namespace; `workspace://src/main.ts` is a workspace file interpreted relative to the turn's recorded cwd. Feature/facet organization does not appear inside resource paths — the same resource may be read by a pane, edited by an agent tool, captured in a state snapshot, and restored by the coordinator.
 
 Use `uix.*` only for substrate-owned dotted ids (envelopes/customTypes). Bundled default features are still features, so their contribution ids use feature namespaces such as `canvas.*` and `chat.*`.
 
@@ -115,9 +115,17 @@ A registry is not a `DisposableBag`. The registry owns the live contribution ind
 
 A **catalog** is a consumer-facing, read-only discovery boundary that composes currently offered capabilities from multiple owners or authoritative sources. Catalog entries have stable identities, are serializable, contain no executable references, and may include derived presentation or eligibility state. Operations by catalog-entry id resolve against current live authority; the catalog itself owns neither the capabilities nor their durable state.
 
-A catalog is not a synonym for any array, registry snapshot, or collection of entities. It is intentional cross-owner composition for discovery and selection. The action catalog, for example, projects successfully registered actions into `ActionCatalogEntry` values for palettes and menus while callbacks remain private in `ActionRegistry`; registration updates and disposal change membership, and invocation still resolves the selected id through the registry.
+A catalog is not a synonym for any array, registry snapshot, or collection of entities. It is intentional cross-owner composition for discovery and selection. The action catalog, for example, derives an `ActionCatalogEntry` projection from successfully registered actions for palettes and menus while callbacks remain private in `ActionRegistry`; registration updates and disposal change membership, and invocation still resolves the selected id through the registry.
 
 The model catalog composes currently available models across Pi providers and decorates its entries with workspace-local favorite state; selection resolves a provider-qualified entry against Pi's live model registry. The provider-auth catalog composes model providers, OAuth providers, connection state, and UIX setup recipes; credential operations accept only methods offered by its current entries. A future settings catalog may likewise compose editable setting entries without exposing owner-scoped settings handles.
+
+## Snapshot
+
+A **snapshot** is an immutable point-in-time value or independently identified artifact. It captures one authority's state without assigning that value a position in a broader history. Snapshots may be transient, store-owned and durable, or current read models published to consumers; the owning domain determines retention. Examples include a `DocumentVersion`, `AnchoredDocumentSnapshot`, `TranscriptSnapshot`, and an action registry's current catalog snapshot.
+
+## Projection
+
+A **projection** is a purpose-specific, read-only, lower-information view derived from authoritative state. It may filter, join, fold, classify, or add derived fields, but it remains rebuildable and is not a write surface back to the authority. A projection may be cached or physically persisted with cache semantics. Examples include the visible transcript derived from session entries, the latest named turn-state-cell values derived from a selected branch, and action catalog entries derived from private registrations plus confirmed bindings.
 
 ## Store
 
@@ -200,14 +208,14 @@ Installers register hooks. Hooks run later when the lifecycle event occurs.
 
 A **coordinator** is substrate-owned glue that runs a lifecycle across many registered contributions and performs the side effects for that lifecycle.
 
-The current example is the turn state coordinator:
+The current example is the turn-state coordinator:
 
-- installs Pi `input` and `agent_end` hooks;
-- asks live state contributions to prepare private turn state;
-- persists contribution-keyed opaque state;
-- appends one `uix.turn-state` session entry when there is state to persist.
+- asks live named state cells for complete snapshots before user submit and at `agent_end`;
+- validates each plain-JSON snapshot against its TypeBox schema;
+- compares each cell independently with the selected branch;
+- commits changed snapshots in one `uix.turn-state` session entry.
 
-A coordinator owns timing and cross-contribution mechanics. The contributing feature owns the data it prepares.
+A coordinator owns timing and cross-contribution mechanics. The contributing feature owns each cell's snapshot creation and restore behavior.
 
 ## Assembler
 

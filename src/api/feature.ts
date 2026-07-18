@@ -16,7 +16,7 @@ import type {
 import type { AgentToolContribution } from "./agent-tools";
 import type { AgentSystemPromptContribution } from "./agent-system-prompt";
 import type { AgentSkillContribution } from "./agent-skills";
-import type { TurnStateContribution } from "./turn-state";
+import type { TurnStateContributions } from "./turn-state";
 import type { AgentContextContribution } from "./agent-context";
 import type { ResourceContribution } from "./resources";
 import type { DocumentStoreFactory } from "./documents";
@@ -27,7 +27,10 @@ export type { ChannelContribution } from "./channels";
 export type { AgentToolContribution } from "./agent-tools";
 export type { AgentSystemPromptContribution } from "./agent-system-prompt";
 export type { AgentSkillContribution } from "./agent-skills";
-export type { TurnStateContribution } from "./turn-state";
+export type {
+  TurnStateCellDefinition,
+  TurnStateContributions,
+} from "./turn-state";
 export type { AgentContextContribution } from "./agent-context";
 export type { ResourceContribution } from "./resources";
 export type { DocumentStoreFactory } from "./documents";
@@ -52,7 +55,7 @@ export interface FeatureContributions {
   agentSystemPrompt?: AgentSystemPromptContribution;
   /** Pi skill files/directories, resolved relative to the feature entry file. */
   agentSkills?: readonly AgentSkillContribution[];
-  turnState?: readonly TurnStateContribution[];
+  turnState?: TurnStateContributions;
   agentContext?: readonly AgentContextContribution[];
   /**
    * Frontend surface entry files, resolved against the feature entry's

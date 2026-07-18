@@ -83,12 +83,12 @@ interface ProviderRegistry {
 }
 
 /**
- * Build one renderer-facing provider-auth catalog from Pi's model and OAuth provider
+ * Derive one renderer-facing provider-auth catalog from Pi's model and OAuth provider
  * registries. Model providers receive the generic API-key form unless a
  * setup recipe replaces it; OAuth-only extension providers remain discoverable
  * without inventing a model entry.
  */
-export function createProviderAuthCatalog(
+export function deriveProviderAuthCatalog(
   registry: ProviderRegistry,
   environment: Readonly<Record<string, string | undefined>> = {},
 ): ProviderAuthCatalog {
@@ -106,7 +106,7 @@ export function createProviderAuthCatalog(
     );
     if (recipe?.api === false) continue;
     provider.methods.push(
-      createGenericApiKeyMethod(
+      deriveGenericApiKeyMethod(
         id,
         toMethodConnection(
           registry,
@@ -169,7 +169,7 @@ export function findOfferedCredentialMethod(
   providerId: string,
   methodId: string,
 ): CredentialMethod | undefined {
-  for (const provider of createProviderAuthCatalog(registry)) {
+  for (const provider of deriveProviderAuthCatalog(registry)) {
     const method = provider.methods.find(
       (candidate) =>
         candidate.providerId === providerId && candidate.id === methodId,
@@ -210,7 +210,7 @@ function getOrCreateProviderAuthCatalogEntry(
   return provider;
 }
 
-function createGenericApiKeyMethod(
+function deriveGenericApiKeyMethod(
   providerId: string,
   connection: MethodConnection | undefined,
 ): CredentialMethod {

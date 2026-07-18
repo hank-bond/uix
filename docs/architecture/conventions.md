@@ -86,6 +86,8 @@ Layer-specific cleanup stays idiomatic: main-process registrations go into lifet
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
 - Function names describe the observable contract from the caller's perspective. Include every distinction needed to predict the result; omit implementation details that do not change what callers receive or observe.
 - Apply the ambiguity test: if two materially different operations could reasonably share the name, it is underspecified. Add the distinguishing domain, result, or resolution axis — `enumerateUniqueModifierSequences`, not `permutations`; `resolveShortcutForPlatform`, not `resolveShortcut`.
+- Domain vocabulary is noun-shaped; operations pair those nouns with the established verbs below. A domain noun keeps one grammatical role across types, values, and function results.
+- Parameters name each participant's domain role (`transport`, `contract`, `scope`, `owner`, `session`, `lifetime`, `bag`). Access restrictions live in scoped capability types and handles.
 - A domain catalog is `XCatalog`; one public item is `XCatalogEntry`. Reserve these names for the catalog concept defined in [concepts](./concepts.md), not arbitrary lists or snapshots; avoid the generic `Descriptor` suffix when the value's actual role is a catalog entry.
 - Private helper functions should generally be operation-shaped so the call site says what operation is happening. Prefer:
   - `parseX` for unknown/external input that validates into `X`; invalid input throws;
@@ -94,21 +96,28 @@ Layer-specific cleanup stays idiomatic: main-process registrations go into lifet
   - `enumerateX` for eagerly deriving every member of a finite possibility set; `listX` retrieves existing items instead of generating possibilities;
   - `getX` for cheap property lookup with no I/O;
   - `requireX` for retrieving an expected value and throwing when absent;
-  - `toX` for deterministic conversions/derivations where inputs are expected to already be valid;
+  - `toX` for a deterministic, side-effect-free representation of the same underlying thing; the result has value semantics, no independent identity, and is safe to discard and recompute;
+  - `deriveX` for a new immutable value computed through filtering, joining, folding, reduction, or domain policy; the result has value semantics and remains rebuildable from authoritative inputs;
   - `encodeX` / `decodeX` for reversible representation transforms;
   - `isX` / `hasX` for predicates and type guards;
   - `readX` only for real reads from disk, stores, streams, or similarly I/O-shaped sources.
 - Module-level and lifecycle verbs. Each verb earns its slot by meaning something the others don't; don't introduce a synonym when an existing verb fits:
-  - `createX` for construction from known inputs — factories, contexts, wired object bags. Don't use `makeX`; it's the same act.
+  - `createX` for constructing a domain instance or independently identified artifact from known inputs. The result has instance semantics: its identity or evolving state matters, it is used over time, and an owner receives responsibility for it.
   - `buildX` is **reserved for compilation/bundling pipelines** (the surface module pipeline's esbuild passes). Plain object assembly is `createX`, not `buildX`.
   - `readX` (disk → parsed data, no runtime side effects) vs `loadX` (persisted or external content → its **live, registered runtime form**; side effects expected — `loadFeatures`, `loadScope`). A load typically contains a read.
   - `hydrateX` for the pure schema pass between the two: fill defaults into persisted values and validate, no storage or registration (`hydrateSettings`).
   - `openX` for starting a long-lived stateful thing whose lifetime someone must own (`openWorkspace`, `openSession`).
   - `registerX` for putting an item into a registry; registries' own mutation methods use the same verb (`register`, `registerScope`).
   - `resolveX` for mapping a reference to the concrete thing it denotes (`resolveWorkspace`); include a result-determining axis when the unqualified name permits materially different resolutions (`resolveShortcutForPlatform`).
-  - `bindX` for attaching an existing thing to a lifetime or context (`bindSettingsHandle`).
+  - `bindX` for establishing a removable or replaceable relationship among independently existing participants (`bindSettingsHandle`, `bindActionKeyboardDispatcher`). The relationship is enrolled in an explicit lifetime while the participants retain their own lifetimes; construction and binding are separate operations when the instance and relationship have independent lifetimes.
+  - `commitX` for accepting validated candidate state into an authority at an explicit boundary (`registration.commit()`, `commitTurnStateBeforeSubmit`).
+  - `restoreX` for replacing live state from previously committed state or referenced snapshots.
   - `defineX` for public-API identity/type-checking helpers around plain data (`defineSettings`, `defineSurface`).
   - `forX(id)` for minting a capability handle scoped to one owner (`forScope`); see the handle convention below.
+- State-shape nouns carry these meanings:
+  - A **snapshot** is an immutable point-in-time value or independently identified artifact. `toSnapshot()` converts one live value to its snapshot representation; `createDocumentSnapshot()` creates a store-owned artifact; `getCatalogSnapshot()` retrieves an existing current snapshot.
+  - A **projection** is a purpose-specific, read-only, lower-information view of authoritative state. It is rebuildable and never independently authoritative; a physically persisted projection has cache semantics. Use `deriveXProjection()` for the operation.
+  - A **baseline** is the reference value used for comparison by a later operation; it remains derived unless its owning domain commits it.
 - React components are the exception: keep PascalCase noun names such as `Conversation` or `ChoiceButton`.
 - Anything implementing `Disposable` is fine to add to a bag — no ceremony needed.
 - Use `Store` for durable source-of-truth APIs/implementations. A store may expose a change feed when the change semantics are generic at that layer; otherwise domain-specific buffers/features publish higher-level invalidation events.
@@ -117,7 +126,7 @@ Layer-specific cleanup stays idiomatic: main-process registrations go into lifet
 
 ## Central ownership, capability handles
 
-**Rule.** State lives in one central owner (a store or registry); consumers never get the owner itself. They get a **handle**: a small object of functions closed over exactly the slice they may touch, minted by the owner (`forX(id)`, an accessor returning a location, a factory pre-bound to an id). A handle's method signatures carry no addressing parameter — the closure already chose the target.
+**Rule.** State lives in one central owner (a store or registry); consumers never get the owner itself. They get a **handle**: a small object of functions closed over exactly the slice they may touch, minted by the owner (`forX(id)`, an accessor returning a location, an owner-scoped factory). A handle's method signatures carry no addressing parameter — the closure already chose the target.
 
 **Why.** Hiding by construction, not enforcement. Code that only holds `get(key)` cannot _accidentally_ couple to another owner's slice; a module's entire reach is legible from the handles its context receives; and because nothing crosses the boundary except what the handle carries, moving consumers to another process later is a mechanical transport swap, not a redesign. This is a trust-model convention, not a sandbox — in-process code can always escape a closure if it tries; containment for untrusted code is the iframe transport's job.
 
@@ -131,7 +140,7 @@ const settings = registry.forScope(featureId);
 const location = manifest.settingsNamespace("agent");
 
 // FeatureContext is a bag of these: settings handle, publisher factory
-// pre-bound to the feature id, id-scoped logger, per-feature DisposableBag
+// scoped to the feature id, id-scoped logger, per-feature DisposableBag
 ```
 
 Two corollaries:

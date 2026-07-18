@@ -1,7 +1,7 @@
 // Stable feature-owned system-prompt sections.
 //
 // One Markdown blob per feature is retained in manifest registration order.
-// The system-prompt assembler snapshots the current composition when Pi's
+// The system-prompt assembler captures the current composition snapshot when Pi's
 // extension runtime starts/reloads; registration itself never touches Pi.
 
 import {

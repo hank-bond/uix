@@ -11,6 +11,7 @@ Current shipped state behavior:
 
 - The substrate-owned selected Pi session graph is resumed or created under the workspace state root; its live `AgentSessionRuntime` remains lazy until the first prompt (`src/main/agent/driver.ts`).
 - Pi's profile-level auth, settings, models, and resources live in the app-owned `<userData>/pi`, shared across UIX workspaces and isolated from the host Pi profile; project-local `.pi` settings and resources still derive from the workspace agent cwd.
+- Feature turn state is divided into named cells such as `canvas.documents`. Each cell creates a schema-validated complete snapshot at commit boundaries, and only changed cell snapshots are appended to `uix.turn-state`; activation-time restoration is not wired yet.
 - Canvas HTML is stored by key in the local document store (`src/main/documents/store.ts`) under the `canvas` namespace.
 - Canvas keys are validated slash-namespaced slugs, not filesystem paths.
 - Canvas writes go through the `canvas__anchor_write` tool and broadcast `canvasChanged { key }`.
