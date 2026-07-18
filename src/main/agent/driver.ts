@@ -168,25 +168,26 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   const driverBag = new DisposableBag();
   const sessionBag = new DisposableBag();
 
-  // The manager stays cheap and auth-free so startup history does not create a
-  // model registry or load extensions. The runtime remains lazy until the first
-  // prompt, but owns every live session generation once opened.
-  let managerPromise: Promise<SessionManager> | undefined;
-  let runtimePromise: Promise<AgentSessionRuntime> | undefined;
+  // The bootstrap manager stays cheap and auth-free so startup history does
+  // not create a model registry or load extensions. The runtime remains lazy
+  // until the first prompt, then becomes the authority for the selected manager
+  // and Pi services across every replacement session generation.
+  let bootstrapManager: SessionManager | undefined;
+  let inFlightBootstrapManagerOpen: Promise<SessionManager> | undefined;
+  let runtime: AgentSessionRuntime | undefined;
+  let inFlightRuntimeOpen: Promise<AgentSessionRuntime> | undefined;
 
-  // These resolved mirrors support synchronous status/session-file reads while
-  // their owning promises remain asynchronous.
-  let openedManager: SessionManager | undefined;
-  let liveRuntime: AgentSessionRuntime | undefined;
-  let liveSession: AgentSession | undefined;
-  let liveModel: ModelRef | undefined;
+  // Before a runtime exists, model/auth requests may create the exact services
+  // generation that initial runtime creation will consume.
+  let preRuntimeServices: AgentSessionServices | undefined;
+  let inFlightServicesCreate: Promise<AgentSessionServices> | undefined;
+
+  // Synchronous projection emitted to renderer consumers. Pi's model-select
+  // hook and active-session binding keep it aligned with runtime.session.
+  let currentModel: ModelRef | undefined;
   let disposed = false;
 
-  // Before a runtime exists, model/auth requests may eagerly create the exact
-  // services generation that the first live session will consume.
-  let servicesPromise: Promise<AgentSessionServices> | undefined;
-
-  const managerIdentities = new WeakMap<
+  const transcriptItemIdentityByManager = new WeakMap<
     SessionManager,
     TranscriptItemIdentity
   >();
@@ -214,7 +215,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   }
   agentInstallers.push((pi) => {
     pi.on("model_select", (event) => {
-      liveModel = { provider: event.model.provider, id: event.model.id };
+      currentModel = { provider: event.model.provider, id: event.model.id };
       emitStatus();
     });
   });
@@ -233,19 +234,32 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     });
   }
 
-  function services(): Promise<AgentSessionServices> {
-    if (liveRuntime) return Promise.resolve(liveRuntime.services);
-    return (servicesPromise ??= createServices(
+  function getServices(): Promise<AgentSessionServices> {
+    if (disposed) return Promise.reject(new Error("Agent driver is disposed"));
+    if (runtime) return Promise.resolve(runtime.services);
+    if (preRuntimeServices) return Promise.resolve(preRuntimeServices);
+    if (inFlightServicesCreate) return inFlightServicesCreate;
+
+    const creation: Promise<AgentSessionServices> = createServices(
       opts.workspace.agentCwd,
       opts.piProfileDir,
-    ).catch((err) => {
-      servicesPromise = undefined;
-      throw err;
-    }));
+    )
+      .then((services) => {
+        if (disposed) throw new Error("Agent driver is disposed");
+        preRuntimeServices = services;
+        return services;
+      })
+      .finally(() => {
+        if (inFlightServicesCreate === creation) {
+          inFlightServicesCreate = undefined;
+        }
+      });
+    inFlightServicesCreate = creation;
+    return creation;
   }
 
   async function registry(): Promise<ModelRegistry> {
-    return (await services()).modelRegistry;
+    return (await getServices()).modelRegistry;
   }
 
   const oauth = driverBag.add(
@@ -260,7 +274,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   function status(): AgentStatus {
     const defaultModel = opts.agentSettings?.get<ModelRef>("defaultModel");
     return {
-      ...(liveModel && { model: liveModel }),
+      ...(currentModel && { model: currentModel }),
       ...(defaultModel && { defaultModel }),
     };
   }
@@ -289,13 +303,24 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     }));
   }
 
-  // Single accessor so both tiers share one manager. On failure, clear the
-  // cache so the next caller retries instead of replaying a stale rejection.
-  function manager(): Promise<SessionManager> {
-    return (managerPromise ??= openManager().catch((err) => {
-      managerPromise = undefined;
-      throw err;
-    }));
+  function getBootstrapManager(): Promise<SessionManager> {
+    if (disposed) return Promise.reject(new Error("Agent driver is disposed"));
+    if (bootstrapManager) return Promise.resolve(bootstrapManager);
+    if (inFlightBootstrapManagerOpen) return inFlightBootstrapManagerOpen;
+
+    const opening: Promise<SessionManager> = openManager()
+      .then((manager) => {
+        if (disposed) throw new Error("Agent driver is disposed");
+        bootstrapManager = manager;
+        return manager;
+      })
+      .finally(() => {
+        if (inFlightBootstrapManagerOpen === opening) {
+          inFlightBootstrapManagerOpen = undefined;
+        }
+      });
+    inFlightBootstrapManagerOpen = opening;
+    return opening;
   }
 
   async function openManager(): Promise<SessionManager> {
@@ -314,12 +339,13 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     } catch {
       manager = sdk.SessionManager.create(agentCwd, sessionDir);
     }
-    openedManager = manager;
     return manager;
   }
 
-  function observeTranscript(manager: SessionManager): TranscriptItemIdentity {
-    const existing = managerIdentities.get(manager);
+  function getOrObserveTranscriptItemIdentity(
+    manager: SessionManager,
+  ): TranscriptItemIdentity {
+    const existing = transcriptItemIdentityByManager.get(manager);
     if (existing) return existing;
 
     const identity = createTranscriptItemIdentity();
@@ -334,12 +360,14 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     // Pi persists after message_end and has no post-persist event, so this must
     // wrap the manager before the AgentSession receives it.
     identity.observe(manager);
-    managerIdentities.set(manager, identity);
+    transcriptItemIdentityByManager.set(manager, identity);
     return identity;
   }
 
   function bindActiveSession(session: AgentSession): void {
-    const identity = managerIdentities.get(session.sessionManager);
+    const identity = transcriptItemIdentityByManager.get(
+      session.sessionManager,
+    );
     if (!identity) {
       throw new Error(
         "Session manager transcript-item identity is unavailable",
@@ -347,8 +375,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     }
 
     sessionBag.clear();
-    liveSession = session;
-    liveModel = session.model
+    currentModel = session.model
       ? { provider: session.model.provider, id: session.model.id }
       : undefined;
     emitStatus();
@@ -362,7 +389,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
 
   async function openRuntime(): Promise<AgentSessionRuntime> {
     const sdk = await import("@earendil-works/pi-coding-agent");
-    const initialManager = await manager();
+    const initialManager = await getBootstrapManager();
     let initialRuntimeCreated = false;
 
     const createRuntime: CreateAgentSessionRuntimeFactory = async ({
@@ -371,12 +398,12 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       sessionManager,
       sessionStartEvent,
     }) => {
-      observeTranscript(sessionManager);
+      getOrObserveTranscriptItemIdentity(sessionManager);
       // The first runtime consumes any services already opened by model/auth
       // UI. Replacement generations recreate Pi's cwd-bound resources.
       const sessionServices = initialRuntimeCreated
         ? await createServices(cwd, agentDir)
-        : await services();
+        : await getServices();
       const modelRegistry = sessionServices.modelRegistry;
 
       // The workspace default applies only when the selected branch carries no
@@ -404,7 +431,6 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         ...(sessionStartEvent && { sessionStartEvent }),
         ...(initialModel && { model: initialModel }),
       });
-      openedManager = sessionManager;
       initialRuntimeCreated = true;
       return {
         ...result,
@@ -413,39 +439,63 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       };
     };
 
-    const runtime = await sdk.createAgentSessionRuntime(createRuntime, {
+    const openedRuntime = await sdk.createAgentSessionRuntime(createRuntime, {
       cwd: opts.workspace.agentCwd,
       agentDir: opts.piProfileDir,
       sessionManager: initialManager,
     });
     if (disposed) {
-      await runtime.dispose();
+      await openedRuntime.dispose();
       throw new Error("Agent driver is disposed");
     }
-    liveRuntime = runtime;
-    servicesPromise = undefined;
-    runtime.setBeforeSessionInvalidate(() => {
+    openedRuntime.setBeforeSessionInvalidate(() => {
       sessionBag.clear();
-      liveSession = undefined;
-      liveModel = undefined;
+      currentModel = undefined;
     });
-    runtime.setRebindSession((session) => {
+    openedRuntime.setRebindSession((session) => {
       bindActiveSession(session);
       return Promise.resolve();
     });
-    bindActiveSession(runtime.session);
-    return runtime;
+    bindActiveSession(openedRuntime.session);
+    return openedRuntime;
+  }
+
+  function getRuntime(): Promise<AgentSessionRuntime> {
+    if (disposed) return Promise.reject(new Error("Agent driver is disposed"));
+    if (runtime) return Promise.resolve(runtime);
+    if (inFlightRuntimeOpen) return inFlightRuntimeOpen;
+
+    const opening: Promise<AgentSessionRuntime> = openRuntime()
+      .then(async (openedRuntime) => {
+        if (disposed) {
+          await openedRuntime.dispose();
+          throw new Error("Agent driver is disposed");
+        }
+        runtime = openedRuntime;
+        bootstrapManager = undefined;
+        preRuntimeServices = undefined;
+        return openedRuntime;
+      })
+      .finally(() => {
+        if (inFlightRuntimeOpen === opening) {
+          inFlightRuntimeOpen = undefined;
+        }
+      });
+    inFlightRuntimeOpen = opening;
+    return opening;
   }
 
   return {
     // Read through to the manager rather than caching at open time, so a
     // fresh session's path appears as soon as pi mints the file.
-    sessionFile: () => openedManager?.getSessionFile(),
+    sessionFile: () =>
+      runtime?.session.sessionManager.getSessionFile() ??
+      bootstrapManager?.getSessionFile(),
 
     init() {
       // Fire the eager manager load; swallow rejection here so an early failure
       // doesn't surface as an unhandled rejection. prompt()/history() retry.
-      void manager().catch(() => {});
+      void getBootstrapManager().catch(() => {});
     },
 
     status,
@@ -548,12 +598,12 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         provider: ref.provider,
         id: ref.id,
       });
-      if (liveSession) {
+      if (runtime) {
         // Native pi state: appends a model_change entry, persists pi's own
         // defaults, reclamps thinking. The model_select installer mirrors
-        // liveModel; the extra emit below is a same-payload no-op then.
-        await liveSession.setModel(model);
-        liveModel = { provider: ref.provider, id: ref.id };
+        // currentModel; the extra assignment below is a same-payload no-op.
+        await runtime.session.setModel(model);
+        currentModel = { provider: ref.provider, id: ref.id };
       }
       emitStatus();
       return status();
@@ -562,7 +612,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     async history() {
       try {
         const sessionManager =
-          liveRuntime?.session.sessionManager ?? (await manager());
+          runtime?.session.sessionManager ?? (await getBootstrapManager());
         return { items: toTranscriptItems(sessionManager.getBranch()) };
       } catch (err) {
         log.warn(
@@ -577,15 +627,22 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       // Reload only tiers already in use. A live session owns Pi's native
       // extension rebind; before a session exists, recreate the coherent
       // services tier so extension provider registrations cannot accumulate.
-      if (runtimePromise) {
-        const runtime = await runtimePromise;
-        await runtime.session.reload();
+      if (runtime || inFlightRuntimeOpen) {
+        const activeRuntime = runtime ?? (await getRuntime());
+        await activeRuntime.session.reload();
         return true;
       }
-      if (!servicesPromise) return false;
-      await servicesPromise;
-      servicesPromise = undefined;
-      await services();
+      if (!preRuntimeServices && !inFlightServicesCreate) return false;
+      await getServices();
+      // A concurrent prompt may have consumed the pre-runtime generation while
+      // reload waited for it. In that case Pi's live reload owns reconciliation.
+      if (runtime || inFlightRuntimeOpen) {
+        const activeRuntime = runtime ?? (await getRuntime());
+        await activeRuntime.session.reload();
+        return true;
+      }
+      preRuntimeServices = undefined;
+      await getServices();
       return true;
     },
 
@@ -596,14 +653,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       // truthfully contributes no user row to the feed — the renderer's
       // unconfirmed row plus the error item below are the whole record.
       try {
-        // If runtime creation rejects (e.g. missing auth), clear the cache so
-        // the next prompt retries. Failures inside an established session
-        // surface through the event stream instead.
-        runtimePromise ??= openRuntime().catch((err) => {
-          runtimePromise = undefined;
-          throw err;
-        });
-        const session = (await runtimePromise).session;
+        // Runtime opening is retryable; getRuntime() shares only the current
+        // in-flight operation and records authority separately on success.
+        const session = (await getRuntime()).session;
 
         // Submit-prep ordering: turn-state entries and the hidden uix.state
         // message must be ordered BEFORE the user message in the session tree
@@ -663,17 +715,18 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     [Symbol.dispose]() {
       if (disposed) return;
       disposed = true;
-      const runtime = liveRuntime;
+      const activeRuntime = runtime;
       driverBag[Symbol.dispose]();
       sessionBag[Symbol.dispose]();
-      runtimePromise = undefined;
-      managerPromise = undefined;
-      servicesPromise = undefined;
-      liveRuntime = undefined;
-      liveSession = undefined;
-      liveModel = undefined;
-      if (runtime) {
-        void runtime.dispose().catch((err) => {
+      inFlightRuntimeOpen = undefined;
+      runtime = undefined;
+      inFlightBootstrapManagerOpen = undefined;
+      bootstrapManager = undefined;
+      inFlightServicesCreate = undefined;
+      preRuntimeServices = undefined;
+      currentModel = undefined;
+      if (activeRuntime) {
+        void activeRuntime.dispose().catch((err) => {
           log.warn(
             { err: err instanceof Error ? err.message : String(err) },
             "runtime_dispose_failed",

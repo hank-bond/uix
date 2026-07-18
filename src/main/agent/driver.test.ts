@@ -307,6 +307,15 @@ describe("driver model service (pre-session)", () => {
     ]);
   });
 
+  it("shares one in-flight services creation across pre-runtime callers", async () => {
+    const { driver } = createDriver();
+
+    await Promise.all([driver.listModels(), driver.listAuthProviders()]);
+
+    expect(sdk.state.servicesLoads).toBe(1);
+    expect(sdk.state.session).toBeUndefined();
+  });
+
   it("loads extension-provided models before session creation", async () => {
     sdk.state.pendingProviderModels = [
       {
@@ -494,6 +503,15 @@ describe("driver provider credentials (pre-session)", () => {
 });
 
 describe("driver model service (session open)", () => {
+  it("shares one in-flight runtime open across concurrent first prompts", async () => {
+    const { driver } = createDriver();
+
+    await Promise.all([driver.prompt("one"), driver.prompt("two")]);
+
+    expect(sdk.state.runtimeCreates).toBe(1);
+    expect(sdk.state.servicesLoads).toBe(1);
+  });
+
   it("passes the workspace default to session creation when the branch has no model_change", async () => {
     const { driver, statuses } = createDriver(
       fakeSettings({ provider: "openai", id: "gpt-5" }),

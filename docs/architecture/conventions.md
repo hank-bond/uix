@@ -35,6 +35,49 @@ bag[Symbol.dispose]();
 
 **Disposable values.** Anything with non-trivial cleanup should implement `Disposable` (or be wrappable with `disposable(() => ...)`). A function whose return value is `Disposable` cannot be discarded silently without it leaking — make sure every call site routes it into a bag or `using`.
 
+## State ownership and asynchronous coordination
+
+**Rule.** Name one authority for current state and keep asynchronous work, cleanup, lookup, and caching separate from it.
+
+| Mechanism | Role | Constraint |
+| --- | --- | --- |
+| Plain field, React state, registry, buffer, or store | Current authority at its layer | Replaced at one explicit generation boundary. |
+| Promise slot | Shared in-flight operation | Cleared when the operation settles; it is not mutable current state. |
+| `DisposableBag` or React effect cleanup | Deterministic lifetime | Owns teardown only, never lookup or current-state selection. |
+| `WeakMap` | Metadata or memo derived from an externally owned object | Use only when the value needs no deterministic cleanup and entries need no enumeration. |
+| `Map` / `Set` | Owned live index or temporary algorithmic index | If it is a registry, expose registration/disposal semantics rather than a raw collection. |
+| Cache / projection | Regenerable derived data | State the invalidation or latest-generation commit rule. |
+| Store / durable settings / Pi session entries | Durable authority | Runtime collections and renderer state remain rebuildable from it. |
+
+For replaceable asynchronous state, keep the current value and shared operation distinct:
+
+```ts
+let current: Value | undefined;
+let inFlightLoad: Promise<Value> | undefined;
+
+function getValue(): Promise<Value> {
+  if (current) return Promise.resolve(current);
+  if (inFlightLoad) return inFlightLoad;
+
+  const load: Promise<Value> = createValue()
+    .then((value) => {
+      current = value;
+      return value;
+    })
+    .finally(() => {
+      if (inFlightLoad === load) inFlightLoad = undefined;
+    });
+  inFlightLoad = load;
+  return load;
+}
+```
+
+A settled promise may own a genuinely write-once value when it is immutable for the owner's entire lifetime and every consumer is asynchronous. Once a value supports replacement, synchronous reads, reload, or generation-specific cleanup, use an explicit current value plus an in-flight operation.
+
+Async projections need two independent protections where applicable: lifetime cancellation rejects results after their owner unmounts/disposes, while a monotonic generation rejects an older request that resolves after a newer one. A boolean `alive` flag provides only the first. Backend candidate builders likewise commit only if their generation is still current, or serialize operations when every requested transition must run.
+
+Layer-specific cleanup stays idiomatic: main-process registrations go into lifetime-named bags; renderer subscriptions and requests use React effect cleanup plus latest-request guards. Do not introduce a generic lazy-cell abstraction until multiple consumers need identical mechanics—the explicit fields make ownership and replacement visible.
+
 ## Naming
 
 - A `DisposableBag` that owns registrations is named after the lifetime it tracks: `appBag`, `windowBag`, `sessionBag`.
