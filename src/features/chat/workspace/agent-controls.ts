@@ -35,8 +35,19 @@ export function useAgentControls(client: AgentChannelClient) {
   const [providerError, setProviderError] = useState<string>();
   const [oauthActivity, setOAuthActivity] = useState<OAuthActivity>();
   const [oauthError, setOAuthError] = useState<string>();
+  const modelRequestGeneration = useRef(0);
+  const providerRequestGeneration = useRef(0);
   const oauthEventVersion = useRef(0);
   const modalInvoker = useRef<HTMLElement>();
+
+  useEffect(
+    () => () => {
+      modelRequestGeneration.current += 1;
+      providerRequestGeneration.current += 1;
+      oauthEventVersion.current += 1;
+    },
+    [client],
+  );
 
   // Subscribe before seeding so a status_changed that lands during the
   // request cannot be lost.
@@ -55,12 +66,17 @@ export function useAgentControls(client: AgentChannelClient) {
   }, [client]);
 
   const refreshModels = useCallback(async () => {
+    const generation = ++modelRequestGeneration.current;
     setModelError(undefined);
     try {
       const list = await client.requests.list_models(undefined);
-      setModels(list.models);
+      if (generation === modelRequestGeneration.current) {
+        setModels(list.models);
+      }
     } catch (error) {
-      setModelError(String(error));
+      if (generation === modelRequestGeneration.current) {
+        setModelError(String(error));
+      }
     }
   }, [client]);
 
@@ -112,23 +128,31 @@ export function useAgentControls(client: AgentChannelClient) {
 
   const setModelFavorite = useCallback(
     async (model: ModelCatalogEntry, favorite: boolean) => {
+      const generation = ++modelRequestGeneration.current;
       const list = await client.requests.set_model_favorite({
         provider: model.provider,
         id: model.id,
         favorite,
       });
-      setModels(list.models);
+      if (generation === modelRequestGeneration.current) {
+        setModels(list.models);
+      }
     },
     [client],
   );
 
   const refreshProviders = useCallback(async () => {
+    const generation = ++providerRequestGeneration.current;
     setProviderError(undefined);
     try {
       const list = await client.requests.list_auth_providers(undefined);
-      setProviders(list.providers);
+      if (generation === providerRequestGeneration.current) {
+        setProviders(list.providers);
+      }
     } catch (error) {
-      setProviderError(String(error));
+      if (generation === providerRequestGeneration.current) {
+        setProviderError(String(error));
+      }
     }
   }, [client]);
 
