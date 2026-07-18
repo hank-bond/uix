@@ -29,7 +29,7 @@ export interface DocumentVersionMeta {
 export class CanvasDocumentBuffer {
   readonly #store: DocumentStore;
   readonly #docs = new Map<string, AnchoredDocument>();
-  readonly #documentOperations = new Map<string, Promise<void>>();
+  readonly #documentOperationQueues = new Map<string, Promise<void>>();
 
   constructor(store: DocumentStore) {
     this.#store = store;
@@ -42,7 +42,7 @@ export class CanvasDocumentBuffer {
     start?: number,
     end?: number,
   ): Promise<readonly AnchoredLine[]> {
-    return this.#runDocumentOperation(docId, async () => {
+    return this.#enqueueDocumentOperation(docId, async () => {
       await this.#sync(docId);
       const doc = await this.#load(docId);
       return doc.read(start, end);
@@ -52,7 +52,7 @@ export class CanvasDocumentBuffer {
   // Clobber the document with a full authored HTML body and persist it. Returns
   // fresh anchored lines for the whole new document.
   async write(docId: string, html: string): Promise<readonly AnchoredLine[]> {
-    return this.#runDocumentOperation(docId, async () => {
+    return this.#enqueueDocumentOperation(docId, async () => {
       const doc = await this.#load(docId);
       const lines = doc.write(canonicalizeHtml(html));
       await this.#store.setCurrent(docId, plainText(lines));
@@ -64,7 +64,7 @@ export class CanvasDocumentBuffer {
   // active anchor projection for this document, reconcile instead of clobbering
   // so later snapshot diffs can keep stable anchored hunks.
   async writeback(docId: string, html: string): Promise<void> {
-    await this.#runDocumentOperation(docId, async () => {
+    await this.#enqueueDocumentOperation(docId, async () => {
       const canonical = canonicalizeHtml(html);
       const doc = this.#docs.get(docId);
       if (!doc) {
@@ -91,7 +91,7 @@ export class CanvasDocumentBuffer {
     docId: string,
     edit: AnchoredEdit,
   ): Promise<readonly AnchoredChange[]> {
-    return this.#runDocumentOperation(docId, async () => {
+    return this.#enqueueDocumentOperation(docId, async () => {
       await this.#sync(docId);
       const doc = await this.#load(docId);
       const currentLines = doc.read();
@@ -116,7 +116,7 @@ export class CanvasDocumentBuffer {
   ): Promise<ReadonlyMap<string, DocumentVersion<DocumentVersionMeta>>> {
     const result = new Map<string, DocumentVersion<DocumentVersionMeta>>();
     for (const docId of new Set(docIds)) {
-      await this.#runDocumentOperation(docId, async () => {
+      await this.#enqueueDocumentOperation(docId, async () => {
         await this.#sync(docId);
         const doc = await this.#load(docId);
         // Make the mutable latest byte-match the anchor state we are about to
@@ -172,20 +172,21 @@ export class CanvasDocumentBuffer {
     return version;
   }
 
-  #runDocumentOperation<T>(
+  #enqueueDocumentOperation<T>(
     docId: string,
     operation: () => Promise<T>,
   ): Promise<T> {
-    const previous = this.#documentOperations.get(docId) ?? Promise.resolve();
+    const previous =
+      this.#documentOperationQueues.get(docId) ?? Promise.resolve();
     const result = previous.then(operation);
-    const tail = result.then(
+    const completion = result.then(
       () => undefined,
       () => undefined,
     );
-    this.#documentOperations.set(docId, tail);
-    void tail.then(() => {
-      if (this.#documentOperations.get(docId) === tail) {
-        this.#documentOperations.delete(docId);
+    this.#documentOperationQueues.set(docId, completion);
+    void completion.then(() => {
+      if (this.#documentOperationQueues.get(docId) === completion) {
+        this.#documentOperationQueues.delete(docId);
       }
     });
     return result;
