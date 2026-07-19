@@ -51,6 +51,7 @@ const log = createLogger("agent");
 import {
   createTurnStateCoordinator,
   commitTurnStateBeforeSubmit,
+  restoreTurnStateCellsAsOfLeaf,
   TurnStateRegistry,
 } from "../turn-state/registry";
 
@@ -96,8 +97,9 @@ export interface AgentDriver extends Disposable {
   /** Reload pi resources if a session already exists. */
   reload(): Promise<boolean>;
   /**
-   * Kick the eager, auth-free session-manager load off the boot path. Safe to
-   * call before any prompt; lets history() resolve without waiting on a prompt.
+   * Kick the eager, auth-free selected-session load and turn-state restore off
+   * the boot path. Safe to call before any prompt; lets history() resolve
+   * without waiting on a prompt.
    */
   init(): void;
   /** Prior transcript for renderer rehydration. Needs only the manager tier. */
@@ -174,6 +176,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   // and Pi services across every replacement session generation.
   let bootstrapManager: SessionManager | undefined;
   let inFlightBootstrapManagerOpen: Promise<SessionManager> | undefined;
+  let restoredBootstrapManager: SessionManager | undefined;
+  let inFlightBootstrapTurnStateRestore: Promise<SessionManager> | undefined;
   let runtime: AgentSessionRuntime | undefined;
   let inFlightRuntimeOpen: Promise<AgentSessionRuntime> | undefined;
 
@@ -262,6 +266,23 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     return (await getServices()).modelRegistry;
   }
 
+  // Feature activation must have settled before restoration begins. The
+  // currently registered cells determine both which persisted values the
+  // branch projection retains and which feature restore callbacks run.
+  async function restoreSelectedSessionTurnState(
+    sessionManager: SessionManager,
+  ): Promise<void> {
+    if (!opts.turnState) return;
+    const projection = deriveSelectedBranchProjection(
+      sessionManager.getBranch(),
+      opts.turnState,
+    );
+    await restoreTurnStateCellsAsOfLeaf(
+      opts.turnState,
+      projection.turnStateAsOfLeaf,
+    );
+  }
+
   const oauth = driverBag.add(
     createOAuthFlowCoordinator({
       modelRegistry: registry,
@@ -321,6 +342,31 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       });
     inFlightBootstrapManagerOpen = opening;
     return opening;
+  }
+
+  function restoreBootstrapTurnState(): Promise<SessionManager> {
+    if (disposed) return Promise.reject(new Error("Agent driver is disposed"));
+    if (bootstrapManager && restoredBootstrapManager === bootstrapManager) {
+      return Promise.resolve(bootstrapManager);
+    }
+    if (inFlightBootstrapTurnStateRestore) {
+      return inFlightBootstrapTurnStateRestore;
+    }
+
+    const restoration = getBootstrapManager()
+      .then(async (manager) => {
+        await restoreSelectedSessionTurnState(manager);
+        if (disposed) throw new Error("Agent driver is disposed");
+        restoredBootstrapManager = manager;
+        return manager;
+      })
+      .finally(() => {
+        if (inFlightBootstrapTurnStateRestore === restoration) {
+          inFlightBootstrapTurnStateRestore = undefined;
+        }
+      });
+    inFlightBootstrapTurnStateRestore = restoration;
+    return restoration;
   }
 
   async function openManager(): Promise<SessionManager> {
@@ -389,7 +435,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
 
   async function openRuntime(): Promise<AgentSessionRuntime> {
     const sdk = await import("@earendil-works/pi-coding-agent");
-    const initialManager = await getBootstrapManager();
+    const initialManager = await restoreBootstrapTurnState();
     let initialRuntimeCreated = false;
 
     const createRuntime: CreateAgentSessionRuntimeFactory = async ({
@@ -452,9 +498,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       sessionBag.clear();
       currentModel = undefined;
     });
-    openedRuntime.setRebindSession((session) => {
+    openedRuntime.setRebindSession(async (session) => {
       bindActiveSession(session);
-      return Promise.resolve();
+      await restoreSelectedSessionTurnState(session.sessionManager);
     });
     bindActiveSession(openedRuntime.session);
     return openedRuntime;
@@ -473,6 +519,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         }
         runtime = openedRuntime;
         bootstrapManager = undefined;
+        restoredBootstrapManager = undefined;
         preRuntimeServices = undefined;
         return openedRuntime;
       })
@@ -493,9 +540,10 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       bootstrapManager?.getSessionFile(),
 
     init() {
-      // Fire the eager manager load; swallow rejection here so an early failure
-      // doesn't surface as an unhandled rejection. prompt()/history() retry.
-      void getBootstrapManager().catch(() => {});
+      // Fire the eager manager load and state restore; swallow rejection here
+      // so an early failure doesn't surface as an unhandled rejection.
+      // prompt()/history() retry.
+      void restoreBootstrapTurnState().catch(() => {});
     },
 
     status,
@@ -612,7 +660,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     async history() {
       try {
         const sessionManager =
-          runtime?.session.sessionManager ?? (await getBootstrapManager());
+          runtime?.session.sessionManager ??
+          (await restoreBootstrapTurnState());
         return deriveSelectedBranchProjection(
           sessionManager.getBranch(),
           opts.turnState,
@@ -725,6 +774,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       runtime = undefined;
       inFlightBootstrapManagerOpen = undefined;
       bootstrapManager = undefined;
+      inFlightBootstrapTurnStateRestore = undefined;
+      restoredBootstrapManager = undefined;
       inFlightServicesCreate = undefined;
       preRuntimeServices = undefined;
       currentModel = undefined;

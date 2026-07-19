@@ -1,8 +1,16 @@
+import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
 
 import { createFeatureEventPublisher } from "@uix/api/channels";
 import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
 import type { FeatureContext } from "@uix/api/feature";
+import type { TurnStateCellDefinition } from "@uix/api/turn-state";
+import {
+  createTurnStateProjector,
+  registerTurnStateContributions,
+  restoreTurnStateCellsAsOfLeaf,
+  TurnStateRegistry,
+} from "../../../../main/turn-state/registry";
 
 import { canvasChannels } from "../../shared/channels";
 import { CanvasDocumentBuffer } from "../document-buffer";
@@ -39,6 +47,30 @@ function memoryStore(initial: Record<string, string> = {}): DocumentStore {
       );
     },
   };
+}
+
+async function restoreCanvasDocuments(
+  contribution: TurnStateCellDefinition,
+  documents?: unknown,
+): Promise<void> {
+  const turnState = new TurnStateRegistry();
+  registerTurnStateContributions(turnState, "canvas", {
+    documents: contribution,
+  });
+  const projector = createTurnStateProjector(turnState);
+  if (documents !== undefined) {
+    projector.projectEntry({
+      id: "turn-state",
+      parentId: undefined,
+      timestamp: new Date(0).toISOString(),
+      type: "custom",
+      customType: "uix.turn-state",
+      data: { state: { "canvas.documents": documents } },
+    } as unknown as SessionEntry);
+  }
+  await expect(
+    restoreTurnStateCellsAsOfLeaf(turnState, projector.deriveAsOfLeaf()),
+  ).resolves.toEqual({ failures: [] });
 }
 
 function captureCanvasState(store = memoryStore()) {
@@ -113,7 +145,7 @@ describe("createCanvasTurnStateContributions", () => {
     const state = await contribution.createSnapshot();
     await buffer.write("main", "<p>changed</p>");
 
-    await contribution.restore(state);
+    await restoreCanvasDocuments(contribution, state);
 
     expect(await store.getCurrent("main")).toBe(
       "<html><head></head><body><p>hello</p></body></html>",
@@ -127,7 +159,7 @@ describe("createCanvasTurnStateContributions", () => {
     );
     await buffer.read("main");
 
-    await contribution.restore(undefined);
+    await restoreCanvasDocuments(contribution);
 
     expect(await store.getCurrent("main")).toBe("");
   });

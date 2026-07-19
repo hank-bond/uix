@@ -441,8 +441,10 @@ async function openWorkspace(
     });
   }
 
-  // Eager, off the boot path: loads the session file so getHistory() resolves
-  // fast. The auth-bearing live agent stays lazy until the first prompt.
+  // Restoration must start after initial feature activation: the accepted
+  // turn-state cell registry determines which selected-branch state is
+  // retained and restored. The auth-bearing live agent stays lazy until the
+  // first prompt.
   driver.init();
 
   appBag.add(

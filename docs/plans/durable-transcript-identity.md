@@ -1,5 +1,5 @@
 ---
-summary: "Keyed-on-persist identity, the one-pass transcript/turn-state-as-of-leaf projection, and feature-isolated restore scheduling have landed; remaining work persists and joins low-frequency block state (D2) and wires restoration into session activation (D3)."
+summary: "Keyed-on-persist identity, one-pass branch projection, and feature-isolated restoration on startup and replacement-session activation have landed; remaining work persists and joins low-frequency block state (D2) and wires reload restoration (D3)."
 status: active
 ---
 
@@ -53,7 +53,7 @@ Block state lives in pi `CustomEntry` records — the hidden-state primitive: tr
 
 ## D3 — One branch projection and restore lifecycle · **in progress**
 
-History replay now uses one selected-branch projection that walks `getBranch()` once in root→leaf order and derives the transcript from persisted message entries plus turn state as of the leaf, retaining the latest raw value per currently registered cell. The restore scheduler validates the completed projection before callbacks, restores features concurrently and each feature's cells sequentially, resets missing cells through `undefined`, and isolates feature failures. Session-activation wiring remains. Durable block-state joining remains gated on D2's first concrete consumer; it will join items before they reach the renderer (live items get the same joined state via `transcript_replace` once keyed, no rekey required).
+History replay now uses one selected-branch projection that walks `getBranch()` once in root→leaf order and derives the transcript from persisted message entries plus turn state as of the leaf, retaining the latest raw value per currently registered cell. The restore scheduler validates the completed projection before callbacks, restores features concurrently and each feature's cells sequentially, resets missing cells through `undefined`, and isolates feature failures. Startup activation restores through the auth-free manager tier, and replacement-session rebind waits for restoration before completing; reload wiring remains. Durable block-state joining remains gated on D2's first concrete consumer; it will join items before they reach the renderer (live items get the same joined state via `transcript_replace` once keyed, no rekey required).
 
 Projectors for UIX-owned custom entries stay beside the binding that writes each `uix.*` key. Feature restoration does not receive raw messages or rerun live message taps: each active state cell receives only its latest complete value or `undefined` for defaults. The lifecycle runs on startup, reload, session switch, and future branch rewind; explicit `session_history` reads consume the transcript projection without activating/restoring that session. Named cell identity, change suppression, and save-then-restore ordering are specified in [session history and switching](./session-history-and-switching.md), while live-only message taps are tracked separately in the [plans backlog](./backlog.md).
 

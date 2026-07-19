@@ -3,9 +3,14 @@
 // and live model mirroring afterward.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Type } from "typebox";
 
 import type { AgentStatus, ModelRef } from "@uix/api/agent-channels";
 import type { SettingsHandle } from "@uix/api/settings";
+import {
+  registerTurnStateContributions,
+  TurnStateRegistry,
+} from "../turn-state/registry";
 
 import { createAgentDriver } from "./driver";
 
@@ -22,7 +27,8 @@ interface FakeModel {
 const sdk = vi.hoisted(() => {
   const state = {
     models: [] as FakeModel[],
-    branch: [] as { type: string }[],
+    branch: [] as Array<Record<string, unknown>>,
+    replacementBranch: undefined as Array<Record<string, unknown>> | undefined,
     // Extension `on(event, handler)` registrations from the session open.
     extensionHandlers: new Map<string, (event: unknown) => void>(),
     session: undefined as Record<string, unknown> | undefined,
@@ -61,6 +67,7 @@ const sdk = vi.hoisted(() => {
     getBranch: () => state.branch,
     getSessionFile: () => "/tmp/session.jsonl",
     appendMessage: () => "entry-id",
+    appendCustomEntry: () => "entry-id",
     appendCustomMessageEntry: () => "entry-id",
   };
 
@@ -183,6 +190,7 @@ const sdk = vi.hoisted(() => {
           beforeSessionInvalidate?.();
           const replacementManager = {
             ...manager,
+            getBranch: () => state.replacementBranch ?? state.branch,
             getSessionFile: () => "/tmp/replacement-session.jsonl",
           };
           const replacement = await createRuntime({
@@ -235,7 +243,29 @@ function fakeSettings(initial?: ModelRef): SettingsHandle & {
   };
 }
 
-function createDriver(settings?: SettingsHandle) {
+function turnStateEntry(state: Record<string, unknown>) {
+  return {
+    id: "turn-state",
+    parentId: undefined,
+    timestamp: new Date(0).toISOString(),
+    type: "custom",
+    customType: "uix.turn-state",
+    data: { state },
+  };
+}
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+function createDriver(
+  settings?: SettingsHandle,
+  turnState?: TurnStateRegistry,
+) {
   const statuses: AgentStatus[] = [];
   let availabilityChanges = 0;
   const driver = createAgentDriver({
@@ -251,6 +281,7 @@ function createDriver(settings?: SettingsHandle) {
     },
     piProfileDir: "/tmp/uix-pi-profile",
     ...(settings && { agentSettings: settings }),
+    ...(turnState && { turnState }),
     onStatusChange: (status) => statuses.push(status),
     openExternal: () => undefined,
     onOAuthFlowState: () => undefined,
@@ -270,6 +301,7 @@ function createDriver(settings?: SettingsHandle) {
 beforeEach(() => {
   sdk.state.models = [anthropic, openai, unauthed];
   sdk.state.branch = [];
+  sdk.state.replacementBranch = undefined;
   sdk.state.extensionHandlers.clear();
   sdk.state.session = undefined;
   sdk.state.runtimeCreates = 0;
@@ -499,6 +531,99 @@ describe("driver provider credentials (pre-session)", () => {
     ).rejects.toThrow("Credential field is required: apiKey");
     expect(sdk.registry.authStorage.set).not.toHaveBeenCalled();
     expect(sdk.registry.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe("driver selected-session activation", () => {
+  it("restores startup turn state without opening Pi services or a runtime", async () => {
+    const turnState = new TurnStateRegistry();
+    const restore = vi.fn();
+    registerTurnStateContributions(turnState, "canvas", {
+      documents: {
+        schema: Type.String(),
+        createSnapshot: () => "live",
+        restore,
+      },
+    });
+    sdk.state.branch = [turnStateEntry({ "canvas.documents": "persisted" })];
+    const { driver } = createDriver(undefined, turnState);
+
+    driver.init();
+
+    await vi.waitFor(() => {
+      expect(restore).toHaveBeenCalledWith("persisted");
+    });
+    await driver.history();
+    expect(restore).toHaveBeenCalledOnce();
+    expect(sdk.state.servicesLoads).toBe(0);
+    expect(sdk.state.runtimeCreates).toBe(0);
+    expect(sdk.state.session).toBeUndefined();
+  });
+
+  it("waits for startup restoration before creating the runtime", async () => {
+    const turnState = new TurnStateRegistry();
+    const restoreGate = deferred();
+    const restored: unknown[] = [];
+    registerTurnStateContributions(turnState, "canvas", {
+      documents: {
+        schema: Type.String(),
+        createSnapshot: () => "live",
+        restore: async (value) => {
+          restored.push(value);
+          await restoreGate.promise;
+        },
+      },
+    });
+    sdk.state.branch = [turnStateEntry({ "canvas.documents": "persisted" })];
+    const { driver } = createDriver(undefined, turnState);
+
+    const prompting = driver.prompt("hello");
+    await vi.waitFor(() => {
+      expect(restored).toEqual(["persisted"]);
+    });
+    expect(sdk.state.runtimeCreates).toBe(0);
+
+    restoreGate.resolve();
+    await prompting;
+    expect(sdk.state.runtimeCreates).toBe(1);
+  });
+
+  it("restores an empty replacement session before rebind completes", async () => {
+    const turnState = new TurnStateRegistry();
+    const emptyRestoreGate = deferred();
+    const restored: unknown[] = [];
+    registerTurnStateContributions(turnState, "canvas", {
+      documents: {
+        schema: Type.String(),
+        createSnapshot: () => "persisted",
+        restore: async (value) => {
+          restored.push(value);
+          if (value === undefined) await emptyRestoreGate.promise;
+        },
+      },
+    });
+    sdk.state.branch = [turnStateEntry({ "canvas.documents": "persisted" })];
+    const { driver } = createDriver(undefined, turnState);
+    await driver.prompt("hello");
+    sdk.state.replacementBranch = [];
+
+    const replaceRuntime = sdk.state.replaceRuntime;
+    if (!replaceRuntime) throw new Error("Replacement runtime is unavailable");
+    const replacement = replaceRuntime();
+    await vi.waitFor(() => {
+      expect(restored).toEqual(["persisted", undefined]);
+    });
+
+    let completed = false;
+    void replacement.then(() => {
+      completed = true;
+    });
+    await Promise.resolve();
+    expect(completed).toBe(false);
+
+    emptyRestoreGate.resolve();
+    await replacement;
+    expect(completed).toBe(true);
   });
 });
 
