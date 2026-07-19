@@ -51,6 +51,24 @@ export class TurnStateRegistry {
   readonly registeredCells: RegisteredTurnStateCell[] = [];
 }
 
+export interface TurnStateAsOfLeaf {
+  readonly latestValuePerCell: ReadonlyMap<TurnStateCanonicalId, unknown>;
+  readonly cwd: string | undefined;
+}
+
+interface TurnStateProjector {
+  projectEntry(entry: SessionEntry): void;
+  deriveAsOfLeaf(): TurnStateAsOfLeaf;
+}
+
+export function createTurnStateProjector(
+  registry?: TurnStateRegistry,
+): TurnStateProjector {
+  return createTurnStateProjectorForIds(
+    new Set(registry?.registeredCells.map((cell) => cell.canonicalId) ?? []),
+  );
+}
+
 /** Registers one feature's keyed state cells as one disposable group. */
 export function registerTurnStateContributions(
   registry: TurnStateRegistry,
@@ -160,8 +178,8 @@ async function commitTurnState(opts: CommitTurnStateOptions): Promise<void> {
       );
     }
     if (
-      baseline.values.has(cell.canonicalId) &&
-      Value.Equal(baseline.values.get(cell.canonicalId), snapshot)
+      baseline.latestValuePerCell.has(cell.canonicalId) &&
+      Value.Equal(baseline.latestValuePerCell.get(cell.canonicalId), snapshot)
     ) {
       continue;
     }
@@ -213,24 +231,38 @@ export function createTurnStateHistoryReader(
 function deriveTurnStateBaseline(
   branch: readonly SessionEntry[],
   activeIds: ReadonlySet<TurnStateCanonicalId>,
-): {
-  readonly values: ReadonlyMap<TurnStateCanonicalId, unknown>;
-  readonly cwd: string | undefined;
-} {
-  const values = new Map<TurnStateCanonicalId, unknown>();
+): TurnStateAsOfLeaf {
+  const projector = createTurnStateProjectorForIds(activeIds);
+  for (const entry of branch) projector.projectEntry(entry);
+  return projector.deriveAsOfLeaf();
+}
+
+function createTurnStateProjectorForIds(
+  activeIds: ReadonlySet<TurnStateCanonicalId>,
+): TurnStateProjector {
+  const latestValuePerCell = new Map<TurnStateCanonicalId, unknown>();
   let cwd: string | undefined;
-  for (const entry of branch) {
-    const data = extractTurnStateData(entry);
-    if (!data) continue;
-    if (typeof data["cwd"] === "string") cwd = data["cwd"];
-    const state = asRecord(data["state"]);
-    if (!state) continue;
-    for (const [id, value] of Object.entries(state)) {
-      const canonicalId = id as TurnStateCanonicalId;
-      if (activeIds.has(canonicalId)) values.set(canonicalId, value);
-    }
-  }
-  return { values, cwd };
+
+  return {
+    projectEntry(entry) {
+      const data = extractTurnStateData(entry);
+      if (!data) return;
+      if (typeof data["cwd"] === "string") cwd = data["cwd"];
+      const state = asRecord(data["state"]);
+      if (!state) return;
+      for (const [id, value] of Object.entries(state)) {
+        const canonicalId = id as TurnStateCanonicalId;
+        if (activeIds.has(canonicalId)) {
+          latestValuePerCell.set(canonicalId, value);
+        }
+      }
+    },
+
+    deriveAsOfLeaf: () => ({
+      latestValuePerCell: new Map(latestValuePerCell),
+      cwd,
+    }),
+  };
 }
 
 function turnStates<TState>(

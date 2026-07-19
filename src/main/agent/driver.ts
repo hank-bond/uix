@@ -55,6 +55,7 @@ import {
 } from "../turn-state/registry";
 
 import { createOAuthFlowCoordinator } from "./auth-flow";
+import { deriveSelectedBranchProjection } from "./branch-projection";
 import {
   deriveProviderAuthCatalog,
   findOfferedCredentialMethod,
@@ -84,7 +85,6 @@ import {
   parseCustomTranscriptItem,
   getMessageRole,
   toIpcValue,
-  toTranscriptItems,
 } from "./transcript";
 
 /**
@@ -613,7 +613,10 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       try {
         const sessionManager =
           runtime?.session.sessionManager ?? (await getBootstrapManager());
-        return { items: toTranscriptItems(sessionManager.getBranch()) };
+        return deriveSelectedBranchProjection(
+          sessionManager.getBranch(),
+          opts.turnState,
+        ).transcript;
       } catch (err) {
         log.warn(
           { err: err instanceof Error ? err.message : String(err) },

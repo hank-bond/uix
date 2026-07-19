@@ -1,5 +1,5 @@
 ---
-summary: "Keyed-on-persist observation and row identity have landed (D0–D1); remaining work persists low-frequency block state as session-scoped uix.* custom entries (D2) and derives a transcript/block-state/latest-turn-state-cell projection through one branch pass shared with history and switching (D3)."
+summary: "Keyed-on-persist identity and the one-pass transcript/turn-state-as-of-leaf projection have landed; remaining work persists low-frequency block state (D2), joins it into the projection, and applies the shared restore lifecycle (D3)."
 status: active
 ---
 
@@ -51,9 +51,9 @@ Block state lives in pi `CustomEntry` records — the hidden-state primitive: tr
 - Action flow: renderer sends a typed, TypeBox-validated signal over a `uix:block-action` invoke channel (`canvasWriteback` is the existing precedent; the payload shape should fold into the future typed-channel substrate unchanged). Main's handler classifies it (ephemeral react vs durable write), validates the id against the session, persists the entry under the canonical id, and emits the updated joined item via `transcript_replace`.
 - Pre-key actions: durable effects queue in main until the row keys (await the identity module's promise); ephemeral effects proceed immediately off the handle.
 
-## D3 — One branch projection and restore lifecycle
+## D3 — One branch projection and restore lifecycle · **in progress**
 
-Generalize history replay into one selected-branch projection: walk `getBranch()` once in root→leaf order, derive the transcript from persisted message entries, join durable block state into those items, and retain the latest value for every currently registered named turn-state cell. `toTranscriptItems` is already the transcript portion hardcoded; block state joins items before they reach the renderer (live items get the same joined state via `transcript_replace` once keyed, no rekey required).
+History replay now uses one selected-branch projection that walks `getBranch()` once in root→leaf order and derives the transcript from persisted message entries plus turn state as of the leaf, retaining the latest raw value per currently registered cell. Validation and restore scheduling remain. Durable block-state joining remains gated on D2's first concrete consumer; it will join items before they reach the renderer (live items get the same joined state via `transcript_replace` once keyed, no rekey required).
 
 Internal folds for UIX-owned custom entries stay beside the binding that writes each `uix.*` key. Feature restoration does not receive raw messages or rerun live message taps: each active state cell receives only its latest complete value or `undefined` for defaults. The lifecycle runs on startup, reload, session switch, and future branch rewind; explicit `session_history` reads consume the transcript projection without activating/restoring that session. Named cell identity, change suppression, and save-then-restore ordering are specified in [session history and switching](./session-history-and-switching.md), while live-only message taps are tracked separately in the [plans backlog](./backlog.md).
 
