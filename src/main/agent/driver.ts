@@ -57,7 +57,7 @@ import {
 import { createOAuthFlowCoordinator } from "./auth-flow";
 import { deriveSelectedBranchProjection } from "./branch-projection";
 import {
-  deriveProviderAuthCatalog,
+  deriveProviderAuthCatalogForEnvironment,
   findOfferedCredentialMethod,
   resolveOAuthStartAction,
 } from "./auth-providers";
@@ -531,7 +531,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     },
 
     listAuthProviders: async () =>
-      deriveProviderAuthCatalog(await registry(), process.env),
+      deriveProviderAuthCatalogForEnvironment(await registry(), process.env),
 
     async saveProviderCredentials({ providerId, methodId, values }) {
       const modelRegistry = await registry();

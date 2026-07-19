@@ -1,5 +1,5 @@
 ---
-summary: "Canonical UIX concept vocabulary: feature, facet, installer, driver, hook, contribution point, contribution, capability handle, registry, catalog, store, buffer, coordinator, assembler, reload reconciliation, and agent-context-local terms, with boundaries from pi extension vocabulary."
+summary: "Canonical UIX concept vocabulary: features and contributions, registries and catalogs, snapshots, projections and projectors, stores and buffers, runtime coordination, reload reconciliation, and boundaries from pi vocabulary."
 status: active
 ---
 
@@ -125,7 +125,17 @@ A **snapshot** is an immutable point-in-time value or independently identified a
 
 ## Projection
 
-A **projection** is a purpose-specific, read-only, lower-information view derived from authoritative state. It may filter, join, fold, classify, or add derived fields, but it remains rebuildable and is not a write surface back to the authority. A projection may be cached or physically persisted with cache semantics. Examples include the visible transcript derived from session entries, the latest named turn-state-cell values derived from a selected branch, and action catalog entries derived from private registrations plus confirmed bindings.
+A **projection** is a purpose-specific, read-only, lower-information view derived from authoritative state. It may select, join, partition, reduce, classify, or add derived fields, but it remains rebuildable and is not a write surface back to the authority. A projection may be cached or physically persisted with cache semantics.
+
+A projection's **viewpoint** is the contextual coordinate from which its sources are interpreted. A viewpoint may identify a position in ordered history (`asOfLeaf`), an observer environment (`forPlatform`), or another result-determining context. Selection, correlation, partition, and reduction describe how source facts become the result; these policies are independent of the viewpoint.
+
+Examples include the transcript derived from selected-branch session entries, turn state as of that branch's leaf with the latest value per registered cell, and action catalog entries derived for one renderer platform from private registrations plus confirmed bindings.
+
+## Projector
+
+A **projector** is a stateful derivation component that incorporates source facts while producing a projection. Its mutable state belongs only to the derivation; it is neither authority nor a write surface back to the source. A projector uses `projectX(...)` to incorporate one source fact and a `deriveX(...)` method to return an immutable result. Multiple projectors may share one source traversal, as the transcript and turn-state projectors do while deriving a selected-branch projection.
+
+Use a projector when cross-fact correlation or a shared traversal requires stateful incremental derivation. A one-shot value transformation remains a `deriveXProjection(...)` function rather than gaining a projector object.
 
 ## Store
 

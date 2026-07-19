@@ -117,7 +117,7 @@ export function createTranscriptProjector(): TranscriptProjector {
   };
 }
 
-export function toTranscriptItems(
+export function deriveTranscriptItems(
   entries: readonly SessionEntry[],
 ): TranscriptItem[] {
   const projector = createTranscriptProjector();

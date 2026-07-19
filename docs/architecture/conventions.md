@@ -116,13 +116,53 @@ Layer-specific cleanup stays idiomatic: main-process registrations go into lifet
   - `forX(id)` for minting a capability handle scoped to one owner (`forScope`); see the handle convention below.
 - State-shape nouns carry these meanings:
   - A **snapshot** is an immutable point-in-time value or independently identified artifact. `toSnapshot()` converts one live value to its snapshot representation; `createDocumentSnapshot()` creates a store-owned artifact; `getCatalogSnapshot()` retrieves an existing current snapshot.
-  - A **projection** is a purpose-specific, read-only, lower-information view of authoritative state. It is rebuildable and never independently authoritative; a physically persisted projection has cache semantics. Use `deriveXProjection()` for the operation.
+  - A **projection** is a purpose-specific, read-only, lower-information view of authoritative state. It is rebuildable and never independently authoritative; a physically persisted projection has cache semantics. Use `deriveXProjection()` for a one-shot derivation.
   - A **baseline** is the reference value used for comparison by a later operation; it remains derived unless its owning domain commits it.
 - React components are the exception: keep PascalCase noun names such as `Conversation` or `ChoiceButton`.
 - Anything implementing `Disposable` is fine to add to a bag — no ceremony needed.
 - Use `Store` for durable source-of-truth APIs/implementations. A store may expose a change feed when the change semantics are generic at that layer; otherwise domain-specific buffers/features publish higher-level invalidation events.
 - Use `Buffer` for live, feature-specific working projections over a store. Buffers may cache regenerable state, normalize writes, and reconcile feature/editor semantics, but durable authority stays in the backing store.
 - Use `Registry` for central in-memory maps of contributed things plus their routing (`ChannelRegistry`, `SettingsRegistry`); registries don't persist.
+
+### Projection naming
+
+Describe a projection along the axes that determine materially different results. Not every projection uses every axis, and a symbol need not repeat facts intrinsic to its domain, but its names, parameters, and result fields together must let a caller predict the view.
+
+| Axis | Question | Naming pattern |
+| --- | --- | --- |
+| **Sources** | Which authoritative inputs are viewed? | Name the domain sources in the projection or its parameters. |
+| **Viewpoint** | From which contextual coordinate are the sources interpreted? | `AsOfX` for a position in ordered history; `ForX` for an observer or environment. |
+| **Selection** | Which source facts participate? | Use domain qualifiers such as `active`, `visible`, `offered`, or `unresolved`. |
+| **Correlation** | How are facts from different sources or positions joined? | `ByX` names a lookup or join key (`bindingByActionId`, `resultByToolCallId`). |
+| **Partition** | Which groups are reduced independently? | `PerX` names the partition (`latestValuePerCell`, `claimantsPerShortcut`). |
+| **Reduction** | How does each partition become a result? | Name the policy before the partition: `latestValuePerCell`, `countPerStatus`, `averageLatencyPerWindow`. |
+| **Result shape** | What consumer-facing view is produced? | Use the domain noun: `TranscriptSnapshot`, `ActionBindingProjection`, `ProviderAuthCatalog`. |
+
+A **projector** is the stateful derivation component used when cross-entry correlation or one shared source traversal requires incremental state. Name its factory `createXProjector`; `projectX(...)` incorporates one source fact into private derivation state; a receiver-qualified `deriveX()` returns the immutable result. For example:
+
+```ts
+const transcriptProjector = createTranscriptProjector();
+const turnStateProjector = createTurnStateProjector(registry);
+
+for (const entry of branch) {
+  transcriptProjector.projectEntry(entry);
+  turnStateProjector.projectEntry(entry);
+}
+
+return {
+  transcript: transcriptProjector.deriveSnapshot(),
+  turnStateAsOfLeaf: turnStateProjector.deriveAsOfLeaf(),
+};
+```
+
+Current projections apply the axes as follows:
+
+| Projection | Viewpoint | Selection / correlation | Partition / reduction | Result |
+| --- | --- | --- | --- | --- |
+| Selected branch | `asOfLeaf` | Displayable messages; registered turn-state cells; tool results joined by tool-call id | Ordered transcript; latest value per cell | `SelectedBranchProjection` with `transcript` and `turnStateAsOfLeaf.latestValuePerCell` |
+| Action bindings | `forPlatform` | Active actions joined to confirmed bindings by action id; inactive bindings split out as unresolved | Conflict claimants collected per resolved shortcut | `ActionBindingProjection` |
+| Provider authentication | `forEnvironment` | Offered model/OAuth providers joined with auth state and setup recipes | Methods composed per presentation provider and ranked for display | `ProviderAuthCatalog` |
+| Canvas anchors | `asOfDocumentVersion` or current working content | Addressable text joined to retained anchor identity | Anchor continuity reconciled per document and line | `AnchoredDocument` working projection |
 
 ## Central ownership, capability handles
 

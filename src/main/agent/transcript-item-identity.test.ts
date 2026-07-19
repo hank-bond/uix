@@ -7,7 +7,7 @@ import type { SessionManager } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it, vi } from "vitest";
 
 import { createTranscriptItemIdentity } from "./transcript-item-identity";
-import { toTranscriptItems } from "./transcript";
+import { deriveTranscriptItems } from "./transcript";
 
 function fakeManager() {
   let next = 1;
@@ -70,7 +70,7 @@ describe("createTranscriptItemIdentity", () => {
 
     // The live id must equal what history replay produces for the same entry,
     // or live and replayed state would key differently.
-    const replayed = toTranscriptItems([
+    const replayed = deriveTranscriptItems([
       {
         type: "message",
         id: entryId,

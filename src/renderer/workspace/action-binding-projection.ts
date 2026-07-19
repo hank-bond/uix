@@ -13,21 +13,21 @@ interface ActionBindingProjection {
   readonly unresolvedBindings: Readonly<KeybindingMap>;
 }
 
-export function deriveActionBindingProjection(
+export function deriveActionBindingProjectionForPlatform(
   catalog: ActionCatalog,
   bindings: Readonly<KeybindingMap>,
   platform: ShortcutPlatform,
 ): ActionBindingProjection {
   const activeIds = new Set(catalog.map(({ id }) => id));
-  const claimantsByShortcut = new Map<string, string[]>();
+  const claimantsPerShortcut = new Map<string, string[]>();
 
   for (const entry of catalog) {
     const binding = bindings[entry.id];
     if (typeof binding !== "string") continue;
     const resolved = resolveShortcutForPlatform(binding, platform);
-    const claimants = claimantsByShortcut.get(resolved) ?? [];
+    const claimants = claimantsPerShortcut.get(resolved) ?? [];
     claimants.push(entry.id);
-    claimantsByShortcut.set(resolved, claimants);
+    claimantsPerShortcut.set(resolved, claimants);
   }
 
   const projectedCatalog = catalog.map((entry): ActionCatalogEntry => {
@@ -38,7 +38,7 @@ export function deriveActionBindingProjection(
         : binding;
     const conflictsWith =
       typeof resolvedBinding === "string"
-        ? (claimantsByShortcut.get(resolvedBinding) ?? []).filter(
+        ? (claimantsPerShortcut.get(resolvedBinding) ?? []).filter(
             (id) => id !== entry.id,
           )
         : [];

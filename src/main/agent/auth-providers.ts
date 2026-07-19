@@ -88,7 +88,7 @@ interface ProviderRegistry {
  * setup recipe replaces it; OAuth-only extension providers remain discoverable
  * without inventing a model entry.
  */
-export function deriveProviderAuthCatalog(
+export function deriveProviderAuthCatalogForEnvironment(
   registry: ProviderRegistry,
   environment: Readonly<Record<string, string | undefined>> = {},
 ): ProviderAuthCatalog {
@@ -169,7 +169,7 @@ export function findOfferedCredentialMethod(
   providerId: string,
   methodId: string,
 ): CredentialMethod | undefined {
-  for (const provider of deriveProviderAuthCatalog(registry)) {
+  for (const provider of deriveProviderAuthCatalogForEnvironment(registry)) {
     const method = provider.methods.find(
       (candidate) =>
         candidate.providerId === providerId && candidate.id === methodId,
