@@ -56,6 +56,17 @@ export interface TurnStateAsOfLeaf {
   readonly cwd: string | undefined;
 }
 
+export interface TurnStateRestoreFailure {
+  readonly featureId: string;
+  readonly cellName: string;
+  readonly phase: "validation" | "restore";
+  readonly error: Error;
+}
+
+export interface TurnStateRestoreResult {
+  readonly failures: readonly TurnStateRestoreFailure[];
+}
+
 interface TurnStateProjector {
   projectEntry(entry: SessionEntry): void;
   deriveAsOfLeaf(): TurnStateAsOfLeaf;
@@ -67,6 +78,83 @@ export function createTurnStateProjector(
   return createTurnStateProjectorForIds(
     new Set(registry?.registeredCells.map((cell) => cell.canonicalId) ?? []),
   );
+}
+
+export async function restoreTurnStateCellsAsOfLeaf(
+  registry: TurnStateRegistry,
+  turnState: TurnStateAsOfLeaf,
+): Promise<TurnStateRestoreResult> {
+  const cellsPerFeature = new Map<string, RegisteredTurnStateCell[]>();
+  for (const cell of registry.registeredCells) {
+    const cells = cellsPerFeature.get(cell.featureId) ?? [];
+    cells.push(cell);
+    cellsPerFeature.set(cell.featureId, cells);
+  }
+
+  const validationFailurePerFeature = new Map<
+    string,
+    TurnStateRestoreFailure
+  >();
+  for (const cell of registry.registeredCells) {
+    if (!turnState.latestValuePerCell.has(cell.canonicalId)) continue;
+    const value = turnState.latestValuePerCell.get(cell.canonicalId);
+    if (Value.Check(cell.schema, value)) continue;
+
+    const failure: TurnStateRestoreFailure = {
+      featureId: cell.featureId,
+      cellName: cell.cellName,
+      phase: "validation",
+      error: new Error(
+        `Invalid persisted turn-state value for ${cell.canonicalId}: value does not match its schema`,
+      ),
+    };
+    if (!validationFailurePerFeature.has(cell.featureId)) {
+      validationFailurePerFeature.set(cell.featureId, failure);
+      log.error(
+        {
+          feature: failure.featureId,
+          cell: failure.cellName,
+          err: failure.error.message,
+        },
+        "restore_validation_failed",
+      );
+    }
+  }
+
+  const failures = await Promise.all(
+    [...cellsPerFeature].map(async ([featureId, cells]) => {
+      const validationFailure = validationFailurePerFeature.get(featureId);
+      if (validationFailure) return validationFailure;
+
+      for (const cell of cells) {
+        const value = turnState.latestValuePerCell.get(cell.canonicalId);
+        try {
+          await cell.restore(value);
+        } catch (thrown) {
+          const error =
+            thrown instanceof Error ? thrown : new Error(String(thrown));
+          const failure: TurnStateRestoreFailure = {
+            featureId,
+            cellName: cell.cellName,
+            phase: "restore",
+            error,
+          };
+          log.error(
+            { feature: featureId, cell: cell.cellName, err: error.message },
+            "restore_callback_failed",
+          );
+          return failure;
+        }
+      }
+      return undefined;
+    }),
+  );
+
+  return {
+    failures: failures.filter(
+      (failure): failure is TurnStateRestoreFailure => failure !== undefined,
+    ),
+  };
 }
 
 /** Registers one feature's keyed state cells as one disposable group. */

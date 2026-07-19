@@ -13,7 +13,9 @@ import type { TurnStateContributions } from "@uix/api/turn-state";
 import {
   createTurnStateCoordinator,
   createTurnStateHistoryReader,
+  createTurnStateProjector,
   registerTurnStateContributions,
+  restoreTurnStateCellsAsOfLeaf,
   commitTurnStateBeforeSubmit,
   TurnStateRegistry,
 } from "./registry";
@@ -89,6 +91,23 @@ function setupCoordinator(state = new TurnStateRegistry()) {
   };
 
   return { entries, fire, submit };
+}
+
+function projectTurnState(
+  state: TurnStateRegistry,
+  values: Record<string, unknown>,
+) {
+  const projector = createTurnStateProjector(state);
+  projector.projectEntry(turnStateEntry("projected", { state: values }));
+  return projector.deriveAsOfLeaf();
+}
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
 }
 
 describe("TurnStateRegistry", () => {
@@ -293,6 +312,157 @@ describe("TurnStateRegistry", () => {
         },
       },
     ]);
+  });
+
+  it("validates projected values before restoring any cell in their feature", async () => {
+    const state = new TurnStateRegistry();
+    const restored: string[] = [];
+    registerTurnStateContributions(state, "canvas", {
+      documents: {
+        schema: Type.String(),
+        createSnapshot: () => "",
+        restore: () => {
+          restored.push("canvas.documents");
+        },
+      },
+      selection: {
+        schema: Type.String(),
+        createSnapshot: () => "",
+        restore: () => {
+          restored.push("canvas.selection");
+        },
+      },
+    });
+    registerTurnStateContributions(state, "chat", {
+      draft: {
+        schema: Type.String(),
+        createSnapshot: () => "",
+        restore: () => {
+          restored.push("chat.draft");
+        },
+      },
+    });
+
+    const result = await restoreTurnStateCellsAsOfLeaf(
+      state,
+      projectTurnState(state, {
+        "canvas.documents": "version-1",
+        "canvas.selection": 42,
+        "chat.draft": "hello",
+      }),
+    );
+
+    expect(restored).toEqual(["chat.draft"]);
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]).toMatchObject({
+      featureId: "canvas",
+      cellName: "selection",
+      phase: "validation",
+    });
+    expect(result.failures[0]?.error.message).toBe(
+      "Invalid persisted turn-state value for canvas.selection: value does not match its schema",
+    );
+  });
+
+  it("restores features concurrently and each feature's cells sequentially", async () => {
+    const state = new TurnStateRegistry();
+    const documentGate = deferred();
+    const restored: Array<[string, unknown]> = [];
+    registerTurnStateContributions(state, "canvas", {
+      documents: {
+        schema: Type.String(),
+        createSnapshot: () => "",
+        restore: async (value) => {
+          restored.push(["canvas.documents", value]);
+          await documentGate.promise;
+        },
+      },
+      selection: {
+        schema: Type.String(),
+        createSnapshot: () => "",
+        restore: (value) => {
+          restored.push(["canvas.selection", value]);
+        },
+      },
+    });
+    registerTurnStateContributions(state, "chat", {
+      draft: {
+        schema: Type.String(),
+        createSnapshot: () => "",
+        restore: (value) => {
+          restored.push(["chat.draft", value]);
+        },
+      },
+    });
+
+    const restoration = restoreTurnStateCellsAsOfLeaf(
+      state,
+      projectTurnState(state, {
+        "canvas.documents": "version-1",
+        "chat.draft": "hello",
+      }),
+    );
+
+    expect(restored).toEqual([
+      ["canvas.documents", "version-1"],
+      ["chat.draft", "hello"],
+    ]);
+
+    documentGate.resolve();
+    await expect(restoration).resolves.toEqual({ failures: [] });
+    expect(restored).toEqual([
+      ["canvas.documents", "version-1"],
+      ["chat.draft", "hello"],
+      ["canvas.selection", undefined],
+    ]);
+  });
+
+  it("stops a failed feature without blocking sibling restoration", async () => {
+    const state = new TurnStateRegistry();
+    const restored: string[] = [];
+    registerTurnStateContributions(state, "canvas", {
+      documents: {
+        schema: Type.String(),
+        createSnapshot: () => "",
+        restore: () => {
+          throw new Error("document restore failed");
+        },
+      },
+      selection: {
+        schema: Type.String(),
+        createSnapshot: () => "",
+        restore: () => {
+          restored.push("canvas.selection");
+        },
+      },
+    });
+    registerTurnStateContributions(state, "chat", {
+      draft: {
+        schema: Type.String(),
+        createSnapshot: () => "",
+        restore: () => {
+          restored.push("chat.draft");
+        },
+      },
+    });
+
+    const result = await restoreTurnStateCellsAsOfLeaf(
+      state,
+      projectTurnState(state, {
+        "canvas.documents": "version-1",
+        "canvas.selection": "anchor-1",
+        "chat.draft": "hello",
+      }),
+    );
+
+    expect(restored).toEqual(["chat.draft"]);
+    expect(result.failures).toHaveLength(1);
+    expect(result.failures[0]).toMatchObject({
+      featureId: "canvas",
+      cellName: "documents",
+      phase: "restore",
+      error: new Error("document restore failed"),
+    });
   });
 
   it("reads one cell's history without sibling commits", () => {
