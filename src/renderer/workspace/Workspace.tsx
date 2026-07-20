@@ -25,6 +25,7 @@ import { ActionRegistry } from "./action-registry";
 import { ActionRegistryProvider } from "./action-context";
 import { ActionKeyboardDispatcher } from "./action-keyboard-dispatcher";
 import { KeybindingSync } from "./keybinding-sync";
+import { WorkspaceSessionControllerProvider } from "./session-context";
 import { toShortcutPlatform } from "./shortcut-platform";
 
 const actionRegistry = new ActionRegistry({
@@ -34,9 +35,11 @@ const actionRegistry = new ActionRegistry({
 export function Workspace() {
   return (
     <ActionRegistryProvider registry={actionRegistry}>
-      <ActionKeyboardDispatcher />
-      <KeybindingSync />
-      <WorkspaceContent />
+      <WorkspaceSessionControllerProvider>
+        <ActionKeyboardDispatcher />
+        <KeybindingSync />
+        <WorkspaceContent />
+      </WorkspaceSessionControllerProvider>
     </ActionRegistryProvider>
   );
 }

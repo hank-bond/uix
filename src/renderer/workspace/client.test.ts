@@ -10,8 +10,9 @@ import {
 } from "@uix/api/workspace";
 
 function fakeWorkspaceClient() {
-  const request = vi.fn((_name: string, _req: unknown) =>
-    Promise.resolve(undefined),
+  const request = vi.fn(
+    (_name: string, _req: unknown): Promise<unknown> =>
+      Promise.resolve(undefined),
   );
   const subscribe = vi.fn(
     (_name: string, _handler: (event: unknown) => void) => () => undefined,
@@ -63,13 +64,24 @@ describe("channel clients", () => {
     const { client, request, subscribe } = fakeWorkspaceClient();
     const agent = createChannelClient(client, agentChannels);
     const onEvent = vi.fn();
+    request
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ items: [] })
+      .mockResolvedValueOnce({
+        sessionId: "session-2",
+        displayLabel: "New conversation",
+        createdAt: "2026-07-19T11:00:00.000Z",
+        modifiedAt: "2026-07-19T11:00:00.000Z",
+      });
 
     await agent.requests.prompt({ text: "hi" });
     await agent.requests.history(undefined);
+    await agent.requests.new_session(undefined);
     agent.events.event(onEvent);
 
     expect(request).toHaveBeenCalledWith("agent.prompt", { text: "hi" });
     expect(request).toHaveBeenCalledWith("agent.history", undefined);
+    expect(request).toHaveBeenCalledWith("agent.new_session", undefined);
     expect(subscribe).toHaveBeenCalledWith("agent.event", expect.any(Function));
   });
 

@@ -1,5 +1,6 @@
 import type { Static, TSchema } from "typebox";
 import { Value } from "typebox/value";
+import type { SessionSummary } from "./agent-channels";
 import {
   createContext,
   createElement,
@@ -53,6 +54,35 @@ const SubscribeToActionCatalogContext = createContext<
   SubscribeToActionCatalog | undefined
 >(undefined);
 const InvokeActionContext = createContext<InvokeAction | undefined>(undefined);
+type ActiveSession = Readonly<SessionSummary>;
+const ActiveSessionContext = createContext<ActiveSession | undefined | null>(
+  null,
+);
+
+export interface ActiveSessionProviderProps {
+  activeSession: ActiveSession | undefined;
+  children: ReactNode;
+}
+
+export function ActiveSessionProvider({
+  activeSession,
+  children,
+}: ActiveSessionProviderProps): ReactNode {
+  return createElement(
+    ActiveSessionContext.Provider,
+    { value: activeSession },
+    children,
+  );
+}
+
+/** Current renderer projection of the active session, when established. */
+export function useActiveSession(): ActiveSession | undefined {
+  const activeSession = useContext(ActiveSessionContext);
+  if (activeSession === null) {
+    throw new Error("ActiveSessionProvider is missing");
+  }
+  return activeSession;
+}
 
 export interface WorkspaceActionsProviderProps {
   getCatalogSnapshot: GetActionCatalogSnapshot;

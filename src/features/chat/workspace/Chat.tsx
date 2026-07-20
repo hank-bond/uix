@@ -4,10 +4,20 @@
 // durable items; live events append the same items, stream compact partials
 // into them, and replace them whole at completion.
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 
 import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
-import { useFeatureSetting, type ChannelClient } from "@uix/api/workspace";
+import {
+  useActiveSession,
+  useFeatureSetting,
+  type ChannelClient,
+} from "@uix/api/workspace";
 import type { agentChannels } from "@uix/api/agent-channels";
 import { useAgentControls, type AgentControls } from "./agent-controls";
 import { ChatBlock } from "./blocks/ChatBlock";
@@ -28,6 +38,9 @@ export function Chat({ client }: ChatProps) {
   const [pending, setPending] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const historyLoadVersion = useRef(0);
+  const activeSession = useActiveSession();
+  const activeSessionId = activeSession?.sessionId;
   const statusBar = useFeatureSetting(chatSettings, "statusBar");
   const controls = useAgentControls(client);
 
@@ -40,25 +53,29 @@ export function Chat({ client }: ChatProps) {
     });
   }, [client]);
 
-  // Pull the prior transcript once and prepend it. Prepend (not replace) so any
-  // live event that arrived during the await stays after the resumed history.
-  // In React StrictMode the first effect setup is immediately cleaned up and
-  // re-run; let the second setup issue its own request so hydration can finish.
-  useEffect(() => {
-    let cancelled = false;
+  // A successful session mutation changes activeSessionId. Clear the old
+  // projection immediately, invalidate its in-flight history read, and hydrate
+  // the newly selected session. Prepend so live events received during the
+  // request remain after the durable history.
+  useLayoutEffect(() => {
+    const loadVersion = ++historyLoadVersion.current;
+    setItems([]);
+    setHydrated(false);
     void (async () => {
       try {
         const snapshot = await client.requests.history(undefined);
-        if (cancelled) return;
+        if (loadVersion !== historyLoadVersion.current) return;
         setItems((prev) => [...snapshot.items.filter(isVisible), ...prev]);
       } finally {
-        if (!cancelled) setHydrated(true);
+        if (loadVersion === historyLoadVersion.current) setHydrated(true);
       }
     })();
     return () => {
-      cancelled = true;
+      if (historyLoadVersion.current === loadVersion) {
+        historyLoadVersion.current += 1;
+      }
     };
-  }, [client]);
+  }, [client, activeSessionId]);
 
   useEffect(() => {
     const el = scrollRef.current;
