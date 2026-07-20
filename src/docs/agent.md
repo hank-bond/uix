@@ -10,10 +10,12 @@ UIX owns one Pi `AgentSessionRuntime` for the workspace, created lazily the firs
 Current behavior:
 
 - an auth-free `SessionManager` eagerly resumes or creates the selected graph under the workspace state root, so history remains independent from live agent startup;
-- the first prompt creates the runtime from that manager and any Pi services already opened by model/auth UI; later runtime generations recreate cwd-bound services and bind transcript-item identity/observation to their active session;
+- the first prompt or session mutation creates the runtime from that manager and any Pi services already opened by model/auth UI; later runtime generations recreate cwd-bound services and bind transcript-item identity/observation to their active session;
 - surfaces talk to the driver through the substrate-owned agent channel contract (`@uix/api/agent-channels`, registered under the reserved `agent` id) via the typed channel client — chat is an ordinary feature consuming channels any feature could;
 - the `prompt` request invokes the main-process driver; the renderer receives a UIX-shaped event stream on the `event` channel: transcript item appends, compact in-flight partials (`transcript_partial`: streamed assistant text appends, tool progress snapshots overwrite), whole-item replacements at completion, plus basic lifecycle markers; live in-flight tool partials are discarded when the final item arrives;
-- the `history` request replays the same durable transcript item shape from pi's persisted session branch;
+- the `history` request replays the same durable transcript item shape from pi's persisted selected-session branch;
+- the payload-free `new_session` request rejects while the agent is running, commits active feature turn state, replaces the selected graph through `AgentSessionRuntime.newSession()`, restores the fresh graph's missing cells as defaults, and returns its `SessionSummary` only after restoration settles;
+- the workspace renderer owns the active-session projection returned by mutations; its substrate-owned `uix.session.new` action materializes `mod+n`, skips the request while agent events report a run in progress, and lets Chat clear/reload against the new id without owning the operation;
 - reload (typed IPC, not an agent channel) reloads manifest features and workspace settings; it recreates Pi's services tier if model/auth resources were already used before a session, delegates to `session.reload()` once a session exists, and initializes neither solely for reload;
 - core substrate tools are registered through internal agent installers (`AgentInstaller`), not through feature contributions.
 

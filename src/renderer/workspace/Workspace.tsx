@@ -21,25 +21,31 @@ import {
   type SurfaceComposition,
 } from "./layout";
 import type { SurfaceEntry } from "#shared/ipc";
+import { FeatureActionsProvider } from "@uix/api/workspace";
 import { ActionRegistry } from "./action-registry";
 import { ActionRegistryProvider } from "./action-context";
 import { ActionKeyboardDispatcher } from "./action-keyboard-dispatcher";
 import { KeybindingSync } from "./keybinding-sync";
+import { WorkspaceSessionActions } from "./session-actions";
 import { WorkspaceSessionControllerProvider } from "./session-context";
 import { toShortcutPlatform } from "./shortcut-platform";
 
 const actionRegistry = new ActionRegistry({
   shortcutPlatform: toShortcutPlatform(navigator),
 });
+const registerWorkspaceActions = actionRegistry.forFeature("uix");
 
 export function Workspace() {
   return (
     <ActionRegistryProvider registry={actionRegistry}>
-      <WorkspaceSessionControllerProvider>
-        <ActionKeyboardDispatcher />
-        <KeybindingSync />
-        <WorkspaceContent />
-      </WorkspaceSessionControllerProvider>
+      <FeatureActionsProvider register={registerWorkspaceActions}>
+        <WorkspaceSessionControllerProvider>
+          <WorkspaceSessionActions />
+          <ActionKeyboardDispatcher />
+          <KeybindingSync />
+          <WorkspaceContent />
+        </WorkspaceSessionControllerProvider>
+      </FeatureActionsProvider>
     </ActionRegistryProvider>
   );
 }

@@ -41,6 +41,20 @@ describe("WorkspaceSessionController", () => {
     expect(listener).toHaveBeenCalledOnce();
   });
 
+  it("tracks agent activity independently from Chat", () => {
+    const controller = new WorkspaceSessionController(() =>
+      Promise.resolve(newSession),
+    );
+
+    expect(controller.isAgentRunning()).toBe(false);
+    controller.updateAgentActivity({ type: "agent_start" });
+    expect(controller.isAgentRunning()).toBe(true);
+    controller.updateAgentActivity({ type: "turn_end" });
+    expect(controller.isAgentRunning()).toBe(true);
+    controller.updateAgentActivity({ type: "agent_end" });
+    expect(controller.isAgentRunning()).toBe(false);
+  });
+
   it("keeps the prior active session when the request fails", async () => {
     const responses = [
       Promise.resolve(newSession),

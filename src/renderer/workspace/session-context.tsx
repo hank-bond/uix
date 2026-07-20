@@ -1,6 +1,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useSyncExternalStore,
   type ReactNode,
@@ -40,6 +41,11 @@ export function WorkspaceSessionControllerProvider({
     controller.subscribe,
     controller.getActiveSessionSnapshot,
     controller.getActiveSessionSnapshot,
+  );
+
+  useEffect(
+    () => agent.events.event((event) => controller.updateAgentActivity(event)),
+    [agent, controller],
   );
 
   return (

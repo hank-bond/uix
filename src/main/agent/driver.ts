@@ -183,8 +183,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
 
   // The bootstrap manager stays cheap and auth-free so startup history does
   // not create a model registry or load extensions. The runtime remains lazy
-  // until the first prompt, then becomes the authority for the selected manager
-  // and Pi services across every replacement session generation.
+  // until the first prompt or session mutation, then becomes the authority for
+  // the selected manager and Pi services across every replacement generation.
   let bootstrapManager: SessionManager | undefined;
   let inFlightBootstrapManagerOpen: Promise<SessionManager> | undefined;
   let inFlightBootstrapTurnStateRestore: Promise<SessionManager> | undefined;
