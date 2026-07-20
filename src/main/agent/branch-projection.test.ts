@@ -5,6 +5,7 @@ import { Type } from "typebox";
 
 import {
   registerTurnStateContributions,
+  toTurnStateRegistrySnapshot,
   TurnStateRegistry,
 } from "../turn-state/registry";
 import { deriveSelectedBranchProjection } from "./branch-projection";
@@ -73,7 +74,7 @@ describe("deriveSelectedBranchProjection", () => {
           },
         }),
       ],
-      turnState,
+      toTurnStateRegistrySnapshot(turnState),
     );
 
     expect(projection.transcript).toEqual({
@@ -104,7 +105,10 @@ describe("deriveSelectedBranchProjection", () => {
       },
     });
 
-    const projection = deriveSelectedBranchProjection([], turnState);
+    const projection = deriveSelectedBranchProjection(
+      [],
+      toTurnStateRegistrySnapshot(turnState),
+    );
 
     expect(projection.transcript).toEqual({ items: [] });
     expect([...projection.turnStateAsOfLeaf.latestValuePerCell.keys()]).toEqual(

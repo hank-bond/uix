@@ -1,36 +1,35 @@
-interface WorkspaceReloadCoordinatorOptions<TReplacementActivation> {
-  commitActiveFeatureTurnStateIfRestorationSettled: () => Promise<boolean>;
-  activateReplacementFeatures: () => Promise<TReplacementActivation>;
+interface WorkspaceReloadCoordinatorOptions<TFeatureActivation> {
+  commitTurnState: () => Promise<boolean>;
+  loadFeatures: () => Promise<TFeatureActivation>;
   reloadPiResources: () => Promise<boolean>;
-  restoreSelectedBranchTurnStateIntoActiveFeatureInstances: () => Promise<void>;
+  restoreTurnState: () => Promise<void>;
   publishSurfacesChanged: () => void;
 }
 
-interface WorkspaceReloadCompletion<TReplacementActivation> {
-  readonly replacementActivation: TReplacementActivation;
+interface WorkspaceReloadCompletion<TFeatureActivation> {
+  readonly featureActivation: TFeatureActivation;
   readonly piResourcesReloaded: boolean;
   readonly turnStateCommitted: boolean;
 }
 
-interface WorkspaceReloadCoordinator<TReplacementActivation> {
-  reload(): Promise<WorkspaceReloadCompletion<TReplacementActivation>>;
+interface WorkspaceReloadCoordinator<TFeatureActivation> {
+  reload(): Promise<WorkspaceReloadCompletion<TFeatureActivation>>;
 }
 
 /**
  * Serializes whole-workspace replacement and keeps the renderer notification
  * behind both the Pi resource reload and replacement feature-state restoration.
  */
-export function createWorkspaceReloadCoordinator<TReplacementActivation>(
-  opts: WorkspaceReloadCoordinatorOptions<TReplacementActivation>,
-): WorkspaceReloadCoordinator<TReplacementActivation> {
+export function createWorkspaceReloadCoordinator<TFeatureActivation>(
+  opts: WorkspaceReloadCoordinatorOptions<TFeatureActivation>,
+): WorkspaceReloadCoordinator<TFeatureActivation> {
   let reloadTail: Promise<void> = Promise.resolve();
 
   const runReload = async (): Promise<
-    WorkspaceReloadCompletion<TReplacementActivation>
+    WorkspaceReloadCompletion<TFeatureActivation>
   > => {
-    const turnStateCommitted =
-      await opts.commitActiveFeatureTurnStateIfRestorationSettled();
-    const replacementActivation = await opts.activateReplacementFeatures();
+    const turnStateCommitted = await opts.commitTurnState();
+    const featureActivation = await opts.loadFeatures();
 
     let piResourcesReloaded = false;
     const errors: unknown[] = [];
@@ -41,7 +40,7 @@ export function createWorkspaceReloadCoordinator<TReplacementActivation>(
     }
 
     try {
-      await opts.restoreSelectedBranchTurnStateIntoActiveFeatureInstances();
+      await opts.restoreTurnState();
     } catch (thrown) {
       errors.push(thrown);
     }
@@ -60,7 +59,7 @@ export function createWorkspaceReloadCoordinator<TReplacementActivation>(
     if (errors.length === 1) throw errors[0];
 
     return {
-      replacementActivation,
+      featureActivation,
       piResourcesReloaded,
       turnStateCommitted,
     };

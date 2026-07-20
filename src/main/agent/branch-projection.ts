@@ -16,10 +16,12 @@ export interface SelectedBranchProjection {
 /** Derives the read models owned by the selected branch in one forward pass. */
 export function deriveSelectedBranchProjection(
   branch: readonly SessionEntry[],
-  turnStateRegistry?: TurnStateRegistrySnapshot,
+  turnStateRegistrySnapshot?: TurnStateRegistrySnapshot,
 ): SelectedBranchProjection {
   const transcriptProjector = createTranscriptProjector();
-  const turnStateProjector = createTurnStateProjector(turnStateRegistry);
+  const turnStateProjector = createTurnStateProjector(
+    turnStateRegistrySnapshot,
+  );
 
   for (const entry of branch) {
     transcriptProjector.projectEntry(entry);

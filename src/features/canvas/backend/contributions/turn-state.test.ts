@@ -9,6 +9,7 @@ import {
   createTurnStateProjector,
   registerTurnStateContributions,
   restoreTurnStateCellsAsOfLeaf,
+  toTurnStateRegistrySnapshot,
   TurnStateRegistry,
 } from "../../../../main/turn-state/registry";
 
@@ -57,7 +58,8 @@ async function restoreCanvasDocuments(
   registerTurnStateContributions(turnState, "canvas", {
     documents: contribution,
   });
-  const projector = createTurnStateProjector(turnState);
+  const registrySnapshot = toTurnStateRegistrySnapshot(turnState);
+  const projector = createTurnStateProjector(registrySnapshot);
   if (documents !== undefined) {
     projector.projectEntry({
       id: "turn-state",
@@ -69,7 +71,7 @@ async function restoreCanvasDocuments(
     } as unknown as SessionEntry);
   }
   await expect(
-    restoreTurnStateCellsAsOfLeaf(turnState, projector.deriveAsOfLeaf()),
+    restoreTurnStateCellsAsOfLeaf(registrySnapshot, projector.deriveAsOfLeaf()),
   ).resolves.toEqual({ failures: [] });
 }
 

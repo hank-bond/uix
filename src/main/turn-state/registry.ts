@@ -36,6 +36,10 @@ type TurnStateCanonicalId = string & {
   readonly [TurnStateCanonicalIdBrand]: true;
 };
 
+const TurnStateRegistrySnapshotBrand: unique symbol = Symbol(
+  "TurnStateRegistrySnapshot",
+);
+
 interface TurnStateCellRegistration {
   readonly featureId: string;
   readonly cellName: string;
@@ -57,13 +61,17 @@ export class TurnStateRegistry {
  * replaced its feature instances without snapshotting their working state.
  */
 export interface TurnStateRegistrySnapshot {
+  readonly [TurnStateRegistrySnapshotBrand]: true;
   readonly registrations: readonly TurnStateCellRegistration[];
 }
 
 export function toTurnStateRegistrySnapshot(
   registry: TurnStateRegistry,
 ): TurnStateRegistrySnapshot {
-  return { registrations: [...registry.registrations] };
+  return {
+    [TurnStateRegistrySnapshotBrand]: true,
+    registrations: [...registry.registrations],
+  };
 }
 
 export function isSameTurnStateRegistrySnapshot(

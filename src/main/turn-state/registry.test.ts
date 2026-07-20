@@ -100,7 +100,9 @@ function projectTurnState(
   state: TurnStateRegistry,
   values: Record<string, unknown>,
 ) {
-  const projector = createTurnStateProjector(state);
+  const projector = createTurnStateProjector(
+    toTurnStateRegistrySnapshot(state),
+  );
   projector.projectEntry(turnStateEntry("projected", { state: values }));
   return projector.deriveAsOfLeaf();
 }
@@ -372,7 +374,7 @@ describe("TurnStateRegistry", () => {
     });
 
     const result = await restoreTurnStateCellsAsOfLeaf(
-      state,
+      toTurnStateRegistrySnapshot(state),
       projectTurnState(state, {
         "canvas.documents": "version-1",
         "canvas.selection": 42,
@@ -424,7 +426,7 @@ describe("TurnStateRegistry", () => {
     });
 
     const restoration = restoreTurnStateCellsAsOfLeaf(
-      state,
+      toTurnStateRegistrySnapshot(state),
       projectTurnState(state, {
         "canvas.documents": "version-1",
         "chat.draft": "hello",
@@ -475,7 +477,7 @@ describe("TurnStateRegistry", () => {
     });
 
     const result = await restoreTurnStateCellsAsOfLeaf(
-      state,
+      toTurnStateRegistrySnapshot(state),
       projectTurnState(state, {
         "canvas.documents": "version-1",
         "canvas.selection": "anchor-1",

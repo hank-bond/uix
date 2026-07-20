@@ -48,16 +48,7 @@ import { DisposableBag, subscribe } from "../lifecycle";
 import { createLogger } from "../log";
 
 const log = createLogger("agent");
-import {
-  createTurnStateCoordinator,
-  commitCurrentTurnState,
-  toTurnStateRegistrySnapshot,
-  isSameTurnStateRegistrySnapshot,
-  isTurnStateRegistrySnapshotCurrent,
-  restoreTurnStateCellsAsOfLeaf,
-  TurnStateRegistry,
-  type TurnStateRegistrySnapshot,
-} from "../turn-state/registry";
+import { TurnStateRegistry } from "../turn-state/registry";
 
 import { createOAuthFlowCoordinator } from "./auth-flow";
 import { deriveSelectedBranchProjection } from "./branch-projection";
@@ -71,6 +62,7 @@ import {
   createTranscriptItemIdentity,
   type TranscriptItemIdentity,
 } from "./transcript-item-identity";
+import { createTurnStateLifecycle } from "./turn-state-lifecycle";
 import {
   buildAgentContextMessage,
   buildAgentContextVocabularySection,
@@ -105,9 +97,13 @@ export interface AgentDriver extends Disposable {
    * any changes to the selected session branch. Returns false while restoration
    * into those instances has not settled.
    */
-  commitActiveFeatureTurnStateIfRestorationSettled(): Promise<boolean>;
+  /**
+   * Commit current feature turn state to the selected branch. Returns false
+   * while restoration into the active feature instances is pending.
+   */
+  commitFeatureTurnState(): Promise<boolean>;
   /** Restore the selected branch into the active feature instances. */
-  restoreSelectedBranchTurnStateIntoActiveFeatureInstances(): Promise<void>;
+  restoreFeatureTurnState(): Promise<void>;
   /**
    * Kick the eager, auth-free selected-session load and turn-state restore off
    * the boot path. Safe to call before any prompt; lets history() resolve
@@ -189,14 +185,6 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   let bootstrapManager: SessionManager | undefined;
   let inFlightBootstrapManagerOpen: Promise<SessionManager> | undefined;
   let inFlightBootstrapTurnStateRestore: Promise<SessionManager> | undefined;
-  let lastSettledTurnStateRestoration:
-    | { manager: SessionManager; registrySnapshot: TurnStateRegistrySnapshot }
-    | undefined;
-  let inFlightTurnStateRestorations: Array<{
-    manager: SessionManager;
-    registrySnapshot: TurnStateRegistrySnapshot;
-    promise: Promise<boolean>;
-  }> = [];
   let runtime: AgentSessionRuntime | undefined;
   let inFlightRuntimeOpen: Promise<AgentSessionRuntime> | undefined;
 
@@ -214,10 +202,18 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     SessionManager,
     TranscriptItemIdentity
   >();
+  const turnStateLifecycle = opts.turnState
+    ? driverBag.add(
+        createTurnStateLifecycle({
+          registry: opts.turnState,
+          cwd: opts.workspace.agentCwd,
+        }),
+      )
+    : undefined;
 
   const agentInstallers = [...(opts.agentInstallers ?? [])];
-  if (opts.turnState) {
-    agentInstallers.push(createTurnStateCoordinator(opts.turnState));
+  if (turnStateLifecycle) {
+    agentInstallers.push(turnStateLifecycle.agentInstaller);
   }
   if (opts.agentSkills) {
     agentInstallers.push(createAgentSkillInstaller(opts.agentSkills));
@@ -285,92 +281,6 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     return (await getServices()).modelRegistry;
   }
 
-  function isTurnStateRestorationSettledForManager(
-    sessionManager: SessionManager,
-  ): boolean {
-    return (
-      !opts.turnState ||
-      (lastSettledTurnStateRestoration?.manager === sessionManager &&
-        isTurnStateRegistrySnapshotCurrent(
-          opts.turnState,
-          lastSettledTurnStateRestoration.registrySnapshot,
-        ))
-    );
-  }
-
-  // The registry snapshot is taken when restoration is requested, not when the
-  // manager eventually opens. If reload replaces those registrations in the
-  // meantime, the deferred request becomes obsolete instead of restoring the
-  // replacements a second time. Requests for the same manager and registry
-  // snapshot share one operation.
-  function restoreSelectedBranchTurnStateIfRegistrySnapshotCurrent(
-    sessionManager: SessionManager,
-    registrySnapshot: TurnStateRegistrySnapshot,
-  ): Promise<boolean> {
-    const turnState = opts.turnState;
-    if (!turnState) return Promise.resolve(true);
-    const existing = inFlightTurnStateRestorations.find(
-      (entry) =>
-        entry.manager === sessionManager &&
-        isSameTurnStateRegistrySnapshot(
-          entry.registrySnapshot,
-          registrySnapshot,
-        ),
-    );
-    if (existing) return existing.promise;
-
-    const restoration = (async () => {
-      if (!isTurnStateRegistrySnapshotCurrent(turnState, registrySnapshot)) {
-        return false;
-      }
-      const projection = deriveSelectedBranchProjection(
-        sessionManager.getBranch(),
-        registrySnapshot,
-      );
-      await restoreTurnStateCellsAsOfLeaf(
-        registrySnapshot,
-        projection.turnStateAsOfLeaf,
-      );
-      if (disposed) throw new Error("Agent driver is disposed");
-      if (!isTurnStateRegistrySnapshotCurrent(turnState, registrySnapshot)) {
-        return false;
-      }
-      lastSettledTurnStateRestoration = {
-        manager: sessionManager,
-        registrySnapshot,
-      };
-      return true;
-    })();
-    const entry = {
-      manager: sessionManager,
-      registrySnapshot,
-      promise: restoration,
-    };
-    inFlightTurnStateRestorations.push(entry);
-    const removeEntry = (): void => {
-      const index = inFlightTurnStateRestorations.indexOf(entry);
-      if (index !== -1) inFlightTurnStateRestorations.splice(index, 1);
-    };
-    void restoration.then(removeEntry, removeEntry);
-    return restoration;
-  }
-
-  async function restoreSelectedBranchTurnStateIntoActiveFeatureInstancesForManager(
-    sessionManager: SessionManager,
-  ): Promise<void> {
-    if (
-      !opts.turnState ||
-      isTurnStateRestorationSettledForManager(sessionManager)
-    ) {
-      return;
-    }
-    const registrySnapshot = toTurnStateRegistrySnapshot(opts.turnState);
-    await restoreSelectedBranchTurnStateIfRegistrySnapshotCurrent(
-      sessionManager,
-      registrySnapshot,
-    );
-  }
-
   const oauth = driverBag.add(
     createOAuthFlowCoordinator({
       modelRegistry: registry,
@@ -436,7 +346,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     if (disposed) return Promise.reject(new Error("Agent driver is disposed"));
     if (
       bootstrapManager &&
-      isTurnStateRestorationSettledForManager(bootstrapManager)
+      (!turnStateLifecycle ||
+        turnStateLifecycle.isRestorationSettled(bootstrapManager))
     ) {
       return Promise.resolve(bootstrapManager);
     }
@@ -444,16 +355,11 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       return inFlightBootstrapTurnStateRestore;
     }
 
-    const registrySnapshot = opts.turnState
-      ? toTurnStateRegistrySnapshot(opts.turnState)
-      : undefined;
+    const registrySnapshot = turnStateLifecycle?.toRegistrySnapshot();
     const restoration = getBootstrapManager()
       .then(async (manager) => {
-        if (registrySnapshot) {
-          await restoreSelectedBranchTurnStateIfRegistrySnapshotCurrent(
-            manager,
-            registrySnapshot,
-          );
+        if (registrySnapshot && turnStateLifecycle) {
+          await turnStateLifecycle.restore(manager, registrySnapshot);
         }
         if (disposed) throw new Error("Agent driver is disposed");
         return manager;
@@ -536,9 +442,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     const initialManager = await restoreBootstrapTurnState();
     // The bootstrap request may have become obsolete while its manager opened.
     // Runtime creation still requires the currently active cells to be settled.
-    await restoreSelectedBranchTurnStateIntoActiveFeatureInstancesForManager(
-      initialManager,
-    );
+    await turnStateLifecycle?.restoreCurrent(initialManager);
     let initialRuntimeCreated = false;
 
     const createRuntime: CreateAgentSessionRuntimeFactory = async ({
@@ -600,13 +504,11 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     openedRuntime.setBeforeSessionInvalidate(() => {
       sessionBag.clear();
       currentModel = undefined;
-      lastSettledTurnStateRestoration = undefined;
+      turnStateLifecycle?.clearRestoration();
     });
     openedRuntime.setRebindSession(async (session) => {
       bindActiveSession(session);
-      await restoreSelectedBranchTurnStateIntoActiveFeatureInstancesForManager(
-        session.sessionManager,
-      );
+      await turnStateLifecycle?.restoreCurrent(session.sessionManager);
     });
     bindActiveSession(openedRuntime.session);
     return openedRuntime;
@@ -769,7 +671,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
           (await restoreBootstrapTurnState());
         return deriveSelectedBranchProjection(
           sessionManager.getBranch(),
-          opts.turnState,
+          turnStateLifecycle?.toRegistrySnapshot(),
         ).transcript;
       } catch (err) {
         log.warn(
@@ -780,31 +682,19 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       }
     },
 
-    async commitActiveFeatureTurnStateIfRestorationSettled() {
+    async commitFeatureTurnState() {
       if (disposed) throw new Error("Agent driver is disposed");
-      if (!opts.turnState) return true;
-
+      if (!turnStateLifecycle) return true;
       const manager = runtime?.session.sessionManager ?? bootstrapManager;
-      if (!manager || !isTurnStateRestorationSettledForManager(manager)) {
-        return false;
-      }
-
-      await commitCurrentTurnState(
-        manager,
-        opts.workspace.agentCwd,
-        opts.turnState,
-      );
-      return true;
+      return turnStateLifecycle.commitIfReady(manager);
     },
 
-    async restoreSelectedBranchTurnStateIntoActiveFeatureInstances() {
+    async restoreFeatureTurnState() {
       if (disposed) throw new Error("Agent driver is disposed");
-      if (!opts.turnState) return;
+      if (!turnStateLifecycle) return;
       const manager =
         runtime?.session.sessionManager ?? (await getBootstrapManager());
-      await restoreSelectedBranchTurnStateIntoActiveFeatureInstancesForManager(
-        manager,
-      );
+      await turnStateLifecycle.restoreCurrent(manager);
     },
 
     async reloadPiResources() {
@@ -846,13 +736,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         // so branch navigation to the gap before a user message still has the
         // state explaining that turn.  We write both before calling
         // session.prompt(text).
-        if (opts.turnState) {
+        if (turnStateLifecycle) {
           log.trace("submitting_turn_state");
-          await commitCurrentTurnState(
-            session.sessionManager,
-            opts.workspace.agentCwd,
-            opts.turnState,
-          );
+          await turnStateLifecycle.commit(session.sessionManager);
         }
         if (opts.agentContext) {
           log.trace("building_agent_context");
@@ -907,8 +793,6 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       inFlightBootstrapManagerOpen = undefined;
       bootstrapManager = undefined;
       inFlightBootstrapTurnStateRestore = undefined;
-      lastSettledTurnStateRestoration = undefined;
-      inFlightTurnStateRestorations = [];
       inFlightServicesCreate = undefined;
       preRuntimeServices = undefined;
       currentModel = undefined;

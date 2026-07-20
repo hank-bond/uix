@@ -15,11 +15,10 @@ describe("workspace reload coordinator", () => {
     const restoreGate = deferred();
     const order: string[] = [];
     const coordinator = createWorkspaceReloadCoordinator({
-      commitActiveFeatureTurnStateIfRestorationSettled: () =>
-        Promise.resolve(true),
-      activateReplacementFeatures: () => Promise.resolve({ activated: 2 }),
+      commitTurnState: () => Promise.resolve(true),
+      loadFeatures: () => Promise.resolve({ activated: 2 }),
       reloadPiResources: () => Promise.resolve(true),
-      restoreSelectedBranchTurnStateIntoActiveFeatureInstances: async () => {
+      restoreTurnState: async () => {
         order.push("restore");
         await restoreGate.promise;
       },
@@ -35,7 +34,7 @@ describe("workspace reload coordinator", () => {
     restoreGate.resolve();
 
     await expect(reload).resolves.toEqual({
-      replacementActivation: { activated: 2 },
+      featureActivation: { activated: 2 },
       piResourcesReloaded: true,
       turnStateCommitted: true,
     });
@@ -46,11 +45,11 @@ describe("workspace reload coordinator", () => {
     const order: string[] = [];
     const failure = new Error("Pi reload failed");
     const coordinator = createWorkspaceReloadCoordinator({
-      commitActiveFeatureTurnStateIfRestorationSettled: () => {
+      commitTurnState: () => {
         order.push("commit");
         return Promise.resolve(true);
       },
-      activateReplacementFeatures: () => {
+      loadFeatures: () => {
         order.push("activate");
         return Promise.resolve(undefined);
       },
@@ -58,7 +57,7 @@ describe("workspace reload coordinator", () => {
         order.push("pi");
         return Promise.reject(failure);
       },
-      restoreSelectedBranchTurnStateIntoActiveFeatureInstances: () => {
+      restoreTurnState: () => {
         order.push("restore");
         return Promise.resolve();
       },
@@ -75,12 +74,10 @@ describe("workspace reload coordinator", () => {
     const failure = new Error("restore failed");
     const publish = vi.fn();
     const coordinator = createWorkspaceReloadCoordinator({
-      commitActiveFeatureTurnStateIfRestorationSettled: () =>
-        Promise.resolve(true),
-      activateReplacementFeatures: () => Promise.resolve(undefined),
+      commitTurnState: () => Promise.resolve(true),
+      loadFeatures: () => Promise.resolve(undefined),
       reloadPiResources: () => Promise.resolve(false),
-      restoreSelectedBranchTurnStateIntoActiveFeatureInstances: () =>
-        Promise.reject(failure),
+      restoreTurnState: () => Promise.reject(failure),
       publishSurfacesChanged: publish,
     });
 
@@ -93,19 +90,18 @@ describe("workspace reload coordinator", () => {
     let reloadNumber = 0;
     const startedReloads: number[] = [];
     const coordinator = createWorkspaceReloadCoordinator({
-      commitActiveFeatureTurnStateIfRestorationSettled: async () => {
+      commitTurnState: async () => {
         reloadNumber += 1;
         startedReloads.push(reloadNumber);
         if (reloadNumber === 1) await firstGate.promise;
         return true;
       },
-      activateReplacementFeatures: () =>
+      loadFeatures: () =>
         reloadNumber === 1
           ? Promise.reject(new Error("first activation failed"))
           : Promise.resolve(reloadNumber),
       reloadPiResources: () => Promise.resolve(false),
-      restoreSelectedBranchTurnStateIntoActiveFeatureInstances: () =>
-        Promise.resolve(),
+      restoreTurnState: () => Promise.resolve(),
       publishSurfacesChanged: () => undefined,
     });
 
@@ -117,7 +113,7 @@ describe("workspace reload coordinator", () => {
     firstGate.resolve();
     await expect(firstReload).rejects.toThrow("first activation failed");
     await expect(secondReload).resolves.toMatchObject({
-      replacementActivation: 2,
+      featureActivation: 2,
     });
     expect(startedReloads).toEqual([1, 2]);
   });

@@ -577,9 +577,7 @@ describe("driver selected-session activation", () => {
     driver.init();
     await driver.history();
 
-    await expect(
-      driver.commitActiveFeatureTurnStateIfRestorationSettled(),
-    ).resolves.toBe(true);
+    await expect(driver.commitFeatureTurnState()).resolves.toBe(true);
     expect(createSnapshot).toHaveBeenCalledOnce();
     expect(sdk.manager.appendCustomEntry).toHaveBeenCalledWith(
       "uix.turn-state",
@@ -610,9 +608,7 @@ describe("driver selected-session activation", () => {
       expect(restore).toHaveBeenCalledOnce();
     });
 
-    await expect(
-      driver.commitActiveFeatureTurnStateIfRestorationSettled(),
-    ).resolves.toBe(false);
+    await expect(driver.commitFeatureTurnState()).resolves.toBe(false);
     expect(createSnapshot).not.toHaveBeenCalled();
     expect(sdk.manager.appendCustomEntry).not.toHaveBeenCalled();
 
@@ -636,9 +632,9 @@ describe("driver selected-session activation", () => {
     driver.init();
     await driver.history();
 
-    await expect(
-      driver.commitActiveFeatureTurnStateIfRestorationSettled(),
-    ).rejects.toThrow("snapshot failed");
+    await expect(driver.commitFeatureTurnState()).rejects.toThrow(
+      "snapshot failed",
+    );
     expect(sdk.manager.appendCustomEntry).not.toHaveBeenCalled();
   });
 
@@ -670,7 +666,7 @@ describe("driver selected-session activation", () => {
       },
     });
 
-    await driver.restoreSelectedBranchTurnStateIntoActiveFeatureInstances();
+    await driver.restoreFeatureTurnState();
     await driver.history();
 
     expect(restorePreviousInstance).not.toHaveBeenCalled();
@@ -702,9 +698,7 @@ describe("driver selected-session activation", () => {
     await vi.waitFor(() => {
       expect(restorePreviousInstance).toHaveBeenCalledOnce();
     });
-    await expect(
-      driver.commitActiveFeatureTurnStateIfRestorationSettled(),
-    ).resolves.toBe(false);
+    await expect(driver.commitFeatureTurnState()).resolves.toBe(false);
 
     previousRegistration[Symbol.dispose]();
     const restoreReplacementInstance = vi.fn();
@@ -717,11 +711,9 @@ describe("driver selected-session activation", () => {
       },
     });
 
-    await driver.restoreSelectedBranchTurnStateIntoActiveFeatureInstances();
+    await driver.restoreFeatureTurnState();
     expect(restoreReplacementInstance).toHaveBeenCalledWith("persisted");
-    await expect(
-      driver.commitActiveFeatureTurnStateIfRestorationSettled(),
-    ).resolves.toBe(true);
+    await expect(driver.commitFeatureTurnState()).resolves.toBe(true);
     expect(createReplacementSnapshot).toHaveBeenCalledOnce();
 
     previousRestoreGate.resolve();

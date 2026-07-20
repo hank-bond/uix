@@ -456,13 +456,10 @@ async function openWorkspace(
   driver.init();
 
   const reloadCoordinator = createWorkspaceReloadCoordinator({
-    commitActiveFeatureTurnStateIfRestorationSettled: () =>
-      driver.commitActiveFeatureTurnStateIfRestorationSettled(),
-    activateReplacementFeatures: () =>
-      loadFeatures(currentSources(), featuresBag, substrate),
+    commitTurnState: () => driver.commitFeatureTurnState(),
+    loadFeatures: () => loadFeatures(currentSources(), featuresBag, substrate),
     reloadPiResources: () => driver.reloadPiResources(),
-    restoreSelectedBranchTurnStateIntoActiveFeatureInstances: () =>
-      driver.restoreSelectedBranchTurnStateIntoActiveFeatureInstances(),
+    restoreTurnState: () => driver.restoreFeatureTurnState(),
     publishSurfacesChanged: () => {
       uixPublisher.surfaces_changed({});
     },
@@ -474,26 +471,23 @@ async function openWorkspace(
       reloadLog.debug({}, "reload_started");
 
       try {
-        const {
-          replacementActivation,
-          piResourcesReloaded,
-          turnStateCommitted,
-        } = await reloadCoordinator.reload();
+        const { featureActivation, piResourcesReloaded, turnStateCommitted } =
+          await reloadCoordinator.reload();
         if (!turnStateCommitted) {
           reloadLog.warn(
             {},
             "reload_turn_state_commit_skipped_restoration_pending",
           );
         }
-        const failures = replacementActivation.failed.map((f) => ({
+        const failures = featureActivation.failed.map((f) => ({
           feature: f.displayName,
           entry: f.entry,
           error: f.error.message,
         }));
         reloadLog.debug(
           {
-            featuresActivated: replacementActivation.activated.length,
-            featuresFailed: replacementActivation.failed.length,
+            featuresActivated: featureActivation.activated.length,
+            featuresFailed: featureActivation.failed.length,
             failures,
             piResourcesReloaded,
             turnStateCommitted,
@@ -501,8 +495,8 @@ async function openWorkspace(
           "reload_completed",
         );
         return {
-          featuresActivated: replacementActivation.activated.length,
-          featuresFailed: replacementActivation.failed.length,
+          featuresActivated: featureActivation.activated.length,
+          featuresFailed: featureActivation.failed.length,
           failures,
           piResourcesReloaded,
         };

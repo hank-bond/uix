@@ -84,7 +84,8 @@ Layer-specific cleanup stays idiomatic: main-process registrations go into lifet
 
 - A `DisposableBag` that owns registrations is named after the lifetime it tracks: `appBag`, `windowBag`, `sessionBag`.
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
-- Function names describe the observable contract from the caller's perspective. Include every distinction needed to predict the result; omit implementation details that do not change what callers receive or observe.
+- Name symbols for their stable domain role and operation, not their current caller, pipeline position, trigger, owner, or implementation strategy. A name should remain correct if the symbol moves, gains another caller, or changes implementation without changing its essential domain contract. Let the receiver provide context (`turnStateLifecycle.restoreCurrent(...)`); do not repeat that context in every method.
+- Function names describe the observable domain operation. Include distinctions that identify materially different operations or results; put lifecycle ordering, current usage, race policy, preconditions, and nuanced skipped outcomes in contract comments. Do not encode those volatile details into a symbol merely because one caller currently depends on them.
 - Apply the ambiguity test: if two materially different operations could reasonably share the name, it is underspecified. Add the distinguishing domain, result, or resolution axis — `enumerateUniqueModifierSequences`, not `permutations`; `resolveShortcutForPlatform`, not `resolveShortcut`.
 - Domain vocabulary is noun-shaped; operations pair those nouns with the established verbs below. A domain noun keeps one grammatical role across types, values, and function results.
 - Parameters name each participant's domain role (`transport`, `contract`, `scope`, `owner`, `session`, `lifetime`, `bag`). Access restrictions live in scoped capability types and handles.
@@ -142,7 +143,8 @@ A **projector** is the stateful derivation component used when cross-entry corre
 
 ```ts
 const transcriptProjector = createTranscriptProjector();
-const turnStateProjector = createTurnStateProjector(registry);
+const registrySnapshot = toTurnStateRegistrySnapshot(registry);
+const turnStateProjector = createTurnStateProjector(registrySnapshot);
 
 for (const entry of branch) {
   transcriptProjector.projectEntry(entry);
@@ -190,7 +192,7 @@ Two corollaries:
 
 ## Comments
 
-**Rule.** A comment explains _why_ this code is here, not _what_ it does. If a comment is needed to follow what the code does, that is a naming problem — rename until the code reads on its own, then delete the comment.
+**Rule.** A comment explains _why_ code exists or records non-obvious contract constraints; it does not narrate syntax. Names carry the stable domain operation. Contract comments may carry preconditions, skipped outcomes, asynchronous ordering, and race policy when putting those volatile details in the symbol would couple callers to one lifecycle use. If a comment is needed merely to identify the operation or domain value, that is still a naming problem — rename until the code reads on its own.
 
 **No planning artifacts.** Plan phases (`C3`), stage numbers, ticket ids, `v0` — none belong in code. They are a parallel vocabulary that means nothing to a later reader and goes stale the moment the plan moves on. The same applies to links to dated decision/design/plan docs: the rationale they hold churns independently of the code, so a citation becomes a re-validation cost (open the doc, check it still applies) rather than a help. A pointer to a living style doc (this file) is the exception — it tracks a stable convention, not a point-in-time decision.
 
