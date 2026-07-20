@@ -22,7 +22,7 @@ import {
 } from "#backend/agent-tools/registry";
 import {
   createTurnStateCoordinator,
-  commitTurnStateBeforeSubmit,
+  commitCurrentTurnState,
   TurnStateRegistry,
   registerTurnStateContributions,
 } from "#backend/turn-state/registry";
@@ -196,7 +196,7 @@ function setup() {
         appendCustomEntry: recordEntry,
         getBranch: () => branch,
       } as SessionManager;
-      await commitTurnStateBeforeSubmit(mgr, "/work", state);
+      await commitCurrentTurnState(mgr, "/work", state);
     },
     agentEnd: async () => {
       await agentEndHandlers[0]({}, extCtx as unknown as ExtensionContext);

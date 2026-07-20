@@ -71,7 +71,7 @@ export default {
 
 ## Lifetimes
 
-Each feature activation gets a per-feature `DisposableBag`. The substrate enrolls the provisional settings scope and each facet registration in that bag; grouped item/facet registration cleans up everything already acquired if a later registration throws. Only a complete activation joins the reloadable feature subtree. Reload clears that subtree before activating the new tree, while a failed feature disposes only its own provisional bag and does not abort siblings. A feature author does not receive the bag directly; cleanup is owned by the substrate registration path.
+Each feature activation gets a per-feature `DisposableBag`. The substrate enrolls the provisional settings scope and each facet registration in that bag; grouped item/facet registration cleans up everything already acquired if a later registration throws. Only a complete activation produces an activated feature instance that joins the active feature composition. Reload disposes that composition before activating replacement feature instances, while a failed activation disposes only its own provisional bag and does not abort siblings. A feature author does not receive the bag directly; cleanup is owned by the substrate registration path.
 
 There is no command-palette contribution API today.
 

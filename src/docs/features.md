@@ -35,7 +35,15 @@ export default {
 } satisfies FeatureDefinition;
 ```
 
-The exported `id` is the feature identity. It owns contribution namespaces, channel ids, settings access, and logs. Workspace manifest entries do not duplicate the id; duplicate loaded feature ids fail activation for the later entry.
+The exported `id` is the feature identity. It owns contribution namespaces, channel ids, settings access, and logs. Workspace manifest entries do not duplicate the id; if two entries export the same id, activation fails for the later entry.
+
+## Activation and activated feature instances
+
+A **feature definition** is the plain exported `FeatureDefinition`. **Feature activation** is the process that validates it and its settings, constructs its context, runs `context()` and `contribute()`, and provisionally registers every contributed facet.
+
+A successful activation produces one **activated feature instance**: the live context objects, callbacks, registrations, and per-feature lifetime bag owned by that manifest entry. The instance joins the workspace's **active feature composition** only after every facet registers successfully. A failed activation produces no instance and disposes all provisional registrations.
+
+Reloading an unchanged entry still creates a replacement activated feature instance. The replacement has the same feature id but fresh context objects, callbacks, registrations, and lifetime bag. An activated feature instance is not called a generation; generation remains reserved for object graphs actually modeled that way, such as a staged manifest generation or Pi runtime generation.
 
 ## Runtime loading
 
@@ -70,6 +78,6 @@ The renderer bridge exposes substrate reload as:
 await window.uix.reload();
 ```
 
-Reload stages one manifest generation from disk, validates its composition and workspace namespaces, promotes it, clears the current feature subtree, activates the accepted entries, publishes surface changes, and delegates to pi's native `session.reload()` path if a pi session already exists. It mirrors first load: a successful reload is disk-wins over pending debounced in-memory settings.
+Reload first commits turn state from the current activated feature instances when they have finished bootstrap restoration; it skips that commit rather than waiting on an instance that is not ready. It then stages one manifest generation from disk, validates its composition and workspace namespaces, promotes it, disposes the active feature composition, activates replacement feature instances, publishes surface changes, and delegates to pi's native `session.reload()` path if a pi session already exists. It mirrors first load: a successful reload is disk-wins over pending debounced in-memory settings.
 
-Malformed manifests or workspace settings fail before promotion or feature-tree clearing, leaving the previous live generation intact. Per-feature failures after promotion, including bad exports, reserved/duplicate ids, invalid feature settings, or throwing contribution code, dispose that feature's provisional registrations, report the failed entry, and continue with siblings.
+Malformed manifests or workspace settings fail before promotion or feature-instance disposal, leaving the active feature composition intact. Per-feature failures after promotion, including bad exports, reserved/duplicate ids, invalid feature settings, or throwing contribution code, dispose that feature's provisional registrations, report the failed entry, and continue activating siblings.

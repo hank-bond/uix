@@ -1,5 +1,5 @@
 ---
-summary: "Build spec for persistence on pi's session file: branch projection and feature-isolated restoration now run on startup and replacement-session activation; next, reload commits source state before replacement and restores the reloaded branch before later preview/navigation."
+summary: "Build spec for persistence on pi's session file: branch projection and feature-isolated restoration now run on startup and replacement-session activation; next, reload commits current active feature state before replacement and restores the reloaded branch into the replacement feature instances."
 status: active
 ---
 
@@ -94,7 +94,7 @@ Activation **restore** now runs on startup and replacement-session rebind, inclu
 ## Near-term implementation direction
 
 1. Move the `uix.state` delivery seam out of transitional `before_agent_start` flushing and into submit prep before `session.prompt(text)`, after `uix.turn-state` prep appends.
-2. Commit source state before reload, then invoke the selected-branch projection and restore scheduler after feature/Pi reload; add preview only with the later navigation UI.
+2. Commit current active feature state before reload, then invoke the selected-branch projection and restore scheduler after feature/Pi reload to hydrate the replacement activated feature instances; add preview only with the later navigation UI.
 3. Introduce the document-engine transaction/event shape for managed documents only when a second concrete writer/listener needs it: document kind normalization, exact `sourceId`, and ref-only write events `{ resourceId, kindId, sourceId, beforeSnapshotId, afterSnapshotId, normalized }`.
 4. Move canvas wiring toward a first-party default feature boundary: canvas kind, surface writeback handler, agent anchor tools, turn-state contribution, and source-aware listeners live together.
 5. Route canvas surface writeback and canvas agent tools through the same document engine once that engine exists; fold normalization into agent tool results so the model sees final canonical anchored output.

@@ -229,8 +229,8 @@ export function createTurnStateCoordinator(
   };
 }
 
-/** Commits live turn state before the user's message is appended. */
-export async function commitTurnStateBeforeSubmit(
+/** Commits live turn state at a durable session boundary. */
+export async function commitCurrentTurnState(
   sessionManager: SessionManager,
   cwd: string,
   registry: TurnStateRegistry,

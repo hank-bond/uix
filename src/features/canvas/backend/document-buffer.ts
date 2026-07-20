@@ -1,7 +1,7 @@
 // canvas document buffer (session state).
 //
-// Holds one AnchoredDocument per canvas document id touched by the activated
-// Canvas feature generation. Mutable current content stays plain HTML; immutable
+// Holds one AnchoredDocument per canvas document id touched by this activated
+// Canvas feature instance. Mutable current content stays plain HTML; immutable
 // versions persist exact anchor state so turn-state restoration can recreate the
 // working projection without renumbering historical anchors.
 //

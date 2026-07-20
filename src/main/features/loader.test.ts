@@ -176,9 +176,9 @@ describe("loadFeatures", () => {
     const result = await loadFeatures({ manifestPath }, bag, substrate);
 
     expect(result.failed).toEqual([]);
-    expect(result.loaded).toHaveLength(1);
-    expect(result.loaded[0]?.id).toBe("greeter");
-    expect(result.loaded[0]?.displayName).toBe("./greeter.ts");
+    expect(result.activated).toHaveLength(1);
+    expect(result.activated[0]?.id).toBe("greeter");
+    expect(result.activated[0]?.displayName).toBe("./greeter.ts");
     expect(agentTools.registeredContributions[0]?.canonicalId).toBe(
       "greeter__greet",
     );
@@ -207,7 +207,7 @@ describe("loadFeatures", () => {
       substrate,
     );
 
-    expect(result.loaded.map((f) => f.id)).toEqual(["zzz", "aaa"]);
+    expect(result.activated.map((f) => f.id)).toEqual(["zzz", "aaa"]);
     expect(
       agentTools.registeredContributions.map((c) => c.canonicalId),
     ).toEqual(["zzz__greet", "aaa__greet"]);
@@ -219,7 +219,7 @@ describe("loadFeatures", () => {
     const result = await loadFeatures({}, new DisposableBag(), substrate);
 
     expect(result.failed).toEqual([]);
-    expect(result.loaded).toEqual([]);
+    expect(result.activated).toEqual([]);
     expect(agentTools.registeredContributions).toHaveLength(0);
   });
 
@@ -246,8 +246,8 @@ describe("loadFeatures", () => {
       ),
     ]);
 
-    expect(firstResult.loaded.map(({ id }) => id)).toEqual(["first"]);
-    expect(secondResult.loaded.map(({ id }) => id)).toEqual(["second"]);
+    expect(firstResult.activated.map(({ id }) => id)).toEqual(["first"]);
+    expect(secondResult.activated.map(({ id }) => id)).toEqual(["second"]);
   });
 
   it("rejects a malformed manifest and leaves the current tree intact", async () => {
@@ -292,7 +292,7 @@ describe("loadFeatures", () => {
 
     expect(result.failed).toHaveLength(1);
     expect(result.failed[0]?.error.message).toContain("deliberate canary");
-    expect(result.loaded.map((f) => f.id)).toEqual(["greeter"]);
+    expect(result.activated.map((f) => f.id)).toEqual(["greeter"]);
     expect(agentTools.registeredContributions).toHaveLength(1);
   });
 
@@ -371,7 +371,9 @@ export default {
     expect(result.failed[0]?.error.message).toContain(
       "no agent-system-prompt registry was provided",
     );
-    expect(result.loaded.map((feature) => feature.id)).toEqual(["recovered"]);
+    expect(result.activated.map((feature) => feature.id)).toEqual([
+      "recovered",
+    ]);
     expect(agentTools.registeredContributions).toHaveLength(1);
     expect(settingsScopes.get("recovered")?.committed).toBe(true);
     expect(committedSettings).toEqual(["recovered"]);
@@ -392,7 +394,7 @@ export default {
 
     expect(result.failed).toHaveLength(1);
     expect(result.failed[0]?.displayName).toBe("./missing.ts");
-    expect(result.loaded.map((f) => f.id)).toEqual(["greeter"]);
+    expect(result.activated.map((f) => f.id)).toEqual(["greeter"]);
   });
 
   it("resolves absolute refs outside the workspace dir", async () => {
@@ -409,8 +411,8 @@ export default {
     );
 
     expect(result.failed).toEqual([]);
-    expect(result.loaded.map((f) => f.id)).toEqual(["shared"]);
-    expect(result.loaded[0]?.entry).toBe(sharedEntry);
+    expect(result.activated.map((f) => f.id)).toEqual(["shared"]);
+    expect(result.activated[0]?.entry).toBe(sharedEntry);
   });
 
   it("fails an entry whose default export is not a FeatureDefinition", async () => {
@@ -425,7 +427,7 @@ export default {
       substrate,
     );
 
-    expect(result.loaded).toEqual([]);
+    expect(result.activated).toEqual([]);
     expect(result.failed[0]?.error.message).toContain(
       "not a FeatureDefinition",
     );
@@ -444,7 +446,7 @@ export default {
       substrate,
     );
 
-    expect(result.loaded).toEqual([]);
+    expect(result.activated).toEqual([]);
     const messages = result.failed.map((f) => f.error.message).sort();
     expect(messages[0]).toContain("reserved: agent");
     expect(messages[1]).toContain("reserved: uix");
@@ -467,7 +469,7 @@ export default {
     );
 
     // Manifest order: the first line wins, the second fails.
-    expect(result.loaded.map((f) => f.id)).toEqual(["dup"]);
+    expect(result.activated.map((f) => f.id)).toEqual(["dup"]);
     expect(result.failed[0]?.displayName).toBe("./second.ts");
     expect(result.failed[0]?.error.message).toContain(
       "already registered: dup",
@@ -490,7 +492,7 @@ export default {
     const second = await loadFeatures(sources, bag, substrate);
 
     expect(second.failed).toEqual([]);
-    expect(second.loaded.map((f) => f.id)).toEqual(["greeter", "waver"]);
+    expect(second.activated.map((f) => f.id)).toEqual(["greeter", "waver"]);
     expect(agentTools.registeredContributions).toHaveLength(2);
   });
 
@@ -509,7 +511,7 @@ export default {
     const result = await loadFeatures({ manifestPath }, bag, substrate);
 
     expect(result.failed).toEqual([]);
-    const entryDir = join(result.loaded[0]?.entry ?? "", "..");
+    const entryDir = join(result.activated[0]?.entry ?? "", "..");
     expect(surfaces.list()).toEqual([
       {
         featureId: "shiny",
@@ -556,7 +558,7 @@ export default {
     );
 
     expect(result.failed).toEqual([]);
-    expect(result.loaded.map((f) => f.id)).toEqual(["valuey"]);
+    expect(result.activated.map((f) => f.id)).toEqual(["valuey"]);
     expect([...channelIds]).toContain("valuey.ping");
   });
 });

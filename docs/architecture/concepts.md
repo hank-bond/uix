@@ -21,6 +21,18 @@ A feature is not itself one registration. It may include several pieces:
 
 Use **feature** when naming the user-facing capability. Use **extension** when you mean the loadable package/activation boundary or a Pi extension factory.
 
+## Feature lifecycle
+
+A **feature definition** is the plain `FeatureDefinition` exported by one manifest entry module. It declares the feature id and the hooks that produce its contributions; it is not itself live runtime state.
+
+**Feature activation** is the transactional process that validates the definition and settings, constructs the feature context, runs `context()` and `contribute()`, registers every contributed facet into a provisional lifetime bag, and commits that bag only when the whole feature succeeds.
+
+An **activated feature instance** is the live result of one successful feature activation: its context objects, callbacks, registrations, and per-feature lifetime bag. Reloading the same entry creates a replacement activated feature instance even when its id and source are unchanged. A failed activation produces no activated feature instance; all provisional registrations are disposed.
+
+The **active feature composition** is the set of activated feature instances currently owned by the workspace's feature bag. Reload commits turn state from those current instances, disposes them, activates replacement instances, and restores the selected session branch into the replacements.
+
+Do not call an activated feature instance a feature generation. **Generation** remains appropriate for an independently replaceable object graph that is actually modeled as such, including a staged manifest generation or Pi runtime generation; feature lifecycle language uses activation, activated feature instance, active feature composition, and replacement instance.
+
 ## Identifier grammar
 
 UIX uses two id grammars for different things.
@@ -198,7 +210,7 @@ A **driver** owns a runtime or lifecycle boundary. It creates the relevant lifet
 Examples:
 
 - the agent driver owns the Pi session boundary: session creation/resume, prompt/reload/history, live event forwarding, and the Pi extension factory that runs agent installers;
-- the extension driver owns extension activation: discovery, per-entry bags, injected API construction, activation/reload/error isolation, and teardown of registered contributions.
+- the feature loader owns feature activation: manifest composition, per-entry bags, injected API construction, activated feature instance creation, reload/error isolation, and teardown of registered contributions.
 
 Drivers own bags. Installers register things. Registries track live contributions. Bags decide when the registration disposables run.
 
@@ -250,7 +262,7 @@ UIX has three layers that can fall out of sync at different times:
 2. **UIX memory** — currently registered contributions in facet registries.
 3. **Pi runtime** — tools, hooks, commands, and other agent behavior registered during the last Pi extension load.
 
-The extension driver reconciles disk to UIX memory by reloading extension packages: clear old extension bags, activate entries again, and let their installers register the current contributions. Registries are the source of truth after activation.
+The feature loader reconciles disk to UIX memory by disposing the active feature composition, activating each accepted manifest entry, and letting each replacement activated feature instance register its contributions. Registries are the source of truth after activation.
 
 Facet registries that compile to Pi install-time behavior mark the agent install surface dirty when their contributions are registered or unregistered. The dirty marker is not about disk; it means the Pi runtime snapshot no longer matches UIX's in-memory contribution graph. The agent driver must reconcile that by reloading Pi before the next agent turn starts. It may reload earlier when the agent is idle to avoid submit latency, but the invariant is before-turn reconciliation.
 

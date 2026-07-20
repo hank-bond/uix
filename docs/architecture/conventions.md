@@ -39,7 +39,7 @@ bag[Symbol.dispose]();
 
 **Rule.** Name one authority for current state and keep asynchronous work, cleanup, lookup, and caching separate from it.
 
-**Terminology.** A **generation** is a real replaceable object/lifetime graph, such as a manifest, feature activation, or Pi runtime generation. A **version** is a monotonic scalar that orders async work and rejects stale results (`requestVersion`, `buildVersion`). An **id** or **token** correlates one operation without implying order. Do not call an ordering counter a generation.
+**Terminology.** A **generation** is a real replaceable object/lifetime graph, such as a manifest or Pi runtime generation. Feature activation is a process that produces an **activated feature instance**; the workspace owns the current instances as its **active feature composition** and reload creates replacement instances. A **version** is a monotonic scalar that orders async work and rejects stale results (`requestVersion`, `buildVersion`). An **id** or **token** correlates one operation without implying order. Do not call an ordering counter or an activated feature instance a generation.
 
 | Mechanism | Role | Constraint |
 | --- | --- | --- |
@@ -110,7 +110,7 @@ Layer-specific cleanup stays idiomatic: main-process registrations go into lifet
   - `registerX` for putting an item into a registry; registries' own mutation methods use the same verb (`register`, `registerScope`).
   - `resolveX` for mapping a reference to the concrete thing it denotes (`resolveWorkspace`); include a result-determining axis when the unqualified name permits materially different resolutions (`resolveShortcutForPlatform`).
   - `bindX` for establishing a removable or replaceable relationship among independently existing participants (`bindSettingsHandle`, `bindActionKeyboardDispatcher`). The relationship is enrolled in an explicit lifetime while the participants retain their own lifetimes; construction and binding are separate operations when the instance and relationship have independent lifetimes.
-  - `commitX` for accepting validated candidate state into an authority at an explicit boundary (`registration.commit()`, `commitTurnStateBeforeSubmit`).
+  - `commitX` for accepting validated candidate state into an authority at an explicit boundary (`registration.commit()`, `commitCurrentTurnState`).
   - `restoreX` for replacing live state from previously committed state or referenced snapshots.
   - `defineX` for public-API identity/type-checking helpers around plain data (`defineSettings`, `defineSurface`).
   - `forX(id)` for minting a capability handle scoped to one owner (`forScope`); see the handle convention below.

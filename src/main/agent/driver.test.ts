@@ -67,7 +67,7 @@ const sdk = vi.hoisted(() => {
     getBranch: () => state.branch,
     getSessionFile: () => "/tmp/session.jsonl",
     appendMessage: () => "entry-id",
-    appendCustomEntry: () => "entry-id",
+    appendCustomEntry: vi.fn(() => "entry-id"),
     appendCustomMessageEntry: () => "entry-id",
   };
 
@@ -313,6 +313,7 @@ beforeEach(() => {
   sdk.state.pendingProviderModels = [];
   sdk.registry.authStorage.set.mockClear();
   sdk.registry.refresh.mockClear();
+  sdk.manager.appendCustomEntry.mockClear();
 });
 
 describe("driver model service (pre-session)", () => {
@@ -558,6 +559,87 @@ describe("driver selected-session activation", () => {
     expect(sdk.state.servicesLoads).toBe(0);
     expect(sdk.state.runtimeCreates).toBe(0);
     expect(sdk.state.session).toBeUndefined();
+  });
+
+  it("commits active feature turn state after bootstrap restoration", async () => {
+    const turnState = new TurnStateRegistry();
+    const createSnapshot = vi.fn(() => "live");
+    registerTurnStateContributions(turnState, "canvas", {
+      documents: {
+        schema: Type.String(),
+        createSnapshot,
+        restore: () => undefined,
+      },
+    });
+    sdk.state.branch = [turnStateEntry({ "canvas.documents": "persisted" })];
+    const { driver } = createDriver(undefined, turnState);
+
+    driver.init();
+    await driver.history();
+
+    await expect(driver.commitActiveFeatureTurnStateIfReady()).resolves.toBe(
+      true,
+    );
+    expect(createSnapshot).toHaveBeenCalledOnce();
+    expect(sdk.manager.appendCustomEntry).toHaveBeenCalledWith(
+      "uix.turn-state",
+      {
+        cwd: "/tmp/ws",
+        state: { "canvas.documents": "live" },
+      },
+    );
+  });
+
+  it("skips source commit without waiting for bootstrap restoration", async () => {
+    const turnState = new TurnStateRegistry();
+    const restoreGate = deferred();
+    const createSnapshot = vi.fn(() => "live");
+    const restore = vi.fn(async () => restoreGate.promise);
+    registerTurnStateContributions(turnState, "canvas", {
+      documents: {
+        schema: Type.String(),
+        createSnapshot,
+        restore,
+      },
+    });
+    sdk.state.branch = [turnStateEntry({ "canvas.documents": "persisted" })];
+    const { driver } = createDriver(undefined, turnState);
+
+    driver.init();
+    await vi.waitFor(() => {
+      expect(restore).toHaveBeenCalledOnce();
+    });
+
+    await expect(driver.commitActiveFeatureTurnStateIfReady()).resolves.toBe(
+      false,
+    );
+    expect(createSnapshot).not.toHaveBeenCalled();
+    expect(sdk.manager.appendCustomEntry).not.toHaveBeenCalled();
+
+    restoreGate.resolve();
+    await driver.history();
+  });
+
+  it("propagates a ready source snapshot failure", async () => {
+    const turnState = new TurnStateRegistry();
+    registerTurnStateContributions(turnState, "canvas", {
+      documents: {
+        schema: Type.String(),
+        createSnapshot: () => {
+          throw new Error("snapshot failed");
+        },
+        restore: () => undefined,
+      },
+    });
+    const { driver } = createDriver(undefined, turnState);
+
+    driver.init();
+    await driver.history();
+
+    await expect(driver.commitActiveFeatureTurnStateIfReady()).rejects.toThrow(
+      "snapshot failed",
+    );
+    expect(sdk.manager.appendCustomEntry).not.toHaveBeenCalled();
   });
 
   it("waits for startup restoration before creating the runtime", async () => {

@@ -16,7 +16,7 @@ import {
   createTurnStateProjector,
   registerTurnStateContributions,
   restoreTurnStateCellsAsOfLeaf,
-  commitTurnStateBeforeSubmit,
+  commitCurrentTurnState,
   TurnStateRegistry,
 } from "./registry";
 
@@ -87,7 +87,7 @@ function setupCoordinator(state = new TurnStateRegistry()) {
       },
       getBranch: () => branch,
     } as SessionManager;
-    await commitTurnStateBeforeSubmit(manager, cwd, state);
+    await commitCurrentTurnState(manager, cwd, state);
   };
 
   return { entries, fire, submit };

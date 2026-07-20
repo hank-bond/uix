@@ -50,7 +50,7 @@ import { createLogger } from "../log";
 const log = createLogger("agent");
 import {
   createTurnStateCoordinator,
-  commitTurnStateBeforeSubmit,
+  commitCurrentTurnState,
   restoreTurnStateCellsAsOfLeaf,
   TurnStateRegistry,
 } from "../turn-state/registry";
@@ -96,6 +96,12 @@ export interface AgentDriver extends Disposable {
   prompt(text: string): Promise<void>;
   /** Reload pi resources if a session already exists. */
   reload(): Promise<boolean>;
+  /**
+   * Snapshot turn state from the currently active feature instances and commit
+   * any changes to the selected session branch. Returns false when those
+   * instances have not finished bootstrap restoration.
+   */
+  commitActiveFeatureTurnStateIfReady(): Promise<boolean>;
   /**
    * Kick the eager, auth-free selected-session load and turn-state restore off
    * the boot path. Safe to call before any prompt; lets history() resolve
@@ -675,6 +681,25 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       }
     },
 
+    async commitActiveFeatureTurnStateIfReady() {
+      if (disposed) throw new Error("Agent driver is disposed");
+      if (!opts.turnState) return true;
+
+      const manager =
+        runtime?.session.sessionManager ??
+        (bootstrapManager && restoredBootstrapManager === bootstrapManager
+          ? bootstrapManager
+          : undefined);
+      if (!manager) return false;
+
+      await commitCurrentTurnState(
+        manager,
+        opts.workspace.agentCwd,
+        opts.turnState,
+      );
+      return true;
+    },
+
     async reload() {
       // Reload only tiers already in use. A live session owns Pi's native
       // extension rebind; before a session exists, recreate the coherent
@@ -716,7 +741,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         // session.prompt(text).
         if (opts.turnState) {
           log.trace("submitting_turn_state");
-          await commitTurnStateBeforeSubmit(
+          await commitCurrentTurnState(
             session.sessionManager,
             opts.workspace.agentCwd,
             opts.turnState,

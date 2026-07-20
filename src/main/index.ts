@@ -172,7 +172,7 @@ async function openWorkspace(
   );
 
   // The feature composition lives under its own child scope so reload can
-  // tear down the feature subtree without touching app-lifetime process
+  // tear down the active feature composition without touching app-lifetime process
   // handlers, the window, the agent driver, or IPC registrations.
   const featuresBag = appBag.add(new DisposableBag());
 
@@ -424,10 +424,13 @@ async function openWorkspace(
   } catch (thrown) {
     const error = thrown instanceof Error ? thrown : new Error(String(thrown));
     createLogger("features").error({ err: error.message }, "manifest_failed");
-    activation = { loaded: [], failed: [] };
+    activation = { activated: [], failed: [] };
   }
   createLogger("features").debug(
-    { loaded: activation.loaded.length, failed: activation.failed.length },
+    {
+      activated: activation.activated.length,
+      failed: activation.failed.length,
+    },
     "activation_complete",
   );
   uixPublisher.surfaces_changed({});
@@ -453,6 +456,12 @@ async function openWorkspace(
       reloadLog.debug({}, "reload_started");
 
       try {
+        const turnStateCommitted =
+          await driver.commitActiveFeatureTurnStateIfReady();
+        if (!turnStateCommitted) {
+          reloadLog.warn({}, "reload_turn_state_commit_skipped_not_ready");
+        }
+
         const featureResult = await loadFeatures(
           currentSources(),
           featuresBag,
@@ -467,15 +476,16 @@ async function openWorkspace(
         }));
         reloadLog.debug(
           {
-            featuresLoaded: featureResult.loaded.length,
+            featuresActivated: featureResult.activated.length,
             featuresFailed: featureResult.failed.length,
             failures,
             piReloaded,
+            turnStateCommitted,
           },
           "reload_completed",
         );
         return {
-          featuresLoaded: featureResult.loaded.length,
+          featuresActivated: featureResult.activated.length,
           featuresFailed: featureResult.failed.length,
           failures,
           piReloaded,

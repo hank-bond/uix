@@ -69,7 +69,7 @@ export interface ReloadFailure {
 }
 
 export interface ReloadResult {
-  featuresLoaded: number;
+  featuresActivated: number;
   featuresFailed: number;
   /** Per-feature failure detail, so the caller can act rather than count. */
   failures: ReloadFailure[];

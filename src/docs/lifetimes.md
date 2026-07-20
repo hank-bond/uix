@@ -9,13 +9,13 @@ UIX uses `DisposableBag` in `src/main/lifecycle.ts` to own cleanup-requiring reg
 
 Current main-process lifetime scopes:
 
-- `appBag` — app lifetime; owns process handlers, protocol registration, IPC handlers, app/window listeners, the reloadable feature subtree, workspace settings, and the agent driver.
+- `appBag` — app lifetime; owns process handlers, protocol registration, IPC handlers, app/window listeners, the active feature composition, workspace settings, and the agent driver.
 - `featuresBag` — child of `appBag`; cleared on feature reload and disposed on app shutdown.
 - per-feature bag — created for each manifest feature activation; owns its provisional settings-scope registration, settings listeners, and every facet registration, and is enrolled into `featuresBag` only after successful activation.
 - agent driver bag — internal to `createAgentDriver`; owns the pi event subscription and session disposal after a session exists.
 
 Feature authors do not receive a `DisposableBag` object directly. The substrate registers a provisional settings scope into the per-feature bag before `context()` and `contribute()` run, then enrolls every facet returned by `contribute()`. Grouped registration has strong exception safety: if a later item or facet throws, helpers dispose everything they already acquired before rethrowing. The loader commits settings and enrolls the bag into `featuresBag` only after all facets succeed.
 
-Malformed workspace candidates fail before `featuresBag` is cleared, leaving the current feature tree and settings owner intact. Per-feature activation failures dispose that feature's entire provisional bag and continue with sibling entries. Registration disposables remove the exact object they created, so cleanup from an old generation cannot remove a newer registration with the same id. Disposing a successfully activated feature removes its live settings scope but never deletes values already committed to the manifest.
+Malformed workspace candidates fail before `featuresBag` is cleared, leaving the active feature composition and settings owner intact. A failed feature activation disposes that entry's entire provisional bag and continues with sibling entries. Registration disposables remove the exact object they created, so disposing an earlier activated feature instance cannot remove a replacement instance's registration with the same id. Disposing an activated feature instance removes its live settings scope but never deletes values already committed to the manifest.
 
 For substrate-internal registration rules, see [`../../docs/architecture/conventions.md`](../../docs/architecture/conventions.md).

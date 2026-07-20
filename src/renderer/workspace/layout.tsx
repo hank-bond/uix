@@ -1,7 +1,7 @@
 // workspace surface composition.
 //
 // The surface list is registry-driven: the substrate's `uix.surfaces`
-// channel lists what the loaded features contributed, and the page
+// channel lists what the active feature instances contributed, and the page
 // re-fetches on `surfaces_changed` (fired after every load pass, so
 // /reload updates the composition live). Every surface — chat and canvas
 // included — is dynamic-imported from its content-hash-busted
