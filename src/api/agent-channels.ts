@@ -89,6 +89,16 @@ export interface TranscriptSnapshot {
   items: TranscriptItem[];
 }
 
+/** Durable identity and current display projection for one session graph. */
+export const SessionSummarySchema = Type.Object({
+  sessionId: Type.String(),
+  displayName: Type.Optional(Type.String()),
+  displayLabel: Type.String(),
+  createdAt: Type.String(),
+  modifiedAt: Type.String(),
+});
+export type SessionSummary = Static<typeof SessionSummarySchema>;
+
 /** Provider-qualified model reference. */
 export const ModelRefSchema = Type.Object({
   provider: Type.String(),
@@ -318,6 +328,11 @@ export const agentChannels = {
     history: {
       requestSchema: Type.Void(),
       responseSchema: TranscriptSnapshotSchema,
+    },
+    /** Replace the active agent slot's selected graph with a fresh session. */
+    new_session: {
+      requestSchema: Type.Void(),
+      responseSchema: SessionSummarySchema,
     },
     /** Available (auth-configured) models with workspace favorite status. */
     list_models: {

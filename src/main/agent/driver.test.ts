@@ -35,6 +35,7 @@ const sdk = vi.hoisted(() => {
     runtimeCreates: 0,
     runtimeOptions: undefined as Record<string, unknown> | undefined,
     replaceRuntime: undefined as (() => Promise<void>) | undefined,
+    runtimeNewSession: undefined as ReturnType<typeof vi.fn> | undefined,
     lastCreateOptions: undefined as Record<string, unknown> | undefined,
     servicesLoads: 0,
     servicesOptions: [] as Array<{ cwd: string; agentDir: string }>,
@@ -65,7 +66,9 @@ const sdk = vi.hoisted(() => {
 
   const manager = {
     getBranch: () => state.branch,
+    getSessionId: () => "session-id",
     getSessionFile: () => "/tmp/session.jsonl",
+    getHeader: () => ({ timestamp: "2026-07-19T10:00:00.000Z" }),
     appendMessage: () => "entry-id",
     appendCustomEntry: vi.fn(() => "entry-id"),
     appendCustomMessageEntry: () => "entry-id",
@@ -79,6 +82,7 @@ const sdk = vi.hoisted(() => {
     return {
       model,
       sessionManager,
+      isStreaming: false,
       unsubscribe,
       setModel: vi.fn((next: FakeModel) => {
         (state.session as { model?: FakeModel }).model = next;
@@ -172,6 +176,10 @@ const sdk = vi.hoisted(() => {
         const runtime = {
           session: result.session,
           services: result.services,
+          newSession: vi.fn(async () => {
+            await state.replaceRuntime?.();
+            return { cancelled: false };
+          }),
           setRebindSession: (
             callback?: (session: Record<string, unknown>) => Promise<void>,
           ) => {
@@ -186,12 +194,15 @@ const sdk = vi.hoisted(() => {
             return Promise.resolve();
           }),
         };
+        state.runtimeNewSession = runtime.newSession;
         state.replaceRuntime = async () => {
           beforeSessionInvalidate?.();
           const replacementManager = {
             ...manager,
             getBranch: () => state.replacementBranch ?? state.branch,
+            getSessionId: () => "replacement-session-id",
             getSessionFile: () => "/tmp/replacement-session.jsonl",
+            getHeader: () => ({ timestamp: "2026-07-19T11:00:00.000Z" }),
           };
           const replacement = await createRuntime({
             ...options,
@@ -307,6 +318,7 @@ beforeEach(() => {
   sdk.state.runtimeCreates = 0;
   sdk.state.runtimeOptions = undefined;
   sdk.state.replaceRuntime = undefined;
+  sdk.state.runtimeNewSession = undefined;
   sdk.state.lastCreateOptions = undefined;
   sdk.state.servicesLoads = 0;
   sdk.state.servicesOptions = [];
@@ -785,6 +797,86 @@ describe("driver selected-session activation", () => {
     emptyRestoreGate.resolve();
     await replacement;
     expect(completed).toBe(true);
+  });
+
+  it("commits current state and returns the fresh session only after restoration", async () => {
+    const turnState = new TurnStateRegistry();
+    const emptyRestoreGate = deferred();
+    const events: string[] = [];
+    registerTurnStateContributions(turnState, "canvas", {
+      documents: {
+        schema: Type.String(),
+        createSnapshot: () => {
+          events.push("snapshot");
+          return "current";
+        },
+        restore: async (value) => {
+          events.push(value === undefined ? "restore:empty" : "restore:saved");
+          if (value === undefined) await emptyRestoreGate.promise;
+        },
+      },
+    });
+    sdk.state.branch = [turnStateEntry({ "canvas.documents": "saved" })];
+    sdk.state.replacementBranch = [];
+    const { driver } = createDriver(undefined, turnState);
+
+    const transition = driver.newSession();
+    await vi.waitFor(() => {
+      expect(events).toEqual(["restore:saved", "snapshot", "restore:empty"]);
+    });
+    expect(sdk.manager.appendCustomEntry).toHaveBeenCalledWith(
+      "uix.turn-state",
+      {
+        cwd: "/tmp/ws",
+        state: { "canvas.documents": "current" },
+      },
+    );
+
+    let completed = false;
+    void transition.then(() => {
+      completed = true;
+    });
+    await Promise.resolve();
+    expect(completed).toBe(false);
+
+    emptyRestoreGate.resolve();
+    await expect(transition).resolves.toEqual({
+      sessionId: "replacement-session-id",
+      displayLabel: "New conversation",
+      createdAt: "2026-07-19T11:00:00.000Z",
+      modifiedAt: "2026-07-19T11:00:00.000Z",
+    });
+    expect(completed).toBe(true);
+    expect(sdk.state.runtimeNewSession).toHaveBeenCalledOnce();
+  });
+
+  it("does not replace the session when the current-state commit fails", async () => {
+    const turnState = new TurnStateRegistry();
+    registerTurnStateContributions(turnState, "canvas", {
+      documents: {
+        schema: Type.String(),
+        createSnapshot: () => {
+          throw new Error("snapshot failed");
+        },
+        restore: () => undefined,
+      },
+    });
+    const { driver } = createDriver(undefined, turnState);
+
+    await expect(driver.newSession()).rejects.toThrow("snapshot failed");
+    expect(sdk.state.runtimeNewSession).not.toHaveBeenCalled();
+  });
+
+  it("rejects New Session while the agent is running", async () => {
+    const { driver } = createDriver();
+    await driver.prompt("hello");
+    const session = sdk.state.session as { isStreaming: boolean };
+    session.isStreaming = true;
+
+    await expect(driver.newSession()).rejects.toThrow(
+      "Cannot create a new session while the agent is running",
+    );
+    expect(sdk.state.runtimeNewSession).not.toHaveBeenCalled();
   });
 });
 

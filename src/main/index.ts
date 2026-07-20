@@ -343,6 +343,9 @@ async function openWorkspace(
             }),
           },
         },
+        new_session: {
+          handle: () => driver.newSession(),
+        },
         list_models: {
           handle: async () => ({ models: await driver.listModels() }),
         },

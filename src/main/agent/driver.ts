@@ -35,6 +35,7 @@ import type {
   ProviderAuthCatalog,
   OAuthFlowState,
   ProviderCredentials,
+  SessionSummary,
   TranscriptItem,
   TranscriptSnapshot,
 } from "@uix/api/agent-channels";
@@ -112,6 +113,8 @@ export interface AgentDriver extends Disposable {
   init(): void;
   /** Prior transcript for renderer rehydration. Needs only the manager tier. */
   history(): Promise<TranscriptSnapshot>;
+  /** Replace the active agent slot's selected graph with a fresh session. */
+  newSession(): Promise<SessionSummary>;
   /**
    * Where pi persists this driver's transcript. Undefined until the manager
    * is open — and, for a fresh session, until pi first persists an entry.
@@ -697,6 +700,22 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       await turnStateLifecycle.restoreCurrent(manager);
     },
 
+    async newSession() {
+      const activeRuntime = await getRuntime();
+      if (activeRuntime.session.isStreaming) {
+        throw new Error(
+          "Cannot create a new session while the agent is running",
+        );
+      }
+
+      await turnStateLifecycle?.commit(activeRuntime.session.sessionManager);
+      const result = await activeRuntime.newSession();
+      if (result.cancelled) {
+        throw new Error("New session was cancelled");
+      }
+      return toNewSessionSummary(activeRuntime.session.sessionManager);
+    },
+
     async reloadPiResources() {
       // Reload only tiers already in use. A live session owns Pi's native
       // extension rebind; before a session exists, recreate the coherent
@@ -805,6 +824,17 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         });
       }
     },
+  };
+}
+
+function toNewSessionSummary(manager: SessionManager): SessionSummary {
+  const header = manager.getHeader();
+  if (!header) throw new Error("New session is missing its header");
+  return {
+    sessionId: manager.getSessionId(),
+    displayLabel: "New conversation",
+    createdAt: header.timestamp,
+    modifiedAt: header.timestamp,
   };
 }
 

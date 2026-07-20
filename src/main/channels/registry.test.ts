@@ -360,6 +360,14 @@ describe("ChannelRegistry", () => {
       withHandlers(agentChannels, {
         prompt: { handle: () => undefined },
         history: { handle: () => ({ items: [] }) },
+        new_session: {
+          handle: () => ({
+            sessionId: "session-2",
+            displayLabel: "New conversation",
+            createdAt: "2026-07-19T11:00:00.000Z",
+            modifiedAt: "2026-07-19T11:00:00.000Z",
+          }),
+        },
         list_models: {
           handle: () => ({
             models: [
@@ -388,6 +396,14 @@ describe("ChannelRegistry", () => {
       }),
     ]);
 
+    await expect(
+      transport.handlers.get("agent.new_session")?.(undefined),
+    ).resolves.toEqual({
+      sessionId: "session-2",
+      displayLabel: "New conversation",
+      createdAt: "2026-07-19T11:00:00.000Z",
+      modifiedAt: "2026-07-19T11:00:00.000Z",
+    });
     await expect(
       transport.handlers.get("agent.select_model")?.({
         provider: "anthropic",
