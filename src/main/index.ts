@@ -80,6 +80,7 @@ import {
 } from "./keybindings/settings";
 import { SettingsRegistry } from "./settings-registry";
 import { WorkspaceManifestStore } from "./workspace-manifest-store";
+import { createWorkspaceReloadCoordinator } from "./workspace-reload";
 import { createWorkspaceSettings } from "./workspace-settings";
 
 const isDev = !app.isPackaged;
@@ -418,18 +419,22 @@ async function openWorkspace(
   // A bad manifest must not brick the app: log it loudly and boot with no
   // features — the pilot can then fix the manifest and /reload. Reload
   // keeps strict semantics (a bad manifest rejects, tree intact).
-  let activation: ActivationResult;
+  let initialActivation: ActivationResult;
   try {
-    activation = await loadFeatures(currentSources(), featuresBag, substrate);
+    initialActivation = await loadFeatures(
+      currentSources(),
+      featuresBag,
+      substrate,
+    );
   } catch (thrown) {
     const error = thrown instanceof Error ? thrown : new Error(String(thrown));
     createLogger("features").error({ err: error.message }, "manifest_failed");
-    activation = { activated: [], failed: [] };
+    initialActivation = { activated: [], failed: [] };
   }
   createLogger("features").debug(
     {
-      activated: activation.activated.length,
-      failed: activation.failed.length,
+      activated: initialActivation.activated.length,
+      failed: initialActivation.failed.length,
     },
     "activation_complete",
   );
@@ -440,7 +445,7 @@ async function openWorkspace(
   if (fs.existsSync(manifestPath)) {
     recents.record({
       manifestPath,
-      name: activation.workspaceName ?? basename(workspace.stateRoot),
+      name: initialActivation.workspaceName ?? basename(workspace.stateRoot),
     });
   }
 
@@ -450,45 +455,56 @@ async function openWorkspace(
   // first prompt.
   driver.init();
 
+  const reloadCoordinator = createWorkspaceReloadCoordinator({
+    commitActiveFeatureTurnStateIfRestorationSettled: () =>
+      driver.commitActiveFeatureTurnStateIfRestorationSettled(),
+    activateReplacementFeatures: () =>
+      loadFeatures(currentSources(), featuresBag, substrate),
+    reloadPiResources: () => driver.reloadPiResources(),
+    restoreSelectedBranchTurnStateIntoActiveFeatureInstances: () =>
+      driver.restoreSelectedBranchTurnStateIntoActiveFeatureInstances(),
+    publishSurfacesChanged: () => {
+      uixPublisher.surfaces_changed({});
+    },
+  });
+
   appBag.add(
     ipc.handle<void, ReloadResult>(Channels.reload, async () => {
       const reloadLog = createLogger("main");
       reloadLog.debug({}, "reload_started");
 
       try {
-        const turnStateCommitted =
-          await driver.commitActiveFeatureTurnStateIfReady();
+        const {
+          replacementActivation,
+          piResourcesReloaded,
+          turnStateCommitted,
+        } = await reloadCoordinator.reload();
         if (!turnStateCommitted) {
-          reloadLog.warn({}, "reload_turn_state_commit_skipped_not_ready");
+          reloadLog.warn(
+            {},
+            "reload_turn_state_commit_skipped_restoration_pending",
+          );
         }
-
-        const featureResult = await loadFeatures(
-          currentSources(),
-          featuresBag,
-          substrate,
-        );
-        uixPublisher.surfaces_changed({});
-        const piReloaded = await driver.reload();
-        const failures = featureResult.failed.map((f) => ({
+        const failures = replacementActivation.failed.map((f) => ({
           feature: f.displayName,
           entry: f.entry,
           error: f.error.message,
         }));
         reloadLog.debug(
           {
-            featuresActivated: featureResult.activated.length,
-            featuresFailed: featureResult.failed.length,
+            featuresActivated: replacementActivation.activated.length,
+            featuresFailed: replacementActivation.failed.length,
             failures,
-            piReloaded,
+            piResourcesReloaded,
             turnStateCommitted,
           },
           "reload_completed",
         );
         return {
-          featuresActivated: featureResult.activated.length,
-          featuresFailed: featureResult.failed.length,
+          featuresActivated: replacementActivation.activated.length,
+          featuresFailed: replacementActivation.failed.length,
           failures,
-          piReloaded,
+          piResourcesReloaded,
         };
       } catch (thrown) {
         const error =

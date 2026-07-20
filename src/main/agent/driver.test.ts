@@ -436,11 +436,11 @@ describe("driver model service (pre-session)", () => {
   it("does not initialize services on reload until they have been used", async () => {
     const { driver } = createDriver();
 
-    await expect(driver.reload()).resolves.toBe(false);
+    await expect(driver.reloadPiResources()).resolves.toBe(false);
     expect(sdk.state.servicesLoads).toBe(0);
 
     await driver.listModels();
-    await expect(driver.reload()).resolves.toBe(true);
+    await expect(driver.reloadPiResources()).resolves.toBe(true);
     expect(sdk.state.servicesLoads).toBe(2);
     expect(sdk.state.servicesOptions).toEqual([
       { cwd: "/tmp/ws", agentDir: "/tmp/uix-pi-profile" },
@@ -561,7 +561,7 @@ describe("driver selected-session activation", () => {
     expect(sdk.state.session).toBeUndefined();
   });
 
-  it("commits active feature turn state after bootstrap restoration", async () => {
+  it("commits active feature turn state after bootstrap restoration settles", async () => {
     const turnState = new TurnStateRegistry();
     const createSnapshot = vi.fn(() => "live");
     registerTurnStateContributions(turnState, "canvas", {
@@ -577,9 +577,9 @@ describe("driver selected-session activation", () => {
     driver.init();
     await driver.history();
 
-    await expect(driver.commitActiveFeatureTurnStateIfReady()).resolves.toBe(
-      true,
-    );
+    await expect(
+      driver.commitActiveFeatureTurnStateIfRestorationSettled(),
+    ).resolves.toBe(true);
     expect(createSnapshot).toHaveBeenCalledOnce();
     expect(sdk.manager.appendCustomEntry).toHaveBeenCalledWith(
       "uix.turn-state",
@@ -590,7 +590,7 @@ describe("driver selected-session activation", () => {
     );
   });
 
-  it("skips source commit without waiting for bootstrap restoration", async () => {
+  it("skips active feature commit without waiting for bootstrap restoration", async () => {
     const turnState = new TurnStateRegistry();
     const restoreGate = deferred();
     const createSnapshot = vi.fn(() => "live");
@@ -610,9 +610,9 @@ describe("driver selected-session activation", () => {
       expect(restore).toHaveBeenCalledOnce();
     });
 
-    await expect(driver.commitActiveFeatureTurnStateIfReady()).resolves.toBe(
-      false,
-    );
+    await expect(
+      driver.commitActiveFeatureTurnStateIfRestorationSettled(),
+    ).resolves.toBe(false);
     expect(createSnapshot).not.toHaveBeenCalled();
     expect(sdk.manager.appendCustomEntry).not.toHaveBeenCalled();
 
@@ -620,7 +620,7 @@ describe("driver selected-session activation", () => {
     await driver.history();
   });
 
-  it("propagates a ready source snapshot failure", async () => {
+  it("propagates an active feature snapshot failure after restoration settles", async () => {
     const turnState = new TurnStateRegistry();
     registerTurnStateContributions(turnState, "canvas", {
       documents: {
@@ -636,10 +636,97 @@ describe("driver selected-session activation", () => {
     driver.init();
     await driver.history();
 
-    await expect(driver.commitActiveFeatureTurnStateIfReady()).rejects.toThrow(
-      "snapshot failed",
-    );
+    await expect(
+      driver.commitActiveFeatureTurnStateIfRestorationSettled(),
+    ).rejects.toThrow("snapshot failed");
     expect(sdk.manager.appendCustomEntry).not.toHaveBeenCalled();
+  });
+
+  it("ignores an obsolete bootstrap registry snapshot and restores replacement instances once", async () => {
+    const turnState = new TurnStateRegistry();
+    const restorePreviousInstance = vi.fn();
+    const previousRegistration = registerTurnStateContributions(
+      turnState,
+      "canvas",
+      {
+        documents: {
+          schema: Type.String(),
+          createSnapshot: () => "previous-live",
+          restore: restorePreviousInstance,
+        },
+      },
+    );
+    sdk.state.branch = [turnStateEntry({ "canvas.documents": "persisted" })];
+    const { driver } = createDriver(undefined, turnState);
+
+    driver.init();
+    previousRegistration[Symbol.dispose]();
+    const restoreReplacementInstance = vi.fn();
+    registerTurnStateContributions(turnState, "canvas", {
+      documents: {
+        schema: Type.String(),
+        createSnapshot: () => "replacement-live",
+        restore: restoreReplacementInstance,
+      },
+    });
+
+    await driver.restoreSelectedBranchTurnStateIntoActiveFeatureInstances();
+    await driver.history();
+
+    expect(restorePreviousInstance).not.toHaveBeenCalled();
+    expect(restoreReplacementInstance).toHaveBeenCalledOnce();
+    expect(restoreReplacementInstance).toHaveBeenCalledWith("persisted");
+  });
+
+  it("restores replacement instances without waiting for an obsolete callback", async () => {
+    const turnState = new TurnStateRegistry();
+    const previousRestoreGate = deferred();
+    const restorePreviousInstance = vi.fn(
+      async () => previousRestoreGate.promise,
+    );
+    const previousRegistration = registerTurnStateContributions(
+      turnState,
+      "canvas",
+      {
+        documents: {
+          schema: Type.String(),
+          createSnapshot: () => "previous-live",
+          restore: restorePreviousInstance,
+        },
+      },
+    );
+    sdk.state.branch = [turnStateEntry({ "canvas.documents": "persisted" })];
+    const { driver } = createDriver(undefined, turnState);
+
+    driver.init();
+    await vi.waitFor(() => {
+      expect(restorePreviousInstance).toHaveBeenCalledOnce();
+    });
+    await expect(
+      driver.commitActiveFeatureTurnStateIfRestorationSettled(),
+    ).resolves.toBe(false);
+
+    previousRegistration[Symbol.dispose]();
+    const restoreReplacementInstance = vi.fn();
+    const createReplacementSnapshot = vi.fn(() => "replacement-live");
+    registerTurnStateContributions(turnState, "canvas", {
+      documents: {
+        schema: Type.String(),
+        createSnapshot: createReplacementSnapshot,
+        restore: restoreReplacementInstance,
+      },
+    });
+
+    await driver.restoreSelectedBranchTurnStateIntoActiveFeatureInstances();
+    expect(restoreReplacementInstance).toHaveBeenCalledWith("persisted");
+    await expect(
+      driver.commitActiveFeatureTurnStateIfRestorationSettled(),
+    ).resolves.toBe(true);
+    expect(createReplacementSnapshot).toHaveBeenCalledOnce();
+
+    previousRestoreGate.resolve();
+    await driver.history();
+    expect(restoreReplacementInstance).toHaveBeenCalledOnce();
   });
 
   it("waits for startup restoration before creating the runtime", async () => {
@@ -801,7 +888,7 @@ describe("driver model service (live session)", () => {
     const { driver } = createDriver();
     await driver.prompt("hi");
 
-    await expect(driver.reload()).resolves.toBe(true);
+    await expect(driver.reloadPiResources()).resolves.toBe(true);
 
     const session = sdk.state.session as { reload: ReturnType<typeof vi.fn> };
     expect(session.reload).toHaveBeenCalledOnce();

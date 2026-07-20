@@ -36,7 +36,7 @@ type TurnStateCanonicalId = string & {
   readonly [TurnStateCanonicalIdBrand]: true;
 };
 
-interface RegisteredTurnStateCell {
+interface TurnStateCellRegistration {
   readonly featureId: string;
   readonly cellName: string;
   readonly contributionId: ContributionId;
@@ -48,7 +48,46 @@ interface RegisteredTurnStateCell {
 
 /** Registry for independently committed feature state cells. */
 export class TurnStateRegistry {
-  readonly registeredCells: RegisteredTurnStateCell[] = [];
+  readonly registrations: TurnStateCellRegistration[] = [];
+}
+
+/**
+ * An immutable, transient view of the registry's exact registration records.
+ * Registration identity lets a deferred startup restore recognize that reload
+ * replaced its feature instances without snapshotting their working state.
+ */
+export interface TurnStateRegistrySnapshot {
+  readonly registrations: readonly TurnStateCellRegistration[];
+}
+
+export function toTurnStateRegistrySnapshot(
+  registry: TurnStateRegistry,
+): TurnStateRegistrySnapshot {
+  return { registrations: [...registry.registrations] };
+}
+
+export function isSameTurnStateRegistrySnapshot(
+  left: TurnStateRegistrySnapshot,
+  right: TurnStateRegistrySnapshot,
+): boolean {
+  return (
+    left.registrations.length === right.registrations.length &&
+    left.registrations.every(
+      (registration, index) => registration === right.registrations[index],
+    )
+  );
+}
+
+export function isTurnStateRegistrySnapshotCurrent(
+  registry: TurnStateRegistry,
+  snapshot: TurnStateRegistrySnapshot,
+): boolean {
+  return (
+    registry.registrations.length === snapshot.registrations.length &&
+    registry.registrations.every(
+      (registration, index) => registration === snapshot.registrations[index],
+    )
+  );
 }
 
 export interface TurnStateAsOfLeaf {
@@ -73,43 +112,51 @@ interface TurnStateProjector {
 }
 
 export function createTurnStateProjector(
-  registry?: TurnStateRegistry,
+  registrySnapshot?: TurnStateRegistrySnapshot,
 ): TurnStateProjector {
   return createTurnStateProjectorForIds(
-    new Set(registry?.registeredCells.map((cell) => cell.canonicalId) ?? []),
+    new Set(
+      registrySnapshot?.registrations.map(
+        (registration) => registration.canonicalId,
+      ) ?? [],
+    ),
   );
 }
 
 export async function restoreTurnStateCellsAsOfLeaf(
-  registry: TurnStateRegistry,
+  registrySnapshot: TurnStateRegistrySnapshot,
   turnState: TurnStateAsOfLeaf,
 ): Promise<TurnStateRestoreResult> {
-  const cellsPerFeature = new Map<string, RegisteredTurnStateCell[]>();
-  for (const cell of registry.registeredCells) {
-    const cells = cellsPerFeature.get(cell.featureId) ?? [];
-    cells.push(cell);
-    cellsPerFeature.set(cell.featureId, cells);
+  const registrationsPerFeature = new Map<
+    string,
+    TurnStateCellRegistration[]
+  >();
+  for (const registration of registrySnapshot.registrations) {
+    const registrations =
+      registrationsPerFeature.get(registration.featureId) ?? [];
+    registrations.push(registration);
+    registrationsPerFeature.set(registration.featureId, registrations);
   }
 
   const validationFailurePerFeature = new Map<
     string,
     TurnStateRestoreFailure
   >();
-  for (const cell of registry.registeredCells) {
-    if (!turnState.latestValuePerCell.has(cell.canonicalId)) continue;
-    const value = turnState.latestValuePerCell.get(cell.canonicalId);
-    if (Value.Check(cell.schema, value)) continue;
+  for (const registration of registrySnapshot.registrations) {
+    if (!turnState.latestValuePerCell.has(registration.canonicalId)) continue;
+    const value = turnState.latestValuePerCell.get(registration.canonicalId);
+    if (Value.Check(registration.schema, value)) continue;
 
     const failure: TurnStateRestoreFailure = {
-      featureId: cell.featureId,
-      cellName: cell.cellName,
+      featureId: registration.featureId,
+      cellName: registration.cellName,
       phase: "validation",
       error: new Error(
-        `Invalid persisted turn-state value for ${cell.canonicalId}: value does not match its schema`,
+        `Invalid persisted turn-state value for ${registration.canonicalId}: value does not match its schema`,
       ),
     };
-    if (!validationFailurePerFeature.has(cell.featureId)) {
-      validationFailurePerFeature.set(cell.featureId, failure);
+    if (!validationFailurePerFeature.has(registration.featureId)) {
+      validationFailurePerFeature.set(registration.featureId, failure);
       log.error(
         {
           feature: failure.featureId,
@@ -122,25 +169,31 @@ export async function restoreTurnStateCellsAsOfLeaf(
   }
 
   const failures = await Promise.all(
-    [...cellsPerFeature].map(async ([featureId, cells]) => {
+    [...registrationsPerFeature].map(async ([featureId, registrations]) => {
       const validationFailure = validationFailurePerFeature.get(featureId);
       if (validationFailure) return validationFailure;
 
-      for (const cell of cells) {
-        const value = turnState.latestValuePerCell.get(cell.canonicalId);
+      for (const registration of registrations) {
+        const value = turnState.latestValuePerCell.get(
+          registration.canonicalId,
+        );
         try {
-          await cell.restore(value);
+          await registration.restore(value);
         } catch (thrown) {
           const error =
             thrown instanceof Error ? thrown : new Error(String(thrown));
           const failure: TurnStateRestoreFailure = {
             featureId,
-            cellName: cell.cellName,
+            cellName: registration.cellName,
             phase: "restore",
             error,
           };
           log.error(
-            { feature: featureId, cell: cell.cellName, err: error.message },
+            {
+              feature: featureId,
+              cell: registration.cellName,
+              err: error.message,
+            },
             "restore_callback_failed",
           );
           return failure;
@@ -163,8 +216,8 @@ export function registerTurnStateContributions(
   featureId: string,
   contributions: TurnStateContributions,
 ): Disposable {
-  const registered = Object.entries(contributions).map(
-    ([cellName, contribution]): RegisteredTurnStateCell => {
+  const registrations = Object.entries(contributions).map(
+    ([cellName, contribution]): TurnStateCellRegistration => {
       const canonicalId = toTurnStateCanonicalId(featureId, cellName);
       if (!Type.IsSchema(contribution.schema)) {
         throw new Error(`Invalid turn-state schema: ${canonicalId}`);
@@ -181,7 +234,7 @@ export function registerTurnStateContributions(
         throw new Error(`Invalid turn-state restore callback: ${canonicalId}`);
       }
       if (
-        registry.registeredCells.some(
+        registry.registrations.some(
           (existing) => existing.canonicalId === canonicalId,
         )
       ) {
@@ -197,13 +250,13 @@ export function registerTurnStateContributions(
     },
   );
 
-  registry.registeredCells.push(...registered);
+  registry.registrations.push(...registrations);
 
   return {
     [Symbol.dispose]: (): void => {
-      for (const cell of registered) {
-        const index = registry.registeredCells.indexOf(cell);
-        if (index !== -1) registry.registeredCells.splice(index, 1);
+      for (const registration of registrations) {
+        const index = registry.registrations.indexOf(registration);
+        if (index !== -1) registry.registrations.splice(index, 1);
       }
     },
   };
@@ -211,18 +264,18 @@ export function registerTurnStateContributions(
 
 /** Installs agent-end turn-state commits for the current Pi runtime generation. */
 export function createTurnStateCoordinator(
-  state: TurnStateRegistry,
+  registry: TurnStateRegistry,
 ): AgentInstaller {
   return (pi) => {
-    const installedCells = [...state.registeredCells];
+    const installedRegistrations = [...registry.registrations];
 
     pi.on("agent_end", async (_event, ctx) => {
       await commitTurnState({
         append: (customType, data) => pi.appendEntry(customType, data),
         cwd: ctx.cwd,
         branch: ctx.sessionManager.getBranch(),
-        cells: installedCells.filter((cell) =>
-          state.registeredCells.includes(cell),
+        registrations: installedRegistrations.filter((registration) =>
+          registry.registrations.includes(registration),
         ),
       });
     });
@@ -240,7 +293,7 @@ export async function commitCurrentTurnState(
       void sessionManager.appendCustomEntry(customType, data),
     cwd,
     branch: sessionManager.getBranch(),
-    cells: registry.registeredCells,
+    registrations: registry.registrations,
   });
 }
 
@@ -248,30 +301,36 @@ interface CommitTurnStateOptions {
   append: (customType: string, data: unknown) => void;
   cwd: string;
   branch: readonly SessionEntry[];
-  cells: readonly RegisteredTurnStateCell[];
+  registrations: readonly TurnStateCellRegistration[];
 }
 
 async function commitTurnState(opts: CommitTurnStateOptions): Promise<void> {
   const baseline = deriveTurnStateBaseline(
     opts.branch,
-    new Set(opts.cells.map((cell) => cell.canonicalId)),
+    new Set(opts.registrations.map((registration) => registration.canonicalId)),
   );
   const changedState: Record<string, unknown> = {};
 
-  for (const cell of opts.cells) {
-    const snapshot = toPlainJson(await cell.createSnapshot(), cell.canonicalId);
-    if (!Value.Check(cell.schema, snapshot)) {
+  for (const registration of opts.registrations) {
+    const snapshot = toPlainJson(
+      await registration.createSnapshot(),
+      registration.canonicalId,
+    );
+    if (!Value.Check(registration.schema, snapshot)) {
       throw new Error(
-        `Invalid turn-state snapshot for ${cell.canonicalId}: value does not match its schema`,
+        `Invalid turn-state snapshot for ${registration.canonicalId}: value does not match its schema`,
       );
     }
     if (
-      baseline.latestValuePerCell.has(cell.canonicalId) &&
-      Value.Equal(baseline.latestValuePerCell.get(cell.canonicalId), snapshot)
+      baseline.latestValuePerCell.has(registration.canonicalId) &&
+      Value.Equal(
+        baseline.latestValuePerCell.get(registration.canonicalId),
+        snapshot,
+      )
     ) {
       continue;
     }
-    changedState[cell.canonicalId] = snapshot;
+    changedState[registration.canonicalId] = snapshot;
   }
 
   const changedCellCount = Object.keys(changedState).length;

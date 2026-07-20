@@ -11,9 +11,12 @@ import { Codec, Type } from "typebox";
 import type { TurnStateContributions } from "@uix/api/turn-state";
 
 import {
+  toTurnStateRegistrySnapshot,
   createTurnStateCoordinator,
   createTurnStateHistoryReader,
   createTurnStateProjector,
+  isSameTurnStateRegistrySnapshot,
+  isTurnStateRegistrySnapshotCurrent,
   registerTurnStateContributions,
   restoreTurnStateCellsAsOfLeaf,
   commitCurrentTurnState,
@@ -122,17 +125,42 @@ describe("TurnStateRegistry", () => {
       },
     });
 
-    expect(state.registeredCells.map((cell) => cell.canonicalId)).toEqual([
-      "canvas.documents",
-      "canvas.selection",
-    ]);
+    expect(
+      state.registrations.map((registration) => registration.canonicalId),
+    ).toEqual(["canvas.documents", "canvas.selection"]);
 
     expect(() =>
       registerTurnStateContributions(state, "canvas", cells()),
     ).toThrow("Turn state already registered: canvas.documents");
 
     registration[Symbol.dispose]();
-    expect(state.registeredCells).toEqual([]);
+    expect(state.registrations).toEqual([]);
+  });
+
+  it("recognizes when reload replaces a turn-state registry snapshot", () => {
+    const state = new TurnStateRegistry();
+    const registration = registerTurnStateContributions(
+      state,
+      "canvas",
+      cells(),
+    );
+    const snapshot = toTurnStateRegistrySnapshot(state);
+    const equivalentSnapshot = toTurnStateRegistrySnapshot(state);
+
+    expect(isSameTurnStateRegistrySnapshot(snapshot, equivalentSnapshot)).toBe(
+      true,
+    );
+    expect(isTurnStateRegistrySnapshotCurrent(state, snapshot)).toBe(true);
+
+    registration[Symbol.dispose]();
+    registerTurnStateContributions(state, "canvas", cells());
+    expect(isTurnStateRegistrySnapshotCurrent(state, snapshot)).toBe(false);
+    expect(
+      isSameTurnStateRegistrySnapshot(
+        snapshot,
+        toTurnStateRegistrySnapshot(state),
+      ),
+    ).toBe(false);
   });
 
   it("rejects TypeBox codecs anywhere in a cell schema", () => {

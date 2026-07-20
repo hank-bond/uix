@@ -4,7 +4,7 @@ import type { TranscriptSnapshot } from "@uix/api/agent-channels";
 import {
   createTurnStateProjector,
   type TurnStateAsOfLeaf,
-  type TurnStateRegistry,
+  type TurnStateRegistrySnapshot,
 } from "../turn-state/registry";
 import { createTranscriptProjector } from "./transcript";
 
@@ -16,10 +16,10 @@ export interface SelectedBranchProjection {
 /** Derives the read models owned by the selected branch in one forward pass. */
 export function deriveSelectedBranchProjection(
   branch: readonly SessionEntry[],
-  turnState?: TurnStateRegistry,
+  turnStateRegistry?: TurnStateRegistrySnapshot,
 ): SelectedBranchProjection {
   const transcriptProjector = createTranscriptProjector();
-  const turnStateProjector = createTurnStateProjector(turnState);
+  const turnStateProjector = createTurnStateProjector(turnStateRegistry);
 
   for (const entry of branch) {
     transcriptProjector.projectEntry(entry);

@@ -51,8 +51,12 @@ const log = createLogger("agent");
 import {
   createTurnStateCoordinator,
   commitCurrentTurnState,
+  toTurnStateRegistrySnapshot,
+  isSameTurnStateRegistrySnapshot,
+  isTurnStateRegistrySnapshotCurrent,
   restoreTurnStateCellsAsOfLeaf,
   TurnStateRegistry,
+  type TurnStateRegistrySnapshot,
 } from "../turn-state/registry";
 
 import { createOAuthFlowCoordinator } from "./auth-flow";
@@ -94,14 +98,16 @@ import {
  */
 export interface AgentDriver extends Disposable {
   prompt(text: string): Promise<void>;
-  /** Reload pi resources if a session already exists. */
-  reload(): Promise<boolean>;
+  /** Reload the Pi resource tier if it has already been initialized. */
+  reloadPiResources(): Promise<boolean>;
   /**
    * Snapshot turn state from the currently active feature instances and commit
-   * any changes to the selected session branch. Returns false when those
-   * instances have not finished bootstrap restoration.
+   * any changes to the selected session branch. Returns false while restoration
+   * into those instances has not settled.
    */
-  commitActiveFeatureTurnStateIfReady(): Promise<boolean>;
+  commitActiveFeatureTurnStateIfRestorationSettled(): Promise<boolean>;
+  /** Restore the selected branch into the active feature instances. */
+  restoreSelectedBranchTurnStateIntoActiveFeatureInstances(): Promise<void>;
   /**
    * Kick the eager, auth-free selected-session load and turn-state restore off
    * the boot path. Safe to call before any prompt; lets history() resolve
@@ -182,8 +188,15 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   // and Pi services across every replacement session generation.
   let bootstrapManager: SessionManager | undefined;
   let inFlightBootstrapManagerOpen: Promise<SessionManager> | undefined;
-  let restoredBootstrapManager: SessionManager | undefined;
   let inFlightBootstrapTurnStateRestore: Promise<SessionManager> | undefined;
+  let lastSettledTurnStateRestoration:
+    | { manager: SessionManager; registrySnapshot: TurnStateRegistrySnapshot }
+    | undefined;
+  let inFlightTurnStateRestorations: Array<{
+    manager: SessionManager;
+    registrySnapshot: TurnStateRegistrySnapshot;
+    promise: Promise<boolean>;
+  }> = [];
   let runtime: AgentSessionRuntime | undefined;
   let inFlightRuntimeOpen: Promise<AgentSessionRuntime> | undefined;
 
@@ -272,20 +285,89 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     return (await getServices()).modelRegistry;
   }
 
-  // Feature activation must have settled before restoration begins. The
-  // currently registered cells determine both which persisted values the
-  // branch projection retains and which feature restore callbacks run.
-  async function restoreSelectedSessionTurnState(
+  function isTurnStateRestorationSettledForManager(
+    sessionManager: SessionManager,
+  ): boolean {
+    return (
+      !opts.turnState ||
+      (lastSettledTurnStateRestoration?.manager === sessionManager &&
+        isTurnStateRegistrySnapshotCurrent(
+          opts.turnState,
+          lastSettledTurnStateRestoration.registrySnapshot,
+        ))
+    );
+  }
+
+  // The registry snapshot is taken when restoration is requested, not when the
+  // manager eventually opens. If reload replaces those registrations in the
+  // meantime, the deferred request becomes obsolete instead of restoring the
+  // replacements a second time. Requests for the same manager and registry
+  // snapshot share one operation.
+  function restoreSelectedBranchTurnStateIfRegistrySnapshotCurrent(
+    sessionManager: SessionManager,
+    registrySnapshot: TurnStateRegistrySnapshot,
+  ): Promise<boolean> {
+    const turnState = opts.turnState;
+    if (!turnState) return Promise.resolve(true);
+    const existing = inFlightTurnStateRestorations.find(
+      (entry) =>
+        entry.manager === sessionManager &&
+        isSameTurnStateRegistrySnapshot(
+          entry.registrySnapshot,
+          registrySnapshot,
+        ),
+    );
+    if (existing) return existing.promise;
+
+    const restoration = (async () => {
+      if (!isTurnStateRegistrySnapshotCurrent(turnState, registrySnapshot)) {
+        return false;
+      }
+      const projection = deriveSelectedBranchProjection(
+        sessionManager.getBranch(),
+        registrySnapshot,
+      );
+      await restoreTurnStateCellsAsOfLeaf(
+        registrySnapshot,
+        projection.turnStateAsOfLeaf,
+      );
+      if (disposed) throw new Error("Agent driver is disposed");
+      if (!isTurnStateRegistrySnapshotCurrent(turnState, registrySnapshot)) {
+        return false;
+      }
+      lastSettledTurnStateRestoration = {
+        manager: sessionManager,
+        registrySnapshot,
+      };
+      return true;
+    })();
+    const entry = {
+      manager: sessionManager,
+      registrySnapshot,
+      promise: restoration,
+    };
+    inFlightTurnStateRestorations.push(entry);
+    const removeEntry = (): void => {
+      const index = inFlightTurnStateRestorations.indexOf(entry);
+      if (index !== -1) inFlightTurnStateRestorations.splice(index, 1);
+    };
+    void restoration.then(removeEntry, removeEntry);
+    return restoration;
+  }
+
+  async function restoreSelectedBranchTurnStateIntoActiveFeatureInstancesForManager(
     sessionManager: SessionManager,
   ): Promise<void> {
-    if (!opts.turnState) return;
-    const projection = deriveSelectedBranchProjection(
-      sessionManager.getBranch(),
-      opts.turnState,
-    );
-    await restoreTurnStateCellsAsOfLeaf(
-      opts.turnState,
-      projection.turnStateAsOfLeaf,
+    if (
+      !opts.turnState ||
+      isTurnStateRestorationSettledForManager(sessionManager)
+    ) {
+      return;
+    }
+    const registrySnapshot = toTurnStateRegistrySnapshot(opts.turnState);
+    await restoreSelectedBranchTurnStateIfRegistrySnapshotCurrent(
+      sessionManager,
+      registrySnapshot,
     );
   }
 
@@ -352,18 +434,28 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
 
   function restoreBootstrapTurnState(): Promise<SessionManager> {
     if (disposed) return Promise.reject(new Error("Agent driver is disposed"));
-    if (bootstrapManager && restoredBootstrapManager === bootstrapManager) {
+    if (
+      bootstrapManager &&
+      isTurnStateRestorationSettledForManager(bootstrapManager)
+    ) {
       return Promise.resolve(bootstrapManager);
     }
     if (inFlightBootstrapTurnStateRestore) {
       return inFlightBootstrapTurnStateRestore;
     }
 
+    const registrySnapshot = opts.turnState
+      ? toTurnStateRegistrySnapshot(opts.turnState)
+      : undefined;
     const restoration = getBootstrapManager()
       .then(async (manager) => {
-        await restoreSelectedSessionTurnState(manager);
+        if (registrySnapshot) {
+          await restoreSelectedBranchTurnStateIfRegistrySnapshotCurrent(
+            manager,
+            registrySnapshot,
+          );
+        }
         if (disposed) throw new Error("Agent driver is disposed");
-        restoredBootstrapManager = manager;
         return manager;
       })
       .finally(() => {
@@ -442,6 +534,11 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   async function openRuntime(): Promise<AgentSessionRuntime> {
     const sdk = await import("@earendil-works/pi-coding-agent");
     const initialManager = await restoreBootstrapTurnState();
+    // The bootstrap request may have become obsolete while its manager opened.
+    // Runtime creation still requires the currently active cells to be settled.
+    await restoreSelectedBranchTurnStateIntoActiveFeatureInstancesForManager(
+      initialManager,
+    );
     let initialRuntimeCreated = false;
 
     const createRuntime: CreateAgentSessionRuntimeFactory = async ({
@@ -503,10 +600,13 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     openedRuntime.setBeforeSessionInvalidate(() => {
       sessionBag.clear();
       currentModel = undefined;
+      lastSettledTurnStateRestoration = undefined;
     });
     openedRuntime.setRebindSession(async (session) => {
       bindActiveSession(session);
-      await restoreSelectedSessionTurnState(session.sessionManager);
+      await restoreSelectedBranchTurnStateIntoActiveFeatureInstancesForManager(
+        session.sessionManager,
+      );
     });
     bindActiveSession(openedRuntime.session);
     return openedRuntime;
@@ -525,7 +625,6 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         }
         runtime = openedRuntime;
         bootstrapManager = undefined;
-        restoredBootstrapManager = undefined;
         preRuntimeServices = undefined;
         return openedRuntime;
       })
@@ -681,16 +780,14 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       }
     },
 
-    async commitActiveFeatureTurnStateIfReady() {
+    async commitActiveFeatureTurnStateIfRestorationSettled() {
       if (disposed) throw new Error("Agent driver is disposed");
       if (!opts.turnState) return true;
 
-      const manager =
-        runtime?.session.sessionManager ??
-        (bootstrapManager && restoredBootstrapManager === bootstrapManager
-          ? bootstrapManager
-          : undefined);
-      if (!manager) return false;
+      const manager = runtime?.session.sessionManager ?? bootstrapManager;
+      if (!manager || !isTurnStateRestorationSettledForManager(manager)) {
+        return false;
+      }
 
       await commitCurrentTurnState(
         manager,
@@ -700,7 +797,17 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       return true;
     },
 
-    async reload() {
+    async restoreSelectedBranchTurnStateIntoActiveFeatureInstances() {
+      if (disposed) throw new Error("Agent driver is disposed");
+      if (!opts.turnState) return;
+      const manager =
+        runtime?.session.sessionManager ?? (await getBootstrapManager());
+      await restoreSelectedBranchTurnStateIntoActiveFeatureInstancesForManager(
+        manager,
+      );
+    },
+
+    async reloadPiResources() {
       // Reload only tiers already in use. A live session owns Pi's native
       // extension rebind; before a session exists, recreate the coherent
       // services tier so extension provider registrations cannot accumulate.
@@ -712,7 +819,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       if (!preRuntimeServices && !inFlightServicesCreate) return false;
       await getServices();
       // A concurrent prompt may have consumed the pre-runtime generation while
-      // reload waited for it. In that case Pi's live reload owns reconciliation.
+      // reload waited for it. In that case the live session owns resource reload.
       if (runtime || inFlightRuntimeOpen) {
         const activeRuntime = runtime ?? (await getRuntime());
         await activeRuntime.session.reload();
@@ -800,7 +907,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       inFlightBootstrapManagerOpen = undefined;
       bootstrapManager = undefined;
       inFlightBootstrapTurnStateRestore = undefined;
-      restoredBootstrapManager = undefined;
+      lastSettledTurnStateRestoration = undefined;
+      inFlightTurnStateRestorations = [];
       inFlightServicesCreate = undefined;
       preRuntimeServices = undefined;
       currentModel = undefined;
