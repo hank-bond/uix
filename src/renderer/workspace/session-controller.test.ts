@@ -12,6 +12,13 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+const existingSession: SessionSummary = {
+  sessionId: "session-1",
+  displayLabel: "Existing conversation",
+  createdAt: "2026-07-19T10:00:00.000Z",
+  modifiedAt: "2026-07-19T10:30:00.000Z",
+};
+
 const newSession: SessionSummary = {
   sessionId: "session-2",
   displayLabel: "New conversation",
@@ -19,11 +26,25 @@ const newSession: SessionSummary = {
   modifiedAt: "2026-07-19T11:00:00.000Z",
 };
 
+function createController(
+  requestNewSession: () => Promise<SessionSummary> = () =>
+    Promise.resolve(newSession),
+) {
+  return new WorkspaceSessionController({
+    requestActiveHistory: () =>
+      Promise.resolve({
+        session: existingSession,
+        transcript: { items: [] },
+      }),
+    requestNewSession,
+  });
+}
+
 describe("WorkspaceSessionController", () => {
   it("publishes the new active session only after the backend responds", async () => {
     const response = deferred<SessionSummary>();
     const request = vi.fn(() => response.promise);
-    const controller = new WorkspaceSessionController(request);
+    const controller = createController(request);
     const listener = vi.fn();
     const unsubscribe = controller.subscribe(listener);
 
@@ -41,10 +62,57 @@ describe("WorkspaceSessionController", () => {
     expect(listener).toHaveBeenCalledOnce();
   });
 
+  it("hydrates the active summary and shares an equivalent in-flight read", async () => {
+    const response = deferred<{
+      session: SessionSummary;
+      transcript: { items: [] };
+    }>();
+    const requestActiveHistory = vi.fn(() => response.promise);
+    const controller = new WorkspaceSessionController({
+      requestActiveHistory,
+      requestNewSession: () => Promise.resolve(newSession),
+    });
+
+    const first = controller.loadActiveHistory();
+    const second = controller.loadActiveHistory();
+    expect(requestActiveHistory).toHaveBeenCalledOnce();
+
+    response.resolve({
+      session: existingSession,
+      transcript: { items: [] },
+    });
+    await expect(Promise.all([first, second])).resolves.toEqual([
+      { items: [] },
+      { items: [] },
+    ]);
+    expect(controller.getActiveSessionSnapshot()).toEqual(existingSession);
+    expect(controller.getSessionSelectionVersion()).toBe(0);
+  });
+
+  it("does not let an older history read replace a successful mutation", async () => {
+    const historyResponse = deferred<{
+      session: SessionSummary;
+      transcript: { items: [] };
+    }>();
+    const controller = new WorkspaceSessionController({
+      requestActiveHistory: () => historyResponse.promise,
+      requestNewSession: () => Promise.resolve(newSession),
+    });
+
+    const history = controller.loadActiveHistory();
+    await controller.newSession();
+    historyResponse.resolve({
+      session: existingSession,
+      transcript: { items: [] },
+    });
+    await history;
+
+    expect(controller.getActiveSessionSnapshot()).toEqual(newSession);
+    expect(controller.getSessionSelectionVersion()).toBe(1);
+  });
+
   it("tracks agent activity independently from Chat", () => {
-    const controller = new WorkspaceSessionController(() =>
-      Promise.resolve(newSession),
-    );
+    const controller = createController();
 
     expect(controller.isAgentRunning()).toBe(false);
     controller.updateAgentActivity({ type: "agent_start" });
@@ -60,7 +128,7 @@ describe("WorkspaceSessionController", () => {
       Promise.resolve(newSession),
       Promise.reject(new Error("transition failed")),
     ];
-    const controller = new WorkspaceSessionController(() => {
+    const controller = createController(() => {
       const response = responses.shift();
       if (!response) throw new Error("Missing response");
       return response;

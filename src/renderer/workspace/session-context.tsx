@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -9,9 +10,9 @@ import {
 
 import { agentChannels } from "@uix/api/agent-channels";
 import {
-  ActiveSessionProvider,
   createChannelClient,
   useWorkspaceClient,
+  WorkspaceSessionProvider,
 } from "@uix/api/workspace";
 
 import { WorkspaceSessionController } from "./session-controller";
@@ -32,9 +33,10 @@ export function WorkspaceSessionControllerProvider({
   );
   const controller = useMemo(
     () =>
-      new WorkspaceSessionController(() =>
-        agent.requests.new_session(undefined),
-      ),
+      new WorkspaceSessionController({
+        requestActiveHistory: () => agent.requests.session_history({}),
+        requestNewSession: () => agent.requests.new_session(undefined),
+      }),
     [agent],
   );
   const activeSession = useSyncExternalStore(
@@ -48,11 +50,21 @@ export function WorkspaceSessionControllerProvider({
     [agent, controller],
   );
 
+  const loadActiveHistory = useCallback(
+    () => controller.loadActiveHistory(),
+    [controller],
+  );
+  const sessionSelectionVersion = controller.getSessionSelectionVersion();
+  const session = useMemo(
+    () => ({ activeSession, sessionSelectionVersion, loadActiveHistory }),
+    [activeSession, sessionSelectionVersion, loadActiveHistory],
+  );
+
   return (
     <WorkspaceSessionControllerContext.Provider value={controller}>
-      <ActiveSessionProvider activeSession={activeSession}>
+      <WorkspaceSessionProvider session={session}>
         {children}
-      </ActiveSessionProvider>
+      </WorkspaceSessionProvider>
     </WorkspaceSessionControllerContext.Provider>
   );
 }

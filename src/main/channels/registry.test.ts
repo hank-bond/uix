@@ -359,7 +359,17 @@ describe("ChannelRegistry", () => {
     registerChannelContributions(registry, "agent", [
       withHandlers(agentChannels, {
         prompt: { handle: () => undefined },
-        history: { handle: () => ({ items: [] }) },
+        session_history: {
+          handle: () => ({
+            session: {
+              sessionId: "session-1",
+              displayLabel: "Existing conversation",
+              createdAt: "2026-07-19T10:00:00.000Z",
+              modifiedAt: "2026-07-19T10:30:00.000Z",
+            },
+            transcript: { items: [] },
+          }),
+        },
         new_session: {
           handle: () => ({
             sessionId: "session-2",
@@ -396,6 +406,22 @@ describe("ChannelRegistry", () => {
       }),
     ]);
 
+    await expect(
+      transport.handlers.get("agent.session_history")?.({}),
+    ).resolves.toEqual({
+      session: {
+        sessionId: "session-1",
+        displayLabel: "Existing conversation",
+        createdAt: "2026-07-19T10:00:00.000Z",
+        modifiedAt: "2026-07-19T10:30:00.000Z",
+      },
+      transcript: { items: [] },
+    });
+    await expect(
+      transport.handlers.get("agent.session_history")?.({
+        sessionId: "../outside",
+      }),
+    ).rejects.toThrow();
     await expect(
       transport.handlers.get("agent.new_session")?.(undefined),
     ).resolves.toEqual({

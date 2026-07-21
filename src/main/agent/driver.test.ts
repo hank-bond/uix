@@ -67,8 +67,11 @@ const sdk = vi.hoisted(() => {
   const manager = {
     getBranch: () => state.branch,
     getSessionId: () => "session-id",
+    getSessionDir: () => "/tmp/sessions",
     getSessionFile: () => "/tmp/session.jsonl",
     getHeader: () => ({ timestamp: "2026-07-19T10:00:00.000Z" }),
+    getEntries: () => state.branch,
+    getSessionName: () => undefined,
     appendMessage: () => "entry-id",
     appendCustomEntry: vi.fn(() => "entry-id"),
     appendCustomMessageEntry: () => "entry-id",
@@ -548,6 +551,33 @@ describe("driver provider credentials (pre-session)", () => {
 });
 
 describe("driver selected-session activation", () => {
+  it("reads the selected transcript and authoritative summary without opening Pi services", async () => {
+    sdk.state.branch = [
+      {
+        id: "user-1",
+        parentId: null,
+        timestamp: "2026-07-19T10:05:00.000Z",
+        type: "message",
+        message: { role: "user", content: "  first   question  " },
+      },
+    ];
+    const { driver } = createDriver();
+
+    await expect(driver.sessionHistory()).resolves.toEqual({
+      session: {
+        sessionId: "session-id",
+        displayLabel: "first question",
+        createdAt: "2026-07-19T10:00:00.000Z",
+        modifiedAt: "2026-07-19T10:00:00.000Z",
+      },
+      transcript: {
+        items: [{ id: "user-1", kind: "user", text: "first   question" }],
+      },
+    });
+    expect(sdk.state.servicesLoads).toBe(0);
+    expect(sdk.state.runtimeCreates).toBe(0);
+  });
+
   it("restores startup turn state without opening Pi services or a runtime", async () => {
     const turnState = new TurnStateRegistry();
     const restore = vi.fn();
@@ -566,7 +596,7 @@ describe("driver selected-session activation", () => {
     await vi.waitFor(() => {
       expect(restore).toHaveBeenCalledWith("persisted");
     });
-    await driver.history();
+    await driver.sessionHistory();
     expect(restore).toHaveBeenCalledOnce();
     expect(sdk.state.servicesLoads).toBe(0);
     expect(sdk.state.runtimeCreates).toBe(0);
@@ -587,7 +617,7 @@ describe("driver selected-session activation", () => {
     const { driver } = createDriver(undefined, turnState);
 
     driver.init();
-    await driver.history();
+    await driver.sessionHistory();
 
     await expect(driver.commitFeatureTurnState()).resolves.toBe(true);
     expect(createSnapshot).toHaveBeenCalledOnce();
@@ -625,7 +655,7 @@ describe("driver selected-session activation", () => {
     expect(sdk.manager.appendCustomEntry).not.toHaveBeenCalled();
 
     restoreGate.resolve();
-    await driver.history();
+    await driver.sessionHistory();
   });
 
   it("propagates an active feature snapshot failure after restoration settles", async () => {
@@ -642,7 +672,7 @@ describe("driver selected-session activation", () => {
     const { driver } = createDriver(undefined, turnState);
 
     driver.init();
-    await driver.history();
+    await driver.sessionHistory();
 
     await expect(driver.commitFeatureTurnState()).rejects.toThrow(
       "snapshot failed",
@@ -679,7 +709,7 @@ describe("driver selected-session activation", () => {
     });
 
     await driver.restoreFeatureTurnState();
-    await driver.history();
+    await driver.sessionHistory();
 
     expect(restorePreviousInstance).not.toHaveBeenCalled();
     expect(restoreReplacementInstance).toHaveBeenCalledOnce();
@@ -729,7 +759,7 @@ describe("driver selected-session activation", () => {
     expect(createReplacementSnapshot).toHaveBeenCalledOnce();
 
     previousRestoreGate.resolve();
-    await driver.history();
+    await driver.sessionHistory();
     expect(restoreReplacementInstance).toHaveBeenCalledOnce();
   });
 
@@ -965,7 +995,6 @@ describe("driver model service (live session)", () => {
       setModel: ReturnType<typeof vi.fn>;
     };
     expect(replacementSession.setModel).toHaveBeenCalledWith(openai);
-    expect(driver.sessionFile()).toBe("/tmp/replacement-session.jsonl");
   });
 
   it("reloads the live session without replacing its profiled services", async () => {

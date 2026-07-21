@@ -331,15 +331,14 @@ async function openWorkspace(
             void driver.prompt(req.text);
           },
         },
-        history: {
-          handle: () => driver.history(),
+        session_history: {
+          handle: ({ sessionId }) => driver.sessionHistory(sessionId),
           log: {
-            // A snapshot is the entire persisted transcript, already on
-            // disk — the wire log records a pointer instead of duplicating
-            // it.
-            describeResponse: (snap) => ({
-              items: snap.items.length,
-              ref: driver.sessionFile(),
+            // A snapshot is the entire persisted transcript, already on disk;
+            // record only its durable identity and size at the crossing.
+            describeResponse: ({ session, transcript }) => ({
+              sessionId: session.sessionId,
+              items: transcript.items.length,
             }),
           },
         },

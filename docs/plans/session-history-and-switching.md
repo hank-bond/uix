@@ -184,7 +184,9 @@ The substrate-owned `uix.session.new` action materializes `mod+n` and exists wit
 
 ### S3 — Session Switching vertical slice
 
-Add `session_history`, the mtime-ordered `list_session_summaries`, persisted selected-session identity/cache, and `switch_session({ sessionId })`. Implement the lightweight recent-file reader and its explicit-name → first-user-message → `New conversation` label projection, independent active-history/recent-list hydration, renderer-local latest-request guards, and a minimal recent-session selector. Every selector entry uses the same workspace session controller: apply the reviewed busy policy, commit current active feature state, switch through `AgentSessionRuntime`, derive the newly selected branch projection, restore it into the active feature instances, then update shared renderer state from the response. No session-change broadcast is added.
+**Progress.** The final `session_history({ sessionId? })` path has landed: active reads flow through the workspace session controller to reconcile the authoritative summary and transcript together, while explicit non-active reads resolve by durable id without activating or restoring that graph. The old ambiguous `history` request has been removed rather than retained as an alias.
+
+Add the mtime-ordered `list_session_summaries`, persisted selected-session identity/cache, and `switch_session({ sessionId })`. Implement the lightweight recent-file reader and its explicit-name → first-user-message → `New conversation` label projection, independent active-history/recent-list hydration, renderer-local latest-request guards, and a minimal recent-session selector. Every selector entry uses the same workspace session controller: apply the reviewed busy policy, commit current active feature state, switch through `AgentSessionRuntime`, derive the newly selected branch projection, restore it into the active feature instances, then update shared renderer state from the response. No session-change broadcast is added.
 
 This unit delivers visible switching before rename polish, diagnostic UI, search, pagination, or indexing.
 

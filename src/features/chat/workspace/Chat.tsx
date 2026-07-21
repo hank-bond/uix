@@ -14,8 +14,8 @@ import {
 
 import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
 import {
-  useActiveSession,
   useFeatureSetting,
+  useWorkspaceSession,
   type ChannelClient,
 } from "@uix/api/workspace";
 import type { agentChannels } from "@uix/api/agent-channels";
@@ -39,8 +39,7 @@ export function Chat({ client }: ChatProps) {
   const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const historyLoadVersion = useRef(0);
-  const activeSession = useActiveSession();
-  const activeSessionId = activeSession?.sessionId;
+  const { sessionSelectionVersion, loadActiveHistory } = useWorkspaceSession();
   const statusBar = useFeatureSetting(chatSettings, "statusBar");
   const controls = useAgentControls(client);
 
@@ -53,17 +52,18 @@ export function Chat({ client }: ChatProps) {
     });
   }, [client]);
 
-  // A successful session mutation changes activeSessionId. Clear the old
-  // projection immediately, invalidate its in-flight history read, and hydrate
-  // the newly selected session. Prepend so live events received during the
-  // request remain after the durable history.
+  // A successful session mutation changes sessionSelectionVersion. Clear the
+  // old projection immediately, invalidate its in-flight history read, and hydrate
+  // the newly selected session. Initial summary hydration leaves the version
+  // unchanged. Prepend so live events received during the request remain after
+  // the durable history.
   useLayoutEffect(() => {
     const loadVersion = ++historyLoadVersion.current;
     setItems([]);
     setHydrated(false);
     void (async () => {
       try {
-        const snapshot = await client.requests.history(undefined);
+        const snapshot = await loadActiveHistory();
         if (loadVersion !== historyLoadVersion.current) return;
         setItems((prev) => [...snapshot.items.filter(isVisible), ...prev]);
       } finally {
@@ -75,7 +75,7 @@ export function Chat({ client }: ChatProps) {
         historyLoadVersion.current += 1;
       }
     };
-  }, [client, activeSessionId]);
+  }, [sessionSelectionVersion, loadActiveHistory]);
 
   useEffect(() => {
     const el = scrollRef.current;

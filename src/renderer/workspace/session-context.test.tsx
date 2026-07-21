@@ -1,26 +1,35 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ActiveSessionProvider, useActiveSession } from "@uix/api/workspace";
+import {
+  useWorkspaceSession,
+  WorkspaceSessionProvider,
+} from "@uix/api/workspace";
 
 function Probe() {
-  const activeSession = useActiveSession();
+  const { activeSession } = useWorkspaceSession();
   return <span>{activeSession?.displayLabel ?? "not established"}</span>;
 }
+
+const loadActiveHistory = () => Promise.resolve({ items: [] });
 
 describe("active session context", () => {
   it("exposes the controller-owned projection read-only", () => {
     const html = renderToStaticMarkup(
-      <ActiveSessionProvider
-        activeSession={{
-          sessionId: "session-2",
-          displayLabel: "New conversation",
-          createdAt: "2026-07-19T11:00:00.000Z",
-          modifiedAt: "2026-07-19T11:00:00.000Z",
+      <WorkspaceSessionProvider
+        session={{
+          activeSession: {
+            sessionId: "session-2",
+            displayLabel: "New conversation",
+            createdAt: "2026-07-19T11:00:00.000Z",
+            modifiedAt: "2026-07-19T11:00:00.000Z",
+          },
+          sessionSelectionVersion: 1,
+          loadActiveHistory,
         }}
       >
         <Probe />
-      </ActiveSessionProvider>,
+      </WorkspaceSessionProvider>,
     );
 
     expect(html).toContain("New conversation");
@@ -29,13 +38,19 @@ describe("active session context", () => {
   it("distinguishes an unknown initial projection from missing wiring", () => {
     expect(
       renderToStaticMarkup(
-        <ActiveSessionProvider activeSession={undefined}>
+        <WorkspaceSessionProvider
+          session={{
+            activeSession: undefined,
+            sessionSelectionVersion: 0,
+            loadActiveHistory,
+          }}
+        >
           <Probe />
-        </ActiveSessionProvider>,
+        </WorkspaceSessionProvider>,
       ),
     ).toContain("not established");
     expect(() => renderToStaticMarkup(<Probe />)).toThrow(
-      "ActiveSessionProvider is missing",
+      "WorkspaceSessionProvider is missing",
     );
   });
 });

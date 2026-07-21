@@ -35,9 +35,9 @@ import type {
   ProviderAuthCatalog,
   OAuthFlowState,
   ProviderCredentials,
+  SessionHistoryResponse,
   SessionSummary,
   TranscriptItem,
-  TranscriptSnapshot,
 } from "@uix/api/agent-channels";
 import type { SettingsHandle } from "@uix/api/settings";
 import type { Workspace } from "../workspace";
@@ -53,6 +53,8 @@ import { TurnStateRegistry } from "../turn-state/registry";
 
 import { createOAuthFlowCoordinator } from "./auth-flow";
 import { deriveSelectedBranchProjection } from "./branch-projection";
+import { resolveSessionFileById } from "./session-files";
+import { readSessionSummary } from "./session-summary";
 import {
   deriveProviderAuthCatalogForEnvironment,
   findOfferedCredentialMethod,
@@ -107,19 +109,14 @@ export interface AgentDriver extends Disposable {
   restoreFeatureTurnState(): Promise<void>;
   /**
    * Kick the eager, auth-free selected-session load and turn-state restore off
-   * the boot path. Safe to call before any prompt; lets history() resolve
-   * without waiting on a prompt.
+   * the boot path. Safe to call before any prompt; lets sessionHistory()
+   * resolve without waiting on a prompt.
    */
   init(): void;
-  /** Prior transcript for renderer rehydration. Needs only the manager tier. */
-  history(): Promise<TranscriptSnapshot>;
+  /** Read one session without activating a non-selected target. */
+  sessionHistory(sessionId?: string): Promise<SessionHistoryResponse>;
   /** Replace the active agent slot's selected graph with a fresh session. */
   newSession(): Promise<SessionSummary>;
-  /**
-   * Where pi persists this driver's transcript. Undefined until the manager
-   * is open — and, for a fresh session, until pi first persists an entry.
-   */
-  sessionFile(): string | undefined;
   /** Available models with workspace-local favorite status. */
   listModels(): Promise<ModelCatalog>;
   /** Persist a favorite update and return the refreshed available model catalog. */
@@ -543,16 +540,10 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   }
 
   return {
-    // Read through to the manager rather than caching at open time, so a
-    // fresh session's path appears as soon as pi mints the file.
-    sessionFile: () =>
-      runtime?.session.sessionManager.getSessionFile() ??
-      bootstrapManager?.getSessionFile(),
-
     init() {
       // Fire the eager manager load and state restore; swallow rejection here
       // so an early failure doesn't surface as an unhandled rejection.
-      // prompt()/history() retry.
+      // prompt()/sessionHistory() retry.
       void restoreBootstrapTurnState().catch(() => {});
     },
 
@@ -667,22 +658,33 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       return status();
     },
 
-    async history() {
-      try {
-        const sessionManager =
-          runtime?.session.sessionManager ??
-          (await restoreBootstrapTurnState());
-        return deriveSelectedBranchProjection(
-          sessionManager.getBranch(),
-          turnStateLifecycle?.toRegistrySnapshot(),
-        ).transcript;
-      } catch (err) {
-        log.warn(
-          { err: err instanceof Error ? err.message : String(err) },
-          "history_load_failed",
+    async sessionHistory(sessionId) {
+      const selectedManager =
+        runtime?.session.sessionManager ?? (await restoreBootstrapTurnState());
+      let manager = selectedManager;
+      if (
+        sessionId !== undefined &&
+        sessionId !== selectedManager.getSessionId()
+      ) {
+        const sessionFile = await resolveSessionFileById(
+          selectedManager.getSessionDir(),
+          sessionId,
         );
-        return { items: [] };
+        if (!sessionFile) throw new Error(`Unknown session: ${sessionId}`);
+        const sdk = await import("@earendil-works/pi-coding-agent");
+        manager = sdk.SessionManager.open(
+          sessionFile,
+          selectedManager.getSessionDir(),
+        );
       }
+
+      return {
+        session: await readSessionSummary(manager),
+        transcript: deriveSelectedBranchProjection(
+          manager.getBranch(),
+          turnStateLifecycle?.toRegistrySnapshot(),
+        ).transcript,
+      };
     },
 
     async commitFeatureTurnState() {
@@ -713,7 +715,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       if (result.cancelled) {
         throw new Error("New session was cancelled");
       }
-      return toNewSessionSummary(activeRuntime.session.sessionManager);
+      return readSessionSummary(activeRuntime.session.sessionManager);
     },
 
     async reloadPiResources() {
@@ -824,17 +826,6 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         });
       }
     },
-  };
-}
-
-function toNewSessionSummary(manager: SessionManager): SessionSummary {
-  const header = manager.getHeader();
-  if (!header) throw new Error("New session is missing its header");
-  return {
-    sessionId: manager.getSessionId(),
-    displayLabel: "New conversation",
-    createdAt: header.timestamp,
-    modifiedAt: header.timestamp,
   };
 }
 

@@ -88,16 +88,36 @@ export type AgentEvent =
 export interface TranscriptSnapshot {
   items: TranscriptItem[];
 }
+export const TranscriptSnapshotSchema = Type.Unsafe<TranscriptSnapshot>(
+  Type.Any(),
+);
+
+export const SessionIdSchema = Type.String({
+  pattern: "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$",
+});
 
 /** Durable identity and current display projection for one session graph. */
 export const SessionSummarySchema = Type.Object({
-  sessionId: Type.String(),
+  sessionId: SessionIdSchema,
   displayName: Type.Optional(Type.String()),
   displayLabel: Type.String(),
   createdAt: Type.String(),
   modifiedAt: Type.String(),
 });
 export type SessionSummary = Static<typeof SessionSummarySchema>;
+
+export const SessionHistoryRequestSchema = Type.Object({
+  sessionId: Type.Optional(SessionIdSchema),
+});
+export type SessionHistoryRequest = Static<typeof SessionHistoryRequestSchema>;
+
+export const SessionHistoryResponseSchema = Type.Object({
+  session: SessionSummarySchema,
+  transcript: TranscriptSnapshotSchema,
+});
+export type SessionHistoryResponse = Static<
+  typeof SessionHistoryResponseSchema
+>;
 
 /** Provider-qualified model reference. */
 export const ModelRefSchema = Type.Object({
@@ -314,9 +334,6 @@ const describeProviderAuthenticationPayload = () => ({
 // disproportionate — the runtime types are already validated by the driver
 // that produces them.
 export const AgentEventSchema = Type.Unsafe<AgentEvent>(Type.Any());
-export const TranscriptSnapshotSchema = Type.Unsafe<TranscriptSnapshot>(
-  Type.Any(),
-);
 
 export const agentChannels = {
   feature: "agent",
@@ -325,9 +342,9 @@ export const agentChannels = {
       requestSchema: PromptRequestSchema,
       responseSchema: Type.Void(),
     },
-    history: {
-      requestSchema: Type.Void(),
-      responseSchema: TranscriptSnapshotSchema,
+    session_history: {
+      requestSchema: SessionHistoryRequestSchema,
+      responseSchema: SessionHistoryResponseSchema,
     },
     /** Replace the active agent slot's selected graph with a fresh session. */
     new_session: {

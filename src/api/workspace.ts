@@ -1,6 +1,6 @@
 import type { Static, TSchema } from "typebox";
 import { Value } from "typebox/value";
-import type { SessionSummary } from "./agent-channels";
+import type { SessionSummary, TranscriptSnapshot } from "./agent-channels";
 import {
   createContext,
   createElement,
@@ -55,33 +55,38 @@ const SubscribeToActionCatalogContext = createContext<
 >(undefined);
 const InvokeActionContext = createContext<InvokeAction | undefined>(undefined);
 type ActiveSession = Readonly<SessionSummary>;
-const ActiveSessionContext = createContext<ActiveSession | undefined | null>(
-  null,
-);
 
-export interface ActiveSessionProviderProps {
-  activeSession: ActiveSession | undefined;
+export interface WorkspaceSessionHandle {
+  readonly activeSession: ActiveSession | undefined;
+  /** Changes only when the selected graph changes, not when its summary hydrates. */
+  readonly sessionSelectionVersion: number;
+  readonly loadActiveHistory: () => Promise<TranscriptSnapshot>;
+}
+
+const WorkspaceSessionContext = createContext<
+  WorkspaceSessionHandle | undefined
+>(undefined);
+
+export interface WorkspaceSessionProviderProps {
+  session: WorkspaceSessionHandle;
   children: ReactNode;
 }
 
-export function ActiveSessionProvider({
-  activeSession,
+export function WorkspaceSessionProvider({
+  session,
   children,
-}: ActiveSessionProviderProps): ReactNode {
+}: WorkspaceSessionProviderProps): ReactNode {
   return createElement(
-    ActiveSessionContext.Provider,
-    { value: activeSession },
+    WorkspaceSessionContext.Provider,
+    { value: session },
     children,
   );
 }
 
-/** Current renderer projection of the active session, when established. */
-export function useActiveSession(): ActiveSession | undefined {
-  const activeSession = useContext(ActiveSessionContext);
-  if (activeSession === null) {
-    throw new Error("ActiveSessionProvider is missing");
-  }
-  return activeSession;
+export function useWorkspaceSession(): WorkspaceSessionHandle {
+  const session = useContext(WorkspaceSessionContext);
+  if (!session) throw new Error("WorkspaceSessionProvider is missing");
+  return session;
 }
 
 export interface WorkspaceActionsProviderProps {
