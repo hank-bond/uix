@@ -4,7 +4,11 @@
 // loader, and binds feature/workspace settings scopes to generation locations.
 // Feature ids and substrate namespaces share one flat scope-id space.
 
-import type { SettingsDefinition, SettingsHandle } from "@uix/api/settings";
+import type {
+  SettingsDefinition,
+  SettingsHandleFrom,
+  SettingsValues,
+} from "@uix/api/settings";
 
 import type { ParsedWorkspaceManifest } from "./features/manifest";
 import { DisposableBag } from "./lifecycle";
@@ -15,8 +19,19 @@ import {
   type SettingsScopeRegistration,
 } from "./settings-registry";
 import type { WorkspaceManifestStore } from "./workspace-manifest-store";
+import type {
+  AnyWorkspaceSettingsNamespace,
+  WorkspaceSettingsNamespace,
+} from "./workspace-settings-namespace";
 
 export type WorkspaceSettingsReload = ParsedWorkspaceManifest;
+
+export interface WorkspaceNamespaceHandle<
+  Namespace extends AnyWorkspaceSettingsNamespace,
+> extends SettingsHandleFrom<Namespace> {
+  getSnapshot(): SettingsValues<Namespace>;
+  replace(candidate: SettingsValues<Namespace>): SettingsValues<Namespace>;
+}
 
 export interface WorkspaceSettings {
   /**
@@ -26,25 +41,32 @@ export interface WorkspaceSettings {
    * untouched.
    */
   reload(): Promise<WorkspaceSettingsReload>;
-  loadFeatureScope(
+  loadFeatureSettings(
     featureId: string,
     manifestIndex: number,
     settings: SettingsDefinition,
   ): SettingsScopeRegistration;
-  /**
-   * Handle for any scope — feature id or workspace namespace. Lazy: an
-   * unknown scope throws on first use, not here, so handles survive
-   * reload's clear-and-rehydrate.
-   */
-  forScope(scopeId: string): SettingsHandle;
+  /** Mint a schema-bound handle from one registered namespace definition. */
+  forNamespace<Namespace extends AnyWorkspaceSettingsNamespace>(
+    namespace: Namespace,
+  ): WorkspaceNamespaceHandle<Namespace>;
 }
 
 export function createWorkspaceSettings(
   manifest: WorkspaceManifestStore,
   registry: SettingsRegistry,
-  namespaces: Record<string, SettingsDefinition>,
+  namespaces: readonly AnyWorkspaceSettingsNamespace[],
 ): WorkspaceSettings {
   const namespaceBag = new DisposableBag();
+  const namespaceById = new Map<string, AnyWorkspaceSettingsNamespace>();
+  for (const namespace of namespaces) {
+    if (namespaceById.has(namespace.id)) {
+      throw new Error(
+        `Workspace settings namespace duplicated: ${namespace.id}`,
+      );
+    }
+    namespaceById.set(namespace.id, namespace);
+  }
 
   return {
     async reload() {
@@ -53,7 +75,7 @@ export function createWorkspaceSettings(
       for (const namespace of Object.keys(
         composition.manifest.settings ?? {},
       )) {
-        if (!(namespace in namespaces)) {
+        if (!namespaceById.has(namespace)) {
           throw new Error(`Unknown workspace settings namespace: ${namespace}`);
         }
       }
@@ -65,16 +87,16 @@ export function createWorkspaceSettings(
         namespace: string;
         scope: SettingsScope;
       }[] = [];
-      for (const [namespace, definition] of Object.entries(namespaces)) {
-        const label = `workspace namespace ${namespace}`;
-        const location = next.settingsNamespace(namespace);
-        const values = hydrateSettings(definition, location.read(), label);
+      for (const namespace of namespaces) {
+        const label = `workspace namespace ${namespace.id}`;
+        const location = next.settingsNamespace(namespace.id);
+        const values = hydrateSettings(namespace, location.read(), label);
         location.write(values);
         staged.push({
-          namespace,
+          namespace: namespace.id,
           scope: {
             label,
-            definition,
+            definition: namespace,
             values,
             onWrite: (v) => {
               location.write(v);
@@ -95,7 +117,7 @@ export function createWorkspaceSettings(
       return composition;
     },
 
-    loadFeatureScope(featureId, manifestIndex, settings) {
+    loadFeatureSettings(featureId, manifestIndex, settings) {
       const location = manifest.featureEntrySettings(manifestIndex);
       const label = `feature ${featureId}`;
       const values = hydrateSettings(settings, location.read(), label);
@@ -107,6 +129,32 @@ export function createWorkspaceSettings(
       });
     },
 
-    forScope: (scopeId) => registry.forScope(scopeId),
+    forNamespace(namespace) {
+      if (namespaceById.get(namespace.id) !== namespace) {
+        throw new Error(
+          `Workspace settings namespace is not registered: ${namespace.id}`,
+        );
+      }
+      return createWorkspaceNamespaceHandle(registry, namespace.id);
+    },
+  };
+}
+
+function createWorkspaceNamespaceHandle<Definition extends SettingsDefinition>(
+  registry: SettingsRegistry,
+  namespace: string,
+): WorkspaceNamespaceHandle<WorkspaceSettingsNamespace<string, Definition>> {
+  const settings = registry.forScope(namespace);
+  return {
+    get: (key) => settings.get(key),
+    set: (key, value) => settings.set(key, value),
+    onChange: (key, handler) =>
+      settings.onChange(key, (value) =>
+        handler(value as SettingsValues<Definition>[typeof key] | undefined),
+      ),
+    getSnapshot: () =>
+      registry.getScopeSnapshot(namespace) as SettingsValues<Definition>,
+    replace: (candidate) =>
+      registry.replaceScope(namespace, candidate) as SettingsValues<Definition>,
   };
 }

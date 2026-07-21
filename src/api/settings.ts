@@ -72,3 +72,22 @@ export interface SettingsHandle {
   set(key: string, value: unknown): void;
   onChange(key: string, handler: (value: unknown) => void): () => void;
 }
+
+export type SettingsValues<Definition extends SettingsDefinition> = Static<
+  Definition["schema"]
+>;
+
+/** A scope handle whose keys and values derive from its settings definition. */
+export interface SettingsHandleFrom<Definition extends SettingsDefinition> {
+  get<Key extends Extract<keyof SettingsValues<Definition>, string>>(
+    key: Key,
+  ): SettingsValues<Definition>[Key] | undefined;
+  set<Key extends Extract<keyof SettingsValues<Definition>, string>>(
+    key: Key,
+    value: Exclude<SettingsValues<Definition>[Key], undefined>,
+  ): void;
+  onChange<Key extends Extract<keyof SettingsValues<Definition>, string>>(
+    key: Key,
+    handler: (value: SettingsValues<Definition>[Key] | undefined) => void,
+  ): () => void;
+}

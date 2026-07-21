@@ -17,7 +17,6 @@ import { basename, join } from "node:path";
 import process from "node:process";
 
 import { type AgentEvent, agentChannels } from "@uix/api/agent-channels";
-import type { KeybindingMap } from "@uix/api/actions";
 import {
   Channels,
   type PickerActionResult,
@@ -69,19 +68,10 @@ import {
   onWindow,
 } from "./lifecycle";
 import { createLogger } from "./log";
-import {
-  agentWorkspaceSettings,
-  AgentSettingsNamespace,
-} from "./agent/settings";
-import {
-  sessionWorkspaceSettings,
-  SessionSettingsNamespace,
-} from "./agent/session-settings";
+import { agentWorkspaceSettings } from "./agent/settings";
+import { sessionWorkspaceSettings } from "./agent/session-settings";
 import { createKeybindingRequestHandlers } from "./keybindings/requests";
-import {
-  keybindingsWorkspaceSettings,
-  KeybindingsSettingsNamespace,
-} from "./keybindings/settings";
+import { keybindingsWorkspaceSettings } from "./keybindings/settings";
 import { SettingsRegistry } from "./settings-registry";
 import { WorkspaceManifestStore } from "./workspace-manifest-store";
 import { createWorkspaceReloadCoordinator } from "./workspace-reload";
@@ -170,11 +160,11 @@ async function openWorkspace(
   const workspaceSettings = createWorkspaceSettings(
     workspaceManifest,
     settingsRegistry,
-    {
-      [AgentSettingsNamespace]: agentWorkspaceSettings,
-      [SessionSettingsNamespace]: sessionWorkspaceSettings,
-      [KeybindingsSettingsNamespace]: keybindingsWorkspaceSettings,
-    },
+    [
+      agentWorkspaceSettings,
+      sessionWorkspaceSettings,
+      keybindingsWorkspaceSettings,
+    ],
   );
 
   // The feature composition lives under its own child scope so reload can
@@ -240,8 +230,8 @@ async function openWorkspace(
     agentInstallers: [createAgentToolInstaller(agentTools)],
     // Lazy handles: workspace scopes register during the settings reload
     // inside loadFeatures(), before any driver method can read them.
-    agentSettings: workspaceSettings.forScope(AgentSettingsNamespace),
-    sessionSettings: workspaceSettings.forScope(SessionSettingsNamespace),
+    agentSettings: workspaceSettings.forNamespace(agentWorkspaceSettings),
+    sessionSettings: workspaceSettings.forNamespace(sessionWorkspaceSettings),
     onStatusChange: (status) => {
       agentPublisher.status_changed(status);
     },
@@ -273,16 +263,12 @@ async function openWorkspace(
     "uix",
     channels,
   ).createPublisher(uixChannels);
+  const keybindingSettings = workspaceSettings.forNamespace(
+    keybindingsWorkspaceSettings,
+  );
   const keybindingRequestHandlers = createKeybindingRequestHandlers({
-    getBindingsSnapshot: () =>
-      settingsRegistry.getScopeSnapshot(
-        KeybindingsSettingsNamespace,
-      ) as KeybindingMap,
-    replaceBindings: (candidate) =>
-      settingsRegistry.replaceScope(
-        KeybindingsSettingsNamespace,
-        candidate,
-      ) as KeybindingMap,
+    getBindingsSnapshot: () => keybindingSettings.getSnapshot(),
+    replaceBindings: (candidate) => keybindingSettings.replace(candidate),
     publishBindingsChanged: (bindings) => {
       uixPublisher.keybindings_changed(bindings);
     },

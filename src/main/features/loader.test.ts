@@ -46,7 +46,7 @@ function makeSubstrate(manifestPath?: string) {
       settingsScopes.clear();
       return composition;
     },
-    loadFeatureScope: (featureId: string) => {
+    loadFeatureSettings: (featureId: string) => {
       if (settingsScopes.has(featureId)) {
         throw new Error(`Settings scope already registered: ${featureId}`);
       }
@@ -54,6 +54,16 @@ function makeSubstrate(manifestPath?: string) {
       settingsScopes.set(featureId, state);
       let disposed = false;
       return {
+        handle: {
+          get: <T = unknown>(key: string) =>
+            settingsScopes.get(featureId)?.values.get(key) as T | undefined,
+          set: (key: string, value: unknown) => {
+            const scope = settingsScopes.get(featureId);
+            if (!scope) throw new Error(`Unknown settings scope: ${featureId}`);
+            scope.values.set(key, value);
+          },
+          onChange: () => () => {},
+        },
         commit() {
           if (disposed || settingsScopes.get(featureId) !== state) {
             throw new Error(`Inactive settings scope: ${featureId}`);
@@ -71,16 +81,6 @@ function makeSubstrate(manifestPath?: string) {
         },
       };
     },
-    forScope: (featureId: string) => ({
-      get: <T = unknown>(key: string) =>
-        settingsScopes.get(featureId)?.values.get(key) as T | undefined,
-      set: (key: string, value: unknown) => {
-        const scope = settingsScopes.get(featureId);
-        if (!scope) throw new Error(`Unknown settings scope: ${featureId}`);
-        scope.values.set(key, value);
-      },
-      onChange: () => () => {},
-    }),
   };
   const agentTools = new AgentToolRegistry();
   const surfaces = new SurfaceRegistry();

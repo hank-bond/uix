@@ -34,11 +34,11 @@ export const chatSettings = defineSettings({
 
 ```ts
 // features/chat/index.ts
-import type { FeatureDefinition } from "@uix/api";
+import { defineFeature } from "@uix/api";
 
 import { chatSettings } from "./shared/settings";
 
-export default {
+export default defineFeature({
   id: "chat",
   settings: chatSettings,
   contribute(ctx) {
@@ -46,7 +46,7 @@ export default {
     // ...
     return {};
   },
-} satisfies FeatureDefinition;
+});
 ```
 
 Settings live on the corresponding manifest feature entry, not in a top-level feature-id map:
@@ -90,7 +90,7 @@ Defaults fill and persist missing values; they are not a runtime fallback layer.
 
 ## Backend API
 
-Backend feature code uses feature-bound `ctx.settings` (a `SettingsHandle` — the same scope-neutral get/set/onChange shape workspace namespaces use):
+Backend feature code uses feature-bound `ctx.settings`. `defineFeature(...)` derives its accepted keys and key-specific get/set/onChange values from the feature's settings definition:
 
 ```ts
 const value = ctx.settings.get("statusBar");
@@ -153,7 +153,7 @@ The substrate owns a small set of workspace-level settings, keyed by namespace u
 }
 ```
 
-Workspace namespaces are **not user-registerable**: the substrate registers the namespaces it needs before any feature loads. Today that set contains `agent`, `session`, and `keybindings`:
+Workspace namespaces are **not user-registerable**: the substrate registers schema-carrying namespace descriptors before any feature loads. The same descriptor is passed to `forNamespace(...)`, which mints a handle with schema-derived keys, values, complete snapshots, and replacements while `Type.Record` scopes retain dynamic string keys plus runtime regex validation. Today that set contains `agent`, `session`, and `keybindings`:
 
 - **`agent.defaultModel`** — the workspace default model, used before a pi session exists and as the default for new sessions/branches that carry no `model_change` entry. Absent until the pilot first selects a model.
 - **`agent.favoriteModels`** — the workspace-local model shortlist. Each entry is a provider-qualified model reference; unavailable entries remain persisted so favorites return when a provider reconnects.

@@ -1,6 +1,6 @@
-import type { FeatureDefinition } from "@uix/api/feature";
+import { defineFeature } from "@uix/api/feature";
 
-import { createCanvasContext, type CanvasContext } from "../context";
+import { createCanvasContext } from "../context";
 import { CanvasAgentSystemPrompt } from "./agent-system-prompt";
 import { createCanvasAgentToolContributions } from "./agent-tools";
 import { createCanvasChannelContributions } from "./channels";
@@ -8,7 +8,7 @@ import { createCanvasResourceContributions } from "./resources";
 import { createCanvasTurnStateContributions } from "./turn-state";
 import { createCanvasAgentContextContributions } from "./agent-context";
 
-export const canvasFeature: FeatureDefinition<CanvasContext> = {
+export const canvasFeature = defineFeature({
   id: "canvas",
   context: createCanvasContext,
   contribute(ctx) {
@@ -25,4 +25,4 @@ export const canvasFeature: FeatureDefinition<CanvasContext> = {
       surfaces: ["./workspace/surface.tsx"],
     };
   },
-};
+});

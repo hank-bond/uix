@@ -39,7 +39,7 @@ import type {
   SessionSummary,
   TranscriptItem,
 } from "@uix/api/agent-channels";
-import type { SettingsHandle } from "@uix/api/settings";
+import type { SettingsHandleFrom } from "@uix/api/settings";
 import type { Workspace } from "../workspace";
 
 import { join } from "node:path";
@@ -52,9 +52,13 @@ const log = createLogger("agent");
 import { TurnStateRegistry } from "../turn-state/registry";
 
 import { createOAuthFlowCoordinator } from "./auth-flow";
+import { agentWorkspaceSettings } from "./settings";
 import { deriveSelectedBranchProjection } from "./branch-projection";
 import { resolveSessionFileById } from "./session-files";
-import type { SelectedSessionSetting } from "./session-settings";
+import {
+  sessionWorkspaceSettings,
+  type SelectedSessionSetting,
+} from "./session-settings";
 import {
   readRecentSessionSummaries,
   readSessionSummary,
@@ -169,9 +173,9 @@ export interface AgentDriverOptions {
    * Without a default, UIX passes no model and pi's own resolution applies —
    * including resolving to no model at all when nothing is authenticated.
    */
-  agentSettings?: SettingsHandle;
+  agentSettings?: SettingsHandleFrom<typeof agentWorkspaceSettings>;
   /** Durable identity and cached label for the workspace's selected session. */
-  sessionSettings?: SettingsHandle;
+  sessionSettings?: SettingsHandleFrom<typeof sessionWorkspaceSettings>;
   /** Fired whenever live/default model status changes. */
   onStatusChange?: (status: AgentStatus) => void;
   /** Opens only URLs supplied by the active Pi OAuth provider. */
@@ -300,7 +304,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   );
 
   function status(): AgentStatus {
-    const defaultModel = opts.agentSettings?.get<ModelRef>("defaultModel");
+    const defaultModel = opts.agentSettings?.get("defaultModel");
     return {
       ...(currentModel && { model: currentModel }),
       ...(defaultModel && { defaultModel }),
@@ -312,7 +316,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   }
 
   function getFavoriteModels(): ModelRef[] {
-    return opts.agentSettings?.get<ModelRef[]>("favoriteModels") ?? [];
+    return opts.agentSettings?.get("favoriteModels") ?? [];
   }
 
   async function listModels(): Promise<ModelCatalog> {
@@ -332,8 +336,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   }
 
   function commitSessionSelection(summary: SessionSummary): void {
-    const selected =
-      opts.sessionSettings?.get<SelectedSessionSetting>("selected");
+    const selected = opts.sessionSettings?.get("selected");
     if (
       selected?.sessionId === summary.sessionId &&
       selected.displayLabel === summary.displayLabel
@@ -403,8 +406,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     // Pin the session dir under .uix on the stable state root, not pi's
     // cwd-derived default, so the session file stays with the canvases and does
     // not move when the agent later relocates to a worktree.
-    const selected =
-      opts.sessionSettings?.get<SelectedSessionSetting>("selected");
+    const selected = opts.sessionSettings?.get("selected");
     const selectedFile = selected
       ? await resolveSessionFileById(sessionDir, selected.sessionId)
       : undefined;
@@ -505,7 +507,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
           .getBranch()
           .some((entry) => entry.type === "model_change")
       ) {
-        const ref = opts.agentSettings?.get<ModelRef>("defaultModel");
+        const ref = opts.agentSettings?.get("defaultModel");
         if (ref) {
           const found = modelRegistry.find(ref.provider, ref.id);
           if (found && modelRegistry.hasConfiguredAuth(found)) {

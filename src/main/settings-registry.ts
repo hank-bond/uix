@@ -71,6 +71,7 @@ interface ScopeState {
 
 /** A live provisional scope; commit accepts its values for write-through use. */
 export interface SettingsScopeRegistration extends Disposable {
+  readonly handle: SettingsHandle;
   commit(): void;
 }
 
@@ -101,6 +102,7 @@ export class SettingsRegistry implements Disposable {
 
     let disposed = false;
     return {
+      handle: this.forScope(scopeId),
       commit: () => {
         if (disposed || this.#scopes.get(scopeId) !== state) {
           throw new Error(

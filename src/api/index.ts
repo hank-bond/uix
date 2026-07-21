@@ -1,3 +1,4 @@
+export { defineFeature } from "./feature";
 export type {
   FeatureDefinition,
   FeatureContext,
@@ -41,4 +42,6 @@ export {
   type FeatureSettingAddress,
   type FeatureSettingValueEnvelope,
   type SettingsHandle,
+  type SettingsHandleFrom,
+  type SettingsValues,
 } from "./settings";

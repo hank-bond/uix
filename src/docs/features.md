@@ -1,5 +1,5 @@
 ---
-summary: "Feature entries are trusted local TS/JS modules listed explicitly in uix.workspace.json; each default-exports a FeatureDefinition loaded with jiti, lifetime-scoped under the reload bag, and wired only through @uix/api."
+summary: "Feature entries are trusted local TS/JS modules listed explicitly in uix.workspace.json; each uses defineFeature to default-export a settings-typed FeatureDefinition loaded with jiti, lifetime-scoped under the reload bag, and wired only through @uix/api."
 status: active
 ---
 
@@ -21,19 +21,21 @@ A UIX **feature** is trusted local TypeScript/JavaScript loaded by the substrate
 
 `entry` is resolved relative to `uix.workspace.json` unless it is absolute. Manifest order is activation order.
 
-A feature entry default-exports a plain `FeatureDefinition`:
+A feature entry uses `defineFeature(...)` to default-export its plain `FeatureDefinition`:
 
 ```ts
-import type { FeatureDefinition } from "@uix/api";
+import { defineFeature } from "@uix/api";
 
-export default {
+export default defineFeature({
   id: "hello",
   contribute(ctx) {
     ctx.log.info({}, "hello_loaded");
     return {};
   },
-} satisfies FeatureDefinition;
+});
 ```
+
+The helper changes no runtime shape. It preserves an authored settings definition through the callback context so `ctx.settings` keys and values derive from that schema; the loader still receives and validates an ordinary object.
 
 The exported `id` is the feature identity. It owns contribution namespaces, channel ids, settings access, and logs. Workspace manifest entries do not duplicate the id; if two entries export the same id, activation fails for the later entry.
 
@@ -66,7 +68,7 @@ interface FeatureDefinition {
 }
 ```
 
-`context()` runs before `contribute()` and may return feature-local objects merged onto the context handed to `contribute()`. `settings`, when present, are declared before either hook runs so the loader can hydrate and validate a provisional feature scope first. Both hooks may use that scope; its defaults and writes commit only after every returned facet registers successfully.
+`context()` runs before `contribute()` and may return feature-local objects merged onto the context handed to `contribute()`. `settings`, when present, are declared before either hook runs so the loader can hydrate and validate a provisional feature scope first. `defineFeature(...)` carries that definition into both hooks' `ctx.settings` type. Both hooks may use the scope; its defaults and writes commit only after every returned facet registers successfully.
 
 `contribute()` returns facet contributions such as resources, channels, agent tools, Agent system-prompt sections, Pi skills, turn state, agent context, and surfaces. See [`contributions.md`](./contributions.md), [`channels.md`](./channels.md), [`settings.md`](./settings.md), and [`lifetimes.md`](./lifetimes.md).
 

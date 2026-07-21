@@ -49,7 +49,7 @@ import { dirname } from "node:path";
 
 import type { FeatureContext, FeatureDefinition } from "@uix/api/feature";
 import type { DocumentStoreFactory } from "@uix/api/documents";
-import { defineSettings } from "@uix/api/settings";
+import { defineSettings, type SettingsHandle } from "@uix/api/settings";
 import { createJiti } from "jiti";
 import { Type } from "typebox";
 
@@ -109,7 +109,7 @@ const ReservedFeatureIds: ReadonlySet<string> = new Set(["agent", "uix"]);
 
 type FeatureActivationSettings = Pick<
   WorkspaceSettings,
-  "reload" | "loadFeatureScope" | "forScope"
+  "reload" | "loadFeatureSettings"
 >;
 
 /** What the loader needs from the substrate to activate a feature. */
@@ -144,11 +144,12 @@ export interface FeatureSources {
 export function buildFeatureContext(
   featureId: string,
   substrate: FeatureSubstrate,
+  settings: SettingsHandle,
   bag: DisposableBag,
 ): FeatureContext {
   return {
     documents: substrate.documents,
-    settings: bindSettingsHandle(substrate.settings.forScope(featureId), bag),
+    settings: bindSettingsHandle(settings, bag),
     channels: createFeatureEventPublisherFactory(featureId, substrate.channels),
     log: createLogger(featureId),
   };
@@ -288,14 +289,19 @@ export const activateFeatures = async (
         throw new Error(`Feature id already registered: ${definition.id}`);
       }
 
-      const settingsRegistration = bag.add(
-        substrate.settings.loadFeatureScope(
+      const featureSettings = bag.add(
+        substrate.settings.loadFeatureSettings(
           definition.id,
           manifestIndex,
           definition.settings ?? EmptyFeatureSettings,
         ),
       );
-      const baseContext = buildFeatureContext(definition.id, substrate, bag);
+      const baseContext = buildFeatureContext(
+        definition.id,
+        substrate,
+        featureSettings.handle,
+        bag,
+      );
       const contributedContext = definition.context?.(baseContext) ?? {};
       bag.add(
         registerFeatureContributions(
@@ -305,7 +311,7 @@ export const activateFeatures = async (
           { entryDir },
         ),
       );
-      settingsRegistration.commit();
+      featureSettings.commit();
 
       takenIds.add(definition.id);
       parentBag.add(bag);

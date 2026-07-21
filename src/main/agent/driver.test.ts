@@ -10,13 +10,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Type } from "typebox";
 
 import type { AgentStatus, ModelRef } from "@uix/api/agent-channels";
-import type { SettingsHandle } from "@uix/api/settings";
+import type {
+  SettingsDefinition,
+  SettingsHandleFrom,
+  SettingsValues,
+} from "@uix/api/settings";
 import {
   registerTurnStateContributions,
   TurnStateRegistry,
 } from "../turn-state/registry";
 
 import { createAgentDriver } from "./driver";
+import { agentWorkspaceSettings } from "./settings";
+import { sessionWorkspaceSettings } from "./session-settings";
 
 interface FakeModel {
   provider: string;
@@ -248,18 +254,28 @@ const unauthed = {
   authed: false,
 };
 
-function fakeSettings(initial?: ModelRef): SettingsHandle & {
-  values: Map<string, unknown>;
-} {
-  const values = new Map<string, unknown>(
-    initial ? [["defaultModel", initial]] : [],
-  );
+function createFakeSettings<Definition extends SettingsDefinition>(
+  _definition: Definition,
+  values = new Map<string, unknown>(),
+): SettingsHandleFrom<Definition> & { values: Map<string, unknown> } {
   return {
     values,
-    get: <T>(key: string) => values.get(key) as T | undefined,
+    get: (key) =>
+      values.get(key) as SettingsValues<Definition>[typeof key] | undefined,
     set: (key, value) => void values.set(key, value),
     onChange: () => () => {},
   };
+}
+
+function fakeAgentSettings(initial?: ModelRef) {
+  return createFakeSettings(
+    agentWorkspaceSettings,
+    new Map(initial ? [["defaultModel", initial]] : []),
+  );
+}
+
+function fakeSessionSettings() {
+  return createFakeSettings(sessionWorkspaceSettings);
 }
 
 function turnStateEntry(state: Record<string, unknown>) {
@@ -282,9 +298,9 @@ function deferred() {
 }
 
 function createDriver(
-  settings?: SettingsHandle,
+  settings?: SettingsHandleFrom<typeof agentWorkspaceSettings>,
   turnState?: TurnStateRegistry,
-  sessionSettings?: SettingsHandle,
+  sessionSettings?: SettingsHandleFrom<typeof sessionWorkspaceSettings>,
   workspace = {
     stateRoot: "/tmp/ws",
     agentCwd: "/tmp/ws",
@@ -396,7 +412,7 @@ describe("driver model service (pre-session)", () => {
   });
 
   it("decorates available models from workspace favorites", async () => {
-    const settings = fakeSettings();
+    const settings = fakeAgentSettings();
     settings.values.set("favoriteModels", [
       { provider: "openai", id: "gpt-5" },
       { provider: "google", id: "gemini" },
@@ -424,7 +440,7 @@ describe("driver model service (pre-session)", () => {
   });
 
   it("adds and removes favorites idempotently", async () => {
-    const settings = fakeSettings();
+    const settings = fakeAgentSettings();
     const { driver } = createDriver(settings);
     const update = {
       provider: "anthropic",
@@ -446,7 +462,7 @@ describe("driver model service (pre-session)", () => {
   });
 
   it("rejects adding an unknown model without changing favorites", async () => {
-    const settings = fakeSettings();
+    const settings = fakeAgentSettings();
     const { driver } = createDriver(settings);
 
     await expect(
@@ -476,18 +492,18 @@ describe("driver model service (pre-session)", () => {
   });
 
   it("reports empty status with no session and no workspace default", () => {
-    const { driver } = createDriver(fakeSettings());
+    const { driver } = createDriver(fakeAgentSettings());
     expect(driver.status()).toEqual({});
   });
 
   it("reports the workspace default before a session exists", () => {
     const ref = { provider: "openai", id: "gpt-5" };
-    const { driver } = createDriver(fakeSettings(ref));
+    const { driver } = createDriver(fakeAgentSettings(ref));
     expect(driver.status()).toEqual({ defaultModel: ref });
   });
 
   it("selectModel before a session writes the default only and notifies", async () => {
-    const settings = fakeSettings();
+    const settings = fakeAgentSettings();
     const { driver, statuses } = createDriver(settings);
     const ref = { provider: "anthropic", id: "claude-sonnet-4-5" };
 
@@ -500,7 +516,7 @@ describe("driver model service (pre-session)", () => {
   });
 
   it("selectModel rejects unavailable models without touching settings", async () => {
-    const settings = fakeSettings();
+    const settings = fakeAgentSettings();
     const { driver } = createDriver(settings);
 
     await expect(
@@ -572,7 +588,7 @@ describe("driver selected-session activation", () => {
       );
       await mkdir(sessionDir, { recursive: true });
       await writeFile(selectedFile, "");
-      const sessionSettings = fakeSettings();
+      const sessionSettings = fakeSessionSettings();
       sessionSettings.set("selected", {
         sessionId: "session-id",
         displayLabel: "Stale label",
@@ -604,7 +620,7 @@ describe("driver selected-session activation", () => {
   it("falls back to the newest session when the persisted selection is stale", async () => {
     const root = await mkdtemp(join(tmpdir(), "uix-driver-session-"));
     try {
-      const sessionSettings = fakeSettings();
+      const sessionSettings = fakeSessionSettings();
       sessionSettings.set("selected", {
         sessionId: "missing-session",
         displayLabel: "Missing conversation",
@@ -928,7 +944,7 @@ describe("driver selected-session activation", () => {
     });
     sdk.state.branch = [turnStateEntry({ "canvas.documents": "saved" })];
     sdk.state.replacementBranch = [];
-    const sessionSettings = fakeSettings();
+    const sessionSettings = fakeSessionSettings();
     const { driver } = createDriver(undefined, turnState, sessionSettings);
 
     const transition = driver.newSession();
@@ -1007,7 +1023,7 @@ describe("driver model service (session open)", () => {
 
   it("passes the workspace default to session creation when the branch has no model_change", async () => {
     const { driver, statuses } = createDriver(
-      fakeSettings({ provider: "openai", id: "gpt-5" }),
+      fakeAgentSettings({ provider: "openai", id: "gpt-5" }),
     );
 
     await driver.prompt("hi");
@@ -1032,7 +1048,7 @@ describe("driver model service (session open)", () => {
 
   it("lets pi restore the branch model when a model_change entry exists", async () => {
     const { driver } = createDriver(
-      fakeSettings({ provider: "openai", id: "gpt-5" }),
+      fakeAgentSettings({ provider: "openai", id: "gpt-5" }),
     );
     sdk.state.branch = [{ type: "model_change" }];
 
@@ -1043,7 +1059,7 @@ describe("driver model service (session open)", () => {
 
   it("passes no model when the workspace default is unavailable", async () => {
     const { driver } = createDriver(
-      fakeSettings({ provider: "google", id: "gemini" }),
+      fakeAgentSettings({ provider: "google", id: "gemini" }),
     );
 
     await driver.prompt("hi");
@@ -1053,7 +1069,7 @@ describe("driver model service (session open)", () => {
 
   it("reports no live model when pi resolves none", async () => {
     sdk.state.models = [unauthed];
-    const { driver } = createDriver(fakeSettings());
+    const { driver } = createDriver(fakeAgentSettings());
 
     await driver.prompt("hi");
 
@@ -1063,7 +1079,7 @@ describe("driver model service (session open)", () => {
 
 describe("driver model service (live session)", () => {
   it("rebinds driver-owned state to a replacement runtime generation", async () => {
-    const { driver } = createDriver(fakeSettings());
+    const { driver } = createDriver(fakeAgentSettings());
     await driver.prompt("hi");
     const firstSession = sdk.state.session as {
       unsubscribe: ReturnType<typeof vi.fn>;
@@ -1097,7 +1113,7 @@ describe("driver model service (live session)", () => {
   });
 
   it("selectModel switches the live session via setModel", async () => {
-    const settings = fakeSettings();
+    const settings = fakeAgentSettings();
     const { driver } = createDriver(settings);
     await driver.prompt("hi");
 
@@ -1111,7 +1127,7 @@ describe("driver model service (live session)", () => {
   });
 
   it("mirrors pi-initiated model changes into status", async () => {
-    const { driver, statuses } = createDriver(fakeSettings());
+    const { driver, statuses } = createDriver(fakeAgentSettings());
     await driver.prompt("hi");
     statuses.length = 0;
 
