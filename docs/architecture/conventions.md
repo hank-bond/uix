@@ -100,7 +100,7 @@ Layer-specific cleanup stays idiomatic: main-process registrations go into lifet
   - `toX` for a deterministic, side-effect-free representation of the same underlying thing; the result has value semantics, no independent identity, and is safe to discard and recompute;
   - `deriveX` for a new immutable value computed through filtering, joining, folding, reduction, or domain policy; the result has value semantics and remains rebuildable from authoritative inputs;
   - `encodeX` / `decodeX` for reversible representation transforms;
-  - `isX` / `hasX` for predicates and type guards;
+  - boolean-returning helpers follow the predicate vocabulary below;
   - `readX` only for real reads from disk, stores, streams, or similarly I/O-shaped sources.
 - Module-level and lifecycle verbs. Each verb earns its slot by meaning something the others don't; don't introduce a synonym when an existing verb fits:
   - `createX` for constructing a domain instance or independently identified artifact from known inputs. The result has instance semantics: its identity or evolving state matters, it is used over time, and an owner receives responsibility for it.
@@ -124,6 +124,23 @@ Layer-specific cleanup stays idiomatic: main-process registrations go into lifet
 - Use `Store` for durable source-of-truth APIs/implementations. A store may expose a change feed when the change semantics are generic at that layer; otherwise domain-specific buffers/features publish higher-level invalidation events.
 - Use `Buffer` for live, feature-specific working projections over a store. Buffers may cache regenerable state, normalize writes, and reconcile feature/editor semantics, but durable authority stays in the backing store.
 - Use `Registry` for central in-memory maps of contributed things plus their routing (`ChannelRegistry`, `SettingsRegistry`); registries don't persist.
+
+### Boolean predicates
+
+**Rule.** Boolean variables, fields, and functions phrase a truth claim with this small default vocabulary:
+
+| Prefix | Meaning | Example |
+| --- | --- | --- |
+| `is` | Current state, classification, or validation | `isAgentRunning`, `isSessionFile` |
+| `has` | Possession, existence, or completed progress | `hasSelection`, `hasReadFirstRecord` |
+| `can` | Context-dependent ability right now | `canSwitchSession` |
+| `supports` | Intrinsic capability independent of current live state | `supportsManualInput` |
+| `should` | Policy or heuristic decision | `shouldRetry` |
+| `needs` | An unmet requirement requiring action | `needsReload` |
+
+Keep `supports` distinct from `can`: an implementation may expose `supportsSessionSwitching` while the workspace cannot currently switch because the agent is running. Keep `should` distinct from `needs`: the former records a policy choice, while the latter states that correctness or completion requires work.
+
+`was` and `did` are narrow grammatical exceptions for captured prior state and the outcome of an attempted operation (`wasAgentRunning`, `didCommitState`); they are not additional default choices. Do not use `will` as a general prediction flag—once control flow has committed to an operation, prefer making that structure explicit. If several booleans represent mutually exclusive states, replace them with one status/discriminated union rather than finding more predicate names.
 
 ### Projection naming
 

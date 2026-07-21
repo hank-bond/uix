@@ -106,6 +106,15 @@ export const SessionSummarySchema = Type.Object({
 });
 export type SessionSummary = Static<typeof SessionSummarySchema>;
 
+export const ListSessionSummariesRequestSchema = Type.Object({
+  limit: Type.Integer({ minimum: 1 }),
+});
+export type ListSessionSummariesRequest = Static<
+  typeof ListSessionSummariesRequestSchema
+>;
+
+const SessionSummaryListSchema = Type.Array(SessionSummarySchema);
+
 export const SessionHistoryRequestSchema = Type.Object({
   sessionId: Type.Optional(SessionIdSchema),
 });
@@ -345,6 +354,11 @@ export const agentChannels = {
     session_history: {
       requestSchema: SessionHistoryRequestSchema,
       responseSchema: SessionHistoryResponseSchema,
+    },
+    /** Recent durable session graphs, newest filesystem activity first. */
+    list_session_summaries: {
+      requestSchema: ListSessionSummariesRequestSchema,
+      responseSchema: SessionSummaryListSchema,
     },
     /** Replace the active agent slot's selected graph with a fresh session. */
     new_session: {

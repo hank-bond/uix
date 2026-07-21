@@ -54,7 +54,10 @@ import { TurnStateRegistry } from "../turn-state/registry";
 import { createOAuthFlowCoordinator } from "./auth-flow";
 import { deriveSelectedBranchProjection } from "./branch-projection";
 import { resolveSessionFileById } from "./session-files";
-import { readSessionSummary } from "./session-summary";
+import {
+  readRecentSessionSummaries,
+  readSessionSummary,
+} from "./session-summary";
 import {
   deriveProviderAuthCatalogForEnvironment,
   findOfferedCredentialMethod,
@@ -115,6 +118,8 @@ export interface AgentDriver extends Disposable {
   init(): void;
   /** Read one session without activating a non-selected target. */
   sessionHistory(sessionId?: string): Promise<SessionHistoryResponse>;
+  /** Read recent durable session summaries without opening Pi services. */
+  listSessionSummaries(limit: number): Promise<SessionSummary[]>;
   /** Replace the active agent slot's selected graph with a fresh session. */
   newSession(): Promise<SessionSummary>;
   /** Available models with workspace-local favorite status. */
@@ -202,6 +207,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     SessionManager,
     TranscriptItemIdentity
   >();
+  const sessionDir = join(opts.workspace.stateRoot, ".uix", "sessions");
   const turnStateLifecycle = opts.turnState
     ? driverBag.add(
         createTurnStateLifecycle({
@@ -375,11 +381,10 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
 
   async function openManager(): Promise<SessionManager> {
     const sdk = await import("@earendil-works/pi-coding-agent");
-    const { stateRoot, agentCwd } = opts.workspace;
+    const { agentCwd } = opts.workspace;
     // Pin the session dir under .uix on the stable state root, not pi's
     // cwd-derived default, so the session file stays with the canvases and does
     // not move when the agent later relocates to a worktree.
-    const sessionDir = join(stateRoot, ".uix", "sessions");
     // Resume the most recent session for this cwd; create one only when none
     // exists. File-backing alone would start empty every launch — "survives
     // restart" means resume.
@@ -686,6 +691,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         ).transcript,
       };
     },
+
+    listSessionSummaries: (limit) =>
+      readRecentSessionSummaries(sessionDir, limit),
 
     async commitFeatureTurnState() {
       if (disposed) throw new Error("Agent driver is disposed");

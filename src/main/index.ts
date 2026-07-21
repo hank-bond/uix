@@ -342,6 +342,14 @@ async function openWorkspace(
             }),
           },
         },
+        list_session_summaries: {
+          handle: ({ limit }) => driver.listSessionSummaries(limit),
+          log: {
+            describeResponse: (sessions) => ({
+              sessionIds: sessions.map((session) => session.sessionId),
+            }),
+          },
+        },
         new_session: {
           handle: () => driver.newSession(),
         },

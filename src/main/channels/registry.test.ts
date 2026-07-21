@@ -370,6 +370,16 @@ describe("ChannelRegistry", () => {
             transcript: { items: [] },
           }),
         },
+        list_session_summaries: {
+          handle: () => [
+            {
+              sessionId: "session-1",
+              displayLabel: "Existing conversation",
+              createdAt: "2026-07-19T10:00:00.000Z",
+              modifiedAt: "2026-07-19T10:30:00.000Z",
+            },
+          ],
+        },
         new_session: {
           handle: () => ({
             sessionId: "session-2",
@@ -421,6 +431,19 @@ describe("ChannelRegistry", () => {
       transport.handlers.get("agent.session_history")?.({
         sessionId: "../outside",
       }),
+    ).rejects.toThrow();
+    await expect(
+      transport.handlers.get("agent.list_session_summaries")?.({ limit: 10 }),
+    ).resolves.toEqual([
+      {
+        sessionId: "session-1",
+        displayLabel: "Existing conversation",
+        createdAt: "2026-07-19T10:00:00.000Z",
+        modifiedAt: "2026-07-19T10:30:00.000Z",
+      },
+    ]);
+    await expect(
+      transport.handlers.get("agent.list_session_summaries")?.({ limit: 0 }),
     ).rejects.toThrow();
     await expect(
       transport.handlers.get("agent.new_session")?.(undefined),

@@ -75,6 +75,14 @@ describe("channel clients", () => {
         },
         transcript: { items: [] },
       })
+      .mockResolvedValueOnce([
+        {
+          sessionId: "session-1",
+          displayLabel: "Existing conversation",
+          createdAt: "2026-07-19T10:00:00.000Z",
+          modifiedAt: "2026-07-19T10:30:00.000Z",
+        },
+      ])
       .mockResolvedValueOnce({
         sessionId: "session-2",
         displayLabel: "New conversation",
@@ -84,11 +92,15 @@ describe("channel clients", () => {
 
     await agent.requests.prompt({ text: "hi" });
     await agent.requests.session_history({});
+    await agent.requests.list_session_summaries({ limit: 10 });
     await agent.requests.new_session(undefined);
     agent.events.event(onEvent);
 
     expect(request).toHaveBeenCalledWith("agent.prompt", { text: "hi" });
     expect(request).toHaveBeenCalledWith("agent.session_history", {});
+    expect(request).toHaveBeenCalledWith("agent.list_session_summaries", {
+      limit: 10,
+    });
     expect(request).toHaveBeenCalledWith("agent.new_session", undefined);
     expect(subscribe).toHaveBeenCalledWith("agent.event", expect.any(Function));
   });
