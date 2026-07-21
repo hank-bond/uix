@@ -50,7 +50,13 @@ export async function resolveSessionFileById(
   sessionId: string,
 ): Promise<string | undefined> {
   const suffix = `_${sessionId}.jsonl`;
-  const entries = await readdir(sessionDir, { withFileTypes: true });
+  let entries;
+  try {
+    entries = await readdir(sessionDir, { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
   const match = entries.find(
     (entry) => entry.isFile() && entry.name.endsWith(suffix),
   );

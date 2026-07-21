@@ -2,6 +2,10 @@
 // select before any session, workspace-default application at session open,
 // and live model mirroring afterward.
 
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Type } from "typebox";
 
@@ -110,8 +114,9 @@ const sdk = vi.hoisted(() => {
     makeSession,
     module: {
       SessionManager: {
-        continueRecent: () => manager,
-        create: () => manager,
+        continueRecent: vi.fn(() => manager),
+        create: vi.fn(() => manager),
+        open: vi.fn(() => manager),
       },
       createAgentSessionServices: async (options: {
         cwd: string;
@@ -279,6 +284,12 @@ function deferred() {
 function createDriver(
   settings?: SettingsHandle,
   turnState?: TurnStateRegistry,
+  sessionSettings?: SettingsHandle,
+  workspace = {
+    stateRoot: "/tmp/ws",
+    agentCwd: "/tmp/ws",
+    manifestPath: "/tmp/ws/uix.workspace.json",
+  },
 ) {
   const statuses: AgentStatus[] = [];
   let availabilityChanges = 0;
@@ -288,14 +299,11 @@ function createDriver(
         throw new Error(`driver error event: ${event.item.message}`);
       }
     },
-    workspace: {
-      stateRoot: "/tmp/ws",
-      agentCwd: "/tmp/ws",
-      manifestPath: "/tmp/ws/uix.workspace.json",
-    },
+    workspace,
     piProfileDir: "/tmp/uix-pi-profile",
     ...(settings && { agentSettings: settings }),
     ...(turnState && { turnState }),
+    ...(sessionSettings && { sessionSettings }),
     onStatusChange: (status) => statuses.push(status),
     openExternal: () => undefined,
     onOAuthFlowState: () => undefined,
@@ -328,6 +336,9 @@ beforeEach(() => {
   sdk.state.pendingProviderModels = [];
   sdk.registry.authStorage.set.mockClear();
   sdk.registry.refresh.mockClear();
+  sdk.module.SessionManager.continueRecent.mockClear();
+  sdk.module.SessionManager.create.mockClear();
+  sdk.module.SessionManager.open.mockClear();
   sdk.manager.appendCustomEntry.mockClear();
 });
 
@@ -551,6 +562,75 @@ describe("driver provider credentials (pre-session)", () => {
 });
 
 describe("driver selected-session activation", () => {
+  it("opens the persisted selection and reconciles its cached label", async () => {
+    const root = await mkdtemp(join(tmpdir(), "uix-driver-session-"));
+    try {
+      const sessionDir = join(root, ".uix", "sessions");
+      const selectedFile = join(
+        sessionDir,
+        "2026-07-19T10-00-00-000Z_session-id.jsonl",
+      );
+      await mkdir(sessionDir, { recursive: true });
+      await writeFile(selectedFile, "");
+      const sessionSettings = fakeSettings();
+      sessionSettings.set("selected", {
+        sessionId: "session-id",
+        displayLabel: "Stale label",
+      });
+      const { driver } = createDriver(undefined, undefined, sessionSettings, {
+        stateRoot: root,
+        agentCwd: root,
+        manifestPath: join(root, "uix.workspace.json"),
+      });
+
+      driver.init();
+      await driver.sessionHistory();
+
+      expect(sdk.module.SessionManager.open).toHaveBeenCalledWith(
+        selectedFile,
+        sessionDir,
+      );
+      expect(sdk.module.SessionManager.continueRecent).not.toHaveBeenCalled();
+      expect(sessionSettings.values.get("selected")).toEqual({
+        sessionId: "session-id",
+        displayLabel: "New conversation",
+      });
+      expect(sdk.state.servicesLoads).toBe(0);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("falls back to the newest session when the persisted selection is stale", async () => {
+    const root = await mkdtemp(join(tmpdir(), "uix-driver-session-"));
+    try {
+      const sessionSettings = fakeSettings();
+      sessionSettings.set("selected", {
+        sessionId: "missing-session",
+        displayLabel: "Missing conversation",
+      });
+      const { driver } = createDriver(undefined, undefined, sessionSettings, {
+        stateRoot: root,
+        agentCwd: root,
+        manifestPath: join(root, "uix.workspace.json"),
+      });
+
+      await driver.sessionHistory();
+
+      expect(sdk.module.SessionManager.open).not.toHaveBeenCalled();
+      expect(sdk.module.SessionManager.continueRecent).toHaveBeenCalledWith(
+        root,
+        join(root, ".uix", "sessions"),
+      );
+      expect(sessionSettings.values.get("selected")).toEqual({
+        sessionId: "session-id",
+        displayLabel: "New conversation",
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("reads the selected transcript and authoritative summary without opening Pi services", async () => {
     sdk.state.branch = [
       {
@@ -848,7 +928,8 @@ describe("driver selected-session activation", () => {
     });
     sdk.state.branch = [turnStateEntry({ "canvas.documents": "saved" })];
     sdk.state.replacementBranch = [];
-    const { driver } = createDriver(undefined, turnState);
+    const sessionSettings = fakeSettings();
+    const { driver } = createDriver(undefined, turnState, sessionSettings);
 
     const transition = driver.newSession();
     await vi.waitFor(() => {
@@ -878,6 +959,10 @@ describe("driver selected-session activation", () => {
     });
     expect(completed).toBe(true);
     expect(sdk.state.runtimeNewSession).toHaveBeenCalledOnce();
+    expect(sessionSettings.values.get("selected")).toEqual({
+      sessionId: "replacement-session-id",
+      displayLabel: "New conversation",
+    });
   });
 
   it("does not replace the session when the current-state commit fails", async () => {

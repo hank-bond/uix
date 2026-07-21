@@ -10,6 +10,10 @@ import {
   keybindingsWorkspaceSettings,
   KeybindingsSettingsNamespace,
 } from "./keybindings/settings";
+import {
+  sessionWorkspaceSettings,
+  SessionSettingsNamespace,
+} from "./agent/session-settings";
 import { SettingsRegistry } from "./settings-registry";
 import { WorkspaceManifestStore } from "./workspace-manifest-store";
 import {
@@ -527,6 +531,50 @@ describe("workspace namespace settings", () => {
     };
     expect(written.settings).toEqual({
       agent: { defaultModel: { provider: "anthropic", id: "claude" } },
+    });
+  });
+
+  it("loads and persists the selected-session identity and label cache", async () => {
+    const manifestPath = await tempManifest({
+      name: "Demo",
+      settings: {
+        session: {
+          selected: {
+            sessionId: "session-1",
+            displayLabel: "Existing conversation",
+          },
+        },
+      },
+      features: [],
+    });
+    using harness = createHarness(manifestPath, {
+      [SessionSettingsNamespace]: sessionWorkspaceSettings,
+    });
+    const { settings, manifest } = harness;
+
+    await settings.reload();
+    const session = settings.forScope(SessionSettingsNamespace);
+    expect(session.get("selected")).toEqual({
+      sessionId: "session-1",
+      displayLabel: "Existing conversation",
+    });
+
+    session.set("selected", {
+      sessionId: "session-2",
+      displayLabel: "New conversation",
+    });
+    await manifest.flush();
+
+    const written = (await readManifest(manifestPath)) as {
+      settings: Record<string, unknown>;
+    };
+    expect(written.settings).toEqual({
+      session: {
+        selected: {
+          sessionId: "session-2",
+          displayLabel: "New conversation",
+        },
+      },
     });
   });
 

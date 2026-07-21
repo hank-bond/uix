@@ -50,6 +50,14 @@ describe("listRecentSessionFiles", () => {
 });
 
 describe("resolveSessionFileById", () => {
+  it("returns no file when the session directory does not exist", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "uix-session-files-"));
+    dirs.push(dir);
+    await expect(
+      resolveSessionFileById(join(dir, "missing"), "session-1"),
+    ).resolves.toBeUndefined();
+  });
+
   it("resolves only the exact durable id suffix", async () => {
     const dir = await mkdtemp(join(tmpdir(), "uix-session-files-"));
     dirs.push(dir);

@@ -73,6 +73,10 @@ import {
   agentWorkspaceSettings,
   AgentSettingsNamespace,
 } from "./agent/settings";
+import {
+  sessionWorkspaceSettings,
+  SessionSettingsNamespace,
+} from "./agent/session-settings";
 import { createKeybindingRequestHandlers } from "./keybindings/requests";
 import {
   keybindingsWorkspaceSettings,
@@ -168,6 +172,7 @@ async function openWorkspace(
     settingsRegistry,
     {
       [AgentSettingsNamespace]: agentWorkspaceSettings,
+      [SessionSettingsNamespace]: sessionWorkspaceSettings,
       [KeybindingsSettingsNamespace]: keybindingsWorkspaceSettings,
     },
   );
@@ -233,9 +238,10 @@ async function openWorkspace(
     agentSkills,
     agentContext,
     agentInstallers: [createAgentToolInstaller(agentTools)],
-    // Lazy handle: the `agent` scope registers during the settings reload
-    // inside loadFeatures(), before any driver method can read it.
+    // Lazy handles: workspace scopes register during the settings reload
+    // inside loadFeatures(), before any driver method can read them.
     agentSettings: workspaceSettings.forScope(AgentSettingsNamespace),
+    sessionSettings: workspaceSettings.forScope(SessionSettingsNamespace),
     onStatusChange: (status) => {
       agentPublisher.status_changed(status);
     },

@@ -54,6 +54,7 @@ import { TurnStateRegistry } from "../turn-state/registry";
 import { createOAuthFlowCoordinator } from "./auth-flow";
 import { deriveSelectedBranchProjection } from "./branch-projection";
 import { resolveSessionFileById } from "./session-files";
+import type { SelectedSessionSetting } from "./session-settings";
 import {
   readRecentSessionSummaries,
   readSessionSummary,
@@ -169,6 +170,8 @@ export interface AgentDriverOptions {
    * including resolving to no model at all when nothing is authenticated.
    */
   agentSettings?: SettingsHandle;
+  /** Durable identity and cached label for the workspace's selected session. */
+  sessionSettings?: SettingsHandle;
   /** Fired whenever live/default model status changes. */
   onStatusChange?: (status: AgentStatus) => void;
   /** Opens only URLs supplied by the active Pi OAuth provider. */
@@ -328,6 +331,21 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     }));
   }
 
+  function commitSessionSelection(summary: SessionSummary): void {
+    const selected =
+      opts.sessionSettings?.get<SelectedSessionSetting>("selected");
+    if (
+      selected?.sessionId === summary.sessionId &&
+      selected.displayLabel === summary.displayLabel
+    ) {
+      return;
+    }
+    opts.sessionSettings?.set("selected", {
+      sessionId: summary.sessionId,
+      displayLabel: summary.displayLabel,
+    } satisfies SelectedSessionSetting);
+  }
+
   function getBootstrapManager(): Promise<SessionManager> {
     if (disposed) return Promise.reject(new Error("Agent driver is disposed"));
     if (bootstrapManager) return Promise.resolve(bootstrapManager);
@@ -385,15 +403,30 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     // Pin the session dir under .uix on the stable state root, not pi's
     // cwd-derived default, so the session file stays with the canvases and does
     // not move when the agent later relocates to a worktree.
-    // Resume the most recent session for this cwd; create one only when none
-    // exists. File-backing alone would start empty every launch — "survives
-    // restart" means resume.
-    let manager: SessionManager;
-    try {
-      manager = sdk.SessionManager.continueRecent(agentCwd, sessionDir);
-    } catch {
-      manager = sdk.SessionManager.create(agentCwd, sessionDir);
+    const selected =
+      opts.sessionSettings?.get<SelectedSessionSetting>("selected");
+    const selectedFile = selected
+      ? await resolveSessionFileById(sessionDir, selected.sessionId)
+      : undefined;
+
+    let manager: SessionManager | undefined;
+    if (selectedFile) {
+      try {
+        manager = sdk.SessionManager.open(selectedFile, sessionDir);
+      } catch {
+        // A stale or unreadable selected file falls through to the normal
+        // newest-session recovery path.
+      }
     }
+    if (!manager) {
+      try {
+        manager = sdk.SessionManager.continueRecent(agentCwd, sessionDir);
+      } catch {
+        manager = sdk.SessionManager.create(agentCwd, sessionDir);
+      }
+    }
+
+    commitSessionSelection(await readSessionSummary(manager));
     return manager;
   }
 
@@ -683,8 +716,10 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         );
       }
 
+      const session = await readSessionSummary(manager);
+      if (manager === selectedManager) commitSessionSelection(session);
       return {
-        session: await readSessionSummary(manager),
+        session,
         transcript: deriveSelectedBranchProjection(
           manager.getBranch(),
           turnStateLifecycle?.toRegistrySnapshot(),
@@ -704,10 +739,10 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
 
     async restoreFeatureTurnState() {
       if (disposed) throw new Error("Agent driver is disposed");
-      if (!turnStateLifecycle) return;
       const manager =
         runtime?.session.sessionManager ?? (await getBootstrapManager());
-      await turnStateLifecycle.restoreCurrent(manager);
+      await turnStateLifecycle?.restoreCurrent(manager);
+      commitSessionSelection(await readSessionSummary(manager));
     },
 
     async newSession() {
@@ -723,7 +758,11 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       if (result.cancelled) {
         throw new Error("New session was cancelled");
       }
-      return readSessionSummary(activeRuntime.session.sessionManager);
+      const session = await readSessionSummary(
+        activeRuntime.session.sessionManager,
+      );
+      commitSessionSelection(session);
+      return session;
     },
 
     async reloadPiResources() {
