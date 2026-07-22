@@ -44,8 +44,14 @@ const sdk = vi.hoisted(() => {
     session: undefined as Record<string, unknown> | undefined,
     runtimeCreates: 0,
     runtimeOptions: undefined as Record<string, unknown> | undefined,
-    replaceRuntime: undefined as (() => Promise<void>) | undefined,
+    replaceRuntime: undefined as
+      | ((reason?: "new" | "switch") => Promise<void>)
+      | undefined,
+    replacementSessionId: "replacement-session-id",
+    replacementSessionFile: "/tmp/replacement-session.jsonl",
+    switchCancelled: false,
     runtimeNewSession: undefined as ReturnType<typeof vi.fn> | undefined,
+    runtimeSwitchSession: undefined as ReturnType<typeof vi.fn> | undefined,
     lastCreateOptions: undefined as Record<string, unknown> | undefined,
     servicesLoads: 0,
     servicesOptions: [] as Array<{ cwd: string; agentDir: string }>,
@@ -191,7 +197,12 @@ const sdk = vi.hoisted(() => {
           session: result.session,
           services: result.services,
           newSession: vi.fn(async () => {
-            await state.replaceRuntime?.();
+            await state.replaceRuntime?.("new");
+            return { cancelled: false };
+          }),
+          switchSession: vi.fn(async () => {
+            if (state.switchCancelled) return { cancelled: true };
+            await state.replaceRuntime?.("switch");
             return { cancelled: false };
           }),
           setRebindSession: (
@@ -209,19 +220,20 @@ const sdk = vi.hoisted(() => {
           }),
         };
         state.runtimeNewSession = runtime.newSession;
-        state.replaceRuntime = async () => {
+        state.runtimeSwitchSession = runtime.switchSession;
+        state.replaceRuntime = async (reason = "new") => {
           beforeSessionInvalidate?.();
           const replacementManager = {
             ...manager,
             getBranch: () => state.replacementBranch ?? state.branch,
-            getSessionId: () => "replacement-session-id",
-            getSessionFile: () => "/tmp/replacement-session.jsonl",
+            getSessionId: () => state.replacementSessionId,
+            getSessionFile: () => state.replacementSessionFile,
             getHeader: () => ({ timestamp: "2026-07-19T11:00:00.000Z" }),
           };
           const replacement = await createRuntime({
             ...options,
             sessionManager: replacementManager,
-            sessionStartEvent: { type: "session_start", reason: "new" },
+            sessionStartEvent: { type: "session_start", reason },
           });
           runtime.session = replacement.session;
           runtime.services = replacement.services;
@@ -297,6 +309,26 @@ function deferred() {
   return { promise, resolve };
 }
 
+async function createSessionTarget(sessionId: string) {
+  const root = await mkdtemp(join(tmpdir(), "uix-driver-switch-"));
+  const sessionDir = join(root, ".uix", "sessions");
+  const sessionFile = join(
+    sessionDir,
+    `2026-07-19T11-00-00-000Z_${sessionId}.jsonl`,
+  );
+  await mkdir(sessionDir, { recursive: true });
+  await writeFile(sessionFile, "");
+  return {
+    root,
+    sessionFile,
+    workspace: {
+      stateRoot: root,
+      agentCwd: root,
+      manifestPath: join(root, "uix.workspace.json"),
+    },
+  };
+}
+
 function createDriver(
   settings?: SettingsHandleFrom<typeof agentWorkspaceSettings>,
   turnState?: TurnStateRegistry,
@@ -345,7 +377,11 @@ beforeEach(() => {
   sdk.state.runtimeCreates = 0;
   sdk.state.runtimeOptions = undefined;
   sdk.state.replaceRuntime = undefined;
+  sdk.state.replacementSessionId = "replacement-session-id";
+  sdk.state.replacementSessionFile = "/tmp/replacement-session.jsonl";
+  sdk.state.switchCancelled = false;
   sdk.state.runtimeNewSession = undefined;
+  sdk.state.runtimeSwitchSession = undefined;
   sdk.state.lastCreateOptions = undefined;
   sdk.state.servicesLoads = 0;
   sdk.state.servicesOptions = [];
@@ -1008,6 +1044,201 @@ describe("driver selected-session activation", () => {
       "Cannot create a new session while the agent is running",
     );
     expect(sdk.state.runtimeNewSession).not.toHaveBeenCalled();
+  });
+});
+
+describe("driver session switching", () => {
+  it("commits current state and returns the target only after restoration", async () => {
+    const target = await createSessionTarget("target-session");
+    try {
+      const turnState = new TurnStateRegistry();
+      const targetRestoreGate = deferred();
+      const events: string[] = [];
+      registerTurnStateContributions(turnState, "canvas", {
+        documents: {
+          schema: Type.String(),
+          createSnapshot: () => {
+            events.push("snapshot");
+            return "current";
+          },
+          restore: async (value) => {
+            events.push(`restore:${String(value)}`);
+            if (value === "target") await targetRestoreGate.promise;
+          },
+        },
+      });
+      sdk.state.branch = [turnStateEntry({ "canvas.documents": "source" })];
+      sdk.state.replacementBranch = [
+        turnStateEntry({ "canvas.documents": "target" }),
+      ];
+      sdk.state.replacementSessionId = "target-session";
+      sdk.state.replacementSessionFile = target.sessionFile;
+      const sessionSettings = fakeSessionSettings();
+      const { driver } = createDriver(
+        undefined,
+        turnState,
+        sessionSettings,
+        target.workspace,
+      );
+
+      const switching = driver.switchSession("target-session");
+      await vi.waitFor(() => {
+        expect(events).toEqual([
+          "restore:source",
+          "snapshot",
+          "restore:target",
+        ]);
+      });
+      expect(sdk.state.runtimeSwitchSession).toHaveBeenCalledWith(
+        target.sessionFile,
+      );
+      expect(sdk.manager.appendCustomEntry).toHaveBeenCalledWith(
+        "uix.turn-state",
+        {
+          cwd: target.root,
+          state: { "canvas.documents": "current" },
+        },
+      );
+
+      let completed = false;
+      void switching.then(() => {
+        completed = true;
+      });
+      await Promise.resolve();
+      expect(completed).toBe(false);
+      expect(sessionSettings.values.get("selected")).toEqual({
+        sessionId: "session-id",
+        displayLabel: "New conversation",
+      });
+
+      targetRestoreGate.resolve();
+      const summary = await switching;
+      expect(summary).toMatchObject({
+        sessionId: "target-session",
+        displayLabel: "New conversation",
+        createdAt: "2026-07-19T11:00:00.000Z",
+      });
+      expect(summary.modifiedAt.endsWith("Z")).toBe(true);
+      expect(sessionSettings.values.get("selected")).toEqual({
+        sessionId: "target-session",
+        displayLabel: "New conversation",
+      });
+    } finally {
+      await rm(target.root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects an unknown target before committing current state", async () => {
+    const root = await mkdtemp(join(tmpdir(), "uix-driver-switch-"));
+    try {
+      const turnState = new TurnStateRegistry();
+      const createSnapshot = vi.fn(() => "current");
+      registerTurnStateContributions(turnState, "canvas", {
+        documents: {
+          schema: Type.String(),
+          createSnapshot,
+          restore: () => undefined,
+        },
+      });
+      const { driver } = createDriver(undefined, turnState, undefined, {
+        stateRoot: root,
+        agentCwd: root,
+        manifestPath: join(root, "uix.workspace.json"),
+      });
+
+      await expect(driver.switchSession("missing-session")).rejects.toThrow(
+        "Unknown session: missing-session",
+      );
+      expect(createSnapshot).not.toHaveBeenCalled();
+      expect(sdk.state.runtimeSwitchSession).not.toHaveBeenCalled();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("does not switch when the current-state commit fails", async () => {
+    const target = await createSessionTarget("target-session");
+    try {
+      const turnState = new TurnStateRegistry();
+      registerTurnStateContributions(turnState, "canvas", {
+        documents: {
+          schema: Type.String(),
+          createSnapshot: () => {
+            throw new Error("snapshot failed");
+          },
+          restore: () => undefined,
+        },
+      });
+      const { driver } = createDriver(
+        undefined,
+        turnState,
+        undefined,
+        target.workspace,
+      );
+
+      await expect(driver.switchSession("target-session")).rejects.toThrow(
+        "snapshot failed",
+      );
+      expect(sdk.state.runtimeSwitchSession).not.toHaveBeenCalled();
+    } finally {
+      await rm(target.root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects switching while the agent is running", async () => {
+    const { driver } = createDriver();
+    await driver.prompt("hello");
+    const session = sdk.state.session as { isStreaming: boolean };
+    session.isStreaming = true;
+
+    await expect(driver.switchSession("target-session")).rejects.toThrow(
+      "Cannot switch sessions while the agent is running",
+    );
+    expect(sdk.state.runtimeSwitchSession).not.toHaveBeenCalled();
+  });
+
+  it("returns the active summary without replacing the same session", async () => {
+    const sessionSettings = fakeSessionSettings();
+    const { driver } = createDriver(undefined, undefined, sessionSettings);
+
+    await expect(driver.switchSession("session-id")).resolves.toEqual({
+      sessionId: "session-id",
+      displayLabel: "New conversation",
+      createdAt: "2026-07-19T10:00:00.000Z",
+      modifiedAt: "2026-07-19T10:00:00.000Z",
+    });
+    expect(sdk.state.runtimeSwitchSession).not.toHaveBeenCalled();
+    expect(sessionSettings.values.get("selected")).toEqual({
+      sessionId: "session-id",
+      displayLabel: "New conversation",
+    });
+  });
+
+  it("does not persist a cancelled target", async () => {
+    const target = await createSessionTarget("target-session");
+    try {
+      sdk.state.switchCancelled = true;
+      const sessionSettings = fakeSessionSettings();
+      const { driver } = createDriver(
+        undefined,
+        undefined,
+        sessionSettings,
+        target.workspace,
+      );
+
+      await expect(driver.switchSession("target-session")).rejects.toThrow(
+        "Session switch was cancelled",
+      );
+      expect(sdk.state.runtimeSwitchSession).toHaveBeenCalledWith(
+        target.sessionFile,
+      );
+      expect(sessionSettings.values.get("selected")).toEqual({
+        sessionId: "session-id",
+        displayLabel: "New conversation",
+      });
+    } finally {
+      await rm(target.root, { recursive: true, force: true });
+    }
   });
 });
 

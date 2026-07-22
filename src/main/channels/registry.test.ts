@@ -388,6 +388,14 @@ describe("ChannelRegistry", () => {
             modifiedAt: "2026-07-19T11:00:00.000Z",
           }),
         },
+        switch_session: {
+          handle: ({ sessionId }) => ({
+            sessionId,
+            displayLabel: "Existing conversation",
+            createdAt: "2026-07-19T10:00:00.000Z",
+            modifiedAt: "2026-07-19T10:30:00.000Z",
+          }),
+        },
         list_models: {
           handle: () => ({
             models: [
@@ -453,6 +461,21 @@ describe("ChannelRegistry", () => {
       createdAt: "2026-07-19T11:00:00.000Z",
       modifiedAt: "2026-07-19T11:00:00.000Z",
     });
+    await expect(
+      transport.handlers.get("agent.switch_session")?.({
+        sessionId: "session-1",
+      }),
+    ).resolves.toEqual({
+      sessionId: "session-1",
+      displayLabel: "Existing conversation",
+      createdAt: "2026-07-19T10:00:00.000Z",
+      modifiedAt: "2026-07-19T10:30:00.000Z",
+    });
+    await expect(
+      transport.handlers.get("agent.switch_session")?.({
+        sessionId: "../outside",
+      }),
+    ).rejects.toThrow();
     await expect(
       transport.handlers.get("agent.select_model")?.({
         provider: "anthropic",

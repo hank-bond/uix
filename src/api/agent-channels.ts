@@ -113,6 +113,11 @@ export type ListSessionSummariesRequest = Static<
   typeof ListSessionSummariesRequestSchema
 >;
 
+export const SwitchSessionRequestSchema = Type.Object({
+  sessionId: SessionIdSchema,
+});
+export type SwitchSessionRequest = Static<typeof SwitchSessionRequestSchema>;
+
 const SessionSummaryListSchema = Type.Array(SessionSummarySchema);
 
 export const SessionHistoryRequestSchema = Type.Object({
@@ -363,6 +368,11 @@ export const agentChannels = {
     /** Replace the active agent slot's selected graph with a fresh session. */
     new_session: {
       requestSchema: Type.Void(),
+      responseSchema: SessionSummarySchema,
+    },
+    /** Replace the active agent slot's selected graph with an existing session. */
+    switch_session: {
+      requestSchema: SwitchSessionRequestSchema,
       responseSchema: SessionSummarySchema,
     },
     /** Available (auth-configured) models with workspace favorite status. */

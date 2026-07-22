@@ -127,6 +127,8 @@ export interface AgentDriver extends Disposable {
   listSessionSummaries(limit: number): Promise<SessionSummary[]>;
   /** Replace the active agent slot's selected graph with a fresh session. */
   newSession(): Promise<SessionSummary>;
+  /** Replace the active agent slot's selected graph with an existing session. */
+  switchSession(sessionId: string): Promise<SessionSummary>;
   /** Available models with workspace-local favorite status. */
   listModels(): Promise<ModelCatalog>;
   /** Persist a favorite update and return the refreshed available model catalog. */
@@ -759,6 +761,34 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       const result = await activeRuntime.newSession();
       if (result.cancelled) {
         throw new Error("New session was cancelled");
+      }
+      const session = await readSessionSummary(
+        activeRuntime.session.sessionManager,
+      );
+      commitSessionSelection(session);
+      return session;
+    },
+
+    async switchSession(sessionId) {
+      const activeRuntime = await getRuntime();
+      if (activeRuntime.session.isStreaming) {
+        throw new Error("Cannot switch sessions while the agent is running");
+      }
+
+      const currentManager = activeRuntime.session.sessionManager;
+      if (sessionId === currentManager.getSessionId()) {
+        const session = await readSessionSummary(currentManager);
+        commitSessionSelection(session);
+        return session;
+      }
+
+      const sessionFile = await resolveSessionFileById(sessionDir, sessionId);
+      if (!sessionFile) throw new Error(`Unknown session: ${sessionId}`);
+
+      await turnStateLifecycle?.commit(currentManager);
+      const result = await activeRuntime.switchSession(sessionFile);
+      if (result.cancelled) {
+        throw new Error("Session switch was cancelled");
       }
       const session = await readSessionSummary(
         activeRuntime.session.sessionManager,

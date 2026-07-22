@@ -345,6 +345,9 @@ async function openWorkspace(
         new_session: {
           handle: () => driver.newSession(),
         },
+        switch_session: {
+          handle: ({ sessionId }) => driver.switchSession(sessionId),
+        },
         list_models: {
           handle: async () => ({ models: await driver.listModels() }),
         },

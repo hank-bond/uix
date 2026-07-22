@@ -16,7 +16,7 @@ Current shipped state behavior:
 - Canvas keys are validated slash-namespaced slugs, not filesystem paths.
 - Canvas writes go through the `canvas__anchor_write` tool and broadcast `canvasChanged { key }`.
 - Feature backend code can use `ctx.settings.get/set/onChange` for declared, schema-validated workspace settings persisted on that feature's manifest entry in `uix.workspace.json`.
-- The renderer exposes the controller-owned active `SessionSummary` read-only to feature surfaces. Active `session_history` hydration establishes that projection and reconciles the selected-session label cache; explicit non-active history reads do not change it. `list_session_summaries` independently reads a bounded mtime-ordered recent projection from the workspace's session files. New Session persists its returned session as the workspace selection only after backend restoration completes.
+- The renderer exposes the controller-owned active `SessionSummary` read-only to feature surfaces. Active `session_history` hydration establishes that projection and reconciles the selected-session label cache; explicit non-active history reads do not change it. `list_session_summaries` independently reads a bounded mtime-ordered recent projection from the workspace's session files. New Session and backend `switch_session` persist their returned session as the workspace selection only after target restoration completes.
 
 A package that also contains pi extension resources should use pi's own documented state APIs from the pi side. The current `@uix/api` surface does not provide access to the substrate-owned pi session manager, custom session entries, file watchers, or a UIX feature storage directory.
 
