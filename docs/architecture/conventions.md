@@ -235,6 +235,14 @@ Apply these rules in order:
 
 A visually hidden helper must clip content rather than use `display: none` or `visibility: hidden`, because those remove it from the accessibility tree. Keep the helper local until a second consumer justifies a shared renderer utility.
 
+## Component stylesheets
+
+**Rule.** A renderer component's private stylesheet lives beside it with the same basename: `SessionPill.tsx` owns `SessionPill.css`. Private subcomponents in that module share the owner's sheet. A stylesheet with no single component owner uses a narrow lowercase-kebab name such as `picker-positioning.css` or `provider-controls.css`; do not let shared sheets become miscellaneous overrides.
+
+CSS class names remain lowercase kebab/BEM regardless of file ownership. Component-owned selectors carry their component domain (`.session-picker__option`); shared selectors carry the feature or shared visual role (`.chat-button`). Filename casing communicates ownership, not a different CSS scoping mechanism.
+
+Surface CSS module scripts remain explicitly imported and ordered in the owning `surface.tsx` `styles` array rather than hidden behind CSS `@import` or component import side effects. That array is the cascade composition: shared foundations precede component sheets, and the substrate independently wraps every adopted sheet in the same surface `@scope`. Name-global `@font-face`, `@keyframes`, and `@property` declarations remain document-global after that wrapping and retain their feature-prefixed names.
+
 ## Module API surface
 
 **Rule.** Don't export a symbol until another module needs to import that symbol by name.

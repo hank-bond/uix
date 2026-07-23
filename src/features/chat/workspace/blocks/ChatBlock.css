@@ -1,0 +1,123 @@
+.msg {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.msg__role {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  padding-top: 0.15rem;
+}
+
+.msg__text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.msg--user .msg__text,
+.msg--assistant .msg__text {
+  color: var(--fg);
+}
+
+/* Optimistic pending row: dimmed until main confirms it with the canonical
+   born-keyed row. */
+.msg[data-uix-unconfirmed] .msg__text {
+  color: var(--fg-dim);
+}
+
+.msg--tool .msg__text {
+  color: var(--fg-dim);
+}
+
+.tool-block {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  font-size: 0.86rem;
+}
+
+.tool-block__header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.tool-block__status {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  color: var(--fg-dim);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tool-block__name {
+  color: var(--fg);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-block__payload,
+.tool-block__details pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-family:
+    var(--code-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.tool-block__details summary {
+  cursor: pointer;
+  color: var(--fg-faint);
+  font-size: 0.78rem;
+}
+
+.canvas-tool-block__payload {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.canvas-tool-block__toggle {
+  justify-self: start;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--fg-faint);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.canvas-tool-block__toggle:hover {
+  color: var(--accent);
+}
+
+.msg--tool-error .tool-block__status {
+  border-color: color-mix(in srgb, var(--error), transparent 45%);
+  color: var(--error);
+}
+
+.msg--tool-error .msg__role,
+.msg--tool-error .msg__text,
+.msg--error .msg__role,
+.msg--error .msg__text {
+  color: var(--error);
+}

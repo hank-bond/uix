@@ -24,6 +24,7 @@ import { ChatBlock } from "./blocks/ChatBlock";
 import { ModelPill } from "./ModelPill";
 import { isPendingUserId, pendingUserId } from "./pending";
 import { ProviderLoginModal } from "./ProviderLoginModal";
+import { SessionPill } from "./SessionPill";
 import { chatSettings } from "../shared/settings";
 
 type AgentChannelClient = ChannelClient<typeof agentChannels>;
@@ -180,11 +181,13 @@ function StatusBar({
   const visible = order.filter((id) => !hidden.includes(id));
   return (
     <div className="status-bar" aria-label="Chat status bar">
+      <SessionPill />
       {error ? (
         <span className="status-bar__item status-bar__item--error">
           settings error: {error.message}
         </span>
-      ) : loading ? null : (
+      ) : (
+        !loading &&
         visible.includes("model") && <ModelPill controls={controls} />
       )}
     </div>

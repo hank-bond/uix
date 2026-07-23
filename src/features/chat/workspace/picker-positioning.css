@@ -1,0 +1,21 @@
+/* Pickers prefer trigger-left alignment, then shift left and finally shrink to
+   remain inside the Chat surface. Each picker supplies its own preferred size. */
+.session-picker,
+.model-picker {
+  --chat-picker-edge-inset: 0.75rem;
+  --chat-picker-inline-size: min(
+    var(--chat-picker-preferred-inline-size),
+    calc(100% - 1.5rem)
+  );
+
+  position: absolute;
+  bottom: calc(100% + 0.4rem);
+  left: clamp(
+    var(--chat-picker-edge-inset),
+    anchor(left),
+    calc(100% - var(--chat-picker-inline-size) - var(--chat-picker-edge-inset))
+  );
+  z-index: 10;
+  box-sizing: border-box;
+  width: var(--chat-picker-inline-size);
+}

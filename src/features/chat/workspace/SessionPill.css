@@ -1,0 +1,144 @@
+.session-pill {
+  position: static;
+  display: inline-flex;
+  min-width: 0;
+  max-width: 14rem;
+}
+
+.session-pill__button {
+  anchor-name: --chat-session-picker-anchor;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  max-width: 100%;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.session-pill__button:hover:not(:disabled) {
+  color: var(--fg);
+  border-color: var(--fg-faint);
+}
+
+.session-pill__button:disabled {
+  color: var(--fg-faint);
+  cursor: not-allowed;
+}
+
+.session-pill__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-pill__chevron {
+  flex: none;
+  color: var(--fg-faint);
+  font-size: 0.65rem;
+}
+
+.session-picker {
+  --chat-picker-preferred-inline-size: 28rem;
+
+  position-anchor: --chat-session-picker-anchor;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  outline: none;
+  background: var(--bg-surface-panel);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.35);
+}
+
+.session-picker:focus-visible {
+  border-color: var(--focus-ring);
+}
+
+.session-picker__header {
+  padding: 0.55rem 0.65rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-muted);
+  font-weight: 600;
+}
+
+.session-picker__list {
+  overflow: auto;
+  max-height: 14rem;
+  scroll-behavior: auto;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+}
+
+.session-picker__row {
+  display: flex;
+}
+
+.session-picker__option {
+  display: flex;
+  flex: 1;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.6rem;
+  min-width: 0;
+  padding: 0.4rem 0.45rem;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.session-picker__option:hover:not(:disabled),
+.session-picker__option:focus-visible {
+  background: var(--bg-input);
+}
+
+.session-picker__option:disabled {
+  cursor: wait;
+}
+
+.session-picker__option[aria-current="true"] {
+  cursor: default;
+}
+
+.session-picker__name {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.session-picker__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-picker__current {
+  flex: none;
+  width: 0.85rem;
+  margin-right: 0.35rem;
+  color: var(--success);
+  text-align: center;
+}
+
+.session-picker__modified {
+  flex: none;
+  color: var(--fg-muted);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.session-picker__note {
+  padding: 0.4rem 0.65rem 0.55rem;
+  color: var(--fg-muted);
+}
+
+.session-picker__note--error {
+  color: var(--error);
+}
