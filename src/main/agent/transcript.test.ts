@@ -2,7 +2,7 @@ import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 
 import { describe, expect, it } from "vitest";
 
-import { toTranscriptItems } from "./transcript";
+import { deriveTranscriptItems } from "./transcript";
 
 // Assert the resumed transcript a session shows — item kind, order, and final
 // durable tool rows — not the entry plumbing it came from. Entries are
@@ -21,9 +21,9 @@ const entry = (
     ...extra,
   }) as SessionEntry;
 
-describe("toTranscriptItems", () => {
+describe("deriveTranscriptItems", () => {
   it("keeps user and assistant text in order", () => {
-    const items = toTranscriptItems([
+    const items = deriveTranscriptItems([
       entry("message", { role: "user", content: "hello" }),
       entry("message", {
         role: "assistant",
@@ -63,7 +63,7 @@ describe("toTranscriptItems", () => {
       isError: false,
     });
 
-    const items = toTranscriptItems([assistant, result]);
+    const items = deriveTranscriptItems([assistant, result]);
 
     expect(items).toEqual([
       expect.objectContaining({
@@ -87,7 +87,7 @@ describe("toTranscriptItems", () => {
   });
 
   it("keeps displayed custom messages and drops non-transcript state", () => {
-    const items = toTranscriptItems([
+    const items = deriveTranscriptItems([
       entry("model_change"),
       entry("custom", undefined, { customType: "uix.state", data: { x: 1 } }),
       entry("custom_message", undefined, {

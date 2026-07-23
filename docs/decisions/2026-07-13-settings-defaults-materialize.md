@@ -5,7 +5,7 @@ status: accepted
 
 # Settings defaults materialize; they are not an override layer
 
-A sparse-override model makes effective configuration a permanent join between persisted fragments and whatever defaults the currently loaded feature version contributes. The same workspace file can then mean different things under different code versions, every read must apply precedence, and humans or agents inspecting the manifest cannot see the effective value.
+A sparse-override model makes effective configuration a permanent join between persisted fragments and whatever defaults the currently activated feature instance's definition contributes. The same workspace file can then mean different things under different code versions, every read must apply precedence, and humans or agents inspecting the manifest cannot see the effective value.
 
 **Decision.** A declared default fills missing durable settings during hydration or domain reconciliation and is written into the workspace. Runtime consumers read the resulting persisted value; they never compute `persistedOverride ?? contributedDefault` as an active configuration layer.
 

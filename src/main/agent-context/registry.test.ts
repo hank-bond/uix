@@ -224,9 +224,10 @@ describe("AgentContextRegistry", () => {
       name: "canvas-diff",
       description: "d",
       materialize: (ctx) => {
-        const [current, previous] = ctx.turnStates<{ main: string }>({
-          limit: 2,
-        });
+        const [current, previous] = ctx.turnStates<{ main: string }>(
+          "documents",
+          { limit: 2 },
+        );
         return {
           content: `${previous?.state.main ?? "none"}->${current?.state.main ?? "none"}`,
         };
@@ -236,15 +237,18 @@ describe("AgentContextRegistry", () => {
     const result = await flush(sm, [
       turnStateEntry("older", {
         cwd: "/old",
-        state: { canvas: { main: "v1" }, chat: { selected: "c1" } },
+        state: {
+          "canvas.documents": { main: "v1" },
+          "chat.selection": { selected: "c1" },
+        },
       }),
       turnStateEntry("chat-only", {
         cwd: "/chat",
-        state: { chat: { selected: "c2" } },
+        state: { "chat.selection": { selected: "c2" } },
       }),
       turnStateEntry("newer", {
         cwd: "/new",
-        state: { canvas: { main: "v2" } },
+        state: { "canvas.documents": { main: "v2" } },
       }),
     ]);
 

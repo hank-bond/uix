@@ -1,9 +1,8 @@
 import { KeybindingMapSchema } from "@uix/api/actions";
-import { defineSettings } from "@uix/api/settings";
+import { defineWorkspaceSettingsNamespace } from "../workspace-settings-namespace";
 
-export const KeybindingsSettingsNamespace = "keybindings";
-
-export const keybindingsWorkspaceSettings = defineSettings({
+export const keybindingsWorkspaceSettings = defineWorkspaceSettingsNamespace({
+  id: "keybindings",
   schema: KeybindingMapSchema,
   default: {},
 });

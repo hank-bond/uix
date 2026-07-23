@@ -53,6 +53,16 @@ function agentTool(name: string) {
   };
 }
 
+function turnStateCells() {
+  return {
+    documents: {
+      schema: Type.Object({}),
+      createSnapshot: () => ({}),
+      restore: () => undefined,
+    },
+  };
+}
+
 describe("registerFeatureContributions", () => {
   it("registers all contribution groups and disposes them together", () => {
     const resources = new ResourceRegistry({
@@ -89,7 +99,7 @@ describe("registerFeatureContributions", () => {
         agentTools: [agentTool("anchor_read")],
         agentSystemPrompt: "Canvas guidance",
         agentSkills: ["./skills/canvas-authoring"],
-        turnState: [{ prepareUserSubmitState: () => ({ state: {} }) }],
+        turnState: turnStateCells(),
         agentContext: [
           {
             name: "canvas-diff",
@@ -131,9 +141,9 @@ describe("registerFeatureContributions", () => {
     ]);
     expect(() =>
       registerFeatureContributions({ turnState }, "canvas", {
-        turnState: [{}],
+        turnState: turnStateCells(),
       }),
-    ).toThrow("Turn state already registered: canvas");
+    ).toThrow("Turn state already registered: canvas.documents");
     expect(() =>
       registerFeatureContributions({ agentContext }, "other", {
         agentContext: [
@@ -169,7 +179,7 @@ describe("registerFeatureContributions", () => {
           agentTools: [agentTool("anchor_read")],
           agentSystemPrompt: "Reloaded guidance",
           agentSkills: ["./skills/canvas-authoring"],
-          turnState: [{}],
+          turnState: turnStateCells(),
           agentContext: [
             {
               name: "canvas-diff",
@@ -251,7 +261,9 @@ describe("registerFeatureContributions", () => {
     );
 
     expect(() =>
-      registerFeatureContributions({}, "canvas", { turnState: [{}] }),
+      registerFeatureContributions({}, "canvas", {
+        turnState: turnStateCells(),
+      }),
     ).toThrow(
       "Feature canvas contributes turn state but no turn-state registry was provided",
     );

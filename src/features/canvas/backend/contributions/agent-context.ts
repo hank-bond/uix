@@ -1,7 +1,5 @@
 // canvas model-visible agent-context contributions.
 
-import { Type } from "typebox";
-
 import type { AgentContextContribution } from "@uix/api/agent-context";
 import type { AnchoredChange } from "../anchors/document";
 
@@ -17,26 +15,17 @@ type CanvasTurnState = Record<string, string>;
 export function createCanvasAgentContextContributions(
   ctx: CanvasContext,
 ): readonly AgentContextContribution[] {
-  const { buffer, openCanvasKeys } = ctx;
+  const { buffer } = ctx;
   return [
-    {
-      name: "pane-visibility",
-      description:
-        'JSON `{"canvases_open": [...]}` — the canvas keys currently open in the pane. Sent only when the set changes. Keys are not filesystem paths; read contents with canvas__anchor_read when relevant.',
-      buffer: {
-        kind: "update",
-        schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
-      },
-      initialValue: { canvases_open: [...openCanvasKeys].sort() },
-    },
     {
       name: "canvas-diff",
       description:
-        "anchored hunks the human edited in open canvases since your last turn, grouped by `## <canvas key>`. The anchors shown are current.",
+        "anchored hunks the human edited in canvases since your last turn, grouped by `## <canvas key>`. The anchors shown are current.",
       materialize: async (agentContext) => {
-        const [current, previous] = agentContext.turnStates<CanvasTurnState>({
-          limit: 2,
-        });
+        const [current, previous] = agentContext.turnStates<CanvasTurnState>(
+          "documents",
+          { limit: 2 },
+        );
         if (!current || !previous) return undefined;
         const changes = await diffCanvasTurnStates(
           buffer,

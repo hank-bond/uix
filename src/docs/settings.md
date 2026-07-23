@@ -1,5 +1,5 @@
 ---
-summary: "Durable settings in uix.workspace.json, two scopes: feature settings declared as TypeBox schemas and hydrated into manifest feature entries, and substrate-owned workspace namespaces such as agent model preferences and the dynamic keybinding map under top-level settings."
+summary: "Durable settings in uix.workspace.json, two scopes: feature settings declared as TypeBox schemas and hydrated into manifest feature entries, and substrate-owned workspace namespaces for agent preferences, selected session state, and keybindings under top-level settings."
 status: active
 ---
 
@@ -34,11 +34,11 @@ export const chatSettings = defineSettings({
 
 ```ts
 // features/chat/index.ts
-import type { FeatureDefinition } from "@uix/api";
+import { defineFeature } from "@uix/api";
 
 import { chatSettings } from "./shared/settings";
 
-export default {
+export default defineFeature({
   id: "chat",
   settings: chatSettings,
   contribute(ctx) {
@@ -46,7 +46,7 @@ export default {
     // ...
     return {};
   },
-} satisfies FeatureDefinition;
+});
 ```
 
 Settings live on the corresponding manifest feature entry, not in a top-level feature-id map:
@@ -90,7 +90,7 @@ Defaults fill and persist missing values; they are not a runtime fallback layer.
 
 ## Backend API
 
-Backend feature code uses feature-bound `ctx.settings` (a `SettingsHandle` — the same scope-neutral get/set/onChange shape workspace namespaces use):
+Backend feature code uses feature-bound `ctx.settings`. `defineFeature(...)` derives its accepted keys and key-specific get/set/onChange values from the feature's settings definition:
 
 ```ts
 const value = ctx.settings.get("statusBar");
@@ -141,19 +141,25 @@ The substrate owns a small set of workspace-level settings, keyed by namespace u
         }
       ]
     },
+    "session": {
+      "selected": {
+        "sessionId": "019ea26e-c7a7-71a9-bb6c-a3d97d348988"
+      }
+    },
     "keybindings": {}
   },
   "features": []
 }
 ```
 
-Workspace namespaces are **not user-registerable**: the substrate registers the namespaces it needs before any feature loads. Today that set contains `agent` and `keybindings`:
+Workspace namespaces are **not user-registerable**: the substrate registers schema-carrying namespace descriptors before any feature loads. The same descriptor is passed to `forNamespace(...)`, which mints a handle with schema-derived keys, values, complete snapshots, and replacements while `Type.Record` scopes retain dynamic string keys plus runtime regex validation. Today that set contains `agent`, `session`, and `keybindings`:
 
 - **`agent.defaultModel`** — the workspace default model, used before a pi session exists and as the default for new sessions/branches that carry no `model_change` entry. Absent until the pilot first selects a model.
 - **`agent.favoriteModels`** — the workspace-local model shortlist. Each entry is a provider-qualified model reference; unavailable entries remain persisted so favorites return when a provider reconnects.
+- **`session.selected`** — the selected durable session id. Startup opens that exact graph when it still exists, otherwise falls back to the newest session. Successful New Session transitions replace this value only after restoration completes; session title and first-message presentation metadata remain authoritative in the session JSONL rather than being copied into workspace settings.
 - **`keybindings`** — a flat dynamic record from canonical dotted action ids to one portable shortcut string or `null` for explicit unbinding. Malformed ids, shortcuts, and unknown value shapes reject the candidate rather than being retained silently.
 
-A fresh manifest materializes both `settings.agent: {}` and `settings.keybindings: {}` even before values are chosen. This keeps the available configuration surface visible; later selections fill concrete properties. See [`agent.md`](./agent.md) for how model selection and favorites flow through the agent channels. Bound main request handlers can reconcile defaults and atomically replace the complete map through the reserved workspace channel, publishing a confirmed snapshot when it changes. The workspace renderer reconciles active action defaults, retains the main-confirmed map, joins active bindings/conflicts into the action catalog, and keeps inactive persisted ids as unresolved bindings. Confirmed, unique bindings dispatch through the same action invocation path used by surfaces; conflicts fail closed. Ctrl/Command/Alt bindings remain active in editable controls, while composition, AltGraph, Shift-only editable gestures, and events already handled by a local control are left untouched. A public renderer editing API is not yet shipped.
+A fresh manifest materializes `settings.agent: {}`, `settings.session: {}`, and `settings.keybindings: {}` even before values are chosen. This keeps the available configuration surface visible; later selections fill concrete properties. See [`agent.md`](./agent.md) for how model selection and favorites flow through the agent channels. Bound main request handlers can reconcile defaults and atomically replace the complete map through the reserved workspace channel, publishing a confirmed snapshot when it changes. The workspace renderer reconciles active action defaults, retains the main-confirmed map, joins active bindings/conflicts into the action catalog, and keeps inactive persisted ids as unresolved bindings. Confirmed, unique bindings dispatch through the same action invocation path used by surfaces; conflicts fail closed. Ctrl/Command/Alt bindings remain active in editable controls, while composition, AltGraph, Shift-only editable gestures, and events already handled by a local control are left untouched. A public renderer editing API is not yet shipped.
 
 Rules:
 
@@ -161,4 +167,4 @@ Rules:
 - hydration and validation are the same as feature settings (same schema pass, same unknown-key rejection, same debounced atomic write, same disk-wins reload);
 - an unknown namespace under manifest-level `settings` rejects the load pass;
 - namespaces register before features, so a feature whose id collides with a namespace fails activation on the duplicate-scope check;
-- workspace settings are main-process-only — features get no handle to them. Model selection and favorite changes go through the agent channels (`select_model` and `set_model_favorite`), never by a surface mutating `agent` settings directly; keybindings currently change through manifest edits plus reload.
+- workspace settings are main-process-only — features get no handle to them. Model selection/favorites and session selection change through their agent channels, never by a surface mutating `agent` or `session` settings directly; keybindings currently change through manifest edits plus reload.

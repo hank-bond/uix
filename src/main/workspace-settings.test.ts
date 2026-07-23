@@ -2,20 +2,30 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { defineSettings, type SettingsDefinition } from "@uix/api/settings";
-import { Type } from "typebox";
-import { afterEach, describe, expect, it } from "vitest";
-
+import type { KeybindingMap } from "@uix/api/actions";
 import {
-  keybindingsWorkspaceSettings,
-  KeybindingsSettingsNamespace,
-} from "./keybindings/settings";
+  defineSettings,
+  type SettingsDefinition,
+  type SettingsHandle,
+} from "@uix/api/settings";
+import { Type } from "typebox";
+import { afterEach, describe, expect, expectTypeOf, it } from "vitest";
+
+import { keybindingsWorkspaceSettings } from "./keybindings/settings";
+import {
+  sessionWorkspaceSettings,
+  type SelectedSessionSetting,
+} from "./agent/session-settings";
 import { SettingsRegistry } from "./settings-registry";
 import { WorkspaceManifestStore } from "./workspace-manifest-store";
 import {
   createWorkspaceSettings,
   type WorkspaceSettings,
 } from "./workspace-settings";
+import {
+  defineWorkspaceSettingsNamespace,
+  type WorkspaceSettingsNamespace,
+} from "./workspace-settings-namespace";
 
 const roots: string[] = [];
 
@@ -38,7 +48,8 @@ const ModelRefSchema = Type.Object({
   provider: Type.String(),
   id: Type.String(),
 });
-const agentNamespace = defineSettings({
+const agentNamespace = defineWorkspaceSettingsNamespace({
+  id: "agent",
   schema: Type.Object({
     defaultModel: Type.Optional(ModelRefSchema),
   }),
@@ -71,7 +82,10 @@ interface Harness extends Disposable {
 
 function createHarness(
   manifestPath: string,
-  namespaces: Record<string, SettingsDefinition> = {},
+  namespaces: readonly WorkspaceSettingsNamespace<
+    string,
+    SettingsDefinition
+  >[] = [],
 ): Harness {
   const manifest = new WorkspaceManifestStore(manifestPath, {
     flushDebounceMs: 1000,
@@ -97,14 +111,14 @@ function activateFeatureSettings(
   featureId: string,
   manifestIndex: number,
   definition: SettingsDefinition,
-): Disposable {
-  const registration = settings.loadFeatureScope(
+): SettingsHandle {
+  const loaded = settings.loadFeatureSettings(
     featureId,
     manifestIndex,
     definition,
   );
-  registration.commit();
-  return registration;
+  loaded.commit();
+  return loaded.handle;
 }
 
 afterEach(async () => {
@@ -128,9 +142,9 @@ describe("feature settings", () => {
     const { settings, manifest } = harness;
 
     await settings.reload();
-    activateFeatureSettings(settings, "chat", 0, statusSettings());
+    const chat = activateFeatureSettings(settings, "chat", 0, statusSettings());
 
-    expect(settings.forScope("chat").get("statusBar")).toEqual({
+    expect(chat.get("statusBar")).toEqual({
       order: ["model", "context"],
       hidden: ["context"],
       nested: { density: "normal" },
@@ -159,8 +173,8 @@ describe("feature settings", () => {
     const { settings, manifest } = harness;
 
     await settings.reload();
-    const failed = settings.loadFeatureScope("chat", 0, statusSettings());
-    settings.forScope("chat").set("statusBar", {
+    const failed = settings.loadFeatureSettings("chat", 0, statusSettings());
+    failed.handle.set("statusBar", {
       order: ["context"],
       hidden: [],
     });
@@ -169,11 +183,11 @@ describe("feature settings", () => {
     expect(await readManifest(manifestPath)).toEqual(initialManifest);
 
     failed[Symbol.dispose]();
-    expect(() => settings.forScope("chat").get("statusBar")).toThrow(
+    expect(() => failed.handle.get("statusBar")).toThrow(
       "Unknown settings scope: chat",
     );
 
-    const recovered = settings.loadFeatureScope("chat", 0, statusSettings());
+    const recovered = settings.loadFeatureSettings("chat", 0, statusSettings());
     recovered.commit();
     await manifest.flush();
 
@@ -185,7 +199,7 @@ describe("feature settings", () => {
     });
 
     recovered[Symbol.dispose]();
-    expect(() => settings.forScope("chat").get("statusBar")).toThrow(
+    expect(() => recovered.handle.get("statusBar")).toThrow(
       "Unknown settings scope: chat",
     );
     expect(await readManifest(manifestPath)).toEqual(written);
@@ -211,7 +225,7 @@ describe("feature settings", () => {
     const { settings, manifest } = harness;
 
     await settings.reload();
-    activateFeatureSettings(
+    const chat = activateFeatureSettings(
       settings,
       "chat",
       0,
@@ -222,7 +236,7 @@ describe("feature settings", () => {
       }),
     );
 
-    expect(settings.forScope("chat").get("statusBar")).toEqual({
+    expect(chat.get("statusBar")).toEqual({
       order: ["old"],
       hidden: [],
       nested: { density: "cozy" },
@@ -247,7 +261,7 @@ describe("feature settings", () => {
 
     await settings.reload();
     expect(() =>
-      settings.loadFeatureScope("chat", 0, statusSettings()),
+      settings.loadFeatureSettings("chat", 0, statusSettings()),
     ).toThrow("Invalid settings for feature chat");
   });
 
@@ -262,7 +276,7 @@ describe("feature settings", () => {
 
     await settings.reload();
     expect(() =>
-      settings.loadFeatureScope(
+      settings.loadFeatureSettings(
         "chat",
         0,
         defineSettings({
@@ -293,8 +307,7 @@ describe("feature settings", () => {
     const changes: unknown[] = [];
 
     await settings.reload();
-    activateFeatureSettings(settings, "chat", 0, statusSettings());
-    const chat = settings.forScope("chat");
+    const chat = activateFeatureSettings(settings, "chat", 0, statusSettings());
     chat.onChange("statusBar", (value) => changes.push(value));
 
     chat.set("statusBar", { order: ["model"], hidden: ["context"] });
@@ -332,8 +345,8 @@ describe("feature settings", () => {
     const { settings, manifest } = harness;
 
     await settings.reload();
-    activateFeatureSettings(settings, "chat", 0, statusSettings());
-    settings.forScope("chat").set("statusBar", {
+    const chat = activateFeatureSettings(settings, "chat", 0, statusSettings());
+    chat.set("statusBar", {
       order: ["model"],
       hidden: [],
     });
@@ -367,13 +380,13 @@ describe("feature settings", () => {
     const { settings, manifest } = harness;
 
     await settings.reload();
-    activateFeatureSettings(settings, "chat", 0, statusSettings());
-    settings.forScope("chat").onChange("statusBar", () => {
+    const chat = activateFeatureSettings(settings, "chat", 0, statusSettings());
+    chat.onChange("statusBar", () => {
       throw new Error("listener failed");
     });
 
     expect(() =>
-      settings.forScope("chat").set("statusBar", {
+      chat.set("statusBar", {
         order: ["model"],
         hidden: [],
       }),
@@ -402,11 +415,11 @@ describe("feature settings", () => {
     const { settings } = harness;
 
     await settings.reload();
-    activateFeatureSettings(settings, "chat", 0, statusSettings());
+    const chat = activateFeatureSettings(settings, "chat", 0, statusSettings());
     await writeFile(manifestPath, "{ not json", "utf8");
 
     await expect(settings.reload()).rejects.toThrow("Expected property name");
-    expect(settings.forScope("chat").get("statusBar")).toEqual({
+    expect(chat.get("statusBar")).toEqual({
       order: ["model"],
       hidden: [],
       nested: { density: "normal" },
@@ -427,8 +440,8 @@ describe("feature settings", () => {
     const { settings } = harness;
 
     await settings.reload();
-    activateFeatureSettings(settings, "chat", 0, statusSettings());
-    settings.forScope("chat").set("statusBar", {
+    const chat = activateFeatureSettings(settings, "chat", 0, statusSettings());
+    chat.set("statusBar", {
       order: ["context"],
       hidden: [],
     });
@@ -453,7 +466,7 @@ describe("feature settings", () => {
     await settings.reload();
     activateFeatureSettings(settings, "chat", 0, statusSettings());
 
-    expect(settings.forScope("chat").get("statusBar")).toEqual({
+    expect(chat.get("statusBar")).toEqual({
       order: ["thinking"],
       hidden: [],
       nested: { density: "normal" },
@@ -462,7 +475,7 @@ describe("feature settings", () => {
 });
 
 describe("workspace namespace settings", () => {
-  it("hydrates a persisted namespace value readable via forScope", async () => {
+  it("hydrates a persisted namespace value through its descriptor", async () => {
     const manifestPath = await tempManifest({
       name: "Demo",
       settings: {
@@ -470,12 +483,16 @@ describe("workspace namespace settings", () => {
       },
       features: [],
     });
-    using harness = createHarness(manifestPath, { agent: agentNamespace });
+    using harness = createHarness(manifestPath, [agentNamespace]);
     const { settings } = harness;
 
     await settings.reload();
 
-    expect(settings.forScope("agent").get("defaultModel")).toEqual({
+    const agent = settings.forNamespace(agentNamespace);
+    expectTypeOf(agent.get("defaultModel")).toEqualTypeOf<
+      { provider: string; id: string } | undefined
+    >();
+    expect(agent.get("defaultModel")).toEqual({
       provider: "anthropic",
       id: "claude",
     });
@@ -487,11 +504,13 @@ describe("workspace namespace settings", () => {
       features: [{ entry: "./feature.ts", settings: {} }],
     };
     const manifestPath = await tempManifest(manifestContent);
-    using harness = createHarness(manifestPath, { agent: agentNamespace });
+    using harness = createHarness(manifestPath, [agentNamespace]);
     const { settings, manifest } = harness;
 
     await settings.reload();
-    expect(settings.forScope("agent").get("defaultModel")).toBeUndefined();
+    expect(
+      settings.forNamespace(agentNamespace).get("defaultModel"),
+    ).toBeUndefined();
 
     await manifest.flush();
 
@@ -506,13 +525,13 @@ describe("workspace namespace settings", () => {
       name: "Demo",
       features: [],
     });
-    using harness = createHarness(manifestPath, { agent: agentNamespace });
+    using harness = createHarness(manifestPath, [agentNamespace]);
     const { settings, manifest, registry } = harness;
     const changes: unknown[] = [];
     const any: [string, string][] = [];
 
     await settings.reload();
-    const agent = settings.forScope("agent");
+    const agent = settings.forNamespace(agentNamespace);
     agent.onChange("defaultModel", (value) => changes.push(value));
     registry.onAnyChange((scopeId, key) => any.push([scopeId, key]));
 
@@ -530,11 +549,50 @@ describe("workspace namespace settings", () => {
     });
   });
 
+  it("loads and persists the selected-session identity", async () => {
+    const manifestPath = await tempManifest({
+      name: "Demo",
+      settings: {
+        session: {
+          selected: {
+            sessionId: "session-1",
+          },
+        },
+      },
+      features: [],
+    });
+    using harness = createHarness(manifestPath, [sessionWorkspaceSettings]);
+    const { settings, manifest } = harness;
+
+    await settings.reload();
+    const session = settings.forNamespace(sessionWorkspaceSettings);
+    expectTypeOf(session.get("selected")).toEqualTypeOf<
+      SelectedSessionSetting | undefined
+    >();
+    expect(session.get("selected")).toEqual({
+      sessionId: "session-1",
+    });
+
+    session.set("selected", {
+      sessionId: "session-2",
+    });
+    await manifest.flush();
+
+    const written = (await readManifest(manifestPath)) as {
+      settings: Record<string, unknown>;
+    };
+    expect(written.settings).toEqual({
+      session: {
+        selected: {
+          sessionId: "session-2",
+        },
+      },
+    });
+  });
+
   it("materializes the empty keybindings namespace", async () => {
     const manifestPath = await tempManifest({ name: "Demo", features: [] });
-    using harness = createHarness(manifestPath, {
-      [KeybindingsSettingsNamespace]: keybindingsWorkspaceSettings,
-    });
+    using harness = createHarness(manifestPath, [keybindingsWorkspaceSettings]);
     const { settings, manifest } = harness;
 
     await settings.reload();
@@ -557,13 +615,15 @@ describe("workspace namespace settings", () => {
       },
       features: [],
     });
-    using harness = createHarness(manifestPath, {
-      [KeybindingsSettingsNamespace]: keybindingsWorkspaceSettings,
-    });
+    using harness = createHarness(manifestPath, [keybindingsWorkspaceSettings]);
     const { settings } = harness;
 
     await settings.reload();
-    const keybindings = settings.forScope(KeybindingsSettingsNamespace);
+    const keybindings = settings.forNamespace(keybindingsWorkspaceSettings);
+    expectTypeOf(keybindings.getSnapshot()).toEqualTypeOf<KeybindingMap>();
+    expectTypeOf(keybindings.get("chat.models.favorites")).toEqualTypeOf<
+      string | null | undefined
+    >();
 
     expect(keybindings.get("chat.models.favorites")).toBe("mod+shift+m");
     expect(keybindings.get("chat.models.all")).toBeNull();
@@ -578,9 +638,7 @@ describe("workspace namespace settings", () => {
       settings: { keybindings: { "chat.models": "mod+m" } },
       features: [],
     });
-    using harness = createHarness(manifestPath, {
-      [KeybindingsSettingsNamespace]: keybindingsWorkspaceSettings,
-    });
+    using harness = createHarness(manifestPath, [keybindingsWorkspaceSettings]);
     const { settings } = harness;
 
     await settings.reload();
@@ -602,7 +660,7 @@ describe("workspace namespace settings", () => {
       "Invalid settings for workspace namespace keybindings",
     );
     expect(
-      settings.forScope(KeybindingsSettingsNamespace).get("chat.models"),
+      settings.forNamespace(keybindingsWorkspaceSettings).get("chat.models"),
     ).toBe("mod+m");
   });
 
@@ -612,7 +670,7 @@ describe("workspace namespace settings", () => {
       settings: { rogue: {} },
       features: [],
     });
-    using harness = createHarness(manifestPath, { agent: agentNamespace });
+    using harness = createHarness(manifestPath, [agentNamespace]);
 
     await expect(harness.settings.reload()).rejects.toThrow(
       "Unknown workspace settings namespace: rogue",
@@ -634,23 +692,23 @@ describe("workspace namespace settings", () => {
       settings: { agent: 5 },
       features: [],
     });
-    using harness = createHarness(manifestPath, { agent: agentNamespace });
+    using harness = createHarness(manifestPath, [agentNamespace]);
 
     await expect(harness.settings.reload()).rejects.toThrow(
       "workspace manifest does not match schema",
     );
   });
 
-  it("throws on first use of an unknown scope handle", async () => {
+  it("rejects a namespace descriptor that was not registered", async () => {
     const manifestPath = await tempManifest({ name: "Demo", features: [] });
-    using harness = createHarness(manifestPath, { agent: agentNamespace });
+    using harness = createHarness(manifestPath, [agentNamespace]);
+    const otherAgentNamespace = defineWorkspaceSettingsNamespace({
+      id: "agent",
+      schema: Type.Object({ enabled: Type.Boolean() }),
+    });
 
-    await harness.settings.reload();
-
-    // Handles are lazy — minting succeeds, first use throws.
-    const rogue = harness.settings.forScope("rogue");
-    expect(() => rogue.get("anything")).toThrow(
-      "Unknown settings scope: rogue",
+    expect(() => harness.settings.forNamespace(otherAgentNamespace)).toThrow(
+      "Workspace settings namespace is not registered: agent",
     );
   });
 
@@ -659,13 +717,13 @@ describe("workspace namespace settings", () => {
       name: "Demo",
       features: [{ entry: "./feature.ts", settings: {} }],
     });
-    using harness = createHarness(manifestPath, { agent: agentNamespace });
+    using harness = createHarness(manifestPath, [agentNamespace]);
     const { settings } = harness;
 
     await settings.reload();
 
     expect(() =>
-      settings.loadFeatureScope(
+      settings.loadFeatureSettings(
         "agent",
         0,
         defineSettings({ schema: Type.Object({}) }),
@@ -681,10 +739,11 @@ describe("workspace namespace settings", () => {
       },
       features: [],
     });
-    using harness = createHarness(manifestPath, { agent: agentNamespace });
+    using harness = createHarness(manifestPath, [agentNamespace]);
     const { settings, manifest } = harness;
 
     await settings.reload();
+    const agent = settings.forNamespace(agentNamespace);
     await writeFile(
       manifestPath,
       `${JSON.stringify(
@@ -700,12 +759,12 @@ describe("workspace namespace settings", () => {
     );
 
     await expect(settings.reload()).rejects.toThrow();
-    expect(settings.forScope("agent").get("defaultModel")).toEqual({
+    expect(agent.get("defaultModel")).toEqual({
       provider: "anthropic",
       id: "claude",
     });
 
-    settings.forScope("agent").set("defaultModel", {
+    agent.set("defaultModel", {
       provider: "openai",
       id: "gpt",
     });
@@ -720,16 +779,18 @@ describe("workspace namespace settings", () => {
 
   it("hydrates namespace defaults into the manifest when declared", async () => {
     const manifestPath = await tempManifest({ name: "Demo", features: [] });
-    using harness = createHarness(manifestPath, {
-      agent: defineSettings({
-        schema: Type.Object({ thinking: Type.String() }),
-        default: { thinking: "medium" },
-      }),
+    const thinkingNamespace = defineWorkspaceSettingsNamespace({
+      id: "agent",
+      schema: Type.Object({ thinking: Type.String() }),
+      default: { thinking: "medium" },
     });
+    using harness = createHarness(manifestPath, [thinkingNamespace]);
     const { settings, manifest } = harness;
 
     await settings.reload();
-    expect(settings.forScope("agent").get("thinking")).toBe("medium");
+    expect(settings.forNamespace(thinkingNamespace).get("thinking")).toBe(
+      "medium",
+    );
 
     await manifest.flush();
     const written = (await readManifest(manifestPath)) as {

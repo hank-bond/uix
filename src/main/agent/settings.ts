@@ -7,11 +7,11 @@
 
 import { ModelRefSchema } from "@uix/api/agent-channels";
 import { Type } from "typebox";
-import { defineSettings } from "@uix/api/settings";
 
-export const AgentSettingsNamespace = "agent";
+import { defineWorkspaceSettingsNamespace } from "../workspace-settings-namespace";
 
-export const agentWorkspaceSettings = defineSettings({
+export const agentWorkspaceSettings = defineWorkspaceSettingsNamespace({
+  id: "agent",
   schema: Type.Object({
     /**
      * Workspace default model: used before a pi session exists and as the

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   findOfferedCredentialMethod,
-  createProviderAuthCatalog,
+  deriveProviderAuthCatalogForEnvironment,
   resolveOAuthStartAction,
 } from "./auth-providers";
 
@@ -41,7 +41,7 @@ function registry() {
 
 describe("auth provider discovery", () => {
   it("merges model and OAuth providers into one method catalog", () => {
-    const providers = createProviderAuthCatalog(registry());
+    const providers = deriveProviderAuthCatalogForEnvironment(registry());
 
     expect(providers.map(({ id, name }) => ({ id, name }))).toEqual([
       { id: "anthropic", name: "Anthropic (Claude)" },
@@ -94,7 +94,9 @@ describe("auth provider discovery", () => {
         ? { configured: false, source: "environment" }
         : getProviderAuthStatus(id);
 
-    expect(createProviderAuthCatalog(value).map(({ id }) => id)).toEqual([
+    expect(
+      deriveProviderAuthCatalogForEnvironment(value).map(({ id }) => id),
+    ).toEqual([
       // Connected: subscription, OpenRouter, then remaining alphabetical.
       "anthropic",
       "openrouter",
@@ -120,7 +122,9 @@ describe("auth provider discovery", () => {
     ];
 
     expect(
-      createProviderAuthCatalog(value).find(({ id }) => id === "openai"),
+      deriveProviderAuthCatalogForEnvironment(value).find(
+        ({ id }) => id === "openai",
+      ),
     ).toMatchObject({
       id: "openai",
       name: "OpenAI (ChatGPT)",
@@ -148,7 +152,9 @@ describe("auth provider discovery", () => {
       ],
     });
     expect(
-      createProviderAuthCatalog(value).some(({ id }) => id === "openai-codex"),
+      deriveProviderAuthCatalogForEnvironment(value).some(
+        ({ id }) => id === "openai-codex",
+      ),
     ).toBe(false);
   });
 
@@ -175,7 +181,7 @@ describe("auth provider discovery", () => {
     });
 
     expect(
-      createProviderAuthCatalog(value, {
+      deriveProviderAuthCatalogForEnvironment(value, {
         OPENROUTER_API_KEY: "sk-or-secret-z9y8",
       })
         .find(({ id }) => id === "openrouter")
@@ -195,7 +201,7 @@ describe("auth provider discovery", () => {
     const apiConnection = (
       environment: Readonly<Record<string, string | undefined>> = {},
     ) =>
-      createProviderAuthCatalog(value, environment)
+      deriveProviderAuthCatalogForEnvironment(value, environment)
         .find(({ id }) => id === "anthropic")
         ?.methods.find(({ type }) => type === "credentials")?.connection;
 

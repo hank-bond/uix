@@ -1,53 +1,63 @@
 // canvas private state contributions.
 //
-// Canvas tools mutate the latest document store during a run. This contribution
-// snapshots the relevant canvases at UIX turn boundaries and returns resource
-// refs for the substrate-owned `uix.turn-state` entry.
+// The documents cell stores immutable version refs for the canvases that make
+// up the current branch state. The buffer owns resolving those refs back into
+// mutable content and exact anchor state.
 
-import type {
-  PreparedTurnState,
-  TurnStateContribution,
+import { Type } from "typebox";
+
+import {
+  defineTurnStateCell,
+  type TurnStateContributions,
 } from "@uix/api/turn-state";
 
 import {
+  CanvasDocumentResourceIdSchema,
+  parseCanvasDocumentResourceId,
   parseCanvasKey,
+  parseCanvasKeyFromDocumentResourceId,
   toCanvasDocumentResourceId,
 } from "../../shared/addressing";
 import type { CanvasContext } from "../context";
+import { publishCanvasChanged } from "./channels";
+
+const CanvasDocumentsStateSchema = Type.Record(
+  CanvasDocumentResourceIdSchema,
+  Type.String(),
+);
 
 export function createCanvasTurnStateContributions(
   ctx: CanvasContext,
-): readonly TurnStateContribution[] {
-  const { buffer, openCanvasKeys, agentChangedCanvasKeys } = ctx;
-  return [
-    {
-      prepareUserSubmitState: async () =>
-        snapshotCanvasPanes(buffer, openCanvasKeys),
-      prepareAgentEndState: async () => {
-        if (agentChangedCanvasKeys.size === 0) return undefined;
-        const prepared = await snapshotCanvasPanes(
-          buffer,
-          new Set([...openCanvasKeys, ...agentChangedCanvasKeys]),
-        );
-        agentChangedCanvasKeys.clear();
-        return prepared;
-      },
-    },
-  ];
-}
-
-async function snapshotCanvasPanes(
-  buffer: CanvasContext["buffer"],
-  canvasKeys: Iterable<string>,
-): Promise<PreparedTurnState | undefined> {
-  const versions = await buffer.snapshotCurrent(canvasKeys);
-  if (versions.size === 0) return undefined;
+): TurnStateContributions {
+  const { buffer } = ctx;
   return {
-    state: Object.fromEntries(
-      [...versions].map(([canvasKey, version]) => [
-        toCanvasDocumentResourceId(parseCanvasKey(canvasKey)),
-        version.id,
-      ]),
-    ),
+    documents: defineTurnStateCell({
+      schema: CanvasDocumentsStateSchema,
+      createSnapshot: async () => {
+        const versions = await buffer.createSnapshots(
+          buffer.listLoadedDocumentIds(),
+        );
+        return Object.fromEntries(
+          [...versions].map(([canvasKey, version]) => [
+            toCanvasDocumentResourceId(parseCanvasKey(canvasKey)),
+            version.id,
+          ]),
+        );
+      },
+      restore: async (state) => {
+        const versions = new Map(
+          Object.entries(state ?? {}).map(([resourceId, versionId]) => [
+            parseCanvasKeyFromDocumentResourceId(
+              parseCanvasDocumentResourceId(resourceId),
+            ),
+            versionId,
+          ]),
+        );
+        const affectedKeys = await buffer.restoreVersions(versions);
+        for (const key of affectedKeys) {
+          publishCanvasChanged(ctx, parseCanvasKey(key));
+        }
+      },
+    }),
   };
 }

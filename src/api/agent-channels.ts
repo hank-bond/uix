@@ -88,6 +88,65 @@ export type AgentEvent =
 export interface TranscriptSnapshot {
   items: TranscriptItem[];
 }
+export const TranscriptSnapshotSchema = Type.Unsafe<TranscriptSnapshot>(
+  Type.Any(),
+);
+
+export const SessionIdSchema = Type.String({
+  pattern: "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$",
+});
+
+/** Durable identity and lightweight metadata for one session graph. */
+export const SessionSummarySchema = Type.Object({
+  sessionId: SessionIdSchema,
+  /** Pilot-authored title from Pi's latest session_info entry. */
+  title: Type.Optional(Type.String()),
+  /** Bounded textual projection of the graph's first user message. */
+  firstUserMessage: Type.Optional(
+    Type.Object({
+      preview: Type.String(),
+      truncated: Type.Boolean(),
+    }),
+  ),
+  createdAt: Type.String(),
+  modifiedAt: Type.String(),
+});
+export type SessionSummary = Static<typeof SessionSummarySchema>;
+
+export const ListSessionSummariesRequestSchema = Type.Object({
+  limit: Type.Integer({ minimum: 1 }),
+});
+export type ListSessionSummariesRequest = Static<
+  typeof ListSessionSummariesRequestSchema
+>;
+
+export const SwitchSessionRequestSchema = Type.Object({
+  sessionId: SessionIdSchema,
+});
+export type SwitchSessionRequest = Static<typeof SwitchSessionRequestSchema>;
+
+export const SetSessionTitleRequestSchema = Type.Object({
+  sessionId: SessionIdSchema,
+  title: Type.Union([Type.String(), Type.Null()]),
+});
+export type SetSessionTitleRequest = Static<
+  typeof SetSessionTitleRequestSchema
+>;
+
+const SessionSummaryListSchema = Type.Array(SessionSummarySchema);
+
+export const SessionHistoryRequestSchema = Type.Object({
+  sessionId: Type.Optional(SessionIdSchema),
+});
+export type SessionHistoryRequest = Static<typeof SessionHistoryRequestSchema>;
+
+export const SessionHistoryResponseSchema = Type.Object({
+  session: SessionSummarySchema,
+  transcript: TranscriptSnapshotSchema,
+});
+export type SessionHistoryResponse = Static<
+  typeof SessionHistoryResponseSchema
+>;
 
 /** Provider-qualified model reference. */
 export const ModelRefSchema = Type.Object({
@@ -304,9 +363,6 @@ const describeProviderAuthenticationPayload = () => ({
 // disproportionate — the runtime types are already validated by the driver
 // that produces them.
 export const AgentEventSchema = Type.Unsafe<AgentEvent>(Type.Any());
-export const TranscriptSnapshotSchema = Type.Unsafe<TranscriptSnapshot>(
-  Type.Any(),
-);
 
 export const agentChannels = {
   feature: "agent",
@@ -315,9 +371,29 @@ export const agentChannels = {
       requestSchema: PromptRequestSchema,
       responseSchema: Type.Void(),
     },
-    history: {
+    session_history: {
+      requestSchema: SessionHistoryRequestSchema,
+      responseSchema: SessionHistoryResponseSchema,
+    },
+    /** Recent durable session graphs, newest filesystem activity first. */
+    list_session_summaries: {
+      requestSchema: ListSessionSummariesRequestSchema,
+      responseSchema: SessionSummaryListSchema,
+    },
+    /** Replace the active agent slot's selected graph with a fresh session. */
+    new_session: {
       requestSchema: Type.Void(),
-      responseSchema: TranscriptSnapshotSchema,
+      responseSchema: SessionSummarySchema,
+    },
+    /** Replace the active agent slot's selected graph with an existing session. */
+    switch_session: {
+      requestSchema: SwitchSessionRequestSchema,
+      responseSchema: SessionSummarySchema,
+    },
+    /** Set or clear the explicit title of any durable session graph. */
+    set_session_title: {
+      requestSchema: SetSessionTitleRequestSchema,
+      responseSchema: SessionSummarySchema,
     },
     /** Available (auth-configured) models with workspace favorite status. */
     list_models: {

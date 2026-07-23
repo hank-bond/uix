@@ -21,7 +21,7 @@ Two parallel systems grew side by side: the extension loader (discovery, jiti en
 **Carried forward from the superseded decisions** (still true, restated under feature vocabulary so this doc is self-sufficient):
 
 - Discovery is side-effect-free (dir + `package.json` reads, no user code), separate from activation, re-runnable for reload ([extension-discovery-and-identity](./2026-05-30-extension-discovery-and-identity.md)).
-- Identity: the package dir for discovery, the entry file's absolute path for a loaded feature; a manifest may list multiple entries, each its own feature with its own bag. No composite root-tagged ids; no same-name shadowing across roots.
+- Identity: the package dir for discovery, the entry file's absolute path for an activated feature instance; a manifest may list multiple entries, each producing its own instance with its own bag. No composite root-tagged ids; no same-name shadowing across roots.
 - Roots: `<project>/.uix/features/` and `~/.uix/features/`; bare absolute paths, configured paths append later. UIX ships zero discovered features; bundled defaults are in-tree source.
 - Activation is sequential with per-feature error isolation: a throwing entry lands in `failed[]` with its partially-built bag disposed, siblings continue ([extension-activation-and-isolation](./2026-05-30-extension-activation-and-isolation.md)).
 - Process posture: features run in-process as trusted local code; jiti is a loader, not a sandbox. A future worker/utility-process isolation stays a transport swap because features only touch the injected context.

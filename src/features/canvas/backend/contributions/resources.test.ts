@@ -19,7 +19,7 @@ function memoryStore(initial: Record<string, string> = {}): DocumentStore {
       current.set(documentId, content);
       return Promise.resolve();
     },
-    snapshotCurrent: (documentId, meta) =>
+    createSnapshot: (documentId, meta) =>
       Promise.resolve({
         id: "v1",
         documentId,
@@ -57,8 +57,6 @@ function fakeCanvasContext(store: DocumentStore): CanvasContext {
     store,
     buffer: new CanvasDocumentBuffer(store),
     events: base.channels.createPublisher(canvasChannels),
-    openCanvasKeys: [],
-    agentChangedCanvasKeys: new Set(),
   };
 }
 

@@ -6,8 +6,8 @@ import type { SessionManager } from "@earendil-works/pi-coding-agent";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { createTranscriptIdentity } from "./identity";
-import { toTranscriptItems } from "./transcript";
+import { createTranscriptItemIdentity } from "./transcript-item-identity";
+import { deriveTranscriptItems } from "./transcript";
 
 function fakeManager() {
   let next = 1;
@@ -20,9 +20,9 @@ function fakeManager() {
   return { manager, appendMessage, appendCustomMessageEntry };
 }
 
-describe("createTranscriptIdentity", () => {
+describe("createTranscriptItemIdentity", () => {
   it("keys an assistant row by message object identity", () => {
-    const identity = createTranscriptIdentity();
+    const identity = createTranscriptItemIdentity();
     const { manager } = fakeManager();
     identity.observe(manager);
 
@@ -35,7 +35,7 @@ describe("createTranscriptIdentity", () => {
   });
 
   it("notifies the user-message subscriber only for user appends", () => {
-    const identity = createTranscriptIdentity();
+    const identity = createTranscriptItemIdentity();
     const { manager } = fakeManager();
     identity.observe(manager);
 
@@ -51,7 +51,7 @@ describe("createTranscriptIdentity", () => {
   });
 
   it("derives born-keyed tool row ids that match replay", () => {
-    const identity = createTranscriptIdentity();
+    const identity = createTranscriptItemIdentity();
     const { manager } = fakeManager();
     identity.observe(manager);
 
@@ -70,7 +70,7 @@ describe("createTranscriptIdentity", () => {
 
     // The live id must equal what history replay produces for the same entry,
     // or live and replayed state would key differently.
-    const replayed = toTranscriptItems([
+    const replayed = deriveTranscriptItems([
       {
         type: "message",
         id: entryId,
@@ -86,7 +86,7 @@ describe("createTranscriptIdentity", () => {
   });
 
   it("keys held custom rows on custom-entry persist", () => {
-    const identity = createTranscriptIdentity();
+    const identity = createTranscriptItemIdentity();
     const { manager } = fakeManager();
     identity.observe(manager);
 
@@ -98,7 +98,7 @@ describe("createTranscriptIdentity", () => {
   });
 
   it("passes append arguments and return values through unchanged", () => {
-    const identity = createTranscriptIdentity();
+    const identity = createTranscriptItemIdentity();
     const { manager, appendMessage, appendCustomMessageEntry } = fakeManager();
     identity.observe(manager);
 

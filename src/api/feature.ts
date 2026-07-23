@@ -16,18 +16,25 @@ import type {
 import type { AgentToolContribution } from "./agent-tools";
 import type { AgentSystemPromptContribution } from "./agent-system-prompt";
 import type { AgentSkillContribution } from "./agent-skills";
-import type { TurnStateContribution } from "./turn-state";
+import type { TurnStateContributions } from "./turn-state";
 import type { AgentContextContribution } from "./agent-context";
 import type { ResourceContribution } from "./resources";
 import type { DocumentStoreFactory } from "./documents";
 import type { FeatureLogger } from "./log";
-import type { SettingsDefinition, SettingsHandle } from "./settings";
+import type {
+  SettingsDefinition,
+  SettingsHandle,
+  SettingsHandleFrom,
+} from "./settings";
 
 export type { ChannelContribution } from "./channels";
 export type { AgentToolContribution } from "./agent-tools";
 export type { AgentSystemPromptContribution } from "./agent-system-prompt";
 export type { AgentSkillContribution } from "./agent-skills";
-export type { TurnStateContribution } from "./turn-state";
+export type {
+  TurnStateCellDefinition,
+  TurnStateContributions,
+} from "./turn-state";
 export type { AgentContextContribution } from "./agent-context";
 export type { ResourceContribution } from "./resources";
 export type { DocumentStoreFactory } from "./documents";
@@ -52,7 +59,7 @@ export interface FeatureContributions {
   agentSystemPrompt?: AgentSystemPromptContribution;
   /** Pi skill files/directories, resolved relative to the feature entry file. */
   agentSkills?: readonly AgentSkillContribution[];
-  turnState?: readonly TurnStateContribution[];
+  turnState?: TurnStateContributions;
   agentContext?: readonly AgentContextContribution[];
   /**
    * Frontend surface entry files, resolved against the feature entry's
@@ -82,4 +89,39 @@ export interface FeatureDefinition<
    */
   context?: (ctx: FeatureContext) => ContributedContext;
   contribute(ctx: FeatureContext & ContributedContext): FeatureContributions;
+}
+
+type AuthoredFeatureContext<Settings extends SettingsDefinition | undefined> =
+  Omit<FeatureContext, "settings"> & {
+    settings: Settings extends SettingsDefinition
+      ? SettingsHandleFrom<Settings>
+      : SettingsHandle;
+  };
+
+type AuthoredFeatureDefinition<
+  Settings extends SettingsDefinition | undefined,
+  ContributedContext extends Record<string, unknown>,
+> = Omit<
+  FeatureDefinition<ContributedContext>,
+  "settings" | "context" | "contribute"
+> & {
+  settings?: Settings;
+  context?: (ctx: AuthoredFeatureContext<Settings>) => ContributedContext;
+  contribute(
+    ctx: AuthoredFeatureContext<Settings> & ContributedContext,
+  ): FeatureContributions;
+};
+
+/**
+ * Preserve an authored settings schema through the feature's injected context.
+ * Runtime loading consumes the erased `FeatureDefinition`; this helper carries
+ * only source-level agreement between the definition and its callbacks.
+ */
+export function defineFeature<
+  const Settings extends SettingsDefinition | undefined = undefined,
+  ContributedContext extends Record<string, unknown> = Record<string, unknown>,
+>(
+  definition: AuthoredFeatureDefinition<Settings, ContributedContext>,
+): FeatureDefinition<ContributedContext> {
+  return definition as unknown as FeatureDefinition<ContributedContext>;
 }

@@ -21,7 +21,8 @@ export interface AgentContextMaterialization {
 
 /**
  * Context passed to AgentContextContribution materializers. Arrives after
- * turn-state prep, so turnState() resolves to the latest committed state.
+ * turn-state commits, so turnState(cellName) resolves to the latest committed
+ * value for that owning feature's cell.
  */
 export type AgentContextMaterializationContext = TurnStateHistoryReader;
 

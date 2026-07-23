@@ -7,75 +7,82 @@
 
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 
-import type { TranscriptItem } from "@uix/api/agent-channels";
+import type {
+  TranscriptItem,
+  TranscriptSnapshot,
+} from "@uix/api/agent-channels";
 
-// The single definition of a tool row's durable id. Live rows (identity.ts)
-// and history replay (below) must derive byte-identical ids or state keyed
-// against one would miss the other.
+// The single definition of a tool row's durable id. Live rows
+// (transcript-item-identity.ts) and history replay (below) must derive
+// byte-identical ids; otherwise state keyed against one would miss the other.
 export function toolItemId(entryId: string, toolCallId: string): string {
   return `${entryId}:tool:${toolCallId}`;
 }
 
-export function toTranscriptItems(
-  entries: readonly SessionEntry[],
-): TranscriptItem[] {
+interface TranscriptProjector {
+  projectEntry(entry: SessionEntry): void;
+  deriveSnapshot(): TranscriptSnapshot;
+}
+
+export function createTranscriptProjector(): TranscriptProjector {
   const items: TranscriptItem[] = [];
   const toolIndexes = new Map<string, number>();
 
-  for (const entry of entries) {
-    if (entry.type === "custom_message") {
-      items.push({
-        id: entry.id,
-        kind: "custom",
-        customType: entry.customType,
-        content: toIpcValue(entry.content),
-        details: toIpcValue(entry.details),
-        display: entry.display,
-      });
-      continue;
-    }
-
-    if (entry.type !== "message") continue;
-
-    const role = getMessageRole(entry.message);
-
-    if (role === "user") {
-      const text = extractTranscriptText(entry.message);
-      if (text) items.push({ id: entry.id, kind: "user", text });
-      continue;
-    }
-
-    if (role === "assistant") {
-      const text = extractTranscriptText(entry.message);
-      if (text) {
+  return {
+    projectEntry(entry) {
+      if (entry.type === "custom_message") {
         items.push({
           id: entry.id,
-          kind: "assistant",
-          text,
-          complete: true,
+          kind: "custom",
+          customType: entry.customType,
+          content: toIpcValue(entry.content),
+          details: toIpcValue(entry.details),
+          display: entry.display,
         });
+        return;
       }
 
-      for (const toolCall of extractToolCalls(
-        asRecord(entry.message)?.["content"],
-      )) {
-        const item: TranscriptItem = {
-          id: toolItemId(entry.id, toolCall.id),
-          kind: "tool",
-          toolCallId: toolCall.id,
-          toolName: toolCall.name,
-          args: toIpcValue(toolCall.arguments),
-          complete: true,
-        };
-        toolIndexes.set(toolCall.id, items.length);
-        items.push(item);
-      }
-      continue;
-    }
+      if (entry.type !== "message") return;
 
-    if (role === "toolResult") {
+      const role = getMessageRole(entry.message);
+
+      if (role === "user") {
+        const text = extractTranscriptText(entry.message);
+        if (text) items.push({ id: entry.id, kind: "user", text });
+        return;
+      }
+
+      if (role === "assistant") {
+        const text = extractTranscriptText(entry.message);
+        if (text) {
+          items.push({
+            id: entry.id,
+            kind: "assistant",
+            text,
+            complete: true,
+          });
+        }
+
+        for (const toolCall of extractToolCalls(
+          asRecord(entry.message)?.["content"],
+        )) {
+          const item: TranscriptItem = {
+            id: toolItemId(entry.id, toolCall.id),
+            kind: "tool",
+            toolCallId: toolCall.id,
+            toolName: toolCall.name,
+            args: toIpcValue(toolCall.arguments),
+            complete: true,
+          };
+          toolIndexes.set(toolCall.id, items.length);
+          items.push(item);
+        }
+        return;
+      }
+
+      if (role !== "toolResult") return;
       const tool = parseToolResult(entry.message);
-      if (!tool) continue;
+      if (!tool) return;
       const result = {
         content: toIpcValue(tool.content),
         details: toIpcValue(tool.details),
@@ -91,22 +98,31 @@ export function toTranscriptItems(
           isError: tool.isError,
           complete: true,
         });
-      } else {
-        const existing = items[index];
-        if (existing.kind === "tool") {
-          items[index] = {
-            ...existing,
-            toolName: tool.toolName,
-            result,
-            isError: tool.isError,
-            complete: true,
-          };
-        }
+        return;
       }
-    }
-  }
 
-  return items;
+      const existing = items[index];
+      if (existing.kind === "tool") {
+        items[index] = {
+          ...existing,
+          toolName: tool.toolName,
+          result,
+          isError: tool.isError,
+          complete: true,
+        };
+      }
+    },
+
+    deriveSnapshot: () => ({ items: [...items] }),
+  };
+}
+
+export function deriveTranscriptItems(
+  entries: readonly SessionEntry[],
+): TranscriptItem[] {
+  const projector = createTranscriptProjector();
+  for (const entry of entries) projector.projectEntry(entry);
+  return projector.deriveSnapshot().items;
 }
 
 export function extractTranscriptText(message: unknown): string {

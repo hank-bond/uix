@@ -1,5 +1,6 @@
 import type { Static, TSchema } from "typebox";
 import { Value } from "typebox/value";
+import type { SessionSummary, TranscriptSnapshot } from "./agent-channels";
 import {
   createContext,
   createElement,
@@ -53,6 +54,51 @@ const SubscribeToActionCatalogContext = createContext<
   SubscribeToActionCatalog | undefined
 >(undefined);
 const InvokeActionContext = createContext<InvokeAction | undefined>(undefined);
+type SessionSummaryProjection = Readonly<SessionSummary>;
+
+export interface WorkspaceSessionHandle {
+  readonly activeSession: SessionSummaryProjection | undefined;
+  readonly recentSessions: readonly SessionSummaryProjection[] | undefined;
+  /** Changes only when the selected graph changes, not when its summary hydrates. */
+  readonly sessionSelectionVersion: number;
+  readonly canSwitchSession: boolean;
+  readonly loadActiveHistory: () => Promise<TranscriptSnapshot>;
+  /** Returns undefined when current activity requires the renderer to skip. */
+  readonly switchSession: (
+    sessionId: string,
+  ) => Promise<SessionSummaryProjection | undefined>;
+  /** Returns undefined when current activity requires the renderer to skip. */
+  readonly setSessionTitle: (
+    sessionId: string,
+    title: string | null,
+  ) => Promise<SessionSummaryProjection | undefined>;
+}
+
+const WorkspaceSessionContext = createContext<
+  WorkspaceSessionHandle | undefined
+>(undefined);
+
+export interface WorkspaceSessionProviderProps {
+  session: WorkspaceSessionHandle;
+  children: ReactNode;
+}
+
+export function WorkspaceSessionProvider({
+  session,
+  children,
+}: WorkspaceSessionProviderProps): ReactNode {
+  return createElement(
+    WorkspaceSessionContext.Provider,
+    { value: session },
+    children,
+  );
+}
+
+export function useWorkspaceSession(): WorkspaceSessionHandle {
+  const session = useContext(WorkspaceSessionContext);
+  if (!session) throw new Error("WorkspaceSessionProvider is missing");
+  return session;
+}
 
 export interface WorkspaceActionsProviderProps {
   getCatalogSnapshot: GetActionCatalogSnapshot;

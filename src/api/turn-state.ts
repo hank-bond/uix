@@ -1,9 +1,11 @@
-// turn-state contribution type.
+// turn-state contribution types.
 //
-// Features contribute optional state-preparation hooks that run at UIX turn
-// boundaries. The substrate records prepared state as durable refs under a
-// substrate-owned session entry; features read back prior state through the
-// TurnStateHistoryReader passed to AgentContextContribution materializers.
+// A feature divides its durable branch state into independently changing named
+// cells. Each cell declares one schema for snapshot creation and restoration,
+// while the substrate derives its persisted identity from the owning feature
+// and cell name.
+
+import type { Static, TSchema } from "typebox";
 
 type MaybePromise<T> = T | Promise<T>;
 
@@ -18,35 +20,32 @@ export interface TurnStateHistoryOptions {
   readonly limit?: number;
 }
 
-/**
- * Read-only access to committed turn-state history for one feature key.
- * The nearest entry is whatever is latest at the point this reader is used.
- */
+/** Read-only access to one owning feature's committed cell histories. */
 export interface TurnStateHistoryReader {
-  turnState<TState = unknown>(): TurnStateHistoryEntry<TState> | undefined;
+  turnState<TState = unknown>(
+    cellName: string,
+  ): TurnStateHistoryEntry<TState> | undefined;
   turnStates<TState = unknown>(
+    cellName: string,
     opts?: TurnStateHistoryOptions,
   ): readonly TurnStateHistoryEntry<TState>[];
 }
 
-export interface TurnStatePreparationContext extends TurnStateHistoryReader {
-  cwd: string;
+export interface TurnStateCellDefinition<Schema extends TSchema = TSchema> {
+  readonly schema: Schema;
+  /** Creates this cell's complete current JSON snapshot for a durable commit. */
+  readonly createSnapshot: () => MaybePromise<Static<Schema>>;
+  /** Replaces live state from the selected branch; undefined means defaults. */
+  readonly restore: (state: Static<Schema> | undefined) => MaybePromise<void>;
 }
 
-export interface PreparedTurnState {
-  state: unknown;
-}
+export type TurnStateContributions = Readonly<
+  Record<string, TurnStateCellDefinition>
+>;
 
-/**
- * A turn-state contribution from a feature. Exactly one per feature.
- * Preparation callbacks are optional — a contribution that declares neither
- * is valid but inert.
- */
-export interface TurnStateContribution {
-  prepareUserSubmitState?: (
-    ctx: TurnStatePreparationContext,
-  ) => MaybePromise<PreparedTurnState | undefined>;
-  prepareAgentEndState?: (
-    ctx: TurnStatePreparationContext,
-  ) => MaybePromise<PreparedTurnState | undefined>;
+/** Carries one cell's TypeBox schema into snapshot creation and restoration. */
+export function defineTurnStateCell<const Schema extends TSchema>(
+  definition: TurnStateCellDefinition<Schema>,
+): TurnStateCellDefinition<Schema> {
+  return definition;
 }

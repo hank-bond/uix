@@ -11,7 +11,7 @@ import type {
 } from "@uix/api/actions";
 import type { ShortcutPlatform } from "@uix/api/shortcuts";
 
-import { toActionBindingProjection } from "./action-binding-projection";
+import { deriveActionBindingProjectionForPlatform } from "./action-binding-projection";
 import {
   normalizeActionContribution,
   type ActionDefaultBindingMap,
@@ -289,7 +289,7 @@ export class ActionRegistry implements Disposable {
       this.#catalogSnapshot = registeredCatalog;
       this.#unresolvedBindingsSnapshot = undefined;
     } else {
-      const projection = toActionBindingProjection(
+      const projection = deriveActionBindingProjectionForPlatform(
         registeredCatalog,
         this.#confirmedBindingsSnapshot,
         this.#shortcutPlatform,

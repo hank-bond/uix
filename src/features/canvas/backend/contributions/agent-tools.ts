@@ -127,7 +127,6 @@ function createWriteTool(
     executionMode: "sequential",
     async execute(_toolCallId, params) {
       const lines = await ctx.buffer.write(params.key, params.html);
-      ctx.agentChangedCanvasKeys.add(params.key);
       publishCanvasChanged(ctx, params.key);
       return {
         content: [{ type: "text", text: formatAnchoredText(lines) }],
@@ -153,7 +152,6 @@ function createEditTool(
         end: parseAnchoredLine(params.end_line),
         replacement: params.replacement,
       });
-      ctx.agentChangedCanvasKeys.add(params.key);
       publishCanvasChanged(ctx, params.key);
       return {
         content: [

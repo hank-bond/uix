@@ -359,7 +359,50 @@ describe("ChannelRegistry", () => {
     registerChannelContributions(registry, "agent", [
       withHandlers(agentChannels, {
         prompt: { handle: () => undefined },
-        history: { handle: () => ({ items: [] }) },
+        session_history: {
+          handle: () => ({
+            session: {
+              sessionId: "session-1",
+              title: "Existing conversation",
+              createdAt: "2026-07-19T10:00:00.000Z",
+              modifiedAt: "2026-07-19T10:30:00.000Z",
+            },
+            transcript: { items: [] },
+          }),
+        },
+        list_session_summaries: {
+          handle: () => [
+            {
+              sessionId: "session-1",
+              title: "Existing conversation",
+              createdAt: "2026-07-19T10:00:00.000Z",
+              modifiedAt: "2026-07-19T10:30:00.000Z",
+            },
+          ],
+        },
+        new_session: {
+          handle: () => ({
+            sessionId: "session-2",
+            createdAt: "2026-07-19T11:00:00.000Z",
+            modifiedAt: "2026-07-19T11:00:00.000Z",
+          }),
+        },
+        switch_session: {
+          handle: ({ sessionId }) => ({
+            sessionId,
+            title: "Existing conversation",
+            createdAt: "2026-07-19T10:00:00.000Z",
+            modifiedAt: "2026-07-19T10:30:00.000Z",
+          }),
+        },
+        set_session_title: {
+          handle: ({ sessionId, title }) => ({
+            sessionId,
+            ...(title !== null && { title }),
+            createdAt: "2026-07-19T10:00:00.000Z",
+            modifiedAt: "2026-07-19T10:30:00.000Z",
+          }),
+        },
         list_models: {
           handle: () => ({
             models: [
@@ -388,6 +431,72 @@ describe("ChannelRegistry", () => {
       }),
     ]);
 
+    await expect(
+      transport.handlers.get("agent.session_history")?.({}),
+    ).resolves.toEqual({
+      session: {
+        sessionId: "session-1",
+        title: "Existing conversation",
+        createdAt: "2026-07-19T10:00:00.000Z",
+        modifiedAt: "2026-07-19T10:30:00.000Z",
+      },
+      transcript: { items: [] },
+    });
+    await expect(
+      transport.handlers.get("agent.session_history")?.({
+        sessionId: "../outside",
+      }),
+    ).rejects.toThrow();
+    await expect(
+      transport.handlers.get("agent.list_session_summaries")?.({ limit: 10 }),
+    ).resolves.toEqual([
+      {
+        sessionId: "session-1",
+        title: "Existing conversation",
+        createdAt: "2026-07-19T10:00:00.000Z",
+        modifiedAt: "2026-07-19T10:30:00.000Z",
+      },
+    ]);
+    await expect(
+      transport.handlers.get("agent.list_session_summaries")?.({ limit: 0 }),
+    ).rejects.toThrow();
+    await expect(
+      transport.handlers.get("agent.new_session")?.(undefined),
+    ).resolves.toEqual({
+      sessionId: "session-2",
+      createdAt: "2026-07-19T11:00:00.000Z",
+      modifiedAt: "2026-07-19T11:00:00.000Z",
+    });
+    await expect(
+      transport.handlers.get("agent.switch_session")?.({
+        sessionId: "session-1",
+      }),
+    ).resolves.toEqual({
+      sessionId: "session-1",
+      title: "Existing conversation",
+      createdAt: "2026-07-19T10:00:00.000Z",
+      modifiedAt: "2026-07-19T10:30:00.000Z",
+    });
+    await expect(
+      transport.handlers.get("agent.switch_session")?.({
+        sessionId: "../outside",
+      }),
+    ).rejects.toThrow();
+    await expect(
+      transport.handlers.get("agent.set_session_title")?.({
+        sessionId: "session-1",
+        title: "Research",
+      }),
+    ).resolves.toMatchObject({
+      sessionId: "session-1",
+      title: "Research",
+    });
+    await expect(
+      transport.handlers.get("agent.set_session_title")?.({
+        sessionId: "session-1",
+        title: undefined,
+      }),
+    ).rejects.toThrow();
     await expect(
       transport.handlers.get("agent.select_model")?.({
         provider: "anthropic",

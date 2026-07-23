@@ -10,8 +10,9 @@ import {
 } from "@uix/api/workspace";
 
 function fakeWorkspaceClient() {
-  const request = vi.fn((_name: string, _req: unknown) =>
-    Promise.resolve(undefined),
+  const request = vi.fn(
+    (_name: string, _req: unknown): Promise<unknown> =>
+      Promise.resolve(undefined),
   );
   const subscribe = vi.fn(
     (_name: string, _handler: (event: unknown) => void) => () => undefined,
@@ -63,13 +64,67 @@ describe("channel clients", () => {
     const { client, request, subscribe } = fakeWorkspaceClient();
     const agent = createChannelClient(client, agentChannels);
     const onEvent = vi.fn();
+    request
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({
+        session: {
+          sessionId: "session-1",
+          title: "Existing conversation",
+          createdAt: "2026-07-19T10:00:00.000Z",
+          modifiedAt: "2026-07-19T10:30:00.000Z",
+        },
+        transcript: { items: [] },
+      })
+      .mockResolvedValueOnce([
+        {
+          sessionId: "session-1",
+          title: "Existing conversation",
+          createdAt: "2026-07-19T10:00:00.000Z",
+          modifiedAt: "2026-07-19T10:30:00.000Z",
+        },
+      ])
+      .mockResolvedValueOnce({
+        sessionId: "session-2",
+        createdAt: "2026-07-19T11:00:00.000Z",
+        modifiedAt: "2026-07-19T11:00:00.000Z",
+      })
+      .mockResolvedValueOnce({
+        sessionId: "session-1",
+        title: "Existing conversation",
+        createdAt: "2026-07-19T10:00:00.000Z",
+        modifiedAt: "2026-07-19T10:30:00.000Z",
+      })
+      .mockResolvedValueOnce({
+        sessionId: "session-1",
+        title: "Research",
+        createdAt: "2026-07-19T10:00:00.000Z",
+        modifiedAt: "2026-07-19T10:31:00.000Z",
+      });
 
     await agent.requests.prompt({ text: "hi" });
-    await agent.requests.history(undefined);
+    await agent.requests.session_history({});
+    await agent.requests.list_session_summaries({ limit: 10 });
+    await agent.requests.new_session(undefined);
+    await agent.requests.switch_session({ sessionId: "session-1" });
+    await agent.requests.set_session_title({
+      sessionId: "session-1",
+      title: "Research",
+    });
     agent.events.event(onEvent);
 
     expect(request).toHaveBeenCalledWith("agent.prompt", { text: "hi" });
-    expect(request).toHaveBeenCalledWith("agent.history", undefined);
+    expect(request).toHaveBeenCalledWith("agent.session_history", {});
+    expect(request).toHaveBeenCalledWith("agent.list_session_summaries", {
+      limit: 10,
+    });
+    expect(request).toHaveBeenCalledWith("agent.new_session", undefined);
+    expect(request).toHaveBeenCalledWith("agent.switch_session", {
+      sessionId: "session-1",
+    });
+    expect(request).toHaveBeenCalledWith("agent.set_session_title", {
+      sessionId: "session-1",
+      title: "Research",
+    });
     expect(subscribe).toHaveBeenCalledWith("agent.event", expect.any(Function));
   });
 

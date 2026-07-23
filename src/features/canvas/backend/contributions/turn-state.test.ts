@@ -1,23 +1,23 @@
+import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
 
 import { createFeatureEventPublisher } from "@uix/api/channels";
-
-import { CanvasDocumentBuffer } from "../document-buffer";
-import { canvasChannels } from "../../shared/channels";
-import type { CanvasContext } from "../context";
 import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
 import type { FeatureContext } from "@uix/api/feature";
-import type { TurnStatePreparationContext } from "@uix/api/turn-state";
+import type { TurnStateCellDefinition } from "@uix/api/turn-state";
+import {
+  createTurnStateProjector,
+  registerTurnStateContributions,
+  restoreTurnStateCellsAsOfLeaf,
+  toTurnStateRegistrySnapshot,
+  TurnStateRegistry,
+} from "../../../../main/turn-state/registry";
+
+import { canvasChannels } from "../../shared/channels";
+import { CanvasDocumentBuffer } from "../document-buffer";
+import type { CanvasContext } from "../context";
 
 import { createCanvasTurnStateContributions } from "./turn-state";
-
-function prepCtx(): TurnStatePreparationContext {
-  return {
-    cwd: "/work",
-    turnState: () => undefined,
-    turnStates: () => [],
-  };
-}
 
 function memoryStore(initial: Record<string, string> = {}): DocumentStore {
   const latest = new Map<string, string>(Object.entries(initial));
@@ -29,7 +29,7 @@ function memoryStore(initial: Record<string, string> = {}): DocumentStore {
       latest.set(docId, content);
       return Promise.resolve();
     },
-    snapshotCurrent: (docId, meta) => {
+    createSnapshot: (docId, meta) => {
       const version: DocumentVersion<typeof meta> = {
         id: `v${versions.size + 1}`,
         documentId: docId,
@@ -50,13 +50,32 @@ function memoryStore(initial: Record<string, string> = {}): DocumentStore {
   };
 }
 
-function captureCanvasState(opts: {
-  store?: DocumentStore;
-  openCanvasKeys?: readonly string[];
-  agentChangedCanvasKeys?: Set<string>;
-}) {
-  const agentChangedCanvasKeys = opts.agentChangedCanvasKeys ?? new Set();
-  const store = opts.store ?? memoryStore();
+async function restoreCanvasDocuments(
+  contribution: TurnStateCellDefinition,
+  documents?: unknown,
+): Promise<void> {
+  const turnState = new TurnStateRegistry();
+  registerTurnStateContributions(turnState, "canvas", {
+    documents: contribution,
+  });
+  const registrySnapshot = toTurnStateRegistrySnapshot(turnState);
+  const projector = createTurnStateProjector(registrySnapshot);
+  if (documents !== undefined) {
+    projector.projectEntry({
+      id: "turn-state",
+      parentId: undefined,
+      timestamp: new Date(0).toISOString(),
+      type: "custom",
+      customType: "uix.turn-state",
+      data: { state: { "canvas.documents": documents } },
+    } as unknown as SessionEntry);
+  }
+  await expect(
+    restoreTurnStateCellsAsOfLeaf(registrySnapshot, projector.deriveAsOfLeaf()),
+  ).resolves.toEqual({ failures: [] });
+}
+
+function captureCanvasState(store = memoryStore()) {
   const base: FeatureContext = {
     documents: { createStore: () => store },
     settings: {
@@ -76,88 +95,74 @@ function captureCanvasState(opts: {
       error: () => {},
     },
   };
+  const buffer = new CanvasDocumentBuffer(store);
   const ctx: CanvasContext = {
     ...base,
     store,
-    buffer: new CanvasDocumentBuffer(store),
+    buffer,
     events: base.channels.createPublisher(canvasChannels),
-    openCanvasKeys: opts.openCanvasKeys ?? [],
-    agentChangedCanvasKeys,
   };
-  const [contribution] = createCanvasTurnStateContributions(ctx);
+  const contribution = createCanvasTurnStateContributions(ctx).documents;
 
-  if (!contribution) throw new Error("Canvas state was not created");
-  return { contribution, agentChangedCanvasKeys };
+  if (!contribution) throw new Error("Canvas documents state was not created");
+  return { contribution, buffer, store };
 }
 
 describe("createCanvasTurnStateContributions", () => {
-  it("snapshots open canvases on user submit", async () => {
-    const store = memoryStore({ main: "<p>hello</p>" });
-    const { contribution } = captureCanvasState({
-      store,
-      openCanvasKeys: ["main"],
-    });
+  it("creates a snapshot of every document loaded into the canvas working buffer", async () => {
+    const { contribution, buffer } = captureCanvasState(
+      memoryStore({ main: "<p>hello</p>" }),
+    );
+    await buffer.read("main");
+    await buffer.write("reports/security", "<p>changed</p>");
 
-    await expect(
-      contribution.prepareUserSubmitState?.(prepCtx()),
-    ).resolves.toEqual({
-      state: { "doc://canvas/main": "v1" },
-    });
-  });
-
-  it("returns undefined on user submit when no canvases are open", async () => {
-    const { contribution } = captureCanvasState({ openCanvasKeys: [] });
-
-    await expect(
-      contribution.prepareUserSubmitState?.(prepCtx()),
-    ).resolves.toBeUndefined();
-  });
-
-  it("does not snapshot agent-end state when the agent changed no canvases", async () => {
-    const { contribution } = captureCanvasState({
-      store: memoryStore({ main: "<p>hello</p>" }),
-      openCanvasKeys: ["main"],
-    });
-
-    await expect(
-      contribution.prepareAgentEndState?.(prepCtx()),
-    ).resolves.toBeUndefined();
-  });
-
-  it("snapshots open and agent-changed canvases on agent end", async () => {
-    const store = memoryStore({
-      main: "<p>open</p>",
-      "reports/security": "<p>changed</p>",
-    });
-    const { contribution } = captureCanvasState({
-      store,
-      openCanvasKeys: ["main"],
-      agentChangedCanvasKeys: new Set(["reports/security"]),
-    });
-
-    await expect(
-      contribution.prepareAgentEndState?.(prepCtx()),
-    ).resolves.toEqual({
-      state: {
-        "doc://canvas/main": "v1",
-        "doc://canvas/reports/security": "v2",
-      },
+    await expect(contribution.createSnapshot()).resolves.toEqual({
+      "doc://canvas/main": "v1",
+      "doc://canvas/reports/security": "v2",
     });
   });
 
-  it("clears the agent-changed canvas set after snapshotting", async () => {
-    const agentChangedCanvasKeys = new Set(["scratch"]);
-    const { contribution } = captureCanvasState({
-      store: memoryStore({ scratch: "<p>changed</p>" }),
-      openCanvasKeys: [],
-      agentChangedCanvasKeys,
+  it("does not create snapshots merely because documents exist in the store", async () => {
+    const { contribution } = captureCanvasState(
+      memoryStore({ main: "<p>hello</p>" }),
+    );
+
+    await expect(contribution.createSnapshot()).resolves.toEqual({});
+  });
+
+  it("includes a human writeback in the working document set", async () => {
+    const { contribution, buffer } = captureCanvasState();
+    await buffer.writeback("notes", "<p>human edit</p>");
+
+    await expect(contribution.createSnapshot()).resolves.toEqual({
+      "doc://canvas/notes": "v1",
     });
+  });
 
-    await contribution.prepareAgentEndState?.(prepCtx());
+  it("restores document content and exact anchor state from version refs", async () => {
+    const { contribution, buffer, store } = captureCanvasState(
+      memoryStore({ main: "<p>hello</p>" }),
+    );
+    const anchoredBefore = await buffer.read("main");
+    const state = await contribution.createSnapshot();
+    await buffer.write("main", "<p>changed</p>");
 
-    expect(agentChangedCanvasKeys.size).toBe(0);
-    await expect(
-      contribution.prepareAgentEndState?.(prepCtx()),
-    ).resolves.toBeUndefined();
+    await restoreCanvasDocuments(contribution, state);
+
+    expect(await store.getCurrent("main")).toBe(
+      "<html><head></head><body><p>hello</p></body></html>",
+    );
+    expect(await buffer.read("main")).toEqual(anchoredBefore);
+  });
+
+  it("resets loaded documents when the selected branch has no documents cell", async () => {
+    const { contribution, buffer, store } = captureCanvasState(
+      memoryStore({ main: "<p>source session</p>" }),
+    );
+    await buffer.read("main");
+
+    await restoreCanvasDocuments(contribution);
+
+    expect(await store.getCurrent("main")).toBe("");
   });
 });

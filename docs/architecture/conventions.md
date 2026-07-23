@@ -35,12 +35,60 @@ bag[Symbol.dispose]();
 
 **Disposable values.** Anything with non-trivial cleanup should implement `Disposable` (or be wrappable with `disposable(() => ...)`). A function whose return value is `Disposable` cannot be discarded silently without it leaking — make sure every call site routes it into a bag or `using`.
 
+## State ownership and asynchronous coordination
+
+**Rule.** Name one authority for current state and keep asynchronous work, cleanup, lookup, and caching separate from it.
+
+**Terminology.** A **generation** is a real replaceable object/lifetime graph, such as a manifest or Pi runtime generation. Feature activation is a process that produces an **activated feature instance**; the workspace owns the current instances as its **active feature composition** and reload creates replacement instances. A **version** is a monotonic scalar that orders async work and rejects stale results (`requestVersion`, `buildVersion`). An **id** or **token** correlates one operation without implying order. Do not call an ordering counter or an activated feature instance a generation.
+
+| Mechanism | Role | Constraint |
+| --- | --- | --- |
+| Plain field, React state, registry, buffer, or store | Current authority at its layer | Replaced at one explicit generation boundary. |
+| Promise slot | Shared in-flight operation | Cleared when the operation settles; it is not mutable current state. |
+| `DisposableBag` or React effect cleanup | Deterministic lifetime | Owns teardown only, never lookup or current-state selection. |
+| `WeakMap` | Metadata or memo derived from an externally owned object | Use only when the value needs no deterministic cleanup and entries need no enumeration. |
+| `Map` / `Set` | Owned live index or temporary algorithmic index | If it is a registry, expose registration/disposal semantics rather than a raw collection. |
+| Cache / projection | Regenerable derived data | State the invalidation or latest-generation commit rule. |
+| Store / durable settings / Pi session entries | Durable authority | Runtime collections and renderer state remain rebuildable from it. |
+
+For replaceable asynchronous state, keep the current value and shared operation distinct:
+
+```ts
+let current: Value | undefined;
+let inFlightLoad: Promise<Value> | undefined;
+
+function getValue(): Promise<Value> {
+  if (current) return Promise.resolve(current);
+  if (inFlightLoad) return inFlightLoad;
+
+  const load: Promise<Value> = createValue()
+    .then((value) => {
+      current = value;
+      return value;
+    })
+    .finally(() => {
+      if (inFlightLoad === load) inFlightLoad = undefined;
+    });
+  inFlightLoad = load;
+  return load;
+}
+```
+
+A settled promise may own a genuinely write-once value when it is immutable for the owner's entire lifetime and every consumer is asynchronous. Once a value supports replacement, synchronous reads, reload, or generation-specific cleanup, use an explicit current value plus an in-flight operation.
+
+Async projections need two independent protections where applicable: lifetime cancellation rejects results after their owner unmounts/disposes, while a monotonic request version rejects an older request that resolves after a newer one. A boolean `alive` flag provides only the first. Name the counter for what it orders: `<operation>RequestVersion` (or local `requestVersion` when only one operation exists) orders asynchronous attempts and increments both on start and cancellation-only invalidation; `<state>Version` records committed semantic state and increments only when that state changes; `<artifact>BuildVersion` orders candidate builds. A request may capture both a request version and a state version when either changing makes its result stale. Backend candidate builders likewise commit only if their build version is still current, or serialize operations when every requested transition must run.
+
+Layer-specific cleanup stays idiomatic: main-process registrations go into lifetime-named bags; renderer subscriptions and requests use React effect cleanup plus latest-request guards. Do not introduce a generic lazy-cell abstraction until multiple consumers need identical mechanics—the explicit fields make ownership and replacement visible.
+
 ## Naming
 
 - A `DisposableBag` that owns registrations is named after the lifetime it tracks: `appBag`, `windowBag`, `sessionBag`.
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
-- Function names describe the observable contract from the caller's perspective. Include every distinction needed to predict the result; omit implementation details that do not change what callers receive or observe.
+- Name symbols for their stable domain role and operation, not their current caller, pipeline position, trigger, owner, or implementation strategy. A name should remain correct if the symbol moves, gains another caller, or changes implementation without changing its essential domain contract. Let the receiver provide context (`turnStateLifecycle.restoreCurrent(...)`); do not repeat that context in every method.
+- Function names describe the observable domain operation. Include distinctions that identify materially different operations or results; put lifecycle ordering, current usage, race policy, preconditions, and nuanced skipped outcomes in contract comments. Do not encode those volatile details into a symbol merely because one caller currently depends on them.
 - Apply the ambiguity test: if two materially different operations could reasonably share the name, it is underspecified. Add the distinguishing domain, result, or resolution axis — `enumerateUniqueModifierSequences`, not `permutations`; `resolveShortcutForPlatform`, not `resolveShortcut`.
+- Domain vocabulary is noun-shaped; operations pair those nouns with the established verbs below. A domain noun keeps one grammatical role across types, values, and function results.
+- Parameters name each participant's domain role (`transport`, `contract`, `scope`, `owner`, `session`, `lifetime`, `bag`). Access restrictions live in scoped capability types and handles.
 - A domain catalog is `XCatalog`; one public item is `XCatalogEntry`. Reserve these names for the catalog concept defined in [concepts](./concepts.md), not arbitrary lists or snapshots; avoid the generic `Descriptor` suffix when the value's actual role is a catalog entry.
 - Private helper functions should generally be operation-shaped so the call site says what operation is happening. Prefer:
   - `parseX` for unknown/external input that validates into `X`; invalid input throws;
@@ -49,30 +97,95 @@ bag[Symbol.dispose]();
   - `enumerateX` for eagerly deriving every member of a finite possibility set; `listX` retrieves existing items instead of generating possibilities;
   - `getX` for cheap property lookup with no I/O;
   - `requireX` for retrieving an expected value and throwing when absent;
-  - `toX` for deterministic conversions/derivations where inputs are expected to already be valid;
+  - `toX` for a deterministic, side-effect-free representation of the same underlying thing; the result has value semantics, no independent identity, and is safe to discard and recompute;
+  - `deriveX` for a new immutable value computed through filtering, joining, folding, reduction, or domain policy; the result has value semantics and remains rebuildable from authoritative inputs;
   - `encodeX` / `decodeX` for reversible representation transforms;
-  - `isX` / `hasX` for predicates and type guards;
+  - boolean-returning helpers follow the predicate vocabulary below;
   - `readX` only for real reads from disk, stores, streams, or similarly I/O-shaped sources.
 - Module-level and lifecycle verbs. Each verb earns its slot by meaning something the others don't; don't introduce a synonym when an existing verb fits:
-  - `createX` for construction from known inputs — factories, contexts, wired object bags. Don't use `makeX`; it's the same act.
+  - `createX` for constructing a domain instance or independently identified artifact from known inputs. The result has instance semantics: its identity or evolving state matters, it is used over time, and an owner receives responsibility for it.
   - `buildX` is **reserved for compilation/bundling pipelines** (the surface module pipeline's esbuild passes). Plain object assembly is `createX`, not `buildX`.
   - `readX` (disk → parsed data, no runtime side effects) vs `loadX` (persisted or external content → its **live, registered runtime form**; side effects expected — `loadFeatures`, `loadScope`). A load typically contains a read.
   - `hydrateX` for the pure schema pass between the two: fill defaults into persisted values and validate, no storage or registration (`hydrateSettings`).
   - `openX` for starting a long-lived stateful thing whose lifetime someone must own (`openWorkspace`, `openSession`).
   - `registerX` for putting an item into a registry; registries' own mutation methods use the same verb (`register`, `registerScope`).
   - `resolveX` for mapping a reference to the concrete thing it denotes (`resolveWorkspace`); include a result-determining axis when the unqualified name permits materially different resolutions (`resolveShortcutForPlatform`).
-  - `bindX` for attaching an existing thing to a lifetime or context (`bindSettingsHandle`).
+  - `bindX` for establishing a removable or replaceable relationship among independently existing participants (`bindSettingsHandle`, `bindActionKeyboardDispatcher`). The relationship is enrolled in an explicit lifetime while the participants retain their own lifetimes; construction and binding are separate operations when the instance and relationship have independent lifetimes.
+  - `commitX` for accepting validated candidate state into an authority at an explicit boundary (`registration.commit()`, `commitCurrentTurnState`).
+  - `restoreX` for replacing live state from previously committed state or referenced snapshots.
   - `defineX` for public-API identity/type-checking helpers around plain data (`defineSettings`, `defineSurface`).
   - `forX(id)` for minting a capability handle scoped to one owner (`forScope`); see the handle convention below.
+- State-shape nouns carry these meanings:
+  - A **snapshot** is an immutable point-in-time value or independently identified artifact. `toSnapshot()` converts one live value to its snapshot representation; `createDocumentSnapshot()` creates a store-owned artifact; `getCatalogSnapshot()` retrieves an existing current snapshot.
+  - A **projection** is a purpose-specific, read-only, lower-information view of authoritative state. It is rebuildable and never independently authoritative; a physically persisted projection has cache semantics. Use `deriveXProjection()` for a one-shot derivation.
+  - A **baseline** is the reference value used for comparison by a later operation; it remains derived unless its owning domain commits it.
 - React components are the exception: keep PascalCase noun names such as `Conversation` or `ChoiceButton`.
 - Anything implementing `Disposable` is fine to add to a bag — no ceremony needed.
 - Use `Store` for durable source-of-truth APIs/implementations. A store may expose a change feed when the change semantics are generic at that layer; otherwise domain-specific buffers/features publish higher-level invalidation events.
 - Use `Buffer` for live, feature-specific working projections over a store. Buffers may cache regenerable state, normalize writes, and reconcile feature/editor semantics, but durable authority stays in the backing store.
 - Use `Registry` for central in-memory maps of contributed things plus their routing (`ChannelRegistry`, `SettingsRegistry`); registries don't persist.
 
+### Boolean predicates
+
+**Rule.** Boolean variables, fields, and functions phrase a truth claim with this small default vocabulary:
+
+| Prefix | Meaning | Example |
+| --- | --- | --- |
+| `is` | Current state, classification, or validation | `isAgentRunning`, `isSessionFile` |
+| `has` | Possession, existence, or completed progress | `hasSelection`, `hasReadFirstRecord` |
+| `can` | Context-dependent ability right now | `canSwitchSession` |
+| `supports` | Intrinsic capability independent of current live state | `supportsManualInput` |
+| `should` | Policy or heuristic decision | `shouldRetry` |
+| `needs` | An unmet requirement requiring action | `needsReload` |
+
+Keep `supports` distinct from `can`: an implementation may expose `supportsSessionSwitching` while the workspace cannot currently switch because the agent is running. Keep `should` distinct from `needs`: the former records a policy choice, while the latter states that correctness or completion requires work.
+
+`was` and `did` are narrow grammatical exceptions for captured prior state and the outcome of an attempted operation (`wasAgentRunning`, `didCommitState`); they are not additional default choices. Do not use `will` as a general prediction flag—once control flow has committed to an operation, prefer making that structure explicit. If several booleans represent mutually exclusive states, replace them with one status/discriminated union rather than finding more predicate names.
+
+### Projection naming
+
+Describe a projection along the axes that determine materially different results. Not every projection uses every axis, and a symbol need not repeat facts intrinsic to its domain, but its names, parameters, and result fields together must let a caller predict the view.
+
+| Axis | Question | Naming pattern |
+| --- | --- | --- |
+| **Sources** | Which authoritative inputs are viewed? | Name the domain sources in the projection or its parameters. |
+| **Viewpoint** | From which contextual coordinate are the sources interpreted? | `AsOfX` for a position in ordered history; `ForX` for an observer or environment. |
+| **Selection** | Which source facts participate? | Use domain qualifiers such as `active`, `visible`, `offered`, or `unresolved`. |
+| **Correlation** | How are facts from different sources or positions joined? | `ByX` names a lookup or join key (`bindingByActionId`, `resultByToolCallId`). |
+| **Partition** | Which groups are reduced independently? | `PerX` names the partition (`latestValuePerCell`, `claimantsPerShortcut`). |
+| **Reduction** | How does each partition become a result? | Name the policy before the partition: `latestValuePerCell`, `countPerStatus`, `averageLatencyPerWindow`. |
+| **Result shape** | What consumer-facing view is produced? | Use the domain noun: `TranscriptSnapshot`, `ActionBindingProjection`, `ProviderAuthCatalog`. |
+
+A **projector** is the stateful derivation component used when cross-entry correlation or one shared source traversal requires incremental state. Name its factory `createXProjector`; `projectX(...)` incorporates one source fact into private derivation state; a receiver-qualified `deriveX()` returns the immutable result. For example:
+
+```ts
+const transcriptProjector = createTranscriptProjector();
+const registrySnapshot = toTurnStateRegistrySnapshot(registry);
+const turnStateProjector = createTurnStateProjector(registrySnapshot);
+
+for (const entry of branch) {
+  transcriptProjector.projectEntry(entry);
+  turnStateProjector.projectEntry(entry);
+}
+
+return {
+  transcript: transcriptProjector.deriveSnapshot(),
+  turnStateAsOfLeaf: turnStateProjector.deriveAsOfLeaf(),
+};
+```
+
+Current projections apply the axes as follows:
+
+| Projection | Viewpoint | Selection / correlation | Partition / reduction | Result |
+| --- | --- | --- | --- | --- |
+| Selected branch | `asOfLeaf` | Displayable messages; registered turn-state cells; tool results joined by tool-call id | Ordered transcript; latest value per cell | `SelectedBranchProjection` with `transcript` and `turnStateAsOfLeaf.latestValuePerCell` |
+| Action bindings | `forPlatform` | Active actions joined to confirmed bindings by action id; inactive bindings split out as unresolved | Conflict claimants collected per resolved shortcut | `ActionBindingProjection` |
+| Provider authentication | `forEnvironment` | Offered model/OAuth providers joined with auth state and setup recipes | Methods composed per presentation provider and ranked for display | `ProviderAuthCatalog` |
+| Canvas anchors | `asOfDocumentVersion` or current working content | Addressable text joined to retained anchor identity | Anchor continuity reconciled per document and line | `AnchoredDocument` working projection |
+
 ## Central ownership, capability handles
 
-**Rule.** State lives in one central owner (a store or registry); consumers never get the owner itself. They get a **handle**: a small object of functions closed over exactly the slice they may touch, minted by the owner (`forX(id)`, an accessor returning a location, a factory pre-bound to an id). A handle's method signatures carry no addressing parameter — the closure already chose the target.
+**Rule.** State lives in one central owner (a store or registry); consumers never get the owner itself. They get a **handle**: a small object of functions closed over exactly the slice they may touch, minted by the owner (`forX(id)`, an accessor returning a location, an owner-scoped factory). A handle's method signatures carry no addressing parameter — the closure already chose the target.
 
 **Why.** Hiding by construction, not enforcement. Code that only holds `get(key)` cannot _accidentally_ couple to another owner's slice; a module's entire reach is legible from the handles its context receives; and because nothing crosses the boundary except what the handle carries, moving consumers to another process later is a mechanical transport swap, not a redesign. This is a trust-model convention, not a sandbox — in-process code can always escape a closure if it tries; containment for untrusted code is the iframe transport's job.
 
@@ -86,7 +199,7 @@ const settings = registry.forScope(featureId);
 const location = manifest.settingsNamespace("agent");
 
 // FeatureContext is a bag of these: settings handle, publisher factory
-// pre-bound to the feature id, id-scoped logger, per-feature DisposableBag
+// scoped to the feature id, id-scoped logger, per-feature DisposableBag
 ```
 
 Two corollaries:
@@ -96,7 +209,7 @@ Two corollaries:
 
 ## Comments
 
-**Rule.** A comment explains _why_ this code is here, not _what_ it does. If a comment is needed to follow what the code does, that is a naming problem — rename until the code reads on its own, then delete the comment.
+**Rule.** A comment explains _why_ code exists or records non-obvious contract constraints; it does not narrate syntax. Names carry the stable domain operation. Contract comments may carry preconditions, skipped outcomes, asynchronous ordering, and race policy when putting those volatile details in the symbol would couple callers to one lifecycle use. If a comment is needed merely to identify the operation or domain value, that is still a naming problem — rename until the code reads on its own.
 
 **No planning artifacts.** Plan phases (`C3`), stage numbers, ticket ids, `v0` — none belong in code. They are a parallel vocabulary that means nothing to a later reader and goes stale the moment the plan moves on. The same applies to links to dated decision/design/plan docs: the rationale they hold churns independently of the code, so a citation becomes a re-validation cost (open the doc, check it still applies) rather than a help. A pointer to a living style doc (this file) is the exception — it tracks a stable convention, not a point-in-time decision.
 
@@ -121,6 +234,14 @@ Apply these rules in order:
 9. **Respect presentation preferences.** Nonessential motion honors `prefers-reduced-motion`, and text, controls, focus indicators, and state cues maintain sufficient contrast.
 
 A visually hidden helper must clip content rather than use `display: none` or `visibility: hidden`, because those remove it from the accessibility tree. Keep the helper local until a second consumer justifies a shared renderer utility.
+
+## Component stylesheets
+
+**Rule.** A renderer component's private stylesheet lives beside it with the same basename: `SessionPill.tsx` owns `SessionPill.css`. Private subcomponents in that module share the owner's sheet. A stylesheet with no single component owner uses a narrow lowercase-kebab name such as `picker-positioning.css` or `provider-controls.css`; do not let shared sheets become miscellaneous overrides.
+
+CSS class names remain lowercase kebab/BEM regardless of file ownership. Component-owned selectors carry their component domain (`.session-picker__option`); shared selectors carry the feature or shared visual role (`.chat-button`). Filename casing communicates ownership, not a different CSS scoping mechanism.
+
+Surface CSS module scripts remain explicitly imported and ordered in the owning `surface.tsx` `styles` array rather than hidden behind CSS `@import` or component import side effects. That array is the cascade composition: shared foundations precede component sheets, and the substrate independently wraps every adopted sheet in the same surface `@scope`. Name-global `@font-face`, `@keyframes`, and `@property` declarations remain document-global after that wrapping and retain their feature-prefixed names.
 
 ## Module API surface
 

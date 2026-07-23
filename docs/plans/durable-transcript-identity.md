@@ -1,5 +1,5 @@
 ---
-summary: "Keyed-on-persist observation and row identity have landed (D0–D1); remaining work persists low-frequency block state as session-scoped uix.* custom entries (D2) and projects transcript/block state plus latest named turn-state-cell values through one branch pass shared with history and switching (D3)."
+summary: "Keyed-on-persist identity, one-pass branch projection, and feature-isolated restoration on startup, New Session, replacement-session activation, and serialized feature reload have landed; remaining work persists and joins low-frequency block state (D2)."
 status: active
 ---
 
@@ -29,7 +29,7 @@ This follows the transcript normalization work in [conversation-render-primitive
 
 Wrap `appendMessage` (instance patch, original bound) on the `SessionManager` in the driver after opening/creating the manager and before `createAgentSession` receives it. The wrapper calls the original, takes the returned durable id, reads the entry with `getEntry(id)`, and notifies a UIX-owned observer. A local adapter over pi's current API — not a content mutation, not a session-file write; replace it with pi's official post-persist event if one ships. Add `appendCustomMessageEntry` observation only when a concrete custom-message consumer needs live durable ids.
 
-Home the observer state in a dedicated identity module (`src/main/agent/identity.ts`), not forwarder closures — D1 and D2 both consume it.
+Home the observer state in a dedicated transcript-item identity module (`src/main/agent/transcript-item-identity.ts`), not forwarder closures — D1 and D2 both consume it.
 
 ## D1 — Keyed-on-persist ids · **landed 2026-06-09**
 
@@ -51,11 +51,11 @@ Block state lives in pi `CustomEntry` records — the hidden-state primitive: tr
 - Action flow: renderer sends a typed, TypeBox-validated signal over a `uix:block-action` invoke channel (`canvasWriteback` is the existing precedent; the payload shape should fold into the future typed-channel substrate unchanged). Main's handler classifies it (ephemeral react vs durable write), validates the id against the session, persists the entry under the canonical id, and emits the updated joined item via `transcript_replace`.
 - Pre-key actions: durable effects queue in main until the row keys (await the identity module's promise); ephemeral effects proceed immediately off the handle.
 
-## D3 — One branch projection and restore lifecycle
+## D3 — One branch projection and restore lifecycle · **in progress**
 
-Generalize history replay into one selected-branch projection: walk `getBranch()` once in root→leaf order, project persisted message entries into the transcript, join durable block state into those items, and retain the latest value for every currently registered named turn-state cell. `toTranscriptItems` is already the transcript portion hardcoded; block state joins items before they reach the renderer (live items get the same joined state via `transcript_replace` once keyed, no rekey required).
+History replay now uses one selected-branch projection that walks `getBranch()` once in root→leaf order and derives the transcript from persisted message entries plus turn state as of the leaf, retaining the latest raw value per currently registered cell. The restore scheduler validates the completed projection before callbacks, restores features concurrently and each feature's cells sequentially, resets missing cells through `undefined`, and isolates feature failures. Startup activation restores through the auth-free manager tier, replacement-session rebind waits for restoration before completing, New Session commits the departing graph and restores the fresh graph's cells from `undefined`, and serialized feature reload restores replacement instances before publishing their surfaces. Durable block-state joining remains gated on D2's first concrete consumer; it will join items before they reach the renderer (live items get the same joined state via `transcript_replace` once keyed, no rekey required).
 
-Internal folds for UIX-owned custom entries stay beside the binding that writes each `uix.*` key. Feature restoration does not receive raw messages or rerun live message taps: each active state cell receives only its latest complete value or `undefined` for defaults. The lifecycle runs on startup, reload, session switch, and future branch rewind; explicit `session_history` reads consume the transcript projection without activating/restoring that session. Named cell identity, change suppression, and save-then-restore ordering are specified in [session history and switching](./session-history-and-switching.md), while live-only message taps are tracked separately in the [plans backlog](./backlog.md).
+Projectors for UIX-owned custom entries stay beside the binding that writes each `uix.*` key. Feature restoration does not receive raw messages or rerun live message taps: each active state cell receives only its latest complete value or `undefined` for defaults. The lifecycle runs on startup, reload, session switch, and future branch rewind; explicit `session_history` reads consume the transcript projection without activating/restoring that session. Named cell identity, change suppression, and save-then-restore ordering are specified in [session history and switching](./session-history-and-switching.md), while live-only message taps are tracked separately in the [plans backlog](./backlog.md).
 
 ## Boundary
 

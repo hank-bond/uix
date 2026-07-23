@@ -265,19 +265,16 @@ function ModelPicker({
                     onClick={() => void select(model)}
                   >
                     <span className="model-picker__name" title={model.name}>
+                      <span
+                        className="model-picker__selection"
+                        data-selected={isCurrent ? "true" : undefined}
+                        aria-hidden="true"
+                      >
+                        {isCurrent ? "●" : "○"}
+                      </span>
                       <span className="model-picker__label">{model.name}</span>
                       {isCurrent && (
-                        <>
-                          <span
-                            className="model-picker__current"
-                            aria-hidden="true"
-                          >
-                            ✓
-                          </span>
-                          <span className="visually-hidden">
-                            , current model
-                          </span>
-                        </>
+                        <span className="visually-hidden">, current model</span>
                       )}
                     </span>
                     <span className="model-picker__source" title={source}>

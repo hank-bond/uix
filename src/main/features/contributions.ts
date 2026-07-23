@@ -142,7 +142,10 @@ export function registerFeatureContributions(
       );
     }
 
-    if (contributions.turnState?.length) {
+    if (
+      contributions.turnState &&
+      Object.keys(contributions.turnState).length > 0
+    ) {
       if (!registries.turnState) {
         throw new Error(
           `Feature ${featureId} contributes turn state but no turn-state registry was provided`,

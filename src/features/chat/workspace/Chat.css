@@ -1,0 +1,118 @@
+/* chat surface defaults.
+ *
+ * Selectors are written unscoped: the substrate wraps every surface sheet in
+ * `@scope ([data-uix-surface="chat"])` at adoption, so nothing here can style
+ * other surfaces or the cockpit chrome. Prefix every document-global
+ * @font-face, @keyframes, and @property name with "chat-"; @scope cannot
+ * contain those names and the substrate intentionally does not rewrite them.
+ */
+
+@font-face {
+  font-family: "chat-Iosevka";
+  src: url("./assets/fonts/Iosevka-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:scope {
+  --code-font: "chat-Iosevka";
+  --success: #8bd49c;
+  --focus-ring: var(--accent);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.surface-panel__body--chat {
+  padding: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+}
+
+.chat__scroll {
+  overflow: auto;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.composer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface-panel);
+}
+
+.composer__input {
+  background: var(--bg-input);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+  font-size: 0.9rem;
+  resize: none;
+  outline: none;
+}
+
+.composer__input:focus {
+  border-color: var(--accent);
+}
+
+.composer__send {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 0.9rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.composer__send:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.composer__send:disabled {
+  color: var(--fg-faint);
+  cursor: not-allowed;
+}
+
+.status-bar {
+  position: relative;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  min-height: 1.8rem;
+  padding: 0.25rem 0.75rem 0.45rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface-panel);
+  color: var(--fg-muted);
+  font-size: 0.75rem;
+}
+
+.status-bar__item {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+}
+
+.status-bar__item--error {
+  color: var(--error);
+}

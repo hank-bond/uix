@@ -1,5 +1,5 @@
 ---
-summary: "Canonical UIX concept vocabulary: feature, facet, installer, driver, hook, contribution point, contribution, capability handle, registry, catalog, store, buffer, coordinator, assembler, reload reconciliation, and agent-context-local terms, with boundaries from pi extension vocabulary."
+summary: "Canonical UIX concept vocabulary: features and contributions, registries and catalogs, snapshots, projections and projectors, stores and buffers, runtime coordination, reload reconciliation, and boundaries from pi vocabulary."
 status: active
 ---
 
@@ -21,22 +21,34 @@ A feature is not itself one registration. It may include several pieces:
 
 Use **feature** when naming the user-facing capability. Use **extension** when you mean the loadable package/activation boundary or a Pi extension factory.
 
+## Feature lifecycle
+
+A **feature definition** is the plain `FeatureDefinition` exported by one manifest entry module. It declares the feature id and the hooks that produce its contributions; it is not itself live runtime state.
+
+**Feature activation** is the transactional process that validates the definition and settings, constructs the feature context, runs `context()` and `contribute()`, registers every contributed facet into a provisional lifetime bag, and commits that bag only when the whole feature succeeds.
+
+An **activated feature instance** is the live result of one successful feature activation: its context objects, callbacks, registrations, and per-feature lifetime bag. Reloading the same entry creates a replacement activated feature instance even when its id and source are unchanged. A failed activation produces no activated feature instance; all provisional registrations are disposed.
+
+The **active feature composition** is the set of activated feature instances currently owned by the workspace's feature bag. Reload commits turn state from those current instances, disposes them, activates replacement instances, and restores the selected session branch into the replacements.
+
+Do not call an activated feature instance a feature generation. **Generation** remains appropriate for an independently replaceable object graph that is actually modeled as such, including a staged manifest generation or Pi runtime generation; feature lifecycle language uses activation, activated feature instance, active feature composition, and replacement instance.
+
 ## Identifier grammar
 
 UIX uses two id grammars for different things.
 
 **Contribution ids** are derived by the facets, never hand-authored. A feature author gives a local `name`; the facet derives two ids:
 
-- **`ContributionId`** — the registry dedup key. One uniform brand across all facets, constructed by `toContributionId(featureId, facet, name)` → `${featureId}.<facet>.<name>`. Examples: `canvas.channel.writeback`, `canvas.agent.anchor_read`, `canvas.agent-context.pane-visibility`.
+- **`ContributionId`** — the registry dedup key. One uniform brand across all facets, constructed by `toContributionId(featureId, facet, name)` → `${featureId}.<facet>.<name>`. Examples: `canvas.channel.writeback`, `canvas.agent.anchor_read`, `canvas.agent-context.canvas-diff`, `canvas.turn-state.documents`.
 - **`…CanonicalId`** — the downstream-system address (transport channel, pi tool name, resource type key, persisted-section key, storage blob key). One brand per facet, because each downstream system has its own naming convention. The facet segment is **dropped** from the canonical id, because within the downstream system the channel/tool/resource kind is implicit. Examples: `ChannelCanonicalId` `canvas.writeback`, `AgentToolCanonicalId` `canvas__anchor_read` (pi's double-underscore), `ResourceCanonicalId` `canvas-doc` (resource type; resource URL scheme is substrate-owned).
 
 Both are nominal brands constructed only by their validated helper; internal code (registry Sets, resolved `…Registration` shapes) carries the brand, and genuine external string boundaries (Electron IPC channel, pi `tool.name`, URL/path strings) cast inline (`id as string`, the `CanvasKey` precedent). The public `@uix/api` modules expose author shapes only — `…Contribution` types with a `name` field, no id fields, no brands. The cross-facet `ContributionId` grammar lives in `#shared` (`src/shared/contribution-id.ts`); per-facet canonical-id helpers and resolved `…Registration` shapes live with their consumer — in `#shared` for facets with a renderer consumer (channels in `src/shared/channel-normalization.ts`, resources in `src/shared/resource-canonical-id.ts`), in `src/main/` for main-only facets (agent tools, agent context, turn state).
 
-Envelope and customType ids stay substrate-owned and are not feature-scoped: `uix.state` (the display-hidden agent-context envelope), `uix.turn-state` (the persisted turn-state entry). Only the inner contribution tags go feature-scoped (e.g. `<canvas.pane-visibility>` inside `<uix-state>`).
+Envelope and customType ids stay substrate-owned and are not feature-scoped: `uix.state` (the display-hidden agent-context envelope), `uix.turn-state` (the persisted turn-state entry). Inner contributions use feature-scoped canonical ids: `<canvas.canvas-diff>` inside `<uix-state>`, or `canvas.documents` as a named cell inside a `uix.turn-state` entry.
 
 Event payload shapes are defined by the emitting substrate facet. If a pane-originated write causes a document event, `sourceId: "canvas.pane.writeback"` is provenance, but the payload is still the document facet's `DocumentWriteEvent` shape. A contribution in one facet may call another facet; `eventType`/channel tells you what happened, and `sourceId` tells you which contribution caused it.
 
-**Resource ids** name addressable things. URI schemes identify substrate resource managers: `doc://canvas/main` is a document-engine resource in the canvas namespace; `workspace://src/main.ts` is a workspace file interpreted relative to the turn's recorded cwd. Feature/facet organization does not appear inside resource paths — the same resource may be read by a pane, edited by an agent tool, snapshotted by state, and restored by the coordinator.
+**Resource ids** name addressable things. URI schemes identify substrate resource managers: `doc://canvas/main` is a document-engine resource in the canvas namespace; `workspace://src/main.ts` is a workspace file interpreted relative to the turn's recorded cwd. Feature/facet organization does not appear inside resource paths — the same resource may be read by a pane, edited by an agent tool, captured in a state snapshot, and restored by the coordinator.
 
 Use `uix.*` only for substrate-owned dotted ids (envelopes/customTypes). Bundled default features are still features, so their contribution ids use feature namespaces such as `canvas.*` and `chat.*`.
 
@@ -115,9 +127,27 @@ A registry is not a `DisposableBag`. The registry owns the live contribution ind
 
 A **catalog** is a consumer-facing, read-only discovery boundary that composes currently offered capabilities from multiple owners or authoritative sources. Catalog entries have stable identities, are serializable, contain no executable references, and may include derived presentation or eligibility state. Operations by catalog-entry id resolve against current live authority; the catalog itself owns neither the capabilities nor their durable state.
 
-A catalog is not a synonym for any array, registry snapshot, or collection of entities. It is intentional cross-owner composition for discovery and selection. The action catalog, for example, projects successfully registered actions into `ActionCatalogEntry` values for palettes and menus while callbacks remain private in `ActionRegistry`; registration updates and disposal change membership, and invocation still resolves the selected id through the registry.
+A catalog is not a synonym for any array, registry snapshot, or collection of entities. It is intentional cross-owner composition for discovery and selection. The action catalog, for example, derives an `ActionCatalogEntry` projection from successfully registered actions for palettes and menus while callbacks remain private in `ActionRegistry`; registration updates and disposal change membership, and invocation still resolves the selected id through the registry.
 
 The model catalog composes currently available models across Pi providers and decorates its entries with workspace-local favorite state; selection resolves a provider-qualified entry against Pi's live model registry. The provider-auth catalog composes model providers, OAuth providers, connection state, and UIX setup recipes; credential operations accept only methods offered by its current entries. A future settings catalog may likewise compose editable setting entries without exposing owner-scoped settings handles.
+
+## Snapshot
+
+A **snapshot** is an immutable point-in-time value or independently identified artifact. It captures one authority's state without assigning that value a position in a broader history. Snapshots may be transient, store-owned and durable, or current read models published to consumers; the owning domain determines retention. Examples include a `DocumentVersion`, `AnchoredDocumentSnapshot`, `TranscriptSnapshot`, and an action registry's current catalog snapshot.
+
+## Projection
+
+A **projection** is a purpose-specific, read-only, lower-information view derived from authoritative state. It may select, join, partition, reduce, classify, or add derived fields, but it remains rebuildable and is not a write surface back to the authority. A projection may be cached or physically persisted with cache semantics.
+
+A projection's **viewpoint** is the contextual coordinate from which its sources are interpreted. A viewpoint may identify a position in ordered history (`asOfLeaf`), an observer environment (`forPlatform`), or another result-determining context. Selection, correlation, partition, and reduction describe how source facts become the result; these policies are independent of the viewpoint.
+
+Examples include the transcript derived from selected-branch session entries, turn state as of that branch's leaf with the latest value per registered cell, and action catalog entries derived for one renderer platform from private registrations plus confirmed bindings.
+
+## Projector
+
+A **projector** is a stateful derivation component that incorporates source facts while producing a projection. Its mutable state belongs only to the derivation; it is neither authority nor a write surface back to the source. A projector uses `projectX(...)` to incorporate one source fact and a `deriveX(...)` method to return an immutable result. Multiple projectors may share one source traversal, as the transcript and turn-state projectors do while deriving a selected-branch projection.
+
+Use a projector when cross-fact correlation or a shared traversal requires stateful incremental derivation. A one-shot value transformation remains a `deriveXProjection(...)` function rather than gaining a projector object.
 
 ## Store
 
@@ -130,6 +160,18 @@ A store may expose a change feed when the change semantics are generic at that l
 A **buffer** is a live, feature-specific working projection over a store. It may cache regenerable session state, normalize or validate writes, reconcile editor state, and translate between feature semantics and the store's generic durable shape.
 
 A buffer is not durable authority. It writes authoritative state through its backing store and can rebuild from store contents when needed. For example, `CanvasDocumentBuffer` keeps anchored document projections, canonicalizes HTML, and reconciles anchors while `DocumentStore` remains the durable current/version store underneath.
+
+## Controller
+
+A **controller** is a renderer-owned, framework-independent state owner for one interactive domain. It translates user intent into backend requests, consumes authoritative responses and events, coordinates in-flight operations and stale-response rejection, and publishes an immutable renderer snapshot plus narrowly derived capabilities. A React provider may adapt that snapshot and those capabilities into context, but rendering and context lifetime are not controller responsibilities.
+
+A controller owns the current renderer projection, not the durable domain state. It does not persist data, own an external runtime, or run a lifecycle across registered contributions. Ordinary component-local state remains in React; use a controller when multiple renderer consumers or entry points must share one ordered interaction protocol. `WorkspaceSessionController` is the current example: it coordinates active and recent session projections, agent activity, session mutations, and their request/state versions while main/Pi remain authoritative for durable session graphs.
+
+## Session selection and activity
+
+The **selected session graph** is the durable graph chosen by the workspace. Main persists its identity in `session.selected`; omitted-id history reads, commits, reload, and runtime creation resolve against it. A **non-selected session** is another durable graph read explicitly without changing that choice.
+
+The **active AgentSession** is Pi's ephemeral runtime attached to the selected graph. The renderer's **active session projection** is its accepted summary and transcript for that same graph. Use _selected_ for durable backend choice, _active_ for the live runtime or renderer projection, and _non-selected_—not _non-active_—for an explicit read target.
 
 ## Facet
 
@@ -180,7 +222,7 @@ A **driver** owns a runtime or lifecycle boundary. It creates the relevant lifet
 Examples:
 
 - the agent driver owns the Pi session boundary: session creation/resume, prompt/reload/history, live event forwarding, and the Pi extension factory that runs agent installers;
-- the extension driver owns extension activation: discovery, per-entry bags, injected API construction, activation/reload/error isolation, and teardown of registered contributions.
+- the feature loader owns feature activation: manifest composition, per-entry bags, injected API construction, activated feature instance creation, reload/error isolation, and teardown of registered contributions.
 
 Drivers own bags. Installers register things. Registries track live contributions. Bags decide when the registration disposables run.
 
@@ -200,14 +242,14 @@ Installers register hooks. Hooks run later when the lifecycle event occurs.
 
 A **coordinator** is substrate-owned glue that runs a lifecycle across many registered contributions and performs the side effects for that lifecycle.
 
-The current example is the turn state coordinator:
+The current example is the turn-state coordinator:
 
-- installs Pi `input` and `agent_end` hooks;
-- asks live state contributions to prepare private turn state;
-- persists contribution-keyed opaque state;
-- appends one `uix.turn-state` session entry when there is state to persist.
+- asks live named state cells for complete snapshots before user submit and at `agent_end`;
+- validates each plain-JSON snapshot against its TypeBox schema;
+- compares each cell independently with the selected branch;
+- commits changed snapshots in one `uix.turn-state` session entry.
 
-A coordinator owns timing and cross-contribution mechanics. The contributing feature owns the data it prepares.
+A coordinator owns timing and cross-contribution mechanics. The contributing feature owns each cell's snapshot creation and restore behavior.
 
 ## Assembler
 
@@ -232,7 +274,7 @@ UIX has three layers that can fall out of sync at different times:
 2. **UIX memory** — currently registered contributions in facet registries.
 3. **Pi runtime** — tools, hooks, commands, and other agent behavior registered during the last Pi extension load.
 
-The extension driver reconciles disk to UIX memory by reloading extension packages: clear old extension bags, activate entries again, and let their installers register the current contributions. Registries are the source of truth after activation.
+The feature loader reconciles disk to UIX memory by disposing the active feature composition, activating each accepted manifest entry, and letting each replacement activated feature instance register its contributions. Registries are the source of truth after activation.
 
 Facet registries that compile to Pi install-time behavior mark the agent install surface dirty when their contributions are registered or unregistered. The dirty marker is not about disk; it means the Pi runtime snapshot no longer matches UIX's in-memory contribution graph. The agent driver must reconcile that by reloading Pi before the next agent turn starts. It may reload earlier when the agent is idle to avoid submit latency, but the invariant is before-turn reconciliation.
 

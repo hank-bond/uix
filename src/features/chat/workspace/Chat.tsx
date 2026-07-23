@@ -4,16 +4,27 @@
 // durable items; live events append the same items, stream compact partials
 // into them, and replace them whole at completion.
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 
 import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
-import { useFeatureSetting, type ChannelClient } from "@uix/api/workspace";
+import {
+  useFeatureSetting,
+  useWorkspaceSession,
+  type ChannelClient,
+} from "@uix/api/workspace";
 import type { agentChannels } from "@uix/api/agent-channels";
 import { useAgentControls, type AgentControls } from "./agent-controls";
 import { ChatBlock } from "./blocks/ChatBlock";
 import { ModelPill } from "./ModelPill";
 import { isPendingUserId, pendingUserId } from "./pending";
 import { ProviderLoginModal } from "./ProviderLoginModal";
+import { SessionPill } from "./SessionPill";
 import { chatSettings } from "../shared/settings";
 
 type AgentChannelClient = ChannelClient<typeof agentChannels>;
@@ -28,6 +39,8 @@ export function Chat({ client }: ChatProps) {
   const [pending, setPending] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const activeHistoryRequestVersion = useRef(0);
+  const { sessionSelectionVersion, loadActiveHistory } = useWorkspaceSession();
   const statusBar = useFeatureSetting(chatSettings, "statusBar");
   const controls = useAgentControls(client);
 
@@ -40,25 +53,32 @@ export function Chat({ client }: ChatProps) {
     });
   }, [client]);
 
-  // Pull the prior transcript once and prepend it. Prepend (not replace) so any
-  // live event that arrived during the await stays after the resumed history.
-  // In React StrictMode the first effect setup is immediately cleaned up and
-  // re-run; let the second setup issue its own request so hydration can finish.
-  useEffect(() => {
-    let cancelled = false;
+  // A successful session mutation changes sessionSelectionVersion. Clear the
+  // old projection immediately, invalidate its in-flight history read, and hydrate
+  // the newly selected session. Initial summary hydration leaves the version
+  // unchanged. Prepend so live events received during the request remain after
+  // the durable history.
+  useLayoutEffect(() => {
+    const requestVersion = ++activeHistoryRequestVersion.current;
+    setItems([]);
+    setHydrated(false);
     void (async () => {
       try {
-        const snapshot = await client.requests.history(undefined);
-        if (cancelled) return;
+        const snapshot = await loadActiveHistory();
+        if (requestVersion !== activeHistoryRequestVersion.current) return;
         setItems((prev) => [...snapshot.items.filter(isVisible), ...prev]);
       } finally {
-        if (!cancelled) setHydrated(true);
+        if (requestVersion === activeHistoryRequestVersion.current) {
+          setHydrated(true);
+        }
       }
     })();
     return () => {
-      cancelled = true;
+      if (activeHistoryRequestVersion.current === requestVersion) {
+        activeHistoryRequestVersion.current += 1;
+      }
     };
-  }, [client]);
+  }, [sessionSelectionVersion, loadActiveHistory]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -161,11 +181,13 @@ function StatusBar({
   const visible = order.filter((id) => !hidden.includes(id));
   return (
     <div className="status-bar" aria-label="Chat status bar">
+      <SessionPill />
       {error ? (
         <span className="status-bar__item status-bar__item--error">
           settings error: {error.message}
         </span>
-      ) : loading ? null : (
+      ) : (
+        !loading &&
         visible.includes("model") && <ModelPill controls={controls} />
       )}
     </div>

@@ -52,7 +52,7 @@ export function createLocalDocumentStore(
       await mkdir(dirname(path), { recursive: true });
       await writeFile(path, content, "utf8");
     },
-    async snapshotCurrent<TMeta>(documentId: string, meta: TMeta) {
+    async createSnapshot<TMeta>(documentId: string, meta: TMeta) {
       opts.validateDocumentId?.(documentId);
       const content =
         (await readOptionalFile(

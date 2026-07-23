@@ -17,7 +17,6 @@ import { basename, join } from "node:path";
 import process from "node:process";
 
 import { type AgentEvent, agentChannels } from "@uix/api/agent-channels";
-import type { KeybindingMap } from "@uix/api/actions";
 import {
   Channels,
   type PickerActionResult,
@@ -69,17 +68,13 @@ import {
   onWindow,
 } from "./lifecycle";
 import { createLogger } from "./log";
-import {
-  agentWorkspaceSettings,
-  AgentSettingsNamespace,
-} from "./agent/settings";
+import { agentWorkspaceSettings } from "./agent/settings";
+import { sessionWorkspaceSettings } from "./agent/session-settings";
 import { createKeybindingRequestHandlers } from "./keybindings/requests";
-import {
-  keybindingsWorkspaceSettings,
-  KeybindingsSettingsNamespace,
-} from "./keybindings/settings";
+import { keybindingsWorkspaceSettings } from "./keybindings/settings";
 import { SettingsRegistry } from "./settings-registry";
 import { WorkspaceManifestStore } from "./workspace-manifest-store";
+import { createWorkspaceReloadCoordinator } from "./workspace-reload";
 import { createWorkspaceSettings } from "./workspace-settings";
 
 const isDev = !app.isPackaged;
@@ -165,14 +160,15 @@ async function openWorkspace(
   const workspaceSettings = createWorkspaceSettings(
     workspaceManifest,
     settingsRegistry,
-    {
-      [AgentSettingsNamespace]: agentWorkspaceSettings,
-      [KeybindingsSettingsNamespace]: keybindingsWorkspaceSettings,
-    },
+    [
+      agentWorkspaceSettings,
+      sessionWorkspaceSettings,
+      keybindingsWorkspaceSettings,
+    ],
   );
 
   // The feature composition lives under its own child scope so reload can
-  // tear down the feature subtree without touching app-lifetime process
+  // tear down the active feature composition without touching app-lifetime process
   // handlers, the window, the agent driver, or IPC registrations.
   const featuresBag = appBag.add(new DisposableBag());
 
@@ -232,9 +228,10 @@ async function openWorkspace(
     agentSkills,
     agentContext,
     agentInstallers: [createAgentToolInstaller(agentTools)],
-    // Lazy handle: the `agent` scope registers during the settings reload
-    // inside loadFeatures(), before any driver method can read it.
-    agentSettings: workspaceSettings.forScope(AgentSettingsNamespace),
+    // Lazy handles: workspace scopes register during the settings reload
+    // inside loadFeatures(), before any driver method can read them.
+    agentSettings: workspaceSettings.forNamespace(agentWorkspaceSettings),
+    sessionSettings: workspaceSettings.forNamespace(sessionWorkspaceSettings),
     onStatusChange: (status) => {
       agentPublisher.status_changed(status);
     },
@@ -266,16 +263,12 @@ async function openWorkspace(
     "uix",
     channels,
   ).createPublisher(uixChannels);
+  const keybindingSettings = workspaceSettings.forNamespace(
+    keybindingsWorkspaceSettings,
+  );
   const keybindingRequestHandlers = createKeybindingRequestHandlers({
-    getBindingsSnapshot: () =>
-      settingsRegistry.getScopeSnapshot(
-        KeybindingsSettingsNamespace,
-      ) as KeybindingMap,
-    replaceBindings: (candidate) =>
-      settingsRegistry.replaceScope(
-        KeybindingsSettingsNamespace,
-        candidate,
-      ) as KeybindingMap,
+    getBindingsSnapshot: () => keybindingSettings.getSnapshot(),
+    replaceBindings: (candidate) => keybindingSettings.replace(candidate),
     publishBindingsChanged: (bindings) => {
       uixPublisher.keybindings_changed(bindings);
     },
@@ -330,17 +323,34 @@ async function openWorkspace(
             void driver.prompt(req.text);
           },
         },
-        history: {
-          handle: () => driver.history(),
+        session_history: {
+          handle: ({ sessionId }) => driver.sessionHistory(sessionId),
           log: {
-            // A snapshot is the entire persisted transcript, already on
-            // disk — the wire log records a pointer instead of duplicating
-            // it.
-            describeResponse: (snap) => ({
-              items: snap.items.length,
-              ref: driver.sessionFile(),
+            // A snapshot is the entire persisted transcript, already on disk;
+            // record only its durable identity and size at the crossing.
+            describeResponse: ({ session, transcript }) => ({
+              sessionId: session.sessionId,
+              items: transcript.items.length,
             }),
           },
+        },
+        list_session_summaries: {
+          handle: ({ limit }) => driver.listSessionSummaries(limit),
+          log: {
+            describeResponse: (sessions) => ({
+              sessionIds: sessions.map((session) => session.sessionId),
+            }),
+          },
+        },
+        new_session: {
+          handle: () => driver.newSession(),
+        },
+        switch_session: {
+          handle: ({ sessionId }) => driver.switchSession(sessionId),
+        },
+        set_session_title: {
+          handle: ({ sessionId, title }) =>
+            driver.setSessionTitle(sessionId, title),
         },
         list_models: {
           handle: async () => ({ models: await driver.listModels() }),
@@ -418,16 +428,23 @@ async function openWorkspace(
   // A bad manifest must not brick the app: log it loudly and boot with no
   // features — the pilot can then fix the manifest and /reload. Reload
   // keeps strict semantics (a bad manifest rejects, tree intact).
-  let activation: ActivationResult;
+  let initialActivation: ActivationResult;
   try {
-    activation = await loadFeatures(currentSources(), featuresBag, substrate);
+    initialActivation = await loadFeatures(
+      currentSources(),
+      featuresBag,
+      substrate,
+    );
   } catch (thrown) {
     const error = thrown instanceof Error ? thrown : new Error(String(thrown));
     createLogger("features").error({ err: error.message }, "manifest_failed");
-    activation = { loaded: [], failed: [] };
+    initialActivation = { activated: [], failed: [] };
   }
   createLogger("features").debug(
-    { loaded: activation.loaded.length, failed: activation.failed.length },
+    {
+      activated: initialActivation.activated.length,
+      failed: initialActivation.failed.length,
+    },
     "activation_complete",
   );
   uixPublisher.surfaces_changed({});
@@ -437,13 +454,25 @@ async function openWorkspace(
   if (fs.existsSync(manifestPath)) {
     recents.record({
       manifestPath,
-      name: activation.workspaceName ?? basename(workspace.stateRoot),
+      name: initialActivation.workspaceName ?? basename(workspace.stateRoot),
     });
   }
 
-  // Eager, off the boot path: loads the session file so getHistory() resolves
-  // fast. The auth-bearing live agent stays lazy until the first prompt.
+  // Restoration must start after initial feature activation: the accepted
+  // turn-state cell registry determines which selected-branch state is
+  // retained and restored. The auth-bearing live agent stays lazy until the
+  // first prompt.
   driver.init();
+
+  const reloadCoordinator = createWorkspaceReloadCoordinator({
+    commitTurnState: () => driver.commitFeatureTurnState(),
+    loadFeatures: () => loadFeatures(currentSources(), featuresBag, substrate),
+    reloadPiResources: () => driver.reloadPiResources(),
+    restoreTurnState: () => driver.restoreFeatureTurnState(),
+    publishSurfacesChanged: () => {
+      uixPublisher.surfaces_changed({});
+    },
+  });
 
   appBag.add(
     ipc.handle<void, ReloadResult>(Channels.reload, async () => {
@@ -451,32 +480,34 @@ async function openWorkspace(
       reloadLog.debug({}, "reload_started");
 
       try {
-        const featureResult = await loadFeatures(
-          currentSources(),
-          featuresBag,
-          substrate,
-        );
-        uixPublisher.surfaces_changed({});
-        const piReloaded = await driver.reload();
-        const failures = featureResult.failed.map((f) => ({
+        const { featureActivation, piResourcesReloaded, turnStateCommitted } =
+          await reloadCoordinator.reload();
+        if (!turnStateCommitted) {
+          reloadLog.warn(
+            {},
+            "reload_turn_state_commit_skipped_restoration_pending",
+          );
+        }
+        const failures = featureActivation.failed.map((f) => ({
           feature: f.displayName,
           entry: f.entry,
           error: f.error.message,
         }));
         reloadLog.debug(
           {
-            featuresLoaded: featureResult.loaded.length,
-            featuresFailed: featureResult.failed.length,
+            featuresActivated: featureActivation.activated.length,
+            featuresFailed: featureActivation.failed.length,
             failures,
-            piReloaded,
+            piResourcesReloaded,
+            turnStateCommitted,
           },
           "reload_completed",
         );
         return {
-          featuresLoaded: featureResult.loaded.length,
-          featuresFailed: featureResult.failed.length,
+          featuresActivated: featureActivation.activated.length,
+          featuresFailed: featureActivation.failed.length,
           failures,
-          piReloaded,
+          piResourcesReloaded,
         };
       } catch (thrown) {
         const error =

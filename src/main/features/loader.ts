@@ -49,7 +49,7 @@ import { dirname } from "node:path";
 
 import type { FeatureContext, FeatureDefinition } from "@uix/api/feature";
 import type { DocumentStoreFactory } from "@uix/api/documents";
-import { defineSettings } from "@uix/api/settings";
+import { defineSettings, type SettingsHandle } from "@uix/api/settings";
 import { createJiti } from "jiti";
 import { Type } from "typebox";
 
@@ -109,7 +109,7 @@ const ReservedFeatureIds: ReadonlySet<string> = new Set(["agent", "uix"]);
 
 type FeatureActivationSettings = Pick<
   WorkspaceSettings,
-  "reload" | "loadFeatureScope" | "forScope"
+  "reload" | "loadFeatureSettings"
 >;
 
 /** What the loader needs from the substrate to activate a feature. */
@@ -144,18 +144,19 @@ export interface FeatureSources {
 export function buildFeatureContext(
   featureId: string,
   substrate: FeatureSubstrate,
+  settings: SettingsHandle,
   bag: DisposableBag,
 ): FeatureContext {
   return {
     documents: substrate.documents,
-    settings: bindSettingsHandle(substrate.settings.forScope(featureId), bag),
+    settings: bindSettingsHandle(settings, bag),
     channels: createFeatureEventPublisherFactory(featureId, substrate.channels),
     log: createLogger(featureId),
   };
 }
 
-/** A single activated feature that loaded and registered successfully. */
-export interface LoadedFeature {
+/** One activated feature instance produced by a successful activation. */
+export interface ActivatedFeatureInstance {
   /** The definition's feature id — keys every facet contribution. */
   id: string;
   /** The manifest ref as written. */
@@ -168,8 +169,8 @@ export interface LoadedFeature {
 
 /**
  * A single entry whose activation threw. Separate type from
- * `LoadedFeature` because the use cases diverge — loaded features
- * contribute behavior; failed ones are inert, surfaced in logs and
+ * `ActivatedFeatureInstance` because the use cases diverge — activated
+ * instances contribute behavior; failed entries are inert, surfaced in logs and
  * (eventually) a status panel. Keeping them in different arrays
  * means callers don't have to narrow a discriminator and can't
  * accidentally treat a failed feature as if it had a bag. No `id`
@@ -186,7 +187,7 @@ export interface FailedFeature {
 
 /** Result of a feature activation pass. */
 export interface ActivationResult {
-  loaded: LoadedFeature[];
+  activated: ActivatedFeatureInstance[];
   failed: FailedFeature[];
   /** Accepted workspace name, when this pass loaded a manifest. */
   workspaceName?: string;
@@ -241,9 +242,9 @@ const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
 };
 
 /**
- * Activate the manifest's feature entries in manifest order. Each entry
- * becomes its own LoadedFeature with its own bag and error isolation (a
- * throwing feature lands in `failed[]` instead of aborting the pass).
+ * Activate the manifest's feature entries in manifest order. Each successful
+ * entry produces its own ActivatedFeatureInstance with its own bag; a throwing
+ * entry lands in `failed[]` instead of aborting the pass.
  *
  * @param entries resolved manifest refs, in manifest order.
  * @param parentBag every per-feature bag is added here, so one
@@ -256,7 +257,7 @@ export const activateFeatures = async (
   parentBag: DisposableBag,
   substrate: FeatureSubstrate,
 ): Promise<ActivationResult> => {
-  const loaded: LoadedFeature[] = [];
+  const activated: ActivatedFeatureInstance[] = [];
   const failed: FailedFeature[] = [];
   const takenIds = new Set<string>();
   const jiti = createFeatureJiti(substrate.apiModuleDir);
@@ -288,14 +289,19 @@ export const activateFeatures = async (
         throw new Error(`Feature id already registered: ${definition.id}`);
       }
 
-      const settingsRegistration = bag.add(
-        substrate.settings.loadFeatureScope(
+      const featureSettings = bag.add(
+        substrate.settings.loadFeatureSettings(
           definition.id,
           manifestIndex,
           definition.settings ?? EmptyFeatureSettings,
         ),
       );
-      const baseContext = buildFeatureContext(definition.id, substrate, bag);
+      const baseContext = buildFeatureContext(
+        definition.id,
+        substrate,
+        featureSettings.handle,
+        bag,
+      );
       const contributedContext = definition.context?.(baseContext) ?? {};
       bag.add(
         registerFeatureContributions(
@@ -305,11 +311,11 @@ export const activateFeatures = async (
           { entryDir },
         ),
       );
-      settingsRegistration.commit();
+      featureSettings.commit();
 
       takenIds.add(definition.id);
       parentBag.add(bag);
-      loaded.push({ id: definition.id, displayName, entry, bag });
+      activated.push({ id: definition.id, displayName, entry, bag });
       flog.debug({ id: definition.id }, "activation_succeeded");
     } catch (thrown) {
       const error = normalize(thrown);
@@ -335,31 +341,36 @@ export const activateFeatures = async (
     );
   }
 
-  return { loaded, failed };
+  return { activated, failed };
 };
 
 /**
  * Load the whole feature composition — the workspace manifest's entries —
  * into the owned feature bag, replacing whatever that bag currently
  * contains. Safe for initial startup (empty clear) and for manual reload
- * (old contributions are disposed before activation; every feature
- * re-registers with fresh context/bags).
+ * (the active feature composition is disposed before replacement feature
+ * instances activate with fresh contexts, callbacks, registrations, and bags).
  *
  * The manifest is read and validated before clearing, so a manifest
  * failure (unreadable, bad JSON, schema mismatch) rejects the pass and
- * leaves the current feature tree intact. Concurrent callers share the
- * same in-flight pass so clear/activate never overlaps itself.
+ * leaves the active feature composition intact. Concurrent callers for one owned
+ * feature bag share the same in-flight pass so its clear/activate never
+ * overlaps; independent workspace bags load independently.
  */
-let inFlightFeatureLoad: Promise<ActivationResult> | undefined;
+const inFlightFeatureLoadByBag = new WeakMap<
+  DisposableBag,
+  Promise<ActivationResult>
+>();
 
 export const loadFeatures = (
   sources: FeatureSources,
   featuresBag: DisposableBag,
   substrate: FeatureSubstrate,
 ): Promise<ActivationResult> => {
-  if (inFlightFeatureLoad) return inFlightFeatureLoad;
+  const existing = inFlightFeatureLoadByBag.get(featuresBag);
+  if (existing) return existing;
 
-  inFlightFeatureLoad = (async () => {
+  const load: Promise<ActivationResult> = (async () => {
     let entries: readonly ManifestFeatureRef[] = [];
     let workspaceName: string | undefined;
     if (sources.manifestPath) {
@@ -376,14 +387,17 @@ export const loadFeatures = (
       workspaceName = manifest.name;
     }
     featuresBag.clear();
-    const activated = await activateFeatures(entries, featuresBag, substrate);
+    const activation = await activateFeatures(entries, featuresBag, substrate);
     return {
-      ...activated,
+      ...activation,
       ...(workspaceName !== undefined && { workspaceName }),
     };
   })().finally(() => {
-    inFlightFeatureLoad = undefined;
+    if (inFlightFeatureLoadByBag.get(featuresBag) === load) {
+      inFlightFeatureLoadByBag.delete(featuresBag);
+    }
   });
 
-  return inFlightFeatureLoad;
+  inFlightFeatureLoadByBag.set(featuresBag, load);
+  return load;
 };

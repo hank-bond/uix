@@ -19,11 +19,11 @@ export interface DocumentStore {
   /** Replace the current mutable latest content. */
   setCurrent(documentId: string, content: string): Promise<void>;
   /** Persist the current content plus caller-owned metadata as an immutable version. */
-  snapshotCurrent<TMeta>(
+  createSnapshot<TMeta>(
     documentId: string,
     meta: TMeta,
   ): Promise<DocumentVersion<TMeta>>;
-  /** Load a previously snapshotted immutable version, or null when absent. */
+  /** Load a previously created immutable version, or null when absent. */
   getVersion<TMeta>(
     documentId: string,
     versionId: string,

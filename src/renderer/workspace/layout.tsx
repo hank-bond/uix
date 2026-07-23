@@ -1,7 +1,7 @@
 // workspace surface composition.
 //
 // The surface list is registry-driven: the substrate's `uix.surfaces`
-// channel lists what the loaded features contributed, and the page
+// channel lists what the active feature instances contributed, and the page
 // re-fetches on `surfaces_changed` (fired after every load pass, so
 // /reload updates the composition live). Every surface — chat and canvas
 // included — is dynamic-imported from its content-hash-busted
@@ -46,15 +46,21 @@ export function useSurfaces(): SurfaceComposition | undefined {
 
   useEffect(() => {
     let alive = true;
+    let requestVersion = 0;
     const refresh = () => {
-      void client.requests.surfaces(undefined).then((res) => {
-        if (alive) setComposition(res);
-      });
+      const version = ++requestVersion;
+      void client.requests
+        .surfaces(undefined)
+        .then((res) => {
+          if (alive && version === requestVersion) setComposition(res);
+        })
+        .catch(() => undefined);
     };
     refresh();
     const unsubscribe = client.events.surfaces_changed(refresh);
     return () => {
       alive = false;
+      requestVersion += 1;
       unsubscribe();
     };
   }, [client]);

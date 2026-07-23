@@ -38,12 +38,12 @@ describe("createLocalDocumentStore", () => {
     ).resolves.toBe("<p>hello</p>");
   });
 
-  it("snapshots current bytes and opaque metadata as immutable versions", async () => {
+  it("creates immutable versions from current bytes and opaque metadata", async () => {
     const root = await tempRoot();
     const store = createLocalDocumentStore(root, { namespace: "canvas" });
 
     await store.setCurrent("main", "first");
-    const first = await store.snapshotCurrent("main", { anchors: ["a"] });
+    const first = await store.createSnapshot("main", { anchors: ["a"] });
     await store.setCurrent("main", "second");
     const loaded = await store.getVersion("main", first.id);
 

@@ -69,12 +69,12 @@ export interface ReloadFailure {
 }
 
 export interface ReloadResult {
-  featuresLoaded: number;
+  featuresActivated: number;
   featuresFailed: number;
   /** Per-feature failure detail, so the caller can act rather than count. */
   failures: ReloadFailure[];
   /** True when a pi session already existed and pi's reload path ran. */
-  piReloaded: boolean;
+  piResourcesReloaded: boolean;
 }
 
 /**

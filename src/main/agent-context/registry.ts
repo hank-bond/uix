@@ -65,7 +65,7 @@ export type AgentContextCanonicalId = string & {
 
 /**
  * Builds the canonical id for a agent-context contribution:
- * `${featureId}.${name}` (e.g. `canvas.pane-visibility`).
+ * `${featureId}.${name}` (e.g. `canvas.canvas-diff`).
  * Validates each segment; a failure is an app bug.
  */
 function toAgentContextCanonicalId(
