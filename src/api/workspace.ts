@@ -67,6 +67,11 @@ export interface WorkspaceSessionHandle {
   readonly switchSession: (
     sessionId: string,
   ) => Promise<SessionSummaryProjection | undefined>;
+  /** Returns undefined when current activity requires the renderer to skip. */
+  readonly setSessionTitle: (
+    sessionId: string,
+    title: string | null,
+  ) => Promise<SessionSummaryProjection | undefined>;
 }
 
 const WorkspaceSessionContext = createContext<

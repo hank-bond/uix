@@ -10,6 +10,10 @@ interface WorkspaceSessionControllerOptions {
   requestRecentSessions: () => Promise<SessionSummary[]>;
   requestNewSession: () => Promise<SessionSummary>;
   requestSwitchSession: (sessionId: string) => Promise<SessionSummary>;
+  requestSetSessionTitle: (
+    sessionId: string,
+    title: string | null,
+  ) => Promise<SessionSummary>;
 }
 
 interface WorkspaceSessionSnapshot {
@@ -30,6 +34,10 @@ export class WorkspaceSessionController {
   readonly #requestNewSession: () => Promise<SessionSummary>;
   readonly #requestSwitchSession: (
     sessionId: string,
+  ) => Promise<SessionSummary>;
+  readonly #requestSetSessionTitle: (
+    sessionId: string,
+    title: string | null,
   ) => Promise<SessionSummary>;
   readonly #listeners = new Set<Listener>();
   #snapshot: WorkspaceSessionSnapshot = {
@@ -53,6 +61,7 @@ export class WorkspaceSessionController {
     this.#requestRecentSessions = opts.requestRecentSessions;
     this.#requestNewSession = opts.requestNewSession;
     this.#requestSwitchSession = opts.requestSwitchSession;
+    this.#requestSetSessionTitle = opts.requestSetSessionTitle;
   }
 
   getSnapshot = (): WorkspaceSessionSnapshot => this.#snapshot;
@@ -73,11 +82,15 @@ export class WorkspaceSessionController {
   }
 
   updateAgentActivity(event: AgentEvent): void {
-    let isAgentRunning = this.#snapshot.isAgentRunning;
+    const wasRunning = this.#snapshot.isAgentRunning;
+    let isAgentRunning = wasRunning;
     if (event.type === "agent_start") isAgentRunning = true;
     if (event.type === "agent_end") isAgentRunning = false;
-    if (isAgentRunning === this.#snapshot.isAgentRunning) return;
+    if (isAgentRunning === wasRunning) return;
     this.#publish({ isAgentRunning });
+    if (wasRunning && !isAgentRunning && this.#snapshot.activeSession) {
+      void this.loadRecentSessions().catch(() => {});
+    }
   }
 
   loadActiveHistory(): Promise<TranscriptSnapshot> {
@@ -109,7 +122,16 @@ export class WorkspaceSessionController {
     const requestVersion = ++this.#recentSessionsRequestVersion;
     const sessions = await this.#requestRecentSessions();
     if (requestVersion === this.#recentSessionsRequestVersion) {
-      this.#publish({ recentSessions: [...sessions] });
+      const activeSession = this.#snapshot.activeSession;
+      const refreshedActive = activeSession
+        ? sessions.find(
+            ({ sessionId }) => sessionId === activeSession.sessionId,
+          )
+        : undefined;
+      this.#publish({
+        recentSessions: [...sessions],
+        ...(refreshedActive && { activeSession: refreshedActive }),
+      });
     }
     return sessions;
   }
@@ -129,6 +151,38 @@ export class WorkspaceSessionController {
     return this.#runSessionMutation(() =>
       this.#requestSwitchSession(sessionId),
     );
+  }
+
+  async setSessionTitle(
+    sessionId: string,
+    title: string | null,
+  ): Promise<SessionSummary | undefined> {
+    if (this.#snapshot.isSessionMutationPending) return undefined;
+    this.#publish({ isSessionMutationPending: true });
+    try {
+      const updated = await this.#requestSetSessionTitle(sessionId, title);
+      ++this.#recentSessionsRequestVersion;
+      const recentSessions = this.#snapshot.recentSessions;
+      this.#publish({
+        ...(this.#snapshot.activeSession?.sessionId === updated.sessionId && {
+          activeSession: updated,
+        }),
+        ...(recentSessions && {
+          recentSessions: [
+            updated,
+            ...recentSessions.filter(
+              ({ sessionId: recentId }) => recentId !== updated.sessionId,
+            ),
+          ],
+        }),
+        isSessionMutationPending: false,
+      });
+      void this.loadRecentSessions().catch(() => {});
+      return updated;
+    } catch (error) {
+      this.#publish({ isSessionMutationPending: false });
+      throw error;
+    }
   }
 
   async #runSessionMutation(

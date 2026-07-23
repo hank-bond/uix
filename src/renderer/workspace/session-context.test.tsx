@@ -13,6 +13,7 @@ function Probe() {
 
 const loadActiveHistory = () => Promise.resolve({ items: [] });
 const switchSession = () => Promise.resolve(undefined);
+const setSessionTitle = () => Promise.resolve(undefined);
 
 describe("active session context", () => {
   it("exposes the controller-owned projection read-only", () => {
@@ -30,6 +31,7 @@ describe("active session context", () => {
           canSwitchSession: true,
           loadActiveHistory,
           switchSession,
+          setSessionTitle,
         }}
       >
         <Probe />
@@ -50,6 +52,7 @@ describe("active session context", () => {
             canSwitchSession: true,
             loadActiveHistory,
             switchSession,
+            setSessionTitle,
           }}
         >
           <Probe />

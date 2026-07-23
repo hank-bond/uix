@@ -23,6 +23,7 @@ const session: WorkspaceSessionHandle = {
   canSwitchSession: true,
   loadActiveHistory: () => Promise.resolve({ items: [] }),
   switchSession: () => Promise.resolve(undefined),
+  setSessionTitle: () => Promise.resolve(undefined),
 };
 
 describe("session pill", () => {

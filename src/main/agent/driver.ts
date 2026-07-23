@@ -801,11 +801,6 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       const selectedManager =
         runtime?.session.sessionManager ?? (await restoreBootstrapTurnState());
       const activeRuntime = runtime;
-      if (activeRuntime?.session.isStreaming) {
-        throw new Error(
-          "Cannot change a session title while the agent is running",
-        );
-      }
 
       let manager = selectedManager;
       if (sessionId === selectedManager.getSessionId()) {

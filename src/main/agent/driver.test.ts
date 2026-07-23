@@ -1130,7 +1130,7 @@ describe("driver session titles", () => {
     }
   });
 
-  it("uses the live Pi session and rejects changes while it is running", async () => {
+  it("uses the live Pi session, including while it is running", async () => {
     const { driver } = createDriver();
     await driver.prompt("hello");
     const session = sdk.state.session as {
@@ -1143,11 +1143,10 @@ describe("driver session titles", () => {
 
     session.isStreaming = true;
     await expect(
-      driver.setSessionTitle("session-id", "Too late"),
-    ).rejects.toThrow(
-      "Cannot change a session title while the agent is running",
-    );
-    expect(session.setSessionName).toHaveBeenCalledOnce();
+      driver.setSessionTitle("session-id", "While running"),
+    ).resolves.toMatchObject({ title: "While running" });
+    expect(session.setSessionName).toHaveBeenLastCalledWith("While running");
+    expect(session.setSessionName).toHaveBeenCalledTimes(2);
   });
 
   it("rejects an unknown graph without appending metadata", async () => {

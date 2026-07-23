@@ -42,6 +42,8 @@ export function WorkspaceSessionControllerProvider({
         requestNewSession: () => agent.requests.new_session(undefined),
         requestSwitchSession: (sessionId) =>
           agent.requests.switch_session({ sessionId }),
+        requestSetSessionTitle: (sessionId, title) =>
+          agent.requests.set_session_title({ sessionId, title }),
       }),
     [agent],
   );
@@ -67,6 +69,11 @@ export function WorkspaceSessionControllerProvider({
     (sessionId: string) => controller.switchSession(sessionId),
     [controller],
   );
+  const setSessionTitle = useCallback(
+    (sessionId: string, title: string | null) =>
+      controller.setSessionTitle(sessionId, title),
+    [controller],
+  );
   const session = useMemo(
     () => ({
       activeSession: snapshot.activeSession,
@@ -75,8 +82,9 @@ export function WorkspaceSessionControllerProvider({
       canSwitchSession: snapshot.canSwitchSession,
       loadActiveHistory,
       switchSession,
+      setSessionTitle,
     }),
-    [snapshot, loadActiveHistory, switchSession],
+    [snapshot, loadActiveHistory, switchSession, setSessionTitle],
   );
 
   return (

@@ -33,6 +33,10 @@ interface ControllerRequests {
   requestRecentSessions: () => Promise<SessionSummary[]>;
   requestNewSession: () => Promise<SessionSummary>;
   requestSwitchSession: (sessionId: string) => Promise<SessionSummary>;
+  requestSetSessionTitle: (
+    sessionId: string,
+    title: string | null,
+  ) => Promise<SessionSummary>;
 }
 
 function createController(overrides: Partial<ControllerRequests> = {}) {
@@ -45,6 +49,7 @@ function createController(overrides: Partial<ControllerRequests> = {}) {
     requestRecentSessions: () => Promise.resolve([]),
     requestNewSession: () => Promise.resolve(newSession),
     requestSwitchSession: () => Promise.resolve(newSession),
+    requestSetSessionTitle: () => Promise.resolve(existingSession),
     ...overrides,
   });
 }
@@ -198,23 +203,142 @@ describe("WorkspaceSessionController", () => {
     });
   });
 
-  it("skips switching while the agent or another mutation is active", async () => {
+  it("updates and promotes a titled session without changing selection", async () => {
+    const refreshedRecents = deferred<SessionSummary[]>();
+    const titledSession: SessionSummary = {
+      ...newSession,
+      title: "Research archive",
+      modifiedAt: "2026-07-19T12:00:00.000Z",
+    };
+    const requestRecentSessions = vi
+      .fn<() => Promise<SessionSummary[]>>()
+      .mockResolvedValueOnce([existingSession, newSession])
+      .mockImplementationOnce(() => refreshedRecents.promise);
+    const requestSetSessionTitle = vi.fn(() => Promise.resolve(titledSession));
+    const controller = createController({
+      requestRecentSessions,
+      requestSetSessionTitle,
+    });
+    await controller.loadActiveHistory();
+    await controller.loadRecentSessions();
+
+    await expect(
+      controller.setSessionTitle(newSession.sessionId, "Research archive"),
+    ).resolves.toEqual(titledSession);
+    expect(requestSetSessionTitle).toHaveBeenCalledWith(
+      newSession.sessionId,
+      "Research archive",
+    );
+    expect(controller.getSnapshot()).toMatchObject({
+      activeSession: existingSession,
+      recentSessions: [titledSession, existingSession],
+      sessionSelectionVersion: 0,
+      isSessionMutationPending: false,
+    });
+
+    refreshedRecents.resolve([titledSession, existingSession]);
+    await vi.waitFor(() => {
+      expect(controller.getSnapshot().recentSessions).toEqual([
+        titledSession,
+        existingSession,
+      ]);
+    });
+  });
+
+  it("updates the active summary after a title change without reloading history", async () => {
+    const titledSession: SessionSummary = {
+      ...existingSession,
+      title: "Active research",
+    };
+    const requestActiveHistory = vi.fn(() =>
+      Promise.resolve({
+        session: existingSession,
+        transcript: { items: [] },
+      }),
+    );
+    const controller = createController({
+      requestActiveHistory,
+      requestSetSessionTitle: () => Promise.resolve(titledSession),
+    });
+    await controller.loadActiveHistory();
+
+    await controller.setSessionTitle(
+      existingSession.sessionId,
+      "Active research",
+    );
+
+    expect(controller.getSnapshot()).toMatchObject({
+      activeSession: titledSession,
+      sessionSelectionVersion: 0,
+    });
+    expect(requestActiveHistory).toHaveBeenCalledOnce();
+  });
+
+  it("reconciles the active first-message preview after a completed run", async () => {
+    const previewedSession: SessionSummary = {
+      ...newSession,
+      firstUserMessage: {
+        preview: "Investigate title editing",
+        truncated: false,
+      },
+      modifiedAt: "2026-07-19T11:01:00.000Z",
+    };
+    const requestRecentSessions = vi.fn(() =>
+      Promise.resolve([previewedSession]),
+    );
+    const controller = createController({
+      requestActiveHistory: () =>
+        Promise.resolve({ session: newSession, transcript: { items: [] } }),
+      requestRecentSessions,
+    });
+    await controller.loadActiveHistory();
+
+    controller.updateAgentActivity({ type: "agent_start" });
+    controller.updateAgentActivity({ type: "agent_end" });
+
+    await vi.waitFor(() => {
+      expect(controller.getSnapshot()).toMatchObject({
+        activeSession: previewedSession,
+        sessionSelectionVersion: 0,
+      });
+    });
+    expect(requestRecentSessions).toHaveBeenCalledOnce();
+  });
+
+  it("allows titles during a run but serializes them with session transitions", async () => {
     const switchResponse = deferred<SessionSummary>();
     const requestSwitchSession = vi.fn(() => switchResponse.promise);
-    const controller = createController({ requestSwitchSession });
+    const requestSetSessionTitle = vi.fn(() =>
+      Promise.resolve(existingSession),
+    );
+    const controller = createController({
+      requestSwitchSession,
+      requestSetSessionTitle,
+    });
 
     controller.updateAgentActivity({ type: "agent_start" });
     await expect(
       controller.switchSession("session-2"),
     ).resolves.toBeUndefined();
+    await expect(
+      controller.setSessionTitle("session-1", "While running"),
+    ).resolves.toEqual(existingSession);
     expect(requestSwitchSession).not.toHaveBeenCalled();
+    expect(requestSetSessionTitle).toHaveBeenCalledWith(
+      "session-1",
+      "While running",
+    );
 
     controller.updateAgentActivity({ type: "agent_end" });
     const first = controller.switchSession("session-2");
     await expect(
       controller.switchSession("session-3"),
     ).resolves.toBeUndefined();
+    await expect(
+      controller.setSessionTitle("session-1", "Pending"),
+    ).resolves.toBeUndefined();
     expect(requestSwitchSession).toHaveBeenCalledOnce();
+    expect(requestSetSessionTitle).toHaveBeenCalledOnce();
 
     switchResponse.resolve(newSession);
     await first;
@@ -230,6 +354,27 @@ describe("WorkspaceSessionController", () => {
     ).resolves.toEqual(existingSession);
     expect(requestSwitchSession).not.toHaveBeenCalled();
     expect(controller.getSnapshot().sessionSelectionVersion).toBe(0);
+  });
+
+  it("keeps existing summaries when a title change fails", async () => {
+    const controller = createController({
+      requestRecentSessions: () =>
+        Promise.resolve([existingSession, newSession]),
+      requestSetSessionTitle: () =>
+        Promise.reject(new Error("title change failed")),
+    });
+    await controller.loadActiveHistory();
+    await controller.loadRecentSessions();
+
+    await expect(
+      controller.setSessionTitle(existingSession.sessionId, "Broken"),
+    ).rejects.toThrow("title change failed");
+    expect(controller.getSnapshot()).toMatchObject({
+      activeSession: existingSession,
+      recentSessions: [existingSession, newSession],
+      sessionSelectionVersion: 0,
+      isSessionMutationPending: false,
+    });
   });
 
   it("tracks agent activity reactively and independently from Chat", () => {
