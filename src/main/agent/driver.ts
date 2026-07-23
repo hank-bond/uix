@@ -16,6 +16,9 @@
 // DisposableBag, and disposing the driver tears everything down at
 // once.
 
+import { join } from "node:path";
+import process from "node:process";
+
 import type {
   AgentSession,
   AgentSessionEvent,
@@ -25,35 +28,47 @@ import type {
   ModelRegistry,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
-
 import type {
   AgentEvent,
   AgentStatus,
   ModelCatalog,
   ModelFavoriteUpdate,
   ModelRef,
-  ProviderAuthCatalog,
   OAuthFlowState,
+  ProviderAuthCatalog,
   ProviderCredentials,
   SessionHistoryResponse,
   SessionSummary,
   TranscriptItem,
 } from "@uix/api/agent-channels";
 import type { SettingsHandleFrom } from "@uix/api/settings";
-import type { Workspace } from "../workspace";
 
-import { join } from "node:path";
-import process from "node:process";
-
+import {
+  buildAgentContextMessage,
+  buildAgentContextVocabularySection,
+  type AgentContextRegistry,
+} from "../agent-context/registry";
+import {
+  createAgentSkillInstaller,
+  type AgentSkillRegistry,
+} from "../agent-skills/registry";
+import {
+  buildAgentSystemPromptSection,
+  type AgentSystemPromptRegistry,
+} from "../agent-system-prompt/registry";
 import { DisposableBag, subscribe } from "../lifecycle";
 import { createLogger } from "../log";
-
-const log = createLogger("agent");
-import { TurnStateRegistry } from "../turn-state/registry";
+import type { TurnStateRegistry } from "../turn-state/registry";
+import type { Workspace } from "../workspace";
 
 import { createOAuthFlowCoordinator } from "./auth-flow";
-import { agentWorkspaceSettings } from "./settings";
+import {
+  deriveProviderAuthCatalogForEnvironment,
+  findOfferedCredentialMethod,
+  resolveOAuthStartAction,
+} from "./auth-providers";
 import { deriveSelectedBranchProjection } from "./branch-projection";
+import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { resolveSessionFileById } from "./session-files";
 import {
   sessionWorkspaceSettings,
@@ -63,37 +78,22 @@ import {
   readRecentSessionSummaries,
   readSessionSummary,
 } from "./session-summary";
+import { agentWorkspaceSettings } from "./settings";
+import { createSystemPromptAssembler } from "./system-prompt";
 import {
-  deriveProviderAuthCatalogForEnvironment,
-  findOfferedCredentialMethod,
-  resolveOAuthStartAction,
-} from "./auth-providers";
-import { type AgentInstaller, createUixCoreExtension } from "./installers";
+  extractTranscriptText,
+  getMessageRole,
+  parseCustomTranscriptItem,
+  toIpcValue,
+} from "./transcript";
 import {
   createTranscriptItemIdentity,
   type TranscriptItemIdentity,
 } from "./transcript-item-identity";
 import { createTurnStateLifecycle } from "./turn-state-lifecycle";
-import {
-  buildAgentContextMessage,
-  buildAgentContextVocabularySection,
-  type AgentContextRegistry,
-} from "../agent-context/registry";
-import {
-  buildAgentSystemPromptSection,
-  type AgentSystemPromptRegistry,
-} from "../agent-system-prompt/registry";
-import {
-  createAgentSkillInstaller,
-  type AgentSkillRegistry,
-} from "../agent-skills/registry";
-import { createSystemPromptAssembler } from "./system-prompt";
-import {
-  extractTranscriptText,
-  parseCustomTranscriptItem,
-  getMessageRole,
-  toIpcValue,
-} from "./transcript";
+
+const MaxSessionTitleCodePoints = 4096;
+const log = createLogger("agent");
 
 /**
  * The driver itself is a Disposable so callers can hand it to a Bag
@@ -129,6 +129,11 @@ export interface AgentDriver extends Disposable {
   newSession(): Promise<SessionSummary>;
   /** Replace the active agent slot's selected graph with an existing session. */
   switchSession(sessionId: string): Promise<SessionSummary>;
+  /** Set or clear the explicit title of any durable session graph. */
+  setSessionTitle(
+    sessionId: string,
+    title: string | null,
+  ): Promise<SessionSummary>;
   /** Available models with workspace-local favorite status. */
   listModels(): Promise<ModelCatalog>;
   /** Persist a favorite update and return the refreshed available model catalog. */
@@ -791,6 +796,35 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       return session;
     },
 
+    async setSessionTitle(sessionId, title) {
+      const normalizedTitle = normalizeSessionTitle(title);
+      const selectedManager =
+        runtime?.session.sessionManager ?? (await restoreBootstrapTurnState());
+      const activeRuntime = runtime;
+      if (activeRuntime?.session.isStreaming) {
+        throw new Error(
+          "Cannot change a session title while the agent is running",
+        );
+      }
+
+      let manager = selectedManager;
+      if (sessionId === selectedManager.getSessionId()) {
+        if (activeRuntime?.session.sessionManager === selectedManager) {
+          activeRuntime.session.setSessionName(normalizedTitle);
+        } else {
+          selectedManager.appendSessionInfo(normalizedTitle);
+        }
+      } else {
+        const sessionFile = await resolveSessionFileById(sessionDir, sessionId);
+        if (!sessionFile) throw new Error(`Unknown session: ${sessionId}`);
+        const sdk = await import("@earendil-works/pi-coding-agent");
+        manager = sdk.SessionManager.open(sessionFile, sessionDir);
+        manager.appendSessionInfo(normalizedTitle);
+      }
+
+      return readSessionSummary(manager);
+    },
+
     async reloadPiResources() {
       // Reload only tiers already in use. A live session owns Pi's native
       // extension rebind; before a session exists, recreate the coherent
@@ -900,6 +934,20 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       }
     },
   };
+}
+
+function normalizeSessionTitle(title: string | null): string {
+  if (title === null) return "";
+  const normalized = title.replace(/[\r\n]+/g, " ").trim();
+  if (!normalized) {
+    throw new Error("Session title cannot be blank; use null to clear it");
+  }
+  if (Array.from(normalized).length > MaxSessionTitleCodePoints) {
+    throw new Error(
+      `Session title cannot exceed ${MaxSessionTitleCodePoints} Unicode code points`,
+    );
+  }
+  return normalized;
 }
 
 function createLiveTranscriptForwarder(

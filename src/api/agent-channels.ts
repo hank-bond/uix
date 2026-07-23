@@ -125,6 +125,14 @@ export const SwitchSessionRequestSchema = Type.Object({
 });
 export type SwitchSessionRequest = Static<typeof SwitchSessionRequestSchema>;
 
+export const SetSessionTitleRequestSchema = Type.Object({
+  sessionId: SessionIdSchema,
+  title: Type.Union([Type.String(), Type.Null()]),
+});
+export type SetSessionTitleRequest = Static<
+  typeof SetSessionTitleRequestSchema
+>;
+
 const SessionSummaryListSchema = Type.Array(SessionSummarySchema);
 
 export const SessionHistoryRequestSchema = Type.Object({
@@ -380,6 +388,11 @@ export const agentChannels = {
     /** Replace the active agent slot's selected graph with an existing session. */
     switch_session: {
       requestSchema: SwitchSessionRequestSchema,
+      responseSchema: SessionSummarySchema,
+    },
+    /** Set or clear the explicit title of any durable session graph. */
+    set_session_title: {
+      requestSchema: SetSessionTitleRequestSchema,
       responseSchema: SessionSummarySchema,
     },
     /** Available (auth-configured) models with workspace favorite status. */

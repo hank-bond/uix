@@ -56,6 +56,7 @@ const sdk = vi.hoisted(() => {
     servicesLoads: 0,
     servicesOptions: [] as Array<{ cwd: string; agentDir: string }>,
     pendingProviderModels: [] as FakeModel[],
+    sessionTitle: undefined as string | undefined,
   };
 
   const registry = {
@@ -87,8 +88,12 @@ const sdk = vi.hoisted(() => {
     getSessionFile: () => "/tmp/session.jsonl",
     getHeader: () => ({ timestamp: "2026-07-19T10:00:00.000Z" }),
     getEntries: () => state.branch,
-    getSessionName: () => undefined,
+    getSessionName: () => state.sessionTitle,
     appendMessage: () => "entry-id",
+    appendSessionInfo: vi.fn((title: string) => {
+      state.sessionTitle = title.trim() || undefined;
+      return "session-info-id";
+    }),
     appendCustomEntry: vi.fn(() => "entry-id"),
     appendCustomMessageEntry: () => "entry-id",
   };
@@ -111,6 +116,9 @@ const sdk = vi.hoisted(() => {
           previousModel: model,
           source: "set",
         });
+      }),
+      setSessionName: vi.fn((title: string) => {
+        manager.appendSessionInfo(title);
       }),
       subscribe: vi.fn(() => unsubscribe),
       dispose: vi.fn(),
@@ -386,11 +394,13 @@ beforeEach(() => {
   sdk.state.servicesLoads = 0;
   sdk.state.servicesOptions = [];
   sdk.state.pendingProviderModels = [];
+  sdk.state.sessionTitle = undefined;
   sdk.registry.authStorage.set.mockClear();
   sdk.registry.refresh.mockClear();
   sdk.module.SessionManager.continueRecent.mockClear();
   sdk.module.SessionManager.create.mockClear();
   sdk.module.SessionManager.open.mockClear();
+  sdk.manager.appendSessionInfo.mockClear();
   sdk.manager.appendCustomEntry.mockClear();
 });
 
@@ -1041,6 +1051,121 @@ describe("driver selected-session activation", () => {
       "Cannot create a new session while the agent is running",
     );
     expect(sdk.state.runtimeNewSession).not.toHaveBeenCalled();
+  });
+});
+
+describe("driver session titles", () => {
+  it("sets and clears the selected title without opening Pi services", async () => {
+    const { driver } = createDriver();
+
+    await expect(
+      driver.setSessionTitle("session-id", "  Research notes  "),
+    ).resolves.toMatchObject({
+      sessionId: "session-id",
+      title: "Research notes",
+    });
+    expect(sdk.manager.appendSessionInfo).toHaveBeenLastCalledWith(
+      "Research notes",
+    );
+
+    const cleared = await driver.setSessionTitle("session-id", null);
+    expect(cleared.title).toBeUndefined();
+    expect(sdk.manager.appendSessionInfo).toHaveBeenLastCalledWith("");
+    expect(sdk.state.servicesLoads).toBe(0);
+    expect(sdk.state.runtimeCreates).toBe(0);
+  });
+
+  it("normalizes line breaks and rejects blank or excessively large titles", async () => {
+    const { driver } = createDriver();
+
+    await driver.setSessionTitle("session-id", "one\n\r\ntwo");
+    expect(sdk.manager.appendSessionInfo).toHaveBeenLastCalledWith("one two");
+
+    await expect(driver.setSessionTitle("session-id", "   ")).rejects.toThrow(
+      "Session title cannot be blank; use null to clear it",
+    );
+    await expect(
+      driver.setSessionTitle("session-id", "🙂".repeat(4097)),
+    ).rejects.toThrow("Session title cannot exceed 4096 Unicode code points");
+  });
+
+  it("titles an inactive graph without switching to it", async () => {
+    const target = await createSessionTarget("target-session");
+    try {
+      let inactiveTitle: string | undefined;
+      const appendSessionInfo = vi.fn((title: string) => {
+        inactiveTitle = title.trim() || undefined;
+        return "session-info-id";
+      });
+      const inactiveManager = {
+        ...sdk.manager,
+        getSessionId: () => "target-session",
+        getSessionFile: () => target.sessionFile,
+        getSessionName: () => inactiveTitle,
+        getEntries: () => [],
+        appendSessionInfo,
+      };
+      sdk.module.SessionManager.open.mockReturnValueOnce(inactiveManager);
+      const { driver } = createDriver(
+        undefined,
+        undefined,
+        undefined,
+        target.workspace,
+      );
+
+      await expect(
+        driver.setSessionTitle("target-session", "Archive"),
+      ).resolves.toMatchObject({
+        sessionId: "target-session",
+        title: "Archive",
+      });
+      expect(sdk.module.SessionManager.open).toHaveBeenCalledWith(
+        target.sessionFile,
+        join(target.root, ".uix", "sessions"),
+      );
+      expect(appendSessionInfo).toHaveBeenCalledWith("Archive");
+      expect(sdk.state.runtimeCreates).toBe(0);
+    } finally {
+      await rm(target.root, { recursive: true, force: true });
+    }
+  });
+
+  it("uses the live Pi session and rejects changes while it is running", async () => {
+    const { driver } = createDriver();
+    await driver.prompt("hello");
+    const session = sdk.state.session as {
+      isStreaming: boolean;
+      setSessionName: ReturnType<typeof vi.fn>;
+    };
+
+    await driver.setSessionTitle("session-id", "Live title");
+    expect(session.setSessionName).toHaveBeenCalledWith("Live title");
+
+    session.isStreaming = true;
+    await expect(
+      driver.setSessionTitle("session-id", "Too late"),
+    ).rejects.toThrow(
+      "Cannot change a session title while the agent is running",
+    );
+    expect(session.setSessionName).toHaveBeenCalledOnce();
+  });
+
+  it("rejects an unknown graph without appending metadata", async () => {
+    const root = await mkdtemp(join(tmpdir(), "uix-driver-title-"));
+    try {
+      const { driver } = createDriver(undefined, undefined, undefined, {
+        stateRoot: root,
+        agentCwd: root,
+        manifestPath: join(root, "uix.workspace.json"),
+      });
+
+      await expect(
+        driver.setSessionTitle("missing-session", "Unknown"),
+      ).rejects.toThrow("Unknown session: missing-session");
+      expect(sdk.manager.appendSessionInfo).not.toHaveBeenCalled();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
   });
 });
 

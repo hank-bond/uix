@@ -189,6 +189,8 @@ This unit delivers visible switching before rename polish, diagnostic UI, search
 
 ### S4 — Titles and picker polish
 
+The typed `set_session_title({ sessionId, title })` channel and driver path have landed. They target active or inactive graphs without switching or opening Pi services, use native append-only `session_info` metadata, return the updated summary, reject during an active run, and enforce the settled normalization and defensive bound. Renderer coordination and picker editing remain.
+
 Add explicit title/clear UI over `set_session_title` and refresh the active summary after the first completed turn so Chat can replace its empty-session fallback with the first-message preview. Apply the settled generous defensive bound and update recent rows from mutation responses. Use filled/empty circle markers consistently for current session/model selection; reserve check and × for inline title save/cancel. Settle only the focus/draft details needed by the reviewed UI; richer Chat polish can remain in S5.
 
 ### S5 — Defensive hardening and failure presentation

@@ -395,6 +395,14 @@ describe("ChannelRegistry", () => {
             modifiedAt: "2026-07-19T10:30:00.000Z",
           }),
         },
+        set_session_title: {
+          handle: ({ sessionId, title }) => ({
+            sessionId,
+            ...(title !== null && { title }),
+            createdAt: "2026-07-19T10:00:00.000Z",
+            modifiedAt: "2026-07-19T10:30:00.000Z",
+          }),
+        },
         list_models: {
           handle: () => ({
             models: [
@@ -472,6 +480,21 @@ describe("ChannelRegistry", () => {
     await expect(
       transport.handlers.get("agent.switch_session")?.({
         sessionId: "../outside",
+      }),
+    ).rejects.toThrow();
+    await expect(
+      transport.handlers.get("agent.set_session_title")?.({
+        sessionId: "session-1",
+        title: "Research",
+      }),
+    ).resolves.toMatchObject({
+      sessionId: "session-1",
+      title: "Research",
+    });
+    await expect(
+      transport.handlers.get("agent.set_session_title")?.({
+        sessionId: "session-1",
+        title: undefined,
       }),
     ).rejects.toThrow();
     await expect(

@@ -348,6 +348,10 @@ async function openWorkspace(
         switch_session: {
           handle: ({ sessionId }) => driver.switchSession(sessionId),
         },
+        set_session_title: {
+          handle: ({ sessionId, title }) =>
+            driver.setSessionTitle(sessionId, title),
+        },
         list_models: {
           handle: async () => ({ models: await driver.listModels() }),
         },

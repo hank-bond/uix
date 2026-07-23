@@ -93,6 +93,12 @@ describe("channel clients", () => {
         title: "Existing conversation",
         createdAt: "2026-07-19T10:00:00.000Z",
         modifiedAt: "2026-07-19T10:30:00.000Z",
+      })
+      .mockResolvedValueOnce({
+        sessionId: "session-1",
+        title: "Research",
+        createdAt: "2026-07-19T10:00:00.000Z",
+        modifiedAt: "2026-07-19T10:31:00.000Z",
       });
 
     await agent.requests.prompt({ text: "hi" });
@@ -100,6 +106,10 @@ describe("channel clients", () => {
     await agent.requests.list_session_summaries({ limit: 10 });
     await agent.requests.new_session(undefined);
     await agent.requests.switch_session({ sessionId: "session-1" });
+    await agent.requests.set_session_title({
+      sessionId: "session-1",
+      title: "Research",
+    });
     agent.events.event(onEvent);
 
     expect(request).toHaveBeenCalledWith("agent.prompt", { text: "hi" });
@@ -110,6 +120,10 @@ describe("channel clients", () => {
     expect(request).toHaveBeenCalledWith("agent.new_session", undefined);
     expect(request).toHaveBeenCalledWith("agent.switch_session", {
       sessionId: "session-1",
+    });
+    expect(request).toHaveBeenCalledWith("agent.set_session_title", {
+      sessionId: "session-1",
+      title: "Research",
     });
     expect(subscribe).toHaveBeenCalledWith("agent.event", expect.any(Function));
   });
