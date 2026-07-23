@@ -7,7 +7,7 @@ import type { SessionSummary } from "@uix/api/agent-channels";
 import { listRecentSessionFiles } from "./session-files";
 import { extractTranscriptText, getMessageRole } from "./transcript";
 
-const MaxFallbackLabelLength = 80;
+const MaxFirstUserMessagePreviewLength = 512;
 const SessionInfoTypeBytes = Buffer.from('"type":"session_info"');
 const MessageTypeBytes = Buffer.from('"type":"message"');
 const UserRoleBytes = Buffer.from('"role":"user"');
@@ -23,9 +23,8 @@ export async function readSessionSummary(
   const header = manager.getHeader();
   if (!header) throw new Error("Session is missing its header");
 
-  const displayName = manager.getSessionName();
-  const firstUserMessage = deriveFirstUserMessageLabel(manager);
-  const displayLabel = deriveDisplayLabel(displayName, firstUserMessage);
+  const title = manager.getSessionName();
+  const firstUserMessage = deriveFirstUserMessage(manager);
   const modifiedAt = await readModifiedAt(
     manager.getSessionFile(),
     header.timestamp,
@@ -33,8 +32,8 @@ export async function readSessionSummary(
 
   return {
     sessionId: manager.getSessionId(),
-    ...(displayName !== undefined && { displayName }),
-    displayLabel,
+    ...(title !== undefined && { title }),
+    ...(firstUserMessage !== undefined && { firstUserMessage }),
     createdAt: header.timestamp,
     modifiedAt,
   };
@@ -70,8 +69,9 @@ export async function readSessionFileSummary(
 
   let hasReadFirstRecord = false;
   let header: SessionSummaryHeader | undefined;
-  let displayName: string | undefined;
-  let firstUserMessage: string | undefined;
+  let title: string | undefined;
+  let firstUserMessage: SessionSummary["firstUserMessage"];
+  let hasReadFirstUserMessage = false;
 
   forEachBufferLine(content, (line) => {
     if (line.length === 0) return;
@@ -86,13 +86,12 @@ export async function readSessionFileSummary(
       const entry = parseJsonRecord(line);
       if (entry?.["type"] === "session_info") {
         const name = entry["name"];
-        displayName =
-          typeof name === "string" ? name.trim() || undefined : undefined;
+        title = typeof name === "string" ? name.trim() || undefined : undefined;
       }
     }
 
     if (
-      firstUserMessage === undefined &&
+      !hasReadFirstUserMessage &&
       line.includes(MessageTypeBytes) &&
       line.includes(UserRoleBytes)
     ) {
@@ -100,9 +99,8 @@ export async function readSessionFileSummary(
       if (entry?.["type"] !== "message") return;
       const message = entry["message"];
       if (getMessageRole(message) !== "user") return;
-      firstUserMessage = deriveSessionFallbackLabel(
-        extractTranscriptText(message),
-      );
+      hasReadFirstUserMessage = true;
+      firstUserMessage = deriveFirstUserMessagePreview(message);
     }
   });
 
@@ -110,40 +108,36 @@ export async function readSessionFileSummary(
 
   return {
     sessionId: header.sessionId,
-    ...(displayName !== undefined && { displayName }),
-    displayLabel: deriveDisplayLabel(displayName, firstUserMessage),
+    ...(title !== undefined && { title }),
+    ...(firstUserMessage !== undefined && { firstUserMessage }),
     createdAt: header.createdAt,
     modifiedAt: modifiedAt.toISOString(),
   };
 }
 
-function deriveFirstUserMessageLabel(
+function deriveFirstUserMessage(
   manager: SessionManager,
-): string | undefined {
+): SessionSummary["firstUserMessage"] {
   for (const entry of manager.getEntries()) {
     if (entry.type !== "message" || getMessageRole(entry.message) !== "user") {
       continue;
     }
-    const label = deriveSessionFallbackLabel(
-      extractTranscriptText(entry.message),
-    );
-    if (label) return label;
+    return deriveFirstUserMessagePreview(entry.message);
   }
   return undefined;
 }
 
-function deriveSessionFallbackLabel(text: string): string | undefined {
-  const normalized = text.replace(/\s+/g, " ").trim();
-  if (!normalized) return undefined;
-  if (normalized.length <= MaxFallbackLabelLength) return normalized;
-  return `${normalized.slice(0, MaxFallbackLabelLength - 1).trimEnd()}…`;
-}
-
-function deriveDisplayLabel(
-  displayName: string | undefined,
-  firstUserMessage: string | undefined,
-): string {
-  return displayName ?? firstUserMessage ?? "New conversation";
+function deriveFirstUserMessagePreview(
+  message: unknown,
+): SessionSummary["firstUserMessage"] {
+  const text = extractTranscriptText(message).trim();
+  if (!text) return undefined;
+  const codePoints = Array.from(text);
+  const truncated = codePoints.length > MaxFirstUserMessagePreviewLength;
+  return {
+    preview: codePoints.slice(0, MaxFirstUserMessagePreviewLength).join(""),
+    truncated,
+  };
 }
 
 function forEachBufferLine(

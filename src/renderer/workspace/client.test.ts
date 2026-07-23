@@ -69,7 +69,7 @@ describe("channel clients", () => {
       .mockResolvedValueOnce({
         session: {
           sessionId: "session-1",
-          displayLabel: "Existing conversation",
+          title: "Existing conversation",
           createdAt: "2026-07-19T10:00:00.000Z",
           modifiedAt: "2026-07-19T10:30:00.000Z",
         },
@@ -78,20 +78,19 @@ describe("channel clients", () => {
       .mockResolvedValueOnce([
         {
           sessionId: "session-1",
-          displayLabel: "Existing conversation",
+          title: "Existing conversation",
           createdAt: "2026-07-19T10:00:00.000Z",
           modifiedAt: "2026-07-19T10:30:00.000Z",
         },
       ])
       .mockResolvedValueOnce({
         sessionId: "session-2",
-        displayLabel: "New conversation",
         createdAt: "2026-07-19T11:00:00.000Z",
         modifiedAt: "2026-07-19T11:00:00.000Z",
       })
       .mockResolvedValueOnce({
         sessionId: "session-1",
-        displayLabel: "Existing conversation",
+        title: "Existing conversation",
         createdAt: "2026-07-19T10:00:00.000Z",
         modifiedAt: "2026-07-19T10:30:00.000Z",
       });

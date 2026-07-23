@@ -176,7 +176,7 @@ export interface AgentDriverOptions {
    * including resolving to no model at all when nothing is authenticated.
    */
   agentSettings?: SettingsHandleFrom<typeof agentWorkspaceSettings>;
-  /** Durable identity and cached label for the workspace's selected session. */
+  /** Durable identity for the workspace's selected session. */
   sessionSettings?: SettingsHandleFrom<typeof sessionWorkspaceSettings>;
   /** Fired whenever live/default model status changes. */
   onStatusChange?: (status: AgentStatus) => void;
@@ -339,15 +339,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
 
   function commitSessionSelection(summary: SessionSummary): void {
     const selected = opts.sessionSettings?.get("selected");
-    if (
-      selected?.sessionId === summary.sessionId &&
-      selected.displayLabel === summary.displayLabel
-    ) {
-      return;
-    }
+    if (selected?.sessionId === summary.sessionId) return;
     opts.sessionSettings?.set("selected", {
       sessionId: summary.sessionId,
-      displayLabel: summary.displayLabel,
     } satisfies SelectedSessionSetting);
   }
 

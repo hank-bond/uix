@@ -8,7 +8,7 @@ import {
 
 function Probe() {
   const { activeSession } = useWorkspaceSession();
-  return <span>{activeSession?.displayLabel ?? "not established"}</span>;
+  return <span>{activeSession?.title ?? "not established"}</span>;
 }
 
 const loadActiveHistory = () => Promise.resolve({ items: [] });
@@ -21,7 +21,7 @@ describe("active session context", () => {
         session={{
           activeSession: {
             sessionId: "session-2",
-            displayLabel: "New conversation",
+            title: "Session title",
             createdAt: "2026-07-19T11:00:00.000Z",
             modifiedAt: "2026-07-19T11:00:00.000Z",
           },
@@ -36,7 +36,7 @@ describe("active session context", () => {
       </WorkspaceSessionProvider>,
     );
 
-    expect(html).toContain("New conversation");
+    expect(html).toContain("Session title");
   });
 
   it("distinguishes an unknown initial projection from missing wiring", () => {

@@ -614,7 +614,7 @@ describe("driver provider credentials (pre-session)", () => {
 });
 
 describe("driver selected-session activation", () => {
-  it("opens the persisted selection and reconciles its cached label", async () => {
+  it("opens the persisted selection without opening Pi services", async () => {
     const root = await mkdtemp(join(tmpdir(), "uix-driver-session-"));
     try {
       const sessionDir = join(root, ".uix", "sessions");
@@ -627,7 +627,6 @@ describe("driver selected-session activation", () => {
       const sessionSettings = fakeSessionSettings();
       sessionSettings.set("selected", {
         sessionId: "session-id",
-        displayLabel: "Stale label",
       });
       const { driver } = createDriver(undefined, undefined, sessionSettings, {
         stateRoot: root,
@@ -645,7 +644,6 @@ describe("driver selected-session activation", () => {
       expect(sdk.module.SessionManager.continueRecent).not.toHaveBeenCalled();
       expect(sessionSettings.values.get("selected")).toEqual({
         sessionId: "session-id",
-        displayLabel: "New conversation",
       });
       expect(sdk.state.servicesLoads).toBe(0);
     } finally {
@@ -659,7 +657,6 @@ describe("driver selected-session activation", () => {
       const sessionSettings = fakeSessionSettings();
       sessionSettings.set("selected", {
         sessionId: "missing-session",
-        displayLabel: "Missing conversation",
       });
       const { driver } = createDriver(undefined, undefined, sessionSettings, {
         stateRoot: root,
@@ -676,7 +673,6 @@ describe("driver selected-session activation", () => {
       );
       expect(sessionSettings.values.get("selected")).toEqual({
         sessionId: "session-id",
-        displayLabel: "New conversation",
       });
     } finally {
       await rm(root, { recursive: true, force: true });
@@ -698,7 +694,10 @@ describe("driver selected-session activation", () => {
     await expect(driver.sessionHistory()).resolves.toEqual({
       session: {
         sessionId: "session-id",
-        displayLabel: "first question",
+        firstUserMessage: {
+          preview: "first   question",
+          truncated: false,
+        },
         createdAt: "2026-07-19T10:00:00.000Z",
         modifiedAt: "2026-07-19T10:00:00.000Z",
       },
@@ -1005,7 +1004,6 @@ describe("driver selected-session activation", () => {
     emptyRestoreGate.resolve();
     await expect(transition).resolves.toEqual({
       sessionId: "replacement-session-id",
-      displayLabel: "New conversation",
       createdAt: "2026-07-19T11:00:00.000Z",
       modifiedAt: "2026-07-19T11:00:00.000Z",
     });
@@ -1013,7 +1011,6 @@ describe("driver selected-session activation", () => {
     expect(sdk.state.runtimeNewSession).toHaveBeenCalledOnce();
     expect(sessionSettings.values.get("selected")).toEqual({
       sessionId: "replacement-session-id",
-      displayLabel: "New conversation",
     });
   });
 
@@ -1108,20 +1105,17 @@ describe("driver session switching", () => {
       expect(completed).toBe(false);
       expect(sessionSettings.values.get("selected")).toEqual({
         sessionId: "session-id",
-        displayLabel: "New conversation",
       });
 
       targetRestoreGate.resolve();
       const summary = await switching;
       expect(summary).toMatchObject({
         sessionId: "target-session",
-        displayLabel: "New conversation",
         createdAt: "2026-07-19T11:00:00.000Z",
       });
       expect(summary.modifiedAt.endsWith("Z")).toBe(true);
       expect(sessionSettings.values.get("selected")).toEqual({
         sessionId: "target-session",
-        displayLabel: "New conversation",
       });
     } finally {
       await rm(target.root, { recursive: true, force: true });
@@ -1203,14 +1197,12 @@ describe("driver session switching", () => {
 
     await expect(driver.switchSession("session-id")).resolves.toEqual({
       sessionId: "session-id",
-      displayLabel: "New conversation",
       createdAt: "2026-07-19T10:00:00.000Z",
       modifiedAt: "2026-07-19T10:00:00.000Z",
     });
     expect(sdk.state.runtimeSwitchSession).not.toHaveBeenCalled();
     expect(sessionSettings.values.get("selected")).toEqual({
       sessionId: "session-id",
-      displayLabel: "New conversation",
     });
   });
 
@@ -1234,7 +1226,6 @@ describe("driver session switching", () => {
       );
       expect(sessionSettings.values.get("selected")).toEqual({
         sessionId: "session-id",
-        displayLabel: "New conversation",
       });
     } finally {
       await rm(target.root, { recursive: true, force: true });

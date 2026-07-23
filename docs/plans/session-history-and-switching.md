@@ -1,9 +1,9 @@
 ---
-summary: "Stage durable session history so transition foundations unlock New Session first, then switching and naming, while robustness, diagnostics, recovery, and polish follow without blocking those vertical slices."
+summary: "Stage durable session history so transition foundations unlock New Session first, then switching and titles, while robustness, diagnostics, recovery, and polish follow without blocking those vertical slices."
 status: active
 ---
 
-# Session history, naming, and switching
+# Session history, titles, and switching
 
 ## Status
 
@@ -17,21 +17,15 @@ This plan records the settled target behavior and orders delivery by usable valu
 - Intra-session branch rewind/navigation is not built in this workstream, but session loading and replay must be shaped so it can use the same lifecycle later.
 - Session files remain under the stable workspace state root and are addressed by durable session id across renderer/main boundaries; local file paths stay private.
 
-## Settled naming and labels
+## Settled titles and first-message previews
 
-Pi's native append-only `session_info` entries own the explicit display name. Renaming appends another entry; the latest entry in file order wins; an empty value clears the name. The name is graph-wide metadata, not branch-local state, model context, or a Chat block.
+Pi's native append-only `session_info` entries own the explicit session title through Pi's `name` field. Retitling appends another entry; the latest entry in file order wins; an empty value clears the title. The title is graph-wide metadata, not branch-local state, model context, or a Chat block.
 
-The displayed label is derived in this order:
-
-1. explicit session name;
-2. first user message, whitespace-collapsed and truncated;
-3. `New conversation` before any message.
-
-The fallback label is not written as an automatic name node. Clearing an explicit name reveals the fallback again.
+The substrate does not resolve a presentation label. It returns the explicit `title` independently from a bounded projection of the graph's first user message. That projection keeps textual content only, trims surrounding whitespace while preserving internal formatting, and carries at most 512 Unicode code points plus a `truncated` bit. Chat currently renders explicit title → whitespace-collapsed first-message preview → its own `New conversation` fallback. Other features may present the same summary differently.
 
 ## Settled recent-summary loading
 
-The workspace file is living workspace state and may persist the currently selected session plus a cached display label for fast initial presentation. The session JSONL remains authoritative; the cached label is a rebuildable projection.
+The workspace file is living workspace state and persists the currently selected durable session id. Presentation metadata remains authoritative in the session JSONL and is projected on demand rather than copied into workspace settings.
 
 Recent-session discovery stays off the initial-render path. After the initial surface state renders, Chat can request the active transcript and the recent ten sessions independently; whichever response arrives first updates its own state. Search, additional pages, and non-selected transcript reads remain on demand.
 
@@ -42,16 +36,19 @@ The initial session-summary shape is deliberately small:
 ```ts
 interface SessionSummary {
   sessionId: string;
-  displayName?: string;
-  displayLabel: string;
+  title?: string;
+  firstUserMessage?: {
+    preview: string;
+    truncated: boolean;
+  };
   createdAt: string;
   modifiedAt: string;
 }
 ```
 
-`displayName` is the latest explicit `session_info` name. `displayLabel` is computed by the substrate from explicit name → first user message → `New conversation`; it is not an automatically persisted name node. The workspace may cache the active label for fast presentation, then reconcile it with the computed authoritative summary. Token, cache-hit, cost, message-count, and similar statistics are not part of the initial row.
+`title` is the latest explicit `session_info` name. `firstUserMessage` is the bounded textual preview described above; it is data for feature presentation, not an automatically persisted title. Token, cache-hit, cost, message-count, and similar statistics are not part of the initial row.
 
-`list_session_summaries({ limit })` returns recent summaries newest-first and serves the dropdown/sidebar projection; `limit: 1` is the lightweight newest-session query. There is no singular `session_summary` or ambient `current_session` request. `session_history({ sessionId? })` is the transcript read: omitted id reads the selected session, while an explicit id reads another session without activating it. Its response carries the resolved `SessionSummary` so stale results can be rejected. `new_session(void)` always creates an unnamed fresh graph; naming is separate. `switch_session({ sessionId })` makes the targeted graph selected and active, then returns its `SessionSummary`. `set_session_name({ sessionId, displayName })` targets any session, uses `string` for an explicit name and `null` to clear it, and returns the updated `SessionSummary`. Explicit names trim surrounding whitespace, reject a blank string (`null` clears), preserve internal spaces, and have a 100-character maximum. New/switch/name/history responses provide a directly involved session's summary without another request.
+`list_session_summaries({ limit })` returns recent summaries newest-first and serves the dropdown/sidebar projection; `limit: 1` is the lightweight newest-session query. There is no singular `session_summary` or ambient `current_session` request. `session_history({ sessionId? })` is the transcript read: omitted id reads the selected session, while an explicit id reads another session without activating it. Its response carries the resolved `SessionSummary` so stale results can be rejected. `new_session(void)` always creates an untitled fresh graph; titling is separate. `switch_session({ sessionId })` makes the targeted graph selected and active, then returns its `SessionSummary`. `set_session_title({ sessionId, title })` targets any session, uses `string` for an explicit title and `null` to clear it, and returns the updated `SessionSummary`. Explicit titles trim surrounding whitespace, reject a blank string (`null` clears), preserve internal spaces, and use a generous 4,096-Unicode-code-point defensive bound rather than a product-facing short-title limit. New/switch/title/history responses provide a directly involved session's summary without another request.
 
 V1 does not broadcast a separate session-change event. New, switch, and selector entry points all go through one workspace session controller. A successful backend request returns only after commit/switch/restore completes; the controller then replaces shared renderer active-session state from that response. Chat observes the active session id, clears stale presentation, and loads that session's history. Feature bags stay mounted during a session switch; backend state cells have already been restored before the response. A broadcast becomes necessary only if session changes later gain an independent source or multiple renderer clients.
 
@@ -162,7 +159,7 @@ These decisions remain valuable, but they do not block the early vertical slices
 
 ## Ordered build sequence
 
-S0–S3 are the shortest correct route to New Session and then visible session switching. S4 adds naming. S5 hardens failures and presentation under the already-settled contracts. Do not introduce temporary compatibility APIs merely to shorten a unit.
+S0–S3 are the shortest correct route to New Session and then visible session switching. S4 adds titles. S5 hardens failures and presentation under the already-settled contracts. Do not introduce temporary compatibility APIs merely to shorten a unit.
 
 ### S0 — Pi runtime replacement foundation · **landed 2026-07-17**
 
@@ -184,15 +181,15 @@ The substrate-owned `uix.session.new` action materializes `mod+n` and exists wit
 
 ### S3 — Session Switching vertical slice · **landed 2026-07-22**
 
-The final `session_history({ sessionId? })` path routes active reads through the workspace session controller to reconcile the authoritative summary and transcript together, while explicit non-selected reads resolve by durable id without activating or restoring that graph. The old ambiguous `history` request was removed rather than retained as an alias. The typed `list_session_summaries({ limit })` backend path selects files newest-mtime-first, processes the bounded set sequentially through the lightweight summary reader, and does not open Pi services. The substrate-owned `session.selected` workspace setting persists the selected durable id and cached label atomically; startup opens that graph when available, repairs stale selection to the newest graph, and successful New Session transitions persist their replacement only after restoration settles. Backend `switch_session({ sessionId })` applies the same busy rejection, current-state commit, runtime replacement, target restoration, and post-success selection persistence. The renderer controller independently hydrates guarded recent/active projections, refreshes recents after mutations, and exposes busy-aware switching. Chat presents that capability as its own recent-conversation pill and upward-anchored picker, aligned visually with its model picker without introducing a shared selector abstraction.
+The final `session_history({ sessionId? })` path routes active reads through the workspace session controller to reconcile the authoritative summary and transcript together, while explicit non-selected reads resolve by durable id without activating or restoring that graph. The old ambiguous `history` request was removed rather than retained as an alias. The typed `list_session_summaries({ limit })` backend path selects files newest-mtime-first, processes the bounded set sequentially through the lightweight summary reader, and does not open Pi services. The substrate-owned `session.selected` workspace setting persists only the selected durable id; startup opens that graph when available, repairs stale selection to the newest graph, and successful New Session transitions persist their replacement only after restoration settles. Backend `switch_session({ sessionId })` applies the same busy rejection, current-state commit, runtime replacement, target restoration, and post-success selection persistence. The renderer controller independently hydrates guarded recent/active projections, refreshes recents after mutations, and exposes busy-aware switching. Chat presents that capability as its own recent-conversation pill and upward-anchored picker, aligned visually with its model picker without introducing a shared selector abstraction.
 
-Add the mtime-ordered `list_session_summaries`, persisted selected-session identity/cache, and `switch_session({ sessionId })`. Implement the lightweight recent-file reader and its explicit-name → first-user-message → `New conversation` label projection, independent active-history/recent-list hydration, renderer-local latest-request guards, and a minimal recent-session selector. Every selector entry uses the same workspace session controller: disable and skip switching while the agent is running, reject raced/direct busy requests in main without aborting the run, commit current active feature state, switch through `AgentSessionRuntime`, derive the newly selected branch projection, restore it into the active feature instances, then update shared renderer state from the response. No session-change broadcast is added.
+Add the mtime-ordered `list_session_summaries`, persisted selected-session identity, and `switch_session({ sessionId })`. Implement the lightweight recent-file reader and its independent explicit-title and bounded first-user-message projections, independent active-history/recent-list hydration, renderer-local latest-request guards, and a minimal recent-session selector. Every selector entry uses the same workspace session controller: disable and skip switching while the agent is running, reject raced/direct busy requests in main without aborting the run, commit current active feature state, switch through `AgentSessionRuntime`, derive the newly selected branch projection, restore it into the active feature instances, then update shared renderer state from the response. No session-change broadcast is added.
 
 This unit delivers visible switching before rename polish, diagnostic UI, search, pagination, or indexing.
 
-### S4 — Naming and label polish
+### S4 — Titles and picker polish
 
-Add explicit rename/clear UI over `set_session_name` and finish cached active-label reconciliation around the label projection already required by S3. Apply the settled 100-character validation and update recent rows from mutation responses. Settle only the focus/draft details needed by the reviewed UI; richer Chat polish can remain in S5.
+Add explicit title/clear UI over `set_session_title` and refresh the active summary after the first completed turn so Chat can replace its empty-session fallback with the first-message preview. Apply the settled generous defensive bound and update recent rows from mutation responses. Use filled/empty circle markers consistently for current session/model selection; reserve check and × for inline title save/cancel. Settle only the focus/draft details needed by the reviewed UI; richer Chat polish can remain in S5.
 
 ### S5 — Defensive hardening and failure presentation
 
@@ -205,7 +202,7 @@ Update shipped agent/state/settings docs, architecture-of-record, durable-transc
 ## Boundary / later
 
 - Full branch-tree listing, preview, rewind, navigation, fork/clone, labels, and rollback UI.
-- Automatic model-generated session names.
+- Automatic model-generated session titles.
 - Persistent summary indexes, reverse-paged readers, file watching, streamed result batches, full-text search, deletion/trash, export, and import.
 - Multiple simultaneously active agent/session slots in one workspace.
 - Toast renderer ownership/placement and the complete **Ask agent to fix** recovery interaction.

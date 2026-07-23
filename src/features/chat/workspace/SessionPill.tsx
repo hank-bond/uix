@@ -28,11 +28,13 @@ export function SessionPill() {
         aria-expanded={open}
         aria-controls={open ? dialogId : undefined}
         disabled={!canSwitchSession}
-        title={activeSession?.displayLabel}
+        title={activeSession && formatSessionTitle(activeSession)}
         onClick={() => setOpen((current) => !current)}
       >
         <span className="session-pill__label">
-          {activeSession?.displayLabel ?? "loading conversation…"}
+          {activeSession
+            ? formatSessionLabel(activeSession)
+            : "loading conversation…"}
         </span>
         <span className="session-pill__chevron" aria-hidden="true">
           ▾
@@ -154,7 +156,7 @@ function SessionPicker({
                 >
                   <span
                     className="session-picker__name"
-                    title={session.displayLabel}
+                    title={formatSessionTitle(session)}
                   >
                     <span
                       className="session-picker__current"
@@ -163,7 +165,7 @@ function SessionPicker({
                       {isCurrent ? "✓" : ""}
                     </span>
                     <span className="session-picker__label">
-                      {session.displayLabel}
+                      {formatSessionLabel(session)}
                     </span>
                     {isCurrent && (
                       <span className="visually-hidden">
@@ -193,6 +195,20 @@ function SessionPicker({
       ) : null}
     </div>
   );
+}
+
+function formatSessionLabel(session: Readonly<SessionSummary>): string {
+  if (session.title) return session.title;
+  const preview = session.firstUserMessage?.preview.replace(/\s+/g, " ").trim();
+  if (!preview) return "New conversation";
+  return session.firstUserMessage?.truncated ? `${preview}…` : preview;
+}
+
+function formatSessionTitle(session: Readonly<SessionSummary>): string {
+  if (session.title) return session.title;
+  const preview = session.firstUserMessage?.preview;
+  if (!preview) return "New conversation";
+  return session.firstUserMessage?.truncated ? `${preview}…` : preview;
 }
 
 function formatSessionModifiedAge(

@@ -17,14 +17,13 @@ function deferred<T>() {
 
 const existingSession: SessionSummary = {
   sessionId: "session-1",
-  displayLabel: "Existing conversation",
+  title: "Existing conversation",
   createdAt: "2026-07-19T10:00:00.000Z",
   modifiedAt: "2026-07-19T10:30:00.000Z",
 };
 
 const newSession: SessionSummary = {
   sessionId: "session-2",
-  displayLabel: "New conversation",
   createdAt: "2026-07-19T11:00:00.000Z",
   modifiedAt: "2026-07-19T11:00:00.000Z",
 };

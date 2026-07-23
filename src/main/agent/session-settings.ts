@@ -5,7 +5,6 @@ import { defineWorkspaceSettingsNamespace } from "../workspace-settings-namespac
 
 const SelectedSessionSettingSchema = Type.Object({
   sessionId: SessionIdSchema,
-  displayLabel: Type.String(),
 });
 export type SelectedSessionSetting = Static<
   typeof SelectedSessionSettingSchema

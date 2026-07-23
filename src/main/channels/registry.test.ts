@@ -363,7 +363,7 @@ describe("ChannelRegistry", () => {
           handle: () => ({
             session: {
               sessionId: "session-1",
-              displayLabel: "Existing conversation",
+              title: "Existing conversation",
               createdAt: "2026-07-19T10:00:00.000Z",
               modifiedAt: "2026-07-19T10:30:00.000Z",
             },
@@ -374,7 +374,7 @@ describe("ChannelRegistry", () => {
           handle: () => [
             {
               sessionId: "session-1",
-              displayLabel: "Existing conversation",
+              title: "Existing conversation",
               createdAt: "2026-07-19T10:00:00.000Z",
               modifiedAt: "2026-07-19T10:30:00.000Z",
             },
@@ -383,7 +383,6 @@ describe("ChannelRegistry", () => {
         new_session: {
           handle: () => ({
             sessionId: "session-2",
-            displayLabel: "New conversation",
             createdAt: "2026-07-19T11:00:00.000Z",
             modifiedAt: "2026-07-19T11:00:00.000Z",
           }),
@@ -391,7 +390,7 @@ describe("ChannelRegistry", () => {
         switch_session: {
           handle: ({ sessionId }) => ({
             sessionId,
-            displayLabel: "Existing conversation",
+            title: "Existing conversation",
             createdAt: "2026-07-19T10:00:00.000Z",
             modifiedAt: "2026-07-19T10:30:00.000Z",
           }),
@@ -429,7 +428,7 @@ describe("ChannelRegistry", () => {
     ).resolves.toEqual({
       session: {
         sessionId: "session-1",
-        displayLabel: "Existing conversation",
+        title: "Existing conversation",
         createdAt: "2026-07-19T10:00:00.000Z",
         modifiedAt: "2026-07-19T10:30:00.000Z",
       },
@@ -445,7 +444,7 @@ describe("ChannelRegistry", () => {
     ).resolves.toEqual([
       {
         sessionId: "session-1",
-        displayLabel: "Existing conversation",
+        title: "Existing conversation",
         createdAt: "2026-07-19T10:00:00.000Z",
         modifiedAt: "2026-07-19T10:30:00.000Z",
       },
@@ -457,7 +456,6 @@ describe("ChannelRegistry", () => {
       transport.handlers.get("agent.new_session")?.(undefined),
     ).resolves.toEqual({
       sessionId: "session-2",
-      displayLabel: "New conversation",
       createdAt: "2026-07-19T11:00:00.000Z",
       modifiedAt: "2026-07-19T11:00:00.000Z",
     });
@@ -467,7 +465,7 @@ describe("ChannelRegistry", () => {
       }),
     ).resolves.toEqual({
       sessionId: "session-1",
-      displayLabel: "Existing conversation",
+      title: "Existing conversation",
       createdAt: "2026-07-19T10:00:00.000Z",
       modifiedAt: "2026-07-19T10:30:00.000Z",
     });

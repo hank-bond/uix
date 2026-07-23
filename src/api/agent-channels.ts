@@ -96,11 +96,18 @@ export const SessionIdSchema = Type.String({
   pattern: "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$",
 });
 
-/** Durable identity and current display projection for one session graph. */
+/** Durable identity and lightweight metadata for one session graph. */
 export const SessionSummarySchema = Type.Object({
   sessionId: SessionIdSchema,
-  displayName: Type.Optional(Type.String()),
-  displayLabel: Type.String(),
+  /** Pilot-authored title from Pi's latest session_info entry. */
+  title: Type.Optional(Type.String()),
+  /** Bounded textual projection of the graph's first user message. */
+  firstUserMessage: Type.Optional(
+    Type.Object({
+      preview: Type.String(),
+      truncated: Type.Boolean(),
+    }),
+  ),
   createdAt: Type.String(),
   modifiedAt: Type.String(),
 });

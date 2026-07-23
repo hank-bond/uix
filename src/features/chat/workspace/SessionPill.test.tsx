@@ -11,7 +11,10 @@ import { SessionPill } from "./SessionPill";
 const session: WorkspaceSessionHandle = {
   activeSession: {
     sessionId: "session-1",
-    displayLabel: "Investigate session switching",
+    firstUserMessage: {
+      preview: "Investigate session switching",
+      truncated: false,
+    },
     createdAt: "2026-07-22T10:00:00.000Z",
     modifiedAt: "2026-07-22T11:00:00.000Z",
   },
@@ -34,6 +37,44 @@ describe("session pill", () => {
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain('aria-expanded="false"');
     expect(html).not.toContain("disabled");
+  });
+
+  it("prefers an explicit title over the first-message preview", () => {
+    const html = renderToStaticMarkup(
+      <WorkspaceSessionProvider
+        session={{
+          ...session,
+          activeSession: {
+            ...session.activeSession!,
+            title: "Session titles",
+          },
+        }}
+      >
+        <SessionPill />
+      </WorkspaceSessionProvider>,
+    );
+
+    expect(html).toContain("Session titles");
+    expect(html).not.toContain("Investigate session switching");
+  });
+
+  it("owns the empty-session fallback copy", () => {
+    const html = renderToStaticMarkup(
+      <WorkspaceSessionProvider
+        session={{
+          ...session,
+          activeSession: {
+            sessionId: "session-2",
+            createdAt: "2026-07-22T12:00:00.000Z",
+            modifiedAt: "2026-07-22T12:00:00.000Z",
+          },
+        }}
+      >
+        <SessionPill />
+      </WorkspaceSessionProvider>,
+    );
+
+    expect(html).toContain("New conversation");
   });
 
   it("disables switching while the workspace session controller is busy", () => {

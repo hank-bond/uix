@@ -19,14 +19,14 @@ afterEach(async () => {
 });
 
 function fakeManager(options: {
-  displayName?: string;
+  title?: string;
   entries?: unknown[];
 }): SessionManager {
   return {
     getHeader: () => ({ timestamp: "2026-07-19T10:00:00.000Z" }),
     getSessionId: () => "session-1",
     getSessionFile: () => undefined,
-    getSessionName: () => options.displayName,
+    getSessionName: () => options.title,
     getEntries: () => options.entries ?? [],
   } as unknown as SessionManager;
 }
@@ -73,19 +73,25 @@ describe("readRecentSessionSummaries", () => {
     const summaries = await readRecentSessionSummaries(dir, 2);
 
     expect(
-      summaries.map(({ sessionId, displayLabel }) => ({
+      summaries.map(({ sessionId, firstUserMessage }) => ({
         sessionId,
-        displayLabel,
+        firstUserMessage,
       })),
     ).toEqual([
-      { sessionId: "session-1", displayLabel: "newest" },
-      { sessionId: "session-2", displayLabel: "middle" },
+      {
+        sessionId: "session-1",
+        firstUserMessage: { preview: "newest", truncated: false },
+      },
+      {
+        sessionId: "session-2",
+        firstUserMessage: { preview: "middle", truncated: false },
+      },
     ]);
   });
 });
 
 describe("readSessionFileSummary", () => {
-  it("reads the header, first user message, and latest explicit name", async () => {
+  it("reads the header, first user message, and latest explicit title", async () => {
     const dir = await mkdtemp(join(tmpdir(), "uix-session-summary-"));
     dirs.push(dir);
     const path = join(dir, "session.jsonl");
@@ -129,8 +135,11 @@ describe("readSessionFileSummary", () => {
       readSessionFileSummary(path, new Date("2026-07-19T10:04:00.000Z")),
     ).resolves.toEqual({
       sessionId: "session-1",
-      displayName: "Investigation",
-      displayLabel: "Investigation",
+      title: "Investigation",
+      firstUserMessage: {
+        preview: "first   question",
+        truncated: false,
+      },
       createdAt: "2026-07-19T10:00:00.000Z",
       modifiedAt: "2026-07-19T10:04:00.000Z",
     });
@@ -161,10 +170,15 @@ describe("readSessionFileSummary", () => {
         .join("\n"),
     );
 
-    await expect(
-      readSessionFileSummary(path, new Date("2026-07-19T10:04:00.000Z")),
-    ).resolves.toMatchObject({
-      displayLabel: "fallback question",
+    const summary = await readSessionFileSummary(
+      path,
+      new Date("2026-07-19T10:04:00.000Z"),
+    );
+
+    expect(summary?.title).toBeUndefined();
+    expect(summary?.firstUserMessage).toEqual({
+      preview: "fallback question",
+      truncated: false,
     });
   });
 
@@ -181,39 +195,55 @@ describe("readSessionFileSummary", () => {
 });
 
 describe("readSessionSummary", () => {
-  it("prefers an explicit display name", async () => {
+  it("returns the explicit title separately from the first user message", async () => {
     await expect(
       readSessionSummary(
         fakeManager({
-          displayName: "Investigation",
+          title: "Investigation",
           entries: [userMessage("first question")],
         }),
       ),
     ).resolves.toEqual({
       sessionId: "session-1",
-      displayName: "Investigation",
-      displayLabel: "Investigation",
+      title: "Investigation",
+      firstUserMessage: { preview: "first question", truncated: false },
       createdAt: "2026-07-19T10:00:00.000Z",
       modifiedAt: "2026-07-19T10:00:00.000Z",
     });
   });
 
-  it("collapses and truncates the first user message fallback", async () => {
+  it("preserves internal whitespace and bounds the preview by Unicode code point", async () => {
+    const text = `  first\n  ${"🙂".repeat(510)}end  `;
     const summary = await readSessionSummary(
-      fakeManager({
-        entries: [userMessage(`  ${"word ".repeat(30)}  `)],
-      }),
+      fakeManager({ entries: [userMessage(text)] }),
     );
 
-    expect(summary.displayName).toBeUndefined();
-    expect(summary.displayLabel).toHaveLength(80);
-    expect(summary.displayLabel).not.toContain("  ");
-    expect(summary.displayLabel.endsWith("…")).toBe(true);
+    expect(summary.title).toBeUndefined();
+    expect(summary.firstUserMessage).toEqual({
+      preview: `first\n  ${"🙂".repeat(504)}`,
+      truncated: true,
+    });
+    expect(Array.from(summary.firstUserMessage?.preview ?? "")).toHaveLength(
+      512,
+    );
   });
 
-  it("labels a session without a user message as a new conversation", async () => {
-    await expect(readSessionSummary(fakeManager({}))).resolves.toMatchObject({
-      displayLabel: "New conversation",
+  it("omits first-user metadata when the first user message has no text", async () => {
+    const imageOnly = {
+      type: "message",
+      message: {
+        role: "user",
+        content: [{ type: "image", data: "ignored" }],
+      },
+    };
+    await expect(
+      readSessionSummary(
+        fakeManager({ entries: [imageOnly, userMessage("later text")] }),
+      ),
+    ).resolves.toEqual({
+      sessionId: "session-1",
+      createdAt: "2026-07-19T10:00:00.000Z",
+      modifiedAt: "2026-07-19T10:00:00.000Z",
     });
   });
 });

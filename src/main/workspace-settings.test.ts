@@ -549,14 +549,13 @@ describe("workspace namespace settings", () => {
     });
   });
 
-  it("loads and persists the selected-session identity and label cache", async () => {
+  it("loads and persists the selected-session identity", async () => {
     const manifestPath = await tempManifest({
       name: "Demo",
       settings: {
         session: {
           selected: {
             sessionId: "session-1",
-            displayLabel: "Existing conversation",
           },
         },
       },
@@ -572,12 +571,10 @@ describe("workspace namespace settings", () => {
     >();
     expect(session.get("selected")).toEqual({
       sessionId: "session-1",
-      displayLabel: "Existing conversation",
     });
 
     session.set("selected", {
       sessionId: "session-2",
-      displayLabel: "New conversation",
     });
     await manifest.flush();
 
@@ -588,7 +585,6 @@ describe("workspace namespace settings", () => {
       session: {
         selected: {
           sessionId: "session-2",
-          displayLabel: "New conversation",
         },
       },
     });
