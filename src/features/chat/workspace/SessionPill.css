@@ -75,6 +75,8 @@
 
 .session-picker__row {
   display: flex;
+  align-items: center;
+  gap: 0.1rem;
 }
 
 .session-picker__option {
@@ -119,12 +121,16 @@
   white-space: nowrap;
 }
 
-.session-picker__current {
+.session-picker__selection {
   flex: none;
   width: 0.85rem;
   margin-right: 0.35rem;
-  color: var(--success);
+  color: var(--fg-faint);
   text-align: center;
+}
+
+.session-picker__selection[data-selected="true"] {
+  color: var(--accent);
 }
 
 .session-picker__modified {
@@ -132,6 +138,129 @@
   color: var(--fg-muted);
   font-size: 0.7rem;
   white-space: nowrap;
+}
+
+.session-picker__edit-title,
+.session-picker__cancel-title {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.session-picker__edit-title {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.session-picker__row:hover .session-picker__edit-title,
+.session-picker__row:focus-within .session-picker__edit-title,
+.session-picker__edit-title:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.session-picker__edit-title:hover:not(:disabled),
+.session-picker__edit-title:focus-visible,
+.session-picker__cancel-title:hover:not(:disabled),
+.session-picker__cancel-title:focus-visible,
+.session-picker__save-title:hover:not(:disabled),
+.session-picker__save-title:focus-visible {
+  background: var(--bg-input);
+  color: var(--fg);
+}
+
+.session-picker__edit-title:disabled {
+  cursor: not-allowed;
+}
+
+.session-picker__row:hover .session-picker__edit-title:disabled,
+.session-picker__row:focus-within .session-picker__edit-title:disabled {
+  opacity: 0.5;
+}
+
+.session-picker__cancel-title:disabled,
+.session-picker__save-title:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
+.session-picker__pencil {
+  width: 0.8rem;
+  height: 0.8rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.3;
+}
+
+.session-picker__editor {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  padding: 0.2rem 0;
+}
+
+.session-picker__editor > .session-picker__selection {
+  margin-left: 0.45rem;
+}
+
+.session-picker__title-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--fg);
+  font: inherit;
+}
+
+.session-picker__title-input:focus-visible {
+  border-color: var(--focus-ring);
+  outline: none;
+}
+
+.session-picker__title-input:disabled {
+  opacity: 0.65;
+}
+
+.session-picker__save-title {
+  flex: none;
+  margin-left: 0.3rem;
+  padding: 0.25rem 0.4rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.session-picker__cancel-title {
+  margin-left: 0.1rem;
+  font-size: 1rem;
+}
+
+@media (hover: none) {
+  .session-picker__edit-title {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .session-picker__edit-title:disabled {
+    opacity: 0.5;
+  }
 }
 
 .session-picker__note {

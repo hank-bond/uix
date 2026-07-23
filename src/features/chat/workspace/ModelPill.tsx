@@ -266,10 +266,11 @@ function ModelPicker({
                   >
                     <span className="model-picker__name" title={model.name}>
                       <span
-                        className="model-picker__current"
+                        className="model-picker__selection"
+                        data-selected={isCurrent ? "true" : undefined}
                         aria-hidden="true"
                       >
-                        {isCurrent ? "✓" : ""}
+                        {isCurrent ? "●" : "○"}
                       </span>
                       <span className="model-picker__label">{model.name}</span>
                       {isCurrent && (

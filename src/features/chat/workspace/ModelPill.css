@@ -114,12 +114,16 @@
   white-space: nowrap;
 }
 
-.model-picker__current {
+.model-picker__selection {
   flex: none;
   width: 0.85rem;
   margin-right: 0.35rem;
-  color: var(--success);
+  color: var(--fg-faint);
   text-align: center;
+}
+
+.model-picker__selection[data-selected="true"] {
+  color: var(--accent);
 }
 
 .model-picker__source {
