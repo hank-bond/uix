@@ -12,6 +12,7 @@ function Probe() {
 }
 
 const loadActiveHistory = () => Promise.resolve({ items: [] });
+const switchSession = () => Promise.resolve(undefined);
 
 describe("active session context", () => {
   it("exposes the controller-owned projection read-only", () => {
@@ -24,8 +25,11 @@ describe("active session context", () => {
             createdAt: "2026-07-19T11:00:00.000Z",
             modifiedAt: "2026-07-19T11:00:00.000Z",
           },
+          recentSessions: undefined,
           sessionSelectionVersion: 1,
+          canSwitchSession: true,
           loadActiveHistory,
+          switchSession,
         }}
       >
         <Probe />
@@ -41,8 +45,11 @@ describe("active session context", () => {
         <WorkspaceSessionProvider
           session={{
             activeSession: undefined,
+            recentSessions: undefined,
             sessionSelectionVersion: 0,
+            canSwitchSession: true,
             loadActiveHistory,
+            switchSession,
           }}
         >
           <Probe />

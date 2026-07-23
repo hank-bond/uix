@@ -38,7 +38,7 @@ export function Chat({ client }: ChatProps) {
   const [pending, setPending] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const historyLoadVersion = useRef(0);
+  const activeHistoryRequestVersion = useRef(0);
   const { sessionSelectionVersion, loadActiveHistory } = useWorkspaceSession();
   const statusBar = useFeatureSetting(chatSettings, "statusBar");
   const controls = useAgentControls(client);
@@ -58,21 +58,23 @@ export function Chat({ client }: ChatProps) {
   // unchanged. Prepend so live events received during the request remain after
   // the durable history.
   useLayoutEffect(() => {
-    const loadVersion = ++historyLoadVersion.current;
+    const requestVersion = ++activeHistoryRequestVersion.current;
     setItems([]);
     setHydrated(false);
     void (async () => {
       try {
         const snapshot = await loadActiveHistory();
-        if (loadVersion !== historyLoadVersion.current) return;
+        if (requestVersion !== activeHistoryRequestVersion.current) return;
         setItems((prev) => [...snapshot.items.filter(isVisible), ...prev]);
       } finally {
-        if (loadVersion === historyLoadVersion.current) setHydrated(true);
+        if (requestVersion === activeHistoryRequestVersion.current) {
+          setHydrated(true);
+        }
       }
     })();
     return () => {
-      if (historyLoadVersion.current === loadVersion) {
-        historyLoadVersion.current += 1;
+      if (activeHistoryRequestVersion.current === requestVersion) {
+        activeHistoryRequestVersion.current += 1;
       }
     };
   }, [sessionSelectionVersion, loadActiveHistory]);

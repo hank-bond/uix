@@ -161,6 +161,18 @@ A **buffer** is a live, feature-specific working projection over a store. It may
 
 A buffer is not durable authority. It writes authoritative state through its backing store and can rebuild from store contents when needed. For example, `CanvasDocumentBuffer` keeps anchored document projections, canonicalizes HTML, and reconciles anchors while `DocumentStore` remains the durable current/version store underneath.
 
+## Controller
+
+A **controller** is a renderer-owned, framework-independent state owner for one interactive domain. It translates user intent into backend requests, consumes authoritative responses and events, coordinates in-flight operations and stale-response rejection, and publishes an immutable renderer snapshot plus narrowly derived capabilities. A React provider may adapt that snapshot and those capabilities into context, but rendering and context lifetime are not controller responsibilities.
+
+A controller owns the current renderer projection, not the durable domain state. It does not persist data, own an external runtime, or run a lifecycle across registered contributions. Ordinary component-local state remains in React; use a controller when multiple renderer consumers or entry points must share one ordered interaction protocol. `WorkspaceSessionController` is the current example: it coordinates active and recent session projections, agent activity, session mutations, and their request/state versions while main/Pi remain authoritative for durable session graphs.
+
+## Session selection and activity
+
+The **selected session graph** is the durable graph chosen by the workspace. Main persists its identity in `session.selected`; omitted-id history reads, commits, reload, and runtime creation resolve against it. A **non-selected session** is another durable graph read explicitly without changing that choice.
+
+The **active AgentSession** is Pi's ephemeral runtime attached to the selected graph. The renderer's **active session projection** is its accepted summary and transcript for that same graph. Use _selected_ for durable backend choice, _active_ for the live runtime or renderer projection, and _non-selected_—not _non-active_—for an explicit read target.
+
 ## Facet
 
 A **facet** is a coherent slice of behavior we try to keep self-contained and discrete. It is a conceptual boundary, not necessarily one file, one class, or one registration.

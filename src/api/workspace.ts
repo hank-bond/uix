@@ -54,13 +54,19 @@ const SubscribeToActionCatalogContext = createContext<
   SubscribeToActionCatalog | undefined
 >(undefined);
 const InvokeActionContext = createContext<InvokeAction | undefined>(undefined);
-type ActiveSession = Readonly<SessionSummary>;
+type SessionSummaryProjection = Readonly<SessionSummary>;
 
 export interface WorkspaceSessionHandle {
-  readonly activeSession: ActiveSession | undefined;
+  readonly activeSession: SessionSummaryProjection | undefined;
+  readonly recentSessions: readonly SessionSummaryProjection[] | undefined;
   /** Changes only when the selected graph changes, not when its summary hydrates. */
   readonly sessionSelectionVersion: number;
+  readonly canSwitchSession: boolean;
   readonly loadActiveHistory: () => Promise<TranscriptSnapshot>;
+  /** Returns undefined when current activity requires the renderer to skip. */
+  readonly switchSession: (
+    sessionId: string,
+  ) => Promise<SessionSummaryProjection | undefined>;
 }
 
 const WorkspaceSessionContext = createContext<

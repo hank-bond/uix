@@ -17,6 +17,8 @@ import {
 
 import { WorkspaceSessionController } from "./session-controller";
 
+const RecentSessionLimit = 10;
+
 const WorkspaceSessionControllerContext = createContext<
   WorkspaceSessionController | undefined
 >(undefined);
@@ -35,29 +37,46 @@ export function WorkspaceSessionControllerProvider({
     () =>
       new WorkspaceSessionController({
         requestActiveHistory: () => agent.requests.session_history({}),
+        requestRecentSessions: () =>
+          agent.requests.list_session_summaries({ limit: RecentSessionLimit }),
         requestNewSession: () => agent.requests.new_session(undefined),
+        requestSwitchSession: (sessionId) =>
+          agent.requests.switch_session({ sessionId }),
       }),
     [agent],
   );
-  const activeSession = useSyncExternalStore(
+  const snapshot = useSyncExternalStore(
     controller.subscribe,
-    controller.getActiveSessionSnapshot,
-    controller.getActiveSessionSnapshot,
+    controller.getSnapshot,
+    controller.getSnapshot,
   );
 
   useEffect(
     () => agent.events.event((event) => controller.updateAgentActivity(event)),
     [agent, controller],
   );
+  useEffect(() => {
+    void controller.loadRecentSessions().catch(() => {});
+  }, [controller]);
 
   const loadActiveHistory = useCallback(
     () => controller.loadActiveHistory(),
     [controller],
   );
-  const sessionSelectionVersion = controller.getSessionSelectionVersion();
+  const switchSession = useCallback(
+    (sessionId: string) => controller.switchSession(sessionId),
+    [controller],
+  );
   const session = useMemo(
-    () => ({ activeSession, sessionSelectionVersion, loadActiveHistory }),
-    [activeSession, sessionSelectionVersion, loadActiveHistory],
+    () => ({
+      activeSession: snapshot.activeSession,
+      recentSessions: snapshot.recentSessions,
+      sessionSelectionVersion: snapshot.sessionSelectionVersion,
+      canSwitchSession: snapshot.canSwitchSession,
+      loadActiveHistory,
+      switchSession,
+    }),
+    [snapshot, loadActiveHistory, switchSession],
   );
 
   return (

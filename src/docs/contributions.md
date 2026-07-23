@@ -50,7 +50,7 @@ turnState: {
 }
 ```
 
-`createSnapshot()` always returns that cell's complete current value. The substrate validates it as plain JSON and compares it with the nearest committed value, so changing `selection` does not re-persist `documents`. Nested fields within one cell remain atomic. TypeBox codecs are rejected because persisted and restored values use the same plain-JSON representation. `restore(undefined)` means that the selected branch has no value for the cell and the feature must replace prior working state with its defaults. The restore scheduler is not yet connected to session activation.
+`createSnapshot()` always returns that cell's complete current value. The substrate validates it as plain JSON and compares it with the nearest committed value, so changing `selection` does not re-persist `documents`. Nested fields within one cell remain atomic. TypeBox codecs are rejected because persisted and restored values use the same plain-JSON representation. `restore(undefined)` means that the selected branch has no value for the cell and the feature must replace prior working state with its defaults. The restore scheduler applies selected-branch state on startup, session replacement, and serialized feature reload.
 
 The Agent system-prompt section is for short, always-relevant feature semantics and authoring contracts. It is static for one Pi runtime and should not carry per-turn state; use agent context for that. Larger task-specific workflows belong in a skill so Pi can advertise only its description and let the Agent load the full `SKILL.md` on demand. UIX does not parse skills: Pi owns discovery, validation, catalog formatting, and loading.
 
