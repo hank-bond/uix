@@ -23,6 +23,7 @@ body,
 #root {
   margin: 0;
   height: 100%;
+  overflow: hidden;
   font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   background: var(--bg);
   color: var(--fg);
@@ -30,6 +31,7 @@ body,
 
 .workspace {
   height: 100%;
+  overflow: hidden;
   background: var(--border);
 }
 
@@ -41,6 +43,7 @@ body,
 .workspace-panels {
   width: 100%;
   height: 100%;
+  overflow: hidden;
 }
 
 .workspace-resize-separator {

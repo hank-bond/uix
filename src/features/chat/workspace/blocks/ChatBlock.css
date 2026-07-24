@@ -1,19 +1,57 @@
 .msg {
   display: grid;
-  grid-template-columns: 5rem minmax(0, 1fr);
-  gap: 0.5rem;
+  gap: 0.35rem;
   font-size: 0.9rem;
   line-height: 1.45;
   min-width: 0;
   max-width: 100%;
 }
 
-.msg__role {
-  font-size: 0.68rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+.msg__label {
+  position: relative;
   color: var(--fg-faint);
-  padding-top: 0.15rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.msg__running-track {
+  position: absolute;
+  inset-block-start: calc(100% + 0.1rem);
+  inset-inline-start: 0;
+  width: min(12rem, 100%);
+  height: 2px;
+  appearance: none;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background-color: var(--chat-tool-progress-track);
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-repeat: no-repeat;
+  background-position: -55% 0;
+  background-size: 35% 100%;
+  animation: chat-tool-progress 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.msg__running-track::-webkit-progress-bar,
+.msg__running-track::-webkit-progress-value {
+  background: transparent;
+}
+
+@keyframes chat-tool-progress {
+  from {
+    background-position: -55% 0;
+  }
+
+  to {
+    background-position: 155% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .msg__running-track {
+    animation: none;
+    background-position: 0 0;
+  }
 }
 
 .msg__text {
@@ -22,6 +60,22 @@
   word-break: break-word;
   min-width: 0;
   max-width: 100%;
+}
+
+.msg--user,
+.msg--assistant {
+  padding: 0.55rem;
+  border-radius: 0.4rem;
+}
+
+.msg--user {
+  margin-inline-start: min(2rem, 8%);
+  background: var(--chat-user-message-bg);
+}
+
+.msg--assistant {
+  margin-inline-end: min(2rem, 8%);
+  background: var(--chat-agent-message-bg);
 }
 
 .msg--user .msg__text,
@@ -44,31 +98,6 @@
   gap: 0.45rem;
   min-width: 0;
   font-size: 0.86rem;
-}
-
-.tool-block__header {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-width: 0;
-}
-
-.tool-block__status {
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.05rem 0.4rem;
-  color: var(--fg-dim);
-  font-size: 0.68rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.tool-block__name {
-  color: var(--fg);
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .tool-block__payload,
@@ -110,14 +139,9 @@
   color: var(--accent);
 }
 
-.msg--tool-error .tool-block__status {
-  border-color: color-mix(in srgb, var(--error), transparent 45%);
-  color: var(--error);
-}
-
-.msg--tool-error .msg__role,
+.msg--tool-error .msg__label,
 .msg--tool-error .msg__text,
-.msg--error .msg__role,
+.msg--error .msg__label,
 .msg--error .msg__text {
   color: var(--error);
 }

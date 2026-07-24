@@ -1,36 +1,45 @@
 import { ChatBlockFrame } from "./ChatBlockFrame";
 import { CanvasToolContent } from "./CanvasToolContent";
 import { DefaultToolContent } from "./DefaultToolContent";
-import { toToolState } from "./tool";
+import { toToolDisplayName, toToolState } from "./tool";
 import type { ToolChatRenderer, ToolItem } from "./tool";
 
 const toolChatRenderers = new Map<string, ToolChatRenderer>();
 
 registerToolChatRenderer("canvas__anchor_read", {
-  render: (props) => <CanvasToolContent {...props} label="Read Canvas" />,
+  displayName: "Read Canvas",
+  render: ({ item }) => <CanvasToolContent item={item} />,
 });
 registerToolChatRenderer("canvas__anchor_write", {
-  render: (props) => <CanvasToolContent {...props} label="Write Canvas" />,
+  displayName: "Write Canvas",
+  render: ({ item }) => <CanvasToolContent item={item} />,
 });
 registerToolChatRenderer("canvas__anchor_edit", {
-  render: (props) => <CanvasToolContent {...props} label="Edit Canvas" />,
+  displayName: "Edit Canvas",
+  render: ({ item }) => <CanvasToolContent item={item} />,
 });
 
 export function ToolChatBlock({ item }: { item: ToolItem }) {
   const state = toToolState(item);
   const renderer = toolChatRenderers.get(item.toolName);
+  const name = renderer?.displayName ?? toToolDisplayName(item.toolName);
   return (
     <ChatBlockFrame
       className={item.isError ? "tool-error" : "tool"}
       kind="tool"
       state={state}
       toolName={item.toolName}
-      label={item.isError ? "tool error" : "tool"}
+      label={
+        <>
+          tool: <span data-uix-part="tool-name">{name}</span>
+          {item.isError ? " (error)" : ""}
+        </>
+      }
       body={
         renderer ? (
           renderer.render({ item, state })
         ) : (
-          <DefaultToolContent item={item} state={state} />
+          <DefaultToolContent item={item} />
         )
       }
     />

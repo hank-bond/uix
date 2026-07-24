@@ -7,6 +7,7 @@ export type ToolItem = Extract<TranscriptItem, { kind: "tool" }>;
 export type ToolState = "running" | "success" | "error";
 
 export interface ToolChatRenderer {
+  displayName: string;
   render: (props: { item: ToolItem; state: ToolState }) => ReactNode;
 }
 
@@ -27,17 +28,6 @@ export function toToolTextContent(item: ToolItem): string | undefined {
   return typeof value === "string"
     ? value
     : JSON.stringify(value, undefined, 2);
-}
-
-export function toToolStatusLabel(state: ToolState): string {
-  switch (state) {
-    case "running":
-      return "running";
-    case "success":
-      return "finished";
-    case "error":
-      return "failed";
-  }
 }
 
 export function toToolDisplayName(toolName: string): string {

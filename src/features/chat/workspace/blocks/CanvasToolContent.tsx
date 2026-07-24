@@ -1,17 +1,9 @@
 import { useState } from "react";
 
-import { toToolStatusLabel, toToolTextContent } from "./tool";
-import type { ToolItem, ToolState } from "./tool";
+import { toToolTextContent } from "./tool";
+import type { ToolItem } from "./tool";
 
-export function CanvasToolContent({
-  item,
-  state,
-  label,
-}: {
-  item: ToolItem;
-  state: ToolState;
-  label: string;
-}) {
+export function CanvasToolContent({ item }: { item: ToolItem }) {
   const [expanded, setExpanded] = useState(false);
   const payload = toToolTextContent(item);
   const lines = payload ? stripAnchorGutters(payload).split(/\r?\n/) : [];
@@ -20,14 +12,6 @@ export function CanvasToolContent({
 
   return (
     <div className="tool-block canvas-tool-block" data-uix-part="canvas-tool">
-      <div className="tool-block__header" data-uix-part="tool-header">
-        <span className="tool-block__status" data-uix-part="tool-status">
-          {toToolStatusLabel(state)}
-        </span>
-        <span className="tool-block__name" data-uix-part="tool-name">
-          {label}
-        </span>
-      </div>
       {visibleLines.length ? (
         <div
           className="canvas-tool-block__payload"

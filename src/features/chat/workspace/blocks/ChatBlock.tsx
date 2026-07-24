@@ -11,11 +11,9 @@ export interface ChatBlockProps {
 export function ChatBlock({ item }: ChatBlockProps) {
   switch (item.kind) {
     case "user":
-      return <MessageChatBlock item={item} label="user" className="user" />;
+      return <MessageChatBlock item={item} className="user" />;
     case "assistant":
-      return (
-        <MessageChatBlock item={item} label="assistant" className="assistant" />
-      );
+      return <MessageChatBlock item={item} className="assistant" />;
     case "tool":
       return <ToolChatBlock item={item} />;
     case "custom":
