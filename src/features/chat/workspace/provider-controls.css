@@ -1,5 +1,4 @@
-.provider-credentials,
-.provider-oauth {
+.provider-auth {
   display: grid;
   gap: 0.65rem;
   padding: 0.75rem;

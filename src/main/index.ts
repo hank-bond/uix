@@ -236,8 +236,8 @@ async function openWorkspace(
       agentPublisher.status_changed(status);
     },
     openExternal: (url) => shell.openExternal(url),
-    onOAuthFlowState: (state) => {
-      agentPublisher.oauth_flow_changed(state);
+    onProviderAuthFlowSnapshot: (snapshot) => {
+      agentPublisher.provider_auth_flow_changed(snapshot);
     },
     onModelAvailabilityChange: () => {
       agentPublisher.model_availability_changed();
@@ -371,27 +371,25 @@ async function openWorkspace(
             providers: await driver.listAuthProviders(),
           }),
         },
-        save_provider_credentials: {
-          handle: (credentials) => driver.saveProviderCredentials(credentials),
+        current_provider_auth_flow: {
+          handle: () => driver.getCurrentProviderAuthFlow() ?? null,
         },
-        current_oauth_flow: {
-          handle: () => driver.currentOAuthFlow() ?? null,
+        begin_provider_auth_flow: {
+          handle: ({ providerId, authType }) =>
+            driver.beginProviderAuthFlow(providerId, authType),
         },
-        begin_oauth_flow: {
-          handle: ({ providerId, actionId }) =>
-            driver.beginOAuthFlow(providerId, actionId),
-        },
-        answer_oauth_flow: {
+        answer_provider_auth_flow: {
           handle: ({ flowId, promptId, value }) => {
-            driver.answerOAuthFlow(flowId, promptId, value);
+            driver.answerProviderAuthFlow(flowId, promptId, value);
           },
         },
-        reopen_oauth_flow: {
-          handle: ({ flowId }) => driver.reopenOAuthFlow(flowId),
+        open_provider_auth_link: {
+          handle: ({ flowId, linkId }) =>
+            driver.openProviderAuthLink(flowId, linkId),
         },
-        cancel_oauth_flow: {
+        cancel_provider_auth_flow: {
           handle: ({ flowId }) => {
-            driver.cancelOAuthFlow(flowId);
+            driver.cancelProviderAuthFlow(flowId);
           },
         },
       }),

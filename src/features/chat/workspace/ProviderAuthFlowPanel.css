@@ -1,0 +1,99 @@
+.provider-auth__status,
+.provider-auth__url,
+.provider-auth__success,
+.provider-auth__error {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.provider-auth__status {
+  color: var(--fg);
+}
+
+.provider-auth__url {
+  overflow-wrap: anywhere;
+  color: var(--fg-dim);
+  font-family: var(--code-font), monospace;
+}
+
+.provider-auth__success {
+  color: var(--success);
+}
+
+.provider-auth__error {
+  color: var(--error);
+}
+
+.provider-auth__code {
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--fg);
+  font-family: var(--code-font), monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+  user-select: all;
+}
+
+.provider-auth__notice,
+.provider-auth__prompt,
+.provider-auth__choices {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.provider-auth__prompt {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.provider-auth__prompt label,
+.provider-auth__prompt legend {
+  padding: 0;
+  color: var(--fg);
+  font-size: 0.8rem;
+}
+
+.provider-auth__choices .chat-button {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.provider-auth__choices .chat-button[data-has-description] {
+  justify-items: start;
+  text-align: start;
+}
+
+.provider-auth__choice-description {
+  color: var(--fg-dim);
+  font-size: 0.72rem;
+  font-weight: 400;
+}
+
+.provider-auth__prompt input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--fg);
+  font: inherit;
+}
+
+.provider-auth__prompt input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.provider-auth__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

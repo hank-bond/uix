@@ -422,12 +422,19 @@ describe("ChannelRegistry", () => {
         agent_status: { handle: () => ({}) },
         select_model: { handle: () => status },
         list_auth_providers: { handle: () => ({ providers: [] }) },
-        save_provider_credentials: { handle: () => undefined },
-        current_oauth_flow: { handle: () => null },
-        begin_oauth_flow: { handle: () => ({ flowId: "flow-1" }) },
-        answer_oauth_flow: { handle: () => undefined },
-        reopen_oauth_flow: { handle: () => undefined },
-        cancel_oauth_flow: { handle: () => undefined },
+        current_provider_auth_flow: { handle: () => null },
+        begin_provider_auth_flow: {
+          handle: () => ({
+            flowId: "flow-1",
+            providerId: "anthropic",
+            authType: "api_key" as const,
+            phase: { type: "starting" as const },
+            notices: [],
+          }),
+        },
+        answer_provider_auth_flow: { handle: () => undefined },
+        open_provider_auth_link: { handle: () => undefined },
+        cancel_provider_auth_flow: { handle: () => undefined },
       }),
     ]);
 
@@ -515,18 +522,18 @@ describe("ChannelRegistry", () => {
       }),
     ).resolves.toEqual({ models: [] });
 
-    const credentialLog = transport.handleLogs.get(
-      "agent.save_provider_credentials",
+    const answerLog = transport.handleLogs.get(
+      "agent.answer_provider_auth_flow",
     );
-    const credentialDescription = credentialLog?.describeRequest?.({
-      providerId: "openrouter",
-      methodId: "api-key",
-      values: { apiKey: "test-secret-api-key" },
+    const answerDescription = answerLog?.describeRequest?.({
+      flowId: "flow-1",
+      promptId: "prompt-1",
+      value: "test-secret-api-key",
     });
-    expect(credentialDescription).toEqual({
+    expect(answerDescription).toEqual({
       redacted: "provider authentication payload",
     });
-    expect(JSON.stringify(credentialDescription)).not.toContain(
+    expect(JSON.stringify(answerDescription)).not.toContain(
       "test-secret-api-key",
     );
 

@@ -11,7 +11,7 @@ import sessionPillSheet from "./SessionPill.css" with { type: "css" };
 import modelPillSheet from "./ModelPill.css" with { type: "css" };
 import providerControlsSheet from "./provider-controls.css" with { type: "css" };
 import providerLoginModalSheet from "./ProviderLoginModal.css" with { type: "css" };
-import oauthFlowPanelSheet from "./OAuthFlowPanel.css" with { type: "css" };
+import providerAuthFlowPanelSheet from "./ProviderAuthFlowPanel.css" with { type: "css" };
 
 export default defineSurface({
   name: "chat",
@@ -24,7 +24,7 @@ export default defineSurface({
     modelPillSheet,
     providerControlsSheet,
     providerLoginModalSheet,
-    oauthFlowPanelSheet,
+    providerAuthFlowPanelSheet,
   ],
   render: (client) => <Chat client={client} />,
 });

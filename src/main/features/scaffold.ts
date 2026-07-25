@@ -14,7 +14,7 @@
 // workspace root gets `workspaces: ["features/*"]`, and one `npm install` at
 // scaffold time hoists them into `<ws>/node_modules` where walk-up resolution
 // finds them. npm skips glob-matched dirs without a `package.json`, so
-// dep-less features (chat) stay package-less. Install is scaffold-time only —
+// features without dependencies may stay package-less. Install is scaffold-time only —
 // never a startup step; later dep changes are the agent's/user's `npm
 // install`, and a missing dep fails loudly into the loader's `failed[]`.
 //

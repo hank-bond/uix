@@ -193,6 +193,12 @@ const ModelCatalogResponseSchema = Type.Object({
   models: ModelCatalogSchema,
 });
 
+export const ProviderAuthTypeSchema = Type.Union([
+  Type.Literal("api_key"),
+  Type.Literal("oauth"),
+]);
+export type ProviderAuthType = Static<typeof ProviderAuthTypeSchema>;
+
 const ProviderConnectionSchema = Type.Object({
   source: Type.Union([
     Type.Literal("stored"),
@@ -200,63 +206,14 @@ const ProviderConnectionSchema = Type.Object({
     Type.Literal("runtime"),
     Type.Literal("configuration"),
   ]),
-  credentialReference: Type.Optional(
-    Type.Union([
-      Type.Object({
-        type: Type.Literal("environment"),
-        name: Type.String(),
-      }),
-      Type.Object({
-        type: Type.Literal("command"),
-        location: Type.Union([
-          Type.Literal("auth_file"),
-          Type.Literal("provider_configuration"),
-        ]),
-      }),
-    ]),
-  ),
-  /** Last four characters of a stored literal API key, when safe to expose. */
-  keySuffix: Type.Optional(
-    Type.String({ minLength: 4, maxLength: 4, pattern: "^[\\x21-\\x7e]{4}$" }),
-  ),
+  label: Type.Optional(Type.String()),
 });
 
-const ProviderAuthMethodBaseSchema = Type.Object({
+export const ProviderAuthMethodSchema = Type.Object({
   providerId: Type.String(),
-  label: Type.String(),
+  authType: ProviderAuthTypeSchema,
   connection: Type.Optional(ProviderConnectionSchema),
 });
-
-export const ProviderAuthMethodSchema = Type.Union([
-  Type.Object({
-    id: Type.Literal("oauth"),
-    type: Type.Literal("oauth"),
-    ...ProviderAuthMethodBaseSchema.properties,
-    startActions: Type.Array(
-      Type.Object({
-        id: Type.String(),
-        label: Type.String(),
-        primary: Type.Boolean(),
-      }),
-    ),
-  }),
-  Type.Object({
-    id: Type.String(),
-    type: Type.Literal("credentials"),
-    ...ProviderAuthMethodBaseSchema.properties,
-    description: Type.Optional(Type.String()),
-    fields: Type.Array(
-      Type.Object({
-        id: Type.String(),
-        label: Type.String(),
-        secret: Type.Boolean(),
-        required: Type.Boolean(),
-        placeholder: Type.Optional(Type.String()),
-      }),
-    ),
-    helpUrl: Type.Optional(Type.String()),
-  }),
-]);
 export type ProviderAuthMethod = Static<typeof ProviderAuthMethodSchema>;
 
 export const ProviderAuthCatalogEntrySchema = Type.Object({
@@ -278,80 +235,94 @@ const ProviderAuthCatalogResponseSchema = Type.Object({
   providers: ProviderAuthCatalogSchema,
 });
 
-export const ProviderCredentialsSchema = Type.Object({
-  providerId: Type.String(),
-  methodId: Type.String(),
-  values: Type.Record(Type.String(), Type.String()),
+const ProviderAuthLinkSchema = Type.Object({
+  linkId: Type.String(),
+  url: Type.String(),
+  label: Type.Optional(Type.String()),
 });
-export type ProviderCredentials = Static<typeof ProviderCredentialsSchema>;
+export type ProviderAuthLink = Static<typeof ProviderAuthLinkSchema>;
 
-export const OAuthFlowIdSchema = Type.Object({ flowId: Type.String() });
-
-export const OAuthFlowAnswerSchema = Type.Object({
-  flowId: Type.String(),
-  promptId: Type.String(),
-  value: Type.String(),
-});
-
-const OAuthFlowProviderSchema = Type.Object({
-  flowId: Type.String(),
-  providerId: Type.String(),
-  actionId: Type.String(),
-});
-
-export const OAuthFlowStateSchema = Type.Union([
+const ProviderAuthNoticeSchema = Type.Union([
+  Type.Object({
+    type: Type.Literal("info"),
+    message: Type.String(),
+    links: Type.Array(ProviderAuthLinkSchema),
+  }),
   Type.Object({
     type: Type.Literal("authorization"),
-    ...OAuthFlowProviderSchema.properties,
-    url: Type.String(),
+    link: ProviderAuthLinkSchema,
     instructions: Type.Optional(Type.String()),
-    supportsManualInput: Type.Boolean(),
   }),
   Type.Object({
     type: Type.Literal("device_code"),
-    ...OAuthFlowProviderSchema.properties,
-    verificationUrl: Type.String(),
+    link: ProviderAuthLinkSchema,
     userCode: Type.String(),
     intervalSeconds: Type.Optional(Type.Number()),
     expiresInSeconds: Type.Optional(Type.Number()),
   }),
   Type.Object({
-    type: Type.Literal("prompt"),
-    ...OAuthFlowProviderSchema.properties,
+    type: Type.Literal("progress"),
+    message: Type.String(),
+  }),
+]);
+export type ProviderAuthNotice = Static<typeof ProviderAuthNoticeSchema>;
+
+const ProviderAuthPromptSchema = Type.Union([
+  Type.Object({
+    type: Type.Literal("input"),
     promptId: Type.String(),
     message: Type.String(),
+    secret: Type.Boolean(),
     placeholder: Type.Optional(Type.String()),
-    allowEmpty: Type.Boolean(),
   }),
   Type.Object({
     type: Type.Literal("select"),
-    ...OAuthFlowProviderSchema.properties,
     promptId: Type.String(),
     message: Type.String(),
     options: Type.Array(
-      Type.Object({ id: Type.String(), label: Type.String() }),
+      Type.Object({
+        id: Type.String(),
+        label: Type.String(),
+        description: Type.Optional(Type.String()),
+      }),
     ),
   }),
-  Type.Object({
-    type: Type.Literal("progress"),
-    ...OAuthFlowProviderSchema.properties,
-    message: Type.String(),
-  }),
-  Type.Object({
-    type: Type.Literal("success"),
-    ...OAuthFlowProviderSchema.properties,
-  }),
+]);
+export type ProviderAuthPrompt = Static<typeof ProviderAuthPromptSchema>;
+
+const ProviderAuthFlowPhaseSchema = Type.Union([
+  Type.Object({ type: Type.Literal("starting") }),
+  Type.Object({ type: Type.Literal("active") }),
+  Type.Object({ type: Type.Literal("success") }),
   Type.Object({
     type: Type.Literal("failure"),
-    ...OAuthFlowProviderSchema.properties,
     message: Type.String(),
   }),
-  Type.Object({
-    type: Type.Literal("cancelled"),
-    ...OAuthFlowProviderSchema.properties,
-  }),
+  Type.Object({ type: Type.Literal("cancelled") }),
 ]);
-export type OAuthFlowState = Static<typeof OAuthFlowStateSchema>;
+
+export const ProviderAuthFlowSnapshotSchema = Type.Object({
+  flowId: Type.String(),
+  providerId: Type.String(),
+  authType: ProviderAuthTypeSchema,
+  phase: ProviderAuthFlowPhaseSchema,
+  notices: Type.Array(ProviderAuthNoticeSchema),
+  prompt: Type.Optional(ProviderAuthPromptSchema),
+});
+export type ProviderAuthFlowSnapshot = Static<
+  typeof ProviderAuthFlowSnapshotSchema
+>;
+
+export const ProviderAuthFlowAnswerSchema = Type.Object({
+  flowId: Type.String(),
+  promptId: Type.String(),
+  value: Type.String(),
+});
+
+const ProviderAuthLinkRequestSchema = Type.Object({
+  flowId: Type.String(),
+  linkId: Type.String(),
+});
 
 const describeProviderAuthenticationPayload = () => ({
   redacted: "provider authentication payload",
@@ -420,34 +391,31 @@ export const agentChannels = {
       requestSchema: Type.Void(),
       responseSchema: ProviderAuthCatalogResponseSchema,
     },
-    save_provider_credentials: {
-      requestSchema: ProviderCredentialsSchema,
-      responseSchema: Type.Void(),
-      log: { describeRequest: describeProviderAuthenticationPayload },
-    },
-    current_oauth_flow: {
+    current_provider_auth_flow: {
       requestSchema: Type.Void(),
-      responseSchema: Type.Union([OAuthFlowStateSchema, Type.Null()]),
+      responseSchema: Type.Union([ProviderAuthFlowSnapshotSchema, Type.Null()]),
       log: { describeResponse: describeProviderAuthenticationPayload },
     },
-    begin_oauth_flow: {
+    begin_provider_auth_flow: {
       requestSchema: Type.Object({
         providerId: Type.String(),
-        actionId: Type.String(),
+        authType: ProviderAuthTypeSchema,
       }),
-      responseSchema: OAuthFlowIdSchema,
+      responseSchema: ProviderAuthFlowSnapshotSchema,
+      log: { describeResponse: describeProviderAuthenticationPayload },
     },
-    answer_oauth_flow: {
-      requestSchema: OAuthFlowAnswerSchema,
+    answer_provider_auth_flow: {
+      requestSchema: ProviderAuthFlowAnswerSchema,
       responseSchema: Type.Void(),
       log: { describeRequest: describeProviderAuthenticationPayload },
     },
-    reopen_oauth_flow: {
-      requestSchema: OAuthFlowIdSchema,
+    open_provider_auth_link: {
+      requestSchema: ProviderAuthLinkRequestSchema,
       responseSchema: Type.Void(),
+      log: { describeRequest: describeProviderAuthenticationPayload },
     },
-    cancel_oauth_flow: {
-      requestSchema: OAuthFlowIdSchema,
+    cancel_provider_auth_flow: {
+      requestSchema: Type.Object({ flowId: Type.String() }),
       responseSchema: Type.Void(),
     },
   },
@@ -458,8 +426,8 @@ export const agentChannels = {
     status_changed: {
       event: AgentStatusSchema,
     },
-    oauth_flow_changed: {
-      event: OAuthFlowStateSchema,
+    provider_auth_flow_changed: {
+      event: ProviderAuthFlowSnapshotSchema,
       log: { describeEvent: describeProviderAuthenticationPayload },
     },
     model_availability_changed: {

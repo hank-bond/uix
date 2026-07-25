@@ -17,7 +17,6 @@
 // once.
 
 import { join } from "node:path";
-import process from "node:process";
 
 import type {
   AgentSession,
@@ -25,7 +24,7 @@ import type {
   AgentSessionRuntime,
   AgentSessionServices,
   CreateAgentSessionRuntimeFactory,
-  ModelRegistry,
+  ModelRuntime,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import type {
@@ -34,9 +33,9 @@ import type {
   ModelCatalog,
   ModelFavoriteUpdate,
   ModelRef,
-  OAuthFlowState,
   ProviderAuthCatalog,
-  ProviderCredentials,
+  ProviderAuthFlowSnapshot,
+  ProviderAuthType,
   SessionHistoryResponse,
   SessionSummary,
   TranscriptItem,
@@ -61,12 +60,8 @@ import { createLogger } from "../log";
 import type { TurnStateRegistry } from "../turn-state/registry";
 import type { Workspace } from "../workspace";
 
-import { createOAuthFlowCoordinator } from "./auth-flow";
-import {
-  deriveProviderAuthCatalogForEnvironment,
-  findOfferedCredentialMethod,
-  resolveOAuthStartAction,
-} from "./auth-providers";
+import { deriveProviderAuthCatalog } from "./auth-providers";
+import { createProviderAuthFlowCoordinator } from "./provider-auth-flow";
 import { deriveSelectedBranchProjection } from "./branch-projection";
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { resolveSessionFileById } from "./session-files";
@@ -147,15 +142,14 @@ export interface AgentDriver extends Disposable {
    */
   selectModel(ref: ModelRef): Promise<AgentStatus>;
   listAuthProviders(): Promise<ProviderAuthCatalog>;
-  saveProviderCredentials(credentials: ProviderCredentials): Promise<void>;
-  currentOAuthFlow(): OAuthFlowState | undefined;
-  beginOAuthFlow(
+  getCurrentProviderAuthFlow(): ProviderAuthFlowSnapshot | undefined;
+  beginProviderAuthFlow(
     providerId: string,
-    actionId: string,
-  ): Promise<{ flowId: string }>;
-  answerOAuthFlow(flowId: string, promptId: string, value: string): void;
-  reopenOAuthFlow(flowId: string): Promise<void>;
-  cancelOAuthFlow(flowId: string): void;
+    authType: ProviderAuthType,
+  ): ProviderAuthFlowSnapshot;
+  answerProviderAuthFlow(flowId: string, promptId: string, value: string): void;
+  openProviderAuthLink(flowId: string, linkId: string): Promise<void>;
+  cancelProviderAuthFlow(flowId: string): void;
 }
 
 export interface AgentDriverOptions {
@@ -185,10 +179,10 @@ export interface AgentDriverOptions {
   sessionSettings?: SettingsHandleFrom<typeof sessionWorkspaceSettings>;
   /** Fired whenever live/default model status changes. */
   onStatusChange?: (status: AgentStatus) => void;
-  /** Opens only URLs supplied by the active Pi OAuth provider. */
+  /** Opens only URLs supplied by the active Pi auth provider. */
   openExternal: (url: string) => void | Promise<void>;
-  /** Fired for generic provider-login state transitions. */
-  onOAuthFlowState: (state: OAuthFlowState) => void;
+  /** Fired for generic provider-auth state transitions. */
+  onProviderAuthFlowSnapshot: (snapshot: ProviderAuthFlowSnapshot) => void;
   /** Fired after auth changes refresh available models. */
   onModelAvailabilityChange: () => void;
 }
@@ -297,15 +291,15 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     return creation;
   }
 
-  async function registry(): Promise<ModelRegistry> {
-    return (await getServices()).modelRegistry;
+  async function getModelRuntime(): Promise<ModelRuntime> {
+    return (await getServices()).modelRuntime;
   }
 
-  const oauth = driverBag.add(
-    createOAuthFlowCoordinator({
-      modelRegistry: registry,
+  const providerAuth = driverBag.add(
+    createProviderAuthFlowCoordinator({
+      getModelRuntime,
       openExternal: opts.openExternal,
-      onState: opts.onOAuthFlowState,
+      onSnapshot: opts.onProviderAuthFlowSnapshot,
       onAvailabilityChange: opts.onModelAvailabilityChange,
     }),
   );
@@ -327,12 +321,12 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   }
 
   async function listModels(): Promise<ModelCatalog> {
-    const modelRegistry = await registry();
+    const modelRuntime = await getModelRuntime();
     // Pick up models.json edits and freshly configured auth since the
-    // registry was created.
-    modelRegistry.refresh();
+    // runtime was created.
+    await modelRuntime.refresh();
     const favorites = getFavoriteModels();
-    return modelRegistry.getAvailable().map((model) => ({
+    return (await modelRuntime.getAvailable()).map((model) => ({
       provider: model.provider,
       id: model.id,
       name: model.name,
@@ -498,11 +492,11 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       const sessionServices = initialRuntimeCreated
         ? await createServices(cwd, agentDir)
         : await getServices();
-      const modelRegistry = sessionServices.modelRegistry;
+      const modelRuntime = sessionServices.modelRuntime;
 
       // The workspace default applies only when the selected branch carries no
       // native model change. Otherwise Pi restores branch-owned model state.
-      let initialModel: ReturnType<ModelRegistry["find"]>;
+      let initialModel: ReturnType<ModelRuntime["getModel"]>;
       if (
         !sessionManager
           .getBranch()
@@ -510,8 +504,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       ) {
         const ref = opts.agentSettings?.get("defaultModel");
         if (ref) {
-          const found = modelRegistry.find(ref.provider, ref.id);
-          if (found && modelRegistry.hasConfiguredAuth(found)) {
+          const found = modelRuntime.getModel(ref.provider, ref.id);
+          if (found && modelRuntime.hasConfiguredAuth(ref.provider)) {
             initialModel = found;
           } else {
             log.warn({ model: ref }, "workspace_default_model_unavailable");
@@ -601,9 +595,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         (ref) => ref.provider === provider && ref.id === id,
       );
       if (favorite && !alreadyFavorite) {
-        const modelRegistry = await registry();
-        modelRegistry.refresh();
-        if (!modelRegistry.find(provider, id)) {
+        const modelRuntime = await getModelRuntime();
+        await modelRuntime.refresh();
+        if (!modelRuntime.getModel(provider, id)) {
           throw new Error(`Unknown model: ${provider}/${id}`);
         }
         opts.agentSettings.set("favoriteModels", [
@@ -620,68 +614,23 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       return listModels();
     },
 
-    listAuthProviders: async () =>
-      deriveProviderAuthCatalogForEnvironment(await registry(), process.env),
-
-    async saveProviderCredentials({ providerId, methodId, values }) {
-      const modelRegistry = await registry();
-      const method = findOfferedCredentialMethod(
-        modelRegistry,
-        providerId,
-        methodId,
-      );
-      if (!method) {
-        throw new Error(
-          `Credential method is not currently offered: ${providerId}/${methodId}`,
-        );
-      }
-      for (const field of method.fields) {
-        if (
-          field.required &&
-          (values[field.id] === undefined || values[field.id].trim() === "")
-        ) {
-          throw new Error(`Credential field is required: ${field.id}`);
-        }
-      }
-
-      // The generic method currently offered by the catalog is an API key.
-      // Keep the wire shape generic without adding a serializer framework
-      // before another credential method needs one.
-      const apiKey = values.apiKey;
-      if (method.id !== "api-key" || apiKey === undefined) {
-        throw new Error(
-          `Credential method is not supported: ${providerId}/${methodId}`,
-        );
-      }
-      modelRegistry.authStorage.set(providerId, {
-        type: "api_key",
-        key: apiKey,
-      });
-      modelRegistry.refresh();
-      opts.onModelAvailabilityChange();
+    async listAuthProviders() {
+      return deriveProviderAuthCatalog(await getModelRuntime());
     },
 
-    currentOAuthFlow: () => oauth.current(),
-    beginOAuthFlow(providerId, actionId) {
-      const action = resolveOAuthStartAction(providerId, actionId);
-      if (!action) {
-        return Promise.reject(
-          new Error(
-            `OAuth start action is not offered: ${providerId}/${actionId}`,
-          ),
-        );
-      }
-      return oauth.begin(providerId, actionId, action.initialSelection);
-    },
-    answerOAuthFlow: (flowId, promptId, value) =>
-      oauth.answer(flowId, promptId, value),
-    reopenOAuthFlow: (flowId) => oauth.reopen(flowId),
-    cancelOAuthFlow: (flowId) => oauth.cancel(flowId),
+    getCurrentProviderAuthFlow: () => providerAuth.getCurrentSnapshot(),
+    beginProviderAuthFlow: (providerId, authType) =>
+      providerAuth.begin(providerId, authType),
+    answerProviderAuthFlow: (flowId, promptId, value) =>
+      providerAuth.answer(flowId, promptId, value),
+    openProviderAuthLink: (flowId, linkId) =>
+      providerAuth.openLink(flowId, linkId),
+    cancelProviderAuthFlow: (flowId) => providerAuth.cancel(flowId),
 
     async selectModel(ref) {
-      const modelRegistry = await registry();
-      const model = modelRegistry.find(ref.provider, ref.id);
-      if (!model || !modelRegistry.hasConfiguredAuth(model)) {
+      const modelRuntime = await getModelRuntime();
+      const model = modelRuntime.getModel(ref.provider, ref.id);
+      if (!model || !modelRuntime.hasConfiguredAuth(ref.provider)) {
         throw new Error(`Model is not available: ${ref.provider}/${ref.id}`);
       }
       opts.agentSettings?.set("defaultModel", {

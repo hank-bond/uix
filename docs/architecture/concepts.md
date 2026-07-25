@@ -129,7 +129,7 @@ A **catalog** is a consumer-facing, read-only discovery boundary that composes c
 
 A catalog is not a synonym for any array, registry snapshot, or collection of entities. It is intentional cross-owner composition for discovery and selection. The action catalog, for example, derives an `ActionCatalogEntry` projection from successfully registered actions for palettes and menus while callbacks remain private in `ActionRegistry`; registration updates and disposal change membership, and invocation still resolves the selected id through the registry.
 
-The model catalog composes currently available models across Pi providers and decorates its entries with workspace-local favorite state; selection resolves a provider-qualified entry against Pi's live model registry. The provider-auth catalog composes model providers, OAuth providers, connection state, and UIX setup recipes; credential operations accept only methods offered by its current entries. A future settings catalog may likewise compose editable setting entries without exposing owner-scoped settings handles.
+The model catalog composes currently available models across Pi providers and decorates its entries with workspace-local favorite state; selection resolves a provider-qualified entry against Pi's live model runtime. The provider-auth catalog projects Pi providers' interactive login methods plus non-secret connection status; flow operations retain each method's provider id and resolve it against the current `ModelRuntime`. Feature-owned presentation projections may group catalog entries into rows without changing those backend identities. A future settings catalog may likewise compose editable setting entries without exposing owner-scoped settings handles.
 
 ## Snapshot
 

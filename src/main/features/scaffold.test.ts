@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { WorkspaceManifestFileName } from "./manifest";
 import { scaffoldWorkspace } from "./scaffold";
 
-/** A fake templates dir shaped like src/features/: chat dep-less, canvas with deps. */
+/** A fake templates dir exercising package-less and dependency-bearing features. */
 async function makeTemplates(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "uix-scaffold-templates-"));
   await mkdir(join(dir, "chat", "workspace"), { recursive: true });

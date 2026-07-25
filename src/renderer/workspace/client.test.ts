@@ -177,52 +177,50 @@ describe("channel clients", () => {
     const onFlow = vi.fn();
 
     await agent.requests.list_auth_providers(undefined);
-    await agent.requests.save_provider_credentials({
-      providerId: "openrouter",
-      methodId: "api-key",
-      values: { apiKey: "secret-key" },
-    });
-    await agent.requests.begin_oauth_flow({
+    await agent.requests.begin_provider_auth_flow({
       providerId: "openai-codex",
-      actionId: "browser",
+      authType: "oauth",
     });
-    await agent.requests.answer_oauth_flow({
+    await agent.requests.answer_provider_auth_flow({
       flowId: "flow-1",
       promptId: "prompt-1",
       value: "secret-code",
     });
-    agent.events.oauth_flow_changed(onFlow);
+    await agent.requests.open_provider_auth_link({
+      flowId: "flow-1",
+      linkId: "link-1",
+    });
+    agent.events.provider_auth_flow_changed(onFlow);
 
     expect(request).toHaveBeenCalledWith(
       "agent.list_auth_providers",
       undefined,
     );
-    expect(request).toHaveBeenCalledWith("agent.save_provider_credentials", {
-      providerId: "openrouter",
-      methodId: "api-key",
-      values: { apiKey: "secret-key" },
-    });
-    expect(request).toHaveBeenCalledWith("agent.begin_oauth_flow", {
+    expect(request).toHaveBeenCalledWith("agent.begin_provider_auth_flow", {
       providerId: "openai-codex",
-      actionId: "browser",
+      authType: "oauth",
     });
     expect(subscribe).toHaveBeenCalledWith(
-      "agent.oauth_flow_changed",
+      "agent.provider_auth_flow_changed",
       expect.any(Function),
     );
 
     const wrapped = subscribe.mock.calls[0]?.[1];
     wrapped?.({
-      type: "prompt",
       flowId: "flow-1",
       providerId: "anthropic",
-      actionId: "browser",
-      promptId: "prompt-1",
-      message: "Paste code",
-      allowEmpty: false,
+      authType: "oauth",
+      phase: { type: "active" },
+      notices: [],
+      prompt: {
+        type: "input",
+        promptId: "prompt-1",
+        message: "Paste code",
+        secret: false,
+      },
     });
     expect(onFlow).toHaveBeenCalledOnce();
-    expect(() => wrapped?.({ type: "prompt", flowId: "flow-1" })).toThrow();
+    expect(() => wrapped?.({ flowId: "flow-1" })).toThrow();
   });
 
   it("creates a feature-bound settings client", async () => {

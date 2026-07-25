@@ -5,8 +5,9 @@ import type {
   AgentStatus,
   ModelCatalog,
   ModelCatalogEntry,
-  OAuthFlowState,
   ProviderAuthCatalog,
+  ProviderAuthFlowSnapshot,
+  ProviderAuthType,
 } from "@uix/api/agent-channels";
 import type { ChannelClient } from "@uix/api/workspace";
 import { getInitialModelScope, type ModelPickerScope } from "./model-filter";
@@ -18,11 +19,8 @@ interface ModelPickerState {
   initialQuery: string;
 }
 
-interface OAuthActivity {
-  providerId: string;
-  actionId: string;
-  flowId?: string;
-  flow?: OAuthFlowState;
+function isProviderAuthFlowRunning(flow: ProviderAuthFlowSnapshot): boolean {
+  return flow.phase.type === "starting" || flow.phase.type === "active";
 }
 
 export function useAgentControls(client: AgentChannelClient) {
@@ -33,18 +31,35 @@ export function useAgentControls(client: AgentChannelClient) {
   const [providerModalOpen, setProviderModalOpen] = useState(false);
   const [providers, setProviders] = useState<ProviderAuthCatalog>();
   const [providerError, setProviderError] = useState<string>();
-  const [oauthActivity, setOAuthActivity] = useState<OAuthActivity>();
-  const [oauthError, setOAuthError] = useState<string>();
+  const [providerAuthFlow, setProviderAuthFlow] =
+    useState<ProviderAuthFlowSnapshot>();
+  const [providerAuthError, setProviderAuthError] = useState<string>();
   const modelRequestVersion = useRef(0);
   const providerRequestVersion = useRef(0);
-  const oauthEventVersion = useRef(0);
+  const providerAuthEventVersion = useRef(0);
+  const providerAuthFlowRef = useRef<ProviderAuthFlowSnapshot>();
+  const providerAuthBeginRequest = useRef<Promise<ProviderAuthFlowSnapshot>>();
+  const providerAuthCancelRequest = useRef<{
+    flowId: string;
+    request: Promise<boolean>;
+  }>();
+  const providerAuthSelectionVersion = useRef(0);
   const modalInvoker = useRef<HTMLElement>();
+
+  const commitProviderAuthFlow = useCallback(
+    (flow: ProviderAuthFlowSnapshot | undefined) => {
+      providerAuthFlowRef.current = flow;
+      setProviderAuthFlow(flow);
+    },
+    [],
+  );
 
   useEffect(
     () => () => {
       modelRequestVersion.current += 1;
       providerRequestVersion.current += 1;
-      oauthEventVersion.current += 1;
+      providerAuthEventVersion.current += 1;
+      providerAuthSelectionVersion.current += 1;
     },
     [client],
   );
@@ -158,20 +173,13 @@ export function useAgentControls(client: AgentChannelClient) {
 
   useEffect(
     () =>
-      client.events.oauth_flow_changed((flow) => {
-        oauthEventVersion.current += 1;
-        setOAuthActivity({
-          providerId: flow.providerId,
-          actionId: flow.actionId,
-          flowId: flow.flowId,
-          flow,
-        });
-        setOAuthError(undefined);
-        if (flow.type === "success") {
-          void Promise.all([refreshProviders(), refreshModels()]);
-        }
+      client.events.provider_auth_flow_changed((flow) => {
+        providerAuthEventVersion.current += 1;
+        commitProviderAuthFlow(flow);
+        setProviderAuthError(undefined);
+        if (flow.phase.type === "success") void refreshProviders();
       }),
-    [client, refreshModels, refreshProviders],
+    [client, commitProviderAuthFlow, refreshProviders],
   );
 
   const openProviderModal = useCallback(
@@ -180,27 +188,21 @@ export function useAgentControls(client: AgentChannelClient) {
       setModelPicker(undefined);
       setProviderModalOpen(true);
       setProviders(undefined);
-      setOAuthActivity(undefined);
-      setOAuthError(undefined);
+      setProviderAuthError(undefined);
       void refreshProviders();
 
       // Subscribe for the component lifetime (above) before seeding. A flow
       // event that lands during this request wins over the older snapshot.
-      const eventVersion = oauthEventVersion.current;
+      const eventVersion = providerAuthEventVersion.current;
       void client.requests
-        .current_oauth_flow(undefined)
+        .current_provider_auth_flow(undefined)
         .then((flow) => {
-          if (oauthEventVersion.current !== eventVersion || !flow) return;
-          setOAuthActivity({
-            providerId: flow.providerId,
-            actionId: flow.actionId,
-            flowId: flow.flowId,
-            flow,
-          });
+          if (providerAuthEventVersion.current !== eventVersion) return;
+          commitProviderAuthFlow(flow ?? undefined);
         })
-        .catch((error: unknown) => setOAuthError(String(error)));
+        .catch((error: unknown) => setProviderAuthError(String(error)));
     },
-    [client, refreshProviders],
+    [client, commitProviderAuthFlow, refreshProviders],
   );
 
   const closeProviderModal = useCallback(() => {
@@ -208,80 +210,141 @@ export function useAgentControls(client: AgentChannelClient) {
     requestAnimationFrame(() => modalInvoker.current?.focus());
   }, []);
 
-  const saveProviderCredentials = useCallback(
-    async (credentials: {
-      providerId: string;
-      methodId: string;
-      values: Record<string, string>;
-    }) => {
-      await client.requests.save_provider_credentials(credentials);
-      await Promise.all([refreshProviders(), refreshModels()]);
+  const beginProviderAuthFlow = useCallback(
+    async (
+      providerId: string,
+      authType: ProviderAuthType,
+    ): Promise<ProviderAuthFlowSnapshot | undefined> => {
+      setProviderAuthError(undefined);
+      const eventVersion = providerAuthEventVersion.current;
+      const request = client.requests.begin_provider_auth_flow({
+        providerId,
+        authType,
+      });
+      providerAuthBeginRequest.current = request;
+      try {
+        const flow = await request;
+        if (providerAuthEventVersion.current === eventVersion) {
+          commitProviderAuthFlow(flow);
+        }
+        return flow;
+      } catch (error) {
+        setProviderAuthError(String(error));
+        return undefined;
+      } finally {
+        if (providerAuthBeginRequest.current === request) {
+          providerAuthBeginRequest.current = undefined;
+        }
+      }
     },
-    [client, refreshModels, refreshProviders],
+    [client, commitProviderAuthFlow],
   );
 
-  const beginOAuthFlow = useCallback(
-    async (providerId: string, actionId: string) => {
-      setOAuthError(undefined);
-      setOAuthActivity({ providerId, actionId });
-      try {
-        const { flowId } = await client.requests.begin_oauth_flow({
-          providerId,
-          actionId,
+  const cancelProviderAuthFlowById = useCallback(
+    (flowId: string): Promise<boolean> => {
+      const current = providerAuthCancelRequest.current;
+      if (current?.flowId === flowId) return current.request;
+
+      setProviderAuthError(undefined);
+      const request = client.requests
+        .cancel_provider_auth_flow({ flowId })
+        .then(() => true)
+        .catch((error: unknown) => {
+          setProviderAuthError(String(error));
+          return false;
+        })
+        .finally(() => {
+          if (providerAuthCancelRequest.current?.request === request) {
+            providerAuthCancelRequest.current = undefined;
+          }
         });
-        setOAuthActivity((current) =>
-          current?.providerId === providerId && current.actionId === actionId
-            ? { ...current, flowId }
-            : current,
-        );
-      } catch (error) {
-        setOAuthActivity(undefined);
-        setOAuthError(String(error));
-      }
+      providerAuthCancelRequest.current = { flowId, request };
+      return request;
     },
     [client],
   );
 
-  const answerOAuthFlow = useCallback(
+  const selectProviderAuthMethod = useCallback(
+    async (providerId: string, authType: ProviderAuthType) => {
+      const selectionVersion = ++providerAuthSelectionVersion.current;
+      let currentFlow = providerAuthFlowRef.current;
+      const pendingBegin = providerAuthBeginRequest.current;
+      if (!currentFlow && pendingBegin) {
+        try {
+          currentFlow = await pendingBegin;
+        } catch {
+          return;
+        }
+      }
+
+      if (currentFlow && isProviderAuthFlowRunning(currentFlow)) {
+        const isCurrentMethod =
+          currentFlow.providerId === providerId &&
+          currentFlow.authType === authType;
+        const didCancel = await cancelProviderAuthFlowById(currentFlow.flowId);
+        if (
+          !didCancel ||
+          selectionVersion !== providerAuthSelectionVersion.current
+        ) {
+          return;
+        }
+        if (isCurrentMethod) {
+          commitProviderAuthFlow(undefined);
+          return;
+        }
+      }
+
+      if (selectionVersion === providerAuthSelectionVersion.current) {
+        await beginProviderAuthFlow(providerId, authType);
+      }
+    },
+    [beginProviderAuthFlow, cancelProviderAuthFlowById, commitProviderAuthFlow],
+  );
+
+  const answerProviderAuthPrompt = useCallback(
     async (flowId: string, promptId: string, value: string) => {
-      setOAuthError(undefined);
+      setProviderAuthError(undefined);
       try {
-        await client.requests.answer_oauth_flow({ flowId, promptId, value });
+        await client.requests.answer_provider_auth_flow({
+          flowId,
+          promptId,
+          value,
+        });
       } catch (error) {
-        setOAuthError(String(error));
+        setProviderAuthError(String(error));
         throw error;
       }
     },
     [client],
   );
 
-  const reopenOAuthFlow = useCallback(
-    async (flowId: string) => {
-      setOAuthError(undefined);
+  const openProviderAuthLink = useCallback(
+    async (flowId: string, linkId: string) => {
+      setProviderAuthError(undefined);
       try {
-        await client.requests.reopen_oauth_flow({ flowId });
+        await client.requests.open_provider_auth_link({ flowId, linkId });
       } catch (error) {
-        setOAuthError(String(error));
+        setProviderAuthError(String(error));
       }
     },
     [client],
   );
 
-  const cancelOAuthFlow = useCallback(async () => {
-    const flowId = oauthActivity?.flowId;
-    if (!flowId) return;
-    setOAuthError(undefined);
-    try {
-      await client.requests.cancel_oauth_flow({ flowId });
-    } catch (error) {
-      setOAuthError(String(error));
+  const cancelProviderAuthFlow = useCallback(async () => {
+    providerAuthSelectionVersion.current += 1;
+    let flow = providerAuthFlowRef.current;
+    const pendingBegin = providerAuthBeginRequest.current;
+    if (!flow && pendingBegin) {
+      try {
+        flow = await pendingBegin;
+      } catch {
+        return;
+      }
     }
-  }, [client, oauthActivity?.flowId]);
-
-  const dismissOAuthFlow = useCallback(() => {
-    setOAuthActivity(undefined);
-    setOAuthError(undefined);
-  }, []);
+    if (flow && isProviderAuthFlowRunning(flow)) {
+      await cancelProviderAuthFlowById(flow.flowId);
+    }
+  }, [cancelProviderAuthFlowById]);
 
   const chooseModelForProvider = useCallback((providerId: string) => {
     // This is an explicit handoff from the modal's success action, so do not
@@ -306,14 +369,12 @@ export function useAgentControls(client: AgentChannelClient) {
     providerError,
     openProviderModal,
     closeProviderModal,
-    saveProviderCredentials,
-    oauthActivity,
-    oauthError,
-    beginOAuthFlow,
-    answerOAuthFlow,
-    reopenOAuthFlow,
-    cancelOAuthFlow,
-    dismissOAuthFlow,
+    providerAuthFlow,
+    providerAuthError,
+    selectProviderAuthMethod,
+    answerProviderAuthPrompt,
+    openProviderAuthLink,
+    cancelProviderAuthFlow,
     chooseModelForProvider,
   };
 }

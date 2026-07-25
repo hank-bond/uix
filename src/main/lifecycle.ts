@@ -92,6 +92,16 @@ export function disposable(cleanup: () => void): Disposable {
   return { [Symbol.dispose]: cleanup };
 }
 
+/** Listen once for cancellation and make removal explicit. */
+export function onAbort(signal: AbortSignal, listener: () => void): Disposable {
+  if (signal.aborted) {
+    listener();
+    return disposable(() => {});
+  }
+  signal.addEventListener("abort", listener, { once: true });
+  return disposable(() => signal.removeEventListener("abort", listener));
+}
+
 // ─── Electron-side registration helpers ──────────────────────────────
 //
 // Each helper performs the registration and returns a Disposable that

@@ -60,25 +60,30 @@ const sdk = vi.hoisted(() => {
   };
 
   const registry = {
-    authStorage: {
-      kind: "auth",
-      getOAuthProviders: () => [],
-      getAuthStatus: () => ({ configured: false }),
-      get: () => undefined,
-      set: vi.fn(),
-    },
-    refresh: vi.fn(),
-    getAll: () => state.models,
-    getAvailable: () => state.models.filter((m) => m.authed),
-    getProviderDisplayName: (provider: string) => provider,
+    refresh: vi.fn(async () => {}),
+    getProviders: () =>
+      [...new Set(state.models.map((model) => model.provider))].map(
+        (provider) => ({
+          id: provider,
+          name: provider,
+          auth: { apiKey: { login: vi.fn() } },
+        }),
+      ),
+    getAvailable: () =>
+      Promise.resolve(state.models.filter((model) => model.authed)),
     getProviderAuthStatus: (provider: string) => ({
       configured: state.models.some(
         (model) => model.provider === provider && model.authed,
       ),
     }),
-    find: (provider: string, id: string) =>
-      state.models.find((m) => m.provider === provider && m.id === id),
-    hasConfiguredAuth: (model: FakeModel) => model.authed,
+    getModel: (provider: string, id: string) =>
+      state.models.find(
+        (model) => model.provider === provider && model.id === id,
+      ),
+    hasConfiguredAuth: (provider: string) =>
+      state.models.some((model) => model.provider === provider && model.authed),
+    isUsingOAuth: () => false,
+    login: vi.fn(),
   };
 
   const manager = {
@@ -170,8 +175,7 @@ const sdk = vi.hoisted(() => {
         return {
           cwd: options.cwd,
           agentDir: options.agentDir,
-          modelRegistry: registry,
-          authStorage: registry.authStorage,
+          modelRuntime: registry,
           resourceLoader: { reload: async () => {} },
           diagnostics: [],
         };
@@ -362,7 +366,7 @@ function createDriver(
     ...(sessionSettings && { sessionSettings }),
     onStatusChange: (status) => statuses.push(status),
     openExternal: () => undefined,
-    onOAuthFlowState: () => undefined,
+    onProviderAuthFlowSnapshot: () => undefined,
     onModelAvailabilityChange: () => {
       availabilityChanges += 1;
     },
@@ -395,7 +399,7 @@ beforeEach(() => {
   sdk.state.servicesOptions = [];
   sdk.state.pendingProviderModels = [];
   sdk.state.sessionTitle = undefined;
-  sdk.registry.authStorage.set.mockClear();
+  sdk.registry.login.mockClear();
   sdk.registry.refresh.mockClear();
   sdk.module.SessionManager.continueRecent.mockClear();
   sdk.module.SessionManager.create.mockClear();
@@ -572,54 +576,6 @@ describe("driver model service (pre-session)", () => {
       driver.selectModel({ provider: "nope", id: "missing" }),
     ).rejects.toThrow("not available");
     expect(settings.values.size).toBe(0);
-  });
-});
-
-describe("driver provider credentials (pre-session)", () => {
-  it("saves an offered API key, refreshes models, and notifies", async () => {
-    const result = createDriver();
-
-    await result.driver.saveProviderCredentials({
-      providerId: "google",
-      methodId: "api-key",
-      values: { apiKey: "  secret-key  " },
-    });
-
-    expect(sdk.registry.authStorage.set).toHaveBeenCalledWith("google", {
-      type: "api_key",
-      key: "  secret-key  ",
-    });
-    expect(sdk.registry.refresh).toHaveBeenCalledOnce();
-    expect(result.availabilityChanges).toBe(1);
-    expect(sdk.state.session).toBeUndefined();
-  });
-
-  it("rejects methods that are not offered", async () => {
-    const { driver } = createDriver();
-
-    await expect(
-      driver.saveProviderCredentials({
-        providerId: "missing",
-        methodId: "api-key",
-        values: { apiKey: "secret-key" },
-      }),
-    ).rejects.toThrow("not currently offered");
-    expect(sdk.registry.authStorage.set).not.toHaveBeenCalled();
-    expect(sdk.registry.refresh).not.toHaveBeenCalled();
-  });
-
-  it("rejects empty required fields", async () => {
-    const { driver } = createDriver();
-
-    await expect(
-      driver.saveProviderCredentials({
-        providerId: "google",
-        methodId: "api-key",
-        values: { apiKey: "   " },
-      }),
-    ).rejects.toThrow("Credential field is required: apiKey");
-    expect(sdk.registry.authStorage.set).not.toHaveBeenCalled();
-    expect(sdk.registry.refresh).not.toHaveBeenCalled();
   });
 });
 
