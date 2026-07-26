@@ -6,6 +6,7 @@ import { defineSurface } from "@uix/api/workspace";
 
 import chatSheet from "./Chat.css" with { type: "css" };
 import chatBlockSheet from "./blocks/ChatBlock.css" with { type: "css" };
+import markdownContentSheet from "./blocks/MarkdownContent.css" with { type: "css" };
 import pickerPositioningSheet from "./picker-positioning.css" with { type: "css" };
 import sessionPillSheet from "./SessionPill.css" with { type: "css" };
 import modelPillSheet from "./ModelPill.css" with { type: "css" };
@@ -19,6 +20,7 @@ export default defineSurface({
   styles: [
     chatSheet,
     chatBlockSheet,
+    markdownContentSheet,
     pickerPositioningSheet,
     sessionPillSheet,
     modelPillSheet,

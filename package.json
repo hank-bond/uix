@@ -26,6 +26,7 @@
   "dependencies": {
     "@earendil-works/pi-coding-agent": "^0.82.0",
     "esbuild": "^0.28.1",
+    "hast-util-to-jsx-runtime": "^2.3.6",
     "jiti": "^2.7.0",
     "parse5": "^8.0.1",
     "pino": "^10.3.1",

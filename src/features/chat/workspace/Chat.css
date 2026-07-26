@@ -30,6 +30,28 @@
     var(--fg-faint) 35%,
     transparent
   );
+  --chat-markdown-code-bg: color-mix(in srgb, var(--bg) 72%, transparent);
+  --chat-markdown-inline-code-bg: color-mix(
+    in srgb,
+    var(--bg) 48%,
+    transparent
+  );
+  --chat-markdown-code-border: color-mix(
+    in srgb,
+    var(--border) 80%,
+    var(--fg-faint)
+  );
+  --chat-markdown-quote-border: color-mix(
+    in srgb,
+    var(--accent) 55%,
+    var(--border)
+  );
+  --chat-markdown-table-border: var(--border);
+  --chat-markdown-table-header-bg: color-mix(
+    in srgb,
+    var(--bg) 42%,
+    transparent
+  );
 }
 
 .visually-hidden {
