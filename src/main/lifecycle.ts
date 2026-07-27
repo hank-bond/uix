@@ -21,7 +21,13 @@
 
 import process from "node:process";
 
-import { app, BrowserWindow } from "electron";
+import {
+  app,
+  BrowserWindow,
+  type Event,
+  type WebContents,
+  type WebContentsWillNavigateEventParams,
+} from "electron";
 
 import type { Logger } from "./log";
 
@@ -146,6 +152,30 @@ export function onWindow(
   win.on(event, listener);
   return disposable(() => {
     win.off(event, listener);
+  });
+}
+
+export function onWillNavigate(
+  webContents: WebContents,
+  listener: (event: Event<WebContentsWillNavigateEventParams>) => void,
+): Disposable {
+  webContents.on("will-navigate", listener);
+  return disposable(() => {
+    if (!webContents.isDestroyed()) {
+      webContents.off("will-navigate", listener);
+    }
+  });
+}
+
+export function setWindowOpenHandler(
+  webContents: WebContents,
+  handler: Parameters<WebContents["setWindowOpenHandler"]>[0],
+): Disposable {
+  webContents.setWindowOpenHandler(handler);
+  return disposable(() => {
+    if (!webContents.isDestroyed()) {
+      webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    }
   });
 }
 

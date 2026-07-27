@@ -24,6 +24,26 @@ describe("MarkdownContent", () => {
     expect(html).toContain("<del>pending</del> done");
   });
 
+  it("renders external web links in a separate browsing context", () => {
+    const html = renderToStaticMarkup(
+      <MarkdownContent text={"[UIX](https://uix.sh/docs)"} />,
+    );
+
+    expect(html).toContain(
+      '<a href="https://uix.sh/docs" target="_blank" rel="noopener noreferrer">UIX</a>',
+    );
+  });
+
+  it("renders unsupported link destinations as text", () => {
+    const html = renderToStaticMarkup(
+      <MarkdownContent text={"[local file](file:///Users/work/secret.txt)"} />,
+    );
+
+    expect(html).toContain("<span>local file</span>");
+    expect(html).not.toContain("<a");
+    expect(html).not.toContain("file://");
+  });
+
   it("renders raw HTML as text", () => {
     const html = renderToStaticMarkup(
       <MarkdownContent

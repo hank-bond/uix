@@ -8,6 +8,16 @@ import remarkGfm from "remark-gfm";
 const LanguageClass = /(?:^|\s)language-([\w-]+)(?:\s|$)/;
 
 const components: Components = {
+  a({ children, href, title }) {
+    if (!href || !isExternalWebHref(href)) {
+      return <span title={title}>{children}</span>;
+    }
+    return (
+      <a href={href} title={title} target="_blank" rel="noopener noreferrer">
+        {children}
+      </a>
+    );
+  },
   code({ children, className }) {
     const language = className?.match(LanguageClass)?.[1];
     if (
@@ -26,6 +36,15 @@ const components: Components = {
     );
   },
 };
+
+function isExternalWebHref(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 export function MarkdownContent({ text }: { text: string }) {
   return (

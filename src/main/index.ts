@@ -42,6 +42,7 @@ import {
 } from "./channels/registry";
 import { TurnStateRegistry } from "./turn-state/registry";
 import { createLocalDocumentStoreFactory } from "./documents/store";
+import { bindExternalWebLinks } from "./external-links";
 import { registerFeaturePreflightContributions } from "./features/contributions";
 import {
   loadFeatures,
@@ -85,9 +86,17 @@ const LocalWorkspaceId = "local";
 // features are runtime contributions by definition).
 registerFeaturePreflightContributions([]);
 
-function createShellWindow(page: "index" | "picker"): BrowserWindow {
+interface OpenShellWindowOptions {
+  page: "index" | "picker";
+  onClosed?: () => void;
+}
+
+function openShellWindow(
+  parentLifetime: DisposableBag,
+  options: OpenShellWindowOptions,
+): BrowserWindow {
   const size =
-    page === "picker"
+    options.page === "picker"
       ? { width: 560, height: 480, resizable: false }
       : { width: 1100, height: 720 };
   const win = new BrowserWindow({
@@ -102,11 +111,24 @@ function createShellWindow(page: "index" | "picker"): BrowserWindow {
     },
   });
 
+  const windowBag = parentLifetime.add(new DisposableBag());
+  windowBag.add(
+    bindExternalWebLinks(win.webContents, (url) => shell.openExternal(url)),
+  );
+  windowBag.add(
+    onWindow(win, "closed", () => {
+      windowBag[Symbol.dispose]();
+      options.onClosed?.();
+    }),
+  );
+
   const devUrl = process.env["ELECTRON_RENDERER_URL"];
   if (isDev && devUrl) {
-    void win.loadURL(page === "picker" ? `${devUrl}/picker.html` : devUrl);
+    void win.loadURL(
+      options.page === "picker" ? `${devUrl}/picker.html` : devUrl,
+    );
   } else {
-    void win.loadFile(join(__dirname, `../renderer/${page}.html`));
+    void win.loadFile(join(__dirname, `../renderer/${options.page}.html`));
   }
 
   return win;
@@ -177,12 +199,13 @@ async function openWorkspace(
   // picked up by /reload.
   const manifestPath = workspace.manifestPath;
 
-  let mainWindow: BrowserWindow | null = createShellWindow("index");
-  appBag.add(
-    onWindow(mainWindow, "closed", () => {
+  let mainWindow: BrowserWindow | null = null;
+  mainWindow = openShellWindow(appBag, {
+    page: "index",
+    onClosed: () => {
       mainWindow = null;
-    }),
-  );
+    },
+  });
 
   // Facet registries. Features contribute data into these; substrate installers
   // adapt the registries to pi when the agent session opens.
@@ -521,13 +544,13 @@ async function openWorkspace(
 
   appBag.add(
     onApp("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
-        mainWindow = createShellWindow("index");
-        appBag.add(
-          onWindow(mainWindow, "closed", () => {
+      if (mainWindow === null) {
+        mainWindow = openShellWindow(appBag, {
+          page: "index",
+          onClosed: () => {
             mainWindow = null;
-          }),
-        );
+          },
+        });
       }
     }),
   );
@@ -544,7 +567,12 @@ function openPicker(
   piProfileDir: string,
 ): void {
   const pickerBag = appBag.add(new DisposableBag());
-  const win = createShellWindow("picker");
+  const win = openShellWindow(pickerBag, {
+    page: "picker",
+    onClosed: () => {
+      pickerBag[Symbol.dispose]();
+    },
+  });
 
   // Respond to the invoke first, then tear the picker down and boot the
   // workspace — disposing the handler that is currently answering would
