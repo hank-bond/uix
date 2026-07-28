@@ -188,14 +188,16 @@ export const ModelFavoriteUpdateSchema = Type.Object({
 export type ModelFavoriteUpdate = Static<typeof ModelFavoriteUpdateSchema>;
 
 /**
- * Model status shown by agent controls. `model` is the live session model —
- * absent until a session exists, and absent even then when pi resolved no
- * model (e.g. no provider is authenticated). `defaultModel` is the workspace
- * default — absent until the pilot first selects one. Both absent means
+ * Current agent status exposed to surfaces. `cwd` is the directory under
+ * which tools execute. `model` is the live session model — absent until a
+ * session exists, and absent even then when pi resolved no model (e.g. no
+ * provider is authenticated). `defaultModel` is the workspace default —
+ * absent until the pilot first selects one. Both model fields absent means
  * "no model chosen": the UI renders that state rather than inventing a
  * fallback.
  */
 export const AgentStatusSchema = Type.Object({
+  cwd: Type.String(),
   model: Type.Optional(ModelRefSchema),
   defaultModel: Type.Optional(ModelRefSchema),
 });

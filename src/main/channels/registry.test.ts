@@ -354,6 +354,7 @@ describe("ChannelRegistry", () => {
     });
 
     const status: AgentStatus = {
+      cwd: "/workspace",
       defaultModel: { provider: "anthropic", id: "claude-sonnet-4-5" },
     };
     registerChannelContributions(registry, "agent", [
@@ -418,8 +419,8 @@ describe("ChannelRegistry", () => {
         set_model_favorite: {
           handle: () => ({ models: [] }),
         },
-        // Both fields absent — the explicit "no model chosen" status.
-        agent_status: { handle: () => ({}) },
+        // Both model fields absent — the explicit "no model chosen" status.
+        agent_status: { handle: () => ({ cwd: "/workspace" }) },
         select_model: { handle: () => status },
         list_auth_providers: { handle: () => ({ providers: [] }) },
         current_provider_auth_flow: { handle: () => null },
@@ -510,10 +511,10 @@ describe("ChannelRegistry", () => {
         id: "claude-sonnet-4-5",
       }),
     ).resolves.toEqual(status);
-    // The both-absent "no model chosen" status is a valid response shape.
+    // Both model fields may be absent while current cwd remains required.
     await expect(
       transport.handlers.get("agent.agent_status")?.(undefined),
-    ).resolves.toEqual({});
+    ).resolves.toEqual({ cwd: "/workspace" });
     await expect(
       transport.handlers.get("agent.set_model_favorite")?.({
         provider: "anthropic",

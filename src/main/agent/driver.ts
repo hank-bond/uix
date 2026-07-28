@@ -122,7 +122,7 @@ export interface AgentDriver extends Disposable {
   listModels(): Promise<ModelCatalog>;
   /** Persist a favorite update and return the refreshed available model catalog. */
   setModelFavorite(update: ModelFavoriteUpdate): Promise<ModelCatalog>;
-  /** Live session model (when known) plus the workspace default. */
+  /** Current execution cwd plus live/default model state. */
   status(): AgentStatus;
   /**
    * Validate against pi's available models, persist as the workspace
@@ -166,7 +166,7 @@ export interface AgentDriverOptions {
   agentSettings?: SettingsHandleFrom<typeof agentWorkspaceSettings>;
   /** Durable identity for the workspace's selected session. */
   sessionSettings?: SettingsHandleFrom<typeof sessionWorkspaceSettings>;
-  /** Fired whenever live/default model status changes. */
+  /** Fired whenever current agent status changes. */
   onStatusChange?: (status: AgentStatus) => void;
   /** Opens only URLs supplied by the active Pi auth provider. */
   openExternal: (url: string) => void | Promise<void>;
@@ -294,6 +294,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   function status(): AgentStatus {
     const defaultModel = opts.agentSettings?.get("defaultModel");
     return {
+      cwd: opts.workspace.agentCwd,
       ...(currentModel && { model: currentModel }),
       ...(defaultModel && { defaultModel }),
     };

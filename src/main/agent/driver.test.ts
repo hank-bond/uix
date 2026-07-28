@@ -548,15 +548,19 @@ describe("driver model service (pre-session)", () => {
     expect(sdk.state.session).toBeUndefined();
   });
 
-  it("reports empty status with no session and no workspace default", () => {
-    const { driver } = createDriver(fakeAgentSettings());
-    expect(driver.status()).toEqual({});
+  it("reports the execution cwd with no session or workspace default", () => {
+    const { driver } = createDriver(fakeAgentSettings(), undefined, undefined, {
+      stateRoot: "/tmp/state",
+      agentCwd: "/tmp/worktree",
+      manifestPath: "/tmp/state/uix.workspace.json",
+    });
+    expect(driver.status()).toEqual({ cwd: "/tmp/worktree" });
   });
 
   it("reports the workspace default before a session exists", () => {
     const ref = { provider: "openai", id: "gpt-5" };
     const { driver } = createDriver(fakeAgentSettings(ref));
-    expect(driver.status()).toEqual({ defaultModel: ref });
+    expect(driver.status()).toEqual({ cwd: "/tmp/ws", defaultModel: ref });
   });
 
   it("selectModel before a session writes the default only and notifies", async () => {
@@ -566,9 +570,9 @@ describe("driver model service (pre-session)", () => {
 
     const status = await driver.selectModel(ref);
 
-    expect(status).toEqual({ defaultModel: ref });
+    expect(status).toEqual({ cwd: "/tmp/ws", defaultModel: ref });
     expect(settings.values.get("defaultModel")).toEqual(ref);
-    expect(statuses).toEqual([{ defaultModel: ref }]);
+    expect(statuses).toEqual([{ cwd: "/tmp/ws", defaultModel: ref }]);
     expect(sdk.state.session).toBeUndefined();
   });
 
@@ -1349,6 +1353,7 @@ describe("driver model service (session open)", () => {
       sessionManager: sdk.manager,
     });
     expect(driver.status()).toEqual({
+      cwd: "/tmp/ws",
       model: { provider: "openai", id: "gpt-5" },
       defaultModel: { provider: "openai", id: "gpt-5" },
     });
@@ -1382,7 +1387,7 @@ describe("driver model service (session open)", () => {
 
     await driver.prompt("hi");
 
-    expect(driver.status()).toEqual({});
+    expect(driver.status()).toEqual({ cwd: "/tmp/ws" });
   });
 });
 
@@ -1432,7 +1437,11 @@ describe("driver model service (live session)", () => {
     const session = sdk.state.session as { setModel: ReturnType<typeof vi.fn> };
     expect(session.setModel).toHaveBeenCalledWith(openai);
     expect(settings.values.get("defaultModel")).toEqual(ref);
-    expect(status).toEqual({ model: ref, defaultModel: ref });
+    expect(status).toEqual({
+      cwd: "/tmp/ws",
+      model: ref,
+      defaultModel: ref,
+    });
   });
 
   it("mirrors pi-initiated model changes into status", async () => {
@@ -1448,8 +1457,14 @@ describe("driver model service (live session)", () => {
     });
 
     expect(driver.status()).toEqual({
+      cwd: "/tmp/ws",
       model: { provider: "openai", id: "gpt-5" },
     });
-    expect(statuses).toEqual([{ model: { provider: "openai", id: "gpt-5" } }]);
+    expect(statuses).toEqual([
+      {
+        cwd: "/tmp/ws",
+        model: { provider: "openai", id: "gpt-5" },
+      },
+    ]);
   });
 });

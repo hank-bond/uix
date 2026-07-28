@@ -163,12 +163,18 @@ describe("channel clients", () => {
     );
 
     const wrapped = subscribe.mock.calls[0]?.[1];
-    // Full status and the both-absent "no model chosen" status both pass.
-    wrapped?.({ model: { provider: "anthropic", id: "claude-sonnet-4-5" } });
-    wrapped?.({});
+    // Both model fields remain optional, while current cwd is always present.
+    wrapped?.({
+      cwd: "/workspace",
+      model: { provider: "anthropic", id: "claude-sonnet-4-5" },
+    });
+    wrapped?.({ cwd: "/workspace" });
     expect(onStatus).toHaveBeenCalledTimes(2);
+    expect(() => wrapped?.({})).toThrow();
     // Malformed status events reject at the contract schema.
-    expect(() => wrapped?.({ model: { provider: 42 } })).toThrow();
+    expect(() =>
+      wrapped?.({ cwd: "/workspace", model: { provider: 42 } }),
+    ).toThrow();
   });
 
   it("covers provider login requests and validates flow events", async () => {
