@@ -1,8 +1,7 @@
 // agent driver.
 //
-// Wraps Pi's `AgentSessionRuntime` and normalizes each active session's live
-// event stream into the same transcript item model used
-// for persisted history replay in src/shared/ipc.ts.
+// Owns Pi's `AgentSessionRuntime` lifecycle and coordinates the selected
+// session, services, feature state, transcript observation, and agent controls.
 //
 // Why dynamic `import()`: pi is an ESM-only package and the main bundle
 // is CJS. A static `import` would be rewritten to `require()` by the
@@ -20,7 +19,6 @@ import { join } from "node:path";
 
 import type {
   AgentSession,
-  AgentSessionEvent,
   AgentSessionRuntime,
   AgentSessionServices,
   CreateAgentSessionRuntimeFactory,
@@ -38,7 +36,6 @@ import type {
   ProviderAuthType,
   SessionHistoryResponse,
   SessionSummary,
-  TranscriptItem,
 } from "@uix/api/agent-channels";
 import type { SettingsHandleFrom } from "@uix/api/settings";
 
@@ -55,7 +52,7 @@ import {
   buildAgentSystemPromptSection,
   type AgentSystemPromptRegistry,
 } from "../agent-system-prompt/registry";
-import { DisposableBag, subscribe } from "../lifecycle";
+import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
 import type { TurnStateRegistry } from "../turn-state/registry";
 import type { Workspace } from "../workspace";
@@ -75,17 +72,8 @@ import {
 } from "./session-summary";
 import { agentWorkspaceSettings } from "./settings";
 import { createSystemPromptAssembler } from "./system-prompt";
-import { deriveToolFileLocation } from "./tool-file-location";
-import {
-  extractTranscriptText,
-  getMessageRole,
-  parseCustomTranscriptItem,
-  toIpcValue,
-} from "./transcript";
-import {
-  createTranscriptItemIdentity,
-  type TranscriptItemIdentity,
-} from "./transcript-item-identity";
+import { createEphemeralTranscriptItemId } from "./transcript";
+import { createTranscriptObserver } from "./transcript-observer";
 import { createTurnStateLifecycle } from "./turn-state-lifecycle";
 
 const MaxSessionTitleCodePoints = 4096;
@@ -190,7 +178,9 @@ export interface AgentDriverOptions {
 
 export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   const driverBag = new DisposableBag();
-  const sessionBag = new DisposableBag();
+  const transcriptObserver = driverBag.add(
+    createTranscriptObserver({ emit: opts.onEvent }),
+  );
 
   // The bootstrap manager stays cheap and auth-free so startup history does
   // not create a model registry or load extensions. The runtime remains lazy
@@ -212,10 +202,6 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   let currentModel: ModelRef | undefined;
   let disposed = false;
 
-  const transcriptItemIdentityByManager = new WeakMap<
-    SessionManager,
-    TranscriptItemIdentity
-  >();
   const sessionDir = join(opts.workspace.stateRoot, ".uix", "sessions");
   const turnStateLifecycle = opts.turnState
     ? driverBag.add(
@@ -428,53 +414,12 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     return manager;
   }
 
-  function getOrObserveTranscriptItemIdentity(
-    manager: SessionManager,
-  ): TranscriptItemIdentity {
-    const existing = transcriptItemIdentityByManager.get(manager);
-    if (existing) return existing;
-
-    const identity = createTranscriptItemIdentity();
-    identity.onUserMessage((durableId, message) => {
-      const text = extractTranscriptText(message);
-      if (!text) return;
-      opts.onEvent({
-        type: "transcript_append",
-        item: { id: durableId, kind: "user", text },
-      });
-    });
-    // Pi persists after message_end and has no post-persist event, so this must
-    // wrap the manager before the AgentSession receives it.
-    identity.observe(manager);
-    transcriptItemIdentityByManager.set(manager, identity);
-    return identity;
-  }
-
   function bindActiveSession(session: AgentSession): void {
-    const identity = transcriptItemIdentityByManager.get(
-      session.sessionManager,
-    );
-    if (!identity) {
-      throw new Error(
-        "Session manager transcript-item identity is unavailable",
-      );
-    }
-
-    sessionBag.clear();
     currentModel = session.model
       ? { provider: session.model.provider, id: session.model.id }
       : undefined;
     emitStatus();
-    sessionBag.add(
-      subscribe<AgentSessionEvent>(
-        session,
-        createLiveTranscriptForwarder(
-          opts.onEvent,
-          identity,
-          session.sessionManager.getCwd(),
-        ),
-      ),
-    );
+    transcriptObserver.bindSession(session);
   }
 
   async function openRuntime(): Promise<AgentSessionRuntime> {
@@ -491,7 +436,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       sessionManager,
       sessionStartEvent,
     }) => {
-      getOrObserveTranscriptItemIdentity(sessionManager);
+      transcriptObserver.instrumentSessionManager(sessionManager);
       // The first runtime consumes any services already opened by model/auth
       // UI. Replacement generations recreate Pi's cwd-bound resources.
       const sessionServices = initialRuntimeCreated
@@ -542,7 +487,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       throw new Error("Agent driver is disposed");
     }
     openedRuntime.setBeforeSessionInvalidate(() => {
-      sessionBag.clear();
+      transcriptObserver.unbindSession();
       currentModel = undefined;
       turnStateLifecycle?.clearRestoration();
     });
@@ -849,7 +794,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         opts.onEvent({
           type: "transcript_append",
           item: {
-            id: liveId("error"),
+            id: createEphemeralTranscriptItemId("error"),
             kind: "error",
             message: errorMessage(err),
           },
@@ -865,7 +810,6 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       disposed = true;
       const activeRuntime = runtime;
       driverBag[Symbol.dispose]();
-      sessionBag[Symbol.dispose]();
       inFlightRuntimeOpen = undefined;
       runtime = undefined;
       inFlightBootstrapManagerOpen = undefined;
@@ -898,186 +842,6 @@ function normalizeSessionTitle(title: string | null): string {
     );
   }
   return normalized;
-}
-
-function createLiveTranscriptForwarder(
-  emit: (e: AgentEvent) => void,
-  identity: TranscriptItemIdentity,
-  cwd: string,
-) {
-  let assistant: Extract<TranscriptItem, { kind: "assistant" }> | undefined;
-  const tools = new Map<string, Extract<TranscriptItem, { kind: "tool" }>>();
-
-  function append(item: TranscriptItem): void {
-    emit({ type: "transcript_append", item });
-  }
-
-  function replace(item: TranscriptItem): void {
-    emit({ type: "transcript_replace", item });
-  }
-
-  function ensureAssistant(): Extract<TranscriptItem, { kind: "assistant" }> {
-    if (assistant) return assistant;
-    assistant = {
-      id: liveId("assistant"),
-      kind: "assistant",
-      text: "",
-      complete: false,
-    };
-    append(assistant);
-    return assistant;
-  }
-
-  return (event: AgentSessionEvent): void => {
-    switch (event.type) {
-      case "agent_start":
-        emit({ type: "agent_start" });
-        return;
-
-      case "turn_start":
-        emit({ type: "turn_start" });
-        return;
-
-      case "turn_end":
-        emit({ type: "turn_end" });
-        return;
-
-      case "message_start":
-        if (getMessageRole(event.message) === "assistant") ensureAssistant();
-        return;
-
-      case "message_update": {
-        const inner = event.assistantMessageEvent;
-        if (inner.type === "text_delta") {
-          // Accumulate locally (message_end falls back to this text when the
-          // final message extracts empty) but ship only the increment; the
-          // renderer accumulates its copy from partials.
-          const current = ensureAssistant();
-          assistant = { ...current, text: current.text + inner.delta };
-          emit({
-            type: "transcript_partial",
-            id: current.id,
-            text: inner.delta,
-          });
-        }
-        return;
-      }
-
-      case "message_end": {
-        const role = getMessageRole(event.message);
-        if (role === "assistant") {
-          const current = ensureAssistant();
-          const finalText =
-            extractTranscriptText(event.message) || current.text;
-          // Final content lands under the pre-key handle first, so display
-          // never depends on the append wrapper; the rekey replace follows
-          // in the same tick when pi persists this exact message object.
-          const final = { ...current, text: finalText, complete: true };
-          replace(final);
-          assistant = undefined;
-          identity.expectMessageKey(event.message, (durableId) => {
-            emit({
-              type: "transcript_replace",
-              item: { ...final, id: durableId },
-              previousId: final.id,
-            });
-          });
-          return;
-        }
-
-        // Displayed custom messages don't stream, so hold the row one tick
-        // and append it already keyed when pi persists the entry (pi never
-        // hands the manager the CustomMessage object, so there is no handle
-        // path to correlate a rekey through).
-        const custom = parseCustomTranscriptItem("pending", event.message);
-        if (custom) {
-          identity.expectCustomEntry((durableId) => {
-            append({ ...custom, id: durableId });
-          });
-        }
-        return;
-      }
-
-      case "tool_execution_start": {
-        // Born keyed: pi persisted the assistant message (with this row's
-        // toolCall block) before execution started, so the durable replay
-        // derivation is already known. The liveId fallback only fires if pi
-        // reorders persistence, degrading to a pre-key row.
-        const args = toIpcValue(event.args);
-        const file = deriveToolFileLocation(event.toolName, args, cwd);
-        const item = {
-          id: identity.toolRowId(event.toolCallId) ?? liveId("tool"),
-          kind: "tool" as const,
-          toolCallId: event.toolCallId,
-          toolName: event.toolName,
-          cwd,
-          ...(file && { file }),
-          args,
-          complete: false,
-        };
-        tools.set(event.toolCallId, item);
-        append(item);
-        return;
-      }
-
-      case "tool_execution_update": {
-        // Tool partials are tool-defined replacement snapshots (e.g. bash
-        // ships its bounded output tail every ~100ms), so forward the payload
-        // alone — no point resending the row's args on every tick. The stored
-        // row stays as appended; the completion replace discards partials.
-        const current = tools.get(event.toolCallId);
-        if (!current) return;
-        emit({
-          type: "transcript_partial",
-          id: current.id,
-          partialResult: toIpcValue(event.partialResult),
-        });
-        return;
-      }
-
-      case "tool_execution_end": {
-        const existing = tools.get(event.toolCallId);
-        const current =
-          existing ??
-          ({
-            id: identity.toolRowId(event.toolCallId) ?? liveId("tool"),
-            kind: "tool" as const,
-            toolCallId: event.toolCallId,
-            toolName: event.toolName,
-            cwd,
-            complete: false,
-          } satisfies Extract<TranscriptItem, { kind: "tool" }>);
-        const item: Extract<TranscriptItem, { kind: "tool" }> = {
-          id: current.id,
-          kind: "tool",
-          toolCallId: current.toolCallId,
-          toolName: event.toolName,
-          cwd: current.cwd,
-          ...(current.file && { file: current.file }),
-          complete: true,
-          args: current.args,
-          result: toIpcValue(event.result),
-          isError: event.isError,
-        };
-        tools.delete(event.toolCallId);
-        if (existing) replace(item);
-        else append(item);
-        return;
-      }
-
-      case "agent_end":
-        emit({ type: "agent_end" });
-        return;
-
-      default:
-        return;
-    }
-  };
-}
-
-let nextLiveId = 1;
-function liveId(kind: string): string {
-  return `live:${kind}:${nextLiveId++}`;
 }
 
 function errorMessage(err: unknown): string {

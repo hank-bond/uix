@@ -14,11 +14,18 @@ import type {
 import { asTurnStateEntryData } from "../turn-state/registry";
 import { deriveToolFileLocation } from "./tool-file-location";
 
-// The single definition of a tool row's durable id. Live rows
-// (transcript-item-identity.ts) and history replay (below) must derive
-// byte-identical ids; otherwise state keyed against one would miss the other.
+/** Derives the durable id for one tool row within its assistant entry. */
 export function toolItemId(entryId: string, toolCallId: string): string {
   return `${entryId}:tool:${toolCallId}`;
+}
+
+let nextEphemeralItemId = 1;
+
+/** Mints a process-local id for a transcript item without durable identity. */
+export function createEphemeralTranscriptItemId(
+  kind: TranscriptItem["kind"],
+): string {
+  return `live:${kind}:${nextEphemeralItemId++}`;
 }
 
 interface TranscriptProjector {
