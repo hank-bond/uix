@@ -11,6 +11,8 @@ import type {
   TranscriptItem,
   TranscriptSnapshot,
 } from "@uix/api/agent-channels";
+import { asTurnStateEntryData } from "../turn-state/registry";
+import { deriveToolFileLocation } from "./tool-file-location";
 
 // The single definition of a tool row's durable id. Live rows
 // (transcript-item-identity.ts) and history replay (below) must derive
@@ -20,7 +22,7 @@ export function toolItemId(entryId: string, toolCallId: string): string {
 }
 
 interface TranscriptProjector {
-  projectEntry(entry: SessionEntry): void;
+  projectEntry(entry: SessionEntry, cwd: string): void;
   deriveSnapshot(): TranscriptSnapshot;
 }
 
@@ -29,7 +31,7 @@ export function createTranscriptProjector(): TranscriptProjector {
   const toolIndexes = new Map<string, number>();
 
   return {
-    projectEntry(entry) {
+    projectEntry(entry, cwd) {
       if (entry.type === "custom_message") {
         items.push({
           id: entry.id,
@@ -66,12 +68,16 @@ export function createTranscriptProjector(): TranscriptProjector {
         for (const toolCall of extractToolCalls(
           asRecord(entry.message)?.["content"],
         )) {
+          const args = toIpcValue(toolCall.arguments);
+          const file = deriveToolFileLocation(toolCall.name, args, cwd);
           const item: TranscriptItem = {
             id: toolItemId(entry.id, toolCall.id),
             kind: "tool",
             toolCallId: toolCall.id,
             toolName: toolCall.name,
-            args: toIpcValue(toolCall.arguments),
+            cwd,
+            ...(file && { file }),
+            args,
             complete: true,
           };
           toolIndexes.set(toolCall.id, items.length);
@@ -94,6 +100,7 @@ export function createTranscriptProjector(): TranscriptProjector {
           kind: "tool",
           toolCallId: tool.toolCallId,
           toolName: tool.toolName,
+          cwd,
           result,
           isError: tool.isError,
           complete: true,
@@ -119,9 +126,14 @@ export function createTranscriptProjector(): TranscriptProjector {
 
 export function deriveTranscriptItems(
   entries: readonly SessionEntry[],
+  initialCwd: string,
 ): TranscriptItem[] {
   const projector = createTranscriptProjector();
-  for (const entry of entries) projector.projectEntry(entry);
+  let cwd = initialCwd;
+  for (const entry of entries) {
+    cwd = asTurnStateEntryData(entry)?.cwd ?? cwd;
+    projector.projectEntry(entry, cwd);
+  }
   return projector.deriveSnapshot().items;
 }
 

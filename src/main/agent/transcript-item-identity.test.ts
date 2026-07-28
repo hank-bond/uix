@@ -70,15 +70,18 @@ describe("createTranscriptItemIdentity", () => {
 
     // The live id must equal what history replay produces for the same entry,
     // or live and replayed state would key differently.
-    const replayed = deriveTranscriptItems([
-      {
-        type: "message",
-        id: entryId,
-        parentId: null,
-        timestamp: "",
-        message,
-      } as never,
-    ]);
+    const replayed = deriveTranscriptItems(
+      [
+        {
+          type: "message",
+          id: entryId,
+          parentId: null,
+          timestamp: "",
+          message,
+        } as never,
+      ],
+      "/workspace",
+    );
     expect(replayed).toEqual([
       expect.objectContaining({ id: identity.toolRowId("call-1") }),
       expect.objectContaining({ id: identity.toolRowId("call-2") }),

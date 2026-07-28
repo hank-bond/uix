@@ -91,7 +91,11 @@ const sdk = vi.hoisted(() => {
     getSessionId: () => "session-id",
     getSessionDir: () => "/tmp/sessions",
     getSessionFile: () => "/tmp/session.jsonl",
-    getHeader: () => ({ timestamp: "2026-07-19T10:00:00.000Z" }),
+    getCwd: () => "/tmp/ws",
+    getHeader: () => ({
+      timestamp: "2026-07-19T10:00:00.000Z",
+      cwd: "/tmp/ws",
+    }),
     getEntries: () => state.branch,
     getSessionName: () => state.sessionTitle,
     appendMessage: () => "entry-id",
@@ -240,7 +244,10 @@ const sdk = vi.hoisted(() => {
             getBranch: () => state.replacementBranch ?? state.branch,
             getSessionId: () => state.replacementSessionId,
             getSessionFile: () => state.replacementSessionFile,
-            getHeader: () => ({ timestamp: "2026-07-19T11:00:00.000Z" }),
+            getHeader: () => ({
+              timestamp: "2026-07-19T11:00:00.000Z",
+              cwd: "/tmp/ws",
+            }),
           };
           const replacement = await createRuntime({
             ...options,

@@ -74,6 +74,7 @@ describe("deriveSelectedBranchProjection", () => {
           },
         }),
       ],
+      "/workspace",
       toTurnStateRegistrySnapshot(turnState),
     );
 
@@ -107,6 +108,7 @@ describe("deriveSelectedBranchProjection", () => {
 
     const projection = deriveSelectedBranchProjection(
       [],
+      "/workspace",
       toTurnStateRegistrySnapshot(turnState),
     );
 
@@ -114,6 +116,6 @@ describe("deriveSelectedBranchProjection", () => {
     expect([...projection.turnStateAsOfLeaf.latestValuePerCell.keys()]).toEqual(
       [],
     );
-    expect(projection.turnStateAsOfLeaf.cwd).toBeUndefined();
+    expect(projection.turnStateAsOfLeaf.cwd).toBe("/workspace");
   });
 });

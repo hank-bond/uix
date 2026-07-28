@@ -17,6 +17,14 @@ export const PromptRequestSchema = Type.Object({
 });
 export type PromptRequest = Static<typeof PromptRequestSchema>;
 
+/** Point-in-time file location derived for a filesystem tool invocation. */
+export interface ToolFileLocation {
+  /** Absolute path derived from the invocation args and execution cwd. */
+  absolutePath: string;
+  /** Cwd-relative when that form stays under cwd; otherwise absolute. */
+  displayPath: string;
+}
+
 /**
  * Durable transcript items rendered by conversation surfaces. Live events may
  * carry in-flight fields on the same item shape; history replay only returns
@@ -35,6 +43,10 @@ export type TranscriptItem =
       kind: "tool";
       toolCallId: string;
       toolName: string;
+      /** Point-in-time cwd under which this tool invocation executed. */
+      cwd: string;
+      /** Main-derived reference for filesystem tools whose args identify a file. */
+      file?: ToolFileLocation;
       complete: boolean;
       args?: unknown;
       result?: unknown;

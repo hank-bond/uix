@@ -32,24 +32,25 @@ Stop for review before C3.
 
 ## C3 — File-tool rendering
 
-- Give read and write tools purpose-built chat renderers.
-- Put the file path on the first line.
-- Make each tool row carry its point-in-time execution cwd and each relevant filesystem row carry an absolute path plus an optional path relative to that cwd.
-- Derive the same self-contained file references during history projection by seeding from the session header cwd and folding persisted cwd state with tool calls.
+- Make each tool row carry its point-in-time execution cwd and each relevant filesystem row carry a `ToolFileLocation`: a lexical absolute path plus a cwd-relative-or-absolute display path.
+- Derive the same self-contained file locations during history projection by seeding from the session header cwd and folding persisted cwd state with tool calls.
 - Expose current cwd to surfaces through a status snapshot plus change events.
-- Show paths inside the agent cwd relative to that cwd and paths outside it as absolute paths.
-- Infer syntax highlighting from the file extension.
+- Add an explicit feature-level seam for exact-name tool overrides; ordinary feature tools remain namespaced.
+- Have the Chat feature override Pi's `read` and `write` definitions under their existing names, delegating execution to Pi while requiring a concise `reason`. Exact-name registration shadows the built-ins, so no separate read/write disabling policy is needed.
+- Give those tools purpose-built renderers whose collapsed state shows the displayed path plus reason and no file-content preview. Put the complete read result or write content in an explicit accessible disclosure.
+- Show paths inside the execution cwd relative to that cwd and paths outside it as absolute paths.
+- Infer disclosure syntax highlighting from the file extension.
 - Keep cwd switching itself out of this branch; the future runtime rebind is captured in the [backlog](./backlog.md).
 
 Stop for review before C4.
 
 ## C4 — Command tool
 
-- Replace the active `bash` tool with an app-specific `command` tool rather than a UIX-global default.
-- Add the workspace agent-tool policy needed to disable built-in `bash`; settle the exact unnamespaced Pi-tool loading seam while planning this unit.
-- Require command and description strings, guiding the agent to provide one sentence without rejecting imperfect descriptions.
-- Display only `command: {description}` in the collapsed chat row.
-- Put the actual command and its streamed/final output in the hidden disclosure content.
+- Replace the active `bash` tool with an app-specific `command` tool rather than a UIX-global default; built-in `edit` remains active.
+- Add the workspace agent-tool policy needed to disable built-in `bash`; unlike the same-name read/write overrides, `bash` does not disappear merely because `command` exists.
+- Require command and reason strings, guiding the agent to provide one concise sentence without rejecting imperfect reasons.
+- Display only `command: {reason}` in the collapsed chat row.
+- Put the actual command and its streamed/final output in the explicit disclosure content.
 
 Stop for review before C5.
 

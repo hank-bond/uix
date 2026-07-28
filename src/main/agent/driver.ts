@@ -75,6 +75,7 @@ import {
 } from "./session-summary";
 import { agentWorkspaceSettings } from "./settings";
 import { createSystemPromptAssembler } from "./system-prompt";
+import { deriveToolFileLocation } from "./tool-file-location";
 import {
   extractTranscriptText,
   getMessageRole,
@@ -467,7 +468,11 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     sessionBag.add(
       subscribe<AgentSessionEvent>(
         session,
-        createLiveTranscriptForwarder(opts.onEvent, identity),
+        createLiveTranscriptForwarder(
+          opts.onEvent,
+          identity,
+          session.sessionManager.getCwd(),
+        ),
       ),
     );
   }
@@ -674,6 +679,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         session,
         transcript: deriveSelectedBranchProjection(
           manager.getBranch(),
+          manager.getHeader()?.cwd || manager.getCwd(),
           turnStateLifecycle?.toRegistrySnapshot(),
         ).transcript,
       };
@@ -897,6 +903,7 @@ function normalizeSessionTitle(title: string | null): string {
 function createLiveTranscriptForwarder(
   emit: (e: AgentEvent) => void,
   identity: TranscriptItemIdentity,
+  cwd: string,
 ) {
   let assistant: Extract<TranscriptItem, { kind: "assistant" }> | undefined;
   const tools = new Map<string, Extract<TranscriptItem, { kind: "tool" }>>();
@@ -996,12 +1003,16 @@ function createLiveTranscriptForwarder(
         // toolCall block) before execution started, so the durable replay
         // derivation is already known. The liveId fallback only fires if pi
         // reorders persistence, degrading to a pre-key row.
+        const args = toIpcValue(event.args);
+        const file = deriveToolFileLocation(event.toolName, args, cwd);
         const item = {
           id: identity.toolRowId(event.toolCallId) ?? liveId("tool"),
           kind: "tool" as const,
           toolCallId: event.toolCallId,
           toolName: event.toolName,
-          args: toIpcValue(event.args),
+          cwd,
+          ...(file && { file }),
+          args,
           complete: false,
         };
         tools.set(event.toolCallId, item);
@@ -1033,6 +1044,7 @@ function createLiveTranscriptForwarder(
             kind: "tool" as const,
             toolCallId: event.toolCallId,
             toolName: event.toolName,
+            cwd,
             complete: false,
           } satisfies Extract<TranscriptItem, { kind: "tool" }>);
         const item: Extract<TranscriptItem, { kind: "tool" }> = {
@@ -1040,6 +1052,8 @@ function createLiveTranscriptForwarder(
           kind: "tool",
           toolCallId: current.toolCallId,
           toolName: event.toolName,
+          cwd: current.cwd,
+          ...(current.file && { file: current.file }),
           complete: true,
           args: current.args,
           result: toIpcValue(event.result),

@@ -8,7 +8,7 @@ import type {
   SessionEntry,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
-import { IsCodec, Type, type TSchema } from "typebox";
+import { IsCodec, Type, type Static, type TSchema } from "typebox";
 import { Value } from "typebox/value";
 
 import {
@@ -28,6 +28,14 @@ import { createLogger } from "../log";
 const log = createLogger("turn-state");
 
 const TurnStateEntryType = "uix.turn-state";
+const TurnStateEntryDataSchema = Type.Partial(
+  Type.Object({
+    cwd: Type.String(),
+    state: Type.Record(Type.String(), Type.Unknown()),
+  }),
+);
+type TurnStateEntryData = Static<typeof TurnStateEntryDataSchema>;
+
 const stateTokenPattern = /^[a-z][a-z0-9_-]*$/;
 
 const TurnStateCanonicalIdBrand: unique symbol = Symbol("TurnStateCanonicalId");
@@ -121,6 +129,7 @@ interface TurnStateProjector {
 
 export function createTurnStateProjector(
   registrySnapshot?: TurnStateRegistrySnapshot,
+  initialCwd?: string,
 ): TurnStateProjector {
   return createTurnStateProjectorForIds(
     new Set(
@@ -128,6 +137,7 @@ export function createTurnStateProjector(
         (registration) => registration.canonicalId,
       ) ?? [],
     ),
+    initialCwd,
   );
 }
 
@@ -394,16 +404,17 @@ function deriveTurnStateBaseline(
 
 function createTurnStateProjectorForIds(
   activeIds: ReadonlySet<TurnStateCanonicalId>,
+  initialCwd?: string,
 ): TurnStateProjector {
   const latestValuePerCell = new Map<TurnStateCanonicalId, unknown>();
-  let cwd: string | undefined;
+  let cwd = initialCwd;
 
   return {
     projectEntry(entry) {
-      const data = extractTurnStateData(entry);
+      const data = asTurnStateEntryData(entry);
       if (!data) return;
-      if (typeof data["cwd"] === "string") cwd = data["cwd"];
-      const state = asRecord(data["state"]);
+      cwd = data.cwd ?? cwd;
+      const { state } = data;
       if (!state) return;
       for (const [id, value] of Object.entries(state)) {
         const canonicalId = id as TurnStateCanonicalId;
@@ -433,7 +444,8 @@ function turnStates<TState>(
   const result: TurnStateHistoryEntry<TState>[] = [];
   let skipped = 0;
   for (let index = branch.length - 1; index >= 0; index -= 1) {
-    const state = extractTurnStateRecord(branch[index]);
+    const data = asTurnStateEntryData(branch[index]);
+    const state = data?.state;
     if (!state || !(canonicalId in state)) continue;
 
     if (skipped < offset) {
@@ -442,10 +454,9 @@ function turnStates<TState>(
     }
 
     const entry = branch[index];
-    const data = asRecord(entry.type === "custom" ? entry.data : undefined);
     result.push({
       entryId: entry.id,
-      cwd: typeof data?.["cwd"] === "string" ? data["cwd"] : undefined,
+      cwd: data.cwd,
       state: state[canonicalId] as TState,
     });
     if (result.length >= limit) break;
@@ -453,19 +464,15 @@ function turnStates<TState>(
   return result;
 }
 
-function extractTurnStateRecord(
+export function asTurnStateEntryData(
   entry: SessionEntry,
-): Record<string, unknown> | undefined {
-  return asRecord(extractTurnStateData(entry)?.["state"]);
-}
-
-function extractTurnStateData(
-  entry: SessionEntry,
-): Record<string, unknown> | undefined {
+): TurnStateEntryData | undefined {
   if (entry.type !== "custom" || entry.customType !== TurnStateEntryType) {
     return undefined;
   }
-  return asRecord(entry.data);
+  return Value.Check(TurnStateEntryDataSchema, entry.data)
+    ? entry.data
+    : undefined;
 }
 
 function toTurnStateCanonicalId(
@@ -532,12 +539,6 @@ function assertPlainJson(value: unknown, canonicalId: string): void {
   throw new Error(
     `Invalid turn-state snapshot for ${canonicalId}: value must be plain JSON`,
   );
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
 }
 
 function assertNonNegativeInteger(label: string, value: number): void {

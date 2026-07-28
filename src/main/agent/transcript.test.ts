@@ -23,13 +23,16 @@ const entry = (
 
 describe("deriveTranscriptItems", () => {
   it("keeps user and assistant text in order", () => {
-    const items = deriveTranscriptItems([
-      entry("message", { role: "user", content: "hello" }),
-      entry("message", {
-        role: "assistant",
-        content: [{ type: "text", text: "hi there" }],
-      }),
-    ]);
+    const items = deriveTranscriptItems(
+      [
+        entry("message", { role: "user", content: "hello" }),
+        entry("message", {
+          role: "assistant",
+          content: [{ type: "text", text: "hi there" }],
+        }),
+      ],
+      "/workspace",
+    );
     expect(items).toEqual([
       expect.objectContaining({ kind: "user", text: "hello" }),
       expect.objectContaining({
@@ -63,7 +66,7 @@ describe("deriveTranscriptItems", () => {
       isError: false,
     });
 
-    const items = deriveTranscriptItems([assistant, result]);
+    const items = deriveTranscriptItems([assistant, result], "/workspace");
 
     expect(items).toEqual([
       expect.objectContaining({
@@ -75,6 +78,7 @@ describe("deriveTranscriptItems", () => {
         kind: "tool",
         toolCallId: "call-1",
         toolName: "canvas__anchor_write",
+        cwd: "/workspace",
         args: { key: "main" },
         result: {
           content: [{ type: "text", text: "wrote canvas" }],
@@ -86,18 +90,79 @@ describe("deriveTranscriptItems", () => {
     ]);
   });
 
-  it("keeps displayed custom messages and drops non-transcript state", () => {
-    const items = deriveTranscriptItems([
-      entry("model_change"),
-      entry("custom", undefined, { customType: "uix.state", data: { x: 1 } }),
-      entry("custom_message", undefined, {
-        customType: "uix.notice",
-        content: "notice",
-        display: true,
-        details: { severity: "info" },
+  it("derives point-in-time cwd and tool file locations", () => {
+    const items = deriveTranscriptItems(
+      [
+        entry("message", {
+          role: "assistant",
+          content: [
+            {
+              type: "toolCall",
+              id: "read-1",
+              name: "read",
+              arguments: { path: "src/main.ts" },
+            },
+          ],
+        }),
+        entry("custom", undefined, {
+          customType: "uix.turn-state",
+          data: { cwd: "/worktree/nested", state: {} },
+        }),
+        entry("message", {
+          role: "assistant",
+          content: [
+            {
+              type: "toolCall",
+              id: "write-1",
+              name: "write",
+              arguments: { path: "../outside.ts", content: "export {};" },
+            },
+          ],
+        }),
+      ],
+      "/workspace",
+    );
+
+    expect(items).toEqual([
+      expect.objectContaining({
+        kind: "tool",
+        toolCallId: "read-1",
+        cwd: "/workspace",
+        file: {
+          absolutePath: "/workspace/src/main.ts",
+          displayPath: "src/main.ts",
+        },
       }),
-      entry("message", { role: "user", content: "   " }),
+      expect.objectContaining({
+        kind: "tool",
+        toolCallId: "write-1",
+        cwd: "/worktree/nested",
+        file: {
+          absolutePath: "/worktree/outside.ts",
+          displayPath: "/worktree/outside.ts",
+        },
+      }),
     ]);
+  });
+
+  it("keeps displayed custom messages and drops non-transcript state", () => {
+    const items = deriveTranscriptItems(
+      [
+        entry("model_change"),
+        entry("custom", undefined, {
+          customType: "uix.state",
+          data: { x: 1 },
+        }),
+        entry("custom_message", undefined, {
+          customType: "uix.notice",
+          content: "notice",
+          display: true,
+          details: { severity: "info" },
+        }),
+        entry("message", { role: "user", content: "   " }),
+      ],
+      "/workspace",
+    );
 
     expect(items).toEqual([
       expect.objectContaining({

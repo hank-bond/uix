@@ -99,6 +99,7 @@ export function createTurnStateLifecycle(
       }
       const projection = deriveSelectedBranchProjection(
         sessionManager.getBranch(),
+        sessionManager.getHeader()?.cwd || sessionManager.getCwd(),
         registrySnapshot,
       );
       await restoreTurnStateCellsAsOfLeaf(

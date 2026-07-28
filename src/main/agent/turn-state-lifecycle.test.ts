@@ -27,6 +27,8 @@ function createManager(branch: readonly SessionEntry[]) {
   return {
     manager: {
       getBranch: () => branch,
+      getHeader: () => ({ cwd: "/workspace" }),
+      getCwd: () => "/workspace",
       appendCustomEntry,
     } as unknown as SessionManager,
     appendCustomEntry,
