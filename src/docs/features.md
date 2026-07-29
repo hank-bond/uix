@@ -70,7 +70,7 @@ interface FeatureDefinition {
 
 `context()` runs before `contribute()` and may return feature-local objects merged onto the context handed to `contribute()`. `settings`, when present, are declared before either hook runs so the loader can hydrate and validate a provisional feature scope first. `defineFeature(...)` carries that definition into both hooks' `ctx.settings` type. Both hooks may use the scope; its defaults and writes commit only after every returned facet registers successfully.
 
-`contribute()` returns facet contributions such as resources, channels, agent tools, Agent system-prompt sections, Pi skills, turn state, agent context, and surfaces. See [`contributions.md`](./contributions.md), [`channels.md`](./channels.md), [`settings.md`](./settings.md), and [`lifetimes.md`](./lifetimes.md).
+`contribute()` returns facet contributions such as resources, channels, feature-namespaced Agent tools, explicit exact-name Agent tool overrides, Agent system-prompt sections, Pi skills, turn state, agent context, and surfaces. Surfaces are optional: a backend-only feature may contribute Agent capabilities or other facets without occupying workspace layout. The default `workspace_tools` feature is a surface-less example that contributes reason-bearing exact-name `read`/`write` replacements independently from the Chat surface. See [`contributions.md`](./contributions.md), [`channels.md`](./channels.md), [`settings.md`](./settings.md), and [`lifetimes.md`](./lifetimes.md).
 
 ## Reload
 

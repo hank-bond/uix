@@ -119,6 +119,18 @@
   font-size: 0.78rem;
 }
 
+.file-tool-block__summary {
+  color: var(--fg-dim);
+}
+
+.file-tool-block__summary code {
+  color: var(--fg);
+  font-family:
+    var(--code-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 0.8rem;
+}
+
 .canvas-tool-block__payload {
   display: grid;
   gap: 0.2rem;

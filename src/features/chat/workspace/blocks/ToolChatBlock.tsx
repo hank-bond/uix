@@ -1,6 +1,7 @@
 import { ChatBlockFrame } from "./ChatBlockFrame";
 import { CanvasToolContent } from "./CanvasToolContent";
 import { DefaultToolContent } from "./DefaultToolContent";
+import { FileToolContent } from "./FileToolContent";
 import { toToolDisplayName, toToolState } from "./tool";
 import type { ToolChatRenderer, ToolItem } from "./tool";
 
@@ -17,6 +18,14 @@ registerToolChatRenderer("canvas__anchor_write", {
 registerToolChatRenderer("canvas__anchor_edit", {
   displayName: "Edit Canvas",
   render: ({ item }) => <CanvasToolContent item={item} />,
+});
+registerToolChatRenderer("read", {
+  displayName: "read",
+  render: ({ item }) => <FileToolContent item={item} />,
+});
+registerToolChatRenderer("write", {
+  displayName: "write",
+  render: ({ item }) => <FileToolContent item={item} />,
 });
 
 export function ToolChatBlock({ item }: { item: ToolItem }) {

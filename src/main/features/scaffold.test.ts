@@ -13,6 +13,18 @@ async function makeTemplates(): Promise<string> {
   await mkdir(join(dir, "chat", "workspace"), { recursive: true });
   await writeFile(join(dir, "chat", "index.ts"), "export default {};\n");
   await writeFile(join(dir, "chat", "workspace", "surface.tsx"), "// ui\n");
+  await mkdir(join(dir, "workspace-tools"), { recursive: true });
+  await writeFile(
+    join(dir, "workspace-tools", "index.ts"),
+    "export default {};\n",
+  );
+  await writeFile(
+    join(dir, "workspace-tools", "package.json"),
+    `${JSON.stringify({
+      name: "workspace-tools",
+      dependencies: { "@earendil-works/pi-coding-agent": "^0.82.0" },
+    })}\n`,
+  );
   await mkdir(join(dir, "canvas", "node_modules", "junk"), { recursive: true });
   await writeFile(join(dir, "canvas", "index.ts"), "export default {};\n");
   await writeFile(
@@ -50,6 +62,12 @@ describe("scaffoldWorkspace", () => {
     ).resolves.toContain("ui");
     await expect(
       readFile(
+        join(workspaceDir, "features", "workspace-tools", "package.json"),
+        "utf8",
+      ),
+    ).resolves.toContain("pi-coding-agent");
+    await expect(
+      readFile(
         join(workspaceDir, "features", "canvas", "package.json"),
         "utf8",
       ),
@@ -67,6 +85,7 @@ describe("scaffoldWorkspace", () => {
     expect(manifest.name).toBe("My Workspace");
     expect(manifest.features).toEqual([
       { entry: "./features/chat/index.ts", settings: {} },
+      { entry: "./features/workspace-tools/index.ts", settings: {} },
       { entry: "./features/canvas/index.ts", settings: {} },
     ]);
 

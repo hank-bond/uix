@@ -5,7 +5,11 @@ export type {
   FeatureContributions,
   FeaturePreflightContributions,
 } from "./feature";
-export type { AgentToolContribution, AgentToolDefinition } from "./agent-tools";
+export type {
+  AgentToolContribution,
+  AgentToolDefinition,
+  AgentToolOverrideContribution,
+} from "./agent-tools";
 export {
   defineTurnStateCell,
   type TurnStateCellDefinition,

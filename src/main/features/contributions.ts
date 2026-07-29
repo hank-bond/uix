@@ -12,7 +12,10 @@ import { registerAgentSystemPromptContribution } from "../agent-system-prompt/re
 import type { AgentSkillRegistry } from "../agent-skills/registry";
 import { registerAgentSkillContributions } from "../agent-skills/registry";
 import type { AgentToolRegistry } from "../agent-tools/registry";
-import { registerAgentToolContributions } from "../agent-tools/registry";
+import {
+  registerAgentToolContributions,
+  registerAgentToolOverrideContributions,
+} from "../agent-tools/registry";
 import type { ChannelRegistry } from "../channels/registry";
 import { registerChannelContributions } from "../channels/registry";
 import { DisposableBag } from "../lifecycle";
@@ -102,6 +105,21 @@ export function registerFeatureContributions(
           registries.agentTools,
           featureId,
           contributions.agentTools,
+        ),
+      );
+    }
+
+    if (contributions.agentToolOverrides?.length) {
+      if (!registries.agentTools) {
+        throw new Error(
+          `Feature ${featureId} contributes agent tool overrides but no agent tool registry was provided`,
+        );
+      }
+      bag.add(
+        registerAgentToolOverrideContributions(
+          registries.agentTools,
+          featureId,
+          contributions.agentToolOverrides,
         ),
       );
     }

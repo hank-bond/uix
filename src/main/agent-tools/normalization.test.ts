@@ -4,7 +4,9 @@ import { Type } from "typebox";
 
 import {
   toAgentToolCanonicalId,
+  toAgentToolOverrideCanonicalId,
   normalizeAgentToolContribution,
+  normalizeAgentToolOverrideContribution,
 } from "./normalization";
 import type { AgentToolDefinition } from "./normalization";
 
@@ -54,6 +56,22 @@ describe("toAgentToolCanonicalId", () => {
   });
 });
 
+describe("toAgentToolOverrideCanonicalId", () => {
+  it("retains a valid exact Pi tool name", () => {
+    expect(toAgentToolOverrideCanonicalId("read")).toBe("read");
+    expect(toAgentToolOverrideCanonicalId("write")).toBe("write");
+  });
+
+  it("rejects invalid exact names", () => {
+    expect(() => toAgentToolOverrideCanonicalId("Read")).toThrow(
+      "Invalid agent tool override name",
+    );
+    expect(() => toAgentToolOverrideCanonicalId("read-file")).toThrow(
+      "Invalid agent tool override name",
+    );
+  });
+});
+
 describe("normalizeAgentToolContribution", () => {
   it("derives both ids and stamps the pi tool name", () => {
     const registration = normalizeAgentToolContribution("canvas", {
@@ -81,5 +99,19 @@ describe("normalizeAgentToolContribution", () => {
     // The author shape is Omit<ToolDefinition, "name">; the original input
     // object must not gain a `name` key.
     expect("name" in input).toBe(false);
+  });
+});
+
+describe("normalizeAgentToolOverrideContribution", () => {
+  it("retains the exact Pi name while deriving feature ownership", () => {
+    const registration = normalizeAgentToolOverrideContribution("chat", {
+      name: "read",
+      tool: body(),
+    });
+
+    expect(registration.contributionId as string).toBe("chat.agent.read");
+    expect(registration.canonicalId).toBe("read");
+    expect(registration.tool.name).toBe("read");
+    expect(registration.tool.parameters).toBe(emptyParams);
   });
 });

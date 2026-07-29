@@ -13,7 +13,10 @@ import type {
   ChannelContribution,
   FeatureEventPublisherFactory,
 } from "./channels";
-import type { AgentToolContribution } from "./agent-tools";
+import type {
+  AgentToolContribution,
+  AgentToolOverrideContribution,
+} from "./agent-tools";
 import type { AgentSystemPromptContribution } from "./agent-system-prompt";
 import type { AgentSkillContribution } from "./agent-skills";
 import type { TurnStateContributions } from "./turn-state";
@@ -28,7 +31,10 @@ import type {
 } from "./settings";
 
 export type { ChannelContribution } from "./channels";
-export type { AgentToolContribution } from "./agent-tools";
+export type {
+  AgentToolContribution,
+  AgentToolOverrideContribution,
+} from "./agent-tools";
 export type { AgentSystemPromptContribution } from "./agent-system-prompt";
 export type { AgentSkillContribution } from "./agent-skills";
 export type {
@@ -54,7 +60,10 @@ export type FeaturePreflightContributions = Record<string, never>;
 export interface FeatureContributions {
   resources?: readonly ResourceContribution[];
   channels?: readonly ChannelContribution[];
+  /** Feature-namespaced Pi tools. */
   agentTools?: readonly AgentToolContribution[];
+  /** Intentional exact-name replacements for existing Pi tool definitions. */
+  agentToolOverrides?: readonly AgentToolOverrideContribution[];
   /** Stable Markdown appended to the agent system prompt while this feature is active. */
   agentSystemPrompt?: AgentSystemPromptContribution;
   /** Pi skill files/directories, resolved relative to the feature entry file. */

@@ -35,9 +35,9 @@ Stop for review before C3.
 - Make each tool row carry its point-in-time execution cwd and each relevant filesystem row carry a `ToolFileLocation`: a lexical absolute path plus a cwd-relative-or-absolute display path.
 - Derive the same self-contained file locations during history projection by seeding from the session header cwd and folding persisted cwd state with tool calls.
 - Expose current cwd to surfaces through a status snapshot plus change events.
-- Add an explicit feature-level seam for exact-name tool overrides; ordinary feature tools remain namespaced.
-- Have the Chat feature override Pi's `read` and `write` definitions under their existing names, delegating execution to Pi while requiring a concise `reason`. Exact-name registration shadows the built-ins, so no separate read/write disabling policy is needed.
-- Give those tools purpose-built renderers whose collapsed state shows the displayed path plus reason and no file-content preview. Put the complete read result or write content in an explicit accessible disclosure.
+- Add an explicit feature-level seam for exact-name tool overrides; ordinary feature tools remain namespaced, and competing exact-name claims fail the later feature's activation.
+- Add a default surface-less `workspace_tools` feature that overrides Pi's `read` and `write` definitions under their existing names, delegates execution to Pi, and requires a concise `reason`. Its parameter schemas derive Pi's baseline schemas and add only the UIX field. Exact-name registration shadows the built-ins, so no separate read/write disabling policy is needed. Chat remains an independent consumer, and new-workspace scaffolding composes both features as adjacent manifest entries.
+- Give reason-bearing `read`/`write` calls purpose-built Chat renderers whose collapsed state shows the displayed path plus reason and no file-content preview. Put the complete read result or write content in an explicit accessible disclosure. Calls without a compatible reason shape fall back to ordinary tool input/output rendering, so Chat remains usable with another exact-name provider and with older history.
 - Show paths inside the execution cwd relative to that cwd and paths outside it as absolute paths.
 - Infer disclosure syntax highlighting from the file extension.
 - Keep cwd switching itself out of this branch; the future runtime rebind is captured in the [backlog](./backlog.md).
@@ -46,9 +46,10 @@ Stop for review before C4.
 
 ## C4 — Command tool
 
-- Replace the active `bash` tool with an app-specific `command` tool rather than a UIX-global default; built-in `edit` remains active.
+- Extend the surface-less `workspace_tools` feature with an app-specific `command` tool rather than exposing Pi's implementation-named `bash`; built-in `edit` remains active.
+- Derive `command` parameters from Pi's baseline Bash schema, add only the required concise `reason`, and delegate execution to Pi's cwd-bound Bash definition. The Agent/UI vocabulary remains shell-neutral while Pi selects the host shell.
 - Add the workspace agent-tool policy needed to disable built-in `bash`; unlike the same-name read/write overrides, `bash` does not disappear merely because `command` exists.
-- Require command and reason strings, guiding the agent to provide one concise sentence without rejecting imperfect reasons.
+- Guide the agent to provide one concise reason sentence without rejecting imperfect reasons.
 - Display only `command: {reason}` in the collapsed chat row.
 - Put the actual command and its streamed/final output in the explicit disclosure content.
 
@@ -71,6 +72,7 @@ Stop for review before C6.
 - Add a Chat status-bar control for the current thinking effort.
 - Mirror model control across the stack: a workspace default applies until native branch-aware Pi thinking-level state overrides it.
 - Use Pi’s model support and clamping.
+- After the complete model, cwd, and thinking-control shape is visible, reassess `src/main/agent/driver.ts` for discrete ownership units and extract only boundaries earned by the implemented behavior.
 
 Stop for review before C7.
 

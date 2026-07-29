@@ -1,6 +1,6 @@
 // create-new workspace scaffolding.
 //
-// Create-new copies the default feature templates (chat, canvas) into the new
+// Create-new copies the default feature templates into the new
 // workspace and writes manifest references to the copies, so the workspace
 // owns editable source from day one — editing `<ws>/features/canvas/` changes
 // that workspace without touching the templates. Templates come from the
@@ -31,7 +31,7 @@ import process from "node:process";
 import { WorkspaceManifestFileName } from "./manifest";
 
 /** Template dirs copied into every new workspace, in composition order. */
-const DefaultFeatures = ["chat", "canvas"] as const;
+const DefaultFeatures = ["chat", "workspace-tools", "canvas"] as const;
 
 export interface ScaffoldOptions {
   /** Directory holding the feature templates (repo `src/features/` in dev). */

@@ -12,6 +12,7 @@ interface FeatureContributions {
   resources?: readonly ResourceContribution[];
   channels?: readonly ChannelContribution[];
   agentTools?: readonly AgentToolContribution[];
+  agentToolOverrides?: readonly AgentToolOverrideContribution[];
   agentSystemPrompt?: string;
   agentSkills?: readonly string[];
   turnState?: TurnStateContributions;
@@ -20,13 +21,13 @@ interface FeatureContributions {
 }
 ```
 
-The substrate registers every facet under the owning feature id. That id prefixes contribution namespaces and is the identity used for diagnostics and cleanup.
+The substrate registers every facet under the owning feature id. That id prefixes contribution namespaces and is the identity used for diagnostics and cleanup. Ordinary Agent tools are exposed to Pi as `${featureId}__${name}`. The separate `agentToolOverrides` facet is the deliberate exception: it retains the exact authored Pi name so a feature can replace an existing definition without letting ordinary tools escape their namespace.
 
 ## Current facets
 
 - **Resources** — route handlers for `uix-resource://...` URLs.
 - **Channels** — typed backend request handlers plus backend-published events.
-- **Agent tools** — pi tool definitions installed into the owned agent session.
+- **Agent tools** — Pi tool definitions installed into the owned agent session. `agentTools` are always feature-namespaced; `agentToolOverrides` intentionally register exact names. A competing exact-name claim fails and rolls back the later feature's activation rather than silently selecting an implementation.
 - **Agent system prompt** — one stable Markdown section per feature, appended in manifest order when the Pi runtime starts or reloads.
 - **Agent skills** — Pi skill files or directories resolved relative to the feature entry file and supplied through Pi's `resources_discover` lifecycle.
 - **Turn state** — named, schema-bound cells of branch-scoped private state. Each cell creates and restores one complete JSON snapshot independently under a substrate-derived id such as `canvas.documents`; the coordinator commits only changed snapshots.

@@ -1,23 +1,18 @@
-// agent tool contribution id derivation.
+// agent tool contribution normalization.
 //
-// Feature authors give a local `name` and the tool body (everything but the
-// pi tool `name`). This module derives the two ids the registry and the agent
-// installer need:
-//
-//   - `ContributionId` (`${featureId}.agent.<name>`) — the registry dedup key,
-//     shared across facets via `@uix/api/contribution-id`.
-//   - `AgentToolCanonicalId` (`${featureId}__${name>`) — the pi tool name,
-//     i.e. the address the agent calls. The facet segment is dropped because
-//     within pi the "this is a tool" kind is implicit; the `__` separator is
-//     pi's own tool-naming convention.
-//
-// Unlike channels, nothing here is renderer-importable: the only consumers are
-// the agent-tool registry and the pi installer, both in main. The one genuinely
-// cross-facet piece — the ContributionId grammar — stays in `#shared`.
+// Every tool gets a feature-owned `ContributionId` registry key. Ordinary
+// contributions derive a namespaced Pi tool name (`${featureId}__${name}`),
+// while explicit override contributions retain their exact authored name.
+// Keeping those author shapes separate prevents ordinary feature tools from
+// accidentally escaping their namespace.
 
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 
-import type { AgentToolDefinition } from "@uix/api/agent-tools";
+import type {
+  AgentToolContribution,
+  AgentToolDefinition,
+  AgentToolOverrideContribution,
+} from "@uix/api/agent-tools";
 import {
   toContributionId,
   type ContributionId,
@@ -47,6 +42,14 @@ export function toAgentToolCanonicalId(
   return `${featureId}__${name}` as AgentToolCanonicalId;
 }
 
+/** Validates and retains the exact Pi name for an intentional tool override. */
+export function toAgentToolOverrideCanonicalId(
+  name: string,
+): AgentToolCanonicalId {
+  assertAgentToolToken("agent tool override name", name);
+  return name as AgentToolCanonicalId;
+}
+
 // The author-facing tool-body alias lives in @uix/api/agent-tools (a tool
 // body is a pi artifact; features get the real pi typing from the API).
 // Re-exported here so main-internal call sites keep one import path.
@@ -65,9 +68,32 @@ export interface AgentToolRegistration {
  */
 export function normalizeAgentToolContribution(
   featureId: string,
-  contribution: { readonly name: string; readonly tool: AgentToolDefinition },
+  contribution: AgentToolContribution,
 ): AgentToolRegistration {
-  const canonicalId = toAgentToolCanonicalId(featureId, contribution.name);
+  return toAgentToolRegistration(
+    featureId,
+    contribution,
+    toAgentToolCanonicalId(featureId, contribution.name),
+  );
+}
+
+/** Retains the authored Pi name and stamps it onto an override definition. */
+export function normalizeAgentToolOverrideContribution(
+  featureId: string,
+  contribution: AgentToolOverrideContribution,
+): AgentToolRegistration {
+  return toAgentToolRegistration(
+    featureId,
+    contribution,
+    toAgentToolOverrideCanonicalId(contribution.name),
+  );
+}
+
+function toAgentToolRegistration(
+  featureId: string,
+  contribution: { readonly name: string; readonly tool: AgentToolDefinition },
+  canonicalId: AgentToolCanonicalId,
+): AgentToolRegistration {
   return {
     contributionId: toContributionId(featureId, "agent", contribution.name),
     canonicalId,
