@@ -23,6 +23,10 @@ Treat disk state, external edits, and batch mutations as candidate snapshots: pa
 
 After configuration commits, isolate runtime activation at the loadable-unit boundary. One feature's settings and substrate-owned contributions install provisionally as a unit; failure removes all of them while sibling features continue. This does not promise restoration of the feature's previous implementation or rollback of arbitrary side effects outside substrate ownership. See [the decision](../decisions/2026-07-13-atomic-candidates-and-feature-activation.md).
 
+## State rollback stops at the authority boundary
+
+Queries observe state, mutations intend to change a declared authority, and effects cross beyond the state UIX can coordinate and restore. A mutation gains rollback behavior only from its authority's actual checkpoint integration; never imply that restoring local state or running compensation reverses an external effect. See [rollback boundaries](../design/rollback-boundaries.md).
+
 ## Materialize defaults; do not layer them
 
 A durable setting's default fills missing state and is then persisted. Runtime reads the materialized value rather than joining sparse overrides with live feature defaults on every access. Existing persisted values always win, and changing a default does not silently rewrite an established workspace. See [the decision](../decisions/2026-07-13-settings-defaults-materialize.md).
