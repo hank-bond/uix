@@ -1,9 +1,8 @@
-import { Fragment } from "react";
-import { jsx, jsxs } from "react/jsx-runtime";
-import { toJsxRuntime } from "hast-util-to-jsx-runtime";
 import ReactMarkdown, { type Components } from "react-markdown";
-import { refractor } from "refractor";
 import remarkGfm from "remark-gfm";
+
+import { CodeBlock } from "./CodeBlock";
+import { HighlightedCode } from "./HighlightedCode";
 
 const LanguageClass = /(?:^|\s)language-([\w-]+)(?:\s|$)/;
 
@@ -18,21 +17,27 @@ const components: Components = {
       </a>
     );
   },
+  pre({ children }) {
+    return <CodeBlock>{children}</CodeBlock>;
+  },
   code({ children, className }) {
-    const language = className?.match(LanguageClass)?.[1];
-    if (
-      !language ||
-      !refractor.registered(language) ||
-      typeof children !== "string"
-    ) {
+    if (typeof children !== "string") {
       return <code className={className}>{children}</code>;
     }
-
-    const tree = refractor.highlight(children, language);
     return (
-      <code className={className} data-language={language}>
-        {toJsxRuntime(tree, { Fragment, jsx, jsxs })}
-      </code>
+      <HighlightedCode
+        text={children}
+        language={className?.match(LanguageClass)?.[1]}
+        className={className}
+      />
+    );
+  },
+  img({ alt, title }) {
+    const label = alt?.trim();
+    return (
+      <span data-uix-part="markdown-image" title={title}>
+        {label ? `[image: ${label}]` : "[image]"}
+      </span>
     );
   },
 };

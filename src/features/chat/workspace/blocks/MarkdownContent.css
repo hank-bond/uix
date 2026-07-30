@@ -75,6 +75,11 @@
   text-underline-offset: 0.15em;
 }
 
+.markdown-content [data-uix-part="markdown-image"] {
+  color: var(--fg-dim);
+  font-style: italic;
+}
+
 .markdown-content hr {
   margin-block: 1rem;
   border: 0;
@@ -109,87 +114,8 @@
 
 .markdown-content :not(pre) > code {
   padding: 0.08em 0.28em;
-  border: 1px solid var(--chat-markdown-code-border);
+  border: 1px solid var(--chat-code-border);
   border-radius: 0.25rem;
   background: var(--chat-markdown-inline-code-bg);
   overflow-wrap: anywhere;
-}
-
-.markdown-content pre {
-  max-width: 100%;
-  overflow-x: auto;
-  padding: 0.7rem 0.8rem;
-  border: 1px solid var(--chat-markdown-code-border);
-  border-radius: 0.35rem;
-  background: var(--chat-markdown-code-bg);
-  white-space: pre;
-}
-
-.markdown-content pre code {
-  font-size: 0.8rem;
-  line-height: 1.5;
-  overflow-wrap: normal;
-  word-break: normal;
-}
-
-.markdown-content .token.comment,
-.markdown-content .token.prolog,
-.markdown-content .token.doctype,
-.markdown-content .token.cdata {
-  color: #7f849c;
-}
-
-.markdown-content .token.punctuation {
-  color: #bac2de;
-}
-
-.markdown-content .token.property,
-.markdown-content .token.tag,
-.markdown-content .token.boolean,
-.markdown-content .token.number,
-.markdown-content .token.constant,
-.markdown-content .token.symbol,
-.markdown-content .token.deleted {
-  color: #f38ba8;
-}
-
-.markdown-content .token.selector,
-.markdown-content .token.attr-name,
-.markdown-content .token.string,
-.markdown-content .token.char,
-.markdown-content .token.builtin,
-.markdown-content .token.inserted {
-  color: #a6e3a1;
-}
-
-.markdown-content .token.operator,
-.markdown-content .token.entity,
-.markdown-content .token.url,
-.markdown-content .token.variable {
-  color: #89dceb;
-}
-
-.markdown-content .token.atrule,
-.markdown-content .token.attr-value,
-.markdown-content .token.function,
-.markdown-content .token.class-name {
-  color: #f9e2af;
-}
-
-.markdown-content .token.keyword {
-  color: #cba6f7;
-}
-
-.markdown-content .token.regex,
-.markdown-content .token.important {
-  color: #fab387;
-}
-
-.markdown-content .token.bold,
-.markdown-content .token.important {
-  font-weight: 700;
-}
-
-.markdown-content .token.italic {
-  font-style: italic;
 }

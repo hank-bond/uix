@@ -1,4 +1,6 @@
+import { CodeBlock } from "./CodeBlock";
 import { DefaultToolContent } from "./DefaultToolContent";
+import { HighlightedCode, inferCodeLanguageFromPath } from "./HighlightedCode";
 import { toToolTextContent } from "./tool";
 import type { ToolItem } from "./tool";
 
@@ -13,12 +15,12 @@ export function FileToolContent({ item }: { item: ToolItem }) {
       : item.complete
         ? toToolTextContent(item)
         : undefined;
+  const language = inferCodeLanguageFromPath(item.file?.absolutePath ?? path);
 
   return (
     <div className="tool-block file-tool-block" data-uix-part="file-tool">
       <div className="file-tool-block__summary">
         <code data-uix-part="file-path">{path}</code>
-        <span aria-hidden="true"> — </span>
         <span data-uix-part="tool-reason">{reason}</span>
       </div>
       {disclosure !== undefined ? (
@@ -27,7 +29,9 @@ export function FileToolContent({ item }: { item: ToolItem }) {
           data-uix-part="file-disclosure"
         >
           <summary>{item.toolName === "write" ? "content" : "result"}</summary>
-          <pre>{disclosure}</pre>
+          <CodeBlock>
+            <HighlightedCode text={disclosure} language={language} />
+          </CodeBlock>
         </details>
       ) : null}
     </div>

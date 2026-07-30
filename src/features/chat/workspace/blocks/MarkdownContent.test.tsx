@@ -44,6 +44,18 @@ describe("MarkdownContent", () => {
     expect(html).not.toContain("file://");
   });
 
+  it("renders images as inert alt text", () => {
+    const html = renderToStaticMarkup(
+      <MarkdownContent
+        text={"![Architecture diagram](https://example.com/private.png)"}
+      />,
+    );
+
+    expect(html).toContain("[image: Architecture diagram]");
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("private.png");
+  });
+
   it("renders raw HTML as text", () => {
     const html = renderToStaticMarkup(
       <MarkdownContent
@@ -62,7 +74,8 @@ describe("MarkdownContent", () => {
       <MarkdownContent text={"```ts\nconst value: number = 1;\n```"} />,
     );
 
-    expect(html).toContain('class="language-ts"');
+    expect(html).toContain('<pre class="code-block">');
+    expect(html).toContain('class="highlighted-code language-ts"');
     expect(html).toContain('data-language="ts"');
     expect(html).toContain('class="token keyword"');
   });
@@ -72,7 +85,7 @@ describe("MarkdownContent", () => {
       <MarkdownContent text={"```not-a-language\nplain text\n```"} />,
     );
 
-    expect(html).toContain('class="language-not-a-language"');
+    expect(html).toContain('class="highlighted-code language-not-a-language"');
     expect(html).not.toContain('class="token ');
   });
 });

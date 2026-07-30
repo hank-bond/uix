@@ -36,11 +36,32 @@ describe("FileToolContent", () => {
 
     expect(html).toContain("src/main.ts");
     expect(html).toContain("I need to inspect the entry point.");
+    expect(html).not.toContain(" — ");
     expect(html).toContain("<details");
+    expect(html).toContain('<pre class="code-block">');
     expect(html).toContain("<summary>result</summary>");
-    expect(html.indexOf("export {};")).toBeGreaterThan(
+    expect(html).toContain('data-language="typescript"');
+    expect(html).toContain('class="token keyword"');
+    expect(html.indexOf('class="token keyword">export</span>')).toBeGreaterThan(
       html.indexOf("<details"),
     );
+  });
+
+  it("leaves files with unknown extensions as literal plain text", () => {
+    const html = renderToStaticMarkup(
+      <FileToolContent
+        item={item({
+          args: {
+            path: "notes.unknown",
+            reason: "I need to inspect the notes.",
+          },
+          result: { content: [{ type: "text", text: "<unsafe>" }] },
+        })}
+      />,
+    );
+
+    expect(html).toContain("&lt;unsafe&gt;");
+    expect(html).not.toContain('class="token ');
   });
 
   it("falls back to ordinary tool rendering without a compatible reason", () => {
@@ -75,7 +96,7 @@ describe("FileToolContent", () => {
     );
 
     expect(html).toContain("<summary>content</summary>");
-    expect(html.indexOf("const value = 1;")).toBeGreaterThan(
+    expect(html.indexOf('class="token keyword">const</span>')).toBeGreaterThan(
       html.indexOf("<details"),
     );
     expect(html).not.toContain("Successfully wrote 16 bytes");

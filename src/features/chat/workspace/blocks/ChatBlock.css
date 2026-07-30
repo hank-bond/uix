@@ -113,6 +113,11 @@
   line-height: 1.45;
 }
 
+.tool-block__details {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .tool-block__details summary {
   cursor: pointer;
   color: var(--fg-faint);
@@ -120,15 +125,24 @@
 }
 
 .file-tool-block__summary {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
   color: var(--fg-dim);
 }
 
 .file-tool-block__summary code {
+  min-width: 0;
   color: var(--fg);
+  overflow-wrap: anywhere;
   font-family:
     var(--code-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", monospace;
   font-size: 0.8rem;
+}
+
+.file-tool-block__summary [data-uix-part="tool-reason"] {
+  color: var(--fg-dim);
 }
 
 .canvas-tool-block__payload {

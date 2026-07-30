@@ -1,0 +1,29 @@
+pre.code-block {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  overflow-x: auto;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--chat-code-border);
+  border-radius: 0.35rem;
+  background: var(--chat-code-bg);
+  color: var(--fg);
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+  font-family:
+    var(--code-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+pre.code-block code {
+  color: inherit;
+  white-space: inherit;
+  overflow-wrap: inherit;
+  word-break: inherit;
+  font: inherit;
+}
