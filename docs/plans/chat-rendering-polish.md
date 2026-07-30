@@ -48,7 +48,7 @@ Stop for review before C4.
 
 - Extend the surface-less `workspace_tools` feature with an app-specific `command` tool rather than exposing Pi's implementation-named `bash`; built-in `edit` remains active.
 - Derive `command` parameters from Pi's baseline Bash schema, add only the required concise `reason`, and delegate execution to Pi's cwd-bound Bash definition. The Agent/UI vocabulary remains shell-neutral while Pi selects the host shell.
-- Add the workspace agent-tool policy needed to disable built-in `bash`; unlike the same-name read/write overrides, `bash` does not disappear merely because `command` exists.
+- Start every UIX-owned Pi session with built-ins inactive (`noTools: "builtin"`), making the manifest's feature composition the complete UIX-selected tool surface. Keep the reference app functional by contributing an exact-name passthrough `edit` beside its customized tools; bare workspace scaffolding separately owns editable passthrough `read`/`write`/`edit`/`bash` source.
 - Guide the agent to provide one concise reason sentence without rejecting imperfect reasons.
 - Display only `command: {reason}` in the collapsed chat row.
 - Put the actual command and its streamed/final output in the explicit disclosure content.

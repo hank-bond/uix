@@ -41,6 +41,10 @@ const sdk = vi.hoisted(() => {
     replacementBranch: undefined as Array<Record<string, unknown>> | undefined,
     // Extension `on(event, handler)` registrations from the session open.
     extensionHandlers: new Map<string, (event: unknown) => void>(),
+    extensionBindings: [] as Array<{
+      sessionId: string;
+      bindings: Record<string, unknown>;
+    }>,
     session: undefined as Record<string, unknown> | undefined,
     runtimeCreates: 0,
     runtimeOptions: undefined as Record<string, unknown> | undefined,
@@ -130,6 +134,18 @@ const sdk = vi.hoisted(() => {
         manager.appendSessionInfo(title);
       }),
       subscribe: vi.fn(() => unsubscribe),
+      bindExtensions: vi.fn((bindings: Record<string, unknown>) => {
+        const getSessionId = sessionManager.getSessionId as () => string;
+        state.extensionBindings.push({
+          sessionId: getSessionId(),
+          bindings,
+        });
+        state.extensionHandlers.get("session_start")?.({
+          type: "session_start",
+          reason: "startup",
+        });
+        return Promise.resolve();
+      }),
       dispose: vi.fn(),
       prompt: vi.fn(async () => {}),
       reload: vi.fn(async () => {}),
@@ -392,6 +408,7 @@ beforeEach(() => {
   sdk.state.branch = [];
   sdk.state.replacementBranch = undefined;
   sdk.state.extensionHandlers.clear();
+  sdk.state.extensionBindings = [];
   sdk.state.session = undefined;
   sdk.state.runtimeCreates = 0;
   sdk.state.runtimeOptions = undefined;
@@ -413,6 +430,23 @@ beforeEach(() => {
   sdk.module.SessionManager.open.mockClear();
   sdk.manager.appendSessionInfo.mockClear();
   sdk.manager.appendCustomEntry.mockClear();
+});
+
+describe("driver extension lifecycle", () => {
+  it("binds extensions for the initial and replacement sessions", async () => {
+    const { driver } = createDriver();
+
+    await driver.prompt("hello");
+    await driver.newSession();
+
+    expect(sdk.state.extensionBindings.map((entry) => entry.sessionId)).toEqual(
+      ["session-id", "replacement-session-id"],
+    );
+    for (const entry of sdk.state.extensionBindings) {
+      expect(entry.bindings["onError"]).toBeTypeOf("function");
+    }
+    expect(sdk.state.lastCreateOptions?.["noTools"]).toBe("builtin");
+  });
 });
 
 describe("driver model service (pre-session)", () => {

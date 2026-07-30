@@ -7,6 +7,7 @@ import { defineSurface } from "@uix/api/workspace";
 import chatSheet from "./Chat.css" with { type: "css" };
 import chatBlockSheet from "./blocks/ChatBlock.css" with { type: "css" };
 import codeBlockSheet from "./blocks/CodeBlock.css" with { type: "css" };
+import commandToolContentSheet from "./blocks/CommandToolContent.css" with { type: "css" };
 import highlightedCodeSheet from "./blocks/HighlightedCode.css" with { type: "css" };
 import markdownContentSheet from "./blocks/MarkdownContent.css" with { type: "css" };
 import pickerPositioningSheet from "./picker-positioning.css" with { type: "css" };
@@ -23,6 +24,7 @@ export default defineSurface({
     chatSheet,
     chatBlockSheet,
     codeBlockSheet,
+    commandToolContentSheet,
     highlightedCodeSheet,
     markdownContentSheet,
     pickerPositioningSheet,

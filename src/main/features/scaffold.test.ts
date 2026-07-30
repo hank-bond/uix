@@ -7,29 +7,19 @@ import { describe, expect, it } from "vitest";
 import { WorkspaceManifestFileName } from "./manifest";
 import { scaffoldWorkspace } from "./scaffold";
 
-/** A fake templates dir exercising package-less and dependency-bearing features. */
+/** A fake bare-workspace template with one dependency-bearing tool feature. */
 async function makeTemplates(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "uix-scaffold-templates-"));
-  await mkdir(join(dir, "chat", "workspace"), { recursive: true });
-  await writeFile(join(dir, "chat", "index.ts"), "export default {};\n");
-  await writeFile(join(dir, "chat", "workspace", "surface.tsx"), "// ui\n");
-  await mkdir(join(dir, "workspace-tools"), { recursive: true });
+  const featureDir = join(dir, "features", "pi-tools");
+  await mkdir(join(featureDir, "node_modules", "junk"), { recursive: true });
+  await writeFile(join(featureDir, "index.ts"), "export default {};\n");
+  await writeFile(join(featureDir, "read.ts"), "// editable tool\n");
   await writeFile(
-    join(dir, "workspace-tools", "index.ts"),
-    "export default {};\n",
-  );
-  await writeFile(
-    join(dir, "workspace-tools", "package.json"),
+    join(featureDir, "package.json"),
     `${JSON.stringify({
-      name: "workspace-tools",
+      name: "pi-tools",
       dependencies: { "@earendil-works/pi-coding-agent": "^0.82.0" },
     })}\n`,
-  );
-  await mkdir(join(dir, "canvas", "node_modules", "junk"), { recursive: true });
-  await writeFile(join(dir, "canvas", "index.ts"), "export default {};\n");
-  await writeFile(
-    join(dir, "canvas", "package.json"),
-    `${JSON.stringify({ name: "canvas", dependencies: { parse5: "^8.0.1" } })}\n`,
   );
   return dir;
 }
@@ -55,25 +45,16 @@ describe("scaffoldWorkspace", () => {
 
     // Copies are complete (nested files included) and node_modules is skipped.
     await expect(
-      readFile(
-        join(workspaceDir, "features", "chat", "workspace", "surface.tsx"),
-        "utf8",
-      ),
-    ).resolves.toContain("ui");
+      readFile(join(workspaceDir, "features", "pi-tools", "read.ts"), "utf8"),
+    ).resolves.toContain("editable tool");
     await expect(
       readFile(
-        join(workspaceDir, "features", "workspace-tools", "package.json"),
+        join(workspaceDir, "features", "pi-tools", "package.json"),
         "utf8",
       ),
     ).resolves.toContain("pi-coding-agent");
     await expect(
-      readFile(
-        join(workspaceDir, "features", "canvas", "package.json"),
-        "utf8",
-      ),
-    ).resolves.toContain("parse5");
-    await expect(
-      stat(join(workspaceDir, "features", "canvas", "node_modules")),
+      stat(join(workspaceDir, "features", "pi-tools", "node_modules")),
     ).rejects.toMatchObject({ code: "ENOENT" });
 
     const manifest = JSON.parse(
@@ -84,9 +65,7 @@ describe("scaffoldWorkspace", () => {
     };
     expect(manifest.name).toBe("My Workspace");
     expect(manifest.features).toEqual([
-      { entry: "./features/chat/index.ts", settings: {} },
-      { entry: "./features/workspace-tools/index.ts", settings: {} },
-      { entry: "./features/canvas/index.ts", settings: {} },
+      { entry: "./features/pi-tools/index.ts", settings: {} },
     ]);
 
     const rootPackage = JSON.parse(

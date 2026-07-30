@@ -1,5 +1,9 @@
 import { ChatBlockFrame } from "./ChatBlockFrame";
 import { CanvasToolContent } from "./CanvasToolContent";
+import {
+  asCommandToolPresentation,
+  CommandToolContent,
+} from "./CommandToolContent";
 import { DefaultToolContent } from "./DefaultToolContent";
 import { FileToolContent } from "./FileToolContent";
 import { toToolDisplayName, toToolState } from "./tool";
@@ -27,11 +31,29 @@ registerToolChatRenderer("write", {
   displayName: "write",
   render: ({ item }) => <FileToolContent item={item} />,
 });
+registerToolChatRenderer("command", {
+  displayName: "command",
+  renderLabel: ({ item }) => {
+    const presentation = asCommandToolPresentation(item);
+    return presentation ? (
+      <>
+        command: <span data-uix-part="tool-reason">{presentation.reason}</span>
+      </>
+    ) : undefined;
+  },
+  render: ({ item }) => <CommandToolContent item={item} />,
+});
 
 export function ToolChatBlock({ item }: { item: ToolItem }) {
   const state = toToolState(item);
   const renderer = toolChatRenderers.get(item.toolName);
   const name = renderer?.displayName ?? toToolDisplayName(item.toolName);
+  const renderedLabel = renderer?.renderLabel?.({ item, state });
+  const label = renderedLabel ?? (
+    <>
+      tool: <span data-uix-part="tool-name">{name}</span>
+    </>
+  );
   return (
     <ChatBlockFrame
       className={item.isError ? "tool-error" : "tool"}
@@ -40,7 +62,7 @@ export function ToolChatBlock({ item }: { item: ToolItem }) {
       toolName={item.toolName}
       label={
         <>
-          tool: <span data-uix-part="tool-name">{name}</span>
+          {label}
           {item.isError ? " (error)" : ""}
         </>
       }

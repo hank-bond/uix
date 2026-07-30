@@ -8,6 +8,10 @@ export type ToolState = "running" | "success" | "error";
 
 export interface ToolChatRenderer {
   displayName: string;
+  renderLabel?: (props: {
+    item: ToolItem;
+    state: ToolState;
+  }) => ReactNode | undefined;
   render: (props: { item: ToolItem; state: ToolState }) => ReactNode;
 }
 

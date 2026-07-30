@@ -4,9 +4,9 @@
 // registration lifetime and the pi-facing installer that installs those tools
 // into the live agent extension.
 //
-// Ordinary tools derive a feature-namespaced Pi name; explicit overrides keep
-// an exact Pi name. The registry deduplicates both feature contribution ids and
-// final Pi names, then the installer forwards each stamped definition to Pi.
+// Ordinary tools derive a feature-namespaced Pi name; explicit exact-name tools
+// keep their authored Pi name. The registry deduplicates contribution ids and
+// final names, then installs one snapshot into Pi.
 
 import { DisposableBag } from "../lifecycle";
 

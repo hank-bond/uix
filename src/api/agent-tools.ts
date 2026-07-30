@@ -1,8 +1,8 @@
 // agent tool contribution types.
 //
-// Ordinary feature tools derive `${featureId}__${name}`. Explicit override
-// contributions retain `name` as the exact Pi tool name so a feature can
-// replace a built-in definition without weakening the ordinary namespace.
+// Ordinary feature tools derive `${featureId}__${name}`. Explicit exact-name
+// contributions retain `name` so a feature can replace a Pi definition or
+// supply app-level vocabulary without weakening the ordinary namespace.
 //
 // A tool body is inherently a pi artifact, so AgentToolDefinition is pi's
 // ToolDefinition minus `name` — re-exported here so feature authors get the
@@ -38,13 +38,12 @@ export interface AgentToolContribution {
 }
 
 /**
- * An intentional exact-name replacement for a Pi tool definition. This is a
- * separate contribution shape so ordinary feature tools cannot accidentally
- * escape their feature namespace.
+ * An intentional exact-name Pi tool. This is a separate contribution shape so
+ * ordinary feature tools cannot accidentally escape their feature namespace.
  */
 export interface AgentToolOverrideContribution {
-  /** Exact Pi tool name to register, such as `read` or `write`. */
+  /** Exact Pi tool name to register, such as `read`, `write`, or `command`. */
   readonly name: string;
-  /** Replacement body — the substrate stamps the exact `name`. */
+  /** Exact-name body — the substrate stamps the authored `name`. */
   readonly tool: AgentToolDefinition;
 }

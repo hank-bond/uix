@@ -2,7 +2,7 @@
 //
 // Every tool gets a feature-owned `ContributionId` registry key. Ordinary
 // contributions derive a namespaced Pi tool name (`${featureId}__${name}`),
-// while explicit override contributions retain their exact authored name.
+// while explicit exact-name contributions retain their authored name.
 // Keeping those author shapes separate prevents ordinary feature tools from
 // accidentally escaping their namespace.
 
@@ -42,7 +42,7 @@ export function toAgentToolCanonicalId(
   return `${featureId}__${name}` as AgentToolCanonicalId;
 }
 
-/** Validates and retains the exact Pi name for an intentional tool override. */
+/** Validates and retains an intentional exact Pi tool name. */
 export function toAgentToolOverrideCanonicalId(
   name: string,
 ): AgentToolCanonicalId {
@@ -77,7 +77,7 @@ export function normalizeAgentToolContribution(
   );
 }
 
-/** Retains the authored Pi name and stamps it onto an override definition. */
+/** Retains the authored Pi name and stamps it onto an exact-name definition. */
 export function normalizeAgentToolOverrideContribution(
   featureId: string,
   contribution: AgentToolOverrideContribution,

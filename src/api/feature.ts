@@ -62,7 +62,7 @@ export interface FeatureContributions {
   channels?: readonly ChannelContribution[];
   /** Feature-namespaced Pi tools. */
   agentTools?: readonly AgentToolContribution[];
-  /** Intentional exact-name replacements for existing Pi tool definitions. */
+  /** Intentional exact-name Pi tools, including replacements and app vocabulary. */
   agentToolOverrides?: readonly AgentToolOverrideContribution[];
   /** Stable Markdown appended to the agent system prompt while this feature is active. */
   agentSystemPrompt?: AgentSystemPromptContribution;

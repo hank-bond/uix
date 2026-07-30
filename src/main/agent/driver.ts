@@ -415,12 +415,31 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     return manager;
   }
 
-  function bindActiveSession(session: AgentSession): void {
+  async function bindActiveSession(session: AgentSession): Promise<void> {
+    transcriptObserver.bindSession(session);
+    try {
+      await session.bindExtensions({
+        onError: (error) => {
+          log.error(
+            {
+              extension: error.extensionPath,
+              extensionEvent: error.event,
+              err: error.error,
+              stack: error.stack,
+            },
+            "extension_runtime_error",
+          );
+        },
+      });
+    } catch (error) {
+      transcriptObserver.unbindSession();
+      throw error;
+    }
+
     currentModel = session.model
       ? { provider: session.model.provider, id: session.model.id }
       : undefined;
     emitStatus();
-    transcriptObserver.bindSession(session);
   }
 
   async function openRuntime(): Promise<AgentSessionRuntime> {
@@ -469,6 +488,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         sessionManager,
         ...(sessionStartEvent && { sessionStartEvent }),
         ...(initialModel && { model: initialModel }),
+        noTools: "builtin",
       });
       initialRuntimeCreated = true;
       return {
@@ -493,10 +513,10 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       turnStateLifecycle?.clearRestoration();
     });
     openedRuntime.setRebindSession(async (session) => {
-      bindActiveSession(session);
+      await bindActiveSession(session);
       await turnStateLifecycle?.restoreCurrent(session.sessionManager);
     });
-    bindActiveSession(openedRuntime.session);
+    await bindActiveSession(openedRuntime.session);
     return openedRuntime;
   }
 

@@ -28,6 +28,7 @@
     "src/features/**/shared/**/*.ts",
     "src/preload/**/*.ts",
     "src/shared/**/*.ts",
+    "templates/workspace/**/*.ts",
     "electron.vite.config.ts",
     "vitest.config.mts"
   ],

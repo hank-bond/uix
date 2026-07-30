@@ -638,7 +638,7 @@ function openPicker(
           const name = req.name.trim() || basename(dir);
           try {
             const { installError } = await scaffoldWorkspace({
-              templatesDir: join(__dirname, "../../src/features"),
+              templatesDir: join(__dirname, "../../templates/workspace"),
               workspaceDir: dir,
               name,
             });
