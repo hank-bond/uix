@@ -1,7 +1,7 @@
 // agent tool contribution registry.
 //
 // Features contribute pi tool definitions as data. This substrate owns
-// registration lifetime and the pi-facing installer that installs those tools
+// their live registry lifetime and the pi-facing installer that installs them
 // into the live agent extension.
 //
 // Ordinary tools derive a feature-namespaced Pi name; explicit exact-name tools
@@ -11,10 +11,10 @@
 import { DisposableBag } from "../lifecycle";
 
 import {
-  type AgentToolRegistration,
-  normalizeAgentToolContribution,
-  normalizeAgentToolOverrideContribution,
-} from "./normalization";
+  type ResolvedAgentToolContribution,
+  resolveAgentToolContribution,
+  resolveAgentToolOverrideContribution,
+} from "./resolution";
 import type { AgentInstaller } from "../agent/installers";
 import type {
   AgentToolContribution,
@@ -22,35 +22,39 @@ import type {
 } from "@uix/api/agent-tools";
 
 export class AgentToolRegistry {
-  readonly registeredContributions: AgentToolRegistration[] = [];
+  readonly #registeredTools: ResolvedAgentToolContribution[] = [];
 
-  register(contribution: AgentToolRegistration): Disposable {
+  register(resolvedContribution: ResolvedAgentToolContribution): Disposable {
     if (
-      this.registeredContributions.some(
-        (entry) => entry.contributionId === contribution.contributionId,
+      this.#registeredTools.some(
+        (tool) => tool.contributionId === resolvedContribution.contributionId,
       )
     ) {
       throw new Error(
-        `Agent tool contribution already registered: ${contribution.contributionId}`,
+        `Agent tool contribution already registered: ${resolvedContribution.contributionId}`,
       );
     }
-    const existingCanonical = this.registeredContributions.find(
-      (entry) => entry.canonicalId === contribution.canonicalId,
+    const existingCanonical = this.#registeredTools.find(
+      (tool) => tool.canonicalId === resolvedContribution.canonicalId,
     );
     if (existingCanonical) {
       throw new Error(
-        `Agent tool name already registered: ${contribution.canonicalId} (existing: ${existingCanonical.contributionId}, attempted: ${contribution.contributionId})`,
+        `Agent tool name already registered: ${resolvedContribution.canonicalId} (existing: ${existingCanonical.contributionId}, attempted: ${resolvedContribution.contributionId})`,
       );
     }
 
-    this.registeredContributions.push(contribution);
+    this.#registeredTools.push(resolvedContribution);
 
     return {
       [Symbol.dispose]: (): void => {
-        const index = this.registeredContributions.indexOf(contribution);
-        if (index !== -1) this.registeredContributions.splice(index, 1);
+        const index = this.#registeredTools.indexOf(resolvedContribution);
+        if (index !== -1) this.#registeredTools.splice(index, 1);
       },
     };
+  }
+
+  list(): readonly ResolvedAgentToolContribution[] {
+    return [...this.#registeredTools];
   }
 }
 
@@ -63,7 +67,7 @@ export function registerAgentToolContributions(
     registry,
     featureId,
     contributions,
-    normalizeAgentToolContribution,
+    resolveAgentToolContribution,
   );
 }
 
@@ -76,7 +80,7 @@ export function registerAgentToolOverrideContributions(
     registry,
     featureId,
     contributions,
-    normalizeAgentToolOverrideContribution,
+    resolveAgentToolOverrideContribution,
   );
 }
 
@@ -84,15 +88,15 @@ function registerContributions<Contribution>(
   registry: AgentToolRegistry,
   featureId: string,
   contributions: readonly Contribution[],
-  normalize: (
+  resolve: (
     featureId: string,
     contribution: Contribution,
-  ) => AgentToolRegistration,
+  ) => ResolvedAgentToolContribution,
 ): Disposable {
   const bag = new DisposableBag();
   try {
     for (const contribution of contributions) {
-      bag.add(registry.register(normalize(featureId, contribution)));
+      bag.add(registry.register(resolve(featureId, contribution)));
     }
     return bag;
   } catch (err) {
@@ -105,21 +109,8 @@ export function createAgentToolInstaller(
   registry: AgentToolRegistry,
 ): AgentInstaller {
   return (pi) => {
-    const installedContributions = [...registry.registeredContributions];
-    for (const contribution of liveContributions(
-      registry,
-      installedContributions,
-    )) {
-      pi.registerTool(contribution.tool);
+    for (const registeredTool of registry.list()) {
+      pi.registerTool(registeredTool.tool);
     }
   };
-}
-
-function liveContributions(
-  registry: AgentToolRegistry,
-  installedContributions: readonly AgentToolRegistration[],
-): readonly AgentToolRegistration[] {
-  return installedContributions.filter((contribution) =>
-    registry.registeredContributions.includes(contribution),
-  );
 }

@@ -27,7 +27,7 @@ Cover at least: Feature/extension, Definition, Contribution, Normalized/Resolved
 Seed findings from workspace actions:
 
 - Function types named `ChannelTransportHandle` and `ResourceTransportHandle` used `Handle` differently from the documented capability-object meaning. Channels now use `ChannelTransportRegistrar`; resources use `ResourceTransportRegistrar`, which returns the protocol binding's `Disposable`.
-- `AgentToolRegistry.register(contribution: AgentToolRegistration)` and `registeredContributions: AgentToolRegistration[]` call registrations contributions after normalization.
+- `AgentToolRegistration` previously named both registry-ready input and live state after owner-derived ids were assigned. Agent tools now resolve to `ResolvedAgentToolContribution`; `AgentToolRegistry` stores those values as live members and exposes them through `list()` because registration adds no separate record shape.
 - Registry snapshots vary between public `registeredContributions`, private `#entries` + `list()`, and maps/sets without a documented rule.
 - Some facets derive `XRegistration`; agent context and turn state instead retain `RegisteredXContribution`, with no stated criterion for the distinction.
 - `docs/architecture/concepts.md` still describes a separate UIX extension/loadable-package concept despite the accepted feature-loading model, and some implementation-path references have drifted.

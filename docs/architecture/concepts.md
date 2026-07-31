@@ -69,17 +69,17 @@ A contribution point defines validation, lifetime, ownership, and how registered
 
 ## Contribution lifecycle
 
-A feature authors a **contribution**. A facet can **normalize** it into one canonical representation when necessary. The facet then **resolves** owner-derived identifiers, paths, references, and environment-dependent values before it asks the registry to accept the result. A **registered** entity is live and owned by that registry. A catalog entry or other projection can expose a read-only consumer view without exposing executable references.
+A feature authors a **contribution**. A facet can **normalize** it into one canonical representation when necessary. The facet then **resolves** owner-derived identifiers, paths, references, and environment-dependent values before it asks the registry to accept the result. A **registered** entity is live and owned by that registry. When registration adds registry-owned state, a separate `RegisteredX` record represents that state. When the registry stores the resolved contribution unchanged, membership expresses liveness and no additional lifecycle type is necessary. A catalog entry or other projection can expose a read-only consumer view without exposing executable references.
 
 ```text
 Contribution
 → NormalizedContribution
 → ResolvedContribution
-→ RegisteredX
+→ RegisteredX (when registration adds registry-owned state)
 → CatalogEntry or Projection
 ```
 
-The `Normalized` stage is optional. The register operation returns either a `Disposable` or a more specific capability such as an updater or appender; that return value is not the registry's live entity. `Registration` is not a lifecycle term because it previously named registry-ready inputs, live records, returned capabilities, and setup actions.
+The `Normalized` stage is optional, as is a separate `RegisteredX` shape. The register operation returns either a `Disposable` or a more specific capability such as an updater or appender; that return value is not the registry's live entity. `Registration` is not a lifecycle term because it previously named registry-ready inputs, live records, returned capabilities, and setup actions.
 
 Registering answers: what one concrete item became live? Installing answers: how does a whole slice attach to the system?
 

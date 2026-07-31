@@ -86,21 +86,21 @@ cell.restore(state);
 
 **Rule — MUST.** Use the approved lifecycle term for each stage of a contribution.
 
-**Approved example.** Use this sequence, omitting `Normalized` when no canonicalization pass is necessary:
+**Approved example.** Use this sequence, omitting `Normalized` when no canonicalization pass is necessary and introducing `RegisteredX` only when the registry creates a separate live record:
 
 ```text
 Contribution
 → NormalizedContribution
 → ResolvedContribution
-→ RegisteredX
+→ RegisteredX (when registration adds registry-owned state)
 → CatalogEntry or Projection
 ```
 
-Name the value returned to the contributor by its capability, such as `Handle`, `Updater`, `Appender`, or `Disposable`.
+Name the value returned to the contributor by its capability, such as `Handle`, `Updater`, `Appender`, or `Disposable`. When a registry stores a resolved contribution unchanged, membership expresses liveness: keep the resolved value type and use a container name such as `#registeredTools`. Use a `RegisteredX` type when registration adds state, as `RegisteredAction` adds `running`.
 
-**Nonconforming example.** Do not use `Registration` for a registry-ready contribution, a live registered entity, or a returned capability.
+**Nonconforming example.** Do not use `Registration` for a registry-ready contribution, a live registered entity, or a returned capability. Do not introduce a `RegisteredX` alias, field-copy interface, or one-field wrapper solely to rename an unchanged resolved shape.
 
-**Reason.** One term for each stage lets a reader identify ownership and liveness from the name.
+**Reason.** One term for each represented stage lets a reader identify ownership and liveness from the name without creating types that contain no new information.
 
 ### naming.qualifier — Add only result-determining qualifiers
 
@@ -202,6 +202,10 @@ isFailed: boolean;
 
 Use each operation term only for its approved meaning. Do not introduce a synonym when an approved operation already fits.
 
+Use this decision test: **normalize** when the result depends only on the input value; **resolve** when the same input can produce a different concrete result under a different owner, path, reference context, or environment. For example, `normalizeShortcut()` is context-free, while `resolveAgentToolContribution()` derives a different concrete Pi tool name for each owning feature.
+
+In UIX, `resolve` means contextual or reference resolution, not conflict arbitration. A resolver makes identities and references concrete; the receiving registry rejects collisions instead of selecting a winner.
+
 | Term (part of speech) | Approved meaning / alternatives | Approved example | Nonconforming example |
 | --- | --- | --- | --- |
 | `as` (preposition) | Refine a value without throwing and return `undefined` when it does not conform. Use `parse` when invalid input throws. | `asRecord(value)` | `parseRecord(value)` for a non-throwing refinement |
@@ -230,7 +234,7 @@ Use each operation term only for its approved meaning. Do not introduce a synony
 | `read` (verb) | Read from disk, a store, a stream, or another I/O-shaped source without creating a live registered runtime. Use `get` for a cheap lookup and `load` for activation. | `readSessionSummary()` | `getSessionSummary()` when the operation reads a file |
 | `register` (verb) | Put one item into a registry or contribution point. Use `install` for setup that attaches a whole slice to a runtime. | `actionRegistry.register()` | `installAction()` for one registry item |
 | `require` (verb) | Retrieve an expected value and throw when it is absent. Use `get` when absence is an ordinary result. | `requireManifestFeatureEntry()` | `getManifestFeatureEntry()` when absence throws |
-| `resolve` (verb) | Make owner-derived identifiers, paths, references, or environment-dependent values concrete. Include an axis when it can produce materially different results. | `resolveActionContribution()`; `resolveShortcutForPlatform()` | `normalizeActionContribution()` after owner-scoped ids are derived |
+| `resolve` (verb) | Make owner-derived identifiers, paths, references, or environment-dependent values concrete. Include an axis when it can produce materially different results. | `resolveActionContribution()`; `resolveAgentToolContribution()`; `resolveShortcutForPlatform()` | `normalizeActionContribution()` after owner-scoped ids are derived |
 | `restore` (verb) | Replace live state from previously committed state or a referenced snapshot. Use `set` for an ordinary value replacement. | `cell.restore(state)` | `cell.set(state)` for branch restoration |
 | `set` (verb) | Replace an ordinary current value through its owning object. Use `commit` at an authority boundary and `restore` for previously committed state. | `settings.set(key, value)` | `settings.commit(key, value)` for an ordinary replacement |
 | `to` (preposition) | Produce a deterministic, side-effect-free representation of the same underlying value. The result has no independent identity. | `toChannelCanonicalId()` | `createChannelCanonicalId()` for a recomputable value |

@@ -179,15 +179,13 @@ describe("loadFeatures", () => {
     expect(result.activated).toHaveLength(1);
     expect(result.activated[0]?.id).toBe("greeter");
     expect(result.activated[0]?.displayName).toBe("./greeter.ts");
-    expect(agentTools.registeredContributions[0]?.canonicalId).toBe(
-      "greeter__greet",
-    );
+    expect(agentTools.list()[0]?.canonicalId).toBe("greeter__greet");
     expect(settingsScopes.get("greeter")?.committed).toBe(true);
     expect(committedSettings).toEqual(["greeter"]);
 
     // Reload teardown: clearing the bag removes the contribution and scope.
     bag.clear();
-    expect(agentTools.registeredContributions).toHaveLength(0);
+    expect(agentTools.list()).toHaveLength(0);
     expect(settingsScopes.has("greeter")).toBe(false);
   });
 
@@ -208,9 +206,10 @@ describe("loadFeatures", () => {
     );
 
     expect(result.activated.map((f) => f.id)).toEqual(["zzz", "aaa"]);
-    expect(
-      agentTools.registeredContributions.map((c) => c.canonicalId),
-    ).toEqual(["zzz__greet", "aaa__greet"]);
+    expect(agentTools.list().map((c) => c.canonicalId)).toEqual([
+      "zzz__greet",
+      "aaa__greet",
+    ]);
   });
 
   it("loads nothing without a manifest", async () => {
@@ -220,7 +219,7 @@ describe("loadFeatures", () => {
 
     expect(result.failed).toEqual([]);
     expect(result.activated).toEqual([]);
-    expect(agentTools.registeredContributions).toHaveLength(0);
+    expect(agentTools.list()).toHaveLength(0);
   });
 
   it("scopes in-flight loads to their owned feature bags", async () => {
@@ -258,20 +257,20 @@ describe("loadFeatures", () => {
     const bag = new DisposableBag();
 
     await loadFeatures({ manifestPath }, bag, substrate);
-    expect(agentTools.registeredContributions).toHaveLength(1);
+    expect(agentTools.list()).toHaveLength(1);
 
     await writeFile(manifestPath, "{ not json");
     await expect(
       loadFeatures({ manifestPath }, bag, substrate),
     ).rejects.toThrow("not valid JSON");
     // The failed pass never cleared the bag: the feature is still live.
-    expect(agentTools.registeredContributions).toHaveLength(1);
+    expect(agentTools.list()).toHaveLength(1);
 
     await writeFile(manifestPath, JSON.stringify({ features: "nope" }));
     await expect(
       loadFeatures({ manifestPath }, bag, substrate),
     ).rejects.toThrow("does not match schema");
-    expect(agentTools.registeredContributions).toHaveLength(1);
+    expect(agentTools.list()).toHaveLength(1);
   });
 
   it("isolates a throwing entry and continues with later manifest lines", async () => {
@@ -293,7 +292,7 @@ describe("loadFeatures", () => {
     expect(result.failed).toHaveLength(1);
     expect(result.failed[0]?.error.message).toContain("deliberate canary");
     expect(result.activated.map((f) => f.id)).toEqual(["greeter"]);
-    expect(agentTools.registeredContributions).toHaveLength(1);
+    expect(agentTools.list()).toHaveLength(1);
   });
 
   it("removes a provisional settings scope when context throws", async () => {
@@ -374,7 +373,7 @@ export default {
     expect(result.activated.map((feature) => feature.id)).toEqual([
       "recovered",
     ]);
-    expect(agentTools.registeredContributions).toHaveLength(1);
+    expect(agentTools.list()).toHaveLength(1);
     expect(settingsScopes.get("recovered")?.committed).toBe(true);
     expect(committedSettings).toEqual(["recovered"]);
   });
@@ -493,7 +492,7 @@ export default {
 
     expect(second.failed).toEqual([]);
     expect(second.activated.map((f) => f.id)).toEqual(["greeter", "waver"]);
-    expect(agentTools.registeredContributions).toHaveLength(2);
+    expect(agentTools.list()).toHaveLength(2);
   });
 
   it("registers surface refs resolved against the feature entry's directory", async () => {

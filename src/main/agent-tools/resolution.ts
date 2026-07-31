@@ -1,4 +1,4 @@
-// agent tool contribution normalization.
+// agent tool contribution resolution.
 //
 // Every tool gets a feature-owned `ContributionId` registry key. Ordinary
 // contributions derive a namespaced Pi tool name (`${featureId}__${name}`),
@@ -55,7 +55,7 @@ export function toAgentToolOverrideCanonicalId(
 // Re-exported here so main-internal call sites keep one import path.
 export type { AgentToolDefinition } from "@uix/api/agent-tools";
 
-export interface AgentToolRegistration {
+export interface ResolvedAgentToolContribution {
   readonly contributionId: ContributionId;
   readonly canonicalId: AgentToolCanonicalId;
   /** Full pi tool definition, with `name` stamped from the canonical id. */
@@ -66,11 +66,11 @@ export interface AgentToolRegistration {
  * Derives both ids for an agent tool contribution and stamps `tool.name` from
  * the canonical id. Pure; no registry, no side effects.
  */
-export function normalizeAgentToolContribution(
+export function resolveAgentToolContribution(
   featureId: string,
   contribution: AgentToolContribution,
-): AgentToolRegistration {
-  return toAgentToolRegistration(
+): ResolvedAgentToolContribution {
+  return resolveAgentTool(
     featureId,
     contribution,
     toAgentToolCanonicalId(featureId, contribution.name),
@@ -78,22 +78,22 @@ export function normalizeAgentToolContribution(
 }
 
 /** Retains the authored Pi name and stamps it onto an exact-name definition. */
-export function normalizeAgentToolOverrideContribution(
+export function resolveAgentToolOverrideContribution(
   featureId: string,
   contribution: AgentToolOverrideContribution,
-): AgentToolRegistration {
-  return toAgentToolRegistration(
+): ResolvedAgentToolContribution {
+  return resolveAgentTool(
     featureId,
     contribution,
     toAgentToolOverrideCanonicalId(contribution.name),
   );
 }
 
-function toAgentToolRegistration(
+function resolveAgentTool(
   featureId: string,
   contribution: { readonly name: string; readonly tool: AgentToolDefinition },
   canonicalId: AgentToolCanonicalId,
-): AgentToolRegistration {
+): ResolvedAgentToolContribution {
   return {
     contributionId: toContributionId(featureId, "agent", contribution.name),
     canonicalId,

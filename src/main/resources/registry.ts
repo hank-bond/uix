@@ -42,10 +42,6 @@ interface ResolvedResourceContribution {
   ) => Response | Promise<Response>;
 }
 
-interface RegisteredResource {
-  readonly contribution: ResolvedResourceContribution;
-}
-
 export type ResourceSchemeRegistrar = (
   schemes: Electron.CustomScheme[],
 ) => void;
@@ -87,7 +83,7 @@ export class ResourceRegistry implements Disposable {
   readonly #canonicalIds = new Set<ResourceCanonicalId>();
   readonly #registeredResources = new Map<
     ResourceCanonicalId,
-    RegisteredResource
+    ResolvedResourceContribution
   >();
   #disposed = false;
 
@@ -111,13 +107,10 @@ export class ResourceRegistry implements Disposable {
       );
     }
 
-    const registeredResource: RegisteredResource = {
-      contribution: resolvedContribution,
-    };
     this.#canonicalIds.add(resolvedContribution.canonicalId);
     this.#registeredResources.set(
       resolvedContribution.canonicalId,
-      registeredResource,
+      resolvedContribution,
     );
 
     let disposed = false;
@@ -140,8 +133,7 @@ export class ResourceRegistry implements Disposable {
   async #dispatch(request: Request): Promise<Response> {
     let badRequestReason: string | null = null;
 
-    for (const registeredResource of this.#registeredResources.values()) {
-      const { contribution } = registeredResource;
+    for (const contribution of this.#registeredResources.values()) {
       const decoded = decodeResourceUrl(contribution.route, {
         featureId: contribution.featureId,
         name: contribution.name,

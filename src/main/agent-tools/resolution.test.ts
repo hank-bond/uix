@@ -5,10 +5,10 @@ import { Type } from "typebox";
 import {
   toAgentToolCanonicalId,
   toAgentToolOverrideCanonicalId,
-  normalizeAgentToolContribution,
-  normalizeAgentToolOverrideContribution,
-} from "./normalization";
-import type { AgentToolDefinition } from "./normalization";
+  resolveAgentToolContribution,
+  resolveAgentToolOverrideContribution,
+} from "./resolution";
+import type { AgentToolDefinition } from "./resolution";
 
 const emptyParams = Type.Object({});
 
@@ -72,26 +72,26 @@ describe("toAgentToolOverrideCanonicalId", () => {
   });
 });
 
-describe("normalizeAgentToolContribution", () => {
+describe("resolveAgentToolContribution", () => {
   it("derives both ids and stamps the pi tool name", () => {
-    const registration = normalizeAgentToolContribution("canvas", {
+    const resolvedContribution = resolveAgentToolContribution("canvas", {
       name: "anchor_read",
       tool: body(),
     });
 
-    expect(registration.contributionId as string).toBe(
+    expect(resolvedContribution.contributionId as string).toBe(
       "canvas.agent.anchor_read",
     );
-    expect(registration.canonicalId).toBe("canvas__anchor_read");
-    expect(registration.tool.name).toBe("canvas__anchor_read");
+    expect(resolvedContribution.canonicalId).toBe("canvas__anchor_read");
+    expect(resolvedContribution.tool.name).toBe("canvas__anchor_read");
     // Author body preserved.
-    expect(registration.tool.label).toBe("read");
-    expect(registration.tool.parameters).toBe(emptyParams);
+    expect(resolvedContribution.tool.label).toBe("read");
+    expect(resolvedContribution.tool.parameters).toBe(emptyParams);
   });
 
   it("does not mutate the author's body object", () => {
     const input = body();
-    normalizeAgentToolContribution("canvas", {
+    resolveAgentToolContribution("canvas", {
       name: "anchor_read",
       tool: input,
     });
@@ -102,16 +102,18 @@ describe("normalizeAgentToolContribution", () => {
   });
 });
 
-describe("normalizeAgentToolOverrideContribution", () => {
+describe("resolveAgentToolOverrideContribution", () => {
   it("retains the exact Pi name while deriving feature ownership", () => {
-    const registration = normalizeAgentToolOverrideContribution("chat", {
+    const resolvedContribution = resolveAgentToolOverrideContribution("chat", {
       name: "read",
       tool: body(),
     });
 
-    expect(registration.contributionId as string).toBe("chat.agent.read");
-    expect(registration.canonicalId).toBe("read");
-    expect(registration.tool.name).toBe("read");
-    expect(registration.tool.parameters).toBe(emptyParams);
+    expect(resolvedContribution.contributionId as string).toBe(
+      "chat.agent.read",
+    );
+    expect(resolvedContribution.canonicalId).toBe("read");
+    expect(resolvedContribution.tool.name).toBe("read");
+    expect(resolvedContribution.tool.parameters).toBe(emptyParams);
   });
 });

@@ -12,7 +12,7 @@ import {
   registerAgentToolContributions,
   registerAgentToolOverrideContributions,
 } from "./registry";
-import type { AgentToolDefinition } from "./normalization";
+import type { AgentToolDefinition } from "./resolution";
 
 const emptyParams = Type.Object({});
 
@@ -115,7 +115,7 @@ describe("AgentToolRegistry", () => {
     ).toThrow("Agent tool contribution already registered: chat.agent.read");
   });
 
-  it("rolls back earlier tools when bulk registration fails", () => {
+  it("rolls back earlier tools when the bulk register operation fails", () => {
     const registry = new AgentToolRegistry();
     const contribution = { name: "anchor_read", tool: body("read") };
 
@@ -135,7 +135,7 @@ describe("AgentToolRegistry", () => {
 
   it("bulk-registers contributions and installs active tools with derived names", () => {
     const registry = new AgentToolRegistry();
-    const registrations = registerAgentToolContributions(registry, "canvas", [
+    const toolsDisposable = registerAgentToolContributions(registry, "canvas", [
       { name: "anchor_read", tool: body("canvas__anchor_read") },
       { name: "anchor_write", tool: body("canvas__anchor_write") },
     ]);
@@ -145,17 +145,17 @@ describe("AgentToolRegistry", () => {
       "canvas__anchor_write",
     ]);
 
-    registrations[Symbol.dispose]();
+    toolsDisposable[Symbol.dispose]();
     expect([...installTools(registry).keys()]).toEqual([]);
   });
 
   it("unregisters a contribution when disposed", () => {
     const registry = new AgentToolRegistry();
-    const registrations = registerAgentToolContributions(registry, "canvas", [
+    const toolsDisposable = registerAgentToolContributions(registry, "canvas", [
       { name: "anchor_read", tool: body("canvas__anchor_read") },
     ]);
 
-    registrations[Symbol.dispose]();
+    toolsDisposable[Symbol.dispose]();
 
     expect([...installTools(registry).keys()]).toEqual([]);
     // Re-registering the same name after dispose is allowed.
