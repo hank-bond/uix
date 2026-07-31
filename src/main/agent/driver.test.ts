@@ -825,7 +825,7 @@ describe("driver selected-session activation", () => {
   it("ignores an obsolete bootstrap registry snapshot and restores replacement instances once", async () => {
     const turnState = new TurnStateRegistry();
     const restorePreviousInstance = vi.fn();
-    const previousRegistration = registerTurnStateContributions(
+    const previousCellsDisposable = registerTurnStateContributions(
       turnState,
       "canvas",
       {
@@ -840,7 +840,7 @@ describe("driver selected-session activation", () => {
     const { driver } = createDriver(undefined, turnState);
 
     driver.init();
-    previousRegistration[Symbol.dispose]();
+    previousCellsDisposable[Symbol.dispose]();
     const restoreReplacementInstance = vi.fn();
     registerTurnStateContributions(turnState, "canvas", {
       documents: {
@@ -864,7 +864,7 @@ describe("driver selected-session activation", () => {
     const restorePreviousInstance = vi.fn(
       async () => previousRestoreGate.promise,
     );
-    const previousRegistration = registerTurnStateContributions(
+    const previousCellsDisposable = registerTurnStateContributions(
       turnState,
       "canvas",
       {
@@ -884,7 +884,7 @@ describe("driver selected-session activation", () => {
     });
     await expect(driver.commitFeatureTurnState()).resolves.toBe(false);
 
-    previousRegistration[Symbol.dispose]();
+    previousCellsDisposable[Symbol.dispose]();
     const restoreReplacementInstance = vi.fn();
     const createReplacementSnapshot = vi.fn(() => "replacement-live");
     registerTurnStateContributions(turnState, "canvas", {

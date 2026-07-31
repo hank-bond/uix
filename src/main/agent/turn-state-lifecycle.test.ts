@@ -75,10 +75,10 @@ describe("agent turn-state lifecycle", () => {
     });
   });
 
-  it("skips an obsolete registry snapshot and restores current registrations", async () => {
+  it("skips an obsolete registry snapshot and restores current cells", async () => {
     const registry = new TurnStateRegistry();
     const restorePreviousInstance = vi.fn();
-    const previousRegistration = registerTurnStateContributions(
+    const previousCellsDisposable = registerTurnStateContributions(
       registry,
       "canvas",
       {
@@ -98,7 +98,7 @@ describe("agent turn-state lifecycle", () => {
     });
     const obsoleteSnapshot = lifecycle.toRegistrySnapshot();
 
-    previousRegistration[Symbol.dispose]();
+    previousCellsDisposable[Symbol.dispose]();
     const restoreReplacementInstance = vi.fn();
     registerTurnStateContributions(registry, "canvas", {
       documents: {

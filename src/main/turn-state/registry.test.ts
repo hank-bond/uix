@@ -18,6 +18,7 @@ import {
   isSameTurnStateRegistrySnapshot,
   isTurnStateRegistrySnapshotCurrent,
   registerTurnStateContributions,
+  resolveTurnStateContributions,
   restoreTurnStateCellsAsOfLeaf,
   commitCurrentTurnState,
   TurnStateRegistry,
@@ -118,30 +119,35 @@ function deferred() {
 describe("TurnStateRegistry", () => {
   it("derives one independently registered id per named cell", () => {
     const state = new TurnStateRegistry();
-    const registration = registerTurnStateContributions(state, "canvas", {
-      ...cells(),
-      selection: {
-        schema: Type.Object({ anchor: Type.String() }),
-        createSnapshot: () => ({ anchor: "a1" }),
-        restore: () => undefined,
+    const turnStateDisposable = registerTurnStateContributions(
+      state,
+      "canvas",
+      {
+        ...cells(),
+        selection: {
+          schema: Type.Object({ anchor: Type.String() }),
+          createSnapshot: () => ({ anchor: "a1" }),
+          restore: () => undefined,
+        },
       },
-    });
+    );
 
-    expect(
-      state.registrations.map((registration) => registration.canonicalId),
-    ).toEqual(["canvas.documents", "canvas.selection"]);
+    expect(state.list().map((cell) => cell.canonicalId)).toEqual([
+      "canvas.documents",
+      "canvas.selection",
+    ]);
 
     expect(() =>
       registerTurnStateContributions(state, "canvas", cells()),
     ).toThrow("Turn state already registered: canvas.documents");
 
-    registration[Symbol.dispose]();
-    expect(state.registrations).toEqual([]);
+    turnStateDisposable[Symbol.dispose]();
+    expect(state.list()).toEqual([]);
   });
 
   it("recognizes when reload replaces a turn-state registry snapshot", () => {
     const state = new TurnStateRegistry();
-    const registration = registerTurnStateContributions(
+    const turnStateDisposable = registerTurnStateContributions(
       state,
       "canvas",
       cells(),
@@ -154,7 +160,7 @@ describe("TurnStateRegistry", () => {
     );
     expect(isTurnStateRegistrySnapshotCurrent(state, snapshot)).toBe(true);
 
-    registration[Symbol.dispose]();
+    turnStateDisposable[Symbol.dispose]();
     registerTurnStateContributions(state, "canvas", cells());
     expect(isTurnStateRegistrySnapshotCurrent(state, snapshot)).toBe(false);
     expect(
@@ -166,13 +172,12 @@ describe("TurnStateRegistry", () => {
   });
 
   it("rejects TypeBox codecs anywhere in a cell schema", () => {
-    const state = new TurnStateRegistry();
     const encodedNumber = Codec(Type.String())
       .Decode((value) => Number(value))
       .Encode((value) => String(value));
 
     expect(() =>
-      registerTurnStateContributions(state, "canvas", {
+      resolveTurnStateContributions("canvas", {
         selection: {
           schema: Type.Object({ index: encodedNumber }),
           createSnapshot: () => ({ index: 1 }),

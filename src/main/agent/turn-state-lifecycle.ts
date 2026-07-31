@@ -23,7 +23,7 @@ interface TurnStateLifecycle extends Disposable {
   toRegistrySnapshot(): TurnStateRegistrySnapshot;
   isRestorationSettled(sessionManager: SessionManager): boolean;
   /**
-   * Restore the manager's selected branch through this registration snapshot.
+   * Restore the manager's selected branch through this registry snapshot.
    * Returns false if the snapshot is no longer current before or after restore.
    * Equivalent in-flight requests share one operation.
    */
