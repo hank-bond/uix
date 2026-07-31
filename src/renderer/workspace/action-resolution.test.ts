@@ -2,10 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ActionContribution } from "@uix/api/actions";
 
-import {
-  normalizeActionContribution,
-  toActionId,
-} from "./action-normalization";
+import { resolveActionContribution, toActionId } from "./action-resolution";
 
 const run = (): void => undefined;
 
@@ -50,11 +47,11 @@ describe("toActionId", () => {
   });
 });
 
-describe("normalizeActionContribution", () => {
+describe("resolveActionContribution", () => {
   it("flattens contributions in authored order with derived ids and title paths", () => {
-    const normalized = normalizeActionContribution("chat", chatActions());
+    const resolved = resolveActionContribution("chat", chatActions());
 
-    expect(normalized.catalogEntries).toEqual([
+    expect(resolved.catalogEntries).toEqual([
       {
         id: "chat.models.favorites",
         owner: "chat",
@@ -76,21 +73,23 @@ describe("normalizeActionContribution", () => {
       },
     ]);
     expect(
-      normalized.registrations.map(({ catalogEntry }) => catalogEntry),
-    ).toEqual(normalized.catalogEntries);
-    expect(normalized.registrations[0]).toMatchObject({
+      resolved.resolvedContributions.map(({ catalogEntry }) => catalogEntry),
+    ).toEqual(resolved.catalogEntries);
+    expect(resolved.resolvedContributions[0]).toMatchObject({
       id: "chat.models.favorites",
       run,
     });
-    expect(normalized.registrations[0]).not.toHaveProperty("defaultBinding");
-    expect(normalized.defaultBindings).toEqual({
+    expect(resolved.resolvedContributions[0]).not.toHaveProperty(
+      "defaultBinding",
+    );
+    expect(resolved.defaultBindings).toEqual({
       "chat.models.favorites": "mod+shift+m",
     });
   });
 
   it("keeps identity stable when display titles change", () => {
-    const models = normalizeActionContribution("chat", chatActions("Models"));
-    const settings = normalizeActionContribution(
+    const models = resolveActionContribution("chat", chatActions("Models"));
+    const settings = resolveActionContribution(
       "chat",
       chatActions("Model Settings"),
     );
@@ -107,8 +106,8 @@ describe("normalizeActionContribution", () => {
   });
 
   it("derives different identities when keyed placement changes", () => {
-    const nested = normalizeActionContribution("chat", chatActions());
-    const root = normalizeActionContribution("chat", {
+    const nested = resolveActionContribution("chat", chatActions());
+    const root = resolveActionContribution("chat", {
       favorites: { title: "Favorite Models", run },
     });
 
@@ -117,19 +116,19 @@ describe("normalizeActionContribution", () => {
   });
 
   it("projects JSON-safe catalog entries without callbacks or group nodes", () => {
-    const normalized = normalizeActionContribution("chat", chatActions());
+    const resolved = resolveActionContribution("chat", chatActions());
     const projected = JSON.parse(
-      JSON.stringify(normalized.catalogEntries),
+      JSON.stringify(resolved.catalogEntries),
     ) as unknown;
 
-    expect(projected).toEqual(normalized.catalogEntries);
-    expect(normalized.catalogEntries[0]).not.toHaveProperty("run");
-    expect(normalized.catalogEntries[0]).not.toHaveProperty("children");
+    expect(projected).toEqual(resolved.catalogEntries);
+    expect(resolved.catalogEntries[0]).not.toHaveProperty("run");
+    expect(resolved.catalogEntries[0]).not.toHaveProperty("children");
   });
 
   it("rejects invalid default bindings", () => {
     expect(() =>
-      normalizeActionContribution("chat", {
+      resolveActionContribution("chat", {
         models: {
           title: "Models",
           defaultBinding: "mod+mod+m",
@@ -141,12 +140,12 @@ describe("normalizeActionContribution", () => {
 
   it("rejects invalid contribution keys and empty titles", () => {
     expect(() =>
-      normalizeActionContribution("chat", {
+      resolveActionContribution("chat", {
         "favorite.models": { title: "Favorite Models", run },
       }),
     ).toThrow("Invalid action name: favorite.models");
     expect(() =>
-      normalizeActionContribution("chat", {
+      resolveActionContribution("chat", {
         models: { title: " ", run },
       }),
     ).toThrow("titles must not be empty");

@@ -1,9 +1,9 @@
 // typed channel contributions.
 //
 // This is a narrow substrate facet for request/response channels and backend →
-// workspace event publishing. Features declare the channels they handle; the
-// substrate owns registration through the current transport adapter. Today that
-// adapter is Electron IPC, but the contribution model is intentionally
+// workspace event publishing. Features declare request handlers and event
+// schemas. The substrate registers them through the current transport adapter.
+// Today that adapter is Electron IPC, but the contribution model is intentionally
 // transport-neutral.
 
 import type {
@@ -40,7 +40,7 @@ export function toChannelCanonicalId(
   return `${featureId}.${name}` as ChannelCanonicalId;
 }
 
-export type NormalizedChannelRequestContract<
+type ResolvedChannelRequestMember<
   Name extends string,
   Req extends TSchema,
   Res extends TSchema,
@@ -50,7 +50,7 @@ export type NormalizedChannelRequestContract<
   readonly canonicalId: ChannelCanonicalId;
 };
 
-export type NormalizedChannelEventContract<
+type ResolvedChannelEventMember<
   Name extends string,
   Event extends TSchema,
 > = ChannelEventContribution<Event> & {
@@ -59,7 +59,7 @@ export type NormalizedChannelEventContract<
   readonly canonicalId: ChannelCanonicalId;
 };
 
-export type NormalizedChannelContract<
+export type ResolvedChannelContribution<
   Contribution extends ChannelContribution,
 > = {
   readonly featureId: string;
@@ -69,7 +69,7 @@ export type NormalizedChannelContract<
       infer Req,
       infer Res
     >
-      ? NormalizedChannelRequestContract<Name, Req, Res>
+      ? ResolvedChannelRequestMember<Name, Req, Res>
       : never;
   };
   readonly events: {
@@ -77,29 +77,29 @@ export type NormalizedChannelContract<
       string]: Contribution["events"][Name] extends ChannelEventContribution<
       infer Event
     >
-      ? NormalizedChannelEventContract<Name, Event>
+      ? ResolvedChannelEventMember<Name, Event>
       : never;
   };
 };
 
-export type ChannelRegistration<Req = unknown, Res = unknown> = {
+export type ResolvedChannelRequestContribution<Req = unknown, Res = unknown> = {
   contributionId: ContributionId;
   canonicalId: ChannelCanonicalId;
   requestSchema: TSchema;
   responseSchema: TSchema;
-  handle: (req: Req) => Res | Promise<Res>;
+  handler: (req: Req) => Res | Promise<Res>;
   log?: ChannelRequestLogOptions<Req, Res>;
 };
 
-export function normalizeChannelContribution<
+export function resolveChannelContribution<
   const Contribution extends ChannelContribution,
 >(
   featureId: string,
   contribution: Contribution,
-): NormalizedChannelContract<Contribution> {
+): ResolvedChannelContribution<Contribution> {
   const seen = new Set<string>();
-  const requests = {} as NormalizedChannelContract<Contribution>["requests"];
-  const events = {} as NormalizedChannelContract<Contribution>["events"];
+  const requests = {} as ResolvedChannelContribution<Contribution>["requests"];
+  const events = {} as ResolvedChannelContribution<Contribution>["events"];
 
   for (const [name, request] of Object.entries(contribution.requests)) {
     assertUniqueChannelName(featureId, seen, name);
@@ -120,16 +120,18 @@ export function normalizeChannelContribution<
   return { featureId, requests, events };
 }
 
-export function channelRequestRegistrations(
-  contract: NormalizedChannelContract<ChannelContribution>,
-): readonly ChannelRegistration[] {
-  return Object.values(contract.requests).map((request) => {
+export function resolveChannelRequestContributions(
+  featureId: string,
+  contribution: ChannelContribution,
+): readonly ResolvedChannelRequestContribution[] {
+  const resolved = resolveChannelContribution(featureId, contribution);
+  return Object.values(resolved.requests).map((request) => {
     return {
       contributionId: request.contributionId,
       canonicalId: request.canonicalId,
       requestSchema: request.requestSchema,
       responseSchema: request.responseSchema,
-      handle: request.handle,
+      handler: request.handler,
       log: request.log,
     };
   });

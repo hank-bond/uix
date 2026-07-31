@@ -12,7 +12,7 @@ A feature channel contribution declares two operation kinds:
 - **requests** — Workspace/front-end code asks the backend to do or return something; the backend registers a handler and the caller receives acceptance/result or an error;
 - **events** — backend feature code publishes events; Workspace/front-end code subscribes to them.
 
-Requests and events are grouped into one contribution for a feature. Request handlers are part of the backend contribution, not a separate merge step: shared feature code should export schemas/types/light parsers, while backend code owns executable handlers. A request contribution without a handler is not a complete request contribution.
+Requests and events are grouped into one contribution for a feature. Request handlers are part of the backend contribution, not a separate merge step: shared feature code should export schemas/types/light parsers, while backend code owns executable handlers. A request contribution without a handler is not a complete request contribution. Entries passed to `withHandlers(...)` store that callback as `handler`; `handle` remains reserved for the direct Electron transport operation.
 
 The feature author declares local names and schemas. The channel facet derives both ids from the feature id and local name: the `ContributionId` (registry dedup) `${featureId}.channel.${name}`, and the `ChannelCanonicalId` (transport address) `${featureId}.${name}` with the facet segment dropped:
 
@@ -25,7 +25,7 @@ For channels, the canonical id is also the transport address. Both ids are nomin
 
 Request handlers should be typed from their request/response schemas. Feature-authored handler code should not receive `unknown`; only the transport boundary deals in unknown raw payloads. Explicit `response: Type.Void()` is preferred for ack-only requests because it communicates that the request has completion/backpressure semantics but no response body.
 
-Event schemas are not decorative. The channel facet should use event declarations to type and validate publish calls just as request declarations type and validate handlers. If runtime objects are split, name them honestly: request handler installables are request registrations; event declarations need their own normalized metadata/registration path for typed publishing.
+Event schemas are not decorative. The channel facet uses event declarations to type and validate publish calls just as request declarations type and validate handlers. The resolver derives owner-scoped identities for grouped channel metadata. Each request becomes a `ResolvedChannelRequestContribution` before the registry makes its transport handler live. Typed event publishing derives its address directly from the source contract; it does not create a live event registry record.
 
 ## Boundary validation
 

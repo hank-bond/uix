@@ -1,5 +1,5 @@
 ---
-summary: "Build workspace actions and the replaceable default command palette in seven reviewable units: action normalization, renderer registration, durable keybindings and conflicts, keyboard/Electron dispatch, ambient surfaces, the palette feature, and customization/docs verification."
+summary: "Build workspace actions and the replaceable default command palette in seven reviewable units: action resolution, renderer registry integration, durable keybindings and conflicts, keyboard/Electron dispatch, ambient surfaces, the palette feature, and customization/docs verification."
 status: active
 ---
 
@@ -19,7 +19,7 @@ Build the action layer settled in [workspace-actions](../design/workspace-action
 ## Build invariants
 
 - Authors supply nested local-name keys, never ids; the facet derives canonical `${featureId}.${keyPath}` identity, while display titles do not participate.
-- Public action catalog entries are serializable; callbacks stay private to their registration.
+- Public action catalog entries are serializable; callbacks stay private to the action registry.
 - Palette, menu, surface, recursive, and keyboard invocation share `invokeAction(id)`.
 - Actions are frontend effectors: every callback executes in the renderer, and backend work composes through typed channel requests rather than a backend action-handler facet.
 - Main owns the complete durable binding map; the renderer owns default declarations, client-platform interpretation, referential diagnostics, conflicts, and invocation.
@@ -27,24 +27,24 @@ Build the action layer settled in [workspace-actions](../design/workspace-action
 - Existing materialized bindings beat contributed defaults; stale ids are retained harmlessly.
 - Removing the default palette does not disable the registry or direct keybindings.
 
-## A0 — Action definitions and pure normalization
+## A0 — Action definitions and pure resolution
 
-Define the renderer-facing types and pure normalization before adding React or persistence.
+Define the renderer-facing types and pure resolution before adding React or persistence.
 
-The authored form is an ordered nested keyed object of titled groups and action leaves. Keys are local names; a leaf has a title, optional description/default binding, current enabled state, and async-capable callback. The feature-scoped registration boundary supplies the owner, so authors never provide ids. Normalization validates every key and derives canonical ids from the feature plus complete key path, then emits a flat searchable descriptor list in depth-first authored order. Display-title paths retain grouping without exposing public group nodes.
+The authored form is an ordered nested keyed object of titled groups and action leaves. Keys are local names; a leaf has a title, optional description/default binding, current enabled state, and async-capable callback. The feature-scoped contribution point supplies the owner, so authors never provide ids. Resolution validates every key and derives canonical ids from the feature plus complete key path, then emits a flat searchable descriptor list in depth-first authored order. Display-title paths retain grouping without exposing public group nodes.
 
-Keep executable and public shapes explicit: only the internal registration retains `run` and contributed defaults; `ActionCatalogEntry` must survive JSON serialization. Invocation callbacks return `void | Promise<void>` and callback failures reject to the invoking UI. Each action id has one non-queued in-flight slot; a duplicate invocation returns `already_running`.
+Keep executable and public shapes explicit: only the private `ResolvedActionContribution` retains `run` and contributed defaults before the registry creates live `RegisteredAction` state; `ActionCatalogEntry` must survive JSON serialization. Invocation callbacks return `void | Promise<void>` and callback failures reject to the invoking UI. Each action id has one non-queued in-flight slot; a duplicate invocation returns `already_running`.
 
 Acceptance:
 
 - Canonical ids derive only from the feature owner and keyed path; changing a title does not change identity.
 - Moving a leaf to another keyed path intentionally changes identity.
 - Descriptor projection is flat and contains no function, React value, or group node.
-- Ordering is deterministic and normalization has focused tests.
+- Ordering is deterministic and resolution has focused tests.
 
-## A1 — Renderer registry and surface registration
+## A1 — Renderer registry and surface contributions
 
-Add one workspace-scoped registry and expose registration, catalog subscription, and invocation through `@uix/api/workspace` context/hooks.
+Add one workspace-scoped registry and expose action contribution, catalog subscription, and invocation through `@uix/api/workspace` context/hooks.
 
 `SurfaceMount` binds the owning feature id; feature code cannot claim another owner. React effect lifetime unregisters callbacks on unmount/reload. Invocation checks current enabled/running state, executes the private callback, and reports errors without affecting sibling registrations. Recursive invocation uses the same path.
 
@@ -54,7 +54,7 @@ Acceptance:
 
 - A surface can register, update, invoke, and unregister a keyed action contribution.
 - Consumers see action catalog entries and invoke ids, never callbacks.
-- Duplicate canonical ids across registrations fail with owner attribution.
+- Duplicate canonical ids across registered contributions fail with owner attribution.
 - Chat actions open the requested picker scope and preserve existing focus behavior.
 - Unmount/reload removes callback availability and safely observes any pending completion without claiming to cancel feature-owned work.
 
@@ -70,8 +70,8 @@ Acceptance:
 - **Three durable states.** A missing id is unspecified and eligible for default materialization, `null` is explicitly unbound and blocks materialization, and a shortcut is the concrete binding. Reset copies the current declared default into the complete candidate (or removes the id when no default exists), so normal edits replace one validated settings object atomically rather than publishing a delete/reconcile intermediate state.
 - **Main owns configuration; renderer owns interaction.** Main/server validates, persists, and broadcasts the complete binding map, while the renderer resolves client platform semantics, matches keyboard events, computes conflicts, and invokes callbacks. This keeps shared durable state hosting-compatible without moving browser behavior or callback references into the backend.
 - **Actions are frontend effectors.** Every action handler registers and executes in the renderer; a human-triggered backend operation is simply an action callback composed with a typed channel request, whose backend handler and later frontend event subscribers remain ordinary channel concepts. A separate backend action-handler facet would duplicate the typed request/event SDK and create a second invocation system.
-- **Colocated authoring, split projections.** `defaultBinding` stays on the authored action leaf, and normalization deterministically emits a private executable registration, a public JSON-safe descriptor, and a default-binding template entry with the same derived id and lifetime. This keeps the handler ignorant of bindings while preventing the drift and extra authoring ceremony of two matching action/default trees.
-- **Frontend-declaration reconciliation.** After action registration settles—and again only when the default-template projection changes—the renderer batches `{ actionId: defaultBinding }` declarations to main; main overlays its current durable map, validates/persists when changed, and returns the complete confirmed snapshot. Defaults necessarily originate where frontend actions are declared, while this handshake preserves main as the sole durable owner and remains idempotent for late-mounted actions or reload.
+- **Colocated authoring, split projections.** `defaultBinding` stays on the authored action leaf, and resolution deterministically emits a private `ResolvedActionContribution`, a public JSON-safe catalog entry, and a default-binding template entry with the same derived id and lifetime. This keeps the handler ignorant of bindings while preventing the drift and extra authoring ceremony of two matching action/default trees.
+- **Frontend-declaration reconciliation.** After actions are registered—and again only when the default-template projection changes—the renderer batches `{ actionId: defaultBinding }` declarations to main; main overlays its current durable map, validates/persists when changed, and returns the complete confirmed snapshot. Defaults necessarily originate where frontend actions are declared, while this handshake preserves main as the sole durable owner and remains idempotent for late-mounted actions or reload.
 - **Whole-scope runtime edits.** Renderer customization submits one complete candidate `settings.keybindings` object; main validates and atomically replaces it, then broadcasts the confirmed snapshot. UI controls may call their intents bind/unbind/reset, but persistence has one validate-and-replace operation rather than piecemeal state mechanics; v1 accepts last-write-wins between rare concurrent clients instead of inventing revisions, locks, or CRDTs before collaborative editing exists.
 - **Frontend referential diagnostics.** Main performs structural validation only; the renderer joins the durable ids against its live action registry and exposes inactive ids separately as `unresolvedBindings`, never as fake action catalog entries. Only the frontend knows the active action composition, and unresolved must remain a soft diagnostic because a removed feature may later return.
 - **Derived conflicts fail closed.** The renderer resolves `mod` for its own platform, groups active actions by normalized shortcut, derives every other claimant into `conflictsWith`, and dispatches none of them by keyboard while preserving direct id invocation. Conflicts depend on the current client and active composition, so persisting or resolving them by load order would create stale or surprising behavior.
@@ -84,7 +84,7 @@ Acceptance:
 
 The settings/lifetime prerequisites are complete: feature and workspace scopes share the one-schema model; manifest load/reload stages and validates one generation before promotion; settings registrations are provisional, identity-aware, and feature-bag-owned; grouped facet registration has strong exception safety; and rejected workspace candidates retain the prior live generation and handles. A2 builds only on this path—there is no compatibility settings or activation path to maintain.
 
-The pure shortcut grammar now validates and canonicalizes portable one-chord gestures, resolves `mod` for a client platform, and keeps produced characters out of persistence (`shift+1`, not `!`). The composition root also registers `settings.keybindings` as the closed canonical-action-id record `Shortcut | null` with an explicit `{}` default; invalid external candidates retain the prior generation. Bound main request handlers serve the two-request `uix` channel: reconciliation with `{}` doubles as read, complete candidate replacement validates before one persistence write, and changed maps publish one confirmed snapshot. Action normalization now splits executable registration, public catalog-entry, and canonical default-binding projections, while `ActionRegistry` maintains and publishes an aggregate default-template snapshot independently from enabled/running catalog churn. Renderer `KeybindingSync` subscribes to confirmed snapshots before its initial reconciliation, batches same-turn template changes, reconciles again after substrate reload, rejects stale responses after newer events, and keeps confirmed bindings explicitly unhydrated until main responds. Hydrated bindings join active catalog entries on the renderer platform, every conflict claimant is marked, and inactive persisted ids appear separately in the unresolved projection without losing their durable values.
+The pure shortcut grammar now validates and canonicalizes portable one-chord gestures, resolves `mod` for a client platform, and keeps produced characters out of persistence (`shift+1`, not `!`). The composition root also registers `settings.keybindings` as the closed canonical-action-id record `Shortcut | null` with an explicit `{}` default; invalid external candidates retain the prior generation. Bound main request handlers serve the two-request `uix` channel: reconciliation with `{}` doubles as read, complete candidate replacement validates before one persistence write, and changed maps publish one confirmed snapshot. Action resolution now splits private `ResolvedActionContribution`, public catalog-entry, and canonical default-binding values, while `ActionRegistry` maintains and publishes an aggregate default-template snapshot independently from enabled/running catalog churn. Renderer `KeybindingSync` subscribes to confirmed snapshots before its initial reconciliation, batches same-turn template changes, reconciles again after substrate reload, rejects stale responses after newer events, and keeps confirmed bindings explicitly unhydrated until main responds. Hydrated bindings join active catalog entries on the renderer platform, every conflict claimant is marked, and inactive persisted ids appear separately in the unresolved projection without losing their durable values.
 
 ### Remaining implementation
 
@@ -95,7 +95,7 @@ Acceptance:
 - Settings scopes have one schema/default definition path for both `Type.Object` and `Type.Record` values, and registered empty namespaces are visible as `{}`.
 - An invalid workspace candidate applies no settings or feature-composition changes; a failed feature activation leaves no settings scope or facet contribution from that feature.
 - Shortcut parsing, canonicalization, `mod` platform resolution, key vocabulary, rejected duplicates/sequences, and JSON round-tripping have focused table-driven tests derived from established prior art.
-- One authored action contribution deterministically produces executable registration, public catalog-entry, and default-template projections with identical ids and lifetimes; no default change is triggered by enabled/running-only updates.
+- One authored action contribution deterministically produces a private resolved contribution, public catalog entry, and default-binding template with identical ids and lifetimes; no default change is triggered by enabled/running-only updates.
 - Initial reconciliation materializes missing defaults directly in `settings.keybindings`, returns the main-owned confirmed map, and leaves keyboard dispatch unhydrated until that response arrives.
 - Existing shortcuts and `null` survive reload and later default changes; removed/reinstalled features recover prior values, and newly missing ids materialize once.
 - Whole-scope replacement validates before commit, persists atomically, and publishes one confirmed snapshot without an intermediate reset state.
@@ -167,7 +167,7 @@ Archive the plan only when new workspace scaffolding includes the palette throug
 
 ## Boundary / later
 
-- New-session replacement is separate agent-runtime work specified in [session history and switching](./session-history-and-switching.md). Its substrate-owned `uix.session.new` action and `mod+n` binding have landed without depending on Chat; future Chat controls and palettes invoke that same action id. Reload registration and accelerator ownership remain in A3.
+- New-session replacement is separate agent-runtime work specified in [session history and switching](./session-history-and-switching.md). Its substrate-owned `uix.session.new` action and `mod+n` binding have landed without depending on Chat; future Chat controls and palettes invoke that same action id. Registering reload and settling accelerator ownership remain in A3.
 - No backend action-handler facet, agent invocation of actions, or automatic Pi slash-command import.
 - No generic action queue or user-facing action cancellation. Long-running work owns progress, cancellation, deduplication, and queuing in its feature/backend task model; actions only start or operate on it.
 - No process-global shortcuts, native OS menu, key sequences, multiple bindings, or context-expression language in v1.

@@ -13,10 +13,10 @@ import type { ShortcutPlatform } from "@uix/api/shortcuts";
 
 import { deriveActionBindingProjectionForPlatform } from "./action-binding-projection";
 import {
-  normalizeActionContribution,
+  resolveActionContribution,
   type ActionDefaultBindingMap,
-  type ActionRegistration,
-} from "./action-normalization";
+  type ResolvedActionContribution,
+} from "./action-resolution";
 
 type Listener = () => void;
 type ActionInvocationSource = "direct" | "keyboard";
@@ -176,16 +176,16 @@ export class ActionRegistry implements Disposable {
     contribution: ActionContribution,
   ): ActionContributionUpdater {
     this.#assertActive();
-    const normalized = normalizeActionContribution(owner, contribution);
-    this.#assertIdsAvailable(normalized.registrations);
+    const resolved = resolveActionContribution(owner, contribution);
+    this.#assertIdsAvailable(resolved.resolvedContributions);
 
     const registeredContribution: RegisteredActionContribution = {
       owner,
-      actions: normalized.registrations.map((registration) => ({
-        ...registration,
+      actions: resolved.resolvedContributions.map((contribution) => ({
+        ...contribution,
         running: false,
       })),
-      defaultBindings: normalized.defaultBindings,
+      defaultBindings: resolved.defaultBindings,
     };
     this.#registeredContributions.push(registeredContribution);
     this.#addToIndex(registeredContribution.actions);
@@ -204,34 +204,36 @@ export class ActionRegistry implements Disposable {
   ): void {
     this.#assertActive();
     if (!this.#registeredContributions.includes(registeredContribution)) {
-      throw new Error("Action contribution registration is disposed");
+      throw new Error("Action contribution updater is disposed");
     }
 
-    const normalized = normalizeActionContribution(
+    const resolved = resolveActionContribution(
       registeredContribution.owner,
       contribution,
     );
     this.#assertIdsAvailable(
-      normalized.registrations,
+      resolved.resolvedContributions,
       new Set(registeredContribution.actions),
     );
 
     const previousById = new Map(
       registeredContribution.actions.map((action) => [action.id, action]),
     );
-    const nextActions = normalized.registrations.map((registration) => {
-      const previous = previousById.get(registration.id);
-      if (previous) {
-        previous.catalogEntry = registration.catalogEntry;
-        previous.run = registration.run;
-        return previous;
-      }
-      return { ...registration, running: false };
-    });
+    const nextActions = resolved.resolvedContributions.map(
+      (resolvedContribution) => {
+        const previous = previousById.get(resolvedContribution.id);
+        if (previous) {
+          previous.catalogEntry = resolvedContribution.catalogEntry;
+          previous.run = resolvedContribution.run;
+          return previous;
+        }
+        return { ...resolvedContribution, running: false };
+      },
+    );
 
     this.#removeFromIndex(registeredContribution.actions);
     registeredContribution.actions = nextActions;
-    registeredContribution.defaultBindings = normalized.defaultBindings;
+    registeredContribution.defaultBindings = resolved.defaultBindings;
     this.#addToIndex(nextActions);
     this.#publishCatalogSnapshot();
     this.#publishDefaultBindingsIfChanged();
@@ -251,14 +253,14 @@ export class ActionRegistry implements Disposable {
   }
 
   #assertIdsAvailable(
-    registrations: readonly ActionRegistration[],
+    resolvedContributions: readonly ResolvedActionContribution[],
     replacedActions = new Set<RegisteredAction>(),
   ): void {
-    for (const registration of registrations) {
-      const existing = this.#byId.get(registration.id);
+    for (const contribution of resolvedContributions) {
+      const existing = this.#byId.get(contribution.id);
       if (existing && !replacedActions.has(existing)) {
         throw new Error(
-          `Action already registered: ${registration.id} (owner ${registration.catalogEntry.owner})`,
+          `Action already registered: ${contribution.id} (owner ${contribution.catalogEntry.owner})`,
         );
       }
     }

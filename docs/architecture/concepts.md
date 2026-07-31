@@ -13,7 +13,7 @@ A **feature** is the coherent capability being added: canvas, conversation, a ch
 
 A feature is conceptual: what it does. An extension package is concrete: how UIX discovers, activates, reloads, and lifetimes loadable code. Most packages will start as one extension package installing one feature, but a package may install several related features.
 
-A feature is not itself one registration. It may include several pieces:
+A feature is not itself one registered item. It may include several pieces:
 
 - UIX contributions, such as panes, commands, state messages, or channel handlers;
 - agent installers, such as code that registers tools or Pi hooks;
@@ -27,7 +27,7 @@ A **feature definition** is the plain `FeatureDefinition` exported by one manife
 
 **Feature activation** is the transactional process that validates the definition and settings, constructs the feature context, runs `context()` and `contribute()`, registers every contributed facet into a provisional lifetime bag, and commits that bag only when the whole feature succeeds.
 
-An **activated feature instance** is the live result of one successful feature activation: its context objects, callbacks, registrations, and per-feature lifetime bag. Reloading the same entry creates a replacement activated feature instance even when its id and source are unchanged. A failed activation produces no activated feature instance; all provisional registrations are disposed.
+An **activated feature instance** is the live result of one successful feature activation: its context objects, callbacks, registered contributions, and per-feature lifetime bag. Reloading the same entry creates a replacement activated feature instance even when its id and source are unchanged. A failed activation produces no activated feature instance; all provisional registrations are disposed.
 
 The **active feature composition** is the set of activated feature instances currently owned by the workspace's feature bag. Reload commits turn state from those current instances, disposes them, activates replacement instances, and restores the selected session branch into the replacements.
 
@@ -42,7 +42,7 @@ UIX uses two id grammars for different things.
 - **`ContributionId`** — the registry dedup key. One uniform brand across all facets, constructed by `toContributionId(featureId, facet, name)` → `${featureId}.<facet>.<name>`. Examples: `canvas.channel.writeback`, `canvas.agent.anchor_read`, `canvas.agent-context.canvas-diff`, `canvas.turn-state.documents`.
 - **`…CanonicalId`** — the downstream-system address (transport channel, pi tool name, resource type key, persisted-section key, storage blob key). One brand per facet, because each downstream system has its own naming convention. The facet segment is **dropped** from the canonical id, because within the downstream system the channel/tool/resource kind is implicit. Examples: `ChannelCanonicalId` `canvas.writeback`, `AgentToolCanonicalId` `canvas__anchor_read` (pi's double-underscore), `ResourceCanonicalId` `canvas-doc` (resource type; resource URL scheme is substrate-owned).
 
-Both are nominal brands constructed only by their validated helper; internal code (registry Sets, resolved `…Registration` shapes) carries the brand, and genuine external string boundaries (Electron IPC channel, pi `tool.name`, URL/path strings) cast inline (`id as string`, the `CanvasKey` precedent). The public `@uix/api` modules expose author shapes only — `…Contribution` types with a `name` field, no id fields, no brands. The cross-facet `ContributionId` grammar lives in `#shared` (`src/shared/contribution-id.ts`); per-facet canonical-id helpers and resolved `…Registration` shapes live with their consumer — in `#shared` for facets with a renderer consumer (channels in `src/shared/channel-normalization.ts`, resources in `src/shared/resource-canonical-id.ts`), in `src/main/` for main-only facets (agent tools, agent context, turn state).
+Both are nominal brands constructed only by their validated helper; internal code (registry Sets and `Resolved…Contribution` shapes) carries the brand, and genuine external string boundaries (Electron IPC channel, pi `tool.name`, URL/path strings) cast inline (`id as string`, the `CanvasKey` precedent). Author-facing `@uix/api` contribution types contain local names rather than substrate-derived ids. The cross-facet `ContributionId` grammar lives in `src/api/contribution-id.ts`; per-facet canonical-id helpers and resolved contribution shapes live with their consumer — in `src/api/channel-resolution.ts` for channels, in `src/api/resource-routes.ts` for resource addresses shared with renderers, and in `src/main/` for main-only facets such as agent tools, agent context, and turn state.
 
 Envelope and customType ids stay substrate-owned and are not feature-scoped: `uix.state` (the display-hidden agent-context envelope), `uix.turn-state` (the persisted turn-state entry). Inner contributions use feature-scoped canonical ids: `<canvas.canvas-diff>` inside `<uix-state>`, or `canvas.documents` as a named cell inside a `uix.turn-state` entry.
 
@@ -67,25 +67,27 @@ Examples:
 
 A contribution point defines validation, lifetime, ownership, and how registered contributions are later used by the substrate.
 
-## Registration
+## Contribution lifecycle
 
-A **registration** is one concrete setup action that adds a contribution, callback, or capability to a contribution point or runtime surface.
+A feature authors a **contribution**. A facet can **normalize** it into one canonical representation when necessary. The facet then **resolves** owner-derived identifiers, paths, references, and environment-dependent values before it asks the registry to accept the result. A **registered** entity is live and owned by that registry. A catalog entry or other projection can expose a read-only consumer view without exposing executable references.
 
-Examples:
+```text
+Contribution
+→ NormalizedContribution
+→ ResolvedContribution
+→ RegisteredX
+→ CatalogEntry or Projection
+```
 
-- `state.register(contribution)`;
-- `stateMessages.register(contribution)`;
-- `pi.registerTool(tool)`;
-- `pi.on("input", handler)`;
-- `ipc.handle(channel, handler)`.
+The `Normalized` stage is optional. The register operation returns either a `Disposable` or a more specific capability such as an updater or appender; that return value is not the registry's live entity. `Registration` is not a lifecycle term because it previously named registry-ready inputs, live records, returned capabilities, and setup actions.
 
-Registering answers: what one concrete thing was added? Installing answers: how does a whole slice attach to the system?
+Registering answers: what one concrete item became live? Installing answers: how does a whole slice attach to the system?
 
 A registered callback at a lifecycle point is a hook. For example, `pi.on("input", handler)` registers an `input` hook.
 
 ## Contribution
 
-A **contribution** is the object a feature registers into a UIX contribution point: a declarative unit of capability or state that the substrate owns after registration.
+A **contribution** is the object a feature registers into a UIX contribution point: a declarative unit of capability or state that the substrate owns after the register operation.
 
 A contribution must be:
 
@@ -105,7 +107,7 @@ Do not use **contribution** as a generic synonym for any behavior-changing code.
 
 ## Capability handle
 
-A **capability handle** is the value returned by a registration when the contributor needs an imperative capability after registration.
+A **capability handle** is the value returned by a register operation when the contributor needs an imperative capability after the contribution becomes live.
 
 Examples:
 
@@ -121,13 +123,13 @@ A **registry** is the substrate-owned collection of currently registered contrib
 
 A registry is working memory, not durable authority. Durable state lives in Pi session entries, content stores, or other explicitly owned stores. The registry answers: what contributions are live right now?
 
-A registry is not a `DisposableBag`. The registry owns the live contribution index and invariants such as duplicate-id checks; the `Disposable` returned by `register(...)` removes that one contribution; a caller-owned bag decides when that removal happens. Hosted extension APIs should auto-scope registration disposables to the extension's lifetime bag, and first-party wiring should add registration disposables to an explicit bag when the contribution lifetime is shorter than the app.
+A registry is not a `DisposableBag`. The registry owns the live contribution index and invariants such as duplicate-id checks; the `Disposable` returned by `register(...)` removes that one contribution; a caller-owned bag decides when that removal happens. Hosted extension APIs should auto-scope returned disposables to the extension's lifetime bag, and first-party wiring should add those disposables to an explicit bag when the contribution lifetime is shorter than the app.
 
 ## Catalog
 
 A **catalog** is a consumer-facing, read-only discovery boundary that composes currently offered capabilities from multiple owners or authoritative sources. Catalog entries have stable identities, are serializable, contain no executable references, and may include derived presentation or eligibility state. Operations by catalog-entry id resolve against current live authority; the catalog itself owns neither the capabilities nor their durable state.
 
-A catalog is not a synonym for any array, registry snapshot, or collection of entities. It is intentional cross-owner composition for discovery and selection. The action catalog, for example, derives an `ActionCatalogEntry` projection from successfully registered actions for palettes and menus while callbacks remain private in `ActionRegistry`; registration updates and disposal change membership, and invocation still resolves the selected id through the registry.
+A catalog is not a synonym for any array, registry snapshot, or collection of entities. It is intentional cross-owner composition for discovery and selection. The action catalog, for example, derives an `ActionCatalogEntry` projection from successfully registered actions for palettes and menus while callbacks remain private in `ActionRegistry`; contribution updates and disposal change membership, and invocation still resolves the selected id through the registry.
 
 The model catalog composes currently available models across Pi providers and decorates its entries with workspace-local favorite state; selection resolves a provider-qualified entry against Pi's live model runtime. The provider-auth catalog projects Pi providers' interactive login methods plus non-secret connection status; flow operations retain each method's provider id and resolve it against the current `ModelRuntime`. Feature-owned presentation projections may group catalog entries into rows without changing those backend identities. A future settings catalog may likewise compose editable setting entries without exposing owner-scoped settings handles.
 
@@ -141,7 +143,7 @@ A **projection** is a purpose-specific, read-only, lower-information view derive
 
 A projection's **viewpoint** is the contextual coordinate from which its sources are interpreted. A viewpoint may identify a position in ordered history (`asOfLeaf`), an observer environment (`forPlatform`), or another result-determining context. Selection, correlation, partition, and reduction describe how source facts become the result; these policies are independent of the viewpoint.
 
-Examples include the transcript derived from selected-branch session entries, turn state as of that branch's leaf with the latest value per registered cell, and action catalog entries derived for one renderer platform from private registrations plus confirmed bindings.
+Examples include the transcript derived from selected-branch session entries, turn state as of that branch's leaf with the latest value per registered cell, and action catalog entries derived for one renderer platform from private registered actions plus confirmed bindings.
 
 ## Projector
 
@@ -175,7 +177,7 @@ The **active AgentSession** is Pi's ephemeral runtime attached to the selected g
 
 ## Facet
 
-A **facet** is a coherent slice of behavior we try to keep self-contained and discrete. It is a conceptual boundary, not necessarily one file, one class, or one registration.
+A **facet** is a coherent slice of behavior we try to keep self-contained and discrete. It is a conceptual boundary, not necessarily one file, one class, or one registered item.
 
 Examples:
 
@@ -224,7 +226,7 @@ Examples:
 - the agent driver owns the Pi session boundary: session creation/resume, prompt/reload/history, live event forwarding, and the Pi extension factory that runs agent installers;
 - the feature loader owns feature activation: manifest composition, per-entry bags, injected API construction, activated feature instance creation, reload/error isolation, and teardown of registered contributions.
 
-Drivers own bags. Installers register things. Registries track live contributions. Bags decide when the registration disposables run.
+Drivers own bags. Installers register things. Registries track live contributions. Bags decide when the returned disposables run.
 
 ## Hook
 
@@ -278,7 +280,7 @@ The feature loader reconciles disk to UIX memory by disposing the active feature
 
 Facet registries that compile to Pi install-time behavior mark the agent install surface dirty when their contributions are registered or unregistered. The dirty marker is not about disk; it means the Pi runtime snapshot no longer matches UIX's in-memory contribution graph. The agent driver must reconcile that by reloading Pi before the next agent turn starts. It may reload earlier when the agent is idle to avoid submit latency, but the invariant is before-turn reconciliation.
 
-Facet registries that are local to UIX do not mark the agent install surface dirty. Their registration disposables and renderer/main notifications are enough.
+Facet registries that are local to UIX do not mark the agent install surface dirty. Their returned disposables and renderer/main notifications are enough.
 
 Renderer reload follows the same registry-source-of-truth rule. The main process owns extension activation and facet registries; the renderer shell does not discover extensions. When UI-visible registries change, main sends the relevant registry snapshot or change payload to the renderer, and React reconciles: unmount removed surfaces, mount new ones, and update changed ones. A full Electron/Vite hot reload is dev tooling, not the UIX extension reload mechanism.
 

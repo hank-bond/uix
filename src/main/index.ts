@@ -213,8 +213,8 @@ async function openWorkspace(
     new ResourceRegistry({ workspaceId: LocalWorkspaceId }),
   );
   const channels = new ChannelRegistry({
-    transportHandle(canonicalId, fn, logOpts) {
-      return ipc.handle(canonicalId, fn, logOpts);
+    transportRegistrar(canonicalId, handler, logOpts) {
+      return ipc.handle(canonicalId, handler, logOpts);
     },
     publish(channel, payload, logOpts) {
       for (const win of BrowserWindow.getAllWindows()) {
@@ -307,26 +307,26 @@ async function openWorkspace(
     registerChannelContributions(channels, "uix", [
       withHandlers(uixChannels, {
         surfaces: {
-          handle: async () => ({
+          handler: async () => ({
             surfaces: await surfacePipeline.buildAll(surfaces.list()),
             manifestPath,
             manifestFound: fs.existsSync(manifestPath),
           }),
         },
         get_setting: {
-          handle: (req) => settingsRegistry.get(req.featureId, req.key),
+          handler: (req) => settingsRegistry.get(req.featureId, req.key),
         },
         set_setting: {
-          handle: (req) => {
+          handler: (req) => {
             settingsRegistry.set(req.featureId, req.key, req.value);
           },
         },
         reconcile_keybindings: {
-          handle: (defaults) =>
+          handler: (defaults) =>
             keybindingRequestHandlers.reconcileDefaults(defaults),
         },
         replace_keybindings: {
-          handle: (candidate) =>
+          handler: (candidate) =>
             keybindingRequestHandlers.replaceBindings(candidate),
         },
       }),
@@ -339,7 +339,7 @@ async function openWorkspace(
     registerChannelContributions(channels, "agent", [
       withHandlers(agentChannels, {
         prompt: {
-          handle: (req) => {
+          handler: (req) => {
             // Fire and forget — the renderer subscribes to the event
             // stream, and the invoke resolves once the prompt has been
             // accepted.
@@ -347,7 +347,7 @@ async function openWorkspace(
           },
         },
         session_history: {
-          handle: ({ sessionId }) => driver.sessionHistory(sessionId),
+          handler: ({ sessionId }) => driver.sessionHistory(sessionId),
           log: {
             // A snapshot is the entire persisted transcript, already on disk;
             // record only its durable identity and size at the crossing.
@@ -358,7 +358,7 @@ async function openWorkspace(
           },
         },
         list_session_summaries: {
-          handle: ({ limit }) => driver.listSessionSummaries(limit),
+          handler: ({ limit }) => driver.listSessionSummaries(limit),
           log: {
             describeResponse: (sessions) => ({
               sessionIds: sessions.map((session) => session.sessionId),
@@ -366,52 +366,52 @@ async function openWorkspace(
           },
         },
         new_session: {
-          handle: () => driver.newSession(),
+          handler: () => driver.newSession(),
         },
         switch_session: {
-          handle: ({ sessionId }) => driver.switchSession(sessionId),
+          handler: ({ sessionId }) => driver.switchSession(sessionId),
         },
         set_session_title: {
-          handle: ({ sessionId, title }) =>
+          handler: ({ sessionId, title }) =>
             driver.setSessionTitle(sessionId, title),
         },
         list_models: {
-          handle: async () => ({ models: await driver.listModels() }),
+          handler: async () => ({ models: await driver.listModels() }),
         },
         set_model_favorite: {
-          handle: async (update) => ({
+          handler: async (update) => ({
             models: await driver.setModelFavorite(update),
           }),
         },
         agent_status: {
-          handle: () => driver.status(),
+          handler: () => driver.status(),
         },
         select_model: {
-          handle: (ref) => driver.selectModel(ref),
+          handler: (ref) => driver.selectModel(ref),
         },
         list_auth_providers: {
-          handle: async () => ({
+          handler: async () => ({
             providers: await driver.listAuthProviders(),
           }),
         },
         current_provider_auth_flow: {
-          handle: () => driver.getCurrentProviderAuthFlow() ?? null,
+          handler: () => driver.getCurrentProviderAuthFlow() ?? null,
         },
         begin_provider_auth_flow: {
-          handle: ({ providerId, authType }) =>
+          handler: ({ providerId, authType }) =>
             driver.beginProviderAuthFlow(providerId, authType),
         },
         answer_provider_auth_flow: {
-          handle: ({ flowId, promptId, value }) => {
+          handler: ({ flowId, promptId, value }) => {
             driver.answerProviderAuthFlow(flowId, promptId, value);
           },
         },
         open_provider_auth_link: {
-          handle: ({ flowId, linkId }) =>
+          handler: ({ flowId, linkId }) =>
             driver.openProviderAuthLink(flowId, linkId),
         },
         cancel_provider_auth_flow: {
-          handle: ({ flowId }) => {
+          handler: ({ flowId }) => {
             driver.cancelProviderAuthFlow(flowId);
           },
         },

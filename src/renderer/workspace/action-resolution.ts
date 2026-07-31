@@ -8,7 +8,7 @@ import type {
 import { isIdToken } from "@uix/api/contribution-id";
 import { normalizeShortcut, type Shortcut } from "@uix/api/shortcuts";
 
-export interface ActionRegistration {
+export interface ResolvedActionContribution {
   readonly id: ActionId;
   readonly catalogEntry: ActionCatalogEntry;
   readonly run: ActionRun;
@@ -16,9 +16,9 @@ export interface ActionRegistration {
 
 export type ActionDefaultBindingMap = Readonly<Record<ActionId, Shortcut>>;
 
-interface NormalizedActions {
+interface ResolvedActionContributions {
   readonly catalogEntries: readonly ActionCatalogEntry[];
-  readonly registrations: readonly ActionRegistration[];
+  readonly resolvedContributions: readonly ResolvedActionContribution[];
   readonly defaultBindings: ActionDefaultBindingMap;
 }
 
@@ -33,35 +33,37 @@ export function toActionId(owner: string, path: readonly string[]): ActionId {
   return [owner, ...path].join(".");
 }
 
-export function normalizeActionContribution(
+export function resolveActionContribution(
   owner: string,
   contribution: ActionContribution,
-): NormalizedActions {
+): ResolvedActionContributions {
   assertActionToken("feature id", owner);
-  const registrations: ActionRegistration[] = [];
+  const resolvedContributions: ResolvedActionContribution[] = [];
   const defaultBindings: Record<ActionId, Shortcut> = {};
 
-  normalizeContribution(
+  resolveContribution(
     owner,
     contribution,
     [],
     [],
-    registrations,
+    resolvedContributions,
     defaultBindings,
   );
   return {
-    catalogEntries: registrations.map(({ catalogEntry }) => catalogEntry),
-    registrations,
+    catalogEntries: resolvedContributions.map(
+      ({ catalogEntry }) => catalogEntry,
+    ),
+    resolvedContributions,
     defaultBindings,
   };
 }
 
-function normalizeContribution(
+function resolveContribution(
   owner: string,
   contribution: ActionContribution,
   namePath: readonly string[],
   titlePath: readonly string[],
-  registrations: ActionRegistration[],
+  resolvedContributions: ResolvedActionContribution[],
   defaultBindings: Record<ActionId, Shortcut>,
 ): void {
   for (const [name, node] of Object.entries(contribution)) {
@@ -69,31 +71,31 @@ function normalizeContribution(
     assertTitle(node.title);
 
     if ("children" in node) {
-      normalizeContribution(
+      resolveContribution(
         owner,
         node.children,
         [...namePath, name],
         [...titlePath, node.title],
-        registrations,
+        resolvedContributions,
         defaultBindings,
       );
       continue;
     }
 
-    registrations.push(
-      normalizeAction(owner, name, node, namePath, titlePath, defaultBindings),
+    resolvedContributions.push(
+      resolveAction(owner, name, node, namePath, titlePath, defaultBindings),
     );
   }
 }
 
-function normalizeAction(
+function resolveAction(
   owner: string,
   name: string,
   contribution: ActionLeafContribution,
   namePath: readonly string[],
   titlePath: readonly string[],
   defaultBindings: Record<ActionId, Shortcut>,
-): ActionRegistration {
+): ResolvedActionContribution {
   const id = toActionId(owner, [...namePath, name]);
   const catalogEntry: ActionCatalogEntry = {
     id,

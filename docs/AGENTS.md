@@ -16,7 +16,7 @@ The layers distill left-to-right over time — **design note → decision → pl
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
 
 - **[architecture/](./architecture/AGENTS.md)** _(active)_ — Architecture-of-record for the cockpit as it currently is — living docs that always track HEAD: subsystem shape, code conventions, and open questions.
-- **[contributing](./contributing.md)** _(active)_ — How to author and maintain repository docs: the four layers' lifecycles, frontmatter summary/read_when rules, prose formatting, the AGENTS.md overview-plus-index shape, and living design-note threads.
+- **[contributing](./contributing.md)** _(active)_ — How to author and maintain repository docs: layers and retrieval units, frontmatter and rollups, normative language and writing profiles, convention-rule and lexicon formats, prose formatting, and living design-note threads.
 - **[decisions/](./decisions/AGENTS.md)** _(active)_ — Finalized UIX architectural decisions — write-once and dated, each with its rationale; the settled conclusions the design threads distilled and the other layers build on.
 - **[design/](./design/AGENTS.md)** _(active)_ — Living design threads — a current synthesis over an append-only log — where options, tradeoffs, and rejected alternatives are weighed before they distill into decisions.
 - **[plans/](./plans/AGENTS.md)** _(active)_ — Active build specs for what's about to be built — deliverables and their units — plus a backlog of seeds not yet promoted to their own spec.

@@ -5,7 +5,7 @@ status: active
 
 # Repository vocabulary coherence
 
-Review the concepts and naming conventions across code and docs, then migrate inconsistent names without changing behavior. The workspace-action pipeline is the seed: `ActionContribution` (author input) → `ActionRegistration` (normalized registry record) → `RegisteredAction` (live runtime state) → `ActionCatalogEntry` (public catalog projection), with `ActionContributionUpdater` as the update/dispose capability returned by registration.
+Review the concepts and naming conventions across code and docs, then migrate inconsistent names without changing behavior. The workspace-action pipeline is the seed: `ActionContribution` (author input) → `ResolvedActionContribution` (owner-derived ids and references are concrete) → `RegisteredAction` (live registry state) → `ActionCatalogEntry` (public catalog projection), with `ActionContributionUpdater` as the update/dispose capability returned by the register operation.
 
 The goal is a small semantic vocabulary: names describe the shape and lifecycle stage of a thing, receiver context avoids redundant qualification, and one term does not quietly mean several different things. This is a breaking cleanup—rename integrations to the settled path rather than preserving aliases.
 
@@ -13,7 +13,7 @@ The goal is a small semantic vocabulary: names describe the shape and lifecycle 
 
 - Inventory before prescribing. Existing frequency is evidence, not authority; distinguish coherent patterns from copied drift.
 - Compare shapes and lifecycle roles, not spelling alone. Two similarly named values may deserve different terms; two differently named values may be the same concept.
-- Keep operation names contextual: `actionRegistry.invoke()`, while standalone functions retain their domain, such as `normalizeActionContribution()`.
+- Keep operation names contextual: `actionRegistry.invoke()`, while standalone functions retain their domain, such as `resolveActionContribution()`.
 - Preserve external vocabulary from Pi, Electron, React, and browser APIs where UIX is naming the external concept rather than inventing its own.
 - If a naming mismatch reveals a real ownership or architecture mismatch, stop that item and route it through design rather than hiding it in a rename.
 - Each migration unit remains behavior-neutral and ends green; no opportunistic subsystem redesign.
@@ -22,11 +22,11 @@ The goal is a small semantic vocabulary: names describe the shape and lifecycle 
 
 Build a reviewable matrix from `AGENTS.md`, `docs/architecture/{concepts,conventions}.md`, `src/docs/`, `@uix/api`, registries, stores, renderer contexts, and feature code. For each recurring noun and verb, record its intended shape, lifecycle, ownership, representative declarations/call sites, conflicting uses, and proposed disposition.
 
-Cover at least: Feature/extension, Definition, Contribution, Registration/Registered, Descriptor, Registry, Catalog/CatalogEntry, Store, Buffer, Client, Provider, capability/Handle, Updater/Appender, Factory, Installer, Driver, Coordinator, Assembler, handler/listener/callback, and the canonical create/define/register/load/hydrate/open/bind/resolve/to/parse/get/read verbs.
+Cover at least: Feature/extension, Definition, Contribution, Normalized/Resolved/Registered, retired Registration, Descriptor, Registry, Catalog/CatalogEntry, Store, Buffer, Client, Provider, capability/Handle, Updater/Appender, Factory, Installer, Driver, Coordinator, Assembler, handler/listener/callback, and the canonical create/define/register/load/hydrate/open/bind/resolve/to/parse/get/read verbs.
 
 Seed findings from workspace actions:
 
-- Function types named `ChannelTransportHandle` and `ResourceTransportHandle` use `Handle` differently from the documented capability-object meaning.
+- Function types named `ChannelTransportHandle` and `ResourceTransportHandle` used `Handle` differently from the documented capability-object meaning. Channels now use `ChannelTransportRegistrar`; the resource facet remains to migrate.
 - `AgentToolRegistry.register(contribution: AgentToolRegistration)` and `registeredContributions: AgentToolRegistration[]` call registrations contributions after normalization.
 - Registry snapshots vary between public `registeredContributions`, private `#entries` + `list()`, and maps/sets without a documented rule.
 - Some facets derive `XRegistration`; agent context and turn state instead retain `RegisteredXContribution`, with no stated criterion for the distinction.
@@ -42,7 +42,7 @@ Acceptance:
 
 Reconcile `docs/architecture/concepts.md` and the `docs/architecture/conventions/` collection into one coherent vocabulary contract. Concepts defines what each architectural noun means; conventions defines how those nouns and operation verbs appear in code. Remove stale feature/extension framing and implementation paths while preserving Pi's own extension vocabulary.
 
-Explicitly settle the contribution pipeline vocabulary: author shape, normalized registry record, live registered state, public projection, and registration-returned capability. Settle whether `Handle` remains at all; how callback, handler, and listener differ; when a consumer-facing object is a Client; and when a registry exposes `list()` versus a named snapshot. Document receiver-context qualification and the rule for justified exceptions.
+Explicitly settle the contribution pipeline vocabulary: authored contribution, optional normalized form, resolved registry-ready form, live registered state, public projection, and the capability returned by the register operation. Settle whether `Handle` remains at all; how callback, handler, and listener differ; when a consumer-facing object is a Client; and when a registry exposes `list()` versus a named snapshot. Document receiver-context qualification and the rule for justified exceptions.
 
 Acceptance:
 

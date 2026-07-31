@@ -18,7 +18,7 @@ export function createCanvasChannelContributions(
   return [
     withHandlers(canvasChannels, {
       writeback: {
-        async handle(req) {
+        async handler(req) {
           ctx.log.debug(
             { key: req.key, bytes: req.html.length },
             "canvas_writeback",

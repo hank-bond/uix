@@ -86,7 +86,7 @@ function makeSubstrate(manifestPath?: string) {
   const surfaces = new SurfaceRegistry();
   const channelIds = new Set<string>();
   const channels = new ChannelRegistry({
-    transportHandle: (canonicalId) => {
+    transportRegistrar: (canonicalId) => {
       channelIds.add(canonicalId);
       return {
         [Symbol.dispose]() {
@@ -544,7 +544,9 @@ const contract = {
 export default {
   id: "valuey",
   contribute: () => ({
-    channels: [withHandlers(contract, { ping: { handle: () => ({ ok: true }) } })],
+    channels: [
+      withHandlers(contract, { ping: { handler: () => ({ ok: true }) } }),
+    ],
   }),
 };
 `,

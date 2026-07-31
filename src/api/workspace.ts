@@ -14,7 +14,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import type { ReactNode } from "react";
-import { toChannelCanonicalId } from "./channel-normalization";
+import { toChannelCanonicalId } from "./channel-resolution";
 import { isIdToken } from "./contribution-id";
 import type { ChannelContract } from "./channels";
 import {

@@ -26,7 +26,7 @@ function channelContribution(name = "refresh") {
       [name]: {
         requestSchema: emptyParams,
         responseSchema: Type.Void(),
-        handle: () => undefined,
+        handler: () => undefined,
       },
     },
     events: {},
@@ -71,7 +71,7 @@ describe("registerFeatureContributions", () => {
       unhandle: () => undefined,
     });
     const channels = new ChannelRegistry({
-      transportHandle: () => ({
+      transportRegistrar: () => ({
         [Symbol.dispose]() {},
       }),
     });

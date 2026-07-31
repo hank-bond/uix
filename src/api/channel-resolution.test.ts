@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import { Type } from "typebox";
 
 import {
+  resolveChannelContribution,
   toChannelCanonicalId,
-  normalizeChannelContribution,
-} from "./channel-normalization";
+} from "./channel-resolution";
 import { toContributionId } from "./contribution-id";
 
 describe("channelCanonicalId", () => {
@@ -33,15 +33,15 @@ describe("contributionId", () => {
   });
 });
 
-describe("normalizeChannelContribution", () => {
+describe("resolveChannelContribution", () => {
   it("derives contribution and canonical ids from feature id and names", () => {
-    const channels = normalizeChannelContribution("canvas", {
+    const channels = resolveChannelContribution("canvas", {
       feature: "canvas",
       requests: {
         writeback: {
           requestSchema: Type.Object({ html: Type.String() }),
           responseSchema: Type.Void(),
-          handle: () => undefined,
+          handler: () => undefined,
         },
       },
       events: {
@@ -65,13 +65,13 @@ describe("normalizeChannelContribution", () => {
 
   it("rejects duplicate request/event names", () => {
     expect(() =>
-      normalizeChannelContribution("canvas", {
+      resolveChannelContribution("canvas", {
         feature: "canvas",
         requests: {
           changed: {
             requestSchema: Type.Object({}),
             responseSchema: Type.Void(),
-            handle: () => undefined,
+            handler: () => undefined,
           },
         },
         events: {
