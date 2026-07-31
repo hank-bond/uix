@@ -44,7 +44,7 @@ import {
 } from "#shared/surface-shared-modules";
 
 import { createLogger } from "../log";
-import type { SurfaceRegistration } from "./surfaces";
+import type { ResolvedSurfaceContribution } from "./surfaces";
 
 const log = createLogger("surfaces");
 
@@ -130,7 +130,7 @@ export class SurfaceModulePipeline {
    * surface can't be served stale.
    */
   async buildAll(
-    registrations: readonly SurfaceRegistration[],
+    surfaces: readonly ResolvedSurfaceContribution[],
   ): Promise<SurfaceEntry[]> {
     const version = ++this.#buildVersion;
     const built = new Map<string, BuiltModule>();
@@ -138,45 +138,45 @@ export class SurfaceModulePipeline {
     const entries: SurfaceEntry[] = [];
     const perFeatureIndex = new Map<string, number>();
 
-    for (const registration of registrations) {
-      const index = perFeatureIndex.get(registration.featureId) ?? 0;
-      perFeatureIndex.set(registration.featureId, index + 1);
+    for (const surface of surfaces) {
+      const index = perFeatureIndex.get(surface.featureId) ?? 0;
+      perFeatureIndex.set(surface.featureId, index + 1);
 
       const file = `${String(index)}.js`;
       try {
         // Realpath so containment checks agree with esbuild's resolved
         // paths (macOS /tmp is a symlink, and feature dirs may be too).
-        const featureRoot = await realpath(registration.featureRoot);
-        roots.set(registration.featureId, featureRoot);
-        const module = await this.#bundle(registration, featureRoot);
-        built.set(`${registration.featureId}/${file}`, module);
+        const featureRoot = await realpath(surface.featureRoot);
+        roots.set(surface.featureId, featureRoot);
+        const module = await this.#bundle(surface, featureRoot);
+        built.set(`${surface.featureId}/${file}`, module);
         entries.push({
-          featureId: registration.featureId,
-          entry: registration.entry,
+          featureId: surface.featureId,
+          entry: surface.entry,
           url: encodeResourceUrl(ModuleRoute, {
             featureId: "uix",
             name: ModuleRouteName,
             workspaceId: this.#workspaceId,
-            params: { feature: registration.featureId, file },
+            params: { feature: surface.featureId, file },
             query: { v: module.hash },
           }),
         });
         log.debug(
-          { feature: registration.featureId, entry: registration.entry },
+          { feature: surface.featureId, entry: surface.entry },
           "surface_built",
         );
       } catch (thrown) {
         const error =
           thrown instanceof Error ? thrown : new Error(String(thrown));
         entries.push({
-          featureId: registration.featureId,
-          entry: registration.entry,
+          featureId: surface.featureId,
+          entry: surface.entry,
           error: error.message,
         });
         log.error(
           {
-            feature: registration.featureId,
-            entry: registration.entry,
+            feature: surface.featureId,
+            entry: surface.entry,
             err: error.message,
           },
           "surface_build_failed",
@@ -250,11 +250,11 @@ export class SurfaceModulePipeline {
   }
 
   async #bundle(
-    registration: SurfaceRegistration,
+    surface: ResolvedSurfaceContribution,
     featureRoot: string,
   ): Promise<BuiltModule> {
     const result = await build({
-      entryPoints: [registration.entry],
+      entryPoints: [surface.entry],
       bundle: true,
       write: false,
       format: "esm",
@@ -267,7 +267,7 @@ export class SurfaceModulePipeline {
       tsconfigRaw: { compilerOptions: { jsx: "react-jsx" } },
       plugins: [
         sharedModulesPlugin,
-        this.#cssPlugin(registration.featureId, featureRoot),
+        this.#cssPlugin(surface.featureId, featureRoot),
       ],
     });
     const code = result.outputFiles[0]?.text ?? "";

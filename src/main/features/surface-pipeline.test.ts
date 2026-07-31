@@ -11,12 +11,12 @@ import { describe, expect, it } from "vitest";
 import type { ResourceRequestContext } from "@uix/api/resources";
 
 import { SurfaceModulePipeline } from "./surface-pipeline";
-import type { SurfaceRegistration } from "./surfaces";
+import type { ResolvedSurfaceContribution } from "./surfaces";
 
 async function writeFeature(
   files: Record<string, string>,
   entry = "surface.tsx",
-): Promise<SurfaceRegistration> {
+): Promise<ResolvedSurfaceContribution> {
   const root = await mkdtemp(join(tmpdir(), "uix-surface-test-"));
   for (const [file, source] of Object.entries(files)) {
     await mkdir(dirname(join(root, file)), { recursive: true });
