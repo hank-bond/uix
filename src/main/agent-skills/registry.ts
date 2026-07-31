@@ -1,8 +1,9 @@
 // Feature-supplied Pi skills.
 //
 // Features declare files/directories relative to their entry file. The registry
-// holds resolved paths in manifest order; one substrate installer forwards the
-// runtime snapshot through Pi's resources_discover event.
+// stores resolved contributions in manifest and declaration order; one
+// substrate installer forwards the active path snapshot through Pi's
+// resources_discover event.
 
 import { isAbsolute, resolve } from "node:path";
 
@@ -10,26 +11,48 @@ import type { AgentSkillContribution } from "@uix/api/agent-skills";
 import type { AgentInstaller } from "../agent/installers";
 import { disposable } from "../lifecycle";
 
-interface AgentSkillRegistration {
+export interface ResolvedAgentSkillContribution {
   readonly featureId: string;
   readonly path: string;
 }
 
 export class AgentSkillRegistry {
-  #entries: AgentSkillRegistration[] = [];
+  #registeredSkills: ResolvedAgentSkillContribution[] = [];
 
-  register(entries: readonly AgentSkillRegistration[]): Disposable {
-    const added = [...entries];
-    this.#entries.push(...added);
+  register(
+    resolvedContributions: readonly ResolvedAgentSkillContribution[],
+  ): Disposable {
+    const added = [...resolvedContributions];
+    this.#registeredSkills.push(...added);
     return disposable(() => {
-      this.#entries = this.#entries.filter((entry) => !added.includes(entry));
+      this.#registeredSkills = this.#registeredSkills.filter(
+        (skill) => !added.includes(skill),
+      );
     });
   }
 
-  /** Current resolved skill paths in manifest registration order. */
-  list(): readonly string[] {
-    return this.#entries.map((entry) => entry.path);
+  /** Current resolved skills in manifest and declaration order. */
+  list(): readonly ResolvedAgentSkillContribution[] {
+    return [...this.#registeredSkills];
   }
+}
+
+export function resolveAgentSkillContributions(
+  featureId: string,
+  contributions: readonly AgentSkillContribution[],
+  entryDir: string,
+): readonly ResolvedAgentSkillContribution[] {
+  return contributions.map((ref) => {
+    if (typeof ref !== "string" || ref.trim() === "") {
+      throw new Error(
+        `Feature ${featureId} has an invalid agent skill ref: ${String(ref)}`,
+      );
+    }
+    return {
+      featureId,
+      path: isAbsolute(ref) ? ref : resolve(entryDir, ref),
+    };
+  });
 }
 
 export function registerAgentSkillContributions(
@@ -39,17 +62,7 @@ export function registerAgentSkillContributions(
   entryDir: string,
 ): Disposable {
   return registry.register(
-    contributions.map((ref) => {
-      if (typeof ref !== "string" || ref.trim() === "") {
-        throw new Error(
-          `Feature ${featureId} has an invalid agent skill ref: ${String(ref)}`,
-        );
-      }
-      return {
-        featureId,
-        path: isAbsolute(ref) ? ref : resolve(entryDir, ref),
-      };
-    }),
+    resolveAgentSkillContributions(featureId, contributions, entryDir),
   );
 }
 
@@ -58,7 +71,7 @@ export function createAgentSkillInstaller(
   registry: AgentSkillRegistry,
 ): AgentInstaller {
   return (pi) => {
-    const skillPaths = [...registry.list()];
+    const skillPaths = registry.list().map((skill) => skill.path);
     if (skillPaths.length === 0) return;
     pi.on("resources_discover", () => ({ skillPaths }));
   };

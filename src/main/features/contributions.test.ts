@@ -148,7 +148,10 @@ describe("registerFeatureContributions", () => {
       }),
     ).toThrow("Agent system prompt already registered: canvas");
     expect(agentSkills.list()).toEqual([
-      "/workspace/features/canvas/skills/canvas-authoring",
+      {
+        featureId: "canvas",
+        path: "/workspace/features/canvas/skills/canvas-authoring",
+      },
     ]);
     expect(() =>
       registerFeatureContributions({ turnState }, "canvas", {

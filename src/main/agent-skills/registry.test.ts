@@ -7,12 +7,13 @@ import {
   AgentSkillRegistry,
   createAgentSkillInstaller,
   registerAgentSkillContributions,
+  resolveAgentSkillContributions,
 } from "./registry";
 
 describe("AgentSkillRegistry", () => {
-  it("resolves feature-relative paths in registration order and disposes them", () => {
+  it("resolves feature-relative paths in manifest and declaration order and disposes them", () => {
     const registry = new AgentSkillRegistry();
-    const first = registerAgentSkillContributions(
+    const skillsDisposable = registerAgentSkillContributions(
       registry,
       "canvas",
       ["./skills/canvas-authoring", "/shared/skill.md"],
@@ -26,14 +27,23 @@ describe("AgentSkillRegistry", () => {
     );
 
     expect(registry.list()).toEqual([
-      resolve("/workspace/features/canvas/skills/canvas-authoring"),
-      "/shared/skill.md",
-      resolve("/workspace/features/reports/skills/reporting"),
+      {
+        featureId: "canvas",
+        path: resolve("/workspace/features/canvas/skills/canvas-authoring"),
+      },
+      { featureId: "canvas", path: "/shared/skill.md" },
+      {
+        featureId: "reports",
+        path: resolve("/workspace/features/reports/skills/reporting"),
+      },
     ]);
 
-    first[Symbol.dispose]();
+    skillsDisposable[Symbol.dispose]();
     expect(registry.list()).toEqual([
-      resolve("/workspace/features/reports/skills/reporting"),
+      {
+        featureId: "reports",
+        path: resolve("/workspace/features/reports/skills/reporting"),
+      },
     ]);
   });
 
@@ -62,12 +72,7 @@ describe("AgentSkillRegistry", () => {
 
   it("rejects empty skill refs", () => {
     expect(() =>
-      registerAgentSkillContributions(
-        new AgentSkillRegistry(),
-        "canvas",
-        [""],
-        "/feature",
-      ),
+      resolveAgentSkillContributions("canvas", [""], "/feature"),
     ).toThrow("invalid agent skill ref");
   });
 });
