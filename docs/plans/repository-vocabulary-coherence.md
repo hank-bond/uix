@@ -40,7 +40,7 @@ Acceptance:
 
 ## V1 — Canonical glossary and naming rules
 
-Reconcile `docs/architecture/concepts.md` and `conventions.md` into one coherent vocabulary contract. Concepts defines what each architectural noun means; conventions defines how those nouns and operation verbs appear in code. Remove stale feature/extension framing and implementation paths while preserving Pi's own extension vocabulary.
+Reconcile `docs/architecture/concepts.md` and the `docs/architecture/conventions/` collection into one coherent vocabulary contract. Concepts defines what each architectural noun means; conventions defines how those nouns and operation verbs appear in code. Remove stale feature/extension framing and implementation paths while preserving Pi's own extension vocabulary.
 
 Explicitly settle the contribution pipeline vocabulary: author shape, normalized registry record, live registered state, public projection, and registration-returned capability. Settle whether `Handle` remains at all; how callback, handler, and listener differ; when a consumer-facing object is a Client; and when a registry exposes `list()` versus a named snapshot. Document receiver-context qualification and the rule for justified exceptions.
 

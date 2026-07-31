@@ -21,7 +21,7 @@ Things we've named but not resolved. Each gets pinned to a milestone when it bec
 ## Documentation
 
 - **`src/docs/` ↔ `docs/` split discipline.** Easy to drift. The habit: when an extension API changes, the `src/docs/` page changes in the same commit. `docs/` may lag code; `src/docs/` may not.
-- **What does `conventions.md` become** once there's a stable extension lifetime API? Likely splits: cockpit-internal rules stay here, extension-author rules move to `src/docs/lifetimes.md`.
+- **How does the conventions collection divide responsibility** once there's a stable extension lifetime API? Cockpit-internal rules likely stay in [`conventions/`](./conventions/AGENTS.md), while extension-author rules move to `src/docs/lifetimes.md`.
 
 ## Future apps (not substrate, but shaping it)
 

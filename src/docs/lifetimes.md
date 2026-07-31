@@ -18,4 +18,4 @@ Feature authors do not receive a `DisposableBag` object directly. The substrate 
 
 Malformed workspace candidates fail before `featuresBag` is cleared, leaving the active feature composition and settings owner intact. A failed feature activation disposes that entry's entire provisional bag and continues with sibling entries. Registration disposables remove the exact object they created, so disposing an earlier activated feature instance cannot remove a replacement instance's registration with the same id. Disposing an activated feature instance removes its live settings scope but never deletes values already committed to the manifest.
 
-For substrate-internal registration rules, see [`../../docs/architecture/conventions.md`](../../docs/architecture/conventions.md).
+For substrate-internal registration rules, see [`../../docs/architecture/conventions/registrations-and-lifetimes.md`](../../docs/architecture/conventions/registrations-and-lifetimes.md).

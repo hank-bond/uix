@@ -38,7 +38,8 @@ const layers = [
   { dir: "docs", kind: "container" },
   { dir: "docs/decisions", sort: "date-desc" },
   { dir: "docs/design", sort: "slug-asc" },
-  { dir: "docs/architecture", sort: "slug-asc" },
+  { dir: "docs/architecture", kind: "container" },
+  { dir: "docs/architecture/conventions", sort: "slug-asc" },
   { dir: "docs/plans", sort: "slug-asc" },
   { dir: "src/docs", sort: "slug-asc" },
   { dir: "website", sort: "slug-asc" },
@@ -53,7 +54,7 @@ const NOTE =
   "<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->";
 
 // "2026-05-31-foo.md" -> { date: "2026-05-31", slug: "foo" }
-// "conventions.md"    -> { date: null, slug: "conventions" }
+// "logging.md"        -> { date: null, slug: "logging" }
 function identify(name) {
   const base = name.replace(/\.md$/, "");
   const dated = base.match(/^(\d{4}-\d{2}-\d{2})-(.+)$/);
