@@ -25,7 +25,7 @@ The substrate registers every facet under the owning feature id. That id prefixe
 
 ## Current facets
 
-- **Resources** — route handlers for `uix-resource://...` URLs.
+- **Resources** — route handlers for `uix-resource://...` URLs. A `ResourceContribution` stores its callback as `handler`; the substrate resolves owner-scoped ids before the resource registry makes the resource live.
 - **Channels** — typed backend request handlers plus backend-published events.
 - **Agent tools** — Pi tool definitions installed into the owned agent session. `agentTools` are always feature-namespaced; `agentToolOverrides` intentionally register exact names. A competing exact-name claim fails and rolls back the later feature's activation rather than silently selecting an implementation. UIX starts Pi without active built-in tools, so every available coding tool comes from the workspace's explicit feature composition.
 - **Agent system prompt** — one stable Markdown section per feature, appended in manifest order when the Pi runtime starts or reloads.

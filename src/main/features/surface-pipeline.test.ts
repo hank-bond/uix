@@ -79,7 +79,7 @@ describe("SurfaceModulePipeline", () => {
     );
 
     const [moduleRoute] = pipeline.resourceContributions();
-    const response = moduleRoute?.handle(
+    const response = moduleRoute?.handler(
       request({ feature: "shiny", file: "0.js" }),
     );
     const code = await (await response)?.text();
@@ -170,19 +170,19 @@ describe("SurfaceModulePipeline", () => {
     await pipeline.buildAll([reg]);
     const [, filesRoute] = pipeline.resourceContributions();
 
-    const css = await filesRoute?.handle(
+    const css = await filesRoute?.handler(
       request({ feature: "shiny", path: ["styles.css"] }),
     );
     expect(css?.status).toBe(200);
     expect(css?.headers.get("Content-Type")).toBe("text/css; charset=utf-8");
     expect(await css?.text()).toContain("color: blue");
 
-    const traversal = await filesRoute?.handle(
+    const traversal = await filesRoute?.handler(
       request({ feature: "shiny", path: ["..", "secret.txt"] }),
     );
     expect(traversal?.status).toBe(404);
 
-    const missing = await filesRoute?.handle(
+    const missing = await filesRoute?.handler(
       request({ feature: "shiny", path: ["nope.css"] }),
     );
     expect(missing?.status).toBe(404);
@@ -199,14 +199,14 @@ describe("SurfaceModulePipeline", () => {
     await pipeline.buildAll([reg]);
     const [moduleRoute] = pipeline.resourceContributions();
 
-    const fromPage = await moduleRoute?.handle(
+    const fromPage = await moduleRoute?.handler(
       request({ feature: "shiny", file: "0.js" }, "http://localhost:5173"),
     );
     expect(fromPage?.headers.get("Access-Control-Allow-Origin")).toBe(
       "http://localhost:5173",
     );
 
-    const fromIframe = await moduleRoute?.handle(
+    const fromIframe = await moduleRoute?.handler(
       request(
         { feature: "shiny", file: "0.js" },
         "uix-resource://canvas.local",
@@ -224,7 +224,7 @@ describe("SurfaceModulePipeline", () => {
     await pipeline.buildAll([]);
 
     const [moduleRoute] = pipeline.resourceContributions();
-    const response = await moduleRoute?.handle(
+    const response = await moduleRoute?.handler(
       request({ feature: "shiny", file: "0.js" }),
     );
     expect(response?.status).toBe(404);
@@ -241,7 +241,7 @@ describe("SurfaceModulePipeline", () => {
     await olderBuild;
 
     const [moduleRoute] = pipeline.resourceContributions();
-    const response = await moduleRoute?.handle(
+    const response = await moduleRoute?.handler(
       request({ feature: "shiny", file: "0.js" }),
     );
     expect(response?.status).toBe(404);

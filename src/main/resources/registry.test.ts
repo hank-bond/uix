@@ -21,15 +21,17 @@ function fakeTransport() {
   return {
     handlers,
     disposed,
-    handle(
+    register(
       scheme: string,
-      fn: (request: Request) => Response | Promise<Response>,
+      handler: (request: Request) => Response | Promise<Response>,
     ) {
-      handlers.set(scheme, fn);
-    },
-    unhandle(scheme: string) {
-      disposed.push(scheme);
-      handlers.delete(scheme);
+      handlers.set(scheme, handler);
+      return {
+        [Symbol.dispose]() {
+          disposed.push(scheme);
+          handlers.delete(scheme);
+        },
+      };
     },
   };
 }
@@ -37,8 +39,8 @@ function fakeTransport() {
 function createTestRegistry(transport = fakeTransport()) {
   const registry = new ResourceRegistry({
     workspaceId: "blue-river",
-    handle: (scheme, fn) => transport.handle(scheme, fn),
-    unhandle: (scheme) => transport.unhandle(scheme),
+    transportRegistrar: (scheme, handler) =>
+      transport.register(scheme, handler),
   });
   return { registry, transport };
 }
@@ -69,16 +71,20 @@ describe("ResourceRegistry", () => {
   it("dispatches resource requests through parsed route context", async () => {
     const { registry, transport } = createTestRegistry();
 
-    const registration = registerResourceContributions(registry, "canvas", [
-      {
-        name: "doc",
-        route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
-        handle: ({ params }) =>
-          new Response(`hello ${JSON.stringify(params["key"])}`, {
-            status: 200,
-          }),
-      },
-    ]);
+    const resourcesDisposable = registerResourceContributions(
+      registry,
+      "canvas",
+      [
+        {
+          name: "doc",
+          route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
+          handler: ({ params }) =>
+            new Response(`hello ${JSON.stringify(params["key"])}`, {
+              status: 200,
+            }),
+        },
+      ],
+    );
 
     const response = await transport.handlers.get(ResourceProtocolScheme)?.(
       new Request("uix-resource://canvas.blue-river/doc/reports/security"),
@@ -86,7 +92,7 @@ describe("ResourceRegistry", () => {
 
     expect(await response?.text()).toBe('hello ["reports","security"]');
 
-    registration[Symbol.dispose]();
+    resourcesDisposable[Symbol.dispose]();
 
     const afterDispose = await transport.handlers.get(ResourceProtocolScheme)?.(
       new Request("uix-resource://canvas.blue-river/doc/reports/security"),
@@ -101,7 +107,7 @@ describe("ResourceRegistry", () => {
       {
         name: "doc",
         route: normalizeResourceRoute({ path: "/:id", origin: "workspace" }),
-        handle: ({ params }) => new Response(String(params["id"])),
+        handler: ({ params }) => new Response(String(params["id"])),
       },
     ]);
 
@@ -124,7 +130,7 @@ describe("ResourceRegistry", () => {
           query: Type.Object({ v: Type.Optional(Type.String()) }),
           origin: "feature",
         }),
-        handle: () => {
+        handler: () => {
           called = true;
           return new Response("ok");
         },
@@ -142,20 +148,24 @@ describe("ResourceRegistry", () => {
   it("rejects duplicate resource ids and resource types until disposed", () => {
     const { registry } = createTestRegistry();
 
-    const registration = registerResourceContributions(registry, "canvas", [
-      {
-        name: "doc",
-        route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
-        handle: () => new Response(""),
-      },
-    ]);
+    const resourcesDisposable = registerResourceContributions(
+      registry,
+      "canvas",
+      [
+        {
+          name: "doc",
+          route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
+          handler: () => new Response(""),
+        },
+      ],
+    );
 
     expect(() =>
       registerResourceContributions(registry, "canvas", [
         {
           name: "doc",
           route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
-          handle: () => new Response(""),
+          handler: () => new Response(""),
         },
       ]),
     ).toThrow("Resource already registered: canvas-doc");
@@ -165,7 +175,7 @@ describe("ResourceRegistry", () => {
       {
         name: "doc-html",
         route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
-        handle: () => new Response(""),
+        handler: () => new Response(""),
       },
     ]);
     expect(() =>
@@ -173,30 +183,30 @@ describe("ResourceRegistry", () => {
         {
           name: "html",
           route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
-          handle: () => new Response(""),
+          handler: () => new Response(""),
         },
       ]),
     ).toThrow("Resource already registered: canvas-doc-html");
 
-    registration[Symbol.dispose]();
+    resourcesDisposable[Symbol.dispose]();
 
     expect(() =>
       registerResourceContributions(registry, "canvas", [
         {
           name: "doc",
           route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
-          handle: () => new Response(""),
+          handler: () => new Response(""),
         },
       ]),
     ).not.toThrow();
   });
 
-  it("rolls back earlier resources when bulk registration fails", () => {
+  it("rolls back earlier resources when the bulk register operation fails", () => {
     const { registry } = createTestRegistry();
     const doc = {
       name: "doc",
       route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
-      handle: () => new Response("doc"),
+      handler: () => new Response("doc"),
     } as const;
 
     expect(() =>
@@ -211,18 +221,22 @@ describe("ResourceRegistry", () => {
   it("registers contribution groups and disposes them together", async () => {
     const { registry, transport } = createTestRegistry();
 
-    const registration = registerResourceContributions(registry, "canvas", [
-      {
-        name: "doc",
-        route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
-        handle: () => new Response("doc"),
-      },
-      {
-        name: "asset",
-        route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
-        handle: () => new Response("asset"),
-      },
-    ]);
+    const resourcesDisposable = registerResourceContributions(
+      registry,
+      "canvas",
+      [
+        {
+          name: "doc",
+          route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
+          handler: () => new Response("doc"),
+        },
+        {
+          name: "asset",
+          route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
+          handler: () => new Response("asset"),
+        },
+      ],
+    );
 
     const doc = await transport.handlers.get(ResourceProtocolScheme)?.(
       new Request("uix-resource://canvas.blue-river/doc/main"),
@@ -233,7 +247,7 @@ describe("ResourceRegistry", () => {
     expect(await doc?.text()).toBe("doc");
     expect(await asset?.text()).toBe("asset");
 
-    registration[Symbol.dispose]();
+    resourcesDisposable[Symbol.dispose]();
 
     const missing = await transport.handlers.get(ResourceProtocolScheme)?.(
       new Request("uix-resource://canvas.blue-river/doc/main"),
@@ -241,7 +255,7 @@ describe("ResourceRegistry", () => {
     expect(missing?.status).toBe(404);
   });
 
-  it("unhandles the transport when the registry is disposed", () => {
+  it("disposes the transport handler when the registry is disposed", () => {
     const { registry, transport } = createTestRegistry();
 
     registry[Symbol.dispose]();

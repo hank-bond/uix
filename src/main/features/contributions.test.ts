@@ -37,7 +37,7 @@ function resourceContribution(name = "doc") {
   return {
     name,
     route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
-    handle: () => new Response(""),
+    handler: () => new Response(""),
   };
 }
 
@@ -67,8 +67,9 @@ describe("registerFeatureContributions", () => {
   it("registers all contribution groups and disposes them together", () => {
     const resources = new ResourceRegistry({
       workspaceId: "local",
-      handle: () => undefined,
-      unhandle: () => undefined,
+      transportRegistrar: () => ({
+        [Symbol.dispose]() {},
+      }),
     });
     const channels = new ChannelRegistry({
       transportRegistrar: () => ({
@@ -207,8 +208,9 @@ describe("registerFeatureContributions", () => {
   it("rolls back earlier facets when a later facet fails", () => {
     const resources = new ResourceRegistry({
       workspaceId: "local",
-      handle: () => undefined,
-      unhandle: () => undefined,
+      transportRegistrar: () => ({
+        [Symbol.dispose]() {},
+      }),
     });
 
     expect(() =>

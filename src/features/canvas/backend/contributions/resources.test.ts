@@ -66,7 +66,7 @@ describe("createCanvasResourceContributions", () => {
       fakeCanvasContext(memoryStore({ main: "<p>Hello</p>" })),
     );
 
-    const response = await resource.handle({
+    const response = await resource.handler({
       request: new Request("uix-resource://canvas.local/doc/main"),
       params: { key: ["main"] },
       query: {},
@@ -89,7 +89,7 @@ describe("createCanvasResourceContributions", () => {
       fakeCanvasContext(memoryStore()),
     );
 
-    const response = await resource.handle({
+    const response = await resource.handler({
       request: new Request("uix-resource://canvas.local/doc/main"),
       params: { key: ["main"] },
       query: {},

@@ -199,7 +199,7 @@ export class SurfaceModulePipeline {
       {
         name: ModuleRouteName,
         route: ModuleRoute,
-        handle: ({ request, params }) => {
+        handler: ({ request, params }) => {
           const key = `${String(params["feature"])}/${String(params["file"])}`;
           const module = this.#built.get(key);
           if (!module) {
@@ -218,7 +218,7 @@ export class SurfaceModulePipeline {
       {
         name: FilesRouteName,
         route: FilesRoute,
-        handle: async ({ request, params }) => {
+        handler: async ({ request, params }) => {
           const featureId = String(params["feature"]);
           const root = this.#roots.get(featureId);
           const segments = params["path"];

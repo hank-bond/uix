@@ -39,7 +39,7 @@ export interface ResourceContribution<Query extends TSchema = TSchema> {
   name: string;
   /** Normalized route from a `createResourceAddressBuilder` call — pass `builder.route`. */
   route: NormalizedResourceRoute<Query>;
-  handle: (ctx: ResourceRequestContext) => Response | Promise<Response>;
+  handler: (ctx: ResourceRequestContext) => Response | Promise<Response>;
 }
 
 export interface ResourceRouteDefinition<Query extends TSchema = TSchema> {
