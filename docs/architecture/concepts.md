@@ -52,9 +52,9 @@ Event payload shapes are defined by the emitting substrate facet. If a pane-orig
 
 **Resource ids** name addressable things. URI schemes identify substrate resource managers: `doc://canvas/main` is a document-engine resource in the canvas namespace; `workspace://src/main.ts` is a workspace file interpreted relative to the turn's recorded cwd. Feature/facet organization does not appear inside resource paths — the same resource may be read by a pane, edited by an agent tool, captured in a state snapshot, and restored by the coordinator.
 
-Use `uix.*` only for substrate-owned dotted ids (envelopes/customTypes). Bundled default features are still features, so their contribution ids use feature namespaces such as `canvas.*` and `chat.*`.
+Use `uix.*` only for substrate-owned dotted ids (envelopes/customTypes). First-party default features are still features, so their contribution ids use feature namespaces such as `canvas.*` and `chat.*`.
 
-The build spec for landing this model across the five facets is [contribution-id-derivation](../plans/contribution-id-derivation.md).
+The build spec for landing this model across the five facets is [contribution-id-derivation](../plans/archive/contribution-id-derivation.md).
 
 ## Contribution point
 

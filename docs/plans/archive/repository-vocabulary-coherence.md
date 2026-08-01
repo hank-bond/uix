@@ -1,6 +1,6 @@
 ---
-summary: "Audit and reconcile UIX vocabulary repo-wide in four review-gated units: inventory shape/lifecycle terms and drift, settle the canonical glossary, migrate public APIs before subsystem internals, then repair docs and add lightweight coherence checks."
-status: active
+summary: "Reconciled UIX vocabulary repo-wide through an inventory, canonical glossary, behavior-neutral public and internal migrations, active-doc repair, and lightweight regression checks."
+status: landed
 ---
 
 # Repository vocabulary coherence
