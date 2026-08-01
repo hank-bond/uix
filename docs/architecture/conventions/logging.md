@@ -24,7 +24,7 @@ featureLog.error({ err: error.message }, "activation_failed");
 
 **Conventions.**
 
-- **Message = lowercase snake_case event identifier.** Use a stable operation-state name such as `activation_succeeded`, `activation_failed`, or `reload_started`; do not encode prose in the event id.
+- **Message = lowercase snake_case event identifier.** Use a stable operation-state name such as `activation_succeeded`, `activation_failed`, or `reload_started`; do not encode prose in the event id. The IPC wire-log boundary is the sole exception: it uses `<phase>:<channel>` because each line identifies a concrete protocol crossing rather than an application event.
 - **All context in the fields object.** Never interpolate state into the message string.
 - **Component is the subsystem.** Use names such as `features`, `surfaces`, `agent`, `channels`, or `main`. No `uix.` prefix is necessary. Do not repeat the component in the event id.
 - **Per-instance child loggers** provide attribution. When handling many things of one kind, such as features or sessions, create a child logger with the stable identifying fields: `const featureLog = log.child({ feature: displayName, entry })`.

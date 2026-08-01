@@ -4,9 +4,9 @@
 // is the inbound chokepoint (invoke endpoints), `send()` the outbound one
 // (pushes to a window). The wire log lives here too, module-private, so the
 // only way to produce a wire-log line is to actually cross the wire — the
-// log can be neither dodged nor spoofed. Project policy (enforced by
-// convention for now, eslint later): no direct `ipcMain.handle` or
-// `webContents.send` outside this module.
+// log can be neither dodged nor spoofed. Project policy, enforced for these
+// known calls by ESLint: no direct `ipcMain.handle` or `webContents.send`
+// outside this module.
 //
 // Each crossing is captured twice, in the `ipc` log space:
 //  - terminal (`ipc` component): the payload itself, rendered by the shared

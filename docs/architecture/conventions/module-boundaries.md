@@ -84,6 +84,8 @@ import fs from "node:fs";
 
 - **Visibility.** The import list is where a reader scans to see what a module touches. A module that reads `process.env` or `process.cwd()` has a real dependency on the runtime environment; surfacing it at the top of the file makes that legible.
 - **Consistency.** We already import `path`, `fs`, `os` etc. as modules. Treating `process` the same way removes a special case.
-- **Future lint enforcement.** This makes it easy to add a `no-restricted-globals` rule later — the rule has zero cleanup cost because we're already importing everywhere.
+- **Lint enforcement.** ESLint rejects ambient `process` and `Buffer` access and bare Node built-in imports, so runtime dependencies stay visible and consistently use the `node:` prefix.
 
 **Scope.** In practice, very few modules should need direct `process` access at all. Things that read environment variables, cwd, or platform state should either be in the composition root (`src/main/index.ts`) or be substrate utilities that it wires together, such as `log.ts` and `lifecycle.ts`. Feature code does not import `process` directly; runtime environment capabilities belong in the injected `FeatureContext` when a feature needs them.
+
+ESLint also rejects production feature imports of `src/main/` and the `#backend` alias. White-box feature tests may import an internal subsystem when that subsystem is the subject of the test; those test modules are not loaded feature code.

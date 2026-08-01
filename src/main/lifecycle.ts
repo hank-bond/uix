@@ -111,8 +111,7 @@ export function onAbort(signal: AbortSignal, listener: () => void): Disposable {
 // ─── Electron-side lifetime helpers ──────────────────────────────────
 //
 // Each helper attaches behavior and returns a Disposable that removes it.
-// Project policy (enforced by convention for now, eslint
-// later): code that needs to register a listener uses these helpers
+// Project policy: code that needs to register a listener uses these helpers
 // instead of calling `app.on`, `win.on`, etc. directly. The IPC boundary
 // (`handle`/`send`) lives in ./ipc.ts, which follows the same convention.
 

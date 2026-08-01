@@ -357,7 +357,7 @@ async function commitTurnState(opts: CommitTurnStateOptions): Promise<void> {
 
   const changedCellCount = Object.keys(changedState).length;
   if (changedCellCount === 0 && baseline.cwd === opts.cwd) {
-    log.debug("no_state_changed");
+    log.debug({}, "no_state_changed");
     return;
   }
   log.debug(

@@ -13,19 +13,104 @@
 //          `process.on` outside `lifecycle.ts`), and the IPC boundary
 //          is mandatory (no raw `ipcMain.handle`, `webContents.send`
 //          outside `ipc.ts`)
-//        - logging goes through `createLogger`, not `console.*`
-//          (in the main process only — renderer/preload don't have
-//          a logging story yet)
-//        - Node built-in globals are imported explicitly, never
-//          accessed as ambient globals
+//        - logging goes through `createLogger` with structured fields and a
+//          stable event id (in the main process only — renderer/preload don't
+//          have a logging story yet)
+//        - Node built-ins use explicit `node:` imports
+//        - production feature modules do not import cockpit internals
+//        - React hooks obey call-order and dependency rules
 //
 // Prettier handles formatting and is layered last so its rule
 // disables win over anything stylistic.
 
+import { builtinModules } from "node:module";
+
 import js from "@eslint/js";
 import prettier from "eslint-config-prettier";
 import globals from "globals";
+import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
+
+const bareNodeBuiltinImports = builtinModules
+  .filter((name) => !name.startsWith("node:"))
+  .map((name) => ({
+    name,
+    message: `Import ${name} through the node: prefix. See docs/architecture/conventions/module-boundaries.md.`,
+  }));
+
+const appEventRestriction = {
+  selector:
+    "CallExpression[callee.object.name='app'][callee.property.name=/^(on|off|once|addListener|removeListener|prependListener|prependOnceListener)$/]",
+  message:
+    "Use onApp() from src/main/lifecycle.ts instead of app.on / app.off. See docs/architecture/conventions/lifetimes.md.",
+};
+const ipcMainRestriction = {
+  selector:
+    "CallExpression[callee.object.name='ipcMain'][callee.property.name=/^(handle|handleOnce|on|once|removeHandler|removeListener)$/]",
+  message:
+    "Use handle() from src/main/ipc.ts instead of ipcMain.handle / ipcMain.on. See docs/architecture/conventions/lifetimes.md.",
+};
+const webContentsSendRestriction = {
+  selector:
+    "CallExpression[callee.object.property.name='webContents'][callee.property.name=/^(send|postMessage)$/]",
+  message:
+    "Use send() from src/main/ipc.ts instead of webContents.send, so the crossing lands in the wire log. See docs/architecture/conventions/lifetimes.md.",
+};
+const processEventRestriction = {
+  selector:
+    "CallExpression[callee.object.name='process'][callee.property.name=/^(on|off|once|addListener|removeListener|prependListener|prependOnceListener)$/]",
+  message:
+    "Use installProcessHandlers() from src/main/lifecycle.ts instead of process.on directly. See docs/architecture/conventions/lifetimes.md.",
+};
+
+const LogLevels = new Set(["trace", "debug", "info", "warn", "error", "fatal"]);
+const EventIdPattern = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;
+const uixLintPlugin = {
+  rules: {
+    "structured-log-call": {
+      meta: {
+        type: "problem",
+        docs: {
+          description:
+            "Require main-process log calls to use fields plus a static snake-case event id.",
+        },
+        schema: [],
+        messages: {
+          shape:
+            'Use the structured log shape log.<level>({ ...fields }, "event_name").',
+          event:
+            "Use a static lowercase snake_case event identifier as the second argument.",
+        },
+      },
+      create(context) {
+        return {
+          CallExpression(node) {
+            if (
+              node.callee.type !== "MemberExpression" ||
+              node.callee.computed ||
+              node.callee.property.type !== "Identifier" ||
+              !LogLevels.has(node.callee.property.name)
+            ) {
+              return;
+            }
+            if (node.arguments.length !== 2) {
+              context.report({ node, messageId: "shape" });
+              return;
+            }
+            const event = node.arguments[1];
+            if (
+              event.type !== "Literal" ||
+              typeof event.value !== "string" ||
+              !EventIdPattern.test(event.value)
+            ) {
+              context.report({ node: event, messageId: "event" });
+            }
+          },
+        };
+      },
+    },
+  },
+};
 
 export default tseslint.config(
   {
@@ -83,39 +168,20 @@ export default tseslint.config(
             "Import Buffer from 'node:buffer' instead of using the global.",
         },
       ],
+      "no-restricted-imports": ["error", { paths: bareNodeBuiltinImports }],
 
       // Force the lifecycle helpers and the ipc boundary for known
       // event-emitter APIs. Selectors detect named bindings (plus the
       // `*.webContents.send` shape); other instance-method calls on a
       // window or driver variable aren't catchable from AST alone, so
       // those rely on review + the helper-is-easier-than-disabling
-      // pattern. lifecycle.ts and ipc.ts are excepted below.
+      // pattern. lifecycle.ts and ipc.ts receive narrow overrides below.
       "no-restricted-syntax": [
         "error",
-        {
-          selector:
-            "CallExpression[callee.object.name='app'][callee.property.name=/^(on|off|once|addListener|removeListener|prependListener|prependOnceListener)$/]",
-          message:
-            "Use onApp() from src/main/lifecycle.ts instead of app.on / app.off. See docs/architecture/conventions/lifetimes.md.",
-        },
-        {
-          selector:
-            "CallExpression[callee.object.name='ipcMain'][callee.property.name=/^(handle|handleOnce|on|once|removeHandler|removeListener)$/]",
-          message:
-            "Use handle() from src/main/ipc.ts instead of ipcMain.handle / ipcMain.on. See docs/architecture/conventions/lifetimes.md.",
-        },
-        {
-          selector:
-            "CallExpression[callee.object.property.name='webContents'][callee.property.name=/^(send|postMessage)$/]",
-          message:
-            "Use send() from src/main/ipc.ts instead of webContents.send, so the crossing lands in the wire log. See docs/architecture/conventions/lifetimes.md.",
-        },
-        {
-          selector:
-            "CallExpression[callee.object.name='process'][callee.property.name=/^(on|off|once|addListener|removeListener|prependListener|prependOnceListener)$/]",
-          message:
-            "Use installProcessHandlers() from src/main/lifecycle.ts instead of process.on directly. See docs/architecture/conventions/lifetimes.md.",
-        },
+        appEventRestriction,
+        ipcMainRestriction,
+        webContentsSendRestriction,
+        processEventRestriction,
       ],
 
       // Logging convention: pino via createLogger, not console.*.
@@ -142,12 +208,83 @@ export default tseslint.config(
     },
   },
 
-  // lifecycle.ts and ipc.ts ARE the helper layer; they're allowed to
-  // call the raw APIs the rules above ban for everyone else.
+  // Main-process logs use one mechanically checkable shape. IPC wire logs are
+  // excepted below because their message identifies a dynamic channel crossing.
   {
-    files: ["src/main/lifecycle.ts", "src/main/ipc.ts"],
+    files: ["src/main/**/*.ts"],
+    plugins: { uix: uixLintPlugin },
     rules: {
-      "no-restricted-syntax": "off",
+      "uix/structured-log-call": "error",
+    },
+  },
+  {
+    files: ["src/main/ipc.ts", "src/main/ipc-wire-log.ts"],
+    rules: {
+      "uix/structured-log-call": "off",
+    },
+  },
+
+  // Boundary modules may call only the raw APIs they encapsulate. Keep the
+  // other restrictions active so one helper layer cannot absorb another's role.
+  {
+    files: ["src/main/lifecycle.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ipcMainRestriction,
+        webContentsSendRestriction,
+      ],
+    },
+  },
+  {
+    files: ["src/main/ipc.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        appEventRestriction,
+        processEventRestriction,
+      ],
+    },
+  },
+
+  // Features depend on the injected API, not cockpit implementation modules.
+  // White-box integration tests are outside the loadable feature boundary and
+  // retain explicit access to the subsystem they exercise.
+  {
+    files: ["src/features/**/*.{ts,tsx}"],
+    ignores: ["src/features/**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            ...bareNodeBuiltinImports,
+            {
+              name: "node:process",
+              message:
+                "Feature runtime environment capabilities belong in the injected FeatureContext.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["#backend", "#backend/*", "**/main/**"],
+              message:
+                "Features must use @uix/api and injected context instead of importing cockpit internals.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  // Hooks can live in .ts as well as .tsx, so apply both correctness rules to
+  // all source modules rather than only renderer components.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    plugins: { "react-hooks": reactHooks },
+    rules: {
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "error",
     },
   },
 

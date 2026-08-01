@@ -223,7 +223,7 @@ export async function assembleAgentContextMessage(
 ): Promise<AgentContextMessage | undefined> {
   const liveContributions = registry.list();
   if (liveContributions.length === 0) {
-    log.debug("no_live_contributions");
+    log.debug({}, "no_live_contributions");
     return undefined;
   }
 
@@ -273,7 +273,7 @@ export async function assembleAgentContextMessage(
   }
 
   if (sections.length === 0) {
-    log.debug("nothing_changed");
+    log.debug({}, "nothing_changed");
     return undefined;
   }
 

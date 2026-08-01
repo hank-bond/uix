@@ -781,11 +781,11 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         // state explaining that turn.  We write both before calling
         // session.prompt(text).
         if (turnStateCoordinator) {
-          log.trace("submitting_turn_state");
+          log.trace({}, "submitting_turn_state");
           await turnStateCoordinator.commit(session.sessionManager);
         }
         if (opts.agentContext) {
-          log.trace("building_agent_context");
+          log.trace({}, "building_agent_context");
           const message = await assembleAgentContextMessage(
             session.sessionManager,
             opts.agentContext,
