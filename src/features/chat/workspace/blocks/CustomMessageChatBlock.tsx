@@ -1,6 +1,6 @@
 import type { TranscriptItem } from "@uix/api/agent-channels";
 import { ChatBlockFrame } from "./ChatBlockFrame";
-import { truncateText } from "./content";
+import { truncateText } from "./content/text";
 
 export function CustomMessageChatBlock({
   item,

@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import type { ToolItem } from "./tool";
+import type { ToolItem } from "../rendering";
 import { FileToolContent } from "./FileToolContent";
 
 function item(overrides: Partial<ToolItem> = {}): ToolItem {

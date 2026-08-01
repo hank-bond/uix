@@ -4,7 +4,7 @@ import { ErrorChatBlock } from "./ErrorChatBlock";
 import { MessageChatBlock } from "./MessageChatBlock";
 import { ToolChatBlock } from "./ToolChatBlock";
 
-export interface ChatBlockProps {
+interface ChatBlockProps {
   item: TranscriptItem;
 }
 

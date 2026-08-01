@@ -1,14 +1,14 @@
 import { useState } from "react";
 
-import { toToolTextContent } from "./tool";
-import type { ToolItem } from "./tool";
+import { toToolTextContent } from "../rendering";
+import type { ToolItem } from "../rendering";
 
 export function CanvasToolContent({ item }: { item: ToolItem }) {
-  const [expanded, setExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const payload = toToolTextContent(item);
   const lines = payload ? stripAnchorGutters(payload).split(/\r?\n/) : [];
   const hasMore = lines.length > 5;
-  const visibleLines = expanded ? lines : lines.slice(0, 5);
+  const visibleLines = isExpanded ? lines : lines.slice(0, 5);
 
   return (
     <div className="tool-block canvas-tool-block" data-uix-part="canvas-tool">
@@ -19,17 +19,17 @@ export function CanvasToolContent({ item }: { item: ToolItem }) {
         >
           <pre className="tool-block__payload" data-uix-part="tool-payload">
             {visibleLines.join("\n")}
-            {hasMore && !expanded ? "\n…" : ""}
+            {hasMore && !isExpanded ? "\n…" : ""}
           </pre>
           {hasMore ? (
             <button
               className="canvas-tool-block__toggle"
               type="button"
               data-uix-part="canvas-tool-toggle"
-              aria-expanded={expanded}
-              onClick={() => setExpanded((value) => !value)}
+              aria-expanded={isExpanded}
+              onClick={() => setIsExpanded((value) => !value)}
             >
-              {expanded
+              {isExpanded
                 ? "▾ show less"
                 : `▸ show ${lines.length - 5} more line(s)`}
             </button>

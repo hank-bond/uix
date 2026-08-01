@@ -1,6 +1,6 @@
-import { truncateText } from "./content";
-import { toToolPayloadText } from "./tool";
-import type { ToolItem } from "./tool";
+import { truncateText } from "../../content/text";
+import { toToolPayloadText } from "../rendering";
+import type { ToolItem } from "../rendering";
 
 export function DefaultToolContent({ item }: { item: ToolItem }) {
   const payload = toToolPayloadText(item);

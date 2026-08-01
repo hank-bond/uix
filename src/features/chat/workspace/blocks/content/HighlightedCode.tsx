@@ -24,7 +24,7 @@ const ExtensionLanguages: Readonly<Record<string, string>> = {
   zsh: "bash",
 };
 
-export interface HighlightedCodeProps {
+interface HighlightedCodeProps {
   text: string;
   language?: string;
   className?: string;

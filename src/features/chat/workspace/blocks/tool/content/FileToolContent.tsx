@@ -1,8 +1,11 @@
-import { CodeBlock } from "./CodeBlock";
+import { CodeBlock } from "../../content/CodeBlock";
+import {
+  HighlightedCode,
+  inferCodeLanguageFromPath,
+} from "../../content/HighlightedCode";
+import { toToolTextContent } from "../rendering";
+import type { ToolItem } from "../rendering";
 import { DefaultToolContent } from "./DefaultToolContent";
-import { HighlightedCode, inferCodeLanguageFromPath } from "./HighlightedCode";
-import { toToolTextContent } from "./tool";
-import type { ToolItem } from "./tool";
 
 export function FileToolContent({ item }: { item: ToolItem }) {
   const args = asRecord(item.args);

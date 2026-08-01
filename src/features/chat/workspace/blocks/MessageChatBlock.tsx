@@ -1,7 +1,7 @@
 import type { TranscriptItem } from "@uix/api/agent-channels";
 import { isPendingUserId } from "../pending";
 import { ChatBlockFrame } from "./ChatBlockFrame";
-import { MarkdownContent } from "./MarkdownContent";
+import { MarkdownContent } from "./content/MarkdownContent";
 
 export function MessageChatBlock({
   item,
@@ -16,7 +16,7 @@ export function MessageChatBlock({
       className={className}
       kind={item.kind}
       body={<MarkdownContent text={text} />}
-      unconfirmed={item.kind === "user" && isPendingUserId(item.id)}
+      isUnconfirmed={item.kind === "user" && isPendingUserId(item.id)}
     />
   );
 }

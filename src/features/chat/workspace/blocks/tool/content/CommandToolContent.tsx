@@ -1,16 +1,16 @@
-import { CodeBlock } from "./CodeBlock";
+import { CodeBlock } from "../../content/CodeBlock";
+import { HighlightedCode } from "../../content/HighlightedCode";
+import { toToolTextContent } from "../rendering";
+import type { ToolItem } from "../rendering";
 import { DefaultToolContent } from "./DefaultToolContent";
-import { HighlightedCode } from "./HighlightedCode";
-import { toToolTextContent } from "./tool";
-import type { ToolItem } from "./tool";
 
-export interface CommandToolPresentation {
+interface CommandToolPresentation {
   command: string;
   reason: string;
 }
 
 export function CommandToolContent({ item }: { item: ToolItem }) {
-  const presentation = asCommandToolPresentation(item);
+  const presentation = tryParseCommandToolPresentation(item);
   if (!presentation) return <DefaultToolContent item={item} />;
   const output = toCommandOutput(item);
 
@@ -40,7 +40,7 @@ export function CommandToolContent({ item }: { item: ToolItem }) {
   );
 }
 
-export function asCommandToolPresentation(
+export function tryParseCommandToolPresentation(
   item: ToolItem,
 ): CommandToolPresentation | undefined {
   if (item.toolName !== "command") return undefined;

@@ -1,0 +1,19 @@
+.canvas-tool-block__payload {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.canvas-tool-block__toggle {
+  justify-self: start;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--fg-faint);
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.canvas-tool-block__toggle:hover {
+  color: var(--accent);
+}
