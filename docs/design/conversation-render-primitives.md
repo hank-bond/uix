@@ -1,5 +1,6 @@
 ---
 summary: "Exploring extensible rendering of typed conversation blocks by porting pi's render architecture from TUI to React: a forwarded event stream plus two registries (tool renderers by tool name, message renderers by customType) and pi's content/display/details split."
+kind: explanation
 status: exploring
 ---
 

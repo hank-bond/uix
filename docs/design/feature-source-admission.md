@@ -1,5 +1,6 @@
 ---
 summary: "Exploring how UIX admits agent-authored feature source: TypeScript-only API-conformance checks before activation, TypeBox for unknown runtime data, domain assertions for composition, and feature lifetimes for behavioral failure."
+kind: explanation
 status: exploring
 ---
 

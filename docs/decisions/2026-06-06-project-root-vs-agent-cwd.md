@@ -1,5 +1,6 @@
 ---
 summary: "The stable UIX project root (session history + canvas store, one per app instance) is separate from the mutable agent cwd — a free pointer the agent moves per turn, recorded per turn, and NOT a history branch."
+kind: explanation
 status: accepted
 ---
 

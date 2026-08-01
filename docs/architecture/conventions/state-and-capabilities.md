@@ -1,5 +1,6 @@
 ---
 summary: "Current authority, asynchronous work, cleanup, and caching remain separate while consumers receive narrowly scoped, lazily resolved capabilities instead of owners."
+kind: reference
 read_when: "Read before introducing mutable or asynchronous state, caches, state owners, replacement boundaries, or scoped access to owned state."
 status: active
 ---

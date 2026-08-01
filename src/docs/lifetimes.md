@@ -1,5 +1,6 @@
 ---
 summary: "DisposableBag owns cleanup for app lifetime, reloadable feature activations, window bindings, and the agent driver; feature authors receive scoped capabilities rather than direct bag access."
+kind: reference
 status: active
 ---
 

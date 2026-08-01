@@ -1,5 +1,6 @@
 ---
 summary: "Module APIs stay intentionally small, invalid values stop through explicit guards or assertions, and Node runtime dependencies remain visible as node-prefixed imports."
+kind: reference
 read_when: "Read before exporting a symbol, designing a validation boundary, or introducing a Node runtime dependency."
 status: active
 ---

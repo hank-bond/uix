@@ -1,5 +1,6 @@
 ---
 summary: "Architecture-of-record for what is currently built in UIX and what is in flight."
+kind: reference
 status: active
 ---
 

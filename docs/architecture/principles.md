@@ -1,5 +1,6 @@
 ---
 summary: "Design principles that guide planning and review — the rules we reach for when deciding how to shape a feature or API."
+kind: reference
 status: active
 ---
 

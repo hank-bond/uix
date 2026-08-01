@@ -1,5 +1,6 @@
 ---
 summary: "Exploring how cockpit/extension state reaches the agent and comes back typed: display-hidden custom messages with a system-prompt vocabulary now; agent-context contributions with update/append buffers or turn-state-backed materialization, tools-as-output-contracts, CustomEntry event logs, and fan-out prepared roots as the axes."
+kind: explanation
 status: exploring
 ---
 

@@ -1,5 +1,6 @@
 ---
 summary: "Working mode for UIX implementation sessions: align on design first, split work into the smallest meaningful buildable chunks, and review each chunk for human understanding and explicit cosign before moving on."
+kind: how-to
 read_when: "Read before making multi-step UIX changes with a human in the loop, especially when design and implementation are evolving together."
 status: active
 ---

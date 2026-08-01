@@ -11,11 +11,11 @@ Living docs for the current state of UIX: what is built, how subsystems are shap
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
 
-- **[concepts](./concepts.md)** _(active)_ — Canonical UIX concept vocabulary: features and contributions, registries and catalogs, snapshots, projections and projectors, stores and buffers, runtime coordination, reload reconciliation, and boundaries from pi vocabulary.
+- **[concepts](./concepts.md)** _(active, reference)_ — Canonical UIX concept vocabulary: features and contributions, registries and catalogs, snapshots, projections and projectors, stores and buffers, runtime coordination, reload reconciliation, and boundaries from pi vocabulary.
 - **[conventions/](./conventions/AGENTS.md)** _(active)_ — Prescriptive code rules for UIX — source organization, lifetimes, state ownership, naming, capability handles, comments, accessible UI, styles, module APIs, validation, logging, imports, and lifecycle helpers. _Read before introducing or renaming an exported symbol, recurring architectural term, owner, lifecycle, contribution point, or capability; otherwise descend to the rule matching the code being changed._
-- **[current-state](./current-state.md)** _(active)_ — Architecture-of-record for what is currently built in UIX and what is in flight.
-- **[human-paced-implementation](./human-paced-implementation.md)** _(active)_ — Working mode for UIX implementation sessions: align on design first, split work into the smallest meaningful buildable chunks, and review each chunk for human understanding and explicit cosign before moving on. _Read before making multi-step UIX changes with a human in the loop, especially when design and implementation are evolving together._
-- **[open-questions](./open-questions.md)** _(active)_ — Parking lot for named but unresolved questions across the UIX substrate, documentation, and future apps.
-- **[principles](./principles.md)** _(active)_ — Design principles that guide planning and review — the rules we reach for when deciding how to shape a feature or API.
+- **[current-state](./current-state.md)** _(active, reference)_ — Architecture-of-record for what is currently built in UIX and what is in flight.
+- **[human-paced-implementation](./human-paced-implementation.md)** _(active, how-to)_ — Working mode for UIX implementation sessions: align on design first, split work into the smallest meaningful buildable chunks, and review each chunk for human understanding and explicit cosign before moving on. _Read before making multi-step UIX changes with a human in the loop, especially when design and implementation are evolving together._
+- **[open-questions](./open-questions.md)** _(active, reference)_ — Parking lot for named but unresolved questions across the UIX substrate, documentation, and future apps.
+- **[principles](./principles.md)** _(active, reference)_ — Design principles that guide planning and review — the rules we reach for when deciding how to shape a feature or API.
 
 <!-- INDEX:END -->

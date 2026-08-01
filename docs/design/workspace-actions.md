@@ -1,6 +1,7 @@
 ---
 summary: "Workspace actions are feature-owned renderer workflows arranged in presentation trees: one renderer registry privately holds callbacks, publicly derives a serializable action-catalog projection, resolves durable workspace keybindings and conflicts, and lets replaceable palette/menu/tree features invoke actions by id while backend effects continue through typed channels."
-status: exploring
+kind: explanation
+status: resolved
 ---
 
 # Workspace actions
@@ -9,7 +10,7 @@ status: exploring
 
 UIX needs human-callable operations that do not assume Chat is the interaction shell. Features should be able to publish actions such as opening a model picker, showing a dialog, refreshing backend state, or reloading the workspace. Other features should be able to discover and invoke those actions without importing the owner's React state or backend channel contract.
 
-The substrate supplies an action registry and keybinding dispatch, not a command-palette UI. UIX ships an opinionated Ray/VS Code-style palette as a default feature over that substrate. A workspace may remove it, replace it, render the same actions as menus or a tree, or expose no global action browser at all; direct keybindings continue to work without a palette.
+The substrate supplies an action registry and keybinding dispatch, not a command-palette UI. UIX ships an opinionated Ray/VS Code-style palette as a default feature over that substrate. A workspace may remove it, replace it, render the same actions as menus or a tree, or expose no global action browser at all; direct keybindings continue to work without a palette. Build progress is tracked in [workspace actions and command palette](../plans/workspace-actions-and-command-palette.md).
 
 ### Action model
 
@@ -102,3 +103,7 @@ We kept `defaultBinding` colocated on the action leaf because deterministic norm
 ### 2026-07-15 — shortcut strings describe gestures
 
 The `Shift+1` case clarified that persisted bindings describe the keys a human presses, not the text produced after a keyboard layout applies modifiers. Modifiers therefore stay explicit and the base key remains named as part of the gesture (`shift+1`, not `!`). DOM `KeyboardEvent.key`, `code`, and layout translation belong to the later dispatcher adapter; deprecated numeric key codes and browser-specific names do not enter the durable format.
+
+### 2026-08-01 — resolved
+
+The action model landed: feature-owned renderer workflows with a flat serializable catalog, main-owned durable keybindings, and a replaceable default palette feature. Remaining work is build-tracked in [workspace actions and command palette](../plans/workspace-actions-and-command-palette.md); the design question this thread posed is settled.

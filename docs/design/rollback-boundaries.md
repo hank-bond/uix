@@ -1,5 +1,6 @@
 ---
 summary: "Exploring one query/mutation/effect vocabulary across UIX's rollback stack so managed state can checkpoint and restore coherently while external consequences remain explicitly outside that guarantee."
+kind: explanation
 status: exploring
 ---
 

@@ -1,5 +1,6 @@
 ---
 summary: "Exploring how UIX-core composes its pi contributions and how UIX is structured as composable concepts: the composition root, the facet and override models, the communication topology, and the concept vocabulary."
+kind: explanation
 status: exploring
 ---
 

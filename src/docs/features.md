@@ -1,11 +1,12 @@
 ---
 summary: "Feature entries are trusted local TS/JS modules listed explicitly in uix.workspace.json; each uses defineFeature to default-export a settings-typed FeatureDefinition loaded with jiti, lifetime-scoped under the reload bag, and wired only through @uix/api."
+kind: reference
 status: active
 ---
 
 # Features
 
-A UIX **feature** is trusted local TypeScript/JavaScript loaded by the substrate main process. The workspace manifest is the composition record: there is no feature auto-discovery.
+A UIX **feature** is trusted local TypeScript/JavaScript loaded by the substrate main process. The workspace manifest is the composition record: there is no feature auto-discovery. To add a feature to a workspace, see [Add a feature to a workspace](./add-a-feature.md).
 
 ```json
 {

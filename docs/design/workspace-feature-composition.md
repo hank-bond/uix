@@ -1,5 +1,6 @@
 ---
 summary: "Exploring UIX's composition layer: a single-page workspace composes manifest-listed feature surfaces and agent links; features are the loadable capability/UI/state unit, bare scaffolding ejects editable Pi tool providers, and chat/canvas remain reference-app features rather than substrate defaults."
+kind: explanation
 read_when: "Read before designing surface contributions or layout, feature-agent linking, multi-agent sharing of feature state, reintroducing any Host/iframe boundary, or deciding whether chat/canvas should be treated as substrate."
 status: exploring
 ---

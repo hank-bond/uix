@@ -1,5 +1,6 @@
 ---
 summary: "A workspace is a directory anywhere on disk defined by its uix.workspace.json manifest — an explicit ordered list of feature entry-file references (relative or absolute) that replaces auto-discovery entirely; the App (the running Electron application) opens manifests via a start picker, and the workspace roots derive from the manifest's directory."
+kind: explanation
 read_when: "Read before touching feature loading, workspace resolution, discovery/roots code, or the start/picker flow — root scanning is retired and the manifest is the one source of composition truth."
 status: accepted
 ---

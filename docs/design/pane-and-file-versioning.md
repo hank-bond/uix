@@ -1,5 +1,6 @@
 ---
 summary: "Exploring versioning, history, and rollback of pane documents and optionally the user's working tree — both git-backed and linked to pi's conversation tree (the anchored edit channel in front of this is the sibling canvas-data-channel thread)."
+kind: explanation
 status: exploring
 ---
 

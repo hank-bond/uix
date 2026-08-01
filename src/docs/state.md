@@ -1,5 +1,6 @@
 ---
 summary: "UIX persists each pi session under its workspace state root, shares one app-owned Pi profile across workspaces, stores canvas documents in the local document store, and exposes feature-scoped durable JSON preferences through ctx.settings."
+kind: reference
 status: active
 ---
 

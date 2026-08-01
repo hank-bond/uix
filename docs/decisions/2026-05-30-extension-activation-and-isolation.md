@@ -1,5 +1,6 @@
 ---
 summary: "Extensions activate sequentially, each under its own DisposableBag, with errors isolated per extension so one failure doesn't abort the rest (v0)."
+kind: explanation
 status: superseded
 ---
 

@@ -1,5 +1,6 @@
 ---
 summary: "Exploring the bidirectional canvas/document data channel: the anchored edit grammar, pane tools, writeback/user diffs, and the document-store seam (versioning is the sibling pane-and-file-versioning thread)."
+kind: explanation
 status: exploring
 ---
 

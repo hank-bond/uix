@@ -1,5 +1,6 @@
 ---
 summary: "Feature surfaces load at runtime through the manifest: a `surfaces` facet of entry-file refs, esbuild-bundled ES modules served on the reserved substrate origin (CSP widened to exactly that origin), an import map sharing the page's react/typebox/@uix/api instances, platform CSS module scripts for styles — and no builtin concept anywhere: app-shipped defaults are ordinary manifest references, copied into new workspaces at creation."
+kind: explanation
 read_when: "Read before touching surface contributions, the workspace layout/mount path, the surface module pipeline, feature CSS handling, the page CSP/import map, or anything that wants a compiled-in feature fallback."
 status: accepted
 ---

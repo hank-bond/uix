@@ -1,6 +1,7 @@
 ---
-summary: "Exploring a uniform schema-defined settings-scope model: whole-object defaults materialize instead of layering, static and dynamic keys share one validator path, reload commits atomically, feature handles stay scoped, and a replaceable editor consumes a constrained cross-feature projection."
-status: exploring
+summary: "A uniform schema-defined settings-scope model: whole-object defaults materialize instead of layering, static and dynamic keys share one validator path, reload commits atomically, feature handles stay scoped, and a replaceable editor consumes a constrained cross-feature projection."
+kind: explanation
+status: resolved
 ---
 
 # Workspace settings
@@ -41,3 +42,7 @@ Workspace actions exposed three connected problems in the current settings shape
 Second, sparse overrides were rejected as distributed state management. Defaults are materialization inputs: missing values fill and persist, existing values always win, and runtime reads only the durable result. Empty registered scopes remain visible as `{}` because this is both simpler and a useful manifest affordance. The stable conclusion was distilled into [settings defaults materialize](../decisions/2026-07-13-settings-defaults-materialize.md).
 
 Third, a pan-feature settings modal does not require hardcoded cockpit UI. It mirrors the command palette: the hub standardizes a narrow serializable catalog and validated operations where cross-feature composition is worthwhile; an ordinary feature decides how to render them. Owner-scoped handles remain the normal feature API. This was seeded as [replaceable cross-feature settings editor](../plans/backlog.md), while keybindings retain unresolved ids so that editor can eventually distinguish malformed data, likely typos, and intentional dormant configuration.
+
+### 2026-08-01 — resolved
+
+The uniform settings-scope model landed as built substrate: whole-object defaults materialize, one validator path covers static and dynamic scopes, and reload commits atomically per [atomic candidates and feature activation](../decisions/2026-07-13-atomic-candidates-and-feature-activation.md). The replaceable settings editor remains a backlog deliverable; the design question this thread posed is settled.

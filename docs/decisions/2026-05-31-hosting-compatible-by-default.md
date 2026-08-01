@@ -1,5 +1,6 @@
 ---
 summary: "Designs stay survivable under a future hosted/VM architecture: the filesystem is one local impl behind content-store and change-feed interfaces — address by id, cockpit is sole writer, content-hash echo suppression, field-level merge."
+kind: explanation
 read_when: "Read before any feature touching storage, document identity, writers, or conflict handling — even local-only ones."
 status: accepted
 ---

@@ -114,8 +114,11 @@ function renderIndex(entries) {
   return entries
     .map((e) => {
       // read_when is optional; only docs with a non-obvious trigger carry one.
+      // kind is optional too — the need the doc serves (reference, explanation,
+      // how-to, tutorial), orthogonal to status; it renders when present.
       const trigger = e.read_when ? ` _${e.read_when}_` : "";
-      return `- **[${e.slug}](./${e.file})** _(${e.status})_ — ${e.summary}${trigger}`;
+      const kind = e.kind ? `, ${e.kind}` : "";
+      return `- **[${e.slug}](./${e.file})** _(${e.status}${kind})_ — ${e.summary}${trigger}`;
     })
     .join("\n");
 }
@@ -167,7 +170,8 @@ function renderContainer(entries) {
   return entries
     .map((e) => {
       const trigger = e.read_when ? ` _${e.read_when}_` : "";
-      return `- **[${e.label}](${e.link})** _(${e.status})_ — ${e.summary}${trigger}`;
+      const kind = e.kind ? `, ${e.kind}` : "";
+      return `- **[${e.label}](${e.link})** _(${e.status}${kind})_ — ${e.summary}${trigger}`;
     })
     .join("\n");
 }

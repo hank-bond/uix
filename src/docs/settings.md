@@ -1,5 +1,6 @@
 ---
 summary: "Durable settings in uix.workspace.json, two scopes: feature settings declared as TypeBox schemas and hydrated into manifest feature entries, and substrate-owned workspace namespaces for agent preferences, selected session state, and keybindings under top-level settings."
+kind: reference
 status: active
 ---
 

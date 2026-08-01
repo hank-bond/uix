@@ -1,5 +1,6 @@
 ---
 summary: "How the substrate drives the agent today: it lazily owns a persisted Pi AgentSessionRuntime, assembles feature system-prompt sections and Pi skills per runtime generation/reload, forwards a UIX-shaped event stream, exposes model controls, binds tools, and flushes agent context."
+kind: reference
 status: active
 ---
 

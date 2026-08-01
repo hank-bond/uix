@@ -1,5 +1,6 @@
 ---
 summary: "FeatureDefinition.contribute returns facet contributions for resources, channels, agent tools, Agent system-prompt sections, Pi skills, turn state, agent context, and surfaces; the substrate registers each facet under the feature id with reload-scoped lifetimes."
+kind: reference
 status: active
 ---
 

@@ -1,5 +1,6 @@
 ---
 summary: "Transcript items are keyed the moment pi persists them — only the streaming assistant row is ever pre-key (transport-only handle, one in-place rekey); the user echo is renderer-local composer state confirmed by the born-keyed row — over a session-long backend alias map or holding items until durable; durable interactions gate on the key, ephemeral ones never need it."
+kind: explanation
 status: accepted
 ---
 

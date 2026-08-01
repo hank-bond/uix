@@ -1,5 +1,6 @@
 ---
 summary: "Stage-one canvas is a key-addressed store served over an own-origin uix-canvas:// protocol (not srcdoc), with dedicated agent read/write tools and whole-document refresh."
+kind: explanation
 status: accepted
 ---
 

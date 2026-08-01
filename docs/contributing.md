@@ -1,5 +1,6 @@
 ---
 summary: "How to author and maintain repository docs: layers and retrieval units, frontmatter and rollups, normative language and writing profiles, convention-rule and lexicon formats, prose formatting, and living design-note threads."
+kind: how-to
 status: active
 ---
 
@@ -203,3 +204,12 @@ A design note is **a current synthesis on top of an append-only dated log**:
 ```
 
 Revisit a topic across sessions by appending a dated `## Log` entry and updating the synthesis. When it resolves, flip `status: resolved` and link the decisions and plans it spawned.
+
+## Open framework gaps
+
+Sections identified to build together by going through them reactively — listed here as placeholders, not yet authored:
+
+- **Compass test** — the "what kind is this?" classification procedure for new and moved docs (action or cognition? acquisition or application?), per the four kinds.
+- **Migration rules** — the triggers that move content between kinds: reference traffic spawning a how-to, rationale graduating out of a how-to, repeated comments becoming convention cards, decisions graduating to creed.
+- **Loop protocol** — the commit-time steps of the decision loop: capture, distill residue, index regeneration, backport scan, verify pass.
+- **Budget tests** — the creed admission test and the always-loaded root size discipline.

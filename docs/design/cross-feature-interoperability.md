@@ -1,5 +1,6 @@
 ---
 summary: "Exploring cross-feature interoperability through publisher-qualified shared protocols, optional typed providers, common document resources, and resource viewers while separating semantic capability, reactive state, presentation routing, and host delivery."
+kind: explanation
 status: exploring
 ---
 

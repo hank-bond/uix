@@ -75,7 +75,7 @@ The rules that constrain every change — hold these before reaching for detail:
 
 ## Where to read
 
-Two doc trees — `src/docs/` is the user-facing substrate reference (building on UIX); `docs/` is the dev-facing meta tree (why things are the way they are). Runnable examples live in `examples/`, and `website/` is the public marketing site served at uix.sh.
+Two doc trees — `src/docs/` is the user-facing substrate reference (building on UIX); `docs/` is the dev-facing meta tree (why things are the way they are). Runnable examples are planned under `examples/` as they grow, and `website/` is the public marketing site served at uix.sh.
 
 <!-- INDEX:START -->
 

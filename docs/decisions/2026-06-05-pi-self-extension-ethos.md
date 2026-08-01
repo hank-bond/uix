@@ -1,5 +1,6 @@
 ---
 summary: "UIX mirrors pi's self-extension ethos one layer up for visual UI: ship composable primitives and thin default chrome, not fixed features — when tempted to hardcode a feature, make it something extensions register or compose."
+kind: explanation
 status: accepted
 ---
 

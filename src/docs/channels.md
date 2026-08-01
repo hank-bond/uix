@@ -1,5 +1,6 @@
 ---
 summary: "Feature channel contracts declare request handlers and backend-published events with shared schemas; the current Workspace client and preload bridge consume those contracts directly while the public packaged-feature API is still forming."
+kind: reference
 status: stub
 ---
 

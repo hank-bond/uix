@@ -1,5 +1,6 @@
 ---
 summary: "Canonical UIX concept vocabulary: features and contributions, registries and catalogs, snapshots, projections and projectors, stores and buffers, runtime coordination, reload reconciliation, and boundaries from pi vocabulary."
+kind: reference
 status: active
 ---
 

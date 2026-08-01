@@ -1,5 +1,6 @@
 ---
 summary: "Pi's append-only session JSONL is UIX's persistence substrate — all state (canvas pointers, anchor state) rides it as parent-linked custom entries, which is why UIX-core agent facets run as an in-process pi extension to get write access."
+kind: explanation
 status: accepted
 ---
 

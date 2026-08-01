@@ -1,5 +1,6 @@
 ---
 summary: "The initial stack and the alternative each piece beat: Electron, React + Compiler, Zustand, TypeBox, Monaco, SQLite-as-index, and in-process pi."
+kind: explanation
 status: accepted
 ---
 

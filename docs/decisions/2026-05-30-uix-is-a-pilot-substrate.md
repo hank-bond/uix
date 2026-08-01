@@ -1,5 +1,6 @@
 ---
 summary: "UIX adds capabilities for the human piloting the agent, not for the agent, and is a reusable substrate rather than a single app — the framing test behind feature decisions."
+kind: explanation
 status: accepted
 ---
 

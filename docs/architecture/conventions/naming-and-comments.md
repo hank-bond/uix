@@ -1,5 +1,6 @@
 ---
 summary: "UIX code expresses stable domain contracts through canonical identifier grammar and comments limited to non-obvious rationale and durable constraints."
+kind: reference
 read_when: "Read before introducing or renaming symbols, recurring vocabulary, projections, predicates, or explanatory comments."
 status: active
 ---
