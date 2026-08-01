@@ -1,8 +1,8 @@
-// feature contribution registration.
+// Feature contribution registry integration.
 //
 // The feature contract types (FeatureDefinition, FeatureContributions,
 // FeatureContext, etc.) live behind @uix/api. This module owns the runtime
-// registration functions and the per-facet registry shape
+// register functions and the per-facet registry shape
 // (FeatureContributionRegistries).
 
 import type { AgentContextRegistry } from "../agent-context/registry";

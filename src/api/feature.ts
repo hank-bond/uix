@@ -1,9 +1,9 @@
 // feature contribution contract.
 //
-// FeatureDefinition is the shape a discovered or bundled feature exports: an
-// id, an optional context hook, and a contribute function that returns the
-// feature's facet contributions. Bundled and discovered features are
-// indistinguishable here — the substrate registers both through the same path.
+// FeatureDefinition is the shape a manifest-selected feature entry exports:
+// an id, an optional context hook, and a contribute function that returns the
+// feature's facet contributions. First-party and workspace modules are
+// indistinguishable here — the substrate activates both through the same path.
 //
 // FeatureContext is the service bag injected by the cockpit into every feature
 // at activation time. Features access external state only through this object

@@ -2,9 +2,8 @@
 //
 // A scope is one schema-validated object exposed through keyed convenience
 // operations. Feature ids and substrate workspace namespaces share one
-// unprefixed scope-id space;
-// duplicate registration throws, which is what lets substrate namespaces
-// (registered first, on reload) collide naturally with feature ids.
+// unprefixed scope-id space; duplicate scope ids throw, which lets substrate
+// namespaces (registered first on reload) collide naturally with feature ids.
 //
 // The registry never reads files, resolves manifest locations, or hydrates
 // defaults — `registerScope` takes a finished scope, and persistence exists here

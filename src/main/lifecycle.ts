@@ -1,6 +1,6 @@
 // lifecycle helpers (main process).
 //
-// The rule: every callback registration produces a Disposable, and that
+// The rule: every attached callback produces a Disposable, and that
 // Disposable goes into a bag that's torn down together. This makes
 // "register" and "cleanup" structurally inseparable, so you can't
 // register something and forget to clean it up.
@@ -48,7 +48,7 @@ export class DisposableBag implements Disposable {
   #disposed = false;
 
   /**
-   * Register a Disposable with this bag. Returns the same Disposable so
+   * Add a Disposable to this bag. Returns the same Disposable so
    * you can chain (`const sub = bag.add(subscribe(...))`).
    *
    * If the bag is already disposed, the item is disposed immediately —
@@ -79,7 +79,7 @@ export class DisposableBag implements Disposable {
   }
 
   #drain(): void {
-    // LIFO: tear down in reverse order of registration so dependents
+    // LIFO: tear down in reverse acquisition order so dependents
     // go first. (You added the listener after creating the thing it
     // listens to, so dispose the listener first.)
     while (this.#items.length > 0) {
@@ -108,10 +108,10 @@ export function onAbort(signal: AbortSignal, listener: () => void): Disposable {
   return disposable(() => signal.removeEventListener("abort", listener));
 }
 
-// ─── Electron-side registration helpers ──────────────────────────────
+// ─── Electron-side lifetime helpers ──────────────────────────────────
 //
-// Each helper performs the registration and returns a Disposable that
-// undoes it. Project policy (enforced by convention for now, eslint
+// Each helper attaches behavior and returns a Disposable that removes it.
+// Project policy (enforced by convention for now, eslint
 // later): code that needs to register a listener uses these helpers
 // instead of calling `app.on`, `win.on`, etc. directly. The IPC boundary
 // (`handle`/`send`) lives in ./ipc.ts, which follows the same convention.

@@ -114,7 +114,7 @@ export interface RegisteredAgentContextAppendContribution extends ResolvedAgentC
   inFlight?: { content: string; count: number };
 }
 
-/** Registry for agent-context contributions. Features pass this to `registerAgentContextContributions`; they never call individual registration methods directly. */
+/** Registry for agent-context contributions. Features pass this to `registerAgentContextContributions`; they never call its register methods directly. */
 export class AgentContextRegistry {
   readonly #contributions: AgentContextRegistryMember[] = [];
 

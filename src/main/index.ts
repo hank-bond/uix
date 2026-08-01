@@ -6,8 +6,8 @@
 // open workspace per App instance (v1); everything workspace-bound lives
 // in openWorkspace().
 //
-// All registrations (IPC handlers, app events, window events) flow
-// through the helpers in src/main/ipc.ts and src/main/lifecycle.ts and
+// All cleanup-requiring bindings (IPC handlers, app events, window events)
+// flow through the helpers in src/main/ipc.ts and src/main/lifecycle.ts and
 // land in a single `appBag`. One dispose on `will-quit` tears the whole
 // tree down. See docs/architecture/conventions/lifetimes.md.
 
@@ -190,8 +190,8 @@ async function openWorkspace(
   );
 
   // The feature composition lives under its own child scope so reload can
-  // tear down the active feature composition without touching app-lifetime process
-  // handlers, the window, the agent driver, or IPC registrations.
+  // tear down the active feature composition without touching app-lifetime
+  // process handlers, the window, the agent driver, or IPC handler bindings.
   const featuresBag = appBag.add(new DisposableBag());
 
   // The manifest is optional (a dir target without one loads no features).

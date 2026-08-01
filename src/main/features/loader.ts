@@ -1,5 +1,5 @@
 // Feature loader — activates the workspace's feature composition (the
-// manifest's entries, in manifest order) through one registration path.
+// manifest's entries, in manifest order) through `registerFeatureContributions()`.
 //
 // Responsibilities:
 //   1. Re-read and validate the workspace manifest for every load pass
@@ -16,8 +16,8 @@
 //      clear or dispose tears every contribution down cleanly.
 //
 // Activation is sequential (`for...of` + `await`), in manifest order —
-// order is the composition semantics (registration order is semantic
-// for agent-facing facets), so it is explicit and author-controlled,
+// order is the composition semantics (manifest order is semantic for
+// agent-facing facets), so it is explicit and author-controlled,
 // never emergent.
 //
 // Error isolation: each entry is wrapped in try/catch. If loading,
@@ -82,7 +82,7 @@ const requireFromLoader = createRequire(__filename);
  * typebox entries are exact because its package has no `main` (exports
  * map only), so a bare dir alias can't resolve.
  */
-const buildAliases = (apiModuleDir?: string): Record<string, string> => ({
+const deriveBuildAliases = (apiModuleDir?: string): Record<string, string> => ({
   ...(apiModuleDir ? { "@uix/api": apiModuleDir } : {}),
   typebox: requireFromLoader.resolve("typebox"),
   "typebox/value": requireFromLoader.resolve("typebox/value"),
@@ -96,7 +96,7 @@ const createFeatureJiti = (apiModuleDir?: string) =>
     // filesystem transform cache for performance; that cache tracks
     // source state and is not the stale-module problem Node import() has.
     moduleCache: false,
-    alias: buildAliases(apiModuleDir),
+    alias: deriveBuildAliases(apiModuleDir),
   });
 
 /**
@@ -272,8 +272,8 @@ export const activateFeatures = async (
     const flog = log.child({ feature: displayName, entry });
     flog.debug({}, "activating");
 
-    // The per-feature bag is built early so the definition's
-    // registrations land somewhere disposable. We only enroll
+    // The per-feature bag is created early so every acquired lifetime
+    // capability has an owner. We only enroll
     // it in the parent bag after activation succeeds — a
     // failed feature's bag is disposed immediately and never
     // becomes part of app-shutdown teardown.
@@ -319,8 +319,8 @@ export const activateFeatures = async (
       flog.debug({ id: definition.id }, "activation_succeeded");
     } catch (thrown) {
       const error = normalize(thrown);
-      // Tear down anything the definition managed to register
-      // before it threw — partial activation shouldn't leak
+      // Tear down anything the definition added before it threw —
+      // partial activation shouldn't leak
       // half-wired contributions.
       bag[Symbol.dispose]();
       failed.push({ displayName, entry, error });
@@ -349,7 +349,8 @@ export const activateFeatures = async (
  * into the owned feature bag, replacing whatever that bag currently
  * contains. Safe for initial startup (empty clear) and for manual reload
  * (the active feature composition is disposed before replacement feature
- * instances activate with fresh contexts, callbacks, registrations, and bags).
+ * instances activate with fresh contexts, callbacks, registered contributions,
+ * and bags).
  *
  * The manifest is read and validated before clearing, so a manifest
  * failure (unreadable, bad JSON, schema mismatch) rejects the pass and

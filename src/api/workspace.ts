@@ -40,20 +40,18 @@ import type {
   ActionContributionRegistrar,
 } from "./actions";
 
-type GetActionCatalogSnapshot = () => ActionCatalog;
-type SubscribeToActionCatalog = (listener: () => void) => () => void;
-type InvokeAction = (id: string) => Promise<ActionInvocationResult>;
-
 const ActionContributionRegistrarContext = createContext<
   ActionContributionRegistrar | undefined
 >(undefined);
 const GetActionCatalogSnapshotContext = createContext<
-  GetActionCatalogSnapshot | undefined
+  (() => ActionCatalog) | undefined
 >(undefined);
 const SubscribeToActionCatalogContext = createContext<
-  SubscribeToActionCatalog | undefined
+  ((listener: () => void) => () => void) | undefined
 >(undefined);
-const InvokeActionContext = createContext<InvokeAction | undefined>(undefined);
+const InvokeActionContext = createContext<
+  ((id: string) => Promise<ActionInvocationResult>) | undefined
+>(undefined);
 type SessionSummaryProjection = Readonly<SessionSummary>;
 
 export interface WorkspaceSessionHandle {
@@ -101,9 +99,9 @@ export function useWorkspaceSession(): WorkspaceSessionHandle {
 }
 
 export interface WorkspaceActionsProviderProps {
-  getCatalogSnapshot: GetActionCatalogSnapshot;
-  subscribeToCatalog: SubscribeToActionCatalog;
-  invoke: InvokeAction;
+  getCatalogSnapshot: () => ActionCatalog;
+  subscribeToCatalog: (listener: () => void) => () => void;
+  invoke: (id: string) => Promise<ActionInvocationResult>;
   children: ReactNode;
 }
 
@@ -181,7 +179,9 @@ export function useActionCatalog(): ActionCatalog {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
-export function useInvokeAction(): InvokeAction {
+export function useInvokeAction(): (
+  id: string,
+) => Promise<ActionInvocationResult> {
   const invoke = useContext(InvokeActionContext);
   if (!invoke) {
     throw new Error("WorkspaceActionsProvider is missing");

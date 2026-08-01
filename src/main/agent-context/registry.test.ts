@@ -397,7 +397,7 @@ describe("AgentContextRegistry", () => {
     ).not.toThrow();
   });
 
-  it("rejects a second active registration of the same name within a feature", () => {
+  it("rejects a duplicate active name within a feature", () => {
     const sm = new AgentContextRegistry();
     sm.register("test", {
       name: "a",

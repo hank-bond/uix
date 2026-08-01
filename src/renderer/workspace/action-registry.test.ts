@@ -198,7 +198,7 @@ describe("ActionRegistry", () => {
     });
   });
 
-  it("rejects canonical collisions without changing existing registrations", () => {
+  it("rejects canonical collisions without changing existing actions", () => {
     const registry = createActionRegistry();
     const registerChatActions = registry.forFeature("chat");
     const first = registerChatActions({

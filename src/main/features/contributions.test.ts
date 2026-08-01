@@ -91,7 +91,7 @@ describe("registerFeatureContributions", () => {
       turnState,
       agentContext,
     };
-    const registration = registerFeatureContributions(
+    const featureLifetime = registerFeatureContributions(
       registries,
       "canvas",
       {
@@ -181,7 +181,7 @@ describe("registerFeatureContributions", () => {
       }),
     ).toThrow("Agent context already registered: canvas.canvas-diff");
 
-    registration[Symbol.dispose]();
+    featureLifetime[Symbol.dispose]();
 
     expect(() =>
       registerFeatureContributions(

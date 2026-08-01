@@ -56,7 +56,7 @@ export function initLogFile(stateRoot: string): void {
   log.info({ path }, "ipc_log_file");
 }
 
-/** Per-registration wire-log policy. The boundary itself is payload-agnostic. */
+/** Per-handler wire-log policy. The boundary itself is payload-agnostic. */
 export interface HandleLogOptions<Req, Res> {
   /** Substitute recorded in place of the raw request. */
   describeRequest?: (req: Req) => unknown;

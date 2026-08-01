@@ -81,7 +81,7 @@ export function createWorkspaceSettings(
       }
 
       // Every fallible read/hydration stays detached. Returning from this
-      // preparation means promotion and namespace registration contain no
+      // preparation means promotion and namespace acceptance contain no
       // user code or schema work and can run synchronously as one adoption.
       const staged: {
         namespace: string;

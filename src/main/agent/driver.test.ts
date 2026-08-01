@@ -39,7 +39,7 @@ const sdk = vi.hoisted(() => {
     models: [] as FakeModel[],
     branch: [] as Array<Record<string, unknown>>,
     replacementBranch: undefined as Array<Record<string, unknown>> | undefined,
-    // Extension `on(event, handler)` registrations from the session open.
+    // Extension `on(event, handler)` hooks installed when the session opens.
     extensionHandlers: new Map<string, (event: unknown) => void>(),
     extensionBindings: [] as Array<{
       sessionId: string;

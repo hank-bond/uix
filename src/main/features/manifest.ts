@@ -25,7 +25,7 @@ export const WorkspaceManifestSchema = Type.Object({
   settings: Type.Optional(
     Type.Record(Type.String(), Type.Record(Type.String(), Type.Unknown())),
   ),
-  /** Ordered feature entries; order is registration order. */
+  /** Ordered feature entries; declaration order is composition order. */
   features: Type.Array(WorkspaceManifestFeatureSchema),
 });
 

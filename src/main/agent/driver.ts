@@ -11,8 +11,8 @@
 // IDE/typechecker without any runtime cost.
 //
 // Lifetime management uses the conventions in src/main/lifecycle.ts:
-// every cleanup-requiring registration goes into the driver's
-// DisposableBag, and disposing the driver tears everything down at
+// every returned cleanup capability goes into the driver's DisposableBag,
+// and disposing the driver tears everything down at
 // once.
 
 import { join } from "node:path";
@@ -744,7 +744,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     async reloadPiResources() {
       // Reload only tiers already in use. A live session owns Pi's native
       // extension rebind; before a session exists, recreate the coherent
-      // services tier so extension provider registrations cannot accumulate.
+      // services tier so extension provider hooks cannot accumulate.
       if (runtime || inFlightRuntimeOpen) {
         const activeRuntime = runtime ?? (await getRuntime());
         await activeRuntime.session.reload();

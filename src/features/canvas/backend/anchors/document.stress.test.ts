@@ -41,7 +41,7 @@ function lineAt(lines: readonly AnchoredLine[], index: number): AnchoredLine {
   return line;
 }
 
-function buildWindowReplacement(
+function assembleWindowReplacement(
   texts: readonly string[],
   startIndex: number,
   editIndex: number,
@@ -146,7 +146,7 @@ describe("AnchoredDocument stress", () => {
       const before = doc.read();
       const startIndex = randomInt(random, model.length - WINDOW_EDIT_SIZE);
       const endIndex = startIndex + WINDOW_EDIT_SIZE - 1;
-      const replacement = buildWindowReplacement(
+      const replacement = assembleWindowReplacement(
         model,
         startIndex,
         editIndex,
@@ -238,7 +238,7 @@ describe("AnchoredDocument perf", () => {
       const before = doc.read();
       const startIndex = randomInt(random, before.length - WINDOW_EDIT_SIZE);
       const endIndex = startIndex + WINDOW_EDIT_SIZE - 1;
-      const replacement = buildWindowReplacement(
+      const replacement = assembleWindowReplacement(
         textFromLines(before),
         startIndex,
         sampleIndex,
