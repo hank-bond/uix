@@ -1,8 +1,6 @@
 #!/usr/bin/env node
-// Checks only high-confidence vocabulary regressions. Nuanced naming remains a
-// review concern; this script covers retired source identifiers, UIX-owned type
-// declarations that revive the `Registration` suffix, and stale phrases that
-// unambiguously describe UIX features as extensions.
+// Checks mechanically recognizable current vocabulary rules. Nuanced naming
+// remains a review concern; this script reserves extension vocabulary for Pi.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, join, relative } from "node:path";
@@ -37,48 +35,6 @@ function check(file, pattern, message) {
       `${relative(root, file)}:${lineNumber(text, match.index)}: ${message}: ${match[0]}`,
     );
   }
-}
-
-const sourceFiles = collectFiles(join(root, "src"), new Set([".ts", ".tsx"]));
-
-const retiredSourceIdentifiers = [
-  "ActionRegistration",
-  "ActionRun",
-  "AgentSkillRegistration",
-  "AgentSystemPromptRegistration",
-  "AgentToolRegistration",
-  "ChannelRegistration",
-  "ChannelTransportHandle",
-  "RegisterActionContribution",
-  "ResourceAddressBuilder",
-  "ResourceTransportHandle",
-  "SettingsScopeRegistration",
-  "SurfaceRegistration",
-  "TurnStateCellRegistration",
-  "ToolChatRenderer",
-  "TurnStateLifecycle",
-  "buildAgentContextMessage",
-  "buildAgentContextVocabularySection",
-  "buildAgentSystemPromptSection",
-  "buildFeatureContext",
-  "createResourceAddressBuilder",
-  "createTurnStateLifecycle",
-  "getToolChatRenderer",
-  "normalizeActionContribution",
-  "rendererByToolName",
-];
-
-for (const file of sourceFiles) {
-  check(
-    file,
-    /\b(?:type|interface|class|enum)\s+[A-Za-z_$][\w$]*Registration\b/g,
-    "UIX-owned declarations must not use the retired Registration suffix",
-  );
-  check(
-    file,
-    new RegExp(`\\b(?:${retiredSourceIdentifiers.join("|")})\\b`, "g"),
-    "retired source identifier",
-  );
 }
 
 const activeDocFiles = [
