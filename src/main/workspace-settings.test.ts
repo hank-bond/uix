@@ -118,7 +118,7 @@ function activateFeatureSettings(
     definition,
   );
   loaded.commit();
-  return loaded.handle;
+  return loaded.settings;
 }
 
 afterEach(async () => {
@@ -174,7 +174,7 @@ describe("feature settings", () => {
 
     await settings.reload();
     const failed = settings.loadFeatureSettings("chat", 0, statusSettings());
-    failed.handle.set("statusBar", {
+    failed.settings.set("statusBar", {
       order: ["context"],
       hidden: [],
     });
@@ -183,7 +183,7 @@ describe("feature settings", () => {
     expect(await readManifest(manifestPath)).toEqual(initialManifest);
 
     failed[Symbol.dispose]();
-    expect(() => failed.handle.get("statusBar")).toThrow(
+    expect(() => failed.settings.get("statusBar")).toThrow(
       "Unknown settings scope: chat",
     );
 
@@ -199,7 +199,7 @@ describe("feature settings", () => {
     });
 
     recovered[Symbol.dispose]();
-    expect(() => recovered.handle.get("statusBar")).toThrow(
+    expect(() => recovered.settings.get("statusBar")).toThrow(
       "Unknown settings scope: chat",
     );
     expect(await readManifest(manifestPath)).toEqual(written);

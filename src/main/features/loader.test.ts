@@ -54,7 +54,7 @@ function makeSubstrate(manifestPath?: string) {
       settingsScopes.set(featureId, state);
       let disposed = false;
       return {
-        handle: {
+        settings: {
           get: <T = unknown>(key: string) =>
             settingsScopes.get(featureId)?.values.get(key) as T | undefined,
           set: (key: string, value: unknown) => {

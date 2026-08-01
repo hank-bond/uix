@@ -61,7 +61,7 @@ export interface SettingsScope {
   onWrite?: (values: JsonObject) => void;
 }
 
-interface ScopeState {
+interface RegisteredSettingsScope {
   label: string;
   schema: TSchema;
   values: JsonObject;
@@ -69,29 +69,26 @@ interface ScopeState {
   committed: boolean;
 }
 
-/** A live provisional scope; commit accepts its values for write-through use. */
-export interface SettingsScopeRegistration extends Disposable {
-  readonly handle: SettingsHandle;
+/** Capability for one live scope; commit accepts its values for write-through use. */
+export interface SettingsScopeHandle extends Disposable {
+  readonly settings: SettingsHandle;
   commit(): void;
 }
 
 export class SettingsRegistry implements Disposable {
-  readonly #scopes = new Map<string, ScopeState>();
+  readonly #scopes = new Map<string, RegisteredSettingsScope>();
   readonly #listeners = new Map<string, Set<Listener>>();
   readonly #anyListeners = new Set<AnyListener>();
   #disposed = false;
 
-  registerScope(
-    scopeId: string,
-    scope: SettingsScope,
-  ): SettingsScopeRegistration {
+  registerScope(scopeId: string, scope: SettingsScope): SettingsScopeHandle {
     if (this.#disposed) {
       throw new Error("SettingsRegistry is disposed");
     }
     if (this.#scopes.has(scopeId)) {
       throw new Error(`Settings scope already registered: ${scopeId}`);
     }
-    const state: ScopeState = {
+    const state: RegisteredSettingsScope = {
       label: scope.label,
       schema: scope.definition.schema,
       values: scope.values,
@@ -102,11 +99,11 @@ export class SettingsRegistry implements Disposable {
 
     let disposed = false;
     return {
-      handle: this.forScope(scopeId),
+      settings: this.forScope(scopeId),
       commit: () => {
         if (disposed || this.#scopes.get(scopeId) !== state) {
           throw new Error(
-            `Settings scope registration is no longer active: ${scopeId}`,
+            `Settings scope handle is no longer active: ${scopeId}`,
           );
         }
         if (state.committed) return;
@@ -250,7 +247,7 @@ export class SettingsRegistry implements Disposable {
     this.#anyListeners.clear();
   }
 
-  #requireScope(scopeId: string): ScopeState {
+  #requireScope(scopeId: string): RegisteredSettingsScope {
     const scope = this.#scopes.get(scopeId);
     if (!scope) {
       throw new Error(`Unknown settings scope: ${scopeId}`);
@@ -258,7 +255,7 @@ export class SettingsRegistry implements Disposable {
     return scope;
   }
 
-  #assertKey(scope: ScopeState, key: string): void {
+  #assertKey(scope: RegisteredSettingsScope, key: string): void {
     const schema = scope.schema as TSchema & {
       properties?: Record<string, TSchema>;
       patternProperties?: Record<string, TSchema>;

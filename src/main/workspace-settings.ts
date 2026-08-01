@@ -16,7 +16,7 @@ import {
   hydrateSettings,
   SettingsRegistry,
   type SettingsScope,
-  type SettingsScopeRegistration,
+  type SettingsScopeHandle,
 } from "./settings-registry";
 import type { WorkspaceManifestStore } from "./workspace-manifest-store";
 import type {
@@ -45,7 +45,7 @@ export interface WorkspaceSettings {
     featureId: string,
     manifestIndex: number,
     settings: SettingsDefinition,
-  ): SettingsScopeRegistration;
+  ): SettingsScopeHandle;
   /** Mint a schema-bound handle from one registered namespace definition. */
   forNamespace<Namespace extends AnyWorkspaceSettingsNamespace>(
     namespace: Namespace,
@@ -109,10 +109,10 @@ export function createWorkspaceSettings(
       registry.clearScopes();
       namespaceBag.clear();
       for (const { namespace, scope } of staged) {
-        const registration = namespaceBag.add(
+        const scopeHandle = namespaceBag.add(
           registry.registerScope(namespace, scope),
         );
-        registration.commit();
+        scopeHandle.commit();
       }
       return composition;
     },

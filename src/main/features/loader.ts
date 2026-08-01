@@ -299,7 +299,7 @@ export const activateFeatures = async (
       const baseContext = buildFeatureContext(
         definition.id,
         substrate,
-        featureSettings.handle,
+        featureSettings.settings,
         bag,
       );
       const contributedContext = definition.context?.(baseContext) ?? {};

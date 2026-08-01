@@ -44,9 +44,9 @@ function registerCommitted(
   scopeId: string,
   settingsScope: SettingsScope,
 ): Disposable {
-  const registration = registry.registerScope(scopeId, settingsScope);
-  registration.commit();
-  return registration;
+  const scopeHandle = registry.registerScope(scopeId, settingsScope);
+  scopeHandle.commit();
+  return scopeHandle;
 }
 
 describe("hydrateSettings", () => {
@@ -168,7 +168,7 @@ describe("SettingsRegistry", () => {
     );
   });
 
-  it("disposes only the exact scope registration it created", () => {
+  it("disposes only the exact registered scope it created", () => {
     using registry = new SettingsRegistry();
     const stale = registry.registerScope("chat", scope());
 
@@ -184,7 +184,7 @@ describe("SettingsRegistry", () => {
     const written: unknown[] = [];
     const scopedChanges: unknown[] = [];
     const globalChanges: unknown[] = [];
-    const registration = registry.registerScope(
+    const scopeHandle = registry.registerScope(
       "chat",
       scope({ onWrite: (values) => written.push(structuredClone(values)) }),
     );
@@ -203,7 +203,7 @@ describe("SettingsRegistry", () => {
     expect(globalChanges).toEqual([]);
     expect(written).toEqual([]);
 
-    registration.commit();
+    scopeHandle.commit();
     expect(written).toEqual([
       { statusBar: { order: ["context"], hidden: [] } },
     ]);
