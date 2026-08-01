@@ -1,14 +1,14 @@
-// resource URL builder and contribution type.
+// resource address capability and contribution type.
 //
 // ResourceContribution is the type feature authors declare in their
 // FeatureContributions.resources array; the substrate registers and dispatches
 // requests through the ResourceRegistry.
 //
-// ResourceAddressBuilder is the substrate-provided way for features to produce
-// transport URLs and origins from a resource route declaration without
-// importing substrate internals. One builder per resource contribution — create
-// it once in shared code, pass `.route` into the ResourceContribution and call
-// `.url()` / `.origin()` from workspace renderer code.
+// ResourceAddressHandle is the substrate-provided capability for features to
+// produce transport URLs and origins from a resource route declaration without
+// importing substrate internals. Create one handle per resource contribution
+// in shared code, pass `.route` into the ResourceContribution, and call
+// `.toUrl()` / `.toOrigin()` from workspace renderer code.
 
 import type { TSchema } from "typebox";
 
@@ -37,7 +37,7 @@ export interface ResourceRequestContext {
 export interface ResourceContribution<Query extends TSchema = TSchema> {
   /** Local resource name; the substrate derives the resource type as `${featureId}-${name}`. */
   name: string;
-  /** Normalized route from a `createResourceAddressBuilder` call — pass `builder.route`. */
+  /** Normalized route from a `createResourceAddressHandle` call — pass `handle.route`. */
   route: NormalizedResourceRoute<Query>;
   handler: (ctx: ResourceRequestContext) => Response | Promise<Response>;
 }
@@ -50,28 +50,28 @@ export interface ResourceRouteDefinition<Query extends TSchema = TSchema> {
   origin: ResourceOrigin;
 }
 
-export interface ResourceAddressBuilder<Query extends TSchema = TSchema> {
+export interface ResourceAddressHandle<Query extends TSchema = TSchema> {
   /** The normalized route — pass as the `route` field on a ResourceContribution. */
   route: NormalizedResourceRoute<Query>;
   /** Produce a transport URL for iframe src, fetch, etc. */
-  url(input: {
+  toUrl(input: {
     workspaceId: string;
     params?: ResourceRouteParams;
     query?: unknown;
   }): ResourceUrl;
   /** Produce the origin string for postMessage security checks. */
-  origin(workspaceId: string): string;
+  toOrigin(workspaceId: string): string;
 }
 
-export function createResourceAddressBuilder<const Query extends TSchema>(
+export function createResourceAddressHandle<const Query extends TSchema>(
   definition: ResourceRouteDefinition<Query>,
-): ResourceAddressBuilder<Query> {
+): ResourceAddressHandle<Query> {
   const { featureId, name, path, query, origin } = definition;
   const route = normalizeResourceRoute({ path, query, origin });
 
   return {
     route,
-    url({ workspaceId, params, query: queryValues }) {
+    toUrl({ workspaceId, params, query: queryValues }) {
       return encodeResourceUrl(route, {
         featureId,
         name,
@@ -80,7 +80,7 @@ export function createResourceAddressBuilder<const Query extends TSchema>(
         query: queryValues,
       });
     },
-    origin(workspaceId) {
+    toOrigin(workspaceId) {
       return encodeResourceOrigin(route, featureId, workspaceId).origin;
     },
   };

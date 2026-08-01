@@ -27,6 +27,7 @@ Cover at least: Feature/extension, Definition, Contribution, Normalized/Resolved
 Seed findings from workspace actions:
 
 - Function types named `ChannelTransportHandle` and `ResourceTransportHandle` used `Handle` differently from the documented capability-object meaning. Channels now use `ChannelTransportRegistrar`; resources use `ResourceTransportRegistrar`, which returns the protocol binding's `Disposable`.
+- The transitional resource-address object is now `ResourceAddressHandle`, a feature-held capability with `toUrl()` and `toOrigin()` conversions. It remains an explicit hybrid because its `route` feeds the contribution while renderer code uses its conversion operations; the handle dissolves when surface transport owns both sides.
 - `AgentToolRegistration` previously named both registry-ready input and live state after owner-derived ids were assigned. Agent tools now resolve to `ResolvedAgentToolContribution`; `AgentToolRegistry` stores those values as live members and exposes them through `list()` because registration adds no separate record shape.
 - `SurfaceRegistration` previously named owner- and path-resolved surface data before registry acceptance. Surfaces now resolve to `ResolvedSurfaceContribution`, which `SurfaceRegistry` stores unchanged as a live member.
 - `AgentSkillRegistration` and `AgentSystemPromptRegistration` named resolved values that their registries stored unchanged. They are now `ResolvedAgentSkillContribution` and `ResolvedAgentSystemPromptContribution`; registry membership expresses liveness without another record type.
