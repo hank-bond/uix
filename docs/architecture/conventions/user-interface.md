@@ -1,10 +1,10 @@
 ---
-summary: "Renderer UI preserves equivalent visual, keyboard, and accessibility meaning while component styles retain explicit ownership and cascade order."
+summary: "User interfaces preserve equivalent visual, keyboard, and accessibility meaning while component styles retain explicit ownership and cascade order."
 read_when: "Read before creating or changing interactive UI, accessibility behavior, component stylesheets, or surface CSS composition."
 status: active
 ---
 
-# Renderer
+# User interface
 
 ## Accessible UI
 
@@ -22,11 +22,11 @@ Apply these rules in order:
 8. **Announce meaningful asynchronous changes.** Use `role="status"` for polite progress and completion updates. Use `role="alert"` sparingly for failures requiring immediate attention; ordinary instructions and validation hints remain normal or described text.
 9. **Respect presentation preferences.** Nonessential motion honors `prefers-reduced-motion`, and text, controls, focus indicators, and state cues maintain sufficient contrast.
 
-A visually hidden helper must clip content rather than use `display: none` or `visibility: hidden`, because those remove it from the accessibility tree. Keep the helper local until a second consumer justifies a shared renderer utility.
+A visually hidden helper must clip content rather than use `display: none` or `visibility: hidden`, because those remove it from the accessibility tree. Keep the helper local until a second consumer justifies a shared UI utility.
 
 ## Component stylesheets
 
-**Rule.** A renderer component's private stylesheet lives beside it with the same basename: `SessionPill.tsx` owns `SessionPill.css`. Private subcomponents in that module share the owner's sheet. A stylesheet with no single component owner uses a narrow lowercase-kebab name such as `picker-positioning.css` or `provider-controls.css`; do not let shared sheets become miscellaneous overrides.
+**Rule.** A UI component's private stylesheet lives beside it with the same basename: `SessionPill.tsx` owns `SessionPill.css`. Private subcomponents in that module share the owner's sheet. A stylesheet with no single component owner uses a narrow lowercase-kebab name such as `picker-positioning.css` or `provider-controls.css`; do not let shared sheets become miscellaneous overrides.
 
 CSS class names remain lowercase kebab/BEM regardless of file ownership. Component-owned selectors carry their component domain (`.session-picker__option`); shared selectors carry the feature or shared visual role (`.chat-button`). Filename casing communicates ownership, not a different CSS scoping mechanism.
 
