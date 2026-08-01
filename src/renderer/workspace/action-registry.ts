@@ -4,10 +4,10 @@ import type {
   ActionCatalogEntry,
   ActionId,
   ActionContributionUpdater,
-  ActionRun,
+  ActionRunner,
   ActionInvocationResult,
   KeybindingMap,
-  RegisterActionContribution,
+  ActionContributionRegistrar,
 } from "@uix/api/actions";
 import type { ShortcutPlatform } from "@uix/api/shortcuts";
 
@@ -29,7 +29,7 @@ interface ActionInvocationDiagnostic {
 interface RegisteredAction {
   readonly id: ActionId;
   catalogEntry: ActionCatalogEntry;
-  run: ActionRun;
+  run: ActionRunner;
   running: boolean;
 }
 
@@ -62,7 +62,7 @@ export class ActionRegistry implements Disposable {
     this.#shortcutPlatform = options.shortcutPlatform;
   }
 
-  forFeature(owner: string): RegisterActionContribution {
+  forFeature(owner: string): ActionContributionRegistrar {
     return (contribution) => this.#registerContribution(owner, contribution);
   }
 

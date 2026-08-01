@@ -2,7 +2,7 @@ import type {
   ActionCatalogEntry,
   ActionContribution,
   ActionLeafContribution,
-  ActionRun,
+  ActionRunner,
   ActionId,
 } from "@uix/api/actions";
 import { isIdToken } from "@uix/api/contribution-id";
@@ -11,7 +11,7 @@ import { normalizeShortcut, type Shortcut } from "@uix/api/shortcuts";
 export interface ResolvedActionContribution {
   readonly id: ActionId;
   readonly catalogEntry: ActionCatalogEntry;
-  readonly run: ActionRun;
+  readonly run: ActionRunner;
 }
 
 export type ActionDefaultBindingMap = Readonly<Record<ActionId, Shortcut>>;

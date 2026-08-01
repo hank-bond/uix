@@ -30,22 +30,22 @@ export type {
   ActionLeafContribution,
   ActionInvocationResult,
   ActionNotInvokedReason,
-  ActionRun,
+  ActionRunner,
 } from "./actions";
 import type {
   ActionCatalog,
   ActionContribution,
   ActionContributionUpdater,
   ActionInvocationResult,
-  RegisterActionContribution,
+  ActionContributionRegistrar,
 } from "./actions";
 
 type GetActionCatalogSnapshot = () => ActionCatalog;
 type SubscribeToActionCatalog = (listener: () => void) => () => void;
 type InvokeAction = (id: string) => Promise<ActionInvocationResult>;
 
-const RegisterActionContributionContext = createContext<
-  RegisterActionContribution | undefined
+const ActionContributionRegistrarContext = createContext<
+  ActionContributionRegistrar | undefined
 >(undefined);
 const GetActionCatalogSnapshotContext = createContext<
   GetActionCatalogSnapshot | undefined
@@ -125,7 +125,7 @@ export function WorkspaceActionsProvider({
 }
 
 export interface FeatureActionsProviderProps {
-  register: RegisterActionContribution;
+  register: ActionContributionRegistrar;
   children: ReactNode;
 }
 
@@ -134,32 +134,32 @@ export function FeatureActionsProvider({
   children,
 }: FeatureActionsProviderProps): ReactNode {
   return createElement(
-    RegisterActionContributionContext.Provider,
+    ActionContributionRegistrarContext.Provider,
     { value: register },
     children,
   );
 }
 
 export function useActionContribution(contribution: ActionContribution): void {
-  const register = useContext(RegisterActionContributionContext);
+  const register = useContext(ActionContributionRegistrarContext);
   if (!register) {
     throw new Error("FeatureActionsProvider is missing");
   }
 
   const contributionRef = useRef(contribution);
   contributionRef.current = contribution;
-  const registrationRef = useRef<ActionContributionUpdater>();
+  const updaterRef = useRef<ActionContributionUpdater>();
   const registeredValueRef = useRef<ActionContribution>();
 
   useLayoutEffect(() => {
     const registeredValue = contributionRef.current;
-    const registration = register(registeredValue);
-    registrationRef.current = registration;
+    const updater = register(registeredValue);
+    updaterRef.current = updater;
     registeredValueRef.current = registeredValue;
     return () => {
-      registration[Symbol.dispose]();
-      if (registrationRef.current === registration) {
-        registrationRef.current = undefined;
+      updater[Symbol.dispose]();
+      if (updaterRef.current === updater) {
+        updaterRef.current = undefined;
         registeredValueRef.current = undefined;
       }
     };
@@ -167,7 +167,7 @@ export function useActionContribution(contribution: ActionContribution): void {
 
   useLayoutEffect(() => {
     if (registeredValueRef.current === contribution) return;
-    registrationRef.current?.update(contribution);
+    updaterRef.current?.update(contribution);
     registeredValueRef.current = contribution;
   }, [contribution]);
 }

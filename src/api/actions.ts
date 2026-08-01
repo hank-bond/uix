@@ -20,14 +20,14 @@ export const KeybindingMapSchema = Type.Record(
 );
 export type KeybindingMap = Static<typeof KeybindingMapSchema>;
 
-export type ActionRun = () => void | Promise<void>;
+export type ActionRunner = () => void | Promise<void>;
 
 export interface ActionLeafContribution {
   readonly title: string;
   readonly description?: string;
   readonly defaultBinding?: Shortcut;
   readonly enabled?: boolean;
-  readonly run: ActionRun;
+  readonly run: ActionRunner;
 }
 
 export interface ActionGroupContribution {
@@ -43,7 +43,7 @@ export interface ActionContributionUpdater extends Disposable {
   update(contribution: ActionContribution): void;
 }
 
-export type RegisterActionContribution = (
+export type ActionContributionRegistrar = (
   contribution: ActionContribution,
 ) => ActionContributionUpdater;
 
