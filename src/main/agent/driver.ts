@@ -40,8 +40,8 @@ import type {
 import type { SettingsHandleFrom } from "@uix/api/settings";
 
 import {
-  buildAgentContextMessage,
-  buildAgentContextVocabularySection,
+  assembleAgentContextMessage,
+  assembleAgentContextVocabularySection,
   type AgentContextRegistry,
 } from "../agent-context/registry";
 import {
@@ -228,7 +228,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
           ? [() => buildAgentSystemPromptSection(systemPromptRegistry)]
           : []),
         ...(contextRegistry
-          ? [() => buildAgentContextVocabularySection(contextRegistry)]
+          ? [() => assembleAgentContextVocabularySection(contextRegistry)]
           : []),
       ]),
     );
@@ -786,7 +786,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         }
         if (opts.agentContext) {
           log.trace("building_agent_context");
-          const message = await buildAgentContextMessage(
+          const message = await assembleAgentContextMessage(
             session.sessionManager,
             opts.agentContext,
           );

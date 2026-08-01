@@ -96,7 +96,20 @@ Contribution
 → CatalogEntry or Projection
 ```
 
-Name the value returned to the contributor by its capability, such as `Handle`, `Updater`, `Appender`, or `Disposable`. When a registry stores a resolved contribution unchanged, membership expresses liveness: keep the resolved value type and use a container name such as `#registeredTools`. Use a `RegisteredX` type when registration adds state, as `RegisteredAction` adds `running`.
+Name the value returned to the contributor by its capability, such as `Handle`, `Updater`, `Appender`, or `Disposable`. When a registry stores a resolved contribution unchanged, membership expresses liveness: keep the resolved value type and use a container name such as `#registeredTools`. Use a `RegisteredX` type when registration creates a new record with added registry-owned state, as `RegisteredAction` adds `running`.
+
+Agent context demonstrates both outcomes in one facet:
+
+```text
+ResolvedAgentContextUpdateContribution
+→ RegisteredAgentContextUpdateContribution (adds hasValue and value)
+
+ResolvedAgentContextAppendContribution
+→ RegisteredAgentContextAppendContribution (adds values and inFlight)
+
+ResolvedAgentContextMaterializedContribution
+→ registry membership (stored unchanged)
+```
 
 **Nonconforming example.** Do not use `Registration` for a registry-ready contribution, a live registered entity, or a returned capability. Do not introduce a `RegisteredX` alias, field-copy interface, or one-field wrapper solely to rename an unchanged resolved shape.
 
@@ -195,7 +208,7 @@ isFailed: boolean;
 | --- | --- | --- | --- |
 | `Contribution` (noun) | Declarative value supplied by an author to a contribution point. Use `Installer` for code that directly attaches a whole slice to a runtime. | `ActionContribution` | `AgentInstaller` named as a contribution |
 | `Normalized` (adjective) | Converted into one canonical representation without binding live ownership, environment-dependent references, or derived identities. Use `Resolved` after those values become concrete. | `NormalizedResourceRoute` | `NormalizedActionContribution` after owner-derived ids are assigned |
-| `Registered` (adjective) | Currently live and owned by a registry. Use `Resolved` for a registry-ready value that is not yet live. | `RegisteredAction` | `RegisteredAction` returned by a resolver before registry acceptance |
+| `Registered` (adjective) | A separate live record created by registry acceptance with registry-owned state beyond the resolved input. When acceptance stores the resolved value unchanged, keep its `Resolved` type and let membership express liveness. | `RegisteredAction`; `RegisteredAgentContextAppendContribution` | `RegisteredAgentContextMaterializedContribution` with no fields beyond its resolved input |
 | `Resolved` (adjective) | Owner-derived identifiers, paths, references, or environment-dependent values are concrete and the value is ready to register. | `ResolvedActionContribution` | `ActionRegistration` for a registry-ready value |
 
 #### UIX-owned operation terms

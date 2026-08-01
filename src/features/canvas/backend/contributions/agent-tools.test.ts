@@ -10,8 +10,8 @@ import type {
 
 import {
   AgentContextRegistry,
-  buildAgentContextMessage,
-  buildAgentContextVocabularySection,
+  assembleAgentContextMessage,
+  assembleAgentContextVocabularySection,
   registerAgentContextContributions,
 } from "#backend/agent-context/registry";
 import { createSystemPromptAssembler } from "#backend/agent/system-prompt";
@@ -174,7 +174,7 @@ function setup() {
     },
   } as unknown as ExtensionAPI;
   void createSystemPromptAssembler([
-    () => buildAgentContextVocabularySection(agentContext),
+    () => assembleAgentContextVocabularySection(agentContext),
   ])(vocabPi);
 
   const extCtx = {
@@ -202,7 +202,8 @@ function setup() {
       await agentEndHandlers[0]({}, extCtx as unknown as ExtensionContext);
     },
     /** Build the agent-context flush message directly (no longer via before_agent_start). */
-    flushContext: () => buildAgentContextMessage(sessionManager, agentContext),
+    flushContext: () =>
+      assembleAgentContextMessage(sessionManager, agentContext),
     /** System prompt vocabulary (the only thing before_agent_start does now). */
     vocabPrompt: async () => {
       if (vocabHandlers.length === 0) return "BASE";

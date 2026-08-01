@@ -8,13 +8,13 @@ import { Type } from "typebox";
 
 import {
   AgentContextRegistry,
-  buildAgentContextMessage,
-  buildAgentContextVocabularySection,
+  assembleAgentContextMessage,
+  assembleAgentContextVocabularySection,
   registerAgentContextContributions,
 } from "./registry";
 
 function flush(registry: AgentContextRegistry, branch: SessionEntry[] = []) {
-  return buildAgentContextMessage(
+  return assembleAgentContextMessage(
     { getBranch: () => branch } as SessionManager,
     registry,
   );
@@ -56,22 +56,22 @@ describe("AgentContextRegistry", () => {
       materialize: () => undefined,
     });
 
-    const vocabulary = buildAgentContextVocabularySection(sm);
+    const vocabulary = assembleAgentContextVocabularySection(sm);
 
     expect(vocabulary).toContain("## UIX cockpit state messages");
     expect(vocabulary).toContain("- `<test.pane-visibility>` — open keys");
     expect(vocabulary).toContain("- `<test.canvas-diff>` — human hunks");
   });
 
-  it("does not build vocabulary with no registrations", () => {
+  it("does not assemble vocabulary with no contributions", () => {
     expect(
-      buildAgentContextVocabularySection(new AgentContextRegistry()),
+      assembleAgentContextVocabularySection(new AgentContextRegistry()),
     ).toBeUndefined();
   });
 
   it("bulk-registers contributions, applies initial update values, and disposes them together", async () => {
     const sm = new AgentContextRegistry();
-    const registrations = registerAgentContextContributions(sm, "test", [
+    const lifetime = registerAgentContextContributions(sm, "test", [
       {
         name: "pane-visibility",
         description: "d",
@@ -93,7 +93,7 @@ describe("AgentContextRegistry", () => {
     expect(result?.content).toContain('{"canvases_open":["main"]}');
     expect(result?.content).toContain("<test.canvas-diff>\nchanged");
 
-    registrations[Symbol.dispose]();
+    lifetime[Symbol.dispose]();
     expect(await flush(sm)).toBeUndefined();
   });
 
@@ -285,7 +285,7 @@ describe("AgentContextRegistry", () => {
     expect(await flush(sm)).toBeUndefined();
   });
 
-  it("combines sections from multiple registrations in registration order", async () => {
+  it("combines sections from multiple contributions in registry insertion order", async () => {
     const sm = new AgentContextRegistry();
     const visibility = sm.register("test", {
       name: "pane-visibility",
@@ -310,7 +310,7 @@ describe("AgentContextRegistry", () => {
     expect(content.endsWith("\n</uix-state>")).toBe(true);
   });
 
-  it("validates update payloads against the registration schema", () => {
+  it("validates update payloads against the contribution schema", () => {
     const sm = new AgentContextRegistry();
     const visibility = sm.register("test", {
       name: "pane-visibility",

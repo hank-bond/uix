@@ -31,8 +31,8 @@ Seed findings from workspace actions:
 - `SurfaceRegistration` previously named owner- and path-resolved surface data before registry acceptance. Surfaces now resolve to `ResolvedSurfaceContribution`, which `SurfaceRegistry` stores unchanged as a live member.
 - `AgentSkillRegistration` and `AgentSystemPromptRegistration` named resolved values that their registries stored unchanged. They are now `ResolvedAgentSkillContribution` and `ResolvedAgentSystemPromptContribution`; registry membership expresses liveness without another record type.
 - `TurnStateCellRegistration` mixed resolved cell data with live membership and snapshot terminology. Turn-state cells now resolve to `ResolvedTurnStateCellContribution`; the registry stores them unchanged, and registry snapshots carry exact cell identities through `cells`.
-- Registry snapshots vary between public `registeredContributions`, private `#entries` + `list()`, and maps/sets without a documented rule.
-- Some facets derive `XRegistration`; agent context and turn state instead retain `RegisteredXContribution`, with no stated criterion for the distinction.
+- Agent context now resolves owner-scoped ids into `ResolvedAgentContextContribution` variants before registry acceptance. Registration creates `RegisteredAgentContextUpdateContribution` and `RegisteredAgentContextAppendContribution` because those records add mutable buffer state; materialized contributions remain resolved values because registration adds no state. The registry keeps live membership private and exposes `list()`.
+- Registry snapshots vary between private arrays exposed through `list()` and maps/sets without a documented rule; named snapshots remain appropriate when the snapshot itself has semantics beyond listing current members.
 - `docs/architecture/concepts.md` still describes a separate UIX extension/loadable-package concept despite the accepted feature-loading model, and some implementation-path references have drifted.
 
 Acceptance:
