@@ -44,7 +44,7 @@ UIX features        surfaces, channels, agent tools/system prompts/skills, turn 
 surface content     React (trusted feature UI) or iframe HTML (contained/authored content)
 ```
 
-Pi and UIX are separate systems. A loadable package may contribute to either or both via optional `pi` and `uix` fields in `package.json`: the `pi` field teaches the agent backend capabilities, the `uix` field teaches the cockpit frontend capabilities.
+Pi and UIX are separate systems. A package may contain Pi extensions and UIX feature entry modules, but package distribution does not merge their lifecycles: Pi loads its own extension resources, while each UIX workspace explicitly selects ordered feature entries in `uix.workspace.json`.
 
 ## Substrate primitives
 

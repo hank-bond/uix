@@ -36,7 +36,7 @@ Seed findings from workspace actions:
 - Registering settings creates a private `RegisteredSettingsScope` because acceptance adds commit state. The caller receives a `SettingsScopeHandle` containing scoped settings access plus commit and disposal capabilities; the returned value is not the registered record.
 - Runtime operations now distinguish retrieval, assembly, creation, compilation, installation, and coordination: `getStatus()`, `assembleAgentSystemPromptSection()`, `assembleFeatureContext()`, `createResourceContributions()`, and `createTurnStateInstaller()`. Surface `buildAll()` remains a build because it compiles source modules. The Pi-facing turn-state setup callable is an installer, while the stateful object that sequences commit and restoration is `TurnStateCoordinator`.
 - Registry snapshots vary between private arrays exposed through `list()` and maps/sets without a documented rule; named snapshots remain appropriate when the snapshot itself has semantics beyond listing current members.
-- `docs/architecture/concepts.md` still describes a separate UIX extension/loadable-package concept despite the accepted feature-loading model, and some implementation-path references have drifted.
+- `docs/architecture/concepts.md`, the conventions, and open questions now use feature as UIX's manifest-selected loadable unit; package is only a distribution/dependency boundary, and extension remains Pi vocabulary.
 
 Acceptance:
 

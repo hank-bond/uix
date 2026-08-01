@@ -6,7 +6,7 @@ status: active
 
 # Conventions
 
-Short, opinionated rules. Each one buys back review effort by making a class of bugs hard to write. Most are main-process specifics (lifetimes, logging, imports); **Naming** and **Comments** apply to all UIX code — renderer, shared, and extensions included.
+Short, opinionated rules. Each one buys back review effort by making a class of bugs hard to write. Most are main-process specifics (lifetimes, logging, imports); **Naming** and **Comments** apply to all UIX code, including renderer, shared, and feature modules.
 
 This directory is the prescriptive code-rule collection. Its leaves remain living architecture documents and always describe HEAD; use the summaries below to open only the rules relevant to the work in front of you.
 

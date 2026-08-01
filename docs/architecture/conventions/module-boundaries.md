@@ -32,7 +32,7 @@ createThing({ onChange: notify });
 
 Export `CreateThingOptions` later, in the same change that introduces a real caller that needs to name/import it.
 
-**Exception.** Public API modules (for example `@uix/api` types) intentionally export stable shapes for extension authors. Those are designed API surfaces, not internal implementation details.
+**Exception.** Public API modules (for example `@uix/api` types) intentionally export stable shapes for feature authors. Those are designed API surfaces, not internal implementation details.
 
 ## Validation
 
@@ -86,4 +86,4 @@ import fs from "node:fs";
 - **Consistency.** We already import `path`, `fs`, `os` etc. as modules. Treating `process` the same way removes a special case.
 - **Future lint enforcement.** This makes it easy to add a `no-restricted-globals` rule later — the rule has zero cleanup cost because we're already importing everywhere.
 
-**Scope.** In practice, very few modules should need direct `process` access at all. Things that read env / cwd / platform should either be in the main module (`src/main/index.ts`) or be utilities that the main module wires together (`log.ts`, `lifecycle.ts`, `extensions/roots.ts`). Extension code never imports `process` directly — anything it needs about the runtime environment comes through the injected API surface.
+**Scope.** In practice, very few modules should need direct `process` access at all. Things that read environment variables, cwd, or platform state should either be in the composition root (`src/main/index.ts`) or be substrate utilities that it wires together, such as `log.ts` and `lifecycle.ts`. Feature code does not import `process` directly; runtime environment capabilities belong in the injected `FeatureContext` when a feature needs them.

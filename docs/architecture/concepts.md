@@ -5,29 +5,31 @@ status: active
 
 # Concept vocabulary
 
-This is the canonical vocabulary for UIX architecture discussions and code names. Use it to avoid overloading pi terms and to keep public extension concepts separate from internal substrate wiring.
+This is the canonical vocabulary for UIX architecture discussions and code names. Use it to avoid overloading Pi terms and to distinguish feature loading, package distribution, and internal substrate wiring.
 
 ## Feature
 
-A **feature** is the coherent capability being added: canvas, conversation, a chess board, a file browser, a report renderer. A feature may be first-party in-tree or supplied by a UIX extension package.
+A **feature** is UIX's loadable unit and the coherent capability it adds: Canvas, Chat, a chess board, a file browser, or a report renderer. A feature can be first-party in-tree or supplied by another manifest-referenced module.
 
-A feature is conceptual: what it does. An extension package is concrete: how UIX discovers, activates, reloads, and lifetimes loadable code. Most packages will start as one extension package installing one feature, but a package may install several related features.
+A **feature entry** is the concrete TypeScript or JavaScript module referenced by one ordered `uix.workspace.json` manifest entry. It default-exports one `FeatureDefinition`; activation of that definition produces one activated feature instance. UIX does not auto-discover feature entries.
+
+A package is only a code-distribution and dependency boundary. It can contain feature entry modules, Pi extensions, or both, but it does not introduce a UIX lifecycle layer above features. The workspace manifest explicitly selects its UIX feature entries.
 
 A feature is not itself one registered item. It may include several pieces:
 
-- UIX contributions, such as panes, commands, state messages, or channel handlers;
+- UIX contributions, such as surfaces, actions, state sections, or channel handlers;
 - agent installers, such as code that registers tools or Pi hooks;
 - renderer code, services, stores, styles, and assets.
 
-Use **feature** when naming the user-facing capability. Use **extension** when you mean the loadable package/activation boundary or a Pi extension factory.
+Use **feature** for the UIX capability, loadable definition, and activation boundary. Use **package** only for distribution or dependency ownership. Use **extension** only for Pi's extension mechanism.
 
 ## Feature lifecycle
 
 A **feature definition** is the plain `FeatureDefinition` exported by one manifest entry module. It declares the feature id and the hooks that produce its contributions; it is not itself live runtime state.
 
-**Feature activation** is the transactional process that validates the definition and settings, constructs the feature context, runs `context()` and `contribute()`, registers every contributed facet into a provisional lifetime bag, and commits that bag only when the whole feature succeeds.
+**Feature activation** is the transactional process that validates the definition and settings, constructs the feature context, runs `context()` and `contribute()`, registers each contributed facet, adds every returned lifetime capability to a provisional bag, and enrolls that bag only when the whole feature succeeds.
 
-An **activated feature instance** is the live result of one successful feature activation: its context objects, callbacks, registered contributions, and per-feature lifetime bag. Reloading the same entry creates a replacement activated feature instance even when its id and source are unchanged. A failed activation produces no activated feature instance; all provisional registrations are disposed.
+An **activated feature instance** is the live result of one successful feature activation: its context objects, callbacks, registered contributions, and per-feature lifetime bag. Reloading the same entry creates a replacement activated feature instance even when its id and source are unchanged. A failed activation produces no activated feature instance; its provisional bag disposes every capability already acquired.
 
 The **active feature composition** is the set of activated feature instances currently owned by the workspace's feature bag. Reload commits turn state from those current instances, disposes them, activates replacement instances, and restores the selected session branch into the replacements.
 
@@ -107,15 +109,16 @@ Do not use **contribution** as a generic synonym for any behavior-changing code.
 
 ## Capability handle
 
-A **capability handle** is the value returned by a register operation when the contributor needs an imperative capability after the contribution becomes live.
+A **capability handle** is an object that gives its holder scoped operations without exposing the underlying owner. A register operation can return a more specific capability after a contribution becomes live.
 
 Examples:
 
-- an agent-context update contribution returns a handle with `update(payload)`;
-- an agent-context append contribution returns a handle with `append(payload)`;
-- many contribution points return no handle because the registered object already contains the needed callbacks.
+- an agent-context update contribution returns an `AgentContextUpdater` with `update(payload)`;
+- an agent-context append contribution returns an `AgentContextAppender` with `append(payload)`;
+- a `ResourceAddressHandle` provides resource-scoped `toUrl()` and `toOrigin()` conversions;
+- many contribution points return only a `Disposable` because the contributor needs no further operation.
 
-A handle belongs to the registering feature. It should not become a shared stringly API for other features to drive.
+A capability belongs to its holder. It should not become a shared stringly API for other features to drive.
 
 ## Registry
 
@@ -123,7 +126,7 @@ A **registry** is the substrate-owned collection of currently registered contrib
 
 A registry is working memory, not durable authority. Durable state lives in Pi session entries, content stores, or other explicitly owned stores. The registry answers: what contributions are live right now?
 
-A registry is not a `DisposableBag`. The registry owns the live contribution index and invariants such as duplicate-id checks; the `Disposable` returned by `register(...)` removes that one contribution; a caller-owned bag decides when that removal happens. Hosted extension APIs should auto-scope returned disposables to the extension's lifetime bag, and first-party wiring should add those disposables to an explicit bag when the contribution lifetime is shorter than the app.
+A registry is not a `DisposableBag`. The registry owns the live contribution index and invariants such as duplicate-id checks; the `Disposable` returned by `register(...)` removes that one contribution; a caller-owned bag decides when that removal happens. Feature activation enrolls returned disposables into the activated feature instance's bag, while substrate wiring uses the bag matching its own lifetime.
 
 ## Catalog
 
@@ -190,7 +193,7 @@ Examples:
 
 A feature may participate in many facets. For example, a canvas feature can contribute a pane to the pane-hosting facet, tools to the agent/tooling facet, turn-state snapshots to the turn-state facet, and model-visible sections to the agent-context facet.
 
-Use **facet** for the behavioral slice. Use **feature** for the product/capability bundle that may be packaged as a UIX extension.
+Use **facet** for the behavioral slice. Use **feature** for the loadable product/capability bundle that participates in those facets.
 
 ## Installer
 
@@ -205,7 +208,7 @@ An installer may register:
 - Electron protocols;
 - UIX contributions.
 
-Installers answer: how does this slice attach to the system? Registrations answer: what one concrete thing was added?
+Installers answer: how does this slice attach to the system? A register operation answers: what one concrete item became live?
 
 An **agent installer** is the Pi-facing installer shape: it receives Pi's `ExtensionAPI` and registers behavior that affects the agent/session runtime. Agent installers may call Pi APIs such as:
 
@@ -215,7 +218,7 @@ An **agent installer** is the Pi-facing installer shape: it receives Pi's `Exten
 - `pi.sendMessage(...)`
 - `pi.sendUserMessage(...)`
 
-Agent installers are composed inside UIX-core's single in-process Pi extension factory. They are internal substrate wiring, not public UIX extension contributions.
+Agent installers are composed inside UIX-core's single in-process Pi extension factory. They are internal substrate wiring, not feature contributions.
 
 ## Driver
 
@@ -274,7 +277,7 @@ Coordinators and assemblers are both cross-contribution substrate patterns. A co
 
 UIX has three layers that can fall out of sync at different times:
 
-1. **Disk** — extension package files.
+1. **Disk** — feature entry and dependency files.
 2. **UIX memory** — currently registered contributions in facet registries.
 3. **Pi runtime** — tools, hooks, commands, and other agent behavior registered during the last Pi extension load.
 
@@ -284,7 +287,7 @@ Facet registries that compile to Pi install-time behavior mark the agent install
 
 Facet registries that are local to UIX do not mark the agent install surface dirty. Their returned disposables and renderer/main notifications are enough.
 
-Renderer reload follows the same registry-source-of-truth rule. The main process owns extension activation and facet registries; the renderer shell does not discover extensions. When UI-visible registries change, main sends the relevant registry snapshot or change payload to the renderer, and React reconciles: unmount removed surfaces, mount new ones, and update changed ones. A full Electron/Vite hot reload is dev tooling, not the UIX extension reload mechanism.
+Renderer reload follows the same registry-source-of-truth rule. The main process owns feature activation and facet registries; the renderer shell does not load feature definitions. When UI-visible registries change, main sends the relevant registry snapshot or change payload to the renderer, and React reconciles: unmount removed surfaces, mount new ones, and update changed ones. A full Electron/Vite hot reload is dev tooling, not the UIX feature reload mechanism.
 
 ## State-message-local terms
 
@@ -327,7 +330,7 @@ A contribution can provide custom `materialize(...)` logic. With no UIX-managed 
 ## Pi vocabulary boundaries
 
 - **Pi extension**: Pi's factory/API mechanism — a function receives `pi: ExtensionAPI` and registers hooks, tools, commands, providers, messages, or session writes.
-- **UIX extension**: a loadable package using `@uix/api` to register UIX contributions.
-- **Feature**: the capability bundle, independent of whether it is first-party or packaged.
+- **Feature**: UIX's manifest-selected loadable definition and capability bundle.
+- **Package**: an optional distribution and dependency boundary, not a UIX lifecycle unit.
 - **Agent installer**: the internal Pi-facing setup function for a facet or feature side.
-- **Contribution**: the UIX-facing registered object accepted by a UIX contribution point.
+- **Contribution**: the UIX-facing declarative value accepted by a UIX contribution point.
