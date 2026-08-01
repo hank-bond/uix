@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   AgentSystemPromptRegistry,
-  buildAgentSystemPromptSection,
+  assembleAgentSystemPromptSection,
   registerAgentSystemPromptContribution,
 } from "./registry";
 
@@ -16,7 +16,7 @@ describe("AgentSystemPromptRegistry", () => {
       "## Second\n\nTwo",
     );
 
-    expect(buildAgentSystemPromptSection(registry)).toBe(
+    expect(assembleAgentSystemPromptSection(registry)).toBe(
       "## First\n\nOne\n\n## Second\n\nTwo",
     );
   });
@@ -37,7 +37,7 @@ describe("AgentSystemPromptRegistry", () => {
     ).toThrow("expected non-empty Markdown");
 
     promptDisposable[Symbol.dispose]();
-    expect(buildAgentSystemPromptSection(registry)).toBeUndefined();
+    expect(assembleAgentSystemPromptSection(registry)).toBeUndefined();
     expect(() =>
       registerAgentSystemPromptContribution(registry, "canvas", "Reloaded"),
     ).not.toThrow();

@@ -194,7 +194,7 @@ export class SurfaceModulePipeline {
   }
 
   /** The substrate resource routes, registered under the reserved `uix` id. */
-  resourceContributions(): readonly ResourceContribution[] {
+  createResourceContributions(): readonly ResourceContribution[] {
     return [
       {
         name: ModuleRouteName,

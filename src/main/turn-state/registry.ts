@@ -293,7 +293,7 @@ export function registerTurnStateContributions(
 }
 
 /** Installs agent-end turn-state commits for the current Pi runtime generation. */
-export function createTurnStateCoordinator(
+export function createTurnStateInstaller(
   registry: TurnStateRegistry,
 ): AgentInstaller {
   return (pi) => {

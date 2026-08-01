@@ -78,7 +78,7 @@ describe("SurfaceModulePipeline", () => {
       /^uix-resource:\/\/uix\.local\/surface\/shiny\/0\.js\?v=[0-9a-f]{12}$/,
     );
 
-    const [moduleRoute] = pipeline.resourceContributions();
+    const [moduleRoute] = pipeline.createResourceContributions();
     const response = moduleRoute?.handler(
       request({ feature: "shiny", file: "0.js" }),
     );
@@ -168,7 +168,7 @@ describe("SurfaceModulePipeline", () => {
     });
     const pipeline = new SurfaceModulePipeline("local");
     await pipeline.buildAll([reg]);
-    const [, filesRoute] = pipeline.resourceContributions();
+    const [, filesRoute] = pipeline.createResourceContributions();
 
     const css = await filesRoute?.handler(
       request({ feature: "shiny", path: ["styles.css"] }),
@@ -197,7 +197,7 @@ describe("SurfaceModulePipeline", () => {
     });
     const pipeline = new SurfaceModulePipeline("local");
     await pipeline.buildAll([reg]);
-    const [moduleRoute] = pipeline.resourceContributions();
+    const [moduleRoute] = pipeline.createResourceContributions();
 
     const fromPage = await moduleRoute?.handler(
       request({ feature: "shiny", file: "0.js" }, "http://localhost:5173"),
@@ -223,7 +223,7 @@ describe("SurfaceModulePipeline", () => {
     await pipeline.buildAll([reg]);
     await pipeline.buildAll([]);
 
-    const [moduleRoute] = pipeline.resourceContributions();
+    const [moduleRoute] = pipeline.createResourceContributions();
     const response = await moduleRoute?.handler(
       request({ feature: "shiny", file: "0.js" }),
     );
@@ -240,7 +240,7 @@ describe("SurfaceModulePipeline", () => {
     await pipeline.buildAll([]);
     await olderBuild;
 
-    const [moduleRoute] = pipeline.resourceContributions();
+    const [moduleRoute] = pipeline.createResourceContributions();
     const response = await moduleRoute?.handler(
       request({ feature: "shiny", file: "0.js" }),
     );

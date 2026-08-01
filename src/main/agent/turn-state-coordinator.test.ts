@@ -9,7 +9,7 @@ import {
   registerTurnStateContributions,
   TurnStateRegistry,
 } from "../turn-state/registry";
-import { createTurnStateLifecycle } from "./turn-state-lifecycle";
+import { createTurnStateCoordinator } from "./turn-state-coordinator";
 
 function turnStateEntry(state: Record<string, unknown>): SessionEntry {
   return {
@@ -43,7 +43,7 @@ function deferred() {
   return { promise, resolve };
 }
 
-describe("agent turn-state lifecycle", () => {
+describe("turn-state coordinator", () => {
   it("restores the selected branch before allowing an active-state commit", async () => {
     const registry = new TurnStateRegistry();
     const restore = vi.fn();
@@ -57,18 +57,18 @@ describe("agent turn-state lifecycle", () => {
     const { manager, appendCustomEntry } = createManager([
       turnStateEntry({ "canvas.documents": "persisted" }),
     ]);
-    using lifecycle = createTurnStateLifecycle({
+    using coordinator = createTurnStateCoordinator({
       registry,
       cwd: "/workspace",
     });
 
-    await expect(lifecycle.commitIfReady(manager)).resolves.toBe(false);
+    await expect(coordinator.commitIfReady(manager)).resolves.toBe(false);
 
-    await lifecycle.restoreCurrent(manager);
+    await coordinator.restoreCurrent(manager);
 
     expect(restore).toHaveBeenCalledWith("persisted");
-    expect(lifecycle.isRestorationSettled(manager)).toBe(true);
-    await expect(lifecycle.commitIfReady(manager)).resolves.toBe(true);
+    expect(coordinator.isRestorationSettled(manager)).toBe(true);
+    await expect(coordinator.commitIfReady(manager)).resolves.toBe(true);
     expect(appendCustomEntry).toHaveBeenCalledWith("uix.turn-state", {
       cwd: "/workspace",
       state: { "canvas.documents": "live" },
@@ -92,11 +92,11 @@ describe("agent turn-state lifecycle", () => {
     const { manager } = createManager([
       turnStateEntry({ "canvas.documents": "persisted" }),
     ]);
-    using lifecycle = createTurnStateLifecycle({
+    using coordinator = createTurnStateCoordinator({
       registry,
       cwd: "/workspace",
     });
-    const obsoleteSnapshot = lifecycle.toRegistrySnapshot();
+    const obsoleteSnapshot = coordinator.toRegistrySnapshot();
 
     previousCellsDisposable[Symbol.dispose]();
     const restoreReplacementInstance = vi.fn();
@@ -108,13 +108,13 @@ describe("agent turn-state lifecycle", () => {
       },
     });
 
-    await expect(lifecycle.restore(manager, obsoleteSnapshot)).resolves.toBe(
+    await expect(coordinator.restore(manager, obsoleteSnapshot)).resolves.toBe(
       false,
     );
     expect(restorePreviousInstance).not.toHaveBeenCalled();
     expect(restoreReplacementInstance).not.toHaveBeenCalled();
 
-    await lifecycle.restoreCurrent(manager);
+    await coordinator.restoreCurrent(manager);
     expect(restoreReplacementInstance).toHaveBeenCalledWith("persisted");
   });
 
@@ -132,18 +132,18 @@ describe("agent turn-state lifecycle", () => {
     const { manager } = createManager([
       turnStateEntry({ "canvas.documents": "persisted" }),
     ]);
-    using lifecycle = createTurnStateLifecycle({
+    using coordinator = createTurnStateCoordinator({
       registry,
       cwd: "/workspace",
     });
 
-    const firstRestoration = lifecycle.restore(
+    const firstRestoration = coordinator.restore(
       manager,
-      lifecycle.toRegistrySnapshot(),
+      coordinator.toRegistrySnapshot(),
     );
-    const secondRestoration = lifecycle.restore(
+    const secondRestoration = coordinator.restore(
       manager,
-      lifecycle.toRegistrySnapshot(),
+      coordinator.toRegistrySnapshot(),
     );
 
     expect(secondRestoration).toBe(firstRestoration);

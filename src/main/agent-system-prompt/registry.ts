@@ -75,7 +75,7 @@ export function registerAgentSystemPromptContribution(
   );
 }
 
-export function buildAgentSystemPromptSection(
+export function assembleAgentSystemPromptSection(
   registry: AgentSystemPromptRegistry,
 ): string | undefined {
   const sections = registry.list();

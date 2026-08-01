@@ -4,7 +4,7 @@ import { deriveSelectedBranchProjection } from "./branch-projection";
 import type { AgentInstaller } from "./installers";
 import {
   commitCurrentTurnState,
-  createTurnStateCoordinator,
+  createTurnStateInstaller,
   isSameTurnStateRegistrySnapshot,
   isTurnStateRegistrySnapshotCurrent,
   restoreTurnStateCellsAsOfLeaf,
@@ -13,12 +13,12 @@ import {
   type TurnStateRegistrySnapshot,
 } from "../turn-state/registry";
 
-interface TurnStateLifecycleOptions {
+interface TurnStateCoordinatorOptions {
   readonly registry: TurnStateRegistry;
   readonly cwd: string;
 }
 
-interface TurnStateLifecycle extends Disposable {
+interface TurnStateCoordinator extends Disposable {
   readonly agentInstaller: AgentInstaller;
   toRegistrySnapshot(): TurnStateRegistrySnapshot;
   isRestorationSettled(sessionManager: SessionManager): boolean;
@@ -46,9 +46,9 @@ interface TurnStateLifecycle extends Disposable {
 }
 
 /** Owns selected-branch commit and restore coordination. */
-export function createTurnStateLifecycle(
-  opts: TurnStateLifecycleOptions,
-): TurnStateLifecycle {
+export function createTurnStateCoordinator(
+  opts: TurnStateCoordinatorOptions,
+): TurnStateCoordinator {
   let lastSettledRestoration:
     | {
         manager: SessionManager;
@@ -77,9 +77,7 @@ export function createTurnStateLifecycle(
     registrySnapshot: TurnStateRegistrySnapshot,
   ): Promise<boolean> {
     if (disposed) {
-      return Promise.reject(
-        new Error("Agent turn-state lifecycle is disposed"),
-      );
+      return Promise.reject(new Error("Turn-state coordinator is disposed"));
     }
     const existing = inFlightRestorations.find(
       (entry) =>
@@ -107,7 +105,7 @@ export function createTurnStateLifecycle(
         projection.turnStateAsOfLeaf,
       );
       if (disposed) {
-        throw new Error("Agent turn-state lifecycle is disposed");
+        throw new Error("Turn-state coordinator is disposed");
       }
       if (
         !isTurnStateRegistrySnapshotCurrent(opts.registry, registrySnapshot)
@@ -137,12 +135,12 @@ export function createTurnStateLifecycle(
   }
 
   async function commit(sessionManager: SessionManager): Promise<void> {
-    if (disposed) throw new Error("Agent turn-state lifecycle is disposed");
+    if (disposed) throw new Error("Turn-state coordinator is disposed");
     await commitCurrentTurnState(sessionManager, opts.cwd, opts.registry);
   }
 
   return {
-    agentInstaller: createTurnStateCoordinator(opts.registry),
+    agentInstaller: createTurnStateInstaller(opts.registry),
     toRegistrySnapshot: () => toTurnStateRegistrySnapshot(opts.registry),
     isRestorationSettled,
     restore,
@@ -150,7 +148,7 @@ export function createTurnStateLifecycle(
     commit,
 
     async commitIfReady(sessionManager) {
-      if (disposed) throw new Error("Agent turn-state lifecycle is disposed");
+      if (disposed) throw new Error("Turn-state coordinator is disposed");
       if (!sessionManager || !isRestorationSettled(sessionManager)) {
         return false;
       }

@@ -279,7 +279,7 @@ async function openWorkspace(
     registerResourceContributions(
       resources,
       "uix",
-      surfacePipeline.resourceContributions(),
+      surfacePipeline.createResourceContributions(),
     ),
   );
   const uixPublisher = createFeatureEventPublisherFactory(
@@ -384,7 +384,7 @@ async function openWorkspace(
           }),
         },
         agent_status: {
-          handler: () => driver.status(),
+          handler: () => driver.getStatus(),
         },
         select_model: {
           handler: (ref) => driver.selectModel(ref),

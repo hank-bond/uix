@@ -242,16 +242,18 @@ Installers register hooks. Hooks run later when the lifecycle event occurs.
 
 ## Coordinator
 
-A **coordinator** is substrate-owned glue that runs a lifecycle across many registered contributions and performs the side effects for that lifecycle.
+A **coordinator** is a substrate-owned, stateful component that sequences a multi-step lifecycle across independently owned participants and performs the side effects for that lifecycle. Participants can be registered contributions, runtime generations, stores, or external callbacks; the coordinator owns their workflow, not their underlying authority.
 
-The current example is the turn-state coordinator:
+The turn-state coordinator works across registered state cells:
 
 - asks live named state cells for complete snapshots before user submit and at `agent_end`;
 - validates each plain-JSON snapshot against its TypeBox schema;
 - compares each cell independently with the selected branch;
 - commits changed snapshots in one `uix.turn-state` session entry.
 
-A coordinator owns timing and cross-contribution mechanics. The contributing feature owns each cell's snapshot creation and restore behavior.
+`ProviderAuthFlowCoordinator` sequences one Pi-owned login flow across prompts, notices, link opening, answers, and cancellation. `WorkspaceReloadCoordinator` serializes candidate adoption, feature replacement, state restoration, and surface publication without taking ownership of those underlying authorities.
+
+A coordinator owns timing, in-flight workflow state, and cross-participant mechanics. Each participant retains its own authority: contributing features own cell snapshot and restore behavior, Pi owns provider authentication, and the feature loader owns activated feature instances during workspace reload.
 
 ## Assembler
 

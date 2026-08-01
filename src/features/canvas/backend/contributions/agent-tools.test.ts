@@ -21,7 +21,7 @@ import {
   registerAgentToolContributions,
 } from "#backend/agent-tools/registry";
 import {
-  createTurnStateCoordinator,
+  createTurnStateInstaller,
   commitCurrentTurnState,
   TurnStateRegistry,
   registerTurnStateContributions,
@@ -164,7 +164,7 @@ function setup() {
   } as unknown as ExtensionAPI;
 
   void createAgentToolInstaller(agentTools)(pi);
-  void createTurnStateCoordinator(state)(pi);
+  void createTurnStateInstaller(state)(pi);
 
   // Vocabulary is installed separately — it's the only thing that still uses
   // before_agent_start. The message flush is called directly.

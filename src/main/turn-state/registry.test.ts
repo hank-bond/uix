@@ -12,7 +12,7 @@ import type { TurnStateContributions } from "@uix/api/turn-state";
 
 import {
   toTurnStateRegistrySnapshot,
-  createTurnStateCoordinator,
+  createTurnStateInstaller,
   createTurnStateHistoryReader,
   createTurnStateProjector,
   isSameTurnStateRegistrySnapshot,
@@ -65,7 +65,7 @@ function setupCoordinator(state = new TurnStateRegistry()) {
     },
   } as unknown as ExtensionAPI;
 
-  void createTurnStateCoordinator(state)(pi);
+  void createTurnStateInstaller(state)(pi);
 
   const fire = async (
     event: string,

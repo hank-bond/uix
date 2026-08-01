@@ -137,11 +137,11 @@ export interface FeatureSources {
 }
 
 /**
- * Builds the context bag a feature's `context`/`contribute` hooks receive.
+ * Assembles the context bag a feature's `context`/`contribute` hooks receive.
  * One construction path for every feature — the substrate facets a feature
  * can touch are exactly what this returns.
  */
-export function buildFeatureContext(
+export function assembleFeatureContext(
   featureId: string,
   substrate: FeatureSubstrate,
   settings: SettingsHandle,
@@ -296,7 +296,7 @@ export const activateFeatures = async (
           definition.settings ?? EmptyFeatureSettings,
         ),
       );
-      const baseContext = buildFeatureContext(
+      const baseContext = assembleFeatureContext(
         definition.id,
         substrate,
         featureSettings.settings,
