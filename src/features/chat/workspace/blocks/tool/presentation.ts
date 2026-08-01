@@ -6,13 +6,9 @@ import { extractTextContent, truncateText } from "../content/text";
 export type ToolItem = Extract<TranscriptItem, { kind: "tool" }>;
 export type ToolState = "running" | "success" | "error";
 
-export interface ToolChatRenderer {
-  displayName: string;
-  renderLabel?: (props: {
-    item: ToolItem;
-    state: ToolState;
-  }) => ReactNode | undefined;
-  render: (props: { item: ToolItem; state: ToolState }) => ReactNode;
+export interface ToolChatBlockPresentation {
+  label: ReactNode;
+  content: ReactNode;
 }
 
 export function toToolState(item: ToolItem): ToolState {

@@ -55,6 +55,7 @@ const retiredSourceIdentifiers = [
   "SettingsScopeRegistration",
   "SurfaceRegistration",
   "TurnStateCellRegistration",
+  "ToolChatRenderer",
   "TurnStateLifecycle",
   "buildAgentContextMessage",
   "buildAgentContextVocabularySection",
@@ -62,7 +63,9 @@ const retiredSourceIdentifiers = [
   "buildFeatureContext",
   "createResourceAddressBuilder",
   "createTurnStateLifecycle",
+  "getToolChatRenderer",
   "normalizeActionContribution",
+  "rendererByToolName",
 ];
 
 for (const file of sourceFiles) {

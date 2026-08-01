@@ -20,6 +20,16 @@ Use these rules for UIX-owned architectural vocabulary.
 
 **Reason.** A stable role lets a reader infer how an unfamiliar identifier behaves before the reader opens its definition.
 
+### naming.role-specificity — Choose the defining approved role
+
+**Rule — MUST.** When one approved noun specializes another and its additional contract applies, use the specialized noun. Choose the role that communicates the strongest stable guarantees consumers can rely on, not the narrowest description of the current implementation.
+
+**Approved examples.** Use `ProviderAuthCatalog`, not `ProviderAuthProjection`, because the value provides a discovery and selection boundary. Use `ToolChatBlockPresentation`, not `ToolChatBlockProjection`, because the value is human-facing material consumed by UI composition.
+
+**Nonconforming example.** Do not name a durable source of truth `DocumentRegistry` because its current implementation indexes values in memory; use `DocumentStore` when durable authority is its defining contract.
+
+**Reason.** Broad nouns hide useful guarantees, while implementation-specific nouns become false when mechanics change. The defining approved role preserves the strongest stable contract.
+
 ### naming.callable-type — Name a callable type by role
 
 **Rule — MUST.** Use a noun phrase for a type, interface, class, or named callable type. The head noun of a callable type must identify the callable role.
@@ -60,6 +70,18 @@ driver.status();
 address.url();
 pipeline.resourceContributions();
 ```
+
+### naming.operation-result — Pair transition verbs with result nouns
+
+**Rule — MUST.** When an operation name identifies a result or lifecycle transition, use an approved verb that states how the operation produces or affects that result and a domain noun that states the result's architectural role or stage. Each term must contribute information independently.
+
+**Scope.** This rule does not require every operation to repeat its return type. A receiver, input, or established domain operation can already supply the noun, as in `registry.register(action)`.
+
+**Approved examples.** `deriveSelectedBranchProjection()`, `resolveAgentToolContribution()`, and `assembleAgentContextMessage()` pair a transition with its result role. Use `deriveToolChatBlockPresentation()`, where `derive` identifies pure policy computation and `Presentation` identifies the human-facing result.
+
+**Nonconforming example.** Do not verbalize the result noun when that verb adds no transition semantics. `presentToolChatBlock()` restates `ToolChatBlockPresentation`; use `deriveToolChatBlockPresentation()` for a pure rebuildable view.
+
+**Reason.** Controlled verbs collapse synonyms for recurring transitions; controlled nouns collapse synonyms for recurring roles and stages. Keeping those axes orthogonal lets an unfamiliar identifier communicate both facts.
 
 ### naming.callable-value — Name a callable by its semantic role
 
@@ -197,6 +219,7 @@ isFailed: boolean;
 | `Handler` (noun) | Callable that a framework invokes to process one occurrence and possibly determine its result. Use `Listener` for passive observation. | `ChannelRequestHandler` | `StatusHandler` for a callable that only observes status changes |
 | `Installer` (noun) | Setup-time callable or component that attaches a whole feature or facet slice to a runtime. Use `Registrar` for a callable that adds one item. | `AgentInstaller` | `SingleAgentToolInstaller` for a callable that registers one tool; use `AgentToolRegistrar` |
 | `Listener` (noun) | Callable that observes an occurrence without determining its result. Use `Handler` when the callable processes the occurrence or supplies its result. | `StatusListener` | `RequestListener` for a callable that must produce the request result |
+| `Presentation` (noun) | Purpose-specific human-facing material that forms an explicit intermediate contract between display-policy derivation and UI composition or display execution. A presentation can be a derived projection; use `Projection` when the result remains consumer-neutral domain data, an ordinary UI component when no intermediate contract exists, and `Renderer` for the mechanism that executes web display. | `ToolChatBlockPresentation` | `ToolChatRenderer`; `MessageChatBlockPresentation` for a component with no intermediate presentation value |
 | `Projector` (noun) | Stateful component whose private state exists only to incorporate source facts and derive a projection. Use a `deriveX` function for a one-shot transformation. | `TranscriptProjector` | `ModelCatalogProjector` that only maps one input array; use `deriveModelCatalog()` |
 | `Publisher` (noun) | Capability or callable that its holder invokes to publish an event. | `FeatureEventPublisher` | `ChannelTransportPublish` |
 | `Registrar` (noun) | Callable that its holder invokes to add an item to a registry or contribution point. Do not use this term for the registered record or returned lifetime capability. | `ActionContributionRegistrar` | `RegisterActionContribution` |
@@ -230,7 +253,7 @@ In UIX, `resolve` means contextual or reference resolution, not conflict arbitra
 | `create` (verb) | Construct a domain instance or independently identified artifact whose identity, evolving state, or ownership matters. | `createAgentDriver()` | `createSelectedBranchProjection()` for a rebuildable view |
 | `decode` (verb) | Apply the reverse half of a reversible representation transform. Use `parse` when the transform is validation without a paired encoding. | `decodeResourceUrl()` | `parseResourceUrl()` when paired with `encodeResourceUrl()` |
 | `define` (verb) | Preserve identity or type agreement around public-API plain data without creating a live instance. | `defineSurface()` | `createSurface()` for a plain surface definition |
-| `derive` (verb) | Compute a new immutable, rebuildable value through filtering, joining, folding, reduction, or domain policy. | `deriveSelectedBranchProjection()` | `createSelectedBranchProjection()` |
+| `derive` (verb) | Compute a new immutable, rebuildable value through filtering, joining, folding, reduction, or domain policy. Use a more specific approved transformation when its boundary applies; otherwise use `derive` for pure policy computation instead of coining a verb from the result noun or return type. | `deriveSelectedBranchProjection()`; `deriveToolChatBlockPresentation()` | `createSelectedBranchProjection()`; `presentToolChatBlock()` |
 | `encode` (verb) | Apply one half of a reversible representation transform. Use `to` for an ordinary representation without a paired decoder. | `encodeResourceUrl()` | `toResourceUrl()` when a paired decoder defines the representation |
 | `enumerate` (verb) | Eagerly derive every member of a finite possibility set. Use `list` to retrieve existing items. | `enumerateUniqueModifierSequences()` | `listUniqueModifierSequences()` when the operation generates possibilities |
 | `extract` (verb) | Pull an existing part from a larger value without applying domain reduction policy. Use `derive` when policy computes a new view. | `extractTranscriptText()` | `deriveTranscriptText()` for direct extraction |
@@ -279,6 +302,7 @@ In UIX, `resolve` means contextual or reference resolution, not conflict arbitra
 | --- | --- | --- | --- |
 | `Disposable` (noun; ECMAScript) | Object with deterministic cleanup through `Symbol.dispose`. Use a more specific capability role when cleanup is not its defining operation. | `DisposableBag` | `ActionContributionDisposable` for an update-and-dispose capability |
 | `handle` (verb; Electron) | Register an Electron IPC invocation handler. Use UIX-owned role nouns outside a direct representation of that API. | `ipc.handle(...)` | `ChannelRequestContribution.handle` for a stored UIX callback |
+| `Renderer` (noun; browser/Electron) | The web display execution environment or a mechanism that directly manages it. Reserve UIX-owned adoption for substrate display execution; use `Presentation` for human-facing material prepared for that boundary. | `renderer process` | `ToolChatRenderer` |
 
 ## Naming
 

@@ -127,6 +127,8 @@ Keep one independently enforceable requirement in each rule card. Split requirem
 
 ## Controlled lexicon entries
 
+The identifier grammar that code authors apply lives in [`naming-and-comments.md`](./architecture/conventions/naming-and-comments.md). This section governs changing that grammar and its controlled lexicon.
+
 Use an STE-style contrast table for controlled architectural vocabulary:
 
 | Term (part of speech) | Approved meaning / alternatives | Approved example | Nonconforming example |
@@ -154,6 +156,8 @@ Before admitting a row, apply these quality tests:
 5. **Replacement:** Is the compliant replacement evident?
 6. **Independence:** Does the definition survive an implementation change?
 7. **Completeness:** Are all named alternatives already defined?
+8. **Orthogonality:** For an operation/result pair, does the verb identify the transition independently from the noun's result role, and does the noun identify the result independently from the verb?
+9. **Leverage:** Does the term collapse a real recurring choice across contexts instead of restating a result type, downstream use, or local implementation detail?
 
 If a row cannot provide a strong nonconforming example, its boundary is not settled or the term does not yet need controlled-lexicon status.
 

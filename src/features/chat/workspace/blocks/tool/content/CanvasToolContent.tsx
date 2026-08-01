@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import { toToolTextContent } from "../rendering";
-import type { ToolItem } from "../rendering";
+import { toToolTextContent } from "../presentation";
+import type { ToolItem } from "../presentation";
 
 export function CanvasToolContent({ item }: { item: ToolItem }) {
   const [isExpanded, setIsExpanded] = useState(false);

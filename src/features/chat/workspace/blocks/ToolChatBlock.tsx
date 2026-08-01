@@ -1,38 +1,19 @@
 import { ChatBlockFrame } from "./ChatBlockFrame";
-import { getToolChatRenderer } from "./tool/renderers";
-import { DefaultToolContent } from "./tool/content/DefaultToolContent";
-import { toToolDisplayName, toToolState } from "./tool/rendering";
-import type { ToolItem } from "./tool/rendering";
+import { toToolState } from "./tool/presentation";
+import type { ToolItem } from "./tool/presentation";
+import { deriveToolChatBlockPresentation } from "./tool/presentations";
 
 export function ToolChatBlock({ item }: { item: ToolItem }) {
   const state = toToolState(item);
-  const renderer = getToolChatRenderer(item.toolName);
-  const name = renderer?.displayName ?? toToolDisplayName(item.toolName);
-  const renderedLabel = renderer?.renderLabel?.({ item, state });
-  const label = renderedLabel ?? (
-    <>
-      tool: <span data-uix-part="tool-name">{name}</span>
-    </>
-  );
+  const presentation = deriveToolChatBlockPresentation(item, state);
   return (
     <ChatBlockFrame
-      className={item.isError ? "tool-error" : "tool"}
+      className={state === "error" ? "tool-error" : "tool"}
       kind="tool"
       state={state}
       toolName={item.toolName}
-      label={
-        <>
-          {label}
-          {item.isError ? " (error)" : ""}
-        </>
-      }
-      body={
-        renderer ? (
-          renderer.render({ item, state })
-        ) : (
-          <DefaultToolContent item={item} />
-        )
-      }
+      label={presentation.label}
+      body={presentation.content}
     />
   );
 }

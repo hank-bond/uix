@@ -3,8 +3,8 @@ import {
   HighlightedCode,
   inferCodeLanguageFromPath,
 } from "../../content/HighlightedCode";
-import { toToolTextContent } from "../rendering";
-import type { ToolItem } from "../rendering";
+import { toToolTextContent } from "../presentation";
+import type { ToolItem } from "../presentation";
 import { DefaultToolContent } from "./DefaultToolContent";
 
 export function FileToolContent({ item }: { item: ToolItem }) {
