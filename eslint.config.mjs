@@ -96,25 +96,25 @@ export default tseslint.config(
           selector:
             "CallExpression[callee.object.name='app'][callee.property.name=/^(on|off|once|addListener|removeListener|prependListener|prependOnceListener)$/]",
           message:
-            "Use onApp() from src/main/lifecycle.ts instead of app.on / app.off. See docs/architecture/conventions/registrations-and-lifetimes.md.",
+            "Use onApp() from src/main/lifecycle.ts instead of app.on / app.off. See docs/architecture/conventions/lifetimes.md.",
         },
         {
           selector:
             "CallExpression[callee.object.name='ipcMain'][callee.property.name=/^(handle|handleOnce|on|once|removeHandler|removeListener)$/]",
           message:
-            "Use handle() from src/main/ipc.ts instead of ipcMain.handle / ipcMain.on. See docs/architecture/conventions/registrations-and-lifetimes.md.",
+            "Use handle() from src/main/ipc.ts instead of ipcMain.handle / ipcMain.on. See docs/architecture/conventions/lifetimes.md.",
         },
         {
           selector:
             "CallExpression[callee.object.property.name='webContents'][callee.property.name=/^(send|postMessage)$/]",
           message:
-            "Use send() from src/main/ipc.ts instead of webContents.send, so the crossing lands in the wire log. See docs/architecture/conventions/registrations-and-lifetimes.md.",
+            "Use send() from src/main/ipc.ts instead of webContents.send, so the crossing lands in the wire log. See docs/architecture/conventions/lifetimes.md.",
         },
         {
           selector:
             "CallExpression[callee.object.name='process'][callee.property.name=/^(on|off|once|addListener|removeListener|prependListener|prependOnceListener)$/]",
           message:
-            "Use installProcessHandlers() from src/main/lifecycle.ts instead of process.on directly. See docs/architecture/conventions/registrations-and-lifetimes.md.",
+            "Use installProcessHandlers() from src/main/lifecycle.ts instead of process.on directly. See docs/architecture/conventions/lifetimes.md.",
         },
       ],
 

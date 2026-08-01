@@ -30,4 +30,4 @@ These same shapes serve the wiki app, a design-system deliverables app, and the 
 - Functions over classes.
 - Events over polling. Pi gives events; files have watchers; state emits.
 - Append-only where possible (reports, sessions, custom entries).
-- Lifetime bags enforce pairing by construction; registration without a bag is a bug. See [architecture/registrations-and-lifetimes](../architecture/conventions/registrations-and-lifetimes.md).
+- Lifetime bags enforce pairing by construction; registration without a bag is a bug. See [architecture/lifetimes](../architecture/conventions/lifetimes.md).

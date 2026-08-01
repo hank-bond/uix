@@ -18,7 +18,7 @@ status: active
 | Promise slot | Shared in-flight operation | Cleared when the operation settles; it is not mutable current state. |
 | `DisposableBag` or React effect cleanup | Deterministic lifetime | Owns teardown only, never lookup or current-state selection. |
 | `WeakMap` | Metadata or memo derived from an externally owned object | Use only when the value needs no deterministic cleanup and entries need no enumeration. |
-| `Map` / `Set` | Owned live index or temporary algorithmic index | If it is a registry, expose registration/disposal semantics rather than a raw collection. |
+| `Map` / `Set` | Owned live index or temporary algorithmic index | If it is a registry, expose register and disposal semantics rather than a raw collection. |
 | Cache / projection | Regenerable derived data | State the invalidation or latest-generation commit rule. |
 | Store / durable settings / Pi session entries | Durable authority | Runtime collections and renderer state remain rebuildable from it. |
 
@@ -49,7 +49,7 @@ A settled promise may own a genuinely write-once value when it is immutable for 
 
 Async projections need two independent protections where applicable: lifetime cancellation rejects results after their owner unmounts/disposes, while a monotonic request version rejects an older request that resolves after a newer one. A boolean `alive` flag provides only the first. Name the counter for what it orders: `<operation>RequestVersion` (or local `requestVersion` when only one operation exists) orders asynchronous attempts and increments both on start and cancellation-only invalidation; `<state>Version` records committed semantic state and increments only when that state changes; `<artifact>BuildVersion` orders candidate builds. A request may capture both a request version and a state version when either changing makes its result stale. Backend candidate builders likewise commit only if their build version is still current, or serialize operations when every requested transition must run.
 
-Layer-specific cleanup stays idiomatic: main-process registrations go into lifetime-named bags; renderer subscriptions and requests use React effect cleanup plus latest-request guards. Do not introduce a generic lazy-cell abstraction until multiple consumers need identical mechanics—the explicit fields make ownership and replacement visible.
+Layer-specific cleanup stays idiomatic: main-process cleanup capabilities go into lifetime-named bags; renderer subscriptions and requests use React effect cleanup plus latest-request guards. Do not introduce a generic lazy-cell abstraction until multiple consumers need identical mechanics—the explicit fields make ownership and replacement visible.
 
 ## Central ownership, capability handles
 

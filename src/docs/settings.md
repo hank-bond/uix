@@ -71,7 +71,7 @@ The manifest entry does not repeat the feature id. The loaded `FeatureDefinition
 
 ## Hydration and validation
 
-During feature activation the loader merges the definition's whole-object default into persisted values and validates the completed scope against its one schema. The scope registers provisionally before `context()` and `contribute()` run: reads, validated writes, and feature-local listeners work during activation, but defaults and activation-time writes remain detached from `uix.workspace.json`. Only after every returned facet registers successfully does the loader commit the final scope, materialize it into the live manifest, and switch later writes to normal write-through. A throwing hook or facet registration disposes the provisional scope without changing durable settings, and sibling features continue activating.
+During feature activation the loader merges the definition's whole-object default into persisted values and validates the completed scope against its one schema. The scope registers provisionally before `context()` and `contribute()` run: reads, validated writes, and feature-local listeners work during activation, but defaults and activation-time writes remain detached from `uix.workspace.json`. Only after every returned facet registers successfully does the loader commit the final scope, materialize it into the live manifest, and switch later writes to normal write-through. A throwing hook or facet register operation disposes the provisional scope without changing durable settings, and sibling features continue activating.
 
 Rules:
 

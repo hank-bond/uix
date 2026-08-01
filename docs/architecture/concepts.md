@@ -71,13 +71,13 @@ A contribution point defines validation, lifetime, ownership, and how registered
 
 ## Contribution lifecycle
 
-A feature authors a **contribution**. A facet can **normalize** it into one canonical representation when necessary. The facet then **resolves** owner-derived identifiers, paths, references, and environment-dependent values before it asks the registry to accept the result. A **registered** entity is live and owned by that registry. When registration adds registry-owned state, a separate `RegisteredX` record represents that state. When the registry stores the resolved contribution unchanged, membership expresses liveness and no additional lifecycle type is necessary. A catalog entry or other projection can expose a read-only consumer view without exposing executable references.
+A feature authors a **contribution**. A facet can **normalize** it into one canonical representation when necessary. The facet then **resolves** owner-derived identifiers, paths, references, and environment-dependent values before it asks the registry to accept the result. A **registered** entity is live and owned by that registry. When registry acceptance adds registry-owned state, a separate `RegisteredX` record represents that state. When the registry stores the resolved contribution unchanged, membership expresses liveness and no additional lifecycle type is necessary. A catalog entry or other projection can expose a read-only consumer view without exposing executable references.
 
 ```text
 Contribution
 → NormalizedContribution
 → ResolvedContribution
-→ RegisteredX (when registration adds registry-owned state)
+→ RegisteredX (when registry acceptance adds state)
 → CatalogEntry or Projection
 ```
 

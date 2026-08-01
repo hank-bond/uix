@@ -92,11 +92,11 @@ cell.restore(state);
 Contribution
 → NormalizedContribution
 → ResolvedContribution
-→ RegisteredX (when registration adds registry-owned state)
+→ RegisteredX (when registry acceptance adds state)
 → CatalogEntry or Projection
 ```
 
-Name the value returned to the contributor by its capability, such as `Handle`, `Updater`, `Appender`, or `Disposable`. When a registry stores a resolved contribution unchanged, membership expresses liveness: keep the resolved value type and use a container name such as `#registeredTools`. Use a `RegisteredX` type when registration creates a new record with added registry-owned state, as `RegisteredAction` adds `running`.
+Name the value returned to the contributor by its capability, such as `Handle`, `Updater`, `Appender`, or `Disposable`. When a registry stores a resolved contribution unchanged, membership expresses liveness: keep the resolved value type and use a container name such as `#registeredTools`. Use a `RegisteredX` type when registry acceptance creates a new record with added registry-owned state, as `RegisteredAction` adds `running`.
 
 Agent context demonstrates both outcomes in one facet:
 
@@ -282,7 +282,7 @@ In UIX, `resolve` means contextual or reference resolution, not conflict arbitra
 
 ## Naming
 
-- A `DisposableBag` that owns registrations is named after the lifetime it tracks: `appBag`, `windowBag`, `sessionBag`.
+- A `DisposableBag` that owns cleanup capabilities is named after the lifetime it tracks: `appBag`, `windowBag`, `sessionBag`.
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
 - Name symbols for their stable domain role and operation, not their current caller, pipeline position, trigger, owner, or implementation strategy. A name should remain correct if the symbol moves, gains another caller, or changes implementation without changing its essential domain contract. Let the receiver provide context (`turnStateCoordinator.restoreCurrent(...)`); do not repeat that context in every method.
 - Function names describe the observable domain operation. Include distinctions that identify materially different operations or results; put lifecycle ordering, current usage, race policy, preconditions, and nuanced skipped outcomes in contract comments. Do not encode those volatile details into a symbol merely because one caller currently depends on them.

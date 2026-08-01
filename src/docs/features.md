@@ -43,9 +43,9 @@ The exported `id` is the feature identity. It owns contribution namespaces, chan
 
 A **feature definition** is the plain exported `FeatureDefinition`. **Feature activation** is the process that validates it and its settings, constructs its context, runs `context()` and `contribute()`, and provisionally registers every contributed facet.
 
-A successful activation produces one **activated feature instance**: the live context objects, callbacks, registrations, and per-feature lifetime bag owned by that manifest entry. The instance joins the workspace's **active feature composition** only after every facet registers successfully. A failed activation produces no instance and disposes all provisional registrations.
+A successful activation produces one **activated feature instance**: the live context objects, callbacks, registered contributions, and per-feature lifetime bag owned by that manifest entry. The instance joins the workspace's **active feature composition** only after every facet registers successfully. A failed activation produces no instance and disposes every lifetime capability already acquired by its provisional bag.
 
-Reloading an unchanged entry still creates a replacement activated feature instance. The replacement has the same feature id but fresh context objects, callbacks, registrations, and lifetime bag. An activated feature instance is not called a generation; generation remains reserved for object graphs actually modeled that way, such as a staged manifest generation or Pi runtime generation.
+Reloading an unchanged entry still creates a replacement activated feature instance. The replacement has the same feature id but fresh context objects, callbacks, registered contributions, and lifetime bag. An activated feature instance is not called a generation; generation remains reserved for object graphs actually modeled that way, such as a staged manifest generation or Pi runtime generation.
 
 ## Runtime loading
 
@@ -82,4 +82,4 @@ await window.uix.reload();
 
 Reload first commits turn state from the current activated feature instances after their restoration has settled; while restoration is pending, it skips that commit rather than waiting. It then stages one manifest generation from disk, validates its composition and workspace namespaces, promotes it, disposes the active feature composition, and activates replacement feature instances. After activation it delegates to pi's native `session.reload()` path if a pi session already exists, restores the selected branch into the replacements, and only then publishes surface changes. Reload requests are serialized. A successful reload is disk-wins over pending debounced in-memory settings.
 
-Malformed manifests or workspace settings fail before promotion or feature-instance disposal, leaving the active feature composition intact. Per-feature failures after promotion, including bad exports, reserved/duplicate ids, invalid feature settings, or throwing contribution code, dispose that feature's provisional registrations, report the failed entry, and continue activating siblings.
+Malformed manifests or workspace settings fail before promotion or feature-instance disposal, leaving the active feature composition intact. Per-feature failures after promotion, including bad exports, reserved/duplicate ids, invalid feature settings, or throwing contribution code, dispose that feature's provisional bag, report the failed entry, and continue activating siblings.

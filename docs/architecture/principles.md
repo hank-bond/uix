@@ -15,7 +15,7 @@ When a feature needs to do something and there's only one correct way to do it, 
 
 Give each piece of state one authoritative owner, then keep the mechanisms around it in their proper roles. A current value, registry, buffer, or store owns state; a promise coordinates asynchronous work; a bag or effect owns deterministic cleanup; a map indexes a relationship; and a cache or renderer snapshot is a rebuildable projection. None of those supporting mechanisms becomes a second authority.
 
-When current state can be replaced, commit the replacement at one named generation boundary and make every read resolve through that authority. Async consumers reject stale results rather than letting completion order choose current truth. Derived metadata may follow an externally owned object through a `WeakMap` only when garbage collection is sufficient cleanup; resources and registrations always have explicit lifetimes.
+When current state can be replaced, commit the replacement at one named generation boundary and make every read resolve through that authority. Async consumers reject stale results rather than letting completion order choose current truth. Derived metadata may follow an externally owned object through a `WeakMap` only when garbage collection is sufficient cleanup; resources and cleanup capabilities always have explicit lifetimes.
 
 ## Validate candidates atomically; isolate loadable units
 
