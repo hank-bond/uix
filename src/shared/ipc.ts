@@ -139,9 +139,9 @@ export const uixChannels = {
 /** Shape exposed on `window.uix` by the preload. */
 export interface ChannelTransport {
   /** Generic request/response over IPC. Channel name is the transport address. */
-  request(name: string, payload: unknown): Promise<unknown>;
+  request(channel: string, payload: unknown): Promise<unknown>;
   /** Generic event subscription over IPC. Returns an unsubscribe function. */
-  subscribe(name: string, handler: (payload: unknown) => void): () => void;
+  subscribe(channel: string, handler: (payload: unknown) => void): () => void;
   /** Programmatic hook for future command palette/menu/chat /reload. */
   reload: () => Promise<ReloadResult>;
 }

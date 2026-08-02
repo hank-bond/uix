@@ -83,7 +83,8 @@ export class DisposableBag implements Disposable {
     // go first. (You added the listener after creating the thing it
     // listens to, so dispose the listener first.)
     while (this.#items.length > 0) {
-      const item = this.#items.pop()!;
+      const item = this.#items.pop();
+      if (!item) break;
       try {
         item[Symbol.dispose]();
       } catch {
@@ -105,7 +106,9 @@ export function onAbort(signal: AbortSignal, listener: () => void): Disposable {
     return disposable(() => {});
   }
   signal.addEventListener("abort", listener, { once: true });
-  return disposable(() => signal.removeEventListener("abort", listener));
+  return disposable(() => {
+    signal.removeEventListener("abort", listener);
+  });
 }
 
 // ─── Electron-side lifetime helpers ──────────────────────────────────

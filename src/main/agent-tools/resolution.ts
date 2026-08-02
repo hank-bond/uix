@@ -105,7 +105,7 @@ function assertAgentToolToken(label: string, token: string): void {
   const agentToolTokenPattern = /^[a-z][a-z0-9_]*$/;
   if (!agentToolTokenPattern.test(token)) {
     throw new Error(
-      `Invalid ${label}: ${token}. Expected ${agentToolTokenPattern}.`,
+      `Invalid ${label}: ${token}. Expected ${String(agentToolTokenPattern)}.`,
     );
   }
 }

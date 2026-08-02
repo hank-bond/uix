@@ -50,7 +50,7 @@ function memoryStore(): DocumentStore {
     },
     createSnapshot: (docId, meta) => {
       const version: DocumentVersion<typeof meta> = {
-        id: `v${versions.size + 1}`,
+        id: `v${String(versions.size + 1)}`,
         documentId: docId,
         content: map.get(docId) ?? "",
         meta,
@@ -152,7 +152,7 @@ function setup(): {
   const recordEntry = (customType: string, data: unknown): string => {
     entries.push({ customType, data });
     branch.push({
-      id: `entry-${branch.length + 1}`,
+      id: `entry-${String(branch.length + 1)}`,
       parentId: undefined,
       timestamp: new Date(0).toISOString(),
       type: "custom",
@@ -225,9 +225,15 @@ function setup(): {
       );
       return result.systemPrompt ?? "BASE";
     },
-    disposeCanvasState: () => canvasState[Symbol.dispose](),
-    disposeCanvasAgentContext: () => canvasAgentContext[Symbol.dispose](),
-    disposeCanvasAgentTools: () => canvasAgentTools[Symbol.dispose](),
+    disposeCanvasState: () => {
+      canvasState[Symbol.dispose]();
+    },
+    disposeCanvasAgentContext: () => {
+      canvasAgentContext[Symbol.dispose]();
+    },
+    disposeCanvasAgentTools: () => {
+      canvasAgentTools[Symbol.dispose]();
+    },
   };
 }
 
@@ -242,7 +248,8 @@ describe("canvas agent tool contributions", () => {
   it("does not surface pane writebacks without turn-state snapshots", async () => {
     const { tools, flushContext, writebackCanvas } = setup();
 
-    const write = tools.get("canvas__anchor_write")!;
+    const write = tools.get("canvas__anchor_write");
+    if (!write) throw new Error("missing canvas__anchor_write tool");
     await write.execute(
       "t1",
       { key: "main", html: "<p>hello</p>" },
@@ -266,7 +273,8 @@ describe("canvas agent tool contributions", () => {
       agentEnd,
     } = setup();
 
-    const write = tools.get("canvas__anchor_write")!;
+    const write = tools.get("canvas__anchor_write");
+    if (!write) throw new Error("missing canvas__anchor_write tool");
     await write.execute(
       "t1",
       { key: "main", html: "<p>hello</p>" },
@@ -295,10 +303,11 @@ describe("canvas agent tool contributions", () => {
       },
     ]);
 
-    const content = (await flushContext())!.content;
-    expect(content).toContain("<canvas.canvas-diff>");
-    expect(content).toContain("## main");
-    expect(content).toContain("goodbye");
+    const content = (await flushContext());
+    if (!content) throw new Error("missing flushed context");
+    expect(content.content).toContain("<canvas.canvas-diff>");
+    expect(content.content).toContain("## main");
+    expect(content.content).toContain("goodbye");
   });
 
   it("records canvas snapshot pointers before input and after agent writes", async () => {
@@ -315,7 +324,8 @@ describe("canvas agent tool contributions", () => {
       },
     ]);
 
-    const write = tools.get("canvas__anchor_write")!;
+    const write = tools.get("canvas__anchor_write");
+    if (!write) throw new Error("missing canvas__anchor_write tool");
     await write.execute(
       "t1",
       { key: "main", html: "<p>agent</p>" },

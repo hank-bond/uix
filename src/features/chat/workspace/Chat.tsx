@@ -104,7 +104,7 @@ export function Chat({ client }: ChatProps): JSX.Element {
       setItems((prev) => [
         ...prev,
         {
-          id: `local:error:${Date.now()}`,
+          id: `local:error:${String(Date.now())}`,
           kind: "error",
           message: String(err),
         },
@@ -135,7 +135,9 @@ export function Chat({ client }: ChatProps): JSX.Element {
           className="composer__input"
           placeholder="say something…"
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();

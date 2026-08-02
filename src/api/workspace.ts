@@ -191,10 +191,10 @@ export function useInvokeAction(): (
 
 export interface WorkspaceClient {
   readonly workspaceId: string;
-  readonly request: <Req, Res = void>(name: string, req: Req) => Promise<Res>;
-  readonly subscribe: <Event>(
-    name: string,
-    handler: (event: Event) => void,
+  readonly request: (channel: string, req: unknown) => Promise<unknown>;
+  readonly subscribe: (
+    channel: string,
+    handler: (event: unknown) => void,
   ) => () => void;
 }
 
@@ -382,6 +382,7 @@ function settingSchema(schema: TSchema, key: string): TSchema {
   throw new Error(`Unknown setting: ${key}`);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- Value is inferred contextually at each call site from the setState argument; inlining to unknown would force casts.
 function parseFeatureSettingValue<Value>(
   schema: TSchema,
   value: unknown,
@@ -424,9 +425,9 @@ export function createChannelClient<const C extends ChannelContract>(
     // Events cross the transport unvalidated (the registry only parses
     // request/response payloads), so the schema check lives here.
     events[name] = (handler: (payload: unknown) => void) =>
-      workspace.subscribe(canonicalId, (raw: unknown) =>
-        handler(Value.Parse(evt.event, raw)),
-      );
+      workspace.subscribe(canonicalId, (raw: unknown) => {
+        handler(Value.Parse(evt.event, raw));
+      });
   }
 
   return { requests, events } as ChannelClient<C>;

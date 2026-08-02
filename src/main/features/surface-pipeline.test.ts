@@ -79,10 +79,10 @@ describe("SurfaceModulePipeline", () => {
     );
 
     const [moduleRoute] = pipeline.createResourceContributions();
-    const response = moduleRoute?.handler(
+    const response = moduleRoute.handler(
       request({ feature: "shiny", file: "0.js" }),
     );
-    const code = await (await response)?.text();
+    const code = await (await response).text();
     expect(code).toContain("bundled in");
     expect(code).toContain(`globalThis.__uixSharedModules["react"]`);
     expect(code).toContain(
@@ -170,22 +170,22 @@ describe("SurfaceModulePipeline", () => {
     await pipeline.buildAll([reg]);
     const [, filesRoute] = pipeline.createResourceContributions();
 
-    const css = await filesRoute?.handler(
+    const css = await filesRoute.handler(
       request({ feature: "shiny", path: ["styles.css"] }),
     );
-    expect(css?.status).toBe(200);
-    expect(css?.headers.get("Content-Type")).toBe("text/css; charset=utf-8");
-    expect(await css?.text()).toContain("color: blue");
+    expect(css.status).toBe(200);
+    expect(css.headers.get("Content-Type")).toBe("text/css; charset=utf-8");
+    expect(await css.text()).toContain("color: blue");
 
-    const traversal = await filesRoute?.handler(
+    const traversal = await filesRoute.handler(
       request({ feature: "shiny", path: ["..", "secret.txt"] }),
     );
-    expect(traversal?.status).toBe(404);
+    expect(traversal.status).toBe(404);
 
-    const missing = await filesRoute?.handler(
+    const missing = await filesRoute.handler(
       request({ feature: "shiny", path: ["nope.css"] }),
     );
-    expect(missing?.status).toBe(404);
+    expect(missing.status).toBe(404);
   });
 
   it("grants CORS to the page origin but never to uix-resource origins", async () => {
@@ -199,20 +199,20 @@ describe("SurfaceModulePipeline", () => {
     await pipeline.buildAll([reg]);
     const [moduleRoute] = pipeline.createResourceContributions();
 
-    const fromPage = await moduleRoute?.handler(
+    const fromPage = await moduleRoute.handler(
       request({ feature: "shiny", file: "0.js" }, "http://localhost:5173"),
     );
-    expect(fromPage?.headers.get("Access-Control-Allow-Origin")).toBe(
+    expect(fromPage.headers.get("Access-Control-Allow-Origin")).toBe(
       "http://localhost:5173",
     );
 
-    const fromIframe = await moduleRoute?.handler(
+    const fromIframe = await moduleRoute.handler(
       request(
         { feature: "shiny", file: "0.js" },
         "uix-resource://canvas.local",
       ),
     );
-    expect(fromIframe?.headers.get("Access-Control-Allow-Origin")).toBeNull();
+    expect(fromIframe.headers.get("Access-Control-Allow-Origin")).toBeNull();
   });
 
   it("drops previously built modules on rebuild", async () => {
@@ -224,10 +224,10 @@ describe("SurfaceModulePipeline", () => {
     await pipeline.buildAll([]);
 
     const [moduleRoute] = pipeline.createResourceContributions();
-    const response = await moduleRoute?.handler(
+    const response = await moduleRoute.handler(
       request({ feature: "shiny", file: "0.js" }),
     );
-    expect(response?.status).toBe(404);
+    expect(response.status).toBe(404);
   });
 
   it("does not let an older overlapping build replace a newer composition", async () => {
@@ -241,9 +241,9 @@ describe("SurfaceModulePipeline", () => {
     await olderBuild;
 
     const [moduleRoute] = pipeline.createResourceContributions();
-    const response = await moduleRoute?.handler(
+    const response = await moduleRoute.handler(
       request({ feature: "shiny", file: "0.js" }),
     );
-    expect(response?.status).toBe(404);
+    expect(response.status).toBe(404);
   });
 });

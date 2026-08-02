@@ -140,6 +140,6 @@ export function toAgentContextCanonicalId(
 function assertAgentContextToken(label: string, token: string): void {
   const pattern = /^[a-z][a-z0-9_-]*$/;
   if (!pattern.test(token)) {
-    throw new Error(`Invalid ${label}: ${token}. Expected ${pattern}.`);
+    throw new Error(`Invalid ${label}: ${token}. Expected ${String(pattern)}.`);
   }
 }

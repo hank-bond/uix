@@ -12,8 +12,8 @@ function createManager(cwd = "/workspace"): SessionManager {
   let nextEntryId = 1;
   return {
     getCwd: () => cwd,
-    appendMessage: () => `entry-${nextEntryId++}`,
-    appendCustomMessageEntry: () => `entry-${nextEntryId++}`,
+    appendMessage: () => `entry-${String(nextEntryId++)}`,
+    appendCustomMessageEntry: () => `entry-${String(nextEntryId++)}`,
   } as unknown as SessionManager;
 }
 

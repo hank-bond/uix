@@ -57,8 +57,9 @@ export interface ResourceRegistryOptions {
 }
 
 export function registerResourceProtocol(
-  registrar: ResourceSchemeRegistrar = (schemes) =>
-    protocol.registerSchemesAsPrivileged(schemes),
+  registrar: ResourceSchemeRegistrar = (schemes) => {
+    protocol.registerSchemesAsPrivileged(schemes);
+  },
 ): void {
   registrar([
     {
@@ -191,7 +192,9 @@ function registerResourceTransportHandler(
   handler: (request: Request) => Response | Promise<Response>,
 ): Disposable {
   protocol.handle(scheme, handler);
-  return disposable(() => protocol.unhandle(scheme));
+  return disposable(() => {
+    protocol.unhandle(scheme);
+  });
 }
 
 function toRequestContext(

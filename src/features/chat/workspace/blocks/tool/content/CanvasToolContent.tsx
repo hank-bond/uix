@@ -28,11 +28,13 @@ export function CanvasToolContent({ item }: { item: ToolItem }): JSX.Element {
               type="button"
               data-uix-part="canvas-tool-toggle"
               aria-expanded={isExpanded}
-              onClick={() => setIsExpanded((value) => !value)}
+              onClick={() => {
+                setIsExpanded((value) => !value);
+              }}
             >
               {isExpanded
                 ? "▾ show less"
-                : `▸ show ${lines.length - 5} more line(s)`}
+                : `▸ show ${String(lines.length - 5)} more line(s)`}
             </button>
           ) : null}
         </div>

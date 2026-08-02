@@ -132,7 +132,9 @@ function ProviderRow({
                 data-connected={method.connection ? "" : undefined}
                 aria-expanded={isExpanded}
                 aria-controls={panelId}
-                onClick={() => onSelectMethod(method)}
+                onClick={() => {
+                  onSelectMethod(method);
+                }}
               >
                 {method.authType === "api_key" ? "API key" : "Sign in"}
                 {method.connection && (

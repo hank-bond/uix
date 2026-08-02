@@ -93,7 +93,9 @@ export function handle<Req, Res>(
       throw err;
     }
   });
-  return disposable(() => ipcMain.removeHandler(channel));
+  return disposable(() => {
+    ipcMain.removeHandler(channel);
+  });
 }
 
 /** Per-send wire-log policy. The boundary itself is payload-agnostic. */

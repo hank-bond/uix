@@ -188,7 +188,9 @@ describe("ChannelRegistry", () => {
     };
 
     const channelDisposable = registry.register(resolvedContribution);
-    expect(() => channelDisposable[Symbol.dispose]()).toThrow(
+    expect(() => {
+      channelDisposable[Symbol.dispose]();
+    }).toThrow(
       "transport disposal failed",
     );
     disposalThrows = false;
@@ -223,8 +225,9 @@ describe("ChannelRegistry", () => {
     const registry = new ChannelRegistry({
       transportRegistrar: (canonicalId, handler) =>
         transport.handle(canonicalId, handler),
-      publish: (canonicalId, payload) =>
-        transport.publish(canonicalId, payload),
+      publish: (canonicalId, payload) => {
+        transport.publish(canonicalId, payload);
+      },
     });
 
     registry.publish(toChannelCanonicalId("canvas", "changed"), {
@@ -241,8 +244,9 @@ describe("ChannelRegistry", () => {
     const registry = new ChannelRegistry({
       transportRegistrar: (canonicalId, handler, logOpts) =>
         transport.handle(canonicalId, handler, logOpts),
-      publish: (canonicalId, payload, logOpts) =>
-        transport.publish(canonicalId, payload, logOpts),
+      publish: (canonicalId, payload, logOpts) => {
+        transport.publish(canonicalId, payload, logOpts);
+      },
     });
     const describeRequest = (): { redacted: string } => ({
       redacted: "auth request",
@@ -363,8 +367,9 @@ describe("ChannelRegistry", () => {
     const transport = fakeTransport();
 
     const channels = createFeatureEventPublisherFactory("canvas", {
-      publish: (canonicalId, payload) =>
-        transport.publish(canonicalId, payload),
+      publish: (canonicalId, payload) => {
+        transport.publish(canonicalId, payload);
+      },
     });
 
     const typed = channels.createPublisher({
@@ -618,8 +623,9 @@ describe("ChannelRegistry", () => {
   it("rejects minting a publisher for another contract's owner", () => {
     const transport = fakeTransport();
     const channels = createFeatureEventPublisherFactory("impostor", {
-      publish: (canonicalId, payload) =>
-        transport.publish(canonicalId, payload),
+      publish: (canonicalId, payload) => {
+        transport.publish(canonicalId, payload);
+      },
     });
 
     expect(() =>

@@ -37,7 +37,6 @@ describe("workspace session actions", () => {
       }),
     );
     const run = resolved.resolvedContributions[0]?.run;
-    if (!run) throw new Error("New Session action is missing");
 
     await run();
     expect(newSession).not.toHaveBeenCalled();

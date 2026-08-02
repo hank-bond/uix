@@ -37,7 +37,7 @@ export function ProviderAuthFlowPanel({
       {isRunning &&
         flow.notices.map((notice, index) => (
           <ProviderAuthNoticeView
-            key={`${notice.type}-${index}`}
+            key={`${notice.type}-${String(index)}`}
             notice={notice}
             flowId={flow.flowId}
             providerName={providerName}
@@ -71,7 +71,9 @@ export function ProviderAuthFlowPanel({
               type="button"
               className="chat-button"
               data-variant="primary"
-              onClick={() => controls.chooseModelForProvider(method.providerId)}
+              onClick={() => {
+                controls.chooseModelForProvider(method.providerId);
+              }}
             >
               Choose a model
             </button>
@@ -246,7 +248,9 @@ function ProviderAuthPromptView({
                 setIsSubmitting(true);
                 void controls
                   .answerProviderAuthPrompt(flowId, prompt.promptId, option.id)
-                  .catch(() => setIsSubmitting(false));
+                  .catch(() => {
+                    setIsSubmitting(false);
+                  });
               }}
             >
               <span>{option.label}</span>
@@ -271,7 +275,9 @@ function ProviderAuthPromptView({
         setIsSubmitting(true);
         void controls
           .answerProviderAuthPrompt(flowId, prompt.promptId, answer)
-          .catch(() => setIsSubmitting(false));
+          .catch(() => {
+            setIsSubmitting(false);
+          });
       }}
     >
       <label htmlFor={`${prompt.promptId}-answer`}>{prompt.message}</label>
@@ -283,7 +289,9 @@ function ProviderAuthPromptView({
         autoComplete={prompt.secret ? "new-password" : "off"}
         spellCheck={false}
         disabled={isSubmitting}
-        onChange={(event) => setAnswer(event.currentTarget.value)}
+        onChange={(event) => {
+          setAnswer(event.currentTarget.value);
+        }}
       />
       <div className="provider-auth__actions">
         <button

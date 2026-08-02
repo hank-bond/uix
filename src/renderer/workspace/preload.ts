@@ -13,17 +13,11 @@ export function createPreloadWorkspaceClient(
 ): WorkspaceClient {
   return {
     workspaceId: LocalWorkspaceId,
-    request<Req, Res>(channel: string, req: Req): Promise<Res> {
-      return transport.request(channel, req) as Promise<Res>;
+    request(channel: string, req: unknown): Promise<unknown> {
+      return transport.request(channel, req);
     },
-    subscribe<Event>(
-      channel: string,
-      handler: (event: Event) => void,
-    ): () => void {
-      return transport.subscribe(
-        channel,
-        handler as (payload: unknown) => void,
-      );
+    subscribe(channel: string, handler: (event: unknown) => void): () => void {
+      return transport.subscribe(channel, handler);
     },
   };
 }

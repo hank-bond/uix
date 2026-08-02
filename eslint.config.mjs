@@ -223,11 +223,12 @@ export default tseslint.config(
   // Base recommended rules from ESLint core.
   js.configs.recommended,
 
-  // TypeScript-aware rules. The `recommendedTypeChecked` set turns on
-  // rules that need access to the type checker (no-floating-promises,
-  // no-misused-promises, no-unsafe-* on `any`, etc.). Slower than the
-  // non-type-checked set, but the bugs it catches are worth it.
-  ...tseslint.configs.recommendedTypeChecked,
+  // TypeScript-aware rules. The `strictTypeChecked` set turns on rules
+  // that need access to the type checker (no-floating-promises,
+  // no-misused-promises, no-unsafe-* on `any`, no-non-null-assertion,
+  // no-unnecessary-condition, etc.). Slower than the non-type-checked
+  // set, but the bugs it catches are worth it.
+  ...tseslint.configs.strictTypeChecked,
 
   // Project-wide language and parser config.
   {
@@ -287,11 +288,16 @@ export default tseslint.config(
       // below until they have a logging story.
       "no-console": "error",
 
-      // Async hygiene — these come from recommendedTypeChecked but
+      // Async hygiene — these come from strictTypeChecked but
       // I'm calling them out explicitly because they're the rules
       // that earn the type-checker cost.
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
+
+      // Deprecated API usage is an error, not a warning: a deprecation
+      // that reaches the codebase is a debt we've already accrued. This
+      // is the rule this repo flipped on deliberately.
+      "@typescript-eslint/no-deprecated": "error",
 
       // Loosen a couple of recommended rules that fight the codebase
       // without much payoff.

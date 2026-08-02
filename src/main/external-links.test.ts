@@ -62,7 +62,9 @@ describe("external web links", () => {
     );
     using _binding = bindExternalWebLinks(harness.webContents, openExternal);
 
-    const result = harness.getWindowOpenHandler()!({
+    const handler = harness.getWindowOpenHandler();
+    if (!handler) throw new Error("missing window open handler");
+    const result = handler({
       url: "https://uix.sh/docs",
     } as HandlerDetails);
     await Promise.resolve();
@@ -76,7 +78,9 @@ describe("external web links", () => {
     const openExternal = vi.fn();
     using _binding = bindExternalWebLinks(harness.webContents, openExternal);
 
-    const result = harness.getWindowOpenHandler()!({
+    const handler = harness.getWindowOpenHandler();
+    if (!handler) throw new Error("missing window open handler");
+    const result = handler({
       url: "file:///Users/work/secret.txt",
     } as HandlerDetails);
 
@@ -89,7 +93,9 @@ describe("external web links", () => {
     using _binding = bindExternalWebLinks(harness.webContents, vi.fn());
     const preventDefault = vi.fn();
 
-    harness.getWillNavigateListener()!({
+    const listener = harness.getWillNavigateListener();
+    if (!listener) throw new Error("missing will-navigate listener");
+    listener({
       url: "https://uix.sh/docs",
       preventDefault,
     } as unknown as Event<WebContentsWillNavigateEventParams>);
@@ -102,7 +108,9 @@ describe("external web links", () => {
     using _binding = bindExternalWebLinks(harness.webContents, vi.fn());
     const preventDefault = vi.fn();
 
-    harness.getWillNavigateListener()!({
+    const listener = harness.getWillNavigateListener();
+    if (!listener) throw new Error("missing will-navigate listener");
+    listener({
       url: "uix-resource://uix.local/index.html",
       preventDefault,
     } as unknown as Event<WebContentsWillNavigateEventParams>);

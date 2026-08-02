@@ -11,12 +11,16 @@ export function createModelActions(
       children: {
         favorites: {
           title: "Favorite Models",
-          run: () => openModelPicker("favorites"),
+          run: () => {
+            openModelPicker("favorites");
+          },
         },
         all: {
           title: "All Models",
           defaultBinding: "mod+j",
-          run: () => openModelPicker("all"),
+          run: () => {
+            openModelPicker("all");
+          },
         },
       },
     },

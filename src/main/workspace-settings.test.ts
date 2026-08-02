@@ -316,7 +316,9 @@ describe("feature settings", () => {
       hidden: ["context"],
     });
     expect(changes).toEqual([{ order: ["model"], hidden: ["context"] }]);
-    expect(() => chat.set("statusBar", { order: [1], hidden: [] })).toThrow();
+    expect(() => {
+      chat.set("statusBar", { order: [1], hidden: [] });
+    }).toThrow();
 
     await manifest.flush();
     const written = (await readManifest(manifestPath)) as {
@@ -384,12 +386,12 @@ describe("feature settings", () => {
       throw new Error("listener failed");
     });
 
-    expect(() =>
+    expect(() => {
       chat.set("statusBar", {
         order: ["model"],
         hidden: [],
-      }),
-    ).toThrow("listener failed");
+      });
+    }).toThrow("listener failed");
 
     await manifest.flush();
     const written = (await readManifest(manifestPath)) as {

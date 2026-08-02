@@ -66,7 +66,9 @@ describe("ActionRegistry", () => {
     updater[Symbol.dispose]();
     updater[Symbol.dispose]();
     expect(registry.getCatalogSnapshot()).toEqual([]);
-    expect(() => updater.update({})).toThrow(
+    expect(() => {
+      updater.update({});
+    }).toThrow(
       "Action contribution updater is disposed",
     );
     expect(listener).toHaveBeenCalledTimes(3);
@@ -215,11 +217,11 @@ describe("ActionRegistry", () => {
     const second = registerChatActions({
       providers: { title: "Providers", run: () => undefined },
     });
-    expect(() =>
+    expect(() => {
       second.update({
         models: { title: "Models Again", run: () => undefined },
-      }),
-    ).toThrow("Action already registered: chat.models (owner chat)");
+      });
+    }).toThrow("Action already registered: chat.models (owner chat)");
     expect(registry.getCatalogSnapshot().map(({ id }) => id)).toEqual([
       "chat.models",
       "chat.providers",

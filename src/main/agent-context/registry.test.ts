@@ -178,12 +178,13 @@ describe("AgentContextRegistry", () => {
 
     const persisted = await flush(sm);
     expect(persisted).toBeDefined();
+    if (!persisted) throw new Error("missing persisted state");
 
-    const next = await flush(sm, [stateEntry(persisted!.content)]);
+    const next = await flush(sm, [stateEntry(persisted.content)]);
     expect(next).toBeUndefined();
 
     visibility.update({ canvases_open: [] });
-    const changed = await flush(sm, [stateEntry(persisted!.content)]);
+    const changed = await flush(sm, [stateEntry(persisted.content)]);
     expect(changed?.content).toContain('{"canvases_open":[]}');
   });
 
@@ -199,9 +200,11 @@ describe("AgentContextRegistry", () => {
     });
     visibility.update({ canvases_open: ["main"] });
 
-    const visible = (await flush(sm))!.content;
+    const visible = (await flush(sm));
+    if (!visible) throw new Error("missing visible state");
+    expect(visible.content).toContain("<test.pane-visibility>");
     const other = "<uix-state>\n<other>\nx\n</other>\n</uix-state>";
-    const result = await flush(sm, [stateEntry(visible), stateEntry(other)]);
+    const result = await flush(sm, [stateEntry(visible.content), stateEntry(other)]);
     expect(result).toBeUndefined();
   });
 
@@ -232,7 +235,7 @@ describe("AgentContextRegistry", () => {
           { limit: 2 },
         );
         return {
-          content: `${previous?.state.main ?? "none"}->${current?.state.main ?? "none"}`,
+          content: `${previous.state.main}->${current.state.main}`,
         };
       },
     });
@@ -270,7 +273,8 @@ describe("AgentContextRegistry", () => {
       },
     });
 
-    const first = (await flush(sm))!;
+    const first = (await flush(sm));
+    if (!first) throw new Error("missing first state");
     expect(first.details).toEqual({ "test.canvas-diff": { hunks: 1 } });
 
     const again = await flush(sm, [stateEntry(first.content)]);
@@ -305,7 +309,9 @@ describe("AgentContextRegistry", () => {
     });
     visibility.update({ canvases_open: ["main"] });
 
-    const content = (await flush(sm))!.content;
+    const flushed = await flush(sm);
+    if (!flushed) throw new Error("missing state");
+    const content = flushed.content;
     expect(content.indexOf("<test.pane-visibility>")).toBeLessThan(
       content.indexOf("<test.canvas-diff>"),
     );
@@ -323,12 +329,14 @@ describe("AgentContextRegistry", () => {
         schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
       },
     });
-    expect(() =>
+    expect(() => {
       visibility.update({ canvases_open: [1] } as unknown as {
         canvases_open: string[];
-      }),
-    ).toThrow(/Invalid test.pane-visibility payload/);
-    expect(() => visibility.update({ canvases_open: ["main"] })).not.toThrow();
+      });
+    }).toThrow(/Invalid test.pane-visibility payload/);
+    expect(() => {
+      visibility.update({ canvases_open: ["main"] });
+    }).not.toThrow();
   });
 
   it("appends pending values and confirms drain from the branch", async () => {
@@ -341,7 +349,8 @@ describe("AgentContextRegistry", () => {
     moves.append({ move: "e4" });
     moves.append({ move: "e5" });
 
-    const first = (await flush(sm))!;
+    const first = (await flush(sm));
+    if (!first) throw new Error("missing first state");
     expect(first.content).toContain('[{"move":"e4"},{"move":"e5"}]');
 
     // Not persisted yet: the same pending events are retried.
@@ -363,13 +372,14 @@ describe("AgentContextRegistry", () => {
       description: "d",
       buffer: { kind: "update", schema: Type.Object({ count: Type.Number() }) },
       materialize: ({ value: payload }) => ({
-        content: `count=${payload.count}`,
+        content: `count=${String(payload.count)}`,
         details: payload,
       }),
     });
     value.update({ count: 1 });
 
-    const first = (await flush(sm))!;
+    const first = (await flush(sm));
+    if (!first) throw new Error("missing first state");
     expect(first.content).toContain("count=1");
     expect(await flush(sm, [stateEntry(first.content)])).toBeUndefined();
   });

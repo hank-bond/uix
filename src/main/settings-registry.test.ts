@@ -239,7 +239,9 @@ describe("SettingsRegistry", () => {
     expect(written).toEqual([
       { statusBar: { order: ["model"], hidden: ["context"] } },
     ]);
-    expect(() => chat.set("statusBar", { order: [1], hidden: [] })).toThrow();
+    expect(() => {
+      chat.set("statusBar", { order: [1], hidden: [] });
+    }).toThrow();
   });
 
   it("rejects undefined instead of treating it as a persisted deletion", () => {
@@ -257,7 +259,9 @@ describe("SettingsRegistry", () => {
     written.length = 0;
     registry.onChange("agent", "favorite", (value) => changes.push(value));
 
-    expect(() => registry.set("agent", "favorite", undefined)).toThrow(
+    expect(() => {
+      registry.set("agent", "favorite", undefined);
+    }).toThrow(
       "favorite cannot be undefined",
     );
     expect(registry.get("agent", "favorite")).toBeUndefined();
@@ -279,9 +283,9 @@ describe("SettingsRegistry", () => {
       throw new Error("listener failed");
     });
 
-    expect(() =>
-      registry.set("chat", "statusBar", { order: [], hidden: [] }),
-    ).toThrow("listener failed");
+    expect(() => {
+      registry.set("chat", "statusBar", { order: [], hidden: [] });
+    }).toThrow("listener failed");
     expect(order).toEqual(["write", "notify"]);
   });
 
@@ -379,10 +383,14 @@ describe("SettingsRegistry", () => {
 
     expect(registry.get("keybindings", "chat.models")).toBe("mod+m");
     expect(registry.get("keybindings", "chat.disabled")).toBeNull();
-    expect(() => registry.set("keybindings", "Chat models", "mod+m")).toThrow(
+    expect(() => {
+      registry.set("keybindings", "Chat models", "mod+m");
+    }).toThrow(
       "Unknown setting",
     );
-    expect(() => registry.set("keybindings", "chat.bad", "shift m")).toThrow();
+    expect(() => {
+      registry.set("keybindings", "chat.bad", "shift m");
+    }).toThrow();
   });
 
   it("throws for unknown scopes and unknown keys", () => {

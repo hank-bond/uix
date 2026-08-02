@@ -168,7 +168,7 @@ function assertChannelToken(label: string, token: string): void {
   const channelTokenPattern = /^[a-z][a-z0-9_]*$/;
   if (!channelTokenPattern.test(token)) {
     throw new Error(
-      `Invalid ${label}: ${token}. Expected ${channelTokenPattern}.`,
+      `Invalid ${label}: ${token}. Expected ${String(channelTokenPattern)}.`,
     );
   }
 }

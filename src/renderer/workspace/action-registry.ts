@@ -193,8 +193,12 @@ export class ActionRegistry implements Disposable {
     this.#publishDefaultBindingsIfChanged();
 
     return {
-      update: (next) => this.#updateContribution(registeredContribution, next),
-      [Symbol.dispose]: () => this.#removeContribution(registeredContribution),
+      update: (next) => {
+        this.#updateContribution(registeredContribution, next);
+      },
+      [Symbol.dispose]: () => {
+        this.#removeContribution(registeredContribution);
+      },
     };
   }
 

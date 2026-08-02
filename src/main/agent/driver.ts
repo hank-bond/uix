@@ -543,6 +543,17 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     return opening;
   }
 
+  // Reloads the live runtime when one is in use. Re-reads the current state on
+  // each call so a runtime opened concurrently while awaiting is observed.
+  async function reloadActiveRuntime(): Promise<boolean> {
+    if (runtime || inFlightRuntimeOpen) {
+      const activeRuntime = runtime ?? (await getRuntime());
+      await activeRuntime.session.reload();
+      return true;
+    }
+    return false;
+  }
+
   return {
     init() {
       // Fire the eager manager load and state restore; swallow rejection here
@@ -590,11 +601,14 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     getCurrentProviderAuthFlow: () => providerAuth.getCurrentSnapshot(),
     beginProviderAuthFlow: (providerId, authType) =>
       providerAuth.begin(providerId, authType),
-    answerProviderAuthFlow: (flowId, promptId, value) =>
-      providerAuth.answer(flowId, promptId, value),
+    answerProviderAuthFlow: (flowId, promptId, value) => {
+      providerAuth.answer(flowId, promptId, value);
+    },
     openProviderAuthLink: (flowId, linkId) =>
       providerAuth.openLink(flowId, linkId),
-    cancelProviderAuthFlow: (flowId) => providerAuth.cancel(flowId),
+    cancelProviderAuthFlow: (flowId) => {
+      providerAuth.cancel(flowId);
+    },
 
     async selectModel(ref) {
       const modelRuntime = await getModelRuntime();
@@ -743,20 +757,12 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       // Reload only tiers already in use. A live session owns Pi's native
       // extension rebind; before a session exists, recreate the coherent
       // services tier so extension provider hooks cannot accumulate.
-      if (runtime || inFlightRuntimeOpen) {
-        const activeRuntime = runtime ?? (await getRuntime());
-        await activeRuntime.session.reload();
-        return true;
-      }
+      if (await reloadActiveRuntime()) return true;
       if (!preRuntimeServices && !inFlightServicesCreate) return false;
       await getServices();
       // A concurrent prompt may have consumed the pre-runtime generation while
       // reload waited for it. In that case the live session owns resource reload.
-      if (runtime || inFlightRuntimeOpen) {
-        const activeRuntime = runtime ?? (await getRuntime());
-        await activeRuntime.session.reload();
-        return true;
-      }
+      if (await reloadActiveRuntime()) return true;
       preRuntimeServices = undefined;
       await getServices();
       return true;
@@ -838,7 +844,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       preRuntimeServices = undefined;
       currentModel = undefined;
       if (activeRuntime) {
-        void activeRuntime.dispose().catch((err) => {
+        void activeRuntime.dispose().catch((err: unknown) => {
           log.warn(
             { err: err instanceof Error ? err.message : String(err) },
             "runtime_dispose_failed",
@@ -857,7 +863,7 @@ function normalizeSessionTitle(title: string | null): string {
   }
   if (Array.from(normalized).length > MaxSessionTitleCodePoints) {
     throw new Error(
-      `Session title cannot exceed ${MaxSessionTitleCodePoints} Unicode code points`,
+      `Session title cannot exceed ${String(MaxSessionTitleCodePoints)} Unicode code points`,
     );
   }
   return normalized;

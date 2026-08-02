@@ -301,7 +301,9 @@ export function createTurnStateInstaller(
 
     pi.on("agent_end", async (_event, ctx) => {
       await commitTurnState({
-        append: (customType, data) => pi.appendEntry(customType, data),
+        append: (customType, data) => {
+          pi.appendEntry(customType, data);
+        },
         cwd: ctx.cwd,
         branch: ctx.sessionManager.getBranch(),
         cells: runtimeCells.filter((cell) => registry.has(cell)),
@@ -491,7 +493,7 @@ function toTurnStateCanonicalId(
 function assertStateToken(label: string, token: string): void {
   if (!stateTokenPattern.test(token)) {
     throw new Error(
-      `Invalid ${label}: ${token}. Expected ${stateTokenPattern}.`,
+      `Invalid ${label}: ${token}. Expected ${String(stateTokenPattern)}.`,
     );
   }
 }
@@ -548,7 +550,7 @@ function assertPlainJson(value: unknown, canonicalId: string): void {
 function assertNonNegativeInteger(label: string, value: number): void {
   if (!Number.isInteger(value) || value < 0) {
     throw new Error(
-      `Invalid ${label}: ${value}. Expected a non-negative integer.`,
+      `Invalid ${label}: ${String(value)}. Expected a non-negative integer.`,
     );
   }
 }

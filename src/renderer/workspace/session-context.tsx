@@ -55,7 +55,10 @@ export function WorkspaceSessionControllerProvider({
   );
 
   useEffect(
-    () => agent.events.event((event) => controller.updateAgentActivity(event)),
+    () =>
+      agent.events.event((event) => {
+        controller.updateAgentActivity(event);
+      }),
     [agent, controller],
   );
   useEffect(() => {

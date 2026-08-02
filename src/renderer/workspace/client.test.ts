@@ -25,14 +25,11 @@ function fakeWorkspaceClient(): {
   );
   const client: WorkspaceClient = {
     workspaceId: "local",
-    request<Req, Res>(name: string, req: Req): Promise<Res> {
-      return request(name, req) as Promise<Res>;
+    request(channel: string, req: unknown): Promise<unknown> {
+      return request(channel, req);
     },
-    subscribe<Event>(
-      name: string,
-      handler: (event: Event) => void,
-    ): () => void {
-      return subscribe(name, handler as (event: unknown) => void);
+    subscribe(channel: string, handler: (event: unknown) => void): () => void {
+      return subscribe(channel, handler);
     },
   };
   return { client, request, subscribe };
@@ -61,9 +58,11 @@ describe("channel clients", () => {
 
     // The client validates incoming events against the contract schema.
     const wrapped = subscribe.mock.calls[0]?.[1];
-    wrapped?.({ key: "main" });
+    wrapped({ key: "main" });
     expect(onChanged).toHaveBeenCalledWith({ key: "main" });
-    expect(() => wrapped?.({ key: 42 })).toThrow();
+    expect(() => {
+      wrapped({ key: 42 });
+    }).toThrow();
   });
 
   it("creates typed agent client from the agent channel contract", async () => {
@@ -170,17 +169,19 @@ describe("channel clients", () => {
 
     const wrapped = subscribe.mock.calls[0]?.[1];
     // Both model fields remain optional, while current cwd is always present.
-    wrapped?.({
+    wrapped({
       cwd: "/workspace",
       model: { provider: "anthropic", id: "claude-sonnet-4-5" },
     });
-    wrapped?.({ cwd: "/workspace" });
+    wrapped({ cwd: "/workspace" });
     expect(onStatus).toHaveBeenCalledTimes(2);
-    expect(() => wrapped?.({})).toThrow();
+    expect(() => {
+      wrapped({});
+    }).toThrow();
     // Malformed status events reject at the contract schema.
-    expect(() =>
-      wrapped?.({ cwd: "/workspace", model: { provider: 42 } }),
-    ).toThrow();
+    expect(() => {
+      wrapped({ cwd: "/workspace", model: { provider: 42 } });
+    }).toThrow();
   });
 
   it("covers provider login requests and validates flow events", async () => {
@@ -218,7 +219,7 @@ describe("channel clients", () => {
     );
 
     const wrapped = subscribe.mock.calls[0]?.[1];
-    wrapped?.({
+    wrapped({
       flowId: "flow-1",
       providerId: "anthropic",
       authType: "oauth",
@@ -232,7 +233,9 @@ describe("channel clients", () => {
       },
     });
     expect(onFlow).toHaveBeenCalledOnce();
-    expect(() => wrapped?.({ flowId: "flow-1" })).toThrow();
+    expect(() => {
+      wrapped({ flowId: "flow-1" });
+    }).toThrow();
   });
 
   it("creates a feature-bound settings client", async () => {
@@ -259,8 +262,8 @@ describe("channel clients", () => {
     );
 
     const wrapped = subscribe.mock.calls[0]?.[1];
-    wrapped?.({ featureId: "canvas", key: "statusBar", value: "ignored" });
-    wrapped?.({
+    wrapped({ featureId: "canvas", key: "statusBar", value: "ignored" });
+    wrapped({
       featureId: "chat",
       key: "statusBar",
       value: { order: ["context"], hidden: [] },

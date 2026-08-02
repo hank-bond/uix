@@ -304,7 +304,7 @@ function assertPayloadMatchesSchema(
   if (!Value.Check(contribution.schema, payload)) {
     const [first] = Value.Errors(contribution.schema, payload);
     throw new Error(
-      `Invalid ${contribution.canonicalId} payload: ${first?.message ?? "schema mismatch"}`,
+      `Invalid ${contribution.canonicalId} payload: ${first.message}`,
     );
   }
 }

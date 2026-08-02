@@ -7,7 +7,7 @@ export function formatChangeHunks(
 ): string {
   const removed = changes.flatMap((change) => change.oldLines);
   const added = changes.flatMap((change) => change.newLines);
-  const header = `${label} (−${removed.length}/+${added.length})`;
+  const header = `${label} (−${String(removed.length)}/+${String(added.length)})`;
   return added.length ? `${header}\n${formatAnchoredText(added)}` : header;
 }
 

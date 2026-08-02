@@ -58,7 +58,7 @@ export function resolveSurfaceContributions(
   return surfaceRefs.map((ref) => {
     if (typeof ref !== "string" || ref.length === 0) {
       throw new Error(
-        `Feature ${featureId} has an invalid surface entry ref: ${String(ref)}`,
+        `Feature ${featureId} has an invalid surface entry ref: ${ref}`,
       );
     }
     return {

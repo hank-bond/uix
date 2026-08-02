@@ -147,12 +147,13 @@ export function createFeatureEventPublisherFactory(
         );
       }
       return createFeatureEventPublisher(
-        (name, payload, logOpts) =>
+        (name, payload, logOpts) => {
           publisher.publish(
             toChannelCanonicalId(featureId, name),
             payload,
             logOpts,
-          ),
+          );
+        },
         contract,
       );
     },

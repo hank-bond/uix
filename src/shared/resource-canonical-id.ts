@@ -27,7 +27,7 @@ function assertResourceToken(label: string, token: string): void {
   const resourceTokenPattern = /^[a-z][a-z0-9-]*$/;
   if (!resourceTokenPattern.test(token)) {
     throw new Error(
-      `Invalid ${label}: ${token}. Expected ${resourceTokenPattern}.`,
+      `Invalid ${label}: ${token}. Expected ${String(resourceTokenPattern)}.`,
     );
   }
 }

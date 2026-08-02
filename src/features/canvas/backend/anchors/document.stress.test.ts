@@ -11,7 +11,7 @@ const WINDOW_KEEP_PREFIX = 225;
 const WINDOW_KEEP_SUFFIX_START = 275;
 
 function makeText(count: number): string {
-  return Array.from({ length: count }, (_, index) => `line-${index}`).join(
+  return Array.from({ length: count }, (_, index) => `line-${String(index)}`).join(
     "\n",
   );
 }
@@ -20,7 +20,7 @@ function makeText(count: number): string {
 // the committed pool's capacity, and repeatedly clobbering a 100k-line doc
 // would otherwise blow past the pool. Anchors just need to be unique strings.
 function unboundedAllocate() {
-  return (index: number) => ({ anchor: `a${index}`, nextIndex: index + 1 });
+  return (index: number) => ({ anchor: `a${String(index)}`, nextIndex: index + 1 });
 }
 
 function seededRandom(seed: number): () => number {
@@ -49,8 +49,8 @@ function assembleWindowReplacement(
 ): string[] {
   return [
     ...texts.slice(startIndex, startIndex + WINDOW_KEEP_PREFIX),
-    `${label}-${editIndex}-a`,
-    `${label}-${editIndex}-b`,
+    `${label}-${String(editIndex)}-a`,
+    `${label}-${String(editIndex)}-b`,
     ...texts.slice(
       startIndex + WINDOW_KEEP_SUFFIX_START,
       startIndex + WINDOW_EDIT_SIZE,
@@ -81,7 +81,7 @@ function summarizeTimings(samples: readonly number[]): string {
 describe("AnchoredDocument stress", () => {
   it("keeps anchors stable across many localized range edits", () => {
     const doc = new AnchoredDocument(makeText(1_000));
-    const model = Array.from({ length: 1_000 }, (_, index) => `line-${index}`);
+    const model = Array.from({ length: 1_000 }, (_, index) => `line-${String(index)}`);
 
     for (let editIndex = 0; editIndex < 400; editIndex += 1) {
       const before = doc.read();
@@ -89,9 +89,9 @@ describe("AnchoredDocument stress", () => {
       const deleteCount = 1 + ((editIndex * 11) % 7);
       const endIndex = Math.min(model.length - 1, startIndex + deleteCount - 1);
       const replacement = [
-        `edit-${editIndex}-a`,
+        `edit-${String(editIndex)}-a`,
         ...(editIndex % 3 === 0 ? [model[startIndex]] : []),
-        `edit-${editIndex}-b`,
+        `edit-${String(editIndex)}-b`,
       ];
       const untouchedBefore = before.slice(0, startIndex);
       const untouchedAfter = before.slice(endIndex + 1);
@@ -115,7 +115,7 @@ describe("AnchoredDocument stress", () => {
   it("reconciles large texts while preserving long unchanged runs", () => {
     const original = Array.from(
       { length: 20_000 },
-      (_, index) => `line-${index}`,
+      (_, index) => `line-${String(index)}`,
     );
     const doc = new AnchoredDocument(original.join("\n"));
     const before = doc.read();
@@ -140,7 +140,7 @@ describe("AnchoredDocument stress", () => {
   it("keeps reconciling randomly placed 500-line edits over prior state", () => {
     const random = seededRandom(RANDOM_SEED);
     const doc = new AnchoredDocument(makeText(15_000));
-    const model = Array.from({ length: 15_000 }, (_, index) => `line-${index}`);
+    const model = Array.from({ length: 15_000 }, (_, index) => `line-${String(index)}`);
 
     for (let editIndex = 0; editIndex < 100; editIndex += 1) {
       const before = doc.read();
@@ -195,7 +195,7 @@ describe("AnchoredDocument perf", () => {
     for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
       const target = doc.read()[40_000 + sampleIndex * 500];
       expect(target).toBeDefined();
-      const replacement = `middle-replacement-${sampleIndex}`;
+      const replacement = `middle-replacement-${String(sampleIndex)}`;
 
       const start = performance.now();
       doc.edit({
@@ -218,7 +218,7 @@ describe("AnchoredDocument perf", () => {
       [
         "",
         "AnchoredDocument perf:",
-        `  samples: ${sampleCount}`,
+        `  samples: ${String(sampleCount)}`,
         `  100k one-line anchored edit: ${summarizeTimings(editSamples)}`,
         `  100k clobber write: ${summarizeTimings(writeSamples)}`,
         "",
@@ -261,7 +261,7 @@ describe("AnchoredDocument perf", () => {
       [
         "",
         "AnchoredDocument random 500-line edit perf:",
-        `  samples: ${sampleCount}`,
+        `  samples: ${String(sampleCount)}`,
         `  100k repeated range edit: ${summarizeTimings(editSamples)}`,
         "",
       ].join("\n"),

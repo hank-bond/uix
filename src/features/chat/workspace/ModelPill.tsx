@@ -33,7 +33,7 @@ export function ModelPill({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const current = controls.status?.model ?? controls.status?.defaultModel;
   const currentOption = controls.models?.find(
-    (model) => model.provider === current?.provider && model.id === current?.id,
+    (model) => model.provider === current?.provider && model.id === current.id,
   );
   return (
     <div className="model-pill">
@@ -100,7 +100,9 @@ function ModelPicker({
       if (!rootRef.current?.contains(event.target as Node)) onClose();
     };
     document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
   }, [onClose]);
 
   const activeScope = scope;
@@ -194,7 +196,9 @@ function ModelPicker({
           type="button"
           className="model-picker__tab"
           aria-pressed={activeScope === "favorites"}
-          onClick={() => switchScope("favorites")}
+          onClick={() => {
+            switchScope("favorites");
+          }}
         >
           Favorites
         </button>
@@ -202,7 +206,9 @@ function ModelPicker({
           type="button"
           className="model-picker__tab"
           aria-pressed={activeScope === "all"}
-          onClick={() => switchScope("all")}
+          onClick={() => {
+            switchScope("all");
+          }}
         >
           All models
         </button>
@@ -216,7 +222,9 @@ function ModelPicker({
         className="model-picker__input"
         placeholder="search models…"
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onChange={(event) => {
+          setQuery(event.target.value);
+        }}
         onKeyDown={(event) => {
           if (event.key === "Enter" && filtered.length > 0) {
             void select(filtered[0]);

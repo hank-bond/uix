@@ -22,7 +22,7 @@ function memoryStore(
     },
     createSnapshot(docId, meta) {
       const version: DocumentVersion<typeof meta> = {
-        id: `v${versions.size + 1}`,
+        id: `v${String(versions.size + 1)}`,
         documentId: docId,
         content: map.get(docId) ?? "",
         meta,
@@ -78,7 +78,7 @@ describe("CanvasDocumentBuffer", () => {
       if (!firstRead) return backing.getCurrent(docId);
       firstRead = false;
       return new Promise<string | null>((resolve) => {
-        releaseFirstRead = () => resolve(null);
+        releaseFirstRead = () => { resolve(null); };
       });
     });
     const store: DocumentStore = { ...backing, getCurrent };
@@ -102,7 +102,8 @@ describe("CanvasDocumentBuffer", () => {
       "main",
       "<body>\n<p>a</p>\n<p>b</p>\n</body>",
     );
-    const target = lines.find((line) => line.text === "<p>a</p>")!;
+    const target = lines.find((line) => line.text === "<p>a</p>");
+    if (!target) throw new Error("missing <p>a</p> line");
 
     const changes = await buffer.edit("main", {
       start: target,
@@ -114,8 +115,9 @@ describe("CanvasDocumentBuffer", () => {
       "<p>A</p>",
     );
     const read = await buffer.read("main");
-    const before = lines.find((line) => line.text === "<p>b</p>")!;
-    const after = read.find((line) => line.text === "<p>b</p>")!;
+    const before = lines.find((line) => line.text === "<p>b</p>");
+    const after = read.find((line) => line.text === "<p>b</p>");
+    if (!before || !after) throw new Error("missing <p>b</p> line");
     expect(after.anchor).toBe(before.anchor);
     expect(store.dump("main")).toContain("<p>A</p>");
   });
@@ -136,7 +138,8 @@ describe("CanvasDocumentBuffer", () => {
         "</html>",
       ].join("\n"),
     );
-    const closingSelect = lines.find((line) => line.text === "</select>")!;
+    const closingSelect = lines.find((line) => line.text === "</select>");
+    if (!closingSelect) throw new Error("missing </select> line");
 
     const changes = await buffer.edit("main", {
       start: closingSelect,
@@ -148,9 +151,9 @@ describe("CanvasDocumentBuffer", () => {
       '<option value="rainbow">🌈 rainbow</option>',
     );
     const read = await buffer.read("main");
-    expect(read.find((line) => line.text === "</select>")!.anchor).toBe(
-      closingSelect.anchor,
-    );
+    const restoredClosing = read.find((line) => line.text === "</select>");
+    if (!restoredClosing) throw new Error("missing </select> line");
+    expect(restoredClosing.anchor).toBe(closingSelect.anchor);
     expect(store.dump("main")).toContain(
       '<option value="rainbow">🌈 rainbow</option>\n</select>',
     );
@@ -159,7 +162,8 @@ describe("CanvasDocumentBuffer", () => {
   it("rejects an edit whose boundary no longer matches", async () => {
     const buffer = new CanvasDocumentBuffer(memoryStore());
     const lines = await buffer.write("main", "<body>\n<p>a</p>\n</body>");
-    const target = lines.find((line) => line.text === "<p>a</p>")!;
+    const target = lines.find((line) => line.text === "<p>a</p>");
+    if (!target) throw new Error("missing <p>a</p> line");
 
     await expect(
       buffer.edit("main", {
@@ -187,15 +191,18 @@ describe("CanvasDocumentBuffer", () => {
       "main",
       "<body>\n<p>a</p>\n<p>b</p>\n<p>c</p>\n</body>",
     );
-    const aAnchor = lines.find((l) => l.text === "<p>a</p>")!.anchor;
+    const aLine = lines.find((l) => l.text === "<p>a</p>");
+    if (!aLine) throw new Error("missing <p>a</p> line");
+    const aAnchor = aLine.anchor;
 
-    await buffer.writeback(
-      "main",
-      store.dump("main")!.replace("<p>b</p>", "<p>B</p>"),
-    );
+    const writeback = store.dump("main");
+    if (!writeback) throw new Error("missing main");
+    await buffer.writeback("main", writeback.replace("<p>b</p>", "<p>B</p>"));
 
     const read = await buffer.read("main");
-    expect(read.find((l) => l.text === "<p>a</p>")!.anchor).toBe(aAnchor);
+    const restoredA = read.find((l) => l.text === "<p>a</p>");
+    if (!restoredA) throw new Error("missing <p>a</p> line");
+    expect(restoredA.anchor).toBe(aAnchor);
     expect(read.map((l) => l.text)).toContain("<p>B</p>");
     expect(store.dump("main")).toContain("<p>B</p>");
   });
@@ -207,16 +214,17 @@ describe("CanvasDocumentBuffer", () => {
       "main",
       "<body>\n<p>a</p>\n<p>b</p>\n<p>c</p>\n</body>",
     );
-    const a = lines.find((l) => l.text === "<p>a</p>")!;
+    const a = lines.find((l) => l.text === "<p>a</p>");
+    if (!a) throw new Error("missing <p>a</p> line");
 
     // Human changes c out of band; agent then edits a against its stale view.
-    await store.setCurrent(
-      "main",
-      store.dump("main")!.replace("<p>c</p>", "<p>C</p>"),
-    );
+    const outOfBand = store.dump("main");
+    if (!outOfBand) throw new Error("missing main");
+    await store.setCurrent("main", outOfBand.replace("<p>c</p>", "<p>C</p>"));
     await buffer.edit("main", { start: a, end: a, replacement: "<p>A</p>" });
 
-    const current = store.dump("main")!;
+    const current = store.dump("main");
+    if (!current) throw new Error("missing main");
     expect(current).toContain("<p>A</p>"); // agent's edit applied
     expect(current).toContain("<p>C</p>"); // human's edit survived
     expect(current).not.toContain("<p>c</p>");
@@ -228,10 +236,9 @@ describe("CanvasDocumentBuffer", () => {
     const before = await buffer.write("main", "<body>\n<p>x</p>\n</body>");
 
     // Same content, non-canonical casing — canonicalization absorbs it.
-    await store.setCurrent(
-      "main",
-      store.dump("main")!.replace("<p>x</p>", "<P>x</P>"),
-    );
+    const rewritten = store.dump("main");
+    if (!rewritten) throw new Error("missing main");
+    await store.setCurrent("main", rewritten.replace("<p>x</p>", "<P>x</P>"));
 
     await expect(buffer.read("main")).resolves.toEqual(before);
   });
@@ -242,7 +249,8 @@ describe("CanvasDocumentBuffer", () => {
     const lines = await buffer.write("main", "<body>\n<p>a</p>\n</body>");
 
     const snapshots = await buffer.createSnapshots(["main"]);
-    const version = snapshots.get("main")!;
+    const version = snapshots.get("main");
+    if (!version) throw new Error("missing snapshot");
 
     expect(version.content).toBe(store.dump("main"));
     expect(version.meta.anchors.lines).toEqual(lines);
@@ -257,22 +265,27 @@ describe("CanvasDocumentBuffer", () => {
       "main",
       "<body>\n<p>a</p>\n<p>b</p>\n</body>",
     );
-    const before = (await buffer.createSnapshots(["main"])).get("main")!;
+    const before = (await buffer.createSnapshots(["main"])).get("main");
+    if (!before) throw new Error("missing before snapshot");
 
-    await buffer.writeback(
-      "main",
-      store.dump("main")!.replace("<p>b</p>", "<p>B</p>"),
+    const beforeWrite = store.dump("main");
+    if (!beforeWrite) throw new Error("missing main");
+    await buffer.writeback("main", beforeWrite.replace("<p>b</p>", "<p>B</p>"));
+    const after = (await buffer.createSnapshots(["main"])).get("main");
+    if (!after) throw new Error("missing after snapshot");
+
+    const oldB = initial.find((line) => line.text === "<p>b</p>");
+    const newB = after.meta.anchors.lines.find(
+      (line) => line.text === "<p>B</p>",
     );
-    const after = (await buffer.createSnapshots(["main"])).get("main")!;
+    if (!oldB || !newB) throw new Error("missing line");
 
     await expect(
       buffer.diffVersions("main", before.id, after.id),
     ).resolves.toEqual([
       {
-        oldLines: [initial.find((line) => line.text === "<p>b</p>")!],
-        newLines: [
-          after.meta.anchors.lines.find((line) => line.text === "<p>B</p>")!,
-        ],
+        oldLines: [oldB],
+        newLines: [newB],
       },
     ]);
   });

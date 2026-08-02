@@ -65,7 +65,9 @@ export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
       );
     };
     window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("message", onMessage);
+    };
   }, [agent, client, canvasKey, workspace.workspaceId]);
 
   return (

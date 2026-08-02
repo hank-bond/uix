@@ -220,7 +220,8 @@ const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
     throw new Error(`FeatureDefinition ${def.id} context is not a function`);
   }
   if (def.settings !== undefined) {
-    if (typeof def.settings !== "object" || def.settings === null) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- exported feature objects are untrusted module code; null is a real runtime value and typeof null === "object", so the null check is load-bearing despite the non-nullable type.
+    if (def.settings == null || typeof def.settings !== "object") {
       throw new Error(`FeatureDefinition ${def.id} settings is not an object`);
     }
     const schema = (def.settings as { schema?: unknown }).schema;

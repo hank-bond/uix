@@ -23,8 +23,12 @@ export function Picker(): JSX.Element {
   useEffect(() => {
     void window.channels
       .request(Channels.pickerState, undefined)
-      .then((state) => setRecents((state as PickerState).recents))
-      .catch(() => setRecents([]));
+      .then((state) => {
+        setRecents((state as PickerState).recents);
+      })
+      .catch(() => {
+        setRecents([]);
+      });
   }, []);
 
   const act = async (channel: string, payload: unknown): Promise<void> => {
@@ -95,7 +99,9 @@ export function Picker(): JSX.Element {
             value={name}
             placeholder="Workspace name (defaults to folder name)"
             disabled={busy}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+            }}
           />
           <button type="submit" disabled={busy}>
             Choose folder…

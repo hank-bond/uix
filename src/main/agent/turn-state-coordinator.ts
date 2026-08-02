@@ -72,6 +72,13 @@ export function createTurnStateCoordinator(
     );
   }
 
+  // Single source of the disposed guard. Fresh narrowing here so the re-check
+  // after an await still sees `disposed` as a boolean: dispose() can run while
+  // a restore/commit is awaiting, which TS's carried narrowing ignores.
+  function assertNotDisposed(): void {
+    if (disposed) throw new Error("Turn-state coordinator is disposed");
+  }
+
   function restore(
     sessionManager: SessionManager,
     registrySnapshot: TurnStateRegistrySnapshot,
@@ -104,9 +111,7 @@ export function createTurnStateCoordinator(
         registrySnapshot,
         projection.turnStateAsOfLeaf,
       );
-      if (disposed) {
-        throw new Error("Turn-state coordinator is disposed");
-      }
+      assertNotDisposed();
       if (
         !isTurnStateRegistrySnapshotCurrent(opts.registry, registrySnapshot)
       ) {
@@ -135,7 +140,7 @@ export function createTurnStateCoordinator(
   }
 
   async function commit(sessionManager: SessionManager): Promise<void> {
-    if (disposed) throw new Error("Turn-state coordinator is disposed");
+    assertNotDisposed();
     await commitCurrentTurnState(sessionManager, opts.cwd, opts.registry);
   }
 
@@ -148,7 +153,7 @@ export function createTurnStateCoordinator(
     commit,
 
     async commitIfReady(sessionManager) {
-      if (disposed) throw new Error("Turn-state coordinator is disposed");
+      assertNotDisposed();
       if (!sessionManager || !isRestorationSettled(sessionManager)) {
         return false;
       }

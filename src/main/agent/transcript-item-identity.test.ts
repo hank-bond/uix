@@ -15,8 +15,8 @@ function fakeManager(): {
   appendCustomMessageEntry: Mock;
 } {
   let next = 1;
-  const appendMessage = vi.fn(() => `entry-${next++}`);
-  const appendCustomMessageEntry = vi.fn(() => `entry-${next++}`);
+  const appendMessage = vi.fn(() => `entry-${String(next++)}`);
+  const appendCustomMessageEntry = vi.fn(() => `entry-${String(next++)}`);
   const manager = {
     appendMessage,
     appendCustomMessageEntry,

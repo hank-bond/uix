@@ -24,7 +24,9 @@ export function KeybindingSync(): JSX.Element | null {
 
   useEffect(() => {
     const binding = bindKeybindingSync(registry, client);
-    return () => binding[Symbol.dispose]();
+    return () => {
+      binding[Symbol.dispose]();
+    };
   }, [client, registry]);
 
   return null;

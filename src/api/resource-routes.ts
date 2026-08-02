@@ -265,14 +265,14 @@ function decodeRoutePath(
       break;
     }
 
-    const raw = pathSegments[index];
-    if (raw === undefined) {
+    if (index >= pathSegments.length) {
       return {
         ok: false,
         status: 404,
         reason: "Resource route did not match.",
       };
     }
+    const raw = pathSegments[index];
     const decoded = decodePathSegment(raw);
     if (!decoded.ok) return decoded;
 
@@ -466,7 +466,7 @@ function validateResourceAddress(address: ResourceAddress): ResourceAddress {
 function validateTransportToken(label: string, value: string): string {
   if (!TransportTokenPattern.test(value)) {
     throw new Error(
-      `Invalid ${label}: ${value}. Expected ${TransportTokenPattern}.`,
+      `Invalid ${label}: ${value}. Expected ${String(TransportTokenPattern)}.`,
     );
   }
   return value;

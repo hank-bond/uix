@@ -25,7 +25,7 @@ let nextEphemeralItemId = 1;
 export function createEphemeralTranscriptItemId(
   kind: TranscriptItem["kind"],
 ): string {
-  return `live:${kind}:${nextEphemeralItemId++}`;
+  return `live:${kind}:${String(nextEphemeralItemId++)}`;
 }
 
 interface TranscriptProjector {
@@ -243,6 +243,7 @@ export function asRecord(value: unknown): Record<string, unknown> | undefined {
 export function toIpcValue(value: unknown): unknown {
   try {
     const json = JSON.stringify(value);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.stringify returns undefined for undefined/function/symbol inputs, but the lib types it string-only.
     return json === undefined ? undefined : JSON.parse(json);
   } catch {
     return String(value);

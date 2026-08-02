@@ -97,10 +97,14 @@ describe("WorkspaceManifestStore generations", () => {
     store.promote(second);
 
     expect(second.composition.manifest.name).toBe("Second");
-    expect(() => firstLocation.write({})).toThrow(
+    expect(() => {
+      firstLocation.write({});
+    }).toThrow(
       "Workspace manifest generation is stale",
     );
-    expect(() => store.promote(first)).toThrow(
+    expect(() => {
+      store.promote(first);
+    }).toThrow(
       "Workspace manifest is already stale",
     );
   });
@@ -115,7 +119,9 @@ describe("WorkspaceManifestStore generations", () => {
 
     const staged = await first.stageFromDisk();
 
-    expect(() => second.promote(staged)).toThrow(
+    expect(() => {
+      second.promote(staged);
+    }).toThrow(
       "Workspace manifest was not staged by this store",
     );
   });

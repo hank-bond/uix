@@ -45,7 +45,7 @@ export function resolveAgentSkillContributions(
   return contributions.map((ref) => {
     if (typeof ref !== "string" || ref.trim() === "") {
       throw new Error(
-        `Feature ${featureId} has an invalid agent skill ref: ${String(ref)}`,
+        `Feature ${featureId} has an invalid agent skill ref: ${ref}`,
       );
     }
     return {

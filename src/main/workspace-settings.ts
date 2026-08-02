@@ -125,7 +125,9 @@ export function createWorkspaceSettings(
         label,
         definition: settings,
         values,
-        onWrite: (next) => location.write(next),
+        onWrite: (next) => {
+          location.write(next);
+        },
       });
     },
 
@@ -147,11 +149,13 @@ function createWorkspaceNamespaceHandle<Definition extends SettingsDefinition>(
   const settings = registry.forScope(namespace);
   return {
     get: (key) => settings.get(key),
-    set: (key, value) => settings.set(key, value),
+    set: (key, value) => {
+      settings.set(key, value);
+    },
     onChange: (key, handler) =>
-      settings.onChange(key, (value) =>
-        handler(value as SettingsValues<Definition>[typeof key] | undefined),
-      ),
+      settings.onChange(key, (value) => {
+        handler(value as SettingsValues<Definition>[typeof key] | undefined);
+      }),
     getSnapshot: () =>
       registry.getScopeSnapshot(namespace) as SettingsValues<Definition>,
     replace: (candidate) =>

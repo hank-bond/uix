@@ -147,7 +147,7 @@ describe("provider auth flow coordinator", () => {
     const helpLink = manualCode?.notices[0];
     if (helpLink?.type !== "info") throw new Error("Expected info notice");
     const firstLink = helpLink.links[0];
-    if (!firstLink || !manualCode?.prompt) {
+    if (!manualCode?.prompt) {
       throw new Error("Expected retained link and prompt");
     }
     await harness.coordinator.openLink(started.flowId, firstLink.linkId);
@@ -229,7 +229,9 @@ describe("provider auth flow coordinator", () => {
       login: async (_authType, value) => {
         interaction = value;
         await new Promise<void>((resolve) =>
-          value.signal?.addEventListener("abort", () => resolve()),
+          value.signal?.addEventListener("abort", () => {
+            resolve();
+          }),
         );
       },
     });
@@ -267,9 +269,9 @@ describe("provider auth flow coordinator", () => {
 
     const flow = harness.coordinator.begin("fake", "oauth");
     await settle();
-    expect(() =>
-      harness.coordinator.answer(flow.flowId, "stale-prompt", "value"),
-    ).toThrow("not pending");
+    expect(() => {
+      harness.coordinator.answer(flow.flowId, "stale-prompt", "value");
+    }).toThrow("not pending");
 
     promptAbort.abort();
     await settle();

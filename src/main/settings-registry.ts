@@ -231,9 +231,12 @@ export class SettingsRegistry implements Disposable {
 
   forScope(scopeId: string): SettingsHandle {
     return {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- see SettingsHandle.get: T is inferred from call-site context.
       get: <T = unknown>(key: string) =>
         this.get(scopeId, key) as T | undefined,
-      set: (key, value) => this.set(scopeId, key, value),
+      set: (key, value) => {
+        this.set(scopeId, key, value);
+      },
       onChange: (key, handler) => this.onChange(scopeId, key, handler),
     };
   }
@@ -284,13 +287,17 @@ export class SettingsRegistry implements Disposable {
 
     if (includeAnyListeners) {
       for (const listener of this.#anyListeners) {
-        notify(() => listener(scopeId, key, cloneJsonChangeValue(cloned)));
+        notify(() => {
+          listener(scopeId, key, cloneJsonChangeValue(cloned));
+        });
       }
     }
     const listeners = this.#listeners.get(toListenerKey(scopeId, key));
     if (listeners) {
       for (const listener of listeners) {
-        notify(() => listener(cloneJsonChangeValue(cloned)));
+        notify(() => {
+          listener(cloneJsonChangeValue(cloned));
+        });
       }
     }
     if (errors.length > 0) throw errors[0];
@@ -303,7 +310,9 @@ export function bindSettingsHandle(
 ): SettingsHandle {
   return {
     get: (key) => settings.get(key),
-    set: (key, value) => settings.set(key, value),
+    set: (key, value) => {
+      settings.set(key, value);
+    },
     onChange: (key, handler) => {
       const unsubscribe = settings.onChange(key, handler);
       bag.add(disposable(unsubscribe));
@@ -337,6 +346,7 @@ function cloneJsonObject(value: JsonObject): JsonObject {
 
 function cloneJson(value: unknown): unknown {
   const json = JSON.stringify(value);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.stringify returns undefined for undefined/function/symbol inputs, but the lib types it string-only.
   if (json === undefined) {
     throw new Error("Settings values must be JSON-serializable");
   }

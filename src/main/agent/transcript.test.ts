@@ -14,7 +14,7 @@ const entry = (
 ): SessionEntry =>
   ({
     type,
-    id: `${type}:${Math.random()}`,
+    id: `${type}:${String(Math.random())}`,
     parentId: null,
     timestamp: "",
     ...(message ? { message } : {}),

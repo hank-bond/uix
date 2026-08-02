@@ -496,7 +496,7 @@ async function openWorkspace(
   });
 
   appBag.add(
-    ipc.handle<void, ReloadResult>(Channels.reload, async () => {
+    ipc.handle<unknown, ReloadResult>(Channels.reload, async () => {
       const reloadLog = createLogger("main");
       reloadLog.debug({}, "reload_started");
 
@@ -598,7 +598,7 @@ function openPicker(
   };
 
   pickerBag.add(
-    ipc.handle<void, PickerState>(Channels.pickerState, () => ({
+    ipc.handle<unknown, PickerState>(Channels.pickerState, () => ({
       recents: recents.list(),
     })),
   );

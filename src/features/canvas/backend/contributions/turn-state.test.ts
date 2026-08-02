@@ -31,7 +31,7 @@ function memoryStore(initial: Record<string, string> = {}): DocumentStore {
     },
     createSnapshot: (docId, meta) => {
       const version: DocumentVersion<typeof meta> = {
-        id: `v${versions.size + 1}`,
+        id: `v${String(versions.size + 1)}`,
         documentId: docId,
         content: latest.get(docId) ?? "",
         meta,
@@ -110,7 +110,6 @@ function captureCanvasState(store = memoryStore()): {
   };
   const contribution = createCanvasTurnStateContributions(ctx).documents;
 
-  if (!contribution) throw new Error("Canvas documents state was not created");
   return { contribution, buffer, store };
 }
 

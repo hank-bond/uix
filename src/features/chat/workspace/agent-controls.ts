@@ -233,7 +233,9 @@ export function useAgentControls(client: AgentChannelClient): {
           if (providerAuthEventVersion.current !== eventVersion) return;
           commitProviderAuthFlow(flow ?? undefined);
         })
-        .catch((error: unknown) => setProviderAuthError(String(error)));
+        .catch((error: unknown) => {
+          setProviderAuthError(String(error));
+        });
     },
     [client, commitProviderAuthFlow, refreshProviders],
   );

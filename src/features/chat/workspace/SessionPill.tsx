@@ -23,7 +23,9 @@ export function SessionPill(): JSX.Element {
   const pillRef = useRef<HTMLDivElement>(null);
   const dialogId = useId();
 
-  const close = useCallback(() => setOpen(false), []);
+  const close = useCallback(() => {
+    setOpen(false);
+  }, []);
 
   return (
     <div className="session-pill" ref={pillRef}>
@@ -35,7 +37,9 @@ export function SessionPill(): JSX.Element {
         aria-controls={open ? dialogId : undefined}
         disabled={!canSwitchSession}
         title={activeSession && formatSessionTitle(activeSession)}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => {
+          setOpen((current) => !current);
+        }}
       >
         <span className="session-pill__label">
           {activeSession
@@ -126,7 +130,9 @@ function SessionPicker({
       if (!pillRef.current?.contains(event.target as Node)) onClose();
     };
     document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
   }, [onClose, pillRef]);
 
   const select = async (sessionId: string): Promise<void> => {
@@ -228,7 +234,9 @@ function SessionPicker({
                       placeholder={formatAutomaticSessionLabel(session)}
                       value={draftTitle}
                       disabled={isTitlePending}
-                      onChange={(event) => setDraftTitle(event.target.value)}
+                      onChange={(event) => {
+                        setDraftTitle(event.target.value);
+                      }}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" && canSwitchSession) {
                           event.preventDefault();
@@ -312,7 +320,9 @@ function SessionPicker({
                         pendingSessionId !== undefined ||
                         editingSessionId !== undefined
                       }
-                      onClick={() => editTitle(session)}
+                      onClick={() => {
+                        editTitle(session);
+                      }}
                     >
                       <PencilIcon />
                     </button>
@@ -373,7 +383,7 @@ function formatSessionTitle(session: Readonly<SessionSummary>): string {
   if (session.title) return session.title;
   const preview = session.firstUserMessage?.preview;
   if (!preview) return "New conversation";
-  return session.firstUserMessage?.truncated ? `${preview}…` : preview;
+  return session.firstUserMessage.truncated ? `${preview}…` : preview;
 }
 
 function formatSessionModifiedAge(
@@ -384,11 +394,11 @@ function formatSessionModifiedAge(
   if (!Number.isFinite(timestamp)) return "";
   const elapsedMinutes = Math.floor(Math.max(0, now - timestamp) / 60_000);
   if (elapsedMinutes < 1) return "now";
-  if (elapsedMinutes < 60) return `${elapsedMinutes}m`;
+  if (elapsedMinutes < 60) return `${String(elapsedMinutes)}m`;
   const elapsedHours = Math.floor(elapsedMinutes / 60);
-  if (elapsedHours < 24) return `${elapsedHours}h`;
+  if (elapsedHours < 24) return `${String(elapsedHours)}h`;
   const elapsedDays = Math.floor(elapsedHours / 24);
-  if (elapsedDays < 7) return `${elapsedDays}d`;
+  if (elapsedDays < 7) return `${String(elapsedDays)}d`;
   return new Intl.DateTimeFormat(undefined, {
     month: "short",
     day: "numeric",
