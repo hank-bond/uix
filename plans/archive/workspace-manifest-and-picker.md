@@ -9,7 +9,7 @@ Shipped as `49e9ad4` (M1: manifest drives loading, discovery retired), `9de1056`
 
 The original plan follows unedited.
 
-Builds [workspace-manifest-not-discovery](../../decisions/2026-07-02-workspace-manifest-not-discovery.md). Assumes [features-are-the-loadable-unit](../../decisions/2026-07-01-features-are-the-loadable-unit.md) (definition shape, one registration path, reload symmetry — all unchanged) and [project-root-vs-agent-cwd](../../decisions/2026-06-06-project-root-vs-agent-cwd.md) (stateRoot pinned, agentCwd mutable). Design context: [workspace-feature-composition](../../design/workspace-feature-composition.md).
+Builds [workspace-manifest-not-discovery](../../docs/decisions/2026-07-02-workspace-manifest-not-discovery.md). Assumes [features-are-the-loadable-unit](../../docs/decisions/2026-07-01-features-are-the-loadable-unit.md) (definition shape, one registration path, reload symmetry — all unchanged) and [project-root-vs-agent-cwd](../../docs/decisions/2026-06-06-project-root-vs-agent-cwd.md) (stateRoot pinned, agentCwd mutable). Design context: [workspace-feature-composition](../../docs/design/workspace-feature-composition.md).
 
 ## Context snapshot
 

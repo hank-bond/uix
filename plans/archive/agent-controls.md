@@ -11,10 +11,10 @@ This is intentionally smaller than a full auth/control surface. v1 assumes pi au
 
 ## Decisions assumed
 
-- [pilot substrate](../decisions/2026-05-30-uix-is-a-pilot-substrate.md) / [pi self-extension ethos](../decisions/2026-06-05-pi-self-extension-ethos.md) — UIX renders controls over pi's model/auth machinery; it does not fork provider/model logic.
-- [features are the loadable unit](../decisions/2026-07-01-features-are-the-loadable-unit.md) — chat consumes substrate-owned agent channels like any feature could; model control belongs to the agent substrate, not a chat-private backend.
-- [no agent UI manipulation](../decisions/2026-05-30-no-agent-ui-manipulation.md) — persistent defaults change through workspace settings in `uix.workspace.json`, not through an agent-side UI API.
-- [agent-state-messages](../design/agent-state-messages.md) — model/thinking status is transcript-native pi state (`model_change` / `thinking_level_change`), not a new `uix.turn-state` cache.
+- [pilot substrate](../../docs/decisions/2026-05-30-uix-is-a-pilot-substrate.md) / [pi self-extension ethos](../../docs/decisions/2026-06-05-pi-self-extension-ethos.md) — UIX renders controls over pi's model/auth machinery; it does not fork provider/model logic.
+- [features are the loadable unit](../../docs/decisions/2026-07-01-features-are-the-loadable-unit.md) — chat consumes substrate-owned agent channels like any feature could; model control belongs to the agent substrate, not a chat-private backend.
+- [no agent UI manipulation](../../docs/decisions/2026-05-30-no-agent-ui-manipulation.md) — persistent defaults change through workspace settings in `uix.workspace.json`, not through an agent-side UI API.
+- [agent-state-messages](../../docs/design/agent-state-messages.md) — model/thinking status is transcript-native pi state (`model_change` / `thinking_level_change`), not a new `uix.turn-state` cache.
 
 ## Verified pi facts
 

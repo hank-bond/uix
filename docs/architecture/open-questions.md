@@ -24,6 +24,6 @@ Things we've named but not resolved. Each gets pinned to a milestone when it bec
 
 ## Future apps (not substrate, but shaping it)
 
-- **Code-reviewer app.** The original "reports + question blocks + side-quest" design lives in [`../plans/archive/project-brief.md`](../plans/archive/project-brief.md). When it becomes a composed feature set, it gets its own design doc.
+- **Code-reviewer app.** The original "reports + question blocks + side-quest" design lives in [`../../plans/archive/project-brief.md`](../../plans/archive/project-brief.md). When it becomes a composed feature set, it gets its own design doc.
 - **Knowledge base / wiki app.** Not yet specified. It can decompose into Pi extensions for agent-side fetching or transformation, UIX features for surfaces and channels, and state documents — the "case 2 / application" tier sketched in [canvas-data-channel](../design/canvas-data-channel.md).
 - **Shared shape between the two.** Both want rich rendered panes, inline interactive blocks, on-disk artifacts, and channels that send small diffs and occasional turn-triggering events. The substrate must support both cleanly.

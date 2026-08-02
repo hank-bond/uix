@@ -24,7 +24,7 @@ Human-facing feature names are not machine identities. Different publishers may 
 
 The Agent is not an automatic subscriber to shared state. Each provider decides which domain tools, stable guidance, and changing state projections are useful to the Agent. Agent operations affect resources or domain semantics, never viewer presentation.
 
-The active build plan is [cross-feature capabilities and resource viewing](../plans/cross-feature-capabilities-and-resource-viewing.md).
+The active build plan is [cross-feature capabilities and resource viewing](../../plans/cross-feature-capabilities-and-resource-viewing.md).
 
 ## Alternatives retained
 

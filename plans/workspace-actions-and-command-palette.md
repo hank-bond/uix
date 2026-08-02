@@ -5,16 +5,16 @@ status: active
 
 # Workspace actions and default command palette
 
-Build the action layer settled in [workspace-actions](../design/workspace-actions.md): features register renderer workflows in nested trees; the workspace resolves ids and durable keybindings; replaceable features can display and invoke the serializable catalog. Backend effects continue through typed channels. The first default browser is a Ray/VS Code-style command palette shipped as an ordinary ambient feature surface.
+Build the action layer settled in [workspace-actions](../docs/design/workspace-actions.md): features register renderer workflows in nested trees; the workspace resolves ids and durable keybindings; replaceable features can display and invoke the serializable catalog. Backend effects continue through typed channels. The first default browser is a Ray/VS Code-style command palette shipped as an ordinary ambient feature surface.
 
 ## Decisions assumed
 
-- [Pilot substrate](../decisions/2026-05-30-uix-is-a-pilot-substrate.md) and [Pi self-extension ethos](../decisions/2026-06-05-pi-self-extension-ethos.md) — actions help the human operate the workspace, while the opinionated palette remains replaceable feature UI.
-- [Features are the loadable unit](../decisions/2026-07-01-features-are-the-loadable-unit.md) and [runtime surface pipeline](../decisions/2026-07-02-runtime-surface-pipeline.md) — action callbacks arrive through manifest-composed surfaces and use the shared `@uix/api/workspace` runtime.
-- [One owner per state](../decisions/2026-06-09-one-owner-per-state.md) — callbacks/catalog are renderer runtime state; bindings are main-durable workspace settings; conflicts are derived.
-- [Workspace manifest, not discovery](../decisions/2026-07-02-workspace-manifest-not-discovery.md) — materialized bindings remain inspectable and agent-editable in `uix.workspace.json`.
-- [Atomic candidates and feature activation](../decisions/2026-07-13-atomic-candidates-and-feature-activation.md) — workspace settings reload commits one validated candidate, while a failed feature leaves none of its settings or facet registrations behind and does not abort siblings.
-- [Settings defaults materialize](../decisions/2026-07-13-settings-defaults-materialize.md) — action defaults seed missing durable bindings and then disappear from runtime resolution; the workspace map is the one source of truth.
+- [Pilot substrate](../docs/decisions/2026-05-30-uix-is-a-pilot-substrate.md) and [Pi self-extension ethos](../docs/decisions/2026-06-05-pi-self-extension-ethos.md) — actions help the human operate the workspace, while the opinionated palette remains replaceable feature UI.
+- [Features are the loadable unit](../docs/decisions/2026-07-01-features-are-the-loadable-unit.md) and [runtime surface pipeline](../docs/decisions/2026-07-02-runtime-surface-pipeline.md) — action callbacks arrive through manifest-composed surfaces and use the shared `@uix/api/workspace` runtime.
+- [One owner per state](../docs/decisions/2026-06-09-one-owner-per-state.md) — callbacks/catalog are renderer runtime state; bindings are main-durable workspace settings; conflicts are derived.
+- [Workspace manifest, not discovery](../docs/decisions/2026-07-02-workspace-manifest-not-discovery.md) — materialized bindings remain inspectable and agent-editable in `uix.workspace.json`.
+- [Atomic candidates and feature activation](../docs/decisions/2026-07-13-atomic-candidates-and-feature-activation.md) — workspace settings reload commits one validated candidate, while a failed feature leaves none of its settings or facet registrations behind and does not abort siblings.
+- [Settings defaults materialize](../docs/decisions/2026-07-13-settings-defaults-materialize.md) — action defaults seed missing durable bindings and then disappear from runtime resolution; the workspace map is the one source of truth.
 
 ## Build invariants
 

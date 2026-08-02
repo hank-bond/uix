@@ -7,7 +7,7 @@ status: active
 
 Improve the appearance and rendering of the Chat surface in small units. Each unit is planned in detail immediately before implementation, implemented independently, and reviewed before the next unit begins.
 
-This plan builds on the transcript projection and chat-block model described in [`conversation-render-primitives`](../design/conversation-render-primitives.md) and the existing model-control path described in [`agent controls`](./archive/agent-controls.md).
+This plan builds on the transcript projection and chat-block model described in [`conversation-render-primitives`](../docs/design/conversation-render-primitives.md) and the existing model-control path described in [`agent controls`](./archive/agent-controls.md).
 
 ## C1 — Block framing and visual polish
 

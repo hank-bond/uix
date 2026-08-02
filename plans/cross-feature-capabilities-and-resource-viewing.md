@@ -5,7 +5,7 @@ status: active
 
 # Cross-feature capabilities and resource viewing
 
-This plan records the high-level shape agreed so far for cross-feature interoperability. It intentionally does not choose API signatures, wire shapes, matching rules, persistence behavior, or package-source mechanics that have not yet been discussed. Each unit begins with a design review that fills only the details needed for that unit. The reasoning and rejected alternatives are retained in [cross-feature interoperability](../design/cross-feature-interoperability.md).
+This plan records the high-level shape agreed so far for cross-feature interoperability. It intentionally does not choose API signatures, wire shapes, matching rules, persistence behavior, or package-source mechanics that have not yet been discussed. Each unit begins with a design review that fills only the details needed for that unit. The reasoning and rejected alternatives are retained in [cross-feature interoperability](../docs/design/cross-feature-interoperability.md).
 
 ## Agreed model
 

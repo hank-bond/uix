@@ -12,7 +12,7 @@ The plan half-shipped, in a different shape than written. W1–W2 (Workspace API
 
 W4–W6 landed in single-page form: surface contributions live with features and `layout.tsx` composes them (`802e6d1`); shared schema-only `ChannelContract`s drive both the backend handlers (`withHandlers`) and the typed frontend client (`createChannelClient`), with surfaces receiving the client through `defineSurface` (`252c7d2`); backend events publish through typed contract-derived publishers via `FeatureEventPublisherFactory` (`828b0c4`). The W6 channel-cleanup checklist below is essentially done.
 
-W7 leftovers moved to the backlog: deriving canvas open keys from visible surfaces (still `openCanvasKeys = ["main"]`), feature-agent link metadata, locks/concurrency. The "Decisions to preserve" section remains a useful record of the vocabulary (Host/Workspace/Surface, shadow vs iframe surfaces) — with the caveat that Host is now a dormant concept, not a built layer. The follow-on loading work is [feature-loading-convergence](../feature-loading-convergence.md).
+W7 leftovers moved to the backlog: deriving canvas open keys from visible surfaces (still `openCanvasKeys = ["main"]`), feature-agent link metadata, locks/concurrency. The "Decisions to preserve" section remains a useful record of the vocabulary (Host/Workspace/Surface, shadow vs iframe surfaces) — with the caveat that Host is now a dormant concept, not a built layer. The follow-on loading work is [feature-loading-convergence](./feature-loading-convergence.md).
 
 The original plan follows unedited.
 
@@ -46,7 +46,7 @@ A renderer-side `SurfaceHost` stepping stone was tried and reverted because it h
 
 ### W0 — Commit documentation checkpoint
 
-Commit the updated design thread and this plan before implementation. Relevant docs: [workspace-feature-composition](../design/workspace-feature-composition.md) and this plan.
+Commit the updated design thread and this plan before implementation. Relevant docs: [workspace-feature-composition](../../docs/design/workspace-feature-composition.md) and this plan.
 
 ### W1 — Add a Workspace API wrapper, no iframe yet
 

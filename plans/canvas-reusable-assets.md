@@ -9,14 +9,14 @@ Let Canvas documents compose reusable JavaScript, web components, CSS, HTML, and
 
 This keeps Canvas HTML small, saves inference tokens, and makes reusable pieces composable across many Canvas writes. A paired persistence control lets a document distinguish hydrated DOM that is meaningful saved state from derived output that should be recreated from persistent source when the document loads.
 
-This plan builds on the case-1 hydrated-document model in [canvas-data-channel](../design/canvas-data-channel.md). It does not turn assets into a workspace-wide concept or begin the broader application-hosting work discussed for future UIX apps.
+This plan builds on the case-1 hydrated-document model in [canvas-data-channel](../docs/design/canvas-data-channel.md). It does not turn assets into a workspace-wide concept or begin the broader application-hosting work discussed for future UIX apps.
 
 ## Decisions assumed
 
-- [Canvas stage one](../decisions/2026-05-31-canvas-stage-one.md) — Canvas HTML runs in a script-enabled iframe on a feature-isolated resource origin.
-- [Pi self-extension ethos](../decisions/2026-06-05-pi-self-extension-ethos.md) — Canvas stays raw, composable web content rather than gaining hardcoded renderer integrations.
-- [Features are the loadable unit](../decisions/2026-07-01-features-are-the-loadable-unit.md) — Canvas owns the collection and its conventions; the substrate supplies only the generic resource-serving capability it needs.
-- [No agent-driven UI manipulation](../decisions/2026-05-30-no-agent-ui-manipulation.md) — the agent edits Canvas documents and reusable source files rather than manipulating the live iframe through an agent-side UI API.
+- [Canvas stage one](../docs/decisions/2026-05-31-canvas-stage-one.md) — Canvas HTML runs in a script-enabled iframe on a feature-isolated resource origin.
+- [Pi self-extension ethos](../docs/decisions/2026-06-05-pi-self-extension-ethos.md) — Canvas stays raw, composable web content rather than gaining hardcoded renderer integrations.
+- [Features are the loadable unit](../docs/decisions/2026-07-01-features-are-the-loadable-unit.md) — Canvas owns the collection and its conventions; the substrate supplies only the generic resource-serving capability it needs.
+- [No agent-driven UI manipulation](../docs/decisions/2026-05-30-no-agent-ui-manipulation.md) — the agent edits Canvas documents and reusable source files rather than manipulating the live iframe through an agent-side UI API.
 - Humans win edit conflicts. A human writeback commits unconditionally; a conflicting agent change is rejected with an actionable diff and the agent redoes its work on the new base. Agent effort is free; humans are expensive.
 - The persisted Canvas document is the authored form (references, reflected props, slotted content); the serve layer expands it into the rendered view. The store is the diff surface; the serve layer is the paint surface.
 

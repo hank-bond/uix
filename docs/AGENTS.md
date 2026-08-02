@@ -22,7 +22,6 @@ Every indexed doc is tagged with a **kind** — reference, explanation, how-to, 
 - **[decisions/](./decisions/AGENTS.md)** _(active)_ — Finalized UIX architectural decisions — write-once and dated, each with its rationale; the settled conclusions the design threads distilled and the other layers build on.
 - **[design/](./design/AGENTS.md)** _(active)_ — Living design threads — a current synthesis over an append-only log — where options, tradeoffs, and rejected alternatives are weighed before they distill into decisions.
 - **[framework](./framework.md)** _(stub, explanation)_ — The reasoning behind the UIX documentation shape — the need, memory, readership, meta-level, and lifecycle axes, plus the evolution loop and the budget. _Read before proposing a change to the documentation structure (the how), or when the how has a gap._
-- **[plans/](./plans/AGENTS.md)** _(active)_ — Active build specs for what's about to be built — deliverables and their units — plus a backlog of seeds not yet promoted to their own spec.
 - **[style-guide](./style-guide.md)** _(active)_ — The house style guide for UIX documentation: how this repo formats and writes docs, built from the repo's own practice; prose follows the direction of Simplified Technical English and Vale enforces the mechanical rules.
 
 <!-- INDEX:END -->

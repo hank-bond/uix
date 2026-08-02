@@ -7,7 +7,7 @@ status: archived
 
 Feature authors used to hand-write the full dotted id for every contribution (`id: "canvas.anchor_read"`, `messageType: "uix.pane-visibility"`, `scheme: "uix-canvas"`, …), and in some facets hand-coordinate a _second_ downstream id by hand too (the pi tool name `canvas__anchor_read` alongside the contribution id). That asks the author to know and keep in sync several substrate naming conventions. This refactor moves all id derivation into the facets: the author gives a local `name`, the facet derives both the registry dedup id and the downstream-system address.
 
-The model is established in the channels facet (committed) and applied uniformly to the remaining four. The identifier grammar lives in [`../architecture/concepts.md`](../architecture/concepts.md) (Identifier grammar); this plan is the build spec for landing it across the facets.
+The model is established in the channels facet (committed) and applied uniformly to the remaining four. The identifier grammar lives in [`../../docs/architecture/concepts.md`](../../docs/architecture/concepts.md) (Identifier grammar); this plan is the build spec for landing it across the facets.
 
 ## Target model
 

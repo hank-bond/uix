@@ -5,7 +5,7 @@ status: active
 
 # Plans
 
-Specs for things we intend to build — slugged by deliverable. A plan only needs to be **valid**, not actively worked. Shipped plans move to [`archive/`](./archive/). Plans cite the [`../decisions/`](../decisions/) they assume and the [`../design/`](../design/) thread they came from.
+Specs for things we intend to build — slugged by deliverable. A plan only needs to be **valid**, not actively worked. Shipped plans move to [`archive/`](./archive/). Plans cite the [`../docs/decisions/`](../docs/decisions/) they assume and the [`../docs/design/`](../docs/design/) thread they came from.
 
 <!-- INDEX:START -->
 

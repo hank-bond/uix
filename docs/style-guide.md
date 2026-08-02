@@ -185,7 +185,6 @@ Directional references in named form are house style: "the spikes above", "the e
 
 ## Conformance backlog
 
-- Relocate `docs/plans/` to a root-level `plans/`: `scripts/docs-index.mjs`, `docs/AGENTS.md` and root `AGENTS.md` references, `contributing.md`'s layer description, and the `../plans/...` links from design threads.
 - Drop the `_(stub)_` pages from `src/docs/` (`add-a-channel`, `add-a-feature`, `channels`, `first-feature`); not-yet-built surfaces are tracked in `plans/`.
 - Set up Vale as the prose linter. Live: `extension` and `sentence-length`. Starter rules still to encode:
   - `utilize` to `use`.

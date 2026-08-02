@@ -55,7 +55,7 @@ Event payload shapes are defined by the emitting substrate facet. If a pane-orig
 
 Use `uix.*` only for substrate-owned dotted ids (envelopes/customTypes). First-party default features are still features, so their contribution ids use feature namespaces such as `canvas.*` and `chat.*`.
 
-The build spec for landing this model across the five facets is [contribution-id-derivation](../plans/archive/contribution-id-derivation.md).
+The build spec for landing this model across the five facets is [contribution-id-derivation](../../plans/archive/contribution-id-derivation.md).
 
 ## Contribution point
 

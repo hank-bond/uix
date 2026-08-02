@@ -10,7 +10,7 @@ status: resolved
 
 UIX needs human-callable operations that do not assume Chat is the interaction shell. Features should be able to publish actions such as opening a model picker, showing a dialog, refreshing backend state, or reloading the workspace. Other features should be able to discover and invoke those actions without importing the owner's React state or backend channel contract.
 
-The substrate supplies an action registry and keybinding dispatch, not a command-palette UI. UIX ships an opinionated Ray/VS Code-style palette as a default feature over that substrate. A workspace may remove it, replace it, render the same actions as menus or a tree, or expose no global action browser at all; direct keybindings continue to work without a palette. Build progress is tracked in [workspace actions and command palette](../plans/workspace-actions-and-command-palette.md).
+The substrate supplies an action registry and keybinding dispatch, not a command-palette UI. UIX ships an opinionated Ray/VS Code-style palette as a default feature over that substrate. A workspace may remove it, replace it, render the same actions as menus or a tree, or expose no global action browser at all; direct keybindings continue to work without a palette. Build progress is tracked in [workspace actions and command palette](../../plans/workspace-actions-and-command-palette.md).
 
 ### Action model
 
@@ -64,7 +64,7 @@ Renderer actions do not run without an attached workspace renderer, access Node/
 ## Open questions
 
 - What panel visibility/focus API should follow once an action-triggered sidebar is concrete?
-- When should the generic cross-feature settings catalog and replaceable settings-modal feature be promoted from the [plans backlog](../plans/backlog.md)?
+- When should the generic cross-feature settings catalog and replaceable settings-modal feature be promoted from the [plans backlog](../../plans/backlog.md)?
 
 ## Log
 
@@ -106,4 +106,4 @@ The `Shift+1` case clarified that persisted bindings describe the keys a human p
 
 ### 2026-08-01 — resolved
 
-The action model landed: feature-owned renderer workflows with a flat serializable catalog, main-owned durable keybindings, and a replaceable default palette feature. Remaining work is build-tracked in [workspace actions and command palette](../plans/workspace-actions-and-command-palette.md); the design question this thread posed is settled.
+The action model landed: feature-owned renderer workflows with a flat serializable catalog, main-owned durable keybindings, and a replaceable default palette feature. Remaining work is build-tracked in [workspace actions and command palette](../../plans/workspace-actions-and-command-palette.md); the design question this thread posed is settled.

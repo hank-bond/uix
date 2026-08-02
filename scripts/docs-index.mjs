@@ -34,13 +34,17 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 // index the docs directly inside them: decisions are a dated log (newest first),
 // everything else sorts by slug.
 const layers = [
-  { dir: ".", kind: "container", children: ["src/docs", "docs", "website"] },
+  {
+    dir: ".",
+    kind: "container",
+    children: ["src/docs", "docs", "plans", "website"],
+  },
   { dir: "docs", kind: "container" },
   { dir: "docs/decisions", sort: "date-desc" },
   { dir: "docs/design", sort: "slug-asc" },
   { dir: "docs/architecture", kind: "container" },
   { dir: "docs/architecture/conventions", sort: "slug-asc" },
-  { dir: "docs/plans", sort: "slug-asc" },
+  { dir: "plans", sort: "slug-asc" },
   { dir: "src/docs", sort: "slug-asc" },
   { dir: "website", sort: "slug-asc" },
 ];

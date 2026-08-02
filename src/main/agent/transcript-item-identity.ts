@@ -10,7 +10,7 @@
 // it never mutates content and never writes the session file itself. Replace
 // it with pi's official post-persist event if one ships.
 //
-// Correlation per row kind (docs/plans/durable-transcript-identity.md, D1):
+// Correlation per row kind (plans/durable-transcript-identity.md, D1):
 //  - assistant: pi passes the *same* message object to `message_end` and
 //    `appendMessage`, so a WeakMap keyed by the object carries the
 //    continuation without retaining message content.

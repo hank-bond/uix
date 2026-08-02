@@ -6,7 +6,7 @@ status: archived
 
 # v0 Canvas Protocol (archived)
 
-This is the original v0 canvas protocol spec. Most of it is superseded by [`AGENTS.md`](../../AGENTS.md) (the current substrate spec). It is preserved here because parts remain useful as design notes for whoever eventually builds the canvas extension:
+This is the original v0 canvas protocol spec. Most of it is superseded by [`AGENTS.md`](../../docs/AGENTS.md) (the current substrate spec). It is preserved here because parts remain useful as design notes for whoever eventually builds the canvas extension:
 
 - §2 "Unblocked beats awkward" — substrate-level discipline.
 - §4.1 URL schemes (noun + `uix://` verb) — design for an extension that wants the agent to address resources and trigger commands.
@@ -14,7 +14,7 @@ This is the original v0 canvas protocol spec. Most of it is superseded by [`AGEN
 - §4.4 State diff — per-element-named-input delta format.
 - §7 "What's deliberately out" — substrate-level anti-scope.
 
-The rest (§1, §3, §5, §6, §8, §9, §10, §11) is fully superseded by [`AGENTS.md`](../../AGENTS.md).
+The rest (§1, §3, §5, §6, §8, §9, §10, §11) is fully superseded by [`AGENTS.md`](../../docs/AGENTS.md).
 
 Original spec follows.
 

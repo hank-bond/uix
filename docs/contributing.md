@@ -185,7 +185,7 @@ Do not preserve a retired alias in code only because it remains in the lexicon. 
 
 The shape repeats at every level: an `AGENTS.md` is frontmatter plus **hand-written overview prose**, followed by a **generated index**. The overview is a high-level summary of everything below it, plus any item too small to deserve its own file. The root [`AGENTS.md`](../AGENTS.md) overviews the project and routes to these dir-level files; each dir-level file overviews its dir and routes to its docs.
 
-The index sits between `<!-- INDEX:START -->` / `<!-- INDEX:END -->` and is derived from each doc's frontmatter by [`scripts/docs-index.mjs`](../scripts/docs-index.mjs). It covers `docs/decisions`, `docs/design`, `docs/architecture`, `docs/plans`, and `src/docs`. Add or edit a doc, then:
+The index sits between `<!-- INDEX:START -->` / `<!-- INDEX:END -->` and is derived from each doc's frontmatter by [`scripts/docs-index.mjs`](../scripts/docs-index.mjs). It covers `docs/decisions`, `docs/design`, `docs/architecture`, `plans`, and `src/docs`. Add or edit a doc, then:
 
 ```sh
 npm run docs:index     # regenerate the index blocks

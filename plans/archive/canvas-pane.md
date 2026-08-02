@@ -6,11 +6,11 @@ status: archived
 
 # Spec: raw HTML canvas pane (archived)
 
-> **Archived 2026-06-02.** Stage 1 shipped and is recorded in [`../decisions/2026-05-31-canvas-stage-one.md`](../../decisions/2026-05-31-canvas-stage-one.md). The Stage 2–3 material below is retained as historical planning context only; the current bidirectional follow-on is tracked in [`../../design/canvas-data-channel.md`](../../design/canvas-data-channel.md) and should get a fresh plan before implementation.
+> **Archived 2026-06-02.** Stage 1 shipped and is recorded in [`../decisions/2026-05-31-canvas-stage-one.md`](../../docs/decisions/2026-05-31-canvas-stage-one.md). The Stage 2–3 material below is retained as historical planning context only; the current bidirectional follow-on is tracked in [`../../docs/design/canvas-data-channel.md`](../../docs/design/canvas-data-channel.md) and should get a fresh plan before implementation.
 >
 > Original framing: the next unit after the extension loader. Gets agent-authored HTML onto the screen and, in later stages, makes it a stateful surface whose source of truth is the file on disk.
 >
-> Read [hosting-compatible-by-default](../../decisions/2026-05-31-hosting-compatible-by-default.md) first — it constrains this work (address by key not path, cockpit is sole writer, no `fs.watch`, content-hash echo suppression, field-level merge). This spec assumes those decisions.
+> Read [hosting-compatible-by-default](../../docs/decisions/2026-05-31-hosting-compatible-by-default.md) first — it constrains this work (address by key not path, cockpit is sole writer, no `fs.watch`, content-hash echo suppression, field-level merge). This spec assumes those decisions.
 
 ## The model (all stages)
 

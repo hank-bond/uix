@@ -32,4 +32,4 @@ status: accepted
 - _Surface names in the backend facet_ (`{ name, entry }`): the same fact stated twice, an agent-facing consistency trap, with no backend consumer that needs names before the frontend loads.
 - _HMR for feature surfaces_: the loop is edit → `/reload`, symmetric with feature backends; a consistent pure-reload dev mode may later replace HMR for the page itself.
 
-Distilled from [workspace-feature-composition](../design/workspace-feature-composition.md); built by [runtime-surface-composition](../plans/runtime-surface-composition.md).
+Distilled from [workspace-feature-composition](../design/workspace-feature-composition.md); built by [runtime-surface-composition](../../plans/archive/runtime-surface-composition.md).

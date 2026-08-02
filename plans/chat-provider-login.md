@@ -11,10 +11,10 @@ The original split between UIX-authored API credential forms and a separate OAut
 
 ## Decisions assumed
 
-- [Pilot substrate](../decisions/2026-05-30-uix-is-a-pilot-substrate.md) and [Pi self-extension ethos](../decisions/2026-06-05-pi-self-extension-ethos.md) — UIX presents Pi authentication; it does not own provider definitions, credentials, or availability policy.
-- [Features are the loadable unit](../decisions/2026-07-01-features-are-the-loadable-unit.md) — Chat consumes substrate-owned agent channels like any other feature. There is no Chat-private auth backend.
+- [Pilot substrate](../docs/decisions/2026-05-30-uix-is-a-pilot-substrate.md) and [Pi self-extension ethos](../docs/decisions/2026-06-05-pi-self-extension-ethos.md) — UIX presents Pi authentication; it does not own provider definitions, credentials, or availability policy.
+- [Features are the loadable unit](../docs/decisions/2026-07-01-features-are-the-loadable-unit.md) — Chat consumes substrate-owned agent channels like any other feature. There is no Chat-private auth backend.
 - [Agent controls](./archive/agent-controls.md) — model state remains Pi-native session state plus UIX's workspace default; provider login changes Pi auth and refreshes availability.
-- [One owner per state](../decisions/2026-06-09-one-owner-per-state.md) — one Chat controls owner coordinates model availability, the picker, modal, and active provider-auth flow.
+- [One owner per state](../docs/decisions/2026-06-09-one-owner-per-state.md) — one Chat controls owner coordinates model availability, the picker, modal, and active provider-auth flow.
 
 ## UX model
 
