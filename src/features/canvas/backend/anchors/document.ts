@@ -44,13 +44,16 @@ export function diffAnchoredSnapshots(
     | { oldLines: AnchoredLine[]; newLines: AnchoredLine[] }
     | undefined;
 
-  const flushPending = () => {
+  const flushPending = (): void => {
     if (!pending) return;
     changes.push({ oldLines: pending.oldLines, newLines: pending.newLines });
     pending = undefined;
   };
 
-  const ensurePending = () => (pending ??= { oldLines: [], newLines: [] });
+  const ensurePending = (): {
+    oldLines: AnchoredLine[];
+    newLines: AnchoredLine[];
+  } => (pending ??= { oldLines: [], newLines: [] });
 
   for (const step of diffLines(oldTexts, newTexts)) {
     if (step.type === "equal") {
@@ -277,13 +280,16 @@ export class AnchoredDocument {
       | { oldLines: AnchoredLine[]; newLines: AnchoredLine[] }
       | undefined;
 
-    const flushPending = () => {
+    const flushPending = (): void => {
       if (!pending) return;
       changes.push({ oldLines: pending.oldLines, newLines: pending.newLines });
       pending = undefined;
     };
 
-    const ensurePending = () => (pending ??= { oldLines: [], newLines: [] });
+    const ensurePending = (): {
+      oldLines: AnchoredLine[];
+      newLines: AnchoredLine[];
+    } => (pending ??= { oldLines: [], newLines: [] });
 
     for (const step of diffLines(oldTexts, newTexts)) {
       if (step.type === "equal") {
@@ -501,7 +507,7 @@ function chooseNextX(
 }
 
 function backtrackDiff(
-  trace: readonly ReadonlyMap<number, number>[],
+  trace: ReadonlyArray<ReadonlyMap<number, number>>,
   oldLines: readonly string[],
   newLines: readonly string[],
 ): DiffStep[] {

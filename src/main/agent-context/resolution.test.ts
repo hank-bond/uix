@@ -27,7 +27,11 @@ describe("toAgentContextCanonicalId", () => {
 describe("resolveAgentContextContribution", () => {
   it("derives ids and preserves an update contribution's behavior", () => {
     const schema = Type.Object({ open: Type.Boolean() });
-    const materialize = ({ value }: { value: { open: boolean } }) => ({
+    const materialize = ({
+      value,
+    }: {
+      value: { open: boolean };
+    }): { content: string } => ({
       content: String(value.open),
     });
 
@@ -62,7 +66,7 @@ describe("resolveAgentContextContribution", () => {
   });
 
   it("preserves a materialized contribution without adding live state", () => {
-    const materialize = () => ({ content: "changed" });
+    const materialize = (): { content: string } => ({ content: "changed" });
     const resolved = resolveAgentContextContribution("canvas", {
       name: "canvas-diff",
       description: "human edits",

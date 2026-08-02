@@ -300,7 +300,7 @@ describe("SettingsRegistry", () => {
   it("replaces one complete scope with one write before keyed notifications", () => {
     using registry = new SettingsRegistry();
     const writes: unknown[] = [];
-    const changes: [string, unknown][] = [];
+    const changes: Array<[string, unknown]> = [];
     registerCommitted(registry, "keybindings", {
       label: "workspace namespace keybindings",
       definition: defineSettings({ schema: KeybindingMapSchema }),
@@ -412,7 +412,7 @@ describe("SettingsRegistry", () => {
 
   it("notifies onAnyChange with the scope id", () => {
     using registry = new SettingsRegistry();
-    const seen: [string, string, unknown][] = [];
+    const seen: Array<[string, string, unknown]> = [];
     registerCommitted(registry, "agent", {
       label: "workspace namespace agent",
       definition: defineSettings({

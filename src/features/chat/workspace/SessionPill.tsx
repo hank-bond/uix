@@ -10,7 +10,7 @@ import {
 import type { SessionSummary } from "@uix/api/agent-channels";
 import { useWorkspaceSession } from "@uix/api/workspace";
 
-export function SessionPill() {
+export function SessionPill(): JSX.Element {
   const {
     activeSession,
     recentSessions,
@@ -74,7 +74,7 @@ function SessionPicker({
   id: string;
   pillRef: RefObject<HTMLDivElement>;
   activeSession: Readonly<SessionSummary> | undefined;
-  recentSessions: readonly Readonly<SessionSummary>[] | undefined;
+  recentSessions: ReadonlyArray<Readonly<SessionSummary>> | undefined;
   canSwitchSession: boolean;
   switchSession: (
     sessionId: string,
@@ -84,7 +84,7 @@ function SessionPicker({
     title: string | null,
   ) => Promise<Readonly<SessionSummary> | undefined>;
   onClose: () => void;
-}) {
+}): JSX.Element {
   const [pendingSessionId, setPendingSessionId] = useState<string>();
   const [editingSessionId, setEditingSessionId] = useState<string>();
   const [pendingTitleSessionId, setPendingTitleSessionId] = useState<string>();
@@ -121,14 +121,14 @@ function SessionPicker({
   }, [editingSessionId]);
 
   useEffect(() => {
-    const onPointerDown = (event: PointerEvent) => {
+    const onPointerDown = (event: PointerEvent): void => {
       if (!pillRef.current?.contains(event.target as Node)) onClose();
     };
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [onClose, pillRef]);
 
-  const select = async (sessionId: string) => {
+  const select = async (sessionId: string): Promise<void> => {
     setError(undefined);
     setPendingSessionId(sessionId);
     try {
@@ -142,20 +142,22 @@ function SessionPicker({
     }
   };
 
-  const editTitle = (session: Readonly<SessionSummary>) => {
+  const editTitle = (session: Readonly<SessionSummary>): void => {
     setError(undefined);
     setDraftTitle(session.title ?? "");
     setEditingSessionId(session.sessionId);
   };
 
-  const cancelTitleEdit = () => {
+  const cancelTitleEdit = (): void => {
     focusAfterEditRef.current = editingSessionId;
     setEditingSessionId(undefined);
     setDraftTitle("");
     setError(undefined);
   };
 
-  const saveTitle = async (session: Readonly<SessionSummary>) => {
+  const saveTitle = async (
+    session: Readonly<SessionSummary>,
+  ): Promise<void> => {
     const title = draftTitle.trim() || null;
     if (title === (session.title ?? null)) {
       cancelTitleEdit();
@@ -329,7 +331,7 @@ function SessionPicker({
   );
 }
 
-function SelectionMarker({ selected }: { selected: boolean }) {
+function SelectionMarker({ selected }: { selected: boolean }): JSX.Element {
   return (
     <span
       className="session-picker__selection"
@@ -341,7 +343,7 @@ function SelectionMarker({ selected }: { selected: boolean }) {
   );
 }
 
-function PencilIcon() {
+function PencilIcon(): JSX.Element {
   return (
     <svg
       className="session-picker__pencil"

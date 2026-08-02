@@ -23,7 +23,7 @@ export function ChatBlockFrame({
   label,
   body,
   isUnconfirmed,
-}: ChatBlockFrameProps) {
+}: ChatBlockFrameProps): JSX.Element {
   return (
     <article
       className={`msg msg--${className}`}

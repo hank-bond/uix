@@ -357,10 +357,9 @@ function renderSection(
 }
 
 function vocabularySection(
-  configs: readonly Pick<
-    ResolvedAgentContextContributionBase,
-    "canonicalId" | "description"
-  >[],
+  configs: ReadonlyArray<
+    Pick<ResolvedAgentContextContributionBase, "canonicalId" | "description">
+  >,
 ): string {
   return [
     "## UIX cockpit state messages",

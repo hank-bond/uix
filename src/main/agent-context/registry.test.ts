@@ -13,7 +13,10 @@ import {
   registerAgentContextContributions,
 } from "./registry";
 
-function flush(registry: AgentContextRegistry, branch: SessionEntry[] = []) {
+function flush(
+  registry: AgentContextRegistry,
+  branch: SessionEntry[] = [],
+): ReturnType<typeof assembleAgentContextMessage> {
   return assembleAgentContextMessage(
     { getBranch: () => branch } as SessionManager,
     registry,

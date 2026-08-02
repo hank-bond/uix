@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import type {
@@ -6,11 +6,14 @@ import type {
   ProviderAuthType,
 } from "@uix/api/agent-channels";
 
-import { createProviderAuthFlowCoordinator } from "./provider-auth-flow";
+import {
+  createProviderAuthFlowCoordinator,
+  type ProviderAuthFlowCoordinator,
+} from "./provider-auth-flow";
 
 type AuthInteraction = Parameters<ModelRuntime["login"]>[2];
 
-function deferred<T>() {
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((next) => {
     resolve = next;
@@ -24,7 +27,13 @@ function createHarness(options: {
     interaction: AuthInteraction,
   ) => Promise<void>;
   getModelRuntime?: () => Promise<ReturnType<typeof createRuntime>>;
-}) {
+}): {
+  coordinator: ProviderAuthFlowCoordinator;
+  runtime: ReturnType<typeof createRuntime>;
+  snapshots: ProviderAuthFlowSnapshot[];
+  opened: string[];
+  availabilityChanged: Mock;
+} {
   const snapshots: ProviderAuthFlowSnapshot[] = [];
   const opened: string[] = [];
   const availabilityChanged = vi.fn();
@@ -47,7 +56,21 @@ function createRuntime(
     authType: ProviderAuthType,
     interaction: AuthInteraction,
   ) => Promise<void>,
-) {
+): {
+  getProvider: (providerId: string) =>
+    | {
+        auth: {
+          apiKey: { login: () => void };
+          oauth: { login: () => void };
+        };
+      }
+    | undefined;
+  login: (
+    providerId: string,
+    authType: ProviderAuthType,
+    interaction: AuthInteraction,
+  ) => Promise<void>;
+} {
   return {
     getProvider: (providerId: string) =>
       providerId === "fake"

@@ -24,6 +24,5 @@ Every indexed doc is tagged with a **kind** — reference, explanation, how-to, 
 - **[framework](./framework.md)** _(stub, explanation)_ — The reasoning behind the UIX documentation shape — the need, memory, readership, meta-level, and lifecycle axes, plus the evolution loop and the budget. _Read before proposing a change to the documentation structure (the how), or when the how has a gap._
 - **[plans/](./plans/AGENTS.md)** _(active)_ — Active build specs for what's about to be built — deliverables and their units — plus a backlog of seeds not yet promoted to their own spec.
 - **[style-guide](./style-guide.md)** _(active)_ — The house style guide for UIX documentation: how this repo formats and writes docs, built from the repo's own practice; prose follows the direction of Simplified Technical English and Vale enforces the mechanical rules.
-- **[typescript-style-guide/](./typescript-style-guide/AGENTS.md)** _(active)_ — The Google TypeScript Style Guide converted to markdown and split by chapter — the standing TS code-style base for this repo, with provenance and conversion notes; which rules get statically enforced is tracked separately as a follow-up.
 
 <!-- INDEX:END -->

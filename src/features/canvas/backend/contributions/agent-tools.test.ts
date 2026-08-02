@@ -105,7 +105,19 @@ type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
 // The canvas agent tool/turn-state/agent-context contributions and the
 // driver-installed substrate installers wired against an in-memory store and a
 // fake pi handle.
-function setup() {
+function setup(): {
+  store: DocumentStore;
+  tools: Map<string, ToolDefinition>;
+  entries: Array<{ customType: string; data: unknown }>;
+  writebackCanvas: (key: string, html: string) => Promise<void>;
+  inputBoundary: () => Promise<void>;
+  agentEnd: () => Promise<void>;
+  flushContext: () => ReturnType<typeof assembleAgentContextMessage>;
+  vocabPrompt: () => Promise<string>;
+  disposeCanvasState: () => void;
+  disposeCanvasAgentContext: () => void;
+  disposeCanvasAgentTools: () => void;
+} {
   const ctx = fakeCanvasContext();
   const state = new TurnStateRegistry();
   const agentContext = new AgentContextRegistry();
@@ -137,7 +149,7 @@ function setup() {
   const entries: Array<{ customType: string; data: unknown }> = [];
   const branch: SessionEntry[] = [];
 
-  const recordEntry = (customType: string, data: unknown) => {
+  const recordEntry = (customType: string, data: unknown): string => {
     entries.push({ customType, data });
     branch.push({
       id: `entry-${branch.length + 1}`,

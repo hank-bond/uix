@@ -191,7 +191,15 @@ export function extractToolCalls(content: unknown): ToolCallBlock[] {
   return calls;
 }
 
-function parseToolResult(message: unknown) {
+function parseToolResult(message: unknown):
+  | {
+      toolCallId: string;
+      toolName: string;
+      content: unknown;
+      details: unknown;
+      isError: boolean;
+    }
+  | undefined {
   const obj = asRecord(message);
   if (!obj || obj["role"] !== "toolResult") return undefined;
   const toolCallId = obj["toolCallId"];

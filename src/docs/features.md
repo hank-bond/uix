@@ -64,7 +64,7 @@ The `FeatureDefinition` shape is:
 interface FeatureDefinition {
   id: string;
   settings?: SettingsDefinition;
-  context?: (ctx: FeatureContext) => Record<string, unknown>;
+  context?: (ctx: FeatureContext) => object;
   contribute(ctx: FeatureContext): FeatureContributions;
 }
 ```

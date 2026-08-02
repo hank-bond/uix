@@ -47,13 +47,13 @@ export type { DocumentStoreFactory } from "./documents";
 export type { FeatureLogger } from "./log";
 export type { SettingsDefinition, SettingsHandle } from "./settings";
 
-export type FeatureContext = {
+export interface FeatureContext {
   documents: DocumentStoreFactory;
   settings: SettingsHandle;
   channels: FeatureEventPublisherFactory;
   /** Feature-id-scoped structured logger bound by the cockpit. */
   log: FeatureLogger;
-};
+}
 
 export type FeaturePreflightContributions = Record<string, never>;
 
@@ -79,9 +79,7 @@ export interface FeatureContributions {
   surfaces?: readonly string[];
 }
 
-export interface FeatureDefinition<
-  ContributedContext extends Record<string, unknown> = Record<string, unknown>,
-> {
+export interface FeatureDefinition<ContributedContext extends object = object> {
   id: string;
   preflight?: FeaturePreflightContributions;
   /**
@@ -109,7 +107,7 @@ type AuthoredFeatureContext<Settings extends SettingsDefinition | undefined> =
 
 type AuthoredFeatureDefinition<
   Settings extends SettingsDefinition | undefined,
-  ContributedContext extends Record<string, unknown>,
+  ContributedContext extends object,
 > = Omit<
   FeatureDefinition<ContributedContext>,
   "settings" | "context" | "contribute"
@@ -128,7 +126,7 @@ type AuthoredFeatureDefinition<
  */
 export function defineFeature<
   const Settings extends SettingsDefinition | undefined = undefined,
-  ContributedContext extends Record<string, unknown> = Record<string, unknown>,
+  ContributedContext extends object = object,
 >(
   definition: AuthoredFeatureDefinition<Settings, ContributedContext>,
 ): FeatureDefinition<ContributedContext> {

@@ -8,8 +8,11 @@ import { Value } from "typebox/value";
 
 import { feature } from "../index";
 import { createWorkspaceToolOverrideContributions } from "./agent-tools";
+import type { AgentToolDefinition } from "@uix/api/agent-tools";
 
-function tool(name: "read" | "write" | "edit" | "command") {
+function tool(
+  name: "read" | "write" | "edit" | "command",
+): AgentToolDefinition {
   const contribution = createWorkspaceToolOverrideContributions().find(
     (entry) => entry.name === name,
   );

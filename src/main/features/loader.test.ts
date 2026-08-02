@@ -26,7 +26,17 @@ const documents: DocumentStoreFactory = {
   },
 };
 
-function makeSubstrate(manifestPath?: string) {
+function makeSubstrate(manifestPath?: string): {
+  substrate: FeatureSubstrate;
+  agentTools: AgentToolRegistry;
+  surfaces: SurfaceRegistry;
+  channelIds: Set<string>;
+  settingsScopes: Map<
+    string,
+    { committed: boolean; values: Map<string, unknown> }
+  >;
+  committedSettings: string[];
+} {
   const manifestStore = manifestPath
     ? new WorkspaceManifestStore(manifestPath)
     : undefined;
@@ -141,7 +151,7 @@ async function writeWorkspace(
   return join(dir, WorkspaceManifestFileName);
 }
 
-const toolFeature = (id: string, tool = "greet") => `
+const toolFeature = (id: string, tool = "greet"): string => `
 export const feature = {
   id: "${id}",
   contribute(ctx) {

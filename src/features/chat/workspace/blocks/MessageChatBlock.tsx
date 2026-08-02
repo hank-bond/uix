@@ -9,7 +9,7 @@ export function MessageChatBlock({
 }: {
   item: Extract<TranscriptItem, { kind: "user" | "assistant" }>;
   className: string;
-}) {
+}): JSX.Element {
   const text = item.text || (item.kind === "assistant" ? "…" : "");
   return (
     <ChatBlockFrame

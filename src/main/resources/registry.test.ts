@@ -11,7 +11,14 @@ import {
   ResourceProtocolScheme,
 } from "@uix/api/resource-routes";
 
-function fakeTransport() {
+function fakeTransport(): {
+  handlers: Map<string, (request: Request) => Response | Promise<Response>>;
+  disposed: string[];
+  register(
+    scheme: string,
+    handler: (request: Request) => Response | Promise<Response>,
+  ): { [Symbol.dispose](): void };
+} {
   const handlers = new Map<
     string,
     (request: Request) => Response | Promise<Response>
@@ -36,7 +43,10 @@ function fakeTransport() {
   };
 }
 
-function createTestRegistry(transport = fakeTransport()) {
+function createTestRegistry(transport = fakeTransport()): {
+  registry: ResourceRegistry;
+  transport: ReturnType<typeof fakeTransport>;
+} {
   const registry = new ResourceRegistry({
     workspaceId: "blue-river",
     transportRegistrar: (scheme, handler) =>

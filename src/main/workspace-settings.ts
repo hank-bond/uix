@@ -83,10 +83,10 @@ export function createWorkspaceSettings(
       // Every fallible read/hydration stays detached. Returning from this
       // preparation means promotion and namespace acceptance contain no
       // user code or schema work and can run synchronously as one adoption.
-      const staged: {
+      const staged: Array<{
         namespace: string;
         scope: SettingsScope;
-      }[] = [];
+      }> = [];
       for (const namespace of namespaces) {
         const label = `workspace namespace ${namespace.id}`;
         const location = next.settingsNamespace(namespace.id);

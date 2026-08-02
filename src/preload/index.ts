@@ -11,7 +11,7 @@ import { Channels, type ChannelTransport } from "../shared/ipc";
 const transport: ChannelTransport = {
   request: (name, payload) => ipcRenderer.invoke(name, payload),
   subscribe: (name, handler) => {
-    const listener = (_e: Electron.IpcRendererEvent, payload: unknown) =>
+    const listener = (_e: Electron.IpcRendererEvent, payload: unknown): void =>
       handler(payload);
     ipcRenderer.on(name, listener);
     return () => {

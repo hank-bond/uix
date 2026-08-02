@@ -2,7 +2,7 @@ import { truncateText } from "../../content/text";
 import { toToolPayloadText } from "../presentation";
 import type { ToolItem } from "../presentation";
 
-export function DefaultToolContent({ item }: { item: ToolItem }) {
+export function DefaultToolContent({ item }: { item: ToolItem }): JSX.Element {
   const payload = toToolPayloadText(item);
   const args = item.complete ? truncateText(item.args) : undefined;
 

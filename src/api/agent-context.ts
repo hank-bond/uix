@@ -64,7 +64,7 @@ export interface AppendContribution<
   buffer: AppendBuffer<T>;
   /** Optional formatter; default is JSON.stringify(values) with values as details. */
   materialize?: (input: {
-    values: readonly Static<T>[];
+    values: ReadonlyArray<Static<T>>;
   }) => MaybePromise<AgentContextMaterialization | undefined>;
 }
 

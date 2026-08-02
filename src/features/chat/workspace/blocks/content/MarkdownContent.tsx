@@ -51,7 +51,7 @@ function isExternalWebHref(value: string): boolean {
   }
 }
 
-export function MarkdownContent({ text }: { text: string }) {
+export function MarkdownContent({ text }: { text: string }): JSX.Element {
   return (
     <div className="markdown-content">
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>

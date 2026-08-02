@@ -23,6 +23,7 @@ import {
   commitCurrentTurnState,
   TurnStateRegistry,
 } from "./registry";
+import type { TurnStateAsOfLeaf } from "./registry";
 
 type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
 
@@ -52,7 +53,15 @@ function turnStateEntry(
   } as unknown as SessionEntry;
 }
 
-function setupCoordinator(state = new TurnStateRegistry()) {
+function setupCoordinator(state = new TurnStateRegistry()): {
+  entries: Array<{ customType: string; data: unknown }>;
+  fire: (
+    event: string,
+    cwd?: string,
+    branch?: readonly SessionEntry[],
+  ) => Promise<void>;
+  submit: (cwd?: string, branch?: readonly SessionEntry[]) => Promise<void>;
+} {
   const handlers = new Map<string, VoidHandler[]>();
   const entries: Array<{ customType: string; data: unknown }> = [];
 
@@ -71,7 +80,7 @@ function setupCoordinator(state = new TurnStateRegistry()) {
     event: string,
     cwd = "/work",
     branch: readonly SessionEntry[] = [],
-  ) => {
+  ): Promise<void> => {
     for (const handler of handlers.get(event) ?? []) {
       await handler({}, {
         cwd,
@@ -83,7 +92,7 @@ function setupCoordinator(state = new TurnStateRegistry()) {
   const submit = async (
     cwd = "/work",
     branch: readonly SessionEntry[] = [],
-  ) => {
+  ): Promise<void> => {
     const manager = {
       appendCustomEntry: (customType: string, data: unknown) => {
         entries.push({ customType, data });
@@ -100,7 +109,7 @@ function setupCoordinator(state = new TurnStateRegistry()) {
 function projectTurnState(
   state: TurnStateRegistry,
   values: Record<string, unknown>,
-) {
+): TurnStateAsOfLeaf {
   const projector = createTurnStateProjector(
     toTurnStateRegistrySnapshot(state),
   );
@@ -108,7 +117,7 @@ function projectTurnState(
   return projector.deriveAsOfLeaf();
 }
 
-function deferred() {
+function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;
   const promise = new Promise<void>((done) => {
     resolve = done;

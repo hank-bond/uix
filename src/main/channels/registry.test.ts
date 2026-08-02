@@ -20,7 +20,26 @@ import {
 } from "@uix/api/channel-resolution";
 import { toContributionId } from "@uix/api/contribution-id";
 
-function fakeTransport() {
+function fakeTransport(): {
+  handlers: Map<string, (req: unknown) => Promise<unknown>>;
+  disposed: string[];
+  handleLogs: Map<
+    string,
+    ChannelRequestLogOptions<unknown, unknown> | undefined
+  >;
+  published: Array<{ canonicalId: string; payload: unknown }>;
+  publishLogs: Array<ChannelEventLogOptions<unknown> | undefined>;
+  handle(
+    canonicalId: ChannelCanonicalId,
+    handler: (req: unknown) => Promise<unknown>,
+    logOpts?: ChannelRequestLogOptions<unknown, unknown>,
+  ): { [Symbol.dispose](): void };
+  publish(
+    canonicalId: ChannelCanonicalId,
+    payload: unknown,
+    logOpts?: ChannelEventLogOptions<unknown>,
+  ): void;
+} {
   const handlers = new Map<string, (req: unknown) => Promise<unknown>>();
   const disposed: string[] = [];
   const handleLogs = new Map<
@@ -225,9 +244,15 @@ describe("ChannelRegistry", () => {
       publish: (canonicalId, payload, logOpts) =>
         transport.publish(canonicalId, payload, logOpts),
     });
-    const describeRequest = () => ({ redacted: "auth request" });
-    const describeResponse = () => ({ redacted: "auth response" });
-    const describeEvent = () => ({ redacted: "auth event" });
+    const describeRequest = (): { redacted: string } => ({
+      redacted: "auth request",
+    });
+    const describeResponse = (): { redacted: string } => ({
+      redacted: "auth response",
+    });
+    const describeEvent = (): { redacted: string } => ({
+      redacted: "auth event",
+    });
     const contract = {
       feature: "agent",
       requests: {

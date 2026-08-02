@@ -6,7 +6,7 @@ export function CustomMessageChatBlock({
   item,
 }: {
   item: Extract<TranscriptItem, { kind: "custom" }>;
-}) {
+}): JSX.Element {
   const body = truncateText(item.content) ?? truncateText(item.details) ?? "";
   return (
     <ChatBlockFrame

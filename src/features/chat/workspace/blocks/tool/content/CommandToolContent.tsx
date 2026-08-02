@@ -9,7 +9,7 @@ interface CommandToolPresentation {
   reason: string;
 }
 
-export function CommandToolContent({ item }: { item: ToolItem }) {
+export function CommandToolContent({ item }: { item: ToolItem }): JSX.Element {
   const presentation = tryParseCommandToolPresentation(item);
   if (!presentation) return <DefaultToolContent item={item} />;
   const output = toCommandOutput(item);

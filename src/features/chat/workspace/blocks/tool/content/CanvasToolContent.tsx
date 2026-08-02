@@ -3,7 +3,7 @@ import { useState } from "react";
 import { toToolTextContent } from "../presentation";
 import type { ToolItem } from "../presentation";
 
-export function CanvasToolContent({ item }: { item: ToolItem }) {
+export function CanvasToolContent({ item }: { item: ToolItem }): JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
   const payload = toToolTextContent(item);
   const lines = payload ? stripAnchorGutters(payload).split(/\r?\n/) : [];

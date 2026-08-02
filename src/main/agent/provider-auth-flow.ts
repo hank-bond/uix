@@ -53,9 +53,22 @@ interface CreateProviderAuthFlowCoordinatorOptions {
   onAvailabilityChange: () => void;
 }
 
+/** The coordinator's public surface — drives interactive provider auth flows. */
+export interface ProviderAuthFlowCoordinator {
+  begin(
+    providerId: string,
+    authType: ProviderAuthType,
+  ): ProviderAuthFlowSnapshot;
+  answer(flowId: string, promptId: string, value: string): void;
+  openLink(flowId: string, linkId: string): Promise<void>;
+  cancel(flowId: string): void;
+  getCurrentSnapshot(): ProviderAuthFlowSnapshot | undefined;
+  [Symbol.dispose](): void;
+}
+
 export function createProviderAuthFlowCoordinator(
   opts: CreateProviderAuthFlowCoordinatorOptions,
-) {
+): ProviderAuthFlowCoordinator {
   let activeFlow: ActiveProviderAuthFlow | undefined;
   let nextFlowId = 1;
   let nextPromptId = 1;

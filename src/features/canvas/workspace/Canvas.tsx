@@ -29,7 +29,7 @@ export interface CanvasProps {
   client: ChannelClient<typeof canvasChannels>;
 }
 
-export function Canvas({ canvasKey, client }: CanvasProps) {
+export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
   const workspace = useWorkspaceClient();
   const agent = useMemo(
     () => createChannelClient(workspace, agentChannels),
@@ -52,7 +52,7 @@ export function Canvas({ canvasKey, client }: CanvasProps) {
     // origin, this exact iframe window, and this canvas key. The origin is
     // feature-scoped rather than per-document.
     const origin = toResourceOrigin(workspace.workspaceId);
-    const onMessage = (event: MessageEvent) => {
+    const onMessage = (event: MessageEvent): void => {
       if (event.origin !== origin) return;
       if (event.source !== frameRef.current?.contentWindow) return;
       const message = parseCanvasFrameMessage(event.data, canvasKey);

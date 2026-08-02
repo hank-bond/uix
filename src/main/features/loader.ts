@@ -50,7 +50,7 @@ import { dirname } from "node:path";
 import type { FeatureContext, FeatureDefinition } from "@uix/api/feature";
 import type { DocumentStoreFactory } from "@uix/api/documents";
 import { defineSettings, type SettingsHandle } from "@uix/api/settings";
-import { createJiti } from "jiti";
+import { createJiti, type Jiti } from "jiti";
 import { Type } from "typebox";
 
 import { createFeatureEventPublisherFactory } from "../channels/registry";
@@ -88,7 +88,7 @@ const deriveBuildAliases = (apiModuleDir?: string): Record<string, string> => ({
   "typebox/value": requireFromLoader.resolve("typebox/value"),
 });
 
-const createFeatureJiti = (apiModuleDir?: string) =>
+const createFeatureJiti = (apiModuleDir?: string): Jiti =>
   createJiti(__filename, {
     // Same hot-reload lever pi uses. Disabling the runtime module cache
     // lets editing a feature's .ts/.js file and reloading evaluate the

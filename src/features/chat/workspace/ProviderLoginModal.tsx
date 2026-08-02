@@ -9,7 +9,11 @@ import type { AgentControls } from "./agent-controls";
 import { ProviderAuthFlowPanel } from "./ProviderAuthFlowPanel";
 import { deriveProviderAuthRows } from "./provider-auth-presentation";
 
-export function ProviderLoginModal({ controls }: { controls: AgentControls }) {
+export function ProviderLoginModal({
+  controls,
+}: {
+  controls: AgentControls;
+}): JSX.Element {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const providerRows = useMemo(
@@ -103,7 +107,7 @@ function ProviderRow({
   flow: ProviderAuthFlowSnapshot | undefined;
   onSelectMethod: (method: ProviderAuthMethod) => void;
   controls: AgentControls;
-}) {
+}): JSX.Element {
   const activeMethod = provider.methods.find(
     (method) =>
       method.providerId === flow?.providerId &&

@@ -439,13 +439,13 @@ function turnStates<TState>(
   branch: readonly SessionEntry[],
   canonicalId: TurnStateCanonicalId,
   opts: TurnStateHistoryOptions,
-): TurnStateHistoryEntry<TState>[] {
+): Array<TurnStateHistoryEntry<TState>> {
   const offset = opts.offset ?? 0;
   const limit = opts.limit ?? branch.length;
   assertNonNegativeInteger("turn-state history offset", offset);
   assertNonNegativeInteger("turn-state history limit", limit);
 
-  const result: TurnStateHistoryEntry<TState>[] = [];
+  const result: Array<TurnStateHistoryEntry<TState>> = [];
   let skipped = 0;
   for (let index = branch.length - 1; index >= 0; index -= 1) {
     const data = asTurnStateEntryData(branch[index]);

@@ -59,9 +59,9 @@ type ResolvedChannelEventMember<
   readonly canonicalId: ChannelCanonicalId;
 };
 
-export type ResolvedChannelContribution<
+export interface ResolvedChannelContribution<
   Contribution extends ChannelContribution,
-> = {
+> {
   readonly featureId: string;
   readonly requests: {
     readonly [Name in keyof Contribution["requests"] &
@@ -80,16 +80,19 @@ export type ResolvedChannelContribution<
       ? ResolvedChannelEventMember<Name, Event>
       : never;
   };
-};
+}
 
-export type ResolvedChannelRequestContribution<Req = unknown, Res = unknown> = {
+export interface ResolvedChannelRequestContribution<
+  Req = unknown,
+  Res = unknown,
+> {
   contributionId: ContributionId;
   canonicalId: ChannelCanonicalId;
   requestSchema: TSchema;
   responseSchema: TSchema;
   handler: (req: Req) => Res | Promise<Res>;
   log?: ChannelRequestLogOptions<Req, Res>;
-};
+}
 
 export function resolveChannelContribution<
   const Contribution extends ChannelContribution,

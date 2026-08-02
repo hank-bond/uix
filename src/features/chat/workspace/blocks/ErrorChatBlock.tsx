@@ -5,7 +5,7 @@ export function ErrorChatBlock({
   item,
 }: {
   item: Extract<TranscriptItem, { kind: "error" }>;
-}) {
+}): JSX.Element {
   return (
     <ChatBlockFrame
       className="error"

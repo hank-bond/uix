@@ -13,7 +13,11 @@ type WillNavigateListener = (
   event: Event<WebContentsWillNavigateEventParams>,
 ) => void;
 
-function createWebContentsHarness() {
+function createWebContentsHarness(): {
+  webContents: WebContents;
+  getWindowOpenHandler: () => WindowOpenHandler | undefined;
+  getWillNavigateListener: () => WillNavigateListener | undefined;
+} {
   let windowOpenHandler: WindowOpenHandler | undefined;
   let willNavigateListener: WillNavigateListener | undefined;
   const webContents = {

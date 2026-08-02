@@ -4,11 +4,14 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { createRecentsStore } from "./recents";
+import { createRecentsStore, type RecentsStore } from "./recents";
 
-async function setup() {
+async function setup(): Promise<{
+  store: RecentsStore;
+  manifest: (name: string) => Promise<string>;
+}> {
   const dir = await mkdtemp(join(tmpdir(), "uix-recents-test-"));
-  const manifest = async (name: string) => {
+  const manifest = async (name: string): Promise<string> => {
     const p = join(dir, `${name}.uix.workspace.json`);
     await writeFile(p, "{}");
     return p;

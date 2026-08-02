@@ -274,7 +274,7 @@ export class SettingsRegistry implements Disposable {
   ): void {
     const cloned = cloneJsonChangeValue(value);
     const errors: unknown[] = [];
-    const notify = (run: () => void) => {
+    const notify = (run: () => void): void => {
       try {
         run();
       } catch (err) {

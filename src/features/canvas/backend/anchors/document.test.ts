@@ -350,7 +350,7 @@ describe("AnchoredDocument", () => {
 
   describe("read range", () => {
     // A=a B=b C=c D=d E=e F=f
-    const sixLines = () =>
+    const sixLines = (): AnchoredDocument =>
       new AnchoredDocument("a\nb\nc\nd\ne\nf", { allocate: testAllocate() });
 
     it("reads the whole document with no bounds", () => {

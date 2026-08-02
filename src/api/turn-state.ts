@@ -28,7 +28,7 @@ export interface TurnStateHistoryReader {
   turnStates<TState = unknown>(
     cellName: string,
     opts?: TurnStateHistoryOptions,
-  ): readonly TurnStateHistoryEntry<TState>[];
+  ): ReadonlyArray<TurnStateHistoryEntry<TState>>;
 }
 
 export interface TurnStateCellDefinition<Schema extends TSchema = TSchema> {

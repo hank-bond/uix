@@ -27,7 +27,7 @@ export function WorkspaceSessionControllerProvider({
   children,
 }: {
   children: ReactNode;
-}) {
+}): JSX.Element {
   const workspace = useWorkspaceClient();
   const agent = useMemo(
     () => createChannelClient(workspace, agentChannels),

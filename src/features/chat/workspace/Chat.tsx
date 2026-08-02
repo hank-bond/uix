@@ -33,7 +33,7 @@ export interface ChatProps {
   client: AgentChannelClient;
 }
 
-export function Chat({ client }: ChatProps) {
+export function Chat({ client }: ChatProps): JSX.Element {
   const [items, setItems] = useState<TranscriptItem[]>([]);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
@@ -85,7 +85,7 @@ export function Chat({ client }: ChatProps) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [items]);
 
-  const onSubmit = async (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
     const text = draft.trim();
     if (!text || pending) return;
@@ -177,7 +177,7 @@ function StatusBar({
   hidden: readonly string[];
   loading: boolean;
   error: Error | undefined;
-}) {
+}): JSX.Element {
   const visible = order.filter((id) => !hidden.includes(id));
   return (
     <div className="status-bar" aria-label="Chat status bar">

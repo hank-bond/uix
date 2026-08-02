@@ -35,7 +35,7 @@ export function HighlightedCode({
   text,
   language,
   className,
-}: HighlightedCodeProps) {
+}: HighlightedCodeProps): JSX.Element {
   const normalizedLanguage = language?.toLowerCase();
   const highlighted =
     normalizedLanguage && refractor.registered(normalizedLanguage)

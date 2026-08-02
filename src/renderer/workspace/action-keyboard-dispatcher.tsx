@@ -15,7 +15,7 @@ interface KeyboardEventTarget {
   ): void;
 }
 
-export function ActionKeyboardDispatcher() {
+export function ActionKeyboardDispatcher(): JSX.Element | null {
   const registry = useActionRegistry();
 
   useEffect(() => {

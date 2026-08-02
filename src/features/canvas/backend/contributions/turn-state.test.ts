@@ -75,7 +75,13 @@ async function restoreCanvasDocuments(
   ).resolves.toEqual({ failures: [] });
 }
 
-function captureCanvasState(store = memoryStore()) {
+function captureCanvasState(store = memoryStore()): {
+  contribution: NonNullable<
+    ReturnType<typeof createCanvasTurnStateContributions>["documents"]
+  >;
+  buffer: CanvasDocumentBuffer;
+  store: DocumentStore;
+} {
   const base: FeatureContext = {
     documents: { createStore: () => store },
     settings: {

@@ -22,7 +22,7 @@ export function ProviderAuthFlowPanel({
   method: ProviderAuthMethod;
   flow: ProviderAuthFlowSnapshot;
   controls: AgentControls;
-}) {
+}): JSX.Element {
   const chooseModelRef = useRef<HTMLButtonElement>(null);
   const isRunning =
     flow.phase.type === "starting" || flow.phase.type === "active";
@@ -134,7 +134,7 @@ function ProviderAuthNoticeView({
   flowId: string;
   providerName: string;
   controls: AgentControls;
-}) {
+}): JSX.Element {
   if (notice.type === "info") {
     return (
       <div className="provider-auth__notice">
@@ -204,7 +204,7 @@ function ProviderAuthLinkButton({
   flowId: string;
   controls: AgentControls;
   fallbackLabel?: string;
-}) {
+}): JSX.Element {
   return (
     <div className="provider-auth__actions">
       <button
@@ -226,7 +226,7 @@ function ProviderAuthPromptView({
   prompt: ProviderAuthPrompt;
   flowId: string;
   controls: AgentControls;
-}) {
+}): JSX.Element {
   const [answer, setAnswer] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 

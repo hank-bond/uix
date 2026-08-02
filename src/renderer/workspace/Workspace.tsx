@@ -35,7 +35,7 @@ const actionRegistry = new ActionRegistry({
 });
 const registerWorkspaceActions = actionRegistry.forFeature("uix");
 
-export function Workspace() {
+export function Workspace(): JSX.Element {
   return (
     <ActionRegistryProvider registry={actionRegistry}>
       <FeatureActionsProvider register={registerWorkspaceActions}>
@@ -50,7 +50,7 @@ export function Workspace() {
   );
 }
 
-function WorkspaceContent() {
+function WorkspaceContent(): JSX.Element {
   const composition = useSurfaces();
   // Not yet fetched — render the bare shell, no empty-state flash.
   if (!composition) return <div className="workspace" />;
@@ -73,7 +73,7 @@ function ResizableSurfaceRow({
   composition,
 }: {
   composition: SurfaceComposition;
-}) {
+}): JSX.Element {
   const panelIds = useMemo(
     () => composition.surfaces.map(surfacePanelId),
     [composition.surfaces],
@@ -120,7 +120,7 @@ function EmptyWorkspaceCard({
   composition,
 }: {
   composition: SurfaceComposition;
-}) {
+}): JSX.Element {
   return (
     <div className="workspace-empty">
       <p className="workspace-empty__title">
@@ -146,7 +146,7 @@ function SurfacePanel({
 }: {
   name: string;
   children: ReactNode;
-}) {
+}): JSX.Element {
   return (
     <section
       className={`surface-panel surface-panel--${name}`}
@@ -161,7 +161,7 @@ function SurfacePanel({
   );
 }
 
-function RuntimeSurfacePanel({ entry }: { entry: SurfaceEntry }) {
+function RuntimeSurfacePanel({ entry }: { entry: SurfaceEntry }): JSX.Element {
   const { name, body } = useRuntimeSurface(entry);
   return <SurfacePanel name={name}>{body}</SurfacePanel>;
 }

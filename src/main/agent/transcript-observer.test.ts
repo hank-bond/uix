@@ -3,7 +3,7 @@ import type {
   AgentSessionEvent,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 
 import type { AgentEvent } from "@uix/api/agent-channels";
 import { createTranscriptObserver } from "./transcript-observer";
@@ -17,7 +17,11 @@ function createManager(cwd = "/workspace"): SessionManager {
   } as unknown as SessionManager;
 }
 
-function createSession(manager: SessionManager) {
+function createSession(manager: SessionManager): {
+  session: AgentSession;
+  unsubscribe: Mock;
+  emit: (event: object) => void;
+} {
   let listener: ((event: AgentSessionEvent) => void) | undefined;
   const unsubscribe = vi.fn(() => {
     listener = undefined;
@@ -38,7 +42,10 @@ function createSession(manager: SessionManager) {
   };
 }
 
-function createHarness() {
+function createHarness(): {
+  observer: ReturnType<typeof createTranscriptObserver>;
+  events: AgentEvent[];
+} {
   const events: AgentEvent[] = [];
   const observer = createTranscriptObserver({
     emit: (event) => events.push(event),

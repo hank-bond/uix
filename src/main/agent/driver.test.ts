@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { Type } from "typebox";
 
 import type { AgentStatus, ModelRef } from "@uix/api/agent-channels";
@@ -20,7 +20,8 @@ import {
   TurnStateRegistry,
 } from "../turn-state/registry";
 
-import { createAgentDriver } from "./driver";
+import { createAgentDriver, type AgentDriver } from "./driver";
+import type { Workspace } from "../workspace";
 import { agentWorkspaceSettings } from "./settings";
 import { sessionWorkspaceSettings } from "./session-settings";
 
@@ -114,7 +115,19 @@ const sdk = vi.hoisted(() => {
   function makeSession(
     model: FakeModel | undefined,
     sessionManager: Record<string, unknown> = manager,
-  ) {
+  ): {
+    model: FakeModel | undefined;
+    sessionManager: Record<string, unknown>;
+    isStreaming: boolean;
+    unsubscribe: Mock;
+    setModel: Mock;
+    setSessionName: Mock;
+    subscribe: Mock;
+    bindExtensions: Mock;
+    dispose: Mock;
+    prompt: Mock;
+    reload: Mock;
+  } {
     const unsubscribe = vi.fn();
     return {
       model,
@@ -167,7 +180,7 @@ const sdk = vi.hoisted(() => {
         cwd: string;
         agentDir: string;
         resourceLoaderOptions: {
-          extensionFactories: ((pi: unknown) => Promise<void>)[];
+          extensionFactories: Array<(pi: unknown) => Promise<void>>;
         };
       }) => {
         state.servicesLoads += 1;
@@ -314,18 +327,33 @@ function createFakeSettings<Definition extends SettingsDefinition>(
   };
 }
 
-function fakeAgentSettings(initial?: ModelRef) {
+function fakeAgentSettings(initial?: ModelRef): SettingsHandleFrom<
+  typeof agentWorkspaceSettings
+> & {
+  values: Map<string, unknown>;
+} {
   return createFakeSettings(
     agentWorkspaceSettings,
     new Map(initial ? [["defaultModel", initial]] : []),
   );
 }
 
-function fakeSessionSettings() {
+function fakeSessionSettings(): SettingsHandleFrom<
+  typeof sessionWorkspaceSettings
+> & {
+  values: Map<string, unknown>;
+} {
   return createFakeSettings(sessionWorkspaceSettings);
 }
 
-function turnStateEntry(state: Record<string, unknown>) {
+function turnStateEntry(state: Record<string, unknown>): {
+  id: string;
+  parentId: undefined;
+  timestamp: string;
+  type: "custom";
+  customType: string;
+  data: { state: Record<string, unknown> };
+} {
   return {
     id: "turn-state",
     parentId: undefined,
@@ -336,7 +364,7 @@ function turnStateEntry(state: Record<string, unknown>) {
   };
 }
 
-function deferred() {
+function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;
   const promise = new Promise<void>((done) => {
     resolve = done;
@@ -344,7 +372,9 @@ function deferred() {
   return { promise, resolve };
 }
 
-async function createSessionTarget(sessionId: string) {
+async function createSessionTarget(
+  sessionId: string,
+): Promise<{ root: string; sessionFile: string; workspace: Workspace }> {
   const root = await mkdtemp(join(tmpdir(), "uix-driver-switch-"));
   const sessionDir = join(root, ".uix", "sessions");
   const sessionFile = join(
@@ -373,7 +403,11 @@ function createDriver(
     agentCwd: "/tmp/ws",
     manifestPath: "/tmp/ws/uix.workspace.json",
   },
-) {
+): {
+  driver: AgentDriver;
+  statuses: AgentStatus[];
+  readonly availabilityChanges: number;
+} {
   const statuses: AgentStatus[] = [];
   let availabilityChanges = 0;
   const driver = createAgentDriver({

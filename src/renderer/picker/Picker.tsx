@@ -13,7 +13,7 @@ import {
   type RecentWorkspace,
 } from "#shared/ipc";
 
-export function Picker() {
+export function Picker(): JSX.Element {
   const [recents, setRecents] = useState<RecentWorkspace[] | null>(null);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export function Picker() {
       .catch(() => setRecents([]));
   }, []);
 
-  const act = async (channel: string, payload: unknown) => {
+  const act = async (channel: string, payload: unknown): Promise<void> => {
     setBusy(true);
     setError(null);
     try {

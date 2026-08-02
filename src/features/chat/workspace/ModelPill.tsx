@@ -19,7 +19,11 @@ import {
 } from "./model-filter";
 import { createModelActions } from "./model-actions";
 
-export function ModelPill({ controls }: { controls: AgentControls }) {
+export function ModelPill({
+  controls,
+}: {
+  controls: AgentControls;
+}): JSX.Element {
   const actions = useMemo(
     () => createModelActions(controls.openModelPicker),
     [controls.openModelPicker],
@@ -73,7 +77,7 @@ function ModelPicker({
   onConnect: () => void;
   onClose: () => void;
   onScopeChange: (scope: ModelPickerScope) => void;
-}) {
+}): JSX.Element {
   const [error, setError] = useState<string>();
   const [query, setQuery] = useState(initialQuery);
   const [favoritePending, setFavoritePending] = useState(false);
@@ -91,7 +95,7 @@ function ModelPicker({
   }, []);
 
   useEffect(() => {
-    const onPointerDown = (event: PointerEvent) => {
+    const onPointerDown = (event: PointerEvent): void => {
       if (!rootRef.current?.contains(event.target as Node)) onClose();
     };
     document.addEventListener("pointerdown", onPointerDown);
@@ -143,14 +147,14 @@ function ModelPicker({
     scopeScrollPositions.current.set(scope, list.scrollTop);
   }, [controls.models, current, query, scope]);
 
-  const switchScope = (nextScope: ModelPickerScope) => {
+  const switchScope = (nextScope: ModelPickerScope): void => {
     if (listRef.current) {
       scopeScrollPositions.current.set(activeScope, listRef.current.scrollTop);
     }
     onScopeChange(nextScope);
   };
 
-  const select = async (model: ModelCatalogEntry) => {
+  const select = async (model: ModelCatalogEntry): Promise<void> => {
     setError(undefined);
     try {
       await controls.selectModel(model);
@@ -159,7 +163,7 @@ function ModelPicker({
     }
   };
 
-  const toggleFavorite = async (model: ModelCatalogEntry) => {
+  const toggleFavorite = async (model: ModelCatalogEntry): Promise<void> => {
     setError(undefined);
     setFavoritePending(true);
     try {

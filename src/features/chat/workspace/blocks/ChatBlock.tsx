@@ -8,7 +8,7 @@ interface ChatBlockProps {
   item: TranscriptItem;
 }
 
-export function ChatBlock({ item }: ChatBlockProps) {
+export function ChatBlock({ item }: ChatBlockProps): JSX.Element {
   switch (item.kind) {
     case "user":
       return <MessageChatBlock item={item} className="user" />;

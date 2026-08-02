@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { Type } from "typebox";
+import { Type, type TSchema } from "typebox";
 
 import { AgentContextRegistry } from "../agent-context/registry";
 import { AgentSystemPromptRegistry } from "../agent-system-prompt/registry";
@@ -8,7 +8,10 @@ import { AgentSkillRegistry } from "../agent-skills/registry";
 import { AgentToolRegistry } from "../agent-tools/registry";
 import { ChannelRegistry } from "../channels/registry";
 import { ResourceRegistry } from "../resources/registry";
-import { normalizeResourceRoute } from "@uix/api/resource-routes";
+import {
+  normalizeResourceRoute,
+  type NormalizedResourceRoute,
+} from "@uix/api/resource-routes";
 import { TurnStateRegistry } from "../turn-state/registry";
 
 import {
@@ -19,7 +22,18 @@ import { SurfaceRegistry } from "./surfaces";
 
 const emptyParams = Type.Object({});
 
-function channelContribution(name = "refresh") {
+function channelContribution(name = "refresh"): {
+  feature: string;
+  requests: Record<
+    string,
+    {
+      requestSchema: TSchema;
+      responseSchema: TSchema;
+      handler: () => undefined;
+    }
+  >;
+  events: Record<string, never>;
+} {
   return {
     feature: "canvas",
     requests: {
@@ -33,7 +47,11 @@ function channelContribution(name = "refresh") {
   };
 }
 
-function resourceContribution(name = "doc") {
+function resourceContribution(name = "doc"): {
+  name: string;
+  route: NormalizedResourceRoute;
+  handler: () => Response;
+} {
   return {
     name,
     route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
@@ -41,7 +59,18 @@ function resourceContribution(name = "doc") {
   };
 }
 
-function agentTool(name: string) {
+function agentTool(name: string): {
+  name: string;
+  tool: {
+    label: string;
+    description: string;
+    parameters: typeof emptyParams;
+    execute: () => Promise<{
+      content: never[];
+      details: Record<string, never>;
+    }>;
+  };
+} {
   return {
     name,
     tool: {
@@ -53,7 +82,13 @@ function agentTool(name: string) {
   };
 }
 
-function turnStateCells() {
+function turnStateCells(): {
+  documents: {
+    schema: typeof emptyParams;
+    createSnapshot: () => Record<string, unknown>;
+    restore: () => undefined;
+  };
+} {
   return {
     documents: {
       schema: Type.Object({}),

@@ -7,7 +7,7 @@ import type {
 
 import { WorkspaceSessionController } from "./session-controller";
 
-function deferred<T>() {
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((done) => {
     resolve = done;
@@ -39,7 +39,9 @@ interface ControllerRequests {
   ) => Promise<SessionSummary>;
 }
 
-function createController(overrides: Partial<ControllerRequests> = {}) {
+function createController(
+  overrides: Partial<ControllerRequests> = {},
+): WorkspaceSessionController {
   return new WorkspaceSessionController({
     requestActiveHistory: () =>
       Promise.resolve({

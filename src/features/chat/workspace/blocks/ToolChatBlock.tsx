@@ -3,7 +3,7 @@ import { toToolState } from "./tool/presentation";
 import type { ToolItem } from "./tool/presentation";
 import { deriveToolChatBlockPresentation } from "./tool/presentations";
 
-export function ToolChatBlock({ item }: { item: ToolItem }) {
+export function ToolChatBlock({ item }: { item: ToolItem }): JSX.Element {
   const state = toToolState(item);
   const presentation = deriveToolChatBlockPresentation(item, state);
   return (

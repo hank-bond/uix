@@ -47,7 +47,7 @@ export function useSurfaces(): SurfaceComposition | undefined {
   useEffect(() => {
     let alive = true;
     let requestVersion = 0;
-    const refresh = () => {
+    const refresh = (): void => {
       const version = ++requestVersion;
       void client.requests
         .surfaces(undefined)
@@ -75,7 +75,7 @@ export function SurfaceMount({
 }: {
   entry: SurfaceEntry;
   surface: SurfaceContribution;
-}) {
+}): JSX.Element {
   const workspace = useWorkspaceClient();
   const actionRegistry = useActionRegistry();
   const registerActions = useMemo(
@@ -255,7 +255,7 @@ function SurfaceErrorCard({
 }: {
   entry: SurfaceEntry;
   message: string;
-}) {
+}): JSX.Element {
   return (
     <div className="surface-error" role="alert">
       <p className="surface-error__title">
@@ -277,11 +277,11 @@ class SurfaceErrorBoundary extends Component<
 > {
   state: { error?: Error } = {};
 
-  static getDerivedStateFromError(error: Error) {
+  static getDerivedStateFromError(error: Error): { error?: Error } {
     return { error };
   }
 
-  render() {
+  render(): ReactNode {
     if (this.state.error) {
       return (
         <SurfaceErrorCard

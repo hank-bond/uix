@@ -68,6 +68,11 @@ const publicMemberModifierRestriction = {
   message:
     "Do not write the `public` modifier on class members — they are public by default. Non-readonly constructor parameter properties may be explicit.",
 };
+const recordConstraintRestriction = {
+  selector: "TSTypeParameter > TSTypeReference[typeName.name=Record]",
+  message:
+    "Do not constrain a generic with `extends Record<...>` — the index-signature requirement silently rejects interface-based types (and intersections containing them), breaking inference at call sites. Use `extends object` unless a string index signature is genuinely required.",
+};
 
 const LogLevels = new Set(["trace", "debug", "info", "warn", "error", "fatal"]);
 const EventIdPattern = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;
@@ -274,6 +279,7 @@ export default tseslint.config(
         webContentsSendRestriction,
         processEventRestriction,
         publicMemberModifierRestriction,
+        recordConstraintRestriction,
       ],
 
       // Logging convention: pino via createLogger, not console.*.
@@ -327,6 +333,38 @@ export default tseslint.config(
       // `const enum` is already a compile error under `isolatedModules`.
       "@typescript-eslint/only-throw-error": "error",
       "@typescript-eslint/no-invalid-this": "error",
+    },
+  },
+
+  // Type-system hygiene, the mechanically enforceable residue of the absorbed
+  // TS style guide's type chapter. Deliberately NOT adopted from that guide:
+  // the mapped/conditional-type simplicity rule — mapped types are the
+  // contract-derivation mechanism here (ChannelHandlers, FeatureEventPublisher,
+  // SettingsHandleFrom), while fixed shapes are still spelled out rather than
+  // derived. Judgment-tier rules (annotation choices, nullable-alias style)
+  // stay in review.
+  {
+    rules: {
+      // Interfaces for object shapes; type aliases stay for unions, tuples,
+      // and computed types.
+      "@typescript-eslint/consistent-type-definitions": ["error", "interface"],
+      // T[] sugar for simple element types; Array<T> for complex ones.
+      "@typescript-eslint/array-type": ["error", { default: "array-simple" }],
+      // String/Number/Boolean/Object as type annotations (not coercion calls).
+      "@typescript-eslint/no-wrapper-object-types": "error",
+      // Named functions and methods carry return types; callbacks and
+      // expressions infer. Locked in because the codebase already annotates
+      // ~99% — the rule surfaces future return-type changes at the definition
+      // site instead of at callers.
+      "@typescript-eslint/explicit-function-return-type": [
+        "error",
+        {
+          allowExpressions: true,
+          allowTypedFunctionExpressions: true,
+          allowHigherOrderFunctions: true,
+          allowIIFEs: true,
+        },
+      ],
     },
   },
 
@@ -475,6 +513,8 @@ export default tseslint.config(
     rules: {
       ...tseslint.configs.disableTypeChecked.rules,
       "no-console": "off",
+      // Plain JS has no type annotations; return types cannot be written.
+      "@typescript-eslint/explicit-function-return-type": "off",
     },
   },
 

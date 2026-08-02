@@ -31,7 +31,7 @@ export function createWorkspaceSessionActions(
   };
 }
 
-export function WorkspaceSessionActions() {
+export function WorkspaceSessionActions(): JSX.Element | null {
   const controller = useWorkspaceSessionController();
   const actions = useMemo(
     () =>

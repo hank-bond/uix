@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 
 import { canvasChannels } from "#features/canvas/shared/channels";
 import { parseCanvasKey } from "#features/canvas/shared/addressing";
@@ -9,7 +9,13 @@ import {
   type WorkspaceClient,
 } from "@uix/api/workspace";
 
-function fakeWorkspaceClient() {
+function fakeWorkspaceClient(): {
+  client: WorkspaceClient;
+  request: Mock<(name: string, req: unknown) => Promise<unknown>>;
+  subscribe: Mock<
+    (name: string, handler: (event: unknown) => void) => () => undefined
+  >;
+} {
   const request = vi.fn(
     (_name: string, _req: unknown): Promise<unknown> =>
       Promise.resolve(undefined),

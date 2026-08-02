@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 
 import { recordWireCrossing } from "./ipc-wire-log";
 
-function captureLogger() {
+function captureLogger(): { entries: unknown[]; logger: Logger } {
   const entries: unknown[] = [];
-  const write = (fields: unknown, message: string) => {
+  const write = (fields: unknown, message: string): void => {
     entries.push({ fields, message });
   };
   return {

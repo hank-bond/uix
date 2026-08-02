@@ -26,7 +26,9 @@ function body(label: string): AgentToolDefinition {
   };
 }
 
-function installTools(registry = new AgentToolRegistry()) {
+function installTools(
+  registry = new AgentToolRegistry(),
+): Map<string, ToolDefinition> {
   const tools = new Map<string, ToolDefinition>();
   const pi = {
     registerTool: (next: ToolDefinition) => tools.set(next.name, next),

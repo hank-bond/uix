@@ -7,7 +7,7 @@ import { toToolTextContent } from "../presentation";
 import type { ToolItem } from "../presentation";
 import { DefaultToolContent } from "./DefaultToolContent";
 
-export function FileToolContent({ item }: { item: ToolItem }) {
+export function FileToolContent({ item }: { item: ToolItem }): JSX.Element {
   const args = asRecord(item.args);
   const reason = toNonEmptyString(args?.["reason"]);
   const path = item.file?.displayPath ?? toNonEmptyString(args?.["path"]);

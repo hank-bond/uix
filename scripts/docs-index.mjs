@@ -40,7 +40,6 @@ const layers = [
   { dir: "docs/design", sort: "slug-asc" },
   { dir: "docs/architecture", kind: "container" },
   { dir: "docs/architecture/conventions", sort: "slug-asc" },
-  { dir: "docs/typescript-style-guide", sort: "slug-asc" },
   { dir: "docs/plans", sort: "slug-asc" },
   { dir: "src/docs", sort: "slug-asc" },
   { dir: "website", sort: "slug-asc" },

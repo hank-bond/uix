@@ -338,7 +338,7 @@ const ProviderAuthLinkRequestSchema = Type.Object({
   linkId: Type.String(),
 });
 
-const describeProviderAuthenticationPayload = () => ({
+const describeProviderAuthenticationPayload = (): { redacted: string } => ({
   redacted: "provider authentication payload",
 });
 

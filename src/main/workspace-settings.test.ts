@@ -82,10 +82,9 @@ interface Harness extends Disposable {
 
 function createHarness(
   manifestPath: string,
-  namespaces: readonly WorkspaceSettingsNamespace<
-    string,
-    SettingsDefinition
-  >[] = [],
+  namespaces: ReadonlyArray<
+    WorkspaceSettingsNamespace<string, SettingsDefinition>
+  > = [],
 ): Harness {
   const manifest = new WorkspaceManifestStore(manifestPath, {
     flushDebounceMs: 1000,
@@ -152,7 +151,7 @@ describe("feature settings", () => {
 
     await manifest.flush();
     const written = (await readManifest(manifestPath)) as {
-      features: { settings: Record<string, unknown> }[];
+      features: Array<{ settings: Record<string, unknown> }>;
     };
     expect(written.features[0]?.settings).toEqual({
       statusBar: {
@@ -192,7 +191,7 @@ describe("feature settings", () => {
     await manifest.flush();
 
     const written = (await readManifest(manifestPath)) as {
-      features: { settings: Record<string, unknown> }[];
+      features: Array<{ settings: Record<string, unknown> }>;
     };
     expect(written.features[0]?.settings).toEqual({
       statusBar: StatusBarDefault,
@@ -322,7 +321,7 @@ describe("feature settings", () => {
     await manifest.flush();
     const written = (await readManifest(manifestPath)) as {
       unknown: unknown;
-      features: { entry: string; settings: Record<string, unknown> }[];
+      features: Array<{ entry: string; settings: Record<string, unknown> }>;
     };
 
     expect(written.unknown).toEqual({ preserved: true });
@@ -364,7 +363,7 @@ describe("feature settings", () => {
     await manifest.flush();
 
     const written = (await readManifest(manifestPath)) as {
-      features: { settings: Record<string, unknown> }[];
+      features: Array<{ settings: Record<string, unknown> }>;
     };
     expect(written.features[0]?.settings).toEqual({
       statusBar: { order: ["model"], hidden: [] },
@@ -394,7 +393,7 @@ describe("feature settings", () => {
 
     await manifest.flush();
     const written = (await readManifest(manifestPath)) as {
-      features: { settings: Record<string, unknown> }[];
+      features: Array<{ settings: Record<string, unknown> }>;
     };
     expect(written.features[0]?.settings).toEqual({
       statusBar: { order: ["model"], hidden: [] },
@@ -528,7 +527,7 @@ describe("workspace namespace settings", () => {
     using harness = createHarness(manifestPath, [agentNamespace]);
     const { settings, manifest, registry } = harness;
     const changes: unknown[] = [];
-    const any: [string, string][] = [];
+    const any: Array<[string, string]> = [];
 
     await settings.reload();
     const agent = settings.forNamespace(agentNamespace);

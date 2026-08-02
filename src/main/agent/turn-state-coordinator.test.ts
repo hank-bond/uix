@@ -3,7 +3,7 @@ import type {
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 
 import {
   registerTurnStateContributions,
@@ -22,7 +22,10 @@ function turnStateEntry(state: Record<string, unknown>): SessionEntry {
   } as unknown as SessionEntry;
 }
 
-function createManager(branch: readonly SessionEntry[]) {
+function createManager(branch: readonly SessionEntry[]): {
+  manager: SessionManager;
+  appendCustomEntry: Mock;
+} {
   const appendCustomEntry = vi.fn(() => "entry-id");
   return {
     manager: {
@@ -35,7 +38,7 @@ function createManager(branch: readonly SessionEntry[]) {
   };
 }
 
-function deferred() {
+function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;
   const promise = new Promise<void>((done) => {
     resolve = done;

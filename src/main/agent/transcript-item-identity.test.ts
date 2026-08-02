@@ -4,12 +4,16 @@
 
 import type { SessionManager } from "@earendil-works/pi-coding-agent";
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 
 import { createTranscriptItemIdentity } from "./transcript-item-identity";
 import { deriveTranscriptItems } from "./transcript";
 
-function fakeManager() {
+function fakeManager(): {
+  manager: SessionManager;
+  appendMessage: Mock;
+  appendCustomMessageEntry: Mock;
+} {
   let next = 1;
   const appendMessage = vi.fn(() => `entry-${next++}`);
   const appendCustomMessageEntry = vi.fn(() => `entry-${next++}`);

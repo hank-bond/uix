@@ -14,7 +14,7 @@ export function ActionRegistryProvider({
 }: {
   registry: ActionRegistry;
   children: ReactNode;
-}) {
+}): JSX.Element {
   const getCatalogSnapshot = useCallback(
     () => registry.getCatalogSnapshot(),
     [registry],
