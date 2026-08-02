@@ -3,9 +3,10 @@ import type {
   AgentSessionEvent,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
-import { describe, expect, it, vi, type Mock } from "vitest";
+import { describe, expect, it, type Mock, vi } from "vitest";
 
 import type { AgentEvent } from "@uix/api/agent-channels";
+
 import { createTranscriptObserver } from "./transcript-observer";
 
 function createManager(cwd = "/workspace"): SessionManager {

@@ -1,5 +1,3 @@
-import { describe, expect, it } from "vitest";
-
 import type {
   ExtensionAPI,
   ExtensionContext,
@@ -7,23 +5,24 @@ import type {
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import { Codec, Type } from "typebox";
+import { describe, expect, it } from "vitest";
 
 import type { TurnStateContributions } from "@uix/api/turn-state";
 
+import type { TurnStateAsOfLeaf } from "./registry";
 import {
-  toTurnStateRegistrySnapshot,
-  createTurnStateInstaller,
+  commitCurrentTurnState,
   createTurnStateHistoryReader,
+  createTurnStateInstaller,
   createTurnStateProjector,
   isSameTurnStateRegistrySnapshot,
   isTurnStateRegistrySnapshotCurrent,
   registerTurnStateContributions,
   resolveTurnStateContributions,
   restoreTurnStateCellsAsOfLeaf,
-  commitCurrentTurnState,
+  toTurnStateRegistrySnapshot,
   TurnStateRegistry,
 } from "./registry";
-import type { TurnStateAsOfLeaf } from "./registry";
 
 type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
 

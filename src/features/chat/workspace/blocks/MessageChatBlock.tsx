@@ -1,8 +1,10 @@
 import type { JSX } from "react";
+
 import type { TranscriptItem } from "@uix/api/agent-channels";
-import { isPendingUserId } from "../pending";
+
 import { ChatBlockFrame } from "./ChatBlockFrame";
 import { MarkdownContent } from "./content/MarkdownContent";
+import { isPendingUserId } from "../pending";
 
 export function MessageChatBlock({
   item,

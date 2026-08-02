@@ -1,9 +1,9 @@
 import type {
   ActionCatalogEntry,
   ActionContribution,
+  ActionId,
   ActionLeafContribution,
   ActionRunner,
-  ActionId,
 } from "@uix/api/actions";
 import { isIdToken } from "@uix/api/contribution-id";
 import { normalizeShortcut, type Shortcut } from "@uix/api/shortcuts";

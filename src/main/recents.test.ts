@@ -56,7 +56,10 @@ describe("recents store", () => {
   it("caps the list at ten entries", async () => {
     const { store, manifest } = await setup();
     for (let i = 0; i < 12; i++) {
-      store.record({ manifestPath: await manifest(`w${String(i)}`), name: `W${String(i)}` });
+      store.record({
+        manifestPath: await manifest(`w${String(i)}`),
+        name: `W${String(i)}`,
+      });
     }
     const names = store.list().map((e) => e.name);
     expect(names).toHaveLength(10);

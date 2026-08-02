@@ -1,5 +1,5 @@
-import { env, stdout } from "node:process";
 import { performance } from "node:perf_hooks";
+import { env, stdout } from "node:process";
 
 import { describe, expect, it } from "vitest";
 
@@ -11,16 +11,20 @@ const WINDOW_KEEP_PREFIX = 225;
 const WINDOW_KEEP_SUFFIX_START = 275;
 
 function makeText(count: number): string {
-  return Array.from({ length: count }, (_, index) => `line-${String(index)}`).join(
-    "\n",
-  );
+  return Array.from(
+    { length: count },
+    (_, index) => `line-${String(index)}`,
+  ).join("\n");
 }
 
 // Non-exhausting allocator: perf benchmarks measure the list/diff cost, not
 // the committed pool's capacity, and repeatedly clobbering a 100k-line doc
 // would otherwise blow past the pool. Anchors just need to be unique strings.
 function unboundedAllocate() {
-  return (index: number) => ({ anchor: `a${String(index)}`, nextIndex: index + 1 });
+  return (index: number) => ({
+    anchor: `a${String(index)}`,
+    nextIndex: index + 1,
+  });
 }
 
 function seededRandom(seed: number): () => number {
@@ -81,7 +85,10 @@ function summarizeTimings(samples: readonly number[]): string {
 describe("AnchoredDocument stress", () => {
   it("keeps anchors stable across many localized range edits", () => {
     const doc = new AnchoredDocument(makeText(1_000));
-    const model = Array.from({ length: 1_000 }, (_, index) => `line-${String(index)}`);
+    const model = Array.from(
+      { length: 1_000 },
+      (_, index) => `line-${String(index)}`,
+    );
 
     for (let editIndex = 0; editIndex < 400; editIndex += 1) {
       const before = doc.read();
@@ -140,7 +147,10 @@ describe("AnchoredDocument stress", () => {
   it("keeps reconciling randomly placed 500-line edits over prior state", () => {
     const random = seededRandom(RANDOM_SEED);
     const doc = new AnchoredDocument(makeText(15_000));
-    const model = Array.from({ length: 15_000 }, (_, index) => `line-${String(index)}`);
+    const model = Array.from(
+      { length: 15_000 },
+      (_, index) => `line-${String(index)}`,
+    );
 
     for (let editIndex = 0; editIndex < 100; editIndex += 1) {
       const before = doc.read();

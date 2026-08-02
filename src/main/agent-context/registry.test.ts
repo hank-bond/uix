@@ -1,10 +1,9 @@
-import { describe, expect, it } from "vitest";
-
 import type {
   SessionEntry,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { describe, expect, it } from "vitest";
 
 import {
   AgentContextRegistry,
@@ -200,11 +199,14 @@ describe("AgentContextRegistry", () => {
     });
     visibility.update({ canvases_open: ["main"] });
 
-    const visible = (await flush(sm));
+    const visible = await flush(sm);
     if (!visible) throw new Error("missing visible state");
     expect(visible.content).toContain("<test.pane-visibility>");
     const other = "<uix-state>\n<other>\nx\n</other>\n</uix-state>";
-    const result = await flush(sm, [stateEntry(visible.content), stateEntry(other)]);
+    const result = await flush(sm, [
+      stateEntry(visible.content),
+      stateEntry(other),
+    ]);
     expect(result).toBeUndefined();
   });
 
@@ -273,7 +275,7 @@ describe("AgentContextRegistry", () => {
       },
     });
 
-    const first = (await flush(sm));
+    const first = await flush(sm);
     if (!first) throw new Error("missing first state");
     expect(first.details).toEqual({ "test.canvas-diff": { hunks: 1 } });
 
@@ -349,7 +351,7 @@ describe("AgentContextRegistry", () => {
     moves.append({ move: "e4" });
     moves.append({ move: "e5" });
 
-    const first = (await flush(sm));
+    const first = await flush(sm);
     if (!first) throw new Error("missing first state");
     expect(first.content).toContain('[{"move":"e4"},{"move":"e5"}]');
 
@@ -378,7 +380,7 @@ describe("AgentContextRegistry", () => {
     });
     value.update({ count: 1 });
 
-    const first = (await flush(sm));
+    const first = await flush(sm);
     if (!first) throw new Error("missing first state");
     expect(first.content).toContain("count=1");
     expect(await flush(sm, [stateEntry(first.content)])).toBeUndefined();

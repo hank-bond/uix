@@ -1,24 +1,23 @@
+import { type TSchema, Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
-import { Type, type TSchema } from "typebox";
-
-import { AgentContextRegistry } from "../agent-context/registry";
-import { AgentSystemPromptRegistry } from "../agent-system-prompt/registry";
-import { AgentSkillRegistry } from "../agent-skills/registry";
-import { AgentToolRegistry } from "../agent-tools/registry";
-import { ChannelRegistry } from "../channels/registry";
-import { ResourceRegistry } from "../resources/registry";
 import {
-  normalizeResourceRoute,
   type NormalizedResourceRoute,
+  normalizeResourceRoute,
 } from "@uix/api/resource-routes";
-import { TurnStateRegistry } from "../turn-state/registry";
 
 import {
   registerFeatureContributions,
   registerFeaturePreflightContributions,
 } from "./contributions";
 import { SurfaceRegistry } from "./surfaces";
+import { AgentContextRegistry } from "../agent-context/registry";
+import { AgentSkillRegistry } from "../agent-skills/registry";
+import { AgentSystemPromptRegistry } from "../agent-system-prompt/registry";
+import { AgentToolRegistry } from "../agent-tools/registry";
+import { ChannelRegistry } from "../channels/registry";
+import { ResourceRegistry } from "../resources/registry";
+import { TurnStateRegistry } from "../turn-state/registry";
 
 const emptyParams = Type.Object({});
 

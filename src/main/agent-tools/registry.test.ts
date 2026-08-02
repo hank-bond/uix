@@ -1,14 +1,13 @@
-import { describe, expect, it } from "vitest";
-
 import type {
   ExtensionAPI,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { describe, expect, it } from "vitest";
 
 import {
-  createAgentToolInstaller,
   AgentToolRegistry,
+  createAgentToolInstaller,
   registerAgentToolContributions,
   registerAgentToolOverrideContributions,
 } from "./registry";

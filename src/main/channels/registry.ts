@@ -6,22 +6,23 @@
 // Today that adapter is Electron IPC, but the contribution model is intentionally
 // transport-neutral.
 
+import { Value } from "typebox/value";
+
+import {
+  type ChannelCanonicalId,
+  resolveChannelRequestContributions,
+  type ResolvedChannelRequestContribution,
+  toChannelCanonicalId,
+} from "@uix/api/channel-resolution";
 import type {
   ChannelContribution,
   ChannelEventLogOptions,
   FeatureEventPublisherFactory,
 } from "@uix/api/channels";
 import { createFeatureEventPublisher } from "@uix/api/channels";
-import {
-  resolveChannelRequestContributions,
-  toChannelCanonicalId,
-  type ChannelCanonicalId,
-  type ResolvedChannelRequestContribution,
-} from "@uix/api/channel-resolution";
-import { Value } from "typebox/value";
 
 import type { HandleLogOptions } from "../ipc";
-import { DisposableBag, disposable } from "../lifecycle";
+import { disposable, DisposableBag } from "../lifecycle";
 
 export type ChannelTransportRegistrar = (
   canonicalId: ChannelCanonicalId,
@@ -146,16 +147,13 @@ export function createFeatureEventPublisherFactory(
           `Feature ${featureId} cannot publish events on channels owned by ${contract.feature}`,
         );
       }
-      return createFeatureEventPublisher(
-        (name, payload, logOpts) => {
-          publisher.publish(
-            toChannelCanonicalId(featureId, name),
-            payload,
-            logOpts,
-          );
-        },
-        contract,
-      );
+      return createFeatureEventPublisher((name, payload, logOpts) => {
+        publisher.publish(
+          toChannelCanonicalId(featureId, name),
+          payload,
+          logOpts,
+        );
+      }, contract);
     },
   };
 }

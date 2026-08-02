@@ -1,4 +1,4 @@
-import { Type, type Static, type TObject, type TRecord } from "typebox";
+import { type Static, type TObject, type TRecord, Type } from "typebox";
 
 export const FeatureSettingAddressSchema = Type.Object({
   featureId: Type.String(),

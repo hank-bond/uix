@@ -1,5 +1,7 @@
 import type { JSX } from "react";
+
 import type { TranscriptItem } from "@uix/api/agent-channels";
+
 import { ChatBlockFrame } from "./ChatBlockFrame";
 import { truncateText } from "./content/text";
 

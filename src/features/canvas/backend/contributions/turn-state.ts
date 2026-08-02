@@ -11,6 +11,7 @@ import {
   type TurnStateContributions,
 } from "@uix/api/turn-state";
 
+import { publishCanvasChanged } from "./channels";
 import {
   CanvasDocumentResourceIdSchema,
   parseCanvasDocumentResourceId,
@@ -19,7 +20,6 @@ import {
   toCanvasDocumentResourceId,
 } from "../../shared/addressing";
 import type { CanvasContext } from "../context";
-import { publishCanvasChanged } from "./channels";
 
 const CanvasDocumentsStateSchema = Type.Record(
   CanvasDocumentResourceIdSchema,

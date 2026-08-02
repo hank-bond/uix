@@ -8,6 +8,7 @@
 import { isAbsolute, resolve } from "node:path";
 
 import type { AgentSkillContribution } from "@uix/api/agent-skills";
+
 import type { AgentInstaller } from "../agent/installers";
 import { disposable } from "../lifecycle";
 

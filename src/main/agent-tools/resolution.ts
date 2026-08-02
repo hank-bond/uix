@@ -14,8 +14,8 @@ import type {
   AgentToolOverrideContribution,
 } from "@uix/api/agent-tools";
 import {
-  toContributionId,
   type ContributionId,
+  toContributionId,
 } from "@uix/api/contribution-id";
 
 /**

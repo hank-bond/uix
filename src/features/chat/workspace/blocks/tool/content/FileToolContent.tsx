@@ -1,12 +1,13 @@
 import type { JSX } from "react";
+
+import { DefaultToolContent } from "./DefaultToolContent";
 import { CodeBlock } from "../../content/CodeBlock";
 import {
   HighlightedCode,
   inferCodeLanguageFromPath,
 } from "../../content/HighlightedCode";
-import { toToolTextContent } from "../presentation";
 import type { ToolItem } from "../presentation";
-import { DefaultToolContent } from "./DefaultToolContent";
+import { toToolTextContent } from "../presentation";
 
 export function FileToolContent({ item }: { item: ToolItem }): JSX.Element {
   const args = asRecord(item.args);

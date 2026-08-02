@@ -6,7 +6,8 @@
 // contextBridge. These types describe that contract so both sides stay
 // in sync.
 
-import { Type, type Static } from "typebox";
+import { type Static, Type } from "typebox";
+
 import { KeybindingMapSchema } from "@uix/api/actions";
 import type { ChannelContract } from "@uix/api/channels";
 import {

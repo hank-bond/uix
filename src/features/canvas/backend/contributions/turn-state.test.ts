@@ -5,6 +5,8 @@ import { createFeatureEventPublisher } from "@uix/api/channels";
 import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
 import type { FeatureContext } from "@uix/api/feature";
 import type { TurnStateCellDefinition } from "@uix/api/turn-state";
+
+import { createCanvasTurnStateContributions } from "./turn-state";
 import {
   createTurnStateProjector,
   registerTurnStateContributions,
@@ -12,12 +14,9 @@ import {
   toTurnStateRegistrySnapshot,
   TurnStateRegistry,
 } from "../../../../main/turn-state/registry";
-
 import { canvasChannels } from "../../shared/channels";
-import { CanvasDocumentBuffer } from "../document-buffer";
 import type { CanvasContext } from "../context";
-
-import { createCanvasTurnStateContributions } from "./turn-state";
+import { CanvasDocumentBuffer } from "../document-buffer";
 
 function memoryStore(initial: Record<string, string> = {}): DocumentStore {
   const latest = new Map<string, string>(Object.entries(initial));

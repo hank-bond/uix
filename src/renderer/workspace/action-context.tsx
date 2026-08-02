@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, type ReactNode } from "react";
 import type { JSX } from "react";
+import { createContext, type ReactNode, useCallback, useContext } from "react";
 
 import { WorkspaceActionsProvider } from "@uix/api/workspace";
 

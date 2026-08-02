@@ -4,26 +4,26 @@
 // Human edits flow back to the store via postMessage writeback.
 // The channel client is provided by the surface host via props.
 
-import { useEffect, useMemo, useRef, useState } from "react";
 import type { JSX } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { agentChannels } from "@uix/api/agent-channels";
 import {
+  type ChannelClient,
   createChannelClient,
   useWorkspaceClient,
-  type ChannelClient,
 } from "@uix/api/workspace";
 
-import {
-  toResourceOrigin,
-  toResourceUrl,
-  type CanvasKey,
-} from "../shared/addressing";
-import type { canvasChannels } from "../shared/channels";
 import {
   forwardCanvasFrameMessage,
   parseCanvasFrameMessage,
 } from "./frame-messages";
+import {
+  type CanvasKey,
+  toResourceOrigin,
+  toResourceUrl,
+} from "../shared/addressing";
+import type { canvasChannels } from "../shared/channels";
 
 export interface CanvasProps {
   canvasKey: CanvasKey;

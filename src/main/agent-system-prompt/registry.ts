@@ -5,11 +5,11 @@
 // extension runtime starts or reloads; registering a contribution never
 // touches Pi.
 
-import {
-  toContributionId,
-  type ContributionId,
-} from "@uix/api/contribution-id";
 import type { AgentSystemPromptContribution } from "@uix/api/agent-system-prompt";
+import {
+  type ContributionId,
+  toContributionId,
+} from "@uix/api/contribution-id";
 
 import { disposable } from "../lifecycle";
 

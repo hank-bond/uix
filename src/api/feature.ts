@@ -9,43 +9,43 @@
 // at activation time. Features access external state only through this object
 // and the typed contribution schemas — never by importing cockpit internals.
 
-import type {
-  ChannelContribution,
-  FeatureEventPublisherFactory,
-} from "./channels";
+import type { AgentContextContribution } from "./agent-context";
+import type { AgentSkillContribution } from "./agent-skills";
+import type { AgentSystemPromptContribution } from "./agent-system-prompt";
 import type {
   AgentToolContribution,
   AgentToolOverrideContribution,
 } from "./agent-tools";
-import type { AgentSystemPromptContribution } from "./agent-system-prompt";
-import type { AgentSkillContribution } from "./agent-skills";
-import type { TurnStateContributions } from "./turn-state";
-import type { AgentContextContribution } from "./agent-context";
-import type { ResourceContribution } from "./resources";
+import type {
+  ChannelContribution,
+  FeatureEventPublisherFactory,
+} from "./channels";
 import type { DocumentStoreFactory } from "./documents";
 import type { FeatureLogger } from "./log";
+import type { ResourceContribution } from "./resources";
 import type {
   SettingsDefinition,
   SettingsHandle,
   SettingsHandleFrom,
 } from "./settings";
+import type { TurnStateContributions } from "./turn-state";
 
-export type { ChannelContribution } from "./channels";
+export type { AgentContextContribution } from "./agent-context";
+export type { AgentSkillContribution } from "./agent-skills";
+export type { AgentSystemPromptContribution } from "./agent-system-prompt";
 export type {
   AgentToolContribution,
   AgentToolOverrideContribution,
 } from "./agent-tools";
-export type { AgentSystemPromptContribution } from "./agent-system-prompt";
-export type { AgentSkillContribution } from "./agent-skills";
+export type { ChannelContribution } from "./channels";
+export type { DocumentStoreFactory } from "./documents";
+export type { FeatureLogger } from "./log";
+export type { ResourceContribution } from "./resources";
+export type { SettingsDefinition, SettingsHandle } from "./settings";
 export type {
   TurnStateCellDefinition,
   TurnStateContributions,
 } from "./turn-state";
-export type { AgentContextContribution } from "./agent-context";
-export type { ResourceContribution } from "./resources";
-export type { DocumentStoreFactory } from "./documents";
-export type { FeatureLogger } from "./log";
-export type { SettingsDefinition, SettingsHandle } from "./settings";
 
 export interface FeatureContext {
   documents: DocumentStoreFactory;

@@ -14,17 +14,16 @@
 
 import { Type } from "typebox";
 
-import { CanvasKeyDescription, CanvasKeySchema } from "../../shared/addressing";
 import type {
   AgentToolContribution,
   AgentToolDefinition,
 } from "@uix/api/agent-tools";
-import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
-import type { CanvasContext } from "../context";
-
-import { formatChangeHunks } from "../anchored-format";
 
 import { publishCanvasChanged } from "./channels";
+import { CanvasKeyDescription, CanvasKeySchema } from "../../shared/addressing";
+import { formatChangeHunks } from "../anchored-format";
+import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
+import type { CanvasContext } from "../context";
 
 const keyDescription = `Canvas key (not a filesystem path): ${CanvasKeyDescription}, e.g. main or reports/security-review.`;
 const CanvasKeyToolParamSchema = {

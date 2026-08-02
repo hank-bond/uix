@@ -10,6 +10,7 @@ import type {
   ProviderAuthType,
 } from "@uix/api/agent-channels";
 import type { ChannelClient } from "@uix/api/workspace";
+
 import { getInitialModelScope, type ModelPickerScope } from "./model-filter";
 
 type AgentChannelClient = ChannelClient<typeof agentChannels>;

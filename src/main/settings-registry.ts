@@ -11,9 +11,10 @@
 // location choreography, while the schema logic stays in the pure
 // `hydrateSettings` pass.
 
-import type { SettingsDefinition, SettingsHandle } from "@uix/api/settings";
 import type { TSchema } from "typebox";
 import { Value } from "typebox/value";
+
+import type { SettingsDefinition, SettingsHandle } from "@uix/api/settings";
 
 import { disposable } from "./lifecycle";
 

@@ -1,5 +1,6 @@
+import { type Static, Type } from "typebox";
+
 import { SessionIdSchema } from "@uix/api/agent-channels";
-import { Type, type Static } from "typebox";
 
 import { defineWorkspaceSettingsNamespace } from "../workspace-settings-namespace";
 

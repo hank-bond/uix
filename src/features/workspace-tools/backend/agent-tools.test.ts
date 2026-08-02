@@ -3,12 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { describe, expect, it } from "vitest";
 import { Value } from "typebox/value";
+import { describe, expect, it } from "vitest";
 
-import { feature } from "../index";
-import { createWorkspaceToolOverrideContributions } from "./agent-tools";
 import type { AgentToolDefinition } from "@uix/api/agent-tools";
+
+import { createWorkspaceToolOverrideContributions } from "./agent-tools";
+import { feature } from "../index";
 
 function tool(
   name: "read" | "write" | "edit" | "command",

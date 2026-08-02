@@ -1,5 +1,3 @@
-import { describe, expect, it } from "vitest";
-
 import type {
   ExtensionAPI,
   ExtensionContext,
@@ -7,37 +5,36 @@ import type {
   SessionManager,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
+import { describe, expect, it } from "vitest";
 
+import { createFeatureEventPublisher } from "@uix/api/channels";
+import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
+import type { FeatureContext } from "@uix/api/feature";
+import { createSystemPromptAssembler } from "#backend/agent/system-prompt";
 import {
   AgentContextRegistry,
   assembleAgentContextMessage,
   assembleAgentContextVocabularySection,
   registerAgentContextContributions,
 } from "#backend/agent-context/registry";
-import { createSystemPromptAssembler } from "#backend/agent/system-prompt";
 import {
-  createAgentToolInstaller,
   AgentToolRegistry,
+  createAgentToolInstaller,
   registerAgentToolContributions,
 } from "#backend/agent-tools/registry";
 import {
-  createTurnStateInstaller,
   commitCurrentTurnState,
-  TurnStateRegistry,
+  createTurnStateInstaller,
   registerTurnStateContributions,
+  TurnStateRegistry,
 } from "#backend/turn-state/registry";
 
-import { createFeatureEventPublisher } from "@uix/api/channels";
-
-import { CanvasDocumentBuffer } from "../document-buffer";
-import { canvasChannels } from "../../shared/channels";
-import type { CanvasContext } from "../context";
-import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
-import type { FeatureContext } from "@uix/api/feature";
-
+import { createCanvasAgentContextContributions } from "./agent-context";
 import { createCanvasAgentToolContributions } from "./agent-tools";
 import { createCanvasTurnStateContributions } from "./turn-state";
-import { createCanvasAgentContextContributions } from "./agent-context";
+import { canvasChannels } from "../../shared/channels";
+import type { CanvasContext } from "../context";
+import { CanvasDocumentBuffer } from "../document-buffer";
 
 function memoryStore(): DocumentStore {
   const map = new Map<string, string>();
@@ -303,7 +300,7 @@ describe("canvas agent tool contributions", () => {
       },
     ]);
 
-    const content = (await flushContext());
+    const content = await flushContext();
     if (!content) throw new Error("missing flushed context");
     expect(content.content).toContain("<canvas.canvas-diff>");
     expect(content.content).toContain("## main");

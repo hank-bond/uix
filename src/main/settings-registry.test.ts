@@ -1,7 +1,8 @@
-import { KeybindingMapSchema } from "@uix/api/actions";
-import { defineSettings } from "@uix/api/settings";
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
+
+import { KeybindingMapSchema } from "@uix/api/actions";
+import { defineSettings } from "@uix/api/settings";
 
 import { DisposableBag } from "./lifecycle";
 import {
@@ -261,9 +262,7 @@ describe("SettingsRegistry", () => {
 
     expect(() => {
       registry.set("agent", "favorite", undefined);
-    }).toThrow(
-      "favorite cannot be undefined",
-    );
+    }).toThrow("favorite cannot be undefined");
     expect(registry.get("agent", "favorite")).toBeUndefined();
     expect(written).toEqual([]);
     expect(changes).toEqual([]);
@@ -385,9 +384,7 @@ describe("SettingsRegistry", () => {
     expect(registry.get("keybindings", "chat.disabled")).toBeNull();
     expect(() => {
       registry.set("keybindings", "Chat models", "mod+m");
-    }).toThrow(
-      "Unknown setting",
-    );
+    }).toThrow("Unknown setting");
     expect(() => {
       registry.set("keybindings", "chat.bad", "shift m");
     }).toThrow();

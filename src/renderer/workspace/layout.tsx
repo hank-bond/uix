@@ -10,18 +10,19 @@
 // workspace. Surface definitions live with their features; channel
 // clients are created by the surface host, not by feature code.
 
-import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { JSX } from "react";
+import { Component, type ReactNode, useEffect, useMemo, useState } from "react";
 
-import { uixChannels, type SurfaceEntry } from "#shared/ipc";
 import {
   createChannelClient,
   createFeatureSettingsClient,
   FeatureActionsProvider,
   FeatureSettingsProvider,
-  useWorkspaceClient,
   type SurfaceContribution,
+  useWorkspaceClient,
 } from "@uix/api/workspace";
+import { type SurfaceEntry, uixChannels } from "#shared/ipc";
+
 import { useActionRegistry } from "./action-context";
 
 /** The composed surface list plus where it came from (or didn't). */

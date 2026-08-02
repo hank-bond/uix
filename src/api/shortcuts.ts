@@ -1,4 +1,4 @@
-import { Type, type Static } from "typebox";
+import { type Static, Type } from "typebox";
 
 const shortcutModifiers = ["mod", "ctrl", "alt", "shift"] as const;
 const resolvedShortcutModifiers = ["meta", "ctrl", "alt", "shift"] as const;

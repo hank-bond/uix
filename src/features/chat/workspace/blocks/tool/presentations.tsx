@@ -7,12 +7,12 @@ import {
 } from "./content/CommandToolContent";
 import { DefaultToolContent } from "./content/DefaultToolContent";
 import { FileToolContent } from "./content/FileToolContent";
-import { toToolDisplayName } from "./presentation";
 import type {
   ToolChatBlockPresentation,
   ToolItem,
   ToolState,
 } from "./presentation";
+import { toToolDisplayName } from "./presentation";
 
 interface ToolChatBlockPresentationPolicyProps {
   item: ToolItem;

@@ -1,6 +1,6 @@
-import { describe, expect, it, vi, type Mock } from "vitest";
-
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import { describe, expect, it, type Mock, vi } from "vitest";
+
 import type {
   ProviderAuthFlowSnapshot,
   ProviderAuthType,

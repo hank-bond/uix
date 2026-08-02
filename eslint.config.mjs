@@ -27,9 +27,9 @@ import { builtinModules } from "node:module";
 
 import js from "@eslint/js";
 import prettier from "eslint-config-prettier";
-import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
+import globals from "globals";
 import tseslint from "typescript-eslint";
 
 const bareNodeBuiltinImports = builtinModules

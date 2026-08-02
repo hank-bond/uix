@@ -2,16 +2,16 @@ import type { JSX } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import type {
+  ActionCatalogEntry,
+  ActionInvocationResult,
+} from "@uix/api/actions";
 import {
   useActionCatalog,
   useActionContribution,
   useInvokeAction,
   WorkspaceActionsProvider,
 } from "@uix/api/workspace";
-import type {
-  ActionCatalogEntry,
-  ActionInvocationResult,
-} from "@uix/api/actions";
 
 const catalogEntry: ActionCatalogEntry = {
   id: "chat.models.favorites",

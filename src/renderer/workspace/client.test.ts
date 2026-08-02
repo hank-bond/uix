@@ -1,13 +1,13 @@
-import { describe, expect, it, vi, type Mock } from "vitest";
+import { describe, expect, it, type Mock, vi } from "vitest";
 
-import { canvasChannels } from "#features/canvas/shared/channels";
-import { parseCanvasKey } from "#features/canvas/shared/addressing";
 import { agentChannels } from "@uix/api/agent-channels";
 import {
   createChannelClient,
   createFeatureSettingsClient,
   type WorkspaceClient,
 } from "@uix/api/workspace";
+import { parseCanvasKey } from "#features/canvas/shared/addressing";
+import { canvasChannels } from "#features/canvas/shared/channels";
 
 function fakeWorkspaceClient(): {
   client: WorkspaceClient;

@@ -1,12 +1,12 @@
+import type { JSX } from "react";
 import {
+  type RefObject,
   useCallback,
   useEffect,
   useId,
   useRef,
   useState,
-  type RefObject,
 } from "react";
-import type { JSX } from "react";
 
 import type { SessionSummary } from "@uix/api/agent-channels";
 import { useWorkspaceSession } from "@uix/api/workspace";

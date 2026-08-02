@@ -11,25 +11,24 @@
 
 import { protocol } from "electron";
 
-import type { ResourceCanonicalId } from "#shared/resource-canonical-id";
-import { toResourceCanonicalId } from "#shared/resource-canonical-id";
 import {
-  toContributionId,
   type ContributionId,
+  toContributionId,
 } from "@uix/api/contribution-id";
 import {
-  decodeResourceUrl,
-  ResourceProtocolScheme,
   type DecodedResourceUrl,
+  decodeResourceUrl,
   type NormalizedResourceRoute,
+  ResourceProtocolScheme,
 } from "@uix/api/resource-routes";
-
-import { DisposableBag, disposable } from "../lifecycle";
-
 import type {
   ResourceContribution,
   ResourceRequestContext,
 } from "@uix/api/resources";
+import type { ResourceCanonicalId } from "#shared/resource-canonical-id";
+import { toResourceCanonicalId } from "#shared/resource-canonical-id";
+
+import { disposable, DisposableBag } from "../lifecycle";
 
 interface ResolvedResourceContribution {
   readonly featureId: string;

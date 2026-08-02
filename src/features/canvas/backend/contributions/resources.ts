@@ -1,13 +1,13 @@
 // canvas resource contributions.
 
+import type { ResourceContribution } from "@uix/api/resources";
+
 import {
   CanvasResourceName,
   CanvasResourceRoute,
   parseCanvasKeyRouteParam,
 } from "../../shared/addressing";
-import type { ResourceContribution } from "@uix/api/resources";
 import type { CanvasContext } from "../context";
-
 import { injectCanvasShim } from "../shim";
 
 export function createCanvasResourceContributions(

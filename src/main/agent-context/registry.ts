@@ -31,27 +31,27 @@ import type {
 import type { TSchema } from "typebox";
 import { Value } from "typebox/value";
 
-import { createLogger } from "../log";
-import { DisposableBag } from "../lifecycle";
-import { createTurnStateHistoryReader } from "../turn-state/registry";
-
 import type {
+  AgentContextAppender,
   AgentContextContribution,
   AgentContextMaterialization,
   AgentContextUpdater,
-  AgentContextAppender,
-  UpdateContribution,
   AppendContribution,
   MaterializedContribution,
+  UpdateContribution,
 } from "@uix/api/agent-context";
+
 import {
-  resolveAgentContextContribution,
   type AgentContextCanonicalId,
+  resolveAgentContextContribution,
   type ResolvedAgentContextAppendContribution,
   type ResolvedAgentContextContributionBase,
   type ResolvedAgentContextMaterializedContribution,
   type ResolvedAgentContextUpdateContribution,
 } from "./resolution";
+import { DisposableBag } from "../lifecycle";
+import { createLogger } from "../log";
+import { createTurnStateHistoryReader } from "../turn-state/registry";
 
 const log = createLogger("agent-context");
 

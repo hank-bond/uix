@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
 import type { JSX } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import type {
   ProviderAuthFlowSnapshot,
@@ -7,8 +7,8 @@ import type {
 } from "@uix/api/agent-channels";
 
 import type { AgentControls } from "./agent-controls";
-import { ProviderAuthFlowPanel } from "./ProviderAuthFlowPanel";
 import { deriveProviderAuthRows } from "./provider-auth-presentation";
+import { ProviderAuthFlowPanel } from "./ProviderAuthFlowPanel";
 
 export function ProviderLoginModal({
   controls,

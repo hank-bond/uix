@@ -6,15 +6,15 @@
 // Today that adapter is Electron IPC, but the contribution model is intentionally
 // transport-neutral.
 
+import type { TSchema } from "typebox";
+
 import type {
   ChannelContribution,
   ChannelEventContribution,
   ChannelRequestContribution,
   ChannelRequestLogOptions,
 } from "./channels";
-import type { TSchema } from "typebox";
-
-import { toContributionId, type ContributionId } from "./contribution-id";
+import { type ContributionId, toContributionId } from "./contribution-id";
 
 /**
  * Canonical channel id: the transport address. The format drops the facet

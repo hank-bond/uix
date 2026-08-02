@@ -3,11 +3,10 @@
 // derive the same id replay produces, and the wrapper stays a pass-through.
 
 import type { SessionManager } from "@earendil-works/pi-coding-agent";
+import { describe, expect, it, type Mock, vi } from "vitest";
 
-import { describe, expect, it, vi, type Mock } from "vitest";
-
-import { createTranscriptItemIdentity } from "./transcript-item-identity";
 import { deriveTranscriptItems } from "./transcript";
+import { createTranscriptItemIdentity } from "./transcript-item-identity";
 
 function fakeManager(): {
   manager: SessionManager;

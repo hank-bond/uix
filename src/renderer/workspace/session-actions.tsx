@@ -1,5 +1,5 @@
-import { useMemo } from "react";
 import type { JSX } from "react";
+import { useMemo } from "react";
 
 import type { ActionContribution } from "@uix/api/actions";
 import { useActionContribution } from "@uix/api/workspace";

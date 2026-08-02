@@ -1,7 +1,8 @@
 import type { JSX } from "react";
+
 import { truncateText } from "../../content/text";
-import { toToolPayloadText } from "../presentation";
 import type { ToolItem } from "../presentation";
+import { toToolPayloadText } from "../presentation";
 
 export function DefaultToolContent({ item }: { item: ToolItem }): JSX.Element {
   const payload = toToolPayloadText(item);

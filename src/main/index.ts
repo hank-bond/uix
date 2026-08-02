@@ -11,12 +11,65 @@
 // land in a single `appBag`. One dispose on `will-quit` tears the whole
 // tree down. See docs/architecture/conventions/lifetimes.md.
 
-import { app, BrowserWindow, dialog, shell } from "electron";
 import fs from "node:fs";
 import { basename, join } from "node:path";
 import process from "node:process";
 
-import { type AgentEvent, agentChannels } from "@uix/api/agent-channels";
+import { app, BrowserWindow, dialog, shell } from "electron";
+
+import { agentChannels, type AgentEvent } from "@uix/api/agent-channels";
+import { withHandlers } from "@uix/api/channels";
+
+import { createAgentDriver } from "./agent/driver";
+import { sessionWorkspaceSettings } from "./agent/session-settings";
+import { agentWorkspaceSettings } from "./agent/settings";
+import { AgentContextRegistry } from "./agent-context/registry";
+import { AgentSkillRegistry } from "./agent-skills/registry";
+import { AgentSystemPromptRegistry } from "./agent-system-prompt/registry";
+import {
+  AgentToolRegistry,
+  createAgentToolInstaller,
+} from "./agent-tools/registry";
+import {
+  ChannelRegistry,
+  createFeatureEventPublisherFactory,
+  registerChannelContributions,
+} from "./channels/registry";
+import { createLocalDocumentStoreFactory } from "./documents/store";
+import { bindExternalWebLinks } from "./external-links";
+import { registerFeaturePreflightContributions } from "./features/contributions";
+import {
+  type ActivationResult,
+  type FeatureSources,
+  type FeatureSubstrate,
+  loadFeatures,
+} from "./features/loader";
+import { WorkspaceManifestFileName } from "./features/manifest";
+import { scaffoldWorkspace } from "./features/scaffold";
+import { SurfaceModulePipeline } from "./features/surface-pipeline";
+import { SurfaceRegistry } from "./features/surfaces";
+import * as ipc from "./ipc";
+import { createKeybindingRequestHandlers } from "./keybindings/requests";
+import { keybindingsWorkspaceSettings } from "./keybindings/settings";
+import {
+  disposable,
+  DisposableBag,
+  installProcessHandlers,
+  onApp,
+  onWindow,
+} from "./lifecycle";
+import { createLogger } from "./log";
+import { createRecentsStore, type RecentsStore } from "./recents";
+import {
+  registerResourceContributions,
+  ResourceRegistry,
+} from "./resources/registry";
+import { SettingsRegistry } from "./settings-registry";
+import { TurnStateRegistry } from "./turn-state/registry";
+import { resolveWorkspace, type Workspace } from "./workspace";
+import { WorkspaceManifestStore } from "./workspace-manifest-store";
+import { createWorkspaceReloadCoordinator } from "./workspace-reload";
+import { createWorkspaceSettings } from "./workspace-settings";
 import {
   Channels,
   type PickerActionResult,
@@ -26,57 +79,6 @@ import {
   type ReloadResult,
   uixChannels,
 } from "../shared/ipc";
-import { createAgentDriver } from "./agent/driver";
-import { AgentContextRegistry } from "./agent-context/registry";
-import { AgentSystemPromptRegistry } from "./agent-system-prompt/registry";
-import { AgentSkillRegistry } from "./agent-skills/registry";
-import {
-  createAgentToolInstaller,
-  AgentToolRegistry,
-} from "./agent-tools/registry";
-import { withHandlers } from "@uix/api/channels";
-import {
-  ChannelRegistry,
-  createFeatureEventPublisherFactory,
-  registerChannelContributions,
-} from "./channels/registry";
-import { TurnStateRegistry } from "./turn-state/registry";
-import { createLocalDocumentStoreFactory } from "./documents/store";
-import { bindExternalWebLinks } from "./external-links";
-import { registerFeaturePreflightContributions } from "./features/contributions";
-import {
-  loadFeatures,
-  type ActivationResult,
-  type FeatureSources,
-  type FeatureSubstrate,
-} from "./features/loader";
-import { WorkspaceManifestFileName } from "./features/manifest";
-import { scaffoldWorkspace } from "./features/scaffold";
-import { SurfaceModulePipeline } from "./features/surface-pipeline";
-import { SurfaceRegistry } from "./features/surfaces";
-import { createRecentsStore, type RecentsStore } from "./recents";
-import {
-  registerResourceContributions,
-  ResourceRegistry,
-} from "./resources/registry";
-import { resolveWorkspace, type Workspace } from "./workspace";
-import * as ipc from "./ipc";
-import {
-  disposable,
-  DisposableBag,
-  installProcessHandlers,
-  onApp,
-  onWindow,
-} from "./lifecycle";
-import { createLogger } from "./log";
-import { agentWorkspaceSettings } from "./agent/settings";
-import { sessionWorkspaceSettings } from "./agent/session-settings";
-import { createKeybindingRequestHandlers } from "./keybindings/requests";
-import { keybindingsWorkspaceSettings } from "./keybindings/settings";
-import { SettingsRegistry } from "./settings-registry";
-import { WorkspaceManifestStore } from "./workspace-manifest-store";
-import { createWorkspaceReloadCoordinator } from "./workspace-reload";
-import { createWorkspaceSettings } from "./workspace-settings";
 
 const isDev = !app.isPackaged;
 const LocalWorkspaceId = "local";

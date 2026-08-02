@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { createFeatureEventPublisher } from "@uix/api/channels";
-
 import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
 import type { FeatureContext } from "@uix/api/feature";
+
+import { createCanvasResourceContributions } from "./resources";
 import { canvasChannels } from "../../shared/channels";
 import type { CanvasContext } from "../context";
 import { CanvasDocumentBuffer } from "../document-buffer";
-
-import { createCanvasResourceContributions } from "./resources";
 
 function memoryStore(initial: Record<string, string> = {}): DocumentStore {
   const current = new Map(Object.entries(initial));

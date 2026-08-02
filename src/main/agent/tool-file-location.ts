@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
-import process from "node:process";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import type { ToolFileLocation } from "@uix/api/agent-channels";

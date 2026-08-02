@@ -2,14 +2,15 @@ import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
 import {
-  ResourceRegistry,
-  registerResourceContributions,
-  registerResourceProtocol,
-} from "./registry";
-import {
   normalizeResourceRoute,
   ResourceProtocolScheme,
 } from "@uix/api/resource-routes";
+
+import {
+  registerResourceContributions,
+  registerResourceProtocol,
+  ResourceRegistry,
+} from "./registry";
 
 function fakeTransport(): {
   handlers: Map<string, (request: Request) => Response | Promise<Response>>;

@@ -1,14 +1,13 @@
+import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
-import { Type } from "typebox";
-
+import type { AgentToolDefinition } from "./resolution";
 import {
-  toAgentToolCanonicalId,
-  toAgentToolOverrideCanonicalId,
   resolveAgentToolContribution,
   resolveAgentToolOverrideContribution,
+  toAgentToolCanonicalId,
+  toAgentToolOverrideCanonicalId,
 } from "./resolution";
-import type { AgentToolDefinition } from "./resolution";
 
 const emptyParams = Type.Object({});
 

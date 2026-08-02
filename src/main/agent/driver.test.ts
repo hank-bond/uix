@@ -6,8 +6,8 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { Type } from "typebox";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 import type { AgentStatus, ModelRef } from "@uix/api/agent-channels";
 import type {
@@ -15,15 +15,15 @@ import type {
   SettingsHandleFrom,
   SettingsValues,
 } from "@uix/api/settings";
+
+import { type AgentDriver, createAgentDriver } from "./driver";
+import { sessionWorkspaceSettings } from "./session-settings";
+import { agentWorkspaceSettings } from "./settings";
 import {
   registerTurnStateContributions,
   TurnStateRegistry,
 } from "../turn-state/registry";
-
-import { createAgentDriver, type AgentDriver } from "./driver";
 import type { Workspace } from "../workspace";
-import { agentWorkspaceSettings } from "./settings";
-import { sessionWorkspaceSettings } from "./session-settings";
 
 interface FakeModel {
   provider: string;

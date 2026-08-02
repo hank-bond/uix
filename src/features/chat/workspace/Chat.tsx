@@ -4,23 +4,24 @@
 // durable items; live events append the same items, stream compact partials
 // into them, and replace them whole at completion.
 
+import type { JSX } from "react";
 import {
+  type FormEvent,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
-  type FormEvent,
 } from "react";
-import type { JSX } from "react";
 
 import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
+import type { agentChannels } from "@uix/api/agent-channels";
 import {
+  type ChannelClient,
   useFeatureSetting,
   useWorkspaceSession,
-  type ChannelClient,
 } from "@uix/api/workspace";
-import type { agentChannels } from "@uix/api/agent-channels";
-import { useAgentControls, type AgentControls } from "./agent-controls";
+
+import { type AgentControls, useAgentControls } from "./agent-controls";
 import { ChatBlock } from "./blocks/ChatBlock";
 import { ModelPill } from "./ModelPill";
 import { isPendingUserId, pendingUserId } from "./pending";

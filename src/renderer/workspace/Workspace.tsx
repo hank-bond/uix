@@ -7,8 +7,8 @@
 // blank window — which of the two empty states (no manifest vs. no surfaces)
 // it names, so the create-manifest-after-boot flow is visible instead of dark.
 
-import { Fragment, useMemo, type ReactNode } from "react";
 import type { JSX } from "react";
+import { Fragment, type ReactNode, useMemo } from "react";
 import {
   Group as ResizablePanelGroup,
   Panel as ResizablePanel,
@@ -16,17 +16,18 @@ import {
   useDefaultLayout,
 } from "react-resizable-panels";
 
-import {
-  useRuntimeSurface,
-  useSurfaces,
-  type SurfaceComposition,
-} from "./layout";
-import type { SurfaceEntry } from "#shared/ipc";
 import { FeatureActionsProvider } from "@uix/api/workspace";
-import { ActionRegistry } from "./action-registry";
+import type { SurfaceEntry } from "#shared/ipc";
+
 import { ActionRegistryProvider } from "./action-context";
 import { ActionKeyboardDispatcher } from "./action-keyboard-dispatcher";
+import { ActionRegistry } from "./action-registry";
 import { KeybindingSync } from "./keybinding-sync";
+import {
+  type SurfaceComposition,
+  useRuntimeSurface,
+  useSurfaces,
+} from "./layout";
 import { WorkspaceSessionActions } from "./session-actions";
 import { WorkspaceSessionControllerProvider } from "./session-context";
 import { toShortcutPlatform } from "./shortcut-platform";

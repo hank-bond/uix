@@ -5,12 +5,16 @@
 // register functions and the per-facet registry shape
 // (FeatureContributionRegistries).
 
+import type { FeatureContributions, FeatureDefinition } from "@uix/api/feature";
+
+import type { SurfaceRegistry } from "./surfaces";
+import { registerSurfaceContributions } from "./surfaces";
 import type { AgentContextRegistry } from "../agent-context/registry";
 import { registerAgentContextContributions } from "../agent-context/registry";
-import type { AgentSystemPromptRegistry } from "../agent-system-prompt/registry";
-import { registerAgentSystemPromptContribution } from "../agent-system-prompt/registry";
 import type { AgentSkillRegistry } from "../agent-skills/registry";
 import { registerAgentSkillContributions } from "../agent-skills/registry";
+import type { AgentSystemPromptRegistry } from "../agent-system-prompt/registry";
+import { registerAgentSystemPromptContribution } from "../agent-system-prompt/registry";
 import type { AgentToolRegistry } from "../agent-tools/registry";
 import {
   registerAgentToolContributions,
@@ -29,10 +33,6 @@ import {
 } from "../resources/registry";
 import type { TurnStateRegistry } from "../turn-state/registry";
 import { registerTurnStateContributions } from "../turn-state/registry";
-import type { SurfaceRegistry } from "./surfaces";
-import { registerSurfaceContributions } from "./surfaces";
-
-import type { FeatureDefinition, FeatureContributions } from "@uix/api/feature";
 
 export interface FeatureContributionRegistries {
   resources?: ResourceRegistry;

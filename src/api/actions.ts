@@ -1,9 +1,9 @@
-import { Type, type Static } from "typebox";
+import { type Static, Type } from "typebox";
 
 import {
-  ShortcutSchema,
   type ResolvedShortcut,
   type Shortcut,
+  ShortcutSchema,
 } from "./shortcuts";
 
 const actionIdTokenPattern = "[a-z][a-z0-9_-]*";

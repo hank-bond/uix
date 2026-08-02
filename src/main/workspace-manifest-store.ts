@@ -12,8 +12,8 @@ import path from "node:path";
 import process from "node:process";
 
 import {
-  parseWorkspaceManifest,
   type ParsedWorkspaceManifest,
+  parseWorkspaceManifest,
 } from "./features/manifest";
 import { createLogger } from "./log";
 

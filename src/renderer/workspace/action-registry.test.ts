@@ -68,9 +68,7 @@ describe("ActionRegistry", () => {
     expect(registry.getCatalogSnapshot()).toEqual([]);
     expect(() => {
       updater.update({});
-    }).toThrow(
-      "Action contribution updater is disposed",
-    );
+    }).toThrow("Action contribution updater is disposed");
     expect(listener).toHaveBeenCalledTimes(3);
     unsubscribe();
   });

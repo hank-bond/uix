@@ -15,16 +15,16 @@ import type { TSchema } from "typebox";
 import {
   encodeResourceOrigin,
   encodeResourceUrl,
-  normalizeResourceRoute,
   type NormalizedResourceRoute,
+  normalizeResourceRoute,
   type ResourceOrigin,
   type ResourceRouteParams,
   type ResourceUrl,
 } from "./resource-routes";
 
 export type {
-  ResourceRouteParamValue,
   ResourceRouteParams,
+  ResourceRouteParamValue,
   ResourceUrl,
 } from "./resource-routes";
 

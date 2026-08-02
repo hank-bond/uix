@@ -1,5 +1,7 @@
 import type { JSX } from "react";
+
 import type { TranscriptItem } from "@uix/api/agent-channels";
+
 import { CustomMessageChatBlock } from "./CustomMessageChatBlock";
 import { ErrorChatBlock } from "./ErrorChatBlock";
 import { MessageChatBlock } from "./MessageChatBlock";

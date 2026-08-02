@@ -1,7 +1,7 @@
+import { describe, expect, it, type Mock, vi } from "vitest";
+
 import type { KeybindingMap } from "@uix/api/actions";
 import type { ChannelClient } from "@uix/api/workspace";
-import { describe, expect, it, vi, type Mock } from "vitest";
-
 import type { uixChannels } from "#shared/ipc";
 
 import { ActionRegistry } from "./action-registry";

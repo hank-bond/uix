@@ -8,18 +8,18 @@
 // keep their authored Pi name. The registry deduplicates contribution ids and
 // final names, then installs one snapshot into Pi.
 
-import { DisposableBag } from "../lifecycle";
-
-import {
-  type ResolvedAgentToolContribution,
-  resolveAgentToolContribution,
-  resolveAgentToolOverrideContribution,
-} from "./resolution";
-import type { AgentInstaller } from "../agent/installers";
 import type {
   AgentToolContribution,
   AgentToolOverrideContribution,
 } from "@uix/api/agent-tools";
+
+import {
+  resolveAgentToolContribution,
+  resolveAgentToolOverrideContribution,
+  type ResolvedAgentToolContribution,
+} from "./resolution";
+import type { AgentInstaller } from "../agent/installers";
+import { DisposableBag } from "../lifecycle";
 
 export class AgentToolRegistry {
   readonly #registeredTools: ResolvedAgentToolContribution[] = [];

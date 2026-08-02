@@ -27,24 +27,24 @@ import { createHash } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
 import { extname, join, relative, resolve, sep } from "node:path";
 
-import { build } from "esbuild";
 import type { Plugin } from "esbuild";
+import { build } from "esbuild";
 import { Type } from "typebox";
 
-import type { ResourceContribution } from "@uix/api/resources";
-import type { SurfaceEntry } from "#shared/ipc";
 import {
   encodeResourceUrl,
   normalizeResourceRoute,
   ResourceProtocolScheme,
 } from "@uix/api/resource-routes";
+import type { ResourceContribution } from "@uix/api/resources";
+import type { SurfaceEntry } from "#shared/ipc";
 import {
   SurfaceSharedGlobal,
   SurfaceSharedModules,
 } from "#shared/surface-shared-modules";
 
-import { createLogger } from "../log";
 import type { ResolvedSurfaceContribution } from "./surfaces";
+import { createLogger } from "../log";
 
 const log = createLogger("surfaces");
 

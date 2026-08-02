@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { AnchorPool } from "./pool";
-
 import { AnchoredDocument, diffAnchoredSnapshots } from "./document";
+import { AnchorPool } from "./pool";
 
 function testAllocate() {
   const pool = new AnchorPool("A\nB\nC\nD\nE\nF\nG\nH\nI\nJ\nK\nL\n");

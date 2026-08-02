@@ -11,14 +11,13 @@ import { describe, expect, it } from "vitest";
 
 import type { DocumentStoreFactory } from "@uix/api/documents";
 
+import { type FeatureSubstrate, loadFeatures } from "./loader";
+import { WorkspaceManifestFileName } from "./manifest";
+import { SurfaceRegistry } from "./surfaces";
 import { AgentToolRegistry } from "../agent-tools/registry";
 import { ChannelRegistry } from "../channels/registry";
 import { DisposableBag } from "../lifecycle";
 import { WorkspaceManifestStore } from "../workspace-manifest-store";
-
-import { loadFeatures, type FeatureSubstrate } from "./loader";
-import { WorkspaceManifestFileName } from "./manifest";
-import { SurfaceRegistry } from "./surfaces";
 
 const documents: DocumentStoreFactory = {
   createStore: () => {

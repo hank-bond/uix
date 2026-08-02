@@ -1,20 +1,20 @@
 import type {
-  ActionContribution,
   ActionCatalog,
   ActionCatalogEntry,
-  ActionId,
-  ActionContributionUpdater,
-  ActionRunner,
-  ActionInvocationResult,
-  KeybindingMap,
+  ActionContribution,
   ActionContributionRegistrar,
+  ActionContributionUpdater,
+  ActionId,
+  ActionInvocationResult,
+  ActionRunner,
+  KeybindingMap,
 } from "@uix/api/actions";
 import type { ShortcutPlatform } from "@uix/api/shortcuts";
 
 import { deriveActionBindingProjectionForPlatform } from "./action-binding-projection";
 import {
-  resolveActionContribution,
   type ActionDefaultBindingMap,
+  resolveActionContribution,
   type ResolvedActionContribution,
 } from "./action-resolution";
 

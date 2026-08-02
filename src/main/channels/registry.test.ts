@@ -1,24 +1,23 @@
+import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
-import { Type } from "typebox";
-
 import { agentChannels, type AgentStatus } from "@uix/api/agent-channels";
+import {
+  type ChannelCanonicalId,
+  toChannelCanonicalId,
+} from "@uix/api/channel-resolution";
 import {
   type ChannelEventLogOptions,
   type ChannelRequestLogOptions,
   withHandlers,
 } from "@uix/api/channels";
+import { toContributionId } from "@uix/api/contribution-id";
 
 import {
   ChannelRegistry,
   createFeatureEventPublisherFactory,
   registerChannelContributions,
 } from "./registry";
-import {
-  toChannelCanonicalId,
-  type ChannelCanonicalId,
-} from "@uix/api/channel-resolution";
-import { toContributionId } from "@uix/api/contribution-id";
 
 function fakeTransport(): {
   handlers: Map<string, (req: unknown) => Promise<unknown>>;
@@ -190,9 +189,7 @@ describe("ChannelRegistry", () => {
     const channelDisposable = registry.register(resolvedContribution);
     expect(() => {
       channelDisposable[Symbol.dispose]();
-    }).toThrow(
-      "transport disposal failed",
-    );
+    }).toThrow("transport disposal failed");
     disposalThrows = false;
     expect(() => registry.register(resolvedContribution)).not.toThrow();
   });

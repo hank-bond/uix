@@ -1,6 +1,4 @@
-import type { Static, TSchema } from "typebox";
-import { Value } from "typebox/value";
-import type { SessionSummary, TranscriptSnapshot } from "./agent-channels";
+import type { ReactNode } from "react";
 import {
   createContext,
   createElement,
@@ -13,10 +11,13 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import type { ReactNode } from "react";
+import type { Static, TSchema } from "typebox";
+import { Value } from "typebox/value";
+
+import type { SessionSummary, TranscriptSnapshot } from "./agent-channels";
 import { toChannelCanonicalId } from "./channel-resolution";
-import { isIdToken } from "./contribution-id";
 import type { ChannelContract } from "./channels";
+import { isIdToken } from "./contribution-id";
 import {
   FeatureSettingValueEnvelopeSchema,
   type SettingsDefinition,
@@ -27,17 +28,17 @@ export type {
   ActionCatalogEntry,
   ActionContribution,
   ActionGroupContribution,
-  ActionLeafContribution,
   ActionInvocationResult,
+  ActionLeafContribution,
   ActionNotInvokedReason,
   ActionRunner,
 } from "./actions";
 import type {
   ActionCatalog,
   ActionContribution,
+  ActionContributionRegistrar,
   ActionContributionUpdater,
   ActionInvocationResult,
-  ActionContributionRegistrar,
 } from "./actions";
 
 const ActionContributionRegistrarContext = createContext<

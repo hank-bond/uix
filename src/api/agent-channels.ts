@@ -7,7 +7,7 @@
 // handlers via `withHandlers` in the composition root; frontends derive a
 // typed client via `createChannelClient`.
 
-import { Type, type Static } from "typebox";
+import { type Static, Type } from "typebox";
 
 import type { ChannelContract } from "./channels";
 

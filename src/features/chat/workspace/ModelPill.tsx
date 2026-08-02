@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 import {
   useEffect,
   useId,
@@ -6,19 +7,18 @@ import {
   useRef,
   useState,
 } from "react";
-import type { JSX } from "react";
 
 import type { ModelCatalogEntry } from "@uix/api/agent-channels";
 import { useActionContribution } from "@uix/api/workspace";
 
 import type { AgentControls } from "./agent-controls";
+import { createModelActions } from "./model-actions";
 import {
   filterModels,
   getModelsForScope,
   type ModelPickerScope,
   toModelSource,
 } from "./model-filter";
-import { createModelActions } from "./model-actions";
 
 export function ModelPill({
   controls,

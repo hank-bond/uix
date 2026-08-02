@@ -3,8 +3,8 @@
 // The workspace runs directly in the BrowserWindow — no iframe, no sandbox.
 // Multi-workspace isolation comes from separate BrowserWindows.
 
-import type { ChannelTransport } from "#shared/ipc";
 import type { WorkspaceClient } from "@uix/api/workspace";
+import type { ChannelTransport } from "#shared/ipc";
 
 export const LocalWorkspaceId = "local";
 

@@ -3,13 +3,13 @@ import type {
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { describe, expect, it, vi, type Mock } from "vitest";
+import { describe, expect, it, type Mock, vi } from "vitest";
 
+import { createTurnStateCoordinator } from "./turn-state-coordinator";
 import {
   registerTurnStateContributions,
   TurnStateRegistry,
 } from "../turn-state/registry";
-import { createTurnStateCoordinator } from "./turn-state-coordinator";
 
 function turnStateEntry(state: Record<string, unknown>): SessionEntry {
   return {

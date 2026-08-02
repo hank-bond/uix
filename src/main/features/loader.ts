@@ -47,25 +47,25 @@
 import { createRequire } from "node:module";
 import { dirname } from "node:path";
 
-import type { FeatureContext, FeatureDefinition } from "@uix/api/feature";
-import type { DocumentStoreFactory } from "@uix/api/documents";
-import { defineSettings, type SettingsHandle } from "@uix/api/settings";
 import { createJiti, type Jiti } from "jiti";
 import { Type } from "typebox";
 
-import { createFeatureEventPublisherFactory } from "../channels/registry";
+import { isIdToken } from "@uix/api/contribution-id";
+import type { DocumentStoreFactory } from "@uix/api/documents";
+import type { FeatureContext, FeatureDefinition } from "@uix/api/feature";
+import { defineSettings, type SettingsHandle } from "@uix/api/settings";
+
+import {
+  type FeatureContributionRegistries,
+  registerFeatureContributions,
+} from "./contributions";
+import type { ManifestFeatureRef } from "./manifest";
 import type { ChannelRegistry } from "../channels/registry";
+import { createFeatureEventPublisherFactory } from "../channels/registry";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
 import { bindSettingsHandle } from "../settings-registry";
 import type { WorkspaceSettings } from "../workspace-settings";
-import { isIdToken } from "@uix/api/contribution-id";
-
-import {
-  registerFeatureContributions,
-  type FeatureContributionRegistries,
-} from "./contributions";
-import type { ManifestFeatureRef } from "./manifest";
 
 const log = createLogger("features");
 

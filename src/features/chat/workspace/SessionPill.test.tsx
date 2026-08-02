@@ -2,8 +2,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import {
-  WorkspaceSessionProvider,
   type WorkspaceSessionHandle,
+  WorkspaceSessionProvider,
 } from "@uix/api/workspace";
 
 import { SessionPill } from "./SessionPill";

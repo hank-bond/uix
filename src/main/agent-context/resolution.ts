@@ -15,8 +15,8 @@ import type {
   UpdateContribution,
 } from "@uix/api/agent-context";
 import {
-  toContributionId,
   type ContributionId,
+  toContributionId,
 } from "@uix/api/contribution-id";
 
 type MaybePromise<T> = T | Promise<T>;

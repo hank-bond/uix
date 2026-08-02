@@ -10,7 +10,7 @@
 
 import path from "node:path";
 
-import { Type, type Static } from "typebox";
+import { type Static, Type } from "typebox";
 import { Value } from "typebox/value";
 
 export const WorkspaceManifestFileName = "uix.workspace.json";

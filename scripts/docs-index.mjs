@@ -15,15 +15,15 @@
 // Everything outside the markers is prose and left untouched.
 
 import {
-  readFileSync,
-  writeFileSync,
-  readdirSync,
   existsSync,
+  readdirSync,
+  readFileSync,
   statSync,
+  writeFileSync,
 } from "node:fs";
-import { join, dirname, relative } from "node:path";
-import { fileURLToPath } from "node:url";
+import { dirname, join, relative } from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 

@@ -1,5 +1,6 @@
-import type { KeybindingMap } from "@uix/api/actions";
 import { describe, expect, it } from "vitest";
+
+import type { KeybindingMap } from "@uix/api/actions";
 
 import { createKeybindingRequestHandlers } from "./requests";
 

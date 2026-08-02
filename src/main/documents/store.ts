@@ -14,9 +14,9 @@ import { dirname, join } from "node:path";
 
 import type {
   DocumentStore,
-  DocumentVersion,
-  DocumentStoreOptions,
   DocumentStoreFactory,
+  DocumentStoreOptions,
+  DocumentVersion,
 } from "@uix/api/documents";
 
 export function createLocalDocumentStoreFactory(

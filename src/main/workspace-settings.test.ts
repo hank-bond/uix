@@ -2,20 +2,21 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import { Type } from "typebox";
+import { afterEach, describe, expect, expectTypeOf, it } from "vitest";
+
 import type { KeybindingMap } from "@uix/api/actions";
 import {
   defineSettings,
   type SettingsDefinition,
   type SettingsHandle,
 } from "@uix/api/settings";
-import { Type } from "typebox";
-import { afterEach, describe, expect, expectTypeOf, it } from "vitest";
 
-import { keybindingsWorkspaceSettings } from "./keybindings/settings";
 import {
-  sessionWorkspaceSettings,
   type SelectedSessionSetting,
+  sessionWorkspaceSettings,
 } from "./agent/session-settings";
+import { keybindingsWorkspaceSettings } from "./keybindings/settings";
 import { SettingsRegistry } from "./settings-registry";
 import { WorkspaceManifestStore } from "./workspace-manifest-store";
 import {

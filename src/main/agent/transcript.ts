@@ -11,8 +11,9 @@ import type {
   TranscriptItem,
   TranscriptSnapshot,
 } from "@uix/api/agent-channels";
-import { asTurnStateEntryData } from "../turn-state/registry";
+
 import { deriveToolFileLocation } from "./tool-file-location";
+import { asTurnStateEntryData } from "../turn-state/registry";
 
 /** Derives the durable id for one tool row within its assistant entry. */
 export function toolItemId(entryId: string, toolCallId: string): string {

@@ -1,7 +1,7 @@
-import { Fragment } from "react";
-import type { JSX } from "react";
-import { jsx, jsxs } from "react/jsx-runtime";
 import { toJsxRuntime } from "hast-util-to-jsx-runtime";
+import type { JSX } from "react";
+import { Fragment } from "react";
+import { jsx, jsxs } from "react/jsx-runtime";
 import { refractor } from "refractor";
 
 const ExtensionLanguages: Readonly<Record<string, string>> = {

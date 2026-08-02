@@ -99,14 +99,10 @@ describe("WorkspaceManifestStore generations", () => {
     expect(second.composition.manifest.name).toBe("Second");
     expect(() => {
       firstLocation.write({});
-    }).toThrow(
-      "Workspace manifest generation is stale",
-    );
+    }).toThrow("Workspace manifest generation is stale");
     expect(() => {
       store.promote(first);
-    }).toThrow(
-      "Workspace manifest is already stale",
-    );
+    }).toThrow("Workspace manifest is already stale");
   });
 
   it("rejects generations staged by another store", async () => {
@@ -121,8 +117,6 @@ describe("WorkspaceManifestStore generations", () => {
 
     expect(() => {
       second.promote(staged);
-    }).toThrow(
-      "Workspace manifest was not staged by this store",
-    );
+    }).toThrow("Workspace manifest was not staged by this store");
   });
 });

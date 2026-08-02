@@ -1,5 +1,4 @@
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
-
 import { describe, expect, it } from "vitest";
 
 import { deriveTranscriptItems } from "./transcript";

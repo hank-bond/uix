@@ -25,6 +25,7 @@ import type {
   ModelRuntime,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
+
 import type {
   AgentEvent,
   AgentStatus,
@@ -39,28 +40,10 @@ import type {
 } from "@uix/api/agent-channels";
 import type { SettingsHandleFrom } from "@uix/api/settings";
 
-import {
-  assembleAgentContextMessage,
-  assembleAgentContextVocabularySection,
-  type AgentContextRegistry,
-} from "../agent-context/registry";
-import {
-  createAgentSkillInstaller,
-  type AgentSkillRegistry,
-} from "../agent-skills/registry";
-import {
-  assembleAgentSystemPromptSection,
-  type AgentSystemPromptRegistry,
-} from "../agent-system-prompt/registry";
-import { DisposableBag } from "../lifecycle";
-import { createLogger } from "../log";
-import type { TurnStateRegistry } from "../turn-state/registry";
-import type { Workspace } from "../workspace";
-
 import { deriveProviderAuthCatalog } from "./auth-providers";
-import { createProviderAuthFlowCoordinator } from "./provider-auth-flow";
 import { deriveSelectedBranchProjection } from "./branch-projection";
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
+import { createProviderAuthFlowCoordinator } from "./provider-auth-flow";
 import { resolveSessionFileById } from "./session-files";
 import type { sessionWorkspaceSettings } from "./session-settings";
 import { type SelectedSessionSetting } from "./session-settings";
@@ -73,6 +56,23 @@ import { createSystemPromptAssembler } from "./system-prompt";
 import { createEphemeralTranscriptItemId } from "./transcript";
 import { createTranscriptObserver } from "./transcript-observer";
 import { createTurnStateCoordinator } from "./turn-state-coordinator";
+import {
+  type AgentContextRegistry,
+  assembleAgentContextMessage,
+  assembleAgentContextVocabularySection,
+} from "../agent-context/registry";
+import {
+  type AgentSkillRegistry,
+  createAgentSkillInstaller,
+} from "../agent-skills/registry";
+import {
+  type AgentSystemPromptRegistry,
+  assembleAgentSystemPromptSection,
+} from "../agent-system-prompt/registry";
+import { DisposableBag } from "../lifecycle";
+import { createLogger } from "../log";
+import type { TurnStateRegistry } from "../turn-state/registry";
+import type { Workspace } from "../workspace";
 
 const MaxSessionTitleCodePoints = 4096;
 const log = createLogger("agent");

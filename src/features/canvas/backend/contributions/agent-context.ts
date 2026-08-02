@@ -1,13 +1,13 @@
 // canvas model-visible agent-context contributions.
 
 import type { AgentContextContribution } from "@uix/api/agent-context";
-import type { AnchoredChange } from "../anchors/document";
 
 import {
-  parseCanvasKeyFromDocumentResourceId,
   parseCanvasDocumentResourceId,
+  parseCanvasKeyFromDocumentResourceId,
 } from "../../shared/addressing";
 import { formatCanvasChanges } from "../anchored-format";
+import type { AnchoredChange } from "../anchors/document";
 import type { CanvasContext } from "../context";
 
 type CanvasTurnState = Record<string, string>;
@@ -22,10 +22,9 @@ export function createCanvasAgentContextContributions(
       description:
         "anchored hunks the human edited in canvases since your last turn, grouped by `## <canvas key>`. The anchors shown are current.",
       materialize: async (agentContext) => {
-        const states = agentContext.turnStates<CanvasTurnState>(
-          "documents",
-          { limit: 2 },
-        );
+        const states = agentContext.turnStates<CanvasTurnState>("documents", {
+          limit: 2,
+        });
         if (states.length < 2) return undefined;
         const [current, previous] = states;
         const changes = await diffCanvasTurnStates(

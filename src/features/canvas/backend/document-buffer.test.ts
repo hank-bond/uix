@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { AnchoredDocument } from "./anchors/document";
-
-import { CanvasDocumentBuffer } from "./document-buffer";
 import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
+
+import { AnchoredDocument } from "./anchors/document";
+import { CanvasDocumentBuffer } from "./document-buffer";
 
 // In-memory store standing in for the file-backed one, plus a dump() peek so
 // tests can assert current content.
@@ -78,7 +78,9 @@ describe("CanvasDocumentBuffer", () => {
       if (!firstRead) return backing.getCurrent(docId);
       firstRead = false;
       return new Promise<string | null>((resolve) => {
-        releaseFirstRead = () => { resolve(null); };
+        releaseFirstRead = () => {
+          resolve(null);
+        };
       });
     });
     const store: DocumentStore = { ...backing, getCurrent };

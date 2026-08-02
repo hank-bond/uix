@@ -12,7 +12,7 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 
 import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
-import { DisposableBag, subscribe } from "../lifecycle";
+
 import { deriveToolFileLocation } from "./tool-file-location";
 import {
   createEphemeralTranscriptItemId,
@@ -25,6 +25,7 @@ import {
   createTranscriptItemIdentity,
   type TranscriptItemIdentity,
 } from "./transcript-item-identity";
+import { DisposableBag, subscribe } from "../lifecycle";
 
 interface TranscriptObserverOptions {
   emit: (event: AgentEvent) => void;

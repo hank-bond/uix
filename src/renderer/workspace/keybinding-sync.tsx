@@ -1,13 +1,13 @@
-import { useEffect, useMemo } from "react";
 import type { JSX } from "react";
+import { useEffect, useMemo } from "react";
 
-import { uixChannels } from "#shared/ipc";
 import type { KeybindingMap } from "@uix/api/actions";
 import {
-  createChannelClient,
   type ChannelClient,
+  createChannelClient,
   useWorkspaceClient,
 } from "@uix/api/workspace";
+import { uixChannels } from "#shared/ipc";
 
 import { useActionRegistry } from "./action-context";
 import type { ActionRegistry } from "./action-registry";

@@ -1,5 +1,5 @@
-import { describe, expect, expectTypeOf, it } from "vitest";
 import { Type } from "typebox";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import { defineFeature } from "./feature";
 import { defineSettings } from "./settings";
