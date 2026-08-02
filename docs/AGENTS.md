@@ -18,10 +18,12 @@ Every indexed doc is tagged with a **kind** — reference, explanation, how-to, 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
 
 - **[architecture/](./architecture/AGENTS.md)** _(active)_ — Architecture-of-record for the cockpit as it currently is — living docs that always track HEAD: subsystem shape, code conventions, and open questions.
-- **[contributing](./contributing.md)** _(active, how-to)_ — How to author and maintain repository docs: layers and retrieval units, frontmatter and rollups, normative language and writing profiles, convention-rule and lexicon formats, prose formatting, and living design-note threads.
+- **[contributing](./contributing.md)** _(active, how-to)_ — How to author and maintain repository docs: layers and retrieval units, frontmatter and rollups, normative language and writing profiles, convention-rule and lexicon formats, and living design-note threads.
 - **[decisions/](./decisions/AGENTS.md)** _(active)_ — Finalized UIX architectural decisions — write-once and dated, each with its rationale; the settled conclusions the design threads distilled and the other layers build on.
 - **[design/](./design/AGENTS.md)** _(active)_ — Living design threads — a current synthesis over an append-only log — where options, tradeoffs, and rejected alternatives are weighed before they distill into decisions.
-- **[framework](./framework.md)** _(stub, explanation)_ — The reasoning behind the UIX documentation shape — the four kinds, the what/how/why split, the agent-first adaptation, the decision loop, and the budget. Placeholder to build together. _Read before proposing a change to the documentation structure (the how), or when the how has a gap._
+- **[framework](./framework.md)** _(stub, explanation)_ — The reasoning behind the UIX documentation shape — the need, memory, readership, meta-level, and lifecycle axes, plus the evolution loop and the budget. _Read before proposing a change to the documentation structure (the how), or when the how has a gap._
 - **[plans/](./plans/AGENTS.md)** _(active)_ — Active build specs for what's about to be built — deliverables and their units — plus a backlog of seeds not yet promoted to their own spec.
+- **[style-guide](./style-guide.md)** _(active)_ — The house style guide for UIX documentation: how this repo formats and writes docs, built from the repo's own practice; prose follows the direction of Simplified Technical English and Vale enforces the mechanical rules.
+- **[typescript-style-guide/](./typescript-style-guide/AGENTS.md)** _(active)_ — The Google TypeScript Style Guide converted to markdown and split by chapter — the standing TS code-style base for this repo, with provenance and conversion notes; which rules get statically enforced is tracked separately as a follow-up.
 
 <!-- INDEX:END -->

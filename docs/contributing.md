@@ -1,5 +1,5 @@
 ---
-summary: "How to author and maintain repository docs: layers and retrieval units, frontmatter and rollups, normative language and writing profiles, convention-rule and lexicon formats, prose formatting, and living design-note threads."
+summary: "How to author and maintain repository docs: layers and retrieval units, frontmatter and rollups, normative language and writing profiles, convention-rule and lexicon formats, and living design-note threads."
 kind: how-to
 status: active
 ---
@@ -10,7 +10,7 @@ How to write and maintain the documentation in this tree. The routing map — wh
 
 ## The four layers
 
-Each layer has its own filename convention, summary template, and lifecycle. The rule for where a date goes: **if the _file_ is a point-in-time event, the date is in the filename; if the file _contains_ dated events, the dates live inside it.**
+Each layer has its own filename convention, summary template, and lifecycle. The rule for where a date goes: **if the _file_ is a point-in-time event, the date is in the filename.** If the file _contains_ dated events, the dates live inside it.
 
 | Layer | Filename | Summary states | Mutability |
 | --- | --- | --- | --- |
@@ -33,14 +33,23 @@ status: accepted | exploring | resolved | active | archived | stub | superseded
 ---
 ```
 
-One rule governs both fields: **don't duplicate what's already in the reader's context when they read the field.** The slug is in the link, the category is in the directory, and — once the index is in scope — the summary sits right next to `read_when`. Restating any of those wastes the line.
+One rule governs both fields: **don't duplicate what's already in the reader's context when they read the field.** The slug is in the link, the category is in the directory, and the summary sits next to `read_when` once the index is in scope. Restating any of those wastes the line.
 
-- **`summary` (required)** is the document's **recall surface** — the line an agent scans to decide the doc is relevant, and the only field cheap enough to preload across the whole tree. It states the **thesis** (the conclusion, the shape, the responsibility), not the topic. Compressing the body is fine here — the body _isn't_ in context when the summary is read. Write it to be **findable by concept** and **distinct from its siblings**; if two siblings' summaries are interchangeable, the boundary between the documents is wrong, not the wording.
-- **`read_when` (optional)** is the **external trigger** — the precision step. Author it _only_ when the reason to open the doc isn't inferable from the summary: a **cross-vocabulary** trigger (the task is phrased in words the thesis doesn't use), a **preventive** one (read before starting down a path the doc constrains), or a **counterintuitive** one (the doc says _don't_ do the obvious thing). If the trigger is just "read when working on the thing this is obviously about," omit it — that's the `// increment i` of frontmatter.
+- **`summary` (required)** is the document's **recall surface**. It is the line an agent scans to decide the doc is relevant, and the only field cheap enough to preload across the whole tree. It states the **thesis** (the conclusion, the shape, the responsibility), not the topic. Compressing the body is fine here — the body _isn't_ in context when the summary is read. Write it to be **findable by concept** and **distinct from its siblings**. If two siblings' summaries are interchangeable, the boundary between the documents is wrong, not the wording.
+- **`read_when` (optional)** is the **external trigger** — the precision step. Author it _only_ when the reason to open the doc isn't inferable from the summary:
+- A **cross-vocabulary** trigger: the task is phrased in words the thesis doesn't use.
+- A **preventive** one: read before starting down a path the doc constrains.
+- A **counterintuitive** one: the doc says _don't_ do the obvious thing. If the trigger is just "read when working on the thing this is obviously about," omit it — that's the `// increment i` of frontmatter.
 
-Each layer's summary fills a different template, because each answers a different question — decisions state the conclusion ("X, over Y"), design states the open question and its axes, architecture states what the subsystem currently _is_, plans state the deliverable and its units, and `src/docs/` states how to use the shipped surface today. Same template within a layer forces siblings to differ on topic; different templates across layers keep one subject's recurrence (a decision, its design thread, its current state, its plan) distinct by role.
+Each layer's summary fills a different template, because each answers a different question:
 
-A summary's length tracks the number of independently-addressable **claims** the document exposes — the hooks a task might match on — not its word count. A long single-thesis decision still gets one line; a multi-unit plan enumerates its units. The layer template sets the baseline (a conclusion is short, a deliverable-plus-units is long), and the shared preload budget caps it: spend length only where the doc has more hooks. A summary that has to balloon to stay distinct is usually a **split signal** — the document is bundling unrelated claims and wants to become several — except in plans and design threads, where multi-unit is the recognized shape.
+- Decisions state the conclusion ("X, over Y").
+- Design states the open question and its axes.
+- Architecture states what the subsystem currently _is_.
+- Plans state the deliverable and its units.
+- `src/docs/` states how to use the shipped surface today. Same template within a layer forces siblings to differ on topic. Different templates across layers keep one subject's recurrence (a decision, its design thread, its current state, its plan) distinct by role.
+
+A summary's length tracks the number of independently-addressable **claims** the document exposes — the hooks a task might match on — not its word count. A long single-thesis decision still gets one line; a multi-unit plan enumerates its units. The layer template sets the baseline (a conclusion is short, a deliverable-plus-units is long), and the shared preload budget caps it. Spend length only where the doc has more hooks. A summary that has to balloon to stay distinct is usually a **split signal**. The document is bundling unrelated claims and wants to become several, except in plans and design threads, where multi-unit is the recognized shape.
 
 This applies to every repo-owned markdown file, including `AGENTS.md` and `README.md`. **Decisions freeze frontmatter at acceptance** (only `status` changes later); **living docs keep it current**. Cross-link between docs with ordinary inline markdown links, not a frontmatter field.
 
@@ -55,7 +64,7 @@ Evaluate each candidate section on four axes:
 - **Dependency:** Which other information must a reader load to understand or apply it?
 - **Change coupling:** Which other rules or claims normally change with it?
 
-Keep sections together when a reader normally needs them for the same decision, when one depends on the other, or when their summaries and reading triggers would be substantially the same. Split them when they have materially different triggers or scopes, change independently, and can each state a distinct thesis.
+Keep sections together when a reader normally needs them for the same decision, or when one depends on the other. Also keep them when their summaries and reading triggers would be substantially the same. Split them when they have materially different triggers or scopes, change independently, and can each state a distinct thesis.
 
 Use the frontmatter as the boundary test. A good leaf has one summary that states its thesis and, when needed, one clear `read_when` trigger. A summary that must enumerate unrelated claims or a trigger that must list unrelated activities indicates that the leaf is not one retrieval unit.
 
@@ -63,13 +72,13 @@ Document length is a constraint, not the organizing principle. One substantial r
 
 ## Normative language and writing profiles
 
-Use `MUST`, `SHOULD`, and `MAY` only for normative requirements:
+Use **must**, **should**, and **may** only for normative requirements:
 
-- **`MUST`** marks a requirement. A conforming change cannot violate it.
-- **`SHOULD`** marks the required default when a valid, stated reason can justify an exception.
-- **`MAY`** marks an explicitly permitted choice.
+- **must** marks a requirement. A conforming change cannot violate it.
+- **should** marks the required default when a valid, stated reason can justify an exception.
+- **may** marks an explicitly permitted choice.
 
-Uppercase these words only when they have these meanings. Use ordinary lowercase words in informative prose. Keep the requirement separate from its rationale so a reader can identify what is mandatory without interpreting the explanation.
+Use ordinary lowercase words in informative prose. Keep the requirement separate from its rationale so a reader can identify what is mandatory without interpreting the explanation. They are typeset lowercase and bold, per the rule in [`style-guide.md`](./style-guide.md).
 
 Apply one of these writing profiles to each section. A document can use different profiles for different sections.
 
@@ -107,7 +116,7 @@ Use this structure:
 ```markdown
 ### naming.callable-role — Name callable types by role
 
-**Rule — MUST.** Name a callable type with a noun that states its callable role.
+**Rule — must.** Name a callable type with a noun that states its callable role.
 
 **Approved example** ...
 
@@ -157,7 +166,7 @@ Before admitting a row, apply these quality tests:
 5. **Replacement:** Is the compliant replacement evident?
 6. **Independence:** Does the definition survive an implementation change?
 7. **Completeness:** Are all named alternatives already defined?
-8. **Orthogonality:** For an operation/result pair, does the verb identify the transition independently from the noun's result role, and does the noun identify the result independently from the verb?
+8. **Orthogonality:** For an operation/result pair, does the verb identify the transition independently from the noun's result role? Does the noun identify the result independently from the verb?
 9. **Leverage:** Does the term collapse a real recurring choice across contexts instead of restating a result type, downstream use, or local implementation detail?
 
 If a row cannot provide a strong nonconforming example, its boundary is not settled or the term does not yet need controlled-lexicon status.
@@ -172,22 +181,18 @@ Add a UIX-owned term when it first becomes exported, architectural, or recurrent
 
 Do not preserve a retired alias in code only because it remains in the lexicon. The retired entry supports migration and review; it does not provide compatibility.
 
-## Formatting
-
-**Do not hard-wrap prose.** Write each paragraph and list item as a single line and let the editor soft-wrap it. Prettier enforces this (`proseWrap: "never"` unwraps any manual line breaks in prose), so a hard-wrapped paragraph will fail `npm run format:check`. Tables, code fences, and list structure are exempt — only running prose is unwrapped.
-
 ## Every AGENTS.md is overview + index
 
-The shape repeats at every level: an `AGENTS.md` is frontmatter plus **hand-written overview prose** — a high-level summary of everything below it, plus any item too small to deserve its own file — followed by a **generated index**. The root [`AGENTS.md`](../AGENTS.md) overviews the project and routes to these dir-level files; each dir-level file overviews its dir and routes to its docs.
+The shape repeats at every level: an `AGENTS.md` is frontmatter plus **hand-written overview prose**, followed by a **generated index**. The overview is a high-level summary of everything below it, plus any item too small to deserve its own file. The root [`AGENTS.md`](../AGENTS.md) overviews the project and routes to these dir-level files; each dir-level file overviews its dir and routes to its docs.
 
-The index sits between `<!-- INDEX:START -->` / `<!-- INDEX:END -->` and is derived from each doc's frontmatter by [`scripts/docs-index.mjs`](../scripts/docs-index.mjs), which covers `docs/decisions`, `docs/design`, `docs/architecture`, `docs/plans`, and `src/docs`. Add or edit a doc, then:
+The index sits between `<!-- INDEX:START -->` / `<!-- INDEX:END -->` and is derived from each doc's frontmatter by [`scripts/docs-index.mjs`](../scripts/docs-index.mjs). It covers `docs/decisions`, `docs/design`, `docs/architecture`, `docs/plans`, and `src/docs`. Add or edit a doc, then:
 
 ```sh
 npm run docs:index     # regenerate the index blocks
 npm run docs:check     # CI: fail if any index is stale or frontmatter is missing
 ```
 
-Prose outside the markers is yours; the block between them is derived — **never hand-edit it.** Do not add, reword, reorder, or delete entries inside the markers: the block is regenerated from frontmatter, so a manual edit is either silently overwritten by `npm run docs:index` or fails `npm run docs:check` when it drifts. To change an entry, edit the doc's frontmatter `summary`/`read_when`/`status` (or rename the file) and regenerate. A small idea can live as a line in the overview prose; when it grows past a line, promote it to its own file — the index then carries it — and delete the prose line, so it's never maintained in both places. Top-level docs in `docs/` (like this one) sit outside the indexed layers and are reached by prose links from `AGENTS.md`, not an index.
+Prose outside the markers is yours; the block between them is derived. **Never hand-edit it.** Do not add, reword, reorder, or delete entries inside the markers. The block is regenerated from frontmatter, so a manual edit is silently overwritten by `npm run docs:index` or fails `npm run docs:check` when it drifts. To change an entry, edit the doc's frontmatter `summary`/`read_when`/`status` (or rename the file) and regenerate. A small idea can live as a line in the overview prose. When it grows past a line, promote it to its own file and delete the prose line. The index then carries it, so it's never maintained in both places. Top-level docs in `docs/` (like this one) sit outside the indexed layers and are reached by prose links from `AGENTS.md`, not an index.
 
 ## Design notes are living threads
 
@@ -210,6 +215,6 @@ Revisit a topic across sessions by appending a dated `## Log` entry and updating
 Sections identified to build together by going through them reactively — listed here as placeholders, not yet authored:
 
 - **Compass test** — the "what kind is this?" classification procedure for new and moved docs (action or cognition? acquisition or application?), per the four kinds.
-- **Migration rules** — the triggers that move content between kinds: reference traffic spawning a how-to, rationale graduating out of a how-to, repeated comments becoming convention cards, decisions graduating to creed.
+- **Migration rules:** the triggers that move content between kinds. Reference traffic spawns a how-to, rationale graduates out of a how-to, repeated comments become convention cards, and decisions graduate to creed.
 - **Loop protocol** — the commit-time steps of the decision loop: capture, distill residue, index regeneration, backport scan, verify pass.
 - **Budget tests** — the creed admission test and the always-loaded root size discipline.

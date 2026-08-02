@@ -1,0 +1,6 @@
+extends: existence
+message: "UIX loads features; extension is reserved for Pi"
+level: error
+ignorecase: true
+tokens:
+  - '\b(?:UIX|frontend) extensions?\b'
