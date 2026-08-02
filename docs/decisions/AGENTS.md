@@ -1,5 +1,5 @@
 ---
-summary: "Finalized UIX architectural decisions — write-once and dated, each with its rationale; the settled conclusions the design threads distilled and the other layers build on."
+summary: "Write-once dated UIX architecture decisions record settled conclusions and rationale for later plans, code, and reference documentation."
 status: active
 ---
 

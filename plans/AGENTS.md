@@ -1,11 +1,11 @@
 ---
-summary: "Active build specs for what's about to be built — deliverables and their units — plus a backlog of seeds not yet promoted to their own spec."
+summary: "Active build specs, reviewable delivery units, and a backlog of smaller implementation seeds."
 status: active
 ---
 
 # Plans
 
-Specs for things we intend to build — slugged by deliverable. A plan only needs to be **valid**, not actively worked. Shipped plans move to [`archive/`](./archive/). Plans cite the [`../docs/decisions/`](../docs/decisions/) they assume and the [`../docs/design/`](../docs/design/) thread they came from.
+Plans are build specs slugged by deliverable. A plan needs to remain valid, but it does not need to be under active implementation. Landed or retired plans move to [`archive/`](./archive/). Plans cite the decisions in [`AGENTS.md`](../docs/decisions/AGENTS.md) and the design threads in [`AGENTS.md`](../docs/design/AGENTS.md) that bound them.
 
 <!-- INDEX:START -->
 

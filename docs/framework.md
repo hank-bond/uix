@@ -1,7 +1,7 @@
 ---
-summary: "The reasoning behind the UIX documentation shape — the need, memory, readership, meta-level, and lifecycle axes, plus the evolution loop and the budget."
+summary: "UIX documentation separates reader need, agent memory, readership, meta-level, lifecycle, and evolution into independent organizing axes."
 kind: explanation
-status: stub
+status: active
 read_when: "Read before proposing a change to the documentation structure (the how), or when the how has a gap."
 ---
 
@@ -31,12 +31,13 @@ Each indexed document carries a `kind` tag that names its quadrant, and classify
 
 ### Memory
 
-Agents have no memory across sessions. A human may forget the details of a document but remembers that the document exists. The documentation therefore uses two delivery tiers.
+Agents have no memory across sessions. A human may forget document details but still remember that a document exists. The documentation therefore uses three delivery tiers.
 
-- **Always loaded:** the routing map, the `AGENTS.md` files, which index what exists and answer the question "what could I know?"
-- **On demand:** leaf documents, fetched when a trigger matches. They answer the question "what do I need to know now?"
+- **Always loaded:** The root `AGENTS.md` orientation and top-level routing map.
+- **Routed indexes:** Lower `AGENTS.md` files, loaded only after a matching top-level route.
+- **On demand:** Leaf documents fetched when a summary or trigger matches the task.
 
-Two frontmatter fields support this split. The `summary` field is the recall surface, and the `read_when` field is the trigger. Keep content separated; the agent must fetch exactly what it needs and must not read what it does not need.
+Two frontmatter fields support this routing. `summary` is the recall surface, while `read_when` adds a non-obvious trigger. Each traversal should fetch only the relevant path and leaves.
 
 ### Readership
 
@@ -46,9 +47,9 @@ The documentation serves two audiences: the human pilot and the agent. The human
 
 The documentation has three meta-levels.
 
-- **What:** the content of the documentation.
-- **How:** the rules for modifying the documentation. They live in [`contributing.md`](./contributing.md).
-- **Why:** the reasoning behind the documentation structure. This page.
+- **What:** The content of the documentation.
+- **How:** The rules for modifying the documentation. They live in [`contributing.md`](./contributing.md).
+- **Why:** The reasoning behind the documentation structure. This page.
 
 An agent needs the what to make code changes and the how to make structural documentation changes. It needs the why only when a how-change is proposed or the how has a gap.
 
@@ -76,4 +77,4 @@ A decision that is not propagated leaves the documentation inconsistent, because
 
 ## Open sections
 
-- **Budget:** the admission test for what belongs in the always-loaded root. Placeholder to build together.
+- **Budget:** The admission test for what belongs in the always-loaded root. Placeholder to build together.

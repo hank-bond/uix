@@ -10,13 +10,17 @@ UIX uses `DisposableBag` from `src/main/lifecycle.ts` to own cleanup-requiring c
 
 Current main-process lifetime scopes:
 
-- `appBag` — app lifetime; owns process handlers, the protocol binding, IPC handlers, app/window listeners, the active feature composition, workspace settings, and the agent driver.
-- `featuresBag` — child of `appBag`; cleared on feature reload and disposed on app shutdown.
-- per-feature bag — created for each manifest feature activation; owns its `SettingsScopeHandle`, settings listener disposables, and every facet's returned lifetime capability, and joins `featuresBag` only after successful activation.
-- agent driver bag — internal to `createAgentDriver`; owns Pi event subscriptions and session cleanup after a session exists.
+- **`appBag`:** The application lifetime. It owns process handlers, protocols, IPC, window listeners, the feature composition, workspace settings, and the agent driver.
+- **`featuresBag`:** A child of `appBag`. Feature reload clears it, while application shutdown disposes it.
+- **Per-feature bag:** Exists for one manifest feature activation. It owns settings capabilities and returned facet lifetimes, then joins `featuresBag` after successful activation.
+- **Agent driver bag:** Internal to `createAgentDriver`. It owns Pi event subscriptions and live session cleanup.
 
 Feature authors do not receive a `DisposableBag` directly. Before `context()` and `contribute()` run, the substrate adds a provisional `SettingsScopeHandle` to the per-feature bag. It then registers every facet returned by `contribute()` and adds each returned `Disposable`, updater, appender, or other lifetime capability. Grouped register operations have strong exception safety: if a later item or facet throws, the helper disposes everything it already acquired before rethrowing. The loader commits settings and enrolls the bag into `featuresBag` only after all facets succeed.
 
-Malformed workspace candidates fail before `featuresBag` is cleared, leaving the active feature composition and settings owner intact. A failed feature activation disposes that entry's entire provisional bag and continues with sibling entries. A returned `Disposable` removes the exact registry member created by its register operation, so disposing an earlier activated feature instance cannot remove a replacement member with the same id. Disposing an activated feature instance removes its live settings scope but never deletes values already committed to the manifest.
+Malformed workspace candidates fail before `featuresBag` clears. The active feature composition and settings owner remain intact.
 
-For substrate-internal rules, see [`../../docs/architecture/conventions/lifetimes.md`](../../docs/architecture/conventions/lifetimes.md).
+A failed feature activation disposes its complete provisional bag and continues with sibling entries. Each returned `Disposable` removes the exact member created by registration.
+
+Identity-aware removal prevents an earlier feature instance from deleting its replacement's member. Disposing an instance removes its live settings scope, but preserves committed manifest values.
+
+For substrate-internal rules, see [`lifetimes.md`](../../docs/architecture/conventions/lifetimes.md).

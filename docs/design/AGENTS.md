@@ -1,5 +1,5 @@
 ---
-summary: "Living design threads — a current synthesis over an append-only log — where options, tradeoffs, and rejected alternatives are weighed before they distill into decisions."
+summary: "Living design threads combine mutable synthesis with append-only logs of options, tradeoffs, and rejected alternatives."
 status: active
 ---
 

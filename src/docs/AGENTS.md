@@ -1,15 +1,15 @@
 ---
-summary: "The shipped, user-facing substrate reference for building on UIX — surfaces, channels, agent, features, lifetimes, state — kept in lockstep with current code."
+summary: "The shipped substrate reference covers features, surfaces, channels, agent integration, settings, state, and lifetimes in lockstep with code."
 status: active
 ---
 
 # UIX substrate documentation
 
-User-facing documentation for the UIX substrate. Audience: someone (human or agent) building on UIX — writing a feature, contributing a surface, defining a channel, integrating with the pi agent session. If a doc here is wrong, either the doc or the code it describes is broken — update them together.
+This tree documents the UIX substrate for humans and agents building features, surfaces, channels, and Pi integrations. If a page and code disagree, update them together.
 
 For the vision, see [`../../AGENTS.md`](../../AGENTS.md); for decisions and rationale, [`../../docs/decisions/`](../../docs/decisions/); for dev-facing architecture state, [`../../docs/architecture/`](../../docs/architecture/).
 
-Pages marked _(stub)_ are placeholders that fill in as the corresponding primitive lands. Docs are tagged by **kind** — reference, how-to, or tutorial — the need they serve; reference describes the machinery, how-tos guide tasks, and the tutorial is the learning path.
+Pages marked _(stub)_ are in progress. Each document also has a _kind_. Reference maps machinery, how-to guides a task, and tutorial teaches through a learning path.
 
 ## Pages
 

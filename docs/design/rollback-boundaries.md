@@ -10,11 +10,11 @@ status: exploring
 
 UIX needs one vocabulary for operations that cross a durable state or external-system boundary:
 
-- A **query** observes state without durably changing its authority. It may be reactive.
-- A **mutation** intends to atomically change a declared state authority. Mutation describes the operation's semantics, not proof that UIX implemented history for it.
-- An **effect** reaches beyond the rollback stack or otherwise has consequences UIX cannot coordinate and restore. An external database write is therefore an effect from UIX's viewpoint even if that database calls it a mutation.
+- A _query_ observes state without durably changing its authority. It may be reactive.
+- A _mutation_ intends to atomically change a declared state authority. Mutation describes the operation's semantics, not proof that UIX implemented history for it.
+- An _effect_ reaches beyond the rollback stack or otherwise has consequences UIX cannot coordinate and restore. An external database write is therefore an effect from UIX's viewpoint even if that database calls it a mutation.
 
-The **rollback stack** is the coordinated set of UIX-managed authorities: Pi session and turn state, managed documents, managed workspace files, and future managed application data. An authority actually participates when its implementation captures stable state and records the corresponding ref through the central checkpoint/turn-state lifecycle. This is an implementation fact, not a contributed permission or menu of claimed capabilities.
+The _rollback stack_ is the coordinated set of UIX-managed authorities: Pi session and turn state, managed documents, managed workspace files, and future managed application data. An authority actually participates when its implementation captures stable state and records the corresponding ref through the central checkpoint/turn-state lifecycle. This is an implementation fact, not a contributed permission or menu of claimed capabilities.
 
 Rollback guarantees stop at that boundary. A workflow may perform an effect and then commit its result through a managed mutation; UIX can restore the mutation but cannot reverse the preceding effect. Compensation is not rollback. Tools, protocols, and diagnostics should eventually make this distinction clear to the Agent and human rather than relying on prose or inference.
 
