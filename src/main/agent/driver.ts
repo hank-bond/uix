@@ -62,15 +62,13 @@ import { createProviderAuthFlowCoordinator } from "./provider-auth-flow";
 import { deriveSelectedBranchProjection } from "./branch-projection";
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { resolveSessionFileById } from "./session-files";
-import {
-  sessionWorkspaceSettings,
-  type SelectedSessionSetting,
-} from "./session-settings";
+import type { sessionWorkspaceSettings } from "./session-settings";
+import { type SelectedSessionSetting } from "./session-settings";
 import {
   readRecentSessionSummaries,
   readSessionSummary,
 } from "./session-summary";
-import { agentWorkspaceSettings } from "./settings";
+import type { agentWorkspaceSettings } from "./settings";
 import { createSystemPromptAssembler } from "./system-prompt";
 import { createEphemeralTranscriptItemId } from "./transcript";
 import { createTranscriptObserver } from "./transcript-observer";

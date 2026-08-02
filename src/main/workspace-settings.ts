@@ -12,9 +12,9 @@ import type {
 
 import type { ParsedWorkspaceManifest } from "./features/manifest";
 import { DisposableBag } from "./lifecycle";
+import type { SettingsRegistry } from "./settings-registry";
 import {
   hydrateSettings,
-  SettingsRegistry,
   type SettingsScope,
   type SettingsScopeHandle,
 } from "./settings-registry";

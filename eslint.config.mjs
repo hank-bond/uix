@@ -62,6 +62,12 @@ const processEventRestriction = {
   message:
     "Use installProcessHandlers() from src/main/lifecycle.ts instead of process.on directly. See docs/architecture/conventions/lifetimes.md.",
 };
+const publicMemberModifierRestriction = {
+  selector:
+    "MethodDefinition[accessibility='public'], PropertyDefinition[accessibility='public']",
+  message:
+    "Do not write the `public` modifier on class members — they are public by default. Non-readonly constructor parameter properties may be explicit.",
+};
 
 const LogLevels = new Set(["trace", "debug", "info", "warn", "error", "fatal"]);
 const EventIdPattern = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;
@@ -267,6 +273,7 @@ export default tseslint.config(
         ipcMainRestriction,
         webContentsSendRestriction,
         processEventRestriction,
+        publicMemberModifierRestriction,
       ],
 
       // Logging convention: pino via createLogger, not console.*.
@@ -290,6 +297,36 @@ export default tseslint.config(
           caughtErrorsIgnorePattern: "^_",
         },
       ],
+    },
+  },
+
+  // Language-feature hygiene, the mechanically enforceable residue of the
+  // absorbed TS style guide. Deliberately NOT adopted from that guide:
+  // single quotes (Prettier owns quote style; the repo formats double) and
+  // the `#private`-field ban (`#` is the repo's encapsulation mechanism for
+  // stateful classes — the ES2022 target emits it natively with zero
+  // downlevel cost, and engine enforcement beats the type-only `private`
+  // keyword; variation between classes routes through injection, not
+  // subclassing).
+  {
+    rules: {
+      // Google's exception form: `== null` covers both null and undefined.
+      eqeqeq: ["error", "smart"],
+      // Braces on multi-line control-flow bodies; single-line `if (x) y();`
+      // may elide the block, matching the style guide's exception.
+      curly: ["error", "multi-line"],
+      "one-var": ["error", "never"],
+      "guard-for-in": "error",
+      "no-eval": "error",
+      "no-extend-native": "error",
+      "no-new-wrappers": "error",
+      "default-case-last": "error",
+      radix: "error",
+      "@typescript-eslint/consistent-type-imports": "error",
+      "@typescript-eslint/consistent-type-exports": "error",
+      // `const enum` is already a compile error under `isolatedModules`.
+      "@typescript-eslint/only-throw-error": "error",
+      "@typescript-eslint/no-invalid-this": "error",
     },
   },
 

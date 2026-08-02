@@ -21,9 +21,9 @@
 
 import process from "node:process";
 
+import type { BrowserWindow } from "electron";
 import {
   app,
-  BrowserWindow,
   type Event,
   type WebContents,
   type WebContentsWillNavigateEventParams,

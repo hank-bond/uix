@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, type ReactNode } from "react";
 
 import { WorkspaceActionsProvider } from "@uix/api/workspace";
 
-import { ActionRegistry } from "./action-registry";
+import type { ActionRegistry } from "./action-registry";
 
 const ActionRegistryContext = createContext<ActionRegistry | undefined>(
   undefined,

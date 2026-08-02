@@ -18,7 +18,7 @@ import {
   toResourceUrl,
   type CanvasKey,
 } from "../shared/addressing";
-import { canvasChannels } from "../shared/channels";
+import type { canvasChannels } from "../shared/channels";
 import {
   forwardCanvasFrameMessage,
   parseCanvasFrameMessage,
