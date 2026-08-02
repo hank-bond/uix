@@ -17,7 +17,7 @@ Every indexed doc is tagged with a **kind** — reference, explanation, how-to, 
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
 
-- **[architecture/](./architecture/AGENTS.md)** _(active)_ — Architecture-of-record for the cockpit as it currently is — living docs that always track HEAD: subsystem shape, code conventions, and open questions.
+- **[architecture/](./architecture/AGENTS.md)** _(active)_ — Living architecture records for implemented subsystem shape, code conventions, design principles, and open questions at HEAD.
 - **[contributing](./contributing.md)** _(active, how-to)_ — How to author and maintain repository docs: layers and retrieval units, frontmatter and rollups, normative language and writing profiles, convention-rule and lexicon formats, and living design-note threads.
 - **[decisions/](./decisions/AGENTS.md)** _(active)_ — Finalized UIX architectural decisions — write-once and dated, each with its rationale; the settled conclusions the design threads distilled and the other layers build on.
 - **[design/](./design/AGENTS.md)** _(active)_ — Living design threads — a current synthesis over an append-only log — where options, tradeoffs, and rejected alternatives are weighed before they distill into decisions.
