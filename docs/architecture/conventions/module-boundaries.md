@@ -9,11 +9,11 @@ status: active
 
 ## Module API surface
 
-**Rule.** Don't export a symbol until another module needs to import that symbol by name.
+**Rule:** Don't export a symbol until another module needs to import that symbol by name.
 
-**Why.** Every export is a small API commitment. Keeping internal helper types and constants private until they have a real consumer makes refactors cheaper and makes ownership clearer.
+**Why:** Every export is a small API commitment. Keeping internal helper types and constants private until they have a real consumer makes refactors cheaper and makes ownership clearer.
 
-**Pattern.** An exported function may use a private parameter interface:
+**Pattern:** An exported function may use a private parameter interface:
 
 ```ts
 interface CreateThingOptions {
@@ -33,13 +33,13 @@ createThing({ onChange: notify });
 
 Export `CreateThingOptions` later, in the same change that introduces a real caller that needs to name/import it.
 
-**Exception.** Public API modules (for example `@uix/api` types) intentionally export stable shapes for feature authors. Those are designed API surfaces, not internal implementation details.
+**Exception:** Public API modules (for example `@uix/api` types) intentionally export stable shapes for feature authors. Those are designed API surfaces, not internal implementation details.
 
 ## Validation
 
-**Rule.** Use boolean guards only when the caller has a real branch to make. If failure always means "stop here," expose an assertion helper instead.
+**Rule:** Use boolean guards only when the caller has a real branch to make. If failure always means "stop here," expose an assertion helper instead.
 
-**Shape.**
+**Shape:**
 
 ```ts
 export function isCanvasKey(key: string): boolean {
@@ -67,13 +67,13 @@ if (!isCanvasKey(key)) {
 }
 ```
 
-**Custom errors.** Start with plain `Error` and a clear message. Add a custom `Error` subclass only when a caller needs to branch on the failure type (e.g. `err instanceof InvalidCanvasKeyError`). Until then, assertion helpers keep the call sites stable if the thrown error type changes later.
+**Custom errors:** Start with plain `Error` and a clear message. Add a custom subclass only when callers must branch on its type. For example, a caller might test `err instanceof InvalidCanvasKeyError`. Until then, assertion helpers keep call sites stable if the thrown type changes.
 
 ## Imports
 
-**Rule.** Import Node built-ins explicitly with the `node:` prefix, even the ones that are technically available as globals (`process`, `Buffer`).
+**Rule:** Import Node built-ins explicitly with the `node:` prefix, even the ones that are technically available as globals (`process`, `Buffer`).
 
-(`__dirname` and `__filename` are _not_ covered — they're CJS module-level bindings, not importable values. Use them as-is in the main-process bundle, which electron-vite emits as CJS.)
+`__dirname` and `__filename` are CommonJS (CJS) module bindings, not importable values. Use them directly in the CJS main-process bundle.
 
 ```ts
 import process from "node:process"; // not: just use the global
@@ -81,12 +81,14 @@ import path from "node:path";
 import fs from "node:fs";
 ```
 
-**Why.**
+**Why:**
 
-- **Visibility.** The import list is where a reader scans to see what a module touches. A module that reads `process.env` or `process.cwd()` has a real dependency on the runtime environment; surfacing it at the top of the file makes that legible.
-- **Consistency.** We already import `path`, `fs`, `os` etc. as modules. Treating `process` the same way removes a special case.
-- **Lint enforcement.** ESLint rejects ambient `process` and `Buffer` access and bare Node built-in imports, so runtime dependencies stay visible and consistently use the `node:` prefix.
+- **Visibility:** Readers scan imports to see what a module touches. A module reading `process.env` or `process.cwd()` depends on the runtime environment. Importing `process` makes that dependency visible.
+- **Consistency:** UIX already imports `path`, `fs`, and `os` as modules. Treating `process` the same way removes a special case.
+- **Lint enforcement:** ESLint rejects ambient `process` and `Buffer` access. It also rejects bare Node built-in imports, keeping runtime dependencies visible and `node:`-prefixed.
 
-**Scope.** In practice, very few modules should need direct `process` access at all. Things that read environment variables, cwd, or platform state should either be in the composition root (`src/main/index.ts`) or be substrate utilities that it wires together, such as `log.ts` and `lifecycle.ts`. Feature code does not import `process` directly; runtime environment capabilities belong in the injected `FeatureContext` when a feature needs them.
+**Scope:** Few modules need direct `process` access. Environment, working-directory, and platform reads belong in `src/main/index.ts` or substrate utilities that it composes.
 
-ESLint also rejects production feature imports of `src/main/` and the `#backend` alias. White-box feature tests may import an internal subsystem when that subsystem is the subject of the test; those test modules are not loaded feature code.
+Feature code does not import `process` directly. Add a runtime environment capability to `FeatureContext` when a feature needs one.
+
+ESLint also rejects production feature imports of `src/main/` and the `#backend` alias. A white-box feature test may import the internal subsystem under test. Test modules are not loaded feature code.

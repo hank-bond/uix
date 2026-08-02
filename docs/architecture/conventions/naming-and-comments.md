@@ -11,38 +11,38 @@ status: active
 
 Use these rules for UIX-owned architectural vocabulary.
 
-### naming.term-role — Assign one role to each term
+### naming.term-role: Assign one role to each term
 
-**Rule — MUST.** Assign one approved meaning and one grammatical role to each UIX-owned architectural term.
+**Rule: must.** Assign one approved meaning and one grammatical role to each UIX-owned architectural term.
 
-**Approved example.** Treat `resolve`, `Resolved`, `register`, and `Registered` as separate terms with separate roles.
+**Approved example:** Treat `resolve`, `Resolved`, `register`, and `Registered` as separate terms with separate roles.
 
-**Nonconforming example.** Do not use one term as both a capability noun and an operation verb.
+**Nonconforming example:** Do not use one term as both a capability noun and an operation verb.
 
-**Reason.** A stable role lets a reader infer how an unfamiliar identifier behaves before the reader opens its definition.
+**Reason:** A stable role lets a reader infer how an unfamiliar identifier behaves before the reader opens its definition.
 
-### naming.role-specificity — Choose the defining approved role
+### naming.role-specificity: Choose the defining approved role
 
-**Rule — MUST.** When one approved noun specializes another and its additional contract applies, use the specialized noun. Choose the role that communicates the strongest stable guarantees consumers can rely on, not the narrowest description of the current implementation.
+**Rule: must.** When one approved noun specializes another and its additional contract applies, use the specialized noun. Choose the role that communicates the strongest stable guarantees consumers can rely on, not the narrowest description of the current implementation.
 
-**Approved examples.** Use `ProviderAuthCatalog`, not `ProviderAuthProjection`, because the value provides a discovery and selection boundary. Use `ToolChatBlockPresentation`, not `ToolChatBlockProjection`, because the value is human-facing material consumed by UI composition.
+**Approved examples:** Use `ProviderAuthCatalog`, not `ProviderAuthProjection`, because the value provides a discovery and selection boundary. Use `ToolChatBlockPresentation`, not `ToolChatBlockProjection`, because the value is human-facing material consumed by UI composition.
 
-**Nonconforming example.** Do not name a durable source of truth `DocumentRegistry` because its current implementation indexes values in memory; use `DocumentStore` when durable authority is its defining contract.
+**Nonconforming example:** Do not call a durable authority `DocumentRegistry` because its implementation uses an in-memory index. Use `DocumentStore` when durability defines the contract.
 
-**Reason.** Broad nouns hide useful guarantees, while implementation-specific nouns become false when mechanics change. The defining approved role preserves the strongest stable contract.
+**Reason:** Broad nouns hide useful guarantees, while implementation-specific nouns become false when mechanics change. The defining approved role preserves the strongest stable contract.
 
-### naming.callable-type — Name a callable type by role
+### naming.callable-type: Name a callable type by role
 
-**Rule — MUST.** Use a noun phrase for a type, interface, class, or named callable type. The head noun of a callable type must identify the callable role.
+**Rule: must.** Use a noun phrase for a type, interface, class, or named callable type. The head noun of a callable type must identify the callable role.
 
-**Approved examples.**
+**Approved examples:**
 
 - `ChannelRequestHandler`
 - `ActionContributionRegistrar`
 - `ChannelEventPublisher`
 - `ActionRunner`
 
-**Nonconforming examples.**
+**Nonconforming examples:**
 
 - `HandleChannelRequest`
 - `RegisterActionContribution`
@@ -51,11 +51,11 @@ Use these rules for UIX-owned architectural vocabulary.
 
 Do not disguise an operation as a role suffix. Use `XHandler`, not `XHandle`, for a callback that handles an occurrence. Use `XPublisher`, not `XPublish`. Use `XRunner`, not `XRun`.
 
-### naming.operation — Name an operation with an approved form
+### naming.operation: Name an operation with an approved form
 
-**Rule — MUST.** Use an approved operation form for a UIX-owned function or method.
+**Rule: must.** Use an approved operation form for a UIX-owned function or method.
 
-**Approved example.** Use a verb phrase by default. For example, use `registerAction()`, `publishChannelEvent()`, and `runAction()`. Let a receiver supply established context when the shorter name stays unambiguous:
+**Approved example:** Use a verb phrase by default. For example, use `registerAction()`, `publishChannelEvent()`, and `runAction()`. Let a receiver supply established context when the shorter name stays unambiguous:
 
 ```ts
 actionRegistry.register();
@@ -64,7 +64,7 @@ eventPublisher.publish();
 
 Use a prepositional form only when the controlled lexicon defines its exact operation meaning. Approved forms include `asRecord()`, `settingsRegistry.forScope()`, and `toUrl()`.
 
-**Nonconforming example.** Do not introduce an unapproved prepositional form. Do not use a noun-only method name for an operation:
+**Nonconforming example:** Do not introduce an unapproved prepositional form. Do not use a noun-only method name for an operation:
 
 ```ts
 driver.status();
@@ -72,23 +72,23 @@ address.url();
 pipeline.resourceContributions();
 ```
 
-### naming.operation-result — Pair transition verbs with result nouns
+### naming.operation-result: Pair transition verbs with result nouns
 
-**Rule — MUST.** When an operation name identifies a result or lifecycle transition, use an approved verb that states how the operation produces or affects that result and a domain noun that states the result's architectural role or stage. Each term must contribute information independently.
+**Rule: must.** When an operation names a result or lifecycle transition, pair an approved transition verb with the result's domain role. Each term must add independent information.
 
-**Scope.** This rule does not require every operation to repeat its return type. A receiver, input, or established domain operation can already supply the noun, as in `registry.register(action)`.
+**Scope:** This rule does not require every operation to repeat its return type. A receiver, input, or established domain operation can already supply the noun, as in `registry.register(action)`.
 
-**Approved examples.** `deriveSelectedBranchProjection()`, `resolveAgentToolContribution()`, and `assembleAgentContextMessage()` pair a transition with its result role. Use `deriveToolChatBlockPresentation()`, where `derive` identifies pure policy computation and `Presentation` identifies the human-facing result.
+**Approved examples:** `deriveSelectedBranchProjection()`, `resolveAgentToolContribution()`, and `assembleAgentContextMessage()` pair a transition with its result role. Use `deriveToolChatBlockPresentation()`, where `derive` identifies pure policy computation and `Presentation` identifies the human-facing result.
 
-**Nonconforming example.** Do not verbalize the result noun when that verb adds no transition semantics. `presentToolChatBlock()` restates `ToolChatBlockPresentation`; use `deriveToolChatBlockPresentation()` for a pure rebuildable view.
+**Nonconforming example:** Do not verbalize the result noun when that verb adds no transition semantics. `presentToolChatBlock()` restates `ToolChatBlockPresentation`; use `deriveToolChatBlockPresentation()` for a pure rebuildable view.
 
-**Reason.** Controlled verbs collapse synonyms for recurring transitions; controlled nouns collapse synonyms for recurring roles and stages. Keeping those axes orthogonal lets an unfamiliar identifier communicate both facts.
+**Reason:** Controlled verbs collapse synonyms for recurring transitions; controlled nouns collapse synonyms for recurring roles and stages. Keeping those axes orthogonal lets an unfamiliar identifier communicate both facts.
 
-### naming.callable-value — Name a callable by its semantic role
+### naming.callable-value: Name a callable by its semantic role
 
-**Rule — MUST.** Name a callable participant with a noun role. Name an object operation with a verb.
+**Rule: must.** Name a callable participant with a noun role. Name an object operation with a verb.
 
-**Approved example.** Use a noun when another operation receives, stores, or registers the callable as a participant:
+**Approved example:** Use a noun when another operation receives, stores, or registers the callable as a participant:
 
 ```ts
 registerChannel(requestHandler);
@@ -103,13 +103,13 @@ surface.render(client);
 cell.restore(state);
 ```
 
-**Nonconforming example.** Do not choose the name from TypeScript method-versus-property syntax. The semantic role controls the name.
+**Nonconforming example:** Do not choose the name from TypeScript method-versus-property syntax. The semantic role controls the name.
 
-### naming.contribution-lifecycle — Name each contribution stage
+### naming.contribution-lifecycle: Name each contribution stage
 
-**Rule — MUST.** Use the approved lifecycle term for each stage of a contribution.
+**Rule: must.** Use the approved lifecycle term for each stage of a contribution.
 
-**Approved example.** Use this sequence, omitting `Normalized` when no canonicalization pass is necessary and introducing `RegisteredX` only when the registry creates a separate live record:
+**Approved example:** Use this sequence, omitting `Normalized` when no canonicalization pass is necessary and introducing `RegisteredX` only when the registry creates a separate live record:
 
 ```text
 Contribution
@@ -134,54 +134,54 @@ ResolvedAgentContextMaterializedContribution
 → registry membership (stored unchanged)
 ```
 
-**Nonconforming example.** Do not use `Registration` for a registry-ready contribution, a live registered entity, or a returned capability. Do not introduce a `RegisteredX` alias, field-copy interface, or one-field wrapper solely to rename an unchanged resolved shape.
+**Nonconforming example:** Do not use `Registration` for a registry-ready contribution, a live registered entity, or a returned capability. Do not introduce a `RegisteredX` alias, field-copy interface, or one-field wrapper solely to rename an unchanged resolved shape.
 
-**Reason.** One term for each represented stage lets a reader identify ownership and liveness from the name without creating types that contain no new information.
+**Reason:** One term for each represented stage lets a reader identify ownership and liveness from the name without creating types that contain no new information.
 
-### naming.qualifier — Add only result-determining qualifiers
+### naming.qualifier: Add only result-determining qualifiers
 
-**Rule — SHOULD.** Omit a prepositional qualifier that only repeats the receiver or parameter role.
+**Rule: should.** Omit a prepositional qualifier that only repeats the receiver or parameter role.
 
-**Approved example.** Use `cell.restore(state)`.
+**Approved example:** Use `cell.restore(state)`.
 
-**Nonconforming example.** Do not use `cell.restoreFromState(state)` when state is the only accepted source.
+**Nonconforming example:** Do not use `cell.restoreFromState(state)` when state is the only accepted source.
 
-**Exceptions.** Add a qualifier when its source identifies a materially different operation:
+**Exceptions:** Add a qualifier when its source identifies a materially different operation:
 
 ```ts
 cell.restoreFromSnapshot(snapshot);
 cell.restoreFromVersion(versionId);
 ```
 
-### naming.property-access — Distinguish properties from operations
+### naming.property-access: Distinguish properties from operations
 
-**Rule — MUST.** Expose a stable property as a readonly property. Name a method with the operation that produces or retrieves its result.
+**Rule: must.** Expose a stable property as a readonly property. Name a method with the operation that produces or retrieves its result.
 
-**Approved example.** Use `getStatus()`, `toUrl()`, or `createResourceContributions()` for operations.
+**Approved example:** Use `getStatus()`, `toUrl()`, or `createResourceContributions()` for operations.
 
-**Nonconforming example.** Do not use `status()`, `url()`, or `resourceContributions()` for those operations.
+**Nonconforming example:** Do not use `status()`, `url()`, or `resourceContributions()` for those operations.
 
-### naming.boolean-predicate — Phrase a Boolean as a claim
+### naming.boolean-predicate: Phrase a Boolean as a claim
 
-**Rule — MUST.** Name a Boolean variable, field, or function with an approved predicate term that states a truth claim.
+**Rule: must.** Name a Boolean variable, field, or function with an approved predicate term that states a truth claim.
 
-**Approved example.** Use `isAgentRunning`, `hasSelection`, `canSwitchSession`, `supportsManualInput`, `shouldRetry`, or `needsReload` according to the approved meanings in the predicate-term table.
+**Approved example:** Use `isAgentRunning`, `hasSelection`, `canSwitchSession`, `supportsManualInput`, `shouldRetry`, or `needsReload` according to the approved meanings in the predicate-term table.
 
-**Nonconforming example.** Do not use a bare domain noun such as `agentRunning` or `selection` as a Boolean. Do not use `will` as a general prediction prefix. Use explicit operation state or another approved predicate instead.
+**Nonconforming example:** Do not use a bare domain noun such as `agentRunning` or `selection` as a Boolean. Do not use `will` as a general prediction prefix. Use explicit operation state or another approved predicate instead.
 
-**Exceptions.** Use `was` only for captured prior state. Use `did` only for the outcome of an attempted operation.
+**Exceptions:** Use `was` only for captured prior state. Use `did` only for the outcome of an attempted operation.
 
-### naming.boolean-union — Use one status for mutually exclusive states
+### naming.boolean-union: Use one status for mutually exclusive states
 
-**Rule — MUST.** Represent mutually exclusive states with one status or discriminated union instead of multiple Booleans.
+**Rule: must.** Represent mutually exclusive states with one status or discriminated union instead of multiple Booleans.
 
-**Approved example.**
+**Approved example:**
 
 ```ts
 status: "idle" | "running" | "failed";
 ```
 
-**Nonconforming example.**
+**Nonconforming example:**
 
 ```ts
 isIdle: boolean;
@@ -189,21 +189,21 @@ isRunning: boolean;
 isFailed: boolean;
 ```
 
-**Reason.** Independent Booleans can represent impossible combinations.
+**Reason:** Independent Booleans can represent impossible combinations.
 
-### naming.react-component — Name a React component with a noun
+### naming.react-component: Name a React component with a noun
 
-**Rule — MUST.** Use a PascalCase noun phrase for a React component.
+**Rule: must.** Use a PascalCase noun phrase for a React component.
 
-**Reason.** A component describes rendered content rather than an operation that the caller commands.
+**Reason:** A component describes rendered content rather than an operation that the caller commands.
 
-### naming.imported-term — Preserve direct external vocabulary
+### naming.imported-term: Preserve direct external vocabulary
 
-**Rule — MAY.** An imported term can retain the meaning and grammar of its source API when UIX directly represents the external concept.
+**Rule: may.** An imported term can retain the meaning and grammar of its source API when UIX directly represents the external concept.
 
-**Scope.** This exception applies to terms from Pi, Electron, React, and browser APIs.
+**Scope:** This exception applies to terms from Pi, Electron, React, and browser APIs.
 
-**Enforcement.** Record each recurring exception in the imported-terms table.
+**Enforcement:** Record each recurring exception in the imported-terms table.
 
 ### Controlled lexicon
 
@@ -240,7 +240,9 @@ isFailed: boolean;
 
 Use each operation term only for its approved meaning. Do not introduce a synonym when an approved operation already fits.
 
-Use this decision test: **normalize** when the result depends only on the input value; **resolve** when the same input can produce a different concrete result under a different owner, path, reference context, or environment. For example, `normalizeShortcut()` is context-free, while `resolveAgentToolContribution()` derives a different concrete Pi tool name for each owning feature.
+Use _normalize_ when the result depends only on the input value. Use _resolve_ when ownership, paths, references, or environment can change the result.
+
+For example, `normalizeShortcut()` is context-free. `resolveAgentToolContribution()` derives a concrete Pi tool name for each owning feature.
 
 In UIX, `resolve` means contextual or reference resolution, not conflict arbitration. A resolver makes identities and references concrete; the receiving registry rejects collisions instead of selecting a winner.
 
@@ -311,23 +313,23 @@ In UIX, `resolve` means contextual or reference resolution, not conflict arbitra
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
 - Name symbols for their stable domain role and operation, not their current caller, pipeline position, trigger, owner, or implementation strategy. A name should remain correct if the symbol moves, gains another caller, or changes implementation without changing its essential domain contract. Let the receiver provide context (`turnStateCoordinator.restoreCurrent(...)`); do not repeat that context in every method.
 - Function names describe the observable domain operation. Include distinctions that identify materially different operations or results; put lifecycle ordering, current usage, race policy, preconditions, and nuanced skipped outcomes in contract comments. Do not encode those volatile details into a symbol merely because one caller currently depends on them.
-- Apply the ambiguity test: if two materially different operations could reasonably share the name, it is underspecified. Add the distinguishing domain, result, or resolution axis — `enumerateUniqueModifierSequences`, not `permutations`; `resolveShortcutForPlatform`, not `resolveShortcut`.
+- Apply the ambiguity test: if two materially different operations could share a name, it is underspecified. Add the distinguishing domain, result, or resolution axis. Use `enumerateUniqueModifierSequences`, not `permutations`. Use `resolveShortcutForPlatform`, not `resolveShortcut`.
 - Domain vocabulary is noun-shaped; operations pair those nouns with the established verbs below. A domain noun keeps one grammatical role across types, values, and function results.
 - Parameters name each participant's domain role (`transport`, `contract`, `scope`, `owner`, `session`, `lifetime`, `bag`). Access restrictions live in scoped capability types and handles.
-- A domain catalog is `XCatalog`; one public item is `XCatalogEntry`. Reserve these names for the catalog concept defined in [concepts](../concepts.md), not arbitrary lists or snapshots; avoid the generic `Descriptor` suffix when the value's actual role is a catalog entry.
+- A domain catalog is `XCatalog`; one public item is `XCatalogEntry`. Reserve these names for the catalog concept in [`concepts.md`](../concepts.md). Do not use them for arbitrary lists or snapshots. Avoid `Descriptor` when the value is a catalog entry.
 - State-shape nouns carry these meanings:
   - A **snapshot** is an immutable point-in-time value or independently identified artifact. `toSnapshot()` converts one live value to its snapshot representation; `createDocumentSnapshot()` creates a store-owned artifact; `getCatalogSnapshot()` retrieves an existing current snapshot.
   - A **projection** is a purpose-specific, read-only, lower-information view of authoritative state. It is rebuildable and never independently authoritative; a physically persisted projection has cache semantics. Use `deriveXProjection()` for a one-shot derivation.
   - A **baseline** is the reference value used for comparison by a later operation; it remains derived unless its owning domain commits it.
 - React components are the exception: keep PascalCase noun names such as `Conversation` or `ChoiceButton`.
-- Anything implementing `Disposable` is fine to add to a bag — no ceremony needed.
+- Add any `Disposable` implementation directly to a bag without another wrapper.
 - Use `Store` for durable source-of-truth APIs/implementations. A store may expose a change feed when the change semantics are generic at that layer; otherwise domain-specific buffers/features publish higher-level invalidation events.
 - Use `Buffer` for live, feature-specific working projections over a store. Buffers may cache regenerable state, normalize writes, and reconcile feature/editor semantics, but durable authority stays in the backing store.
 - Use `Registry` for central in-memory maps of contributed things plus their routing (`ChannelRegistry`, `SettingsRegistry`); registries don't persist.
 
 ### Projection naming
 
-Describe a projection along the axes that determine materially different results. Not every projection uses every axis, and a symbol need not repeat facts intrinsic to its domain, but its names, parameters, and result fields together must let a caller predict the view.
+Describe a projection through the axes that can change its result. Not every projection uses every axis. Names, parameters, and result fields must let callers predict the view.
 
 | Axis | Question | Naming pattern |
 | --- | --- | --- |
@@ -368,24 +370,56 @@ Current projections apply the axes as follows:
 
 ## Comments
 
-**Rule.** A comment explains _why_ code exists or records non-obvious contract constraints; it does not narrate syntax. Names carry the stable domain operation. Contract comments may carry preconditions, skipped outcomes, asynchronous ordering, and race policy when putting those volatile details in the symbol would couple callers to one lifecycle use. If a comment is needed merely to identify the operation or domain value, that is still a naming problem — rename until the code reads on its own.
+**Rule:** A comment explains why code exists or records a non-obvious contract constraint. It does not narrate syntax. Names carry the stable domain operation.
 
-**No planning artifacts.** Plan phases (`C3`), stage numbers, ticket ids, `v0` — none belong in code. They are a parallel vocabulary that means nothing to a later reader and goes stale the moment the plan moves on. The same applies to links to dated decision/design/plan docs: the rationale they hold churns independently of the code, so a citation becomes a re-validation cost (open the doc, check it still applies) rather than a help. A pointer to a living style doc (this file) is the exception — it tracks a stable convention, not a point-in-time decision.
+Contract comments may carry preconditions, skipped outcomes, asynchronous ordering, and race policy. Do not encode those volatile details in a symbol tied to one lifecycle use.
 
-**Only stable placement context.** Keep a comment only when its context is both (a) necessary to place the code in the system and (b) unlikely to change across revisions. If a reader could rediscover the context ad-hoc — who calls this, how it is wired — leave it out; rediscovery is cheaper than keeping a comment honest. Comments that narrate _future_ intentions ("a `diff` method joins here when versioning lands") are the most expensive kind: unverifiable, and they rot silently.
+If a comment only identifies an operation or domain value, the name remains wrong. Rename until the code reads on its own.
 
-**What earns a comment.** A warning or an explanation the code cannot carry itself: "this must not move or the session file is orphaned," "read defensively because pi may add block kinds," "order is load-bearing — pi has no priority field." Each saves a reader from a wrong assumption.
+**No planning artifacts:** Plan phases, stage numbers, ticket ids, and version-zero labels do not belong in code. They lose meaning after the plan changes.
 
-**Coverage and depth.** Every top-level export and every public interface field carries a `/** JSDoc */` line; depth scales with risk, not with file importance. The public API surface (`src/api/`) earns full JSDoc: a summary, behavioral details, and tags only where they add information. Complex or edge-case-heavy logic earns dense line comments, because a wrong assumption there is expensive (platform quirks, cache semantics, ordering). UI components, tests, and simple code stay thin: a one-line summary on each top-level export, a why-comment where a reader would otherwise guess, nothing else. Zero comments is acceptable only where the names and types carry the whole story, which is rarer than it looks; barrels and pass-through re-exports are the honest zeros.
+Do not link code comments to dated decisions, design threads, or plans. Their rationale changes independently, which turns each citation into a revalidation cost.
 
-**JSDoc.** JSDoc is for users of the code; line comments are for the implementation. JSDoc is well-formed Markdown: use lists instead of prose-crushed lines, one tag per line, wrapped tag text indented, and the single-line `/** ... */` form when it fits. Summaries are imperative verb phrases ("Resolve the selected branch projection", "Execute a bash command"); the third-person "This method ..." form is not house style. Do not repeat the name or the type in the summary, and do not put types in `@param` or `@returns`, because TypeScript carries them. `@param` and `@returns` appear only when they add information. `@example` only for genuinely non-trivial usage, with complete runnable code. `@link` for cross-references to related contracts. A type or class comment states the role and how and when to use it, not its fields. Non-JSDoc multi-line comments use `//` per line; `/* */` is reserved for JSDoc and attribution headers.
+A link to a living convention is the exception. The target tracks a stable rule instead of a point-in-time decision.
 
-**Contract nuance lives in the JSDoc.** When a function or field has contract nuance, the comment carries it: defaults ("Call with no argument to restore the default"), ordering ("Continue once so queued messages are delivered"), special values ("Pass `undefined` to clear"), edge cases ("Use an empty array to hide the indicator entirely"). The comment states what a caller must know to use the code correctly, not what the body does.
+**Only stable placement context:** Keep context only when it is necessary for placement and unlikely to change. Omit wiring or caller facts that a reader can rediscover cheaply.
 
-**Line comments say why, not what.** An inline comment names the reason the code does what it does, never the step: "Fast path: ANSI codes require ESC (7-bit) or CSI (8-bit) introducer", "A submodule's gitdir has no `commondir`, so it lands under `.git/modules`", "Try the curly-quote variant (macOS uses U+2019 in screenshot names)". If a comment narrates the code ("increment the counter", "loop over the entries"), delete it.
+Do not narrate future intentions. They are unverifiable and become stale silently.
 
-**Section titles.** Files that grow past roughly 500 lines get `// Section Title` markers at logical group boundaries: a table of contents for a file too long to scan. Plain titles, no boxes (`// ====` banners are out).
+**What earns a comment:** Add a warning or explanation that code cannot carry itself. Examples include load-bearing order, external format tolerance, and hidden ownership constraints. Each should prevent a plausible wrong assumption.
 
-**Silent catches are labeled.** A `catch` that swallows an error carries a comment naming why swallowing is safe: "Process already dead", "Broken symlink, skip it", "Ignore errors" where the surrounding contract makes the choice obvious. An unlabeled swallow reads as a bug.
+**Coverage and depth:** Every top-level export and public interface field carries a JSDoc line. Depth follows risk rather than file importance.
 
-**Derived code carries attribution.** Code derived from an external source keeps a `/* */` license/attribution header at the top of the file: the one place a boxed block comment is expected.
+Public `src/api/` contracts need a summary and behavioral detail. Add tags only when they provide information.
+
+Complex or edge-case-heavy logic needs denser explanation because wrong assumptions are expensive. Examples include platform quirks, cache semantics, and ordering.
+
+Keep UI components, tests, and simple code thin. Give top-level exports a one-line summary and add only necessary why-comments.
+
+Zero comments is acceptable when names and types carry the complete story. Barrels and pass-through re-exports are common examples.
+
+**JSDoc:** JSDoc serves code users; line comments serve implementation readers. Write JSDoc as well-formed Markdown.
+
+Use lists instead of compressed prose. Put one tag on each line and indent wrapped tag text. Use single-line `/** ... */` form when it fits.
+
+Write summaries as imperative verb phrases, such as "Resolve the selected branch projection." Do not use the third-person "This method" form.
+
+Do not repeat the name or type in a summary. TypeScript already carries types, so omit them from `@param` and `@returns`.
+
+Use `@param` and `@returns` only when they add information. Reserve `@example` for non-trivial complete code and `@link` for related contracts.
+
+A type or class comment states its role and when to use it, not its fields. Multi-line implementation comments use `//` per line.
+
+Reserve `/* */` for JSDoc and attribution headers.
+
+**Contract nuance lives in JSDoc:** Document defaults, ordering, special values, and edge cases that callers need. State how to use the contract correctly, not how its body works.
+
+**Line comments say why, not what:** An inline comment gives the reason for code, never the narrated step. Useful reasons include format constraints, platform variants, and repository edge cases.
+
+Delete comments such as "increment the counter" or "loop over the entries." The code already states those actions.
+
+**Section titles:** Files longer than roughly 500 lines use `// Section Title` markers at logical group boundaries. Use plain titles without boxed banners.
+
+**Silent catches are labeled:** A `catch` that swallows an error explains why the behavior is safe. Examples include a dead process or broken symlink. An unlabeled swallow reads as a bug.
+
+**Derived code carries attribution:** Code derived from an external source keeps a license or attribution header at the file top. This header is the accepted block-comment exception.

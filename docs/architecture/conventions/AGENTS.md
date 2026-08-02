@@ -1,6 +1,6 @@
 ---
-summary: "Prescriptive code rules for UIX — source organization, lifetimes, state ownership, naming, capability handles, comments, accessible UI, styles, module APIs, validation, logging, imports, and lifecycle helpers."
-read_when: "Read before introducing or renaming an exported symbol, recurring architectural term, owner, lifecycle, contribution point, or capability; otherwise descend to the rule matching the code being changed."
+summary: "Prescriptive UIX code rules for ownership, naming, lifetimes, modules, logging, state, accessibility, and styles."
+read_when: "Read before changing exported vocabulary, ownership, lifecycles, contribution points, or capabilities. Otherwise open the matching rule directly."
 status: active
 ---
 
@@ -8,7 +8,7 @@ status: active
 
 Short, opinionated rules. Each one buys back review effort by making a class of bugs hard to write. Most are main-process specifics (lifetimes, logging, imports); **Source organization**, **Naming**, and **Comments** apply to all UIX code, including UI, shared, and feature modules.
 
-This directory is the prescriptive code-rule collection. Its leaves remain living architecture documents and always describe HEAD; use the summaries below to open only the rules relevant to the work in front of you.
+This directory contains prescriptive code rules. Each leaf is living architecture and describes HEAD. Use the summaries to open only rules relevant to the task.
 
 <!-- INDEX:START -->
 

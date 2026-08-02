@@ -7,11 +7,11 @@ status: active
 
 # Logging
 
-**Rule.** Use `createLogger(component)` from `src/main/log.ts`. Don't call `console.log` / `console.warn` / `console.error` directly in main-process code.
+**Rule:** Use `createLogger(component)` from `src/main/log.ts`. Don't call `console.log` / `console.warn` / `console.error` directly in main-process code.
 
-**Why.** Pino gives us levels, structured fields, child loggers (free attribution), pretty-printed development output, and JSON in production with one import. Ad-hoc `console.*` calls drift in format, cannot be filtered, and make feature attribution awkward.
+**Why:** Pino gives us levels, structured fields, child loggers (free attribution), pretty-printed development output, and JSON in production with one import. Ad-hoc `console.*` calls drift in format, cannot be filtered, and make feature attribution awkward.
 
-**Shape.**
+**Shape:**
 
 ```ts
 import { createLogger } from "./log";
@@ -23,12 +23,12 @@ featureLog.debug({ id }, "activation_succeeded");
 featureLog.error({ err: error.message }, "activation_failed");
 ```
 
-**Conventions.**
+**Conventions:**
 
-- **Message = lowercase snake_case event identifier.** Use a stable operation-state name such as `activation_succeeded`, `activation_failed`, or `reload_started`; do not encode prose in the event id. The IPC wire-log boundary is the sole exception: it uses `<phase>:<channel>` because each line identifies a concrete protocol crossing rather than an application event.
-- **All context in the fields object.** Never interpolate state into the message string.
-- **Component is the subsystem.** Use names such as `features`, `surfaces`, `agent`, `channels`, or `main`. No `uix.` prefix is necessary. Do not repeat the component in the event id.
-- **Per-instance child loggers** provide attribution. When handling many things of one kind, such as features or sessions, create a child logger with the stable identifying fields: `const featureLog = log.child({ feature: displayName, entry })`.
-- **Don't use bare `name` as a field.** Pino-pretty interprets `name` as the logger's display name and pulls it into the rendered header. Prefer a domain-specific field such as `feature`, `displayName`, `workspaceName`, `commandName`, or `toolName`; these names are also easier to search.
+- **Message equals a lowercase snake_case event identifier:** Use a stable operation-state name such as `activation_succeeded`, `activation_failed`, or `reload_started`. Do not encode prose in the id. The IPC wire-log boundary uses `<phase>:<channel>` because each line identifies a concrete protocol crossing.
+- **All context in the fields object:** Never interpolate state into the message string.
+- **Component is the subsystem:** Use names such as `features`, `surfaces`, `agent`, `channels`, or `main`. Do not add a `uix.` prefix or repeat the component in the event id.
+- **Per-instance child loggers:** Create a child logger when one component handles many features, sessions, or similar instances. Give it stable identifying fields: `const featureLog = log.child({ feature: displayName, entry })`.
+- **Do not use bare `name` as a field:** Pino-pretty treats `name` as the logger's display name and puts it in the header. Prefer a searchable domain field such as `feature`, `workspaceName`, `commandName`, or `toolName`.
 - **`err` field for errors.** Pass the error message string (`err: e.message`) or the Error object itself (pino serializes it). Don't stringify into the message.
-- **Levels.** Use `info` for low-volume events useful in normal operation, `warn` for recoverable trouble worth a human's attention, and `error` for failures. Use `debug` (enabled with `UIX_LOG_LEVEL=debug`) for routine lifecycle and diagnostic trails.
+- **Levels:** Use `info` for low-volume operational events, `warn` for recoverable trouble, and `error` for failures. Use `debug` for routine lifecycle and diagnostic trails. Enable it with `UIX_LOG_LEVEL=debug`.
