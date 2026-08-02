@@ -62,7 +62,7 @@ These names and the physical package graph are deliberately unsettled until the 
 
 ## Units
 
-### E0 — Inventory and name the host contract
+### E0: Inventory and name the host contract
 
 Map everything currently composed in `src/main/index.ts` and classify it as runtime semantics, Electron host behavior, renderer bootstrap, or an unresolved capability. Trace direct and transitive Electron dependencies, including IPC registration, custom protocols, `BrowserWindow`, dialogs, `shell.openExternal`, app lifecycle, `userData`, packaged resource paths, logging, recents, picker/scaffolding, keyboard dispatch, and development-server assumptions.
 
@@ -70,7 +70,7 @@ From that inventory, write the smallest host contract needed to instantiate one 
 
 Acceptance: every Electron dependency has an intended owner; the proposed runtime can be described without `Electron.App`, `BrowserWindow`, `ipcMain`, or `protocol`; unresolved cases are named rather than hidden in a generic escape hatch.
 
-### E1 — Extract the host-neutral runtime composition root
+### E1: Extract the host-neutral runtime composition root
 
 Move workspace-scoped construction out of the Electron entry into a callable runtime with an explicit lifetime and dependencies. It should own feature loading, facet registries, agent/session behavior, settings, stores, reload, and the transport-neutral halves of channels/resources. The Electron entry should instantiate this runtime through adapters while preserving current behavior.
 
@@ -78,7 +78,7 @@ Separate app-global state from workspace state as part of the extraction. Do not
 
 Acceptance: Electron dogfood behaves as before, runtime tests instantiate the workspace backend without importing or booting Electron, and disposing the runtime releases all workspace-scoped registrations.
 
-### E2 — Make channels independently hostable
+### E2: Make channels independently hostable
 
 Turn the existing channel seam into an explicit backend transport binding and browser transport client. Preserve contract-derived validation, canonical ids, request/response errors, event publication, disposal, and sensitive log descriptions. Add the minimum connection/session concept needed for a browser client; specify what happens on disconnect and reconnect before relying on long-lived subscriptions.
 
@@ -86,7 +86,7 @@ Choose the local server live transport only in this unit. WebSocket is the expec
 
 Acceptance: the same channel conformance suite runs against the Electron adapter and an in-memory or server adapter, and a browser transport can execute at least the substrate workspace catalog plus one feature request/event path.
 
-### E3 — Make resources and surfaces independently hostable
+### E3: Make resources and surfaces independently hostable
 
 Separate resource dispatch from Electron protocol registration. Bind the same normalized resource routes, origin policies, response metadata, surface-module pipeline, assets, CSS modules, cache hashes, and failure behavior to HTTP. Define the browser page origin and URL-generation context without leaking Electron schemes into feature code.
 
@@ -94,7 +94,7 @@ This unit must revisit CSP, CORS, iframe origins, generated/foreign surface cont
 
 Acceptance: an ordinary supported browser can load the workspace shell, dynamically load manifest-contributed surfaces, fetch their assets/resources, and preserve the existing isolation policy without Electron custom protocols.
 
-### E4 — Ship a local, unbootstrapped UIX server workflow
+### E4: Ship a local, unbootstrapped UIX server workflow
 
 Add a server executable/CLI that opens an explicit existing workspace, binds safely to loopback by default, reports its URL, and shuts down cleanly. Decide the initial browser-launch behavior, port selection, app-data/profile location, logging, signals, stale-process handling, and actionable startup failures. There is no start picker or create-workspace onboarding requirement: a missing or invalid workspace is a CLI error.
 
@@ -102,7 +102,7 @@ The server distribution must not scaffold or enable chat, canvas, or dev skills 
 
 Acceptance: on macOS and a Linux/container-like environment, a user can point the server at a workspace, open the printed local URL in a regular browser, use its contributed surfaces and agent channels, reload features, and persist/reopen state. The process does not install or load Electron.
 
-### E5 — Establish monorepo package and build boundaries
+### E5: Establish monorepo package and build boundaries
 
 After the runtime and both hosts reveal their real imports, move them into explicit workspace packages/apps and give each target an independent build and test entry. Avoid a speculative up-front directory migration; use the proven dependency direction to prevent the runtime or server from depending on Electron or batteries.
 
@@ -110,7 +110,7 @@ Decide which artifacts are bundled versus external, how `@uix/api` self-resoluti
 
 Acceptance: dependency checks make the intended direction enforceable; the server can build/install without Electron; Electron can build by depending on runtime/client packages; and shared conformance tests run once per host adapter.
 
-### E6 — Recast Electron as a packaged host/product slot
+### E6: Recast Electron as a packaged host/product slot
 
 Make Electron consume the extracted runtime and shared web client exclusively through the established host seams. Retain the native window/picker behavior needed by the current application, then decide which remaining defaults belong to a generic UIX desktop host versus the future Fruition composition. Complete the existing packaged-binary work for readable feature/template resources only for the product that elects to ship those templates.
 
@@ -118,7 +118,7 @@ This unit creates the slot in which Fruition can later own branding, onboarding,
 
 Acceptance: the Electron artifact and headless server are independently buildable distributions over the same UIX runtime; removing batteries from the server has no effect on the runtime contract; and Electron-only code is confined to the Electron/product side of the package graph.
 
-### E7 — Server shipping-readiness and parity gate
+### E7: Server shipping-readiness and parity gate
 
 Define the supported browser/OS matrix and a parity suite covering workspace activation, channel validation, event fan-out, feature reload, surface/resource loading, agent login callbacks, persistence, shutdown, error presentation, and secret redaction. Document intentional host differences. Add server operational documentation for bind addresses, data/workspace volumes, logs, upgrades, and recovery.
 

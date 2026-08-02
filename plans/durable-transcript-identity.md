@@ -25,13 +25,13 @@ This follows the transcript normalization work in [conversation-render-primitive
 - Custom messages persist via `appendCustomMessageEntry(customType, content, display, details)` — the `CustomMessage` object never reaches the manager, so generic third-party customs cannot correlate by identity; UIX-authored blocks carry an instance id in `details`, and a future pi post-persist event would close the gap properly.
 - _(2026-06-11)_ **Only `content` reaches the model.** `convertToLlm` (`messages.js`, wired at `sdk.js` → run per LLM call at `agent-loop.js`) renders a custom message as a plain user-role text message; `customType`, `details`, and `display` are dropped. Any custom message the model must differentiate needs its kind **in the content text** — the state-message substrate's `<uix-state>`/inner-tag envelope plus system-prompt vocabulary is the established pattern ([agent-state-messages](../docs/design/agent-state-messages.md)).
 
-## D0 — Session append observation · **landed 2026-06-09**
+## D0: Session append observation · **landed 2026-06-09**
 
 Wrap `appendMessage` (instance patch, original bound) on the `SessionManager` in the driver after opening/creating the manager and before `createAgentSession` receives it. The wrapper calls the original, takes the returned durable id, reads the entry with `getEntry(id)`, and notifies a UIX-owned observer. A local adapter over pi's current API — not a content mutation, not a session-file write; replace it with pi's official post-persist event if one ships. Add `appendCustomMessageEntry` observation only when a concrete custom-message consumer needs live durable ids.
 
 Home the observer state in a dedicated transcript-item identity module (`src/main/agent/transcript-item-identity.ts`), not forwarder closures — D1 and D2 both consume it.
 
-## D1 — Keyed-on-persist ids · **landed 2026-06-09**
+## D1: Keyed-on-persist ids · **landed 2026-06-09**
 
 Per row kind:
 
@@ -42,7 +42,7 @@ Per row kind:
 
 Wire change: `transcript_replace` gains an optional `previousId` (or a dedicated rekey event) so the renderer can swap an id in place without reordering. If the one remount per rekey ever bites (lost text selection at stream end), the renderer may keep its own stable React key and treat `item.id` as data — renderer-local, not a protocol change.
 
-## D2 — Durable block state as `uix.*` custom entries
+## D2: Durable block state as custom entries
 
 Block state lives in pi `CustomEntry` records — the hidden-state primitive: tree-ordered between messages, ignored by `buildSessionContext` (the model never sees it), skipped by transcript projection (the human never sees it), branch-aware for free, and pi's own `LabelEntry` (`{ targetId, label }`) is the precedent shape. Write via the C1 extension handle (`pi.appendEntry`) — this is the first real consumer the handle bridge-out was deferred for ([persistence-and-session-foundation](./persistence-and-session-foundation.md) C1).
 
@@ -51,7 +51,7 @@ Block state lives in pi `CustomEntry` records — the hidden-state primitive: tr
 - Action flow: renderer sends a typed, TypeBox-validated signal over a `uix:block-action` invoke channel (`canvasWriteback` is the existing precedent; the payload shape should fold into the future typed-channel substrate unchanged). Main's handler classifies it (ephemeral react vs durable write), validates the id against the session, persists the entry under the canonical id, and emits the updated joined item via `transcript_replace`.
 - Pre-key actions: durable effects queue in main until the row keys (await the identity module's promise); ephemeral effects proceed immediately off the handle.
 
-## D3 — One branch projection and restore lifecycle · **in progress**
+## D3: One branch projection and restore lifecycle · **landed 2026-07-19**
 
 History replay now uses one selected-branch projection that walks `getBranch()` once in root→leaf order and derives the transcript from persisted message entries plus turn state as of the leaf, retaining the latest raw value per currently registered cell. The restore scheduler validates the completed projection before callbacks, restores features concurrently and each feature's cells sequentially, resets missing cells through `undefined`, and isolates feature failures. Startup activation restores through the auth-free manager tier, replacement-session rebind waits for restoration before completing, New Session commits the departing graph and restores the fresh graph's cells from `undefined`, and serialized feature reload restores replacement instances before publishing their surfaces. Durable block-state joining remains gated on D2's first concrete consumer; it will join items before they reach the renderer (live items get the same joined state via `transcript_replace` once keyed, no rekey required).
 

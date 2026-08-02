@@ -27,7 +27,7 @@ Build the action layer settled in [workspace-actions](../docs/design/workspace-a
 - Existing materialized bindings beat contributed defaults; stale ids are retained harmlessly.
 - Removing the default palette does not disable the registry or direct keybindings.
 
-## A0 — Action definitions and pure resolution
+## A0: Action definitions and pure resolution
 
 Define the renderer-facing types and pure resolution before adding React or persistence.
 
@@ -42,7 +42,7 @@ Acceptance:
 - Descriptor projection is flat and contains no function, React value, or group node.
 - Ordering is deterministic and resolution has focused tests.
 
-## A1 — Renderer registry and surface contributions
+## A1: Renderer registry and surface contributions
 
 Add one workspace-scoped registry and expose action contribution, catalog subscription, and invocation through `@uix/api/workspace` context/hooks.
 
@@ -58,7 +58,7 @@ Acceptance:
 - Chat actions open the requested picker scope and preserve existing focus behavior.
 - Unmount/reload removes callback availability and safely observes any pending completion without claiming to cancel feature-owned work.
 
-## A2 — Durable bindings and conflict projection
+## A2: Durable bindings and conflict projection
 
 ### Settled design and motivation
 
@@ -103,7 +103,7 @@ Acceptance:
 - Active platform-normalized conflicts mark every claimant, execute nothing by keyboard, and remain invokable directly by id.
 - External manifest edits require reload; channel edits update the catalog immediately.
 
-## A3 — Keyboard dispatcher and Electron ownership
+## A3: Keyboard dispatcher and Electron ownership
 
 Install one workspace-page dispatcher over the hydrated registry. A gesture resolves to an action id and invokes through the registry with a keyboard source; no keybinding stores a callback.
 
@@ -126,7 +126,7 @@ Acceptance:
 - Conflicted, unbound, disabled, repeated, or composing gestures follow documented behavior.
 - The dispatcher exists only for the focused workspace renderer lifetime.
 
-## A4 — Ambient surfaces
+## A4: Ambient surfaces
 
 Extend `defineSurface` with presentation `panel | ambient`, defaulting to `panel`.
 
@@ -141,7 +141,7 @@ Acceptance:
 - Ambient failures remain diagnosable without replacing a visible panel.
 - Reload/removal closes the modal and unregisters its actions.
 
-## A5 — Default command-palette feature
+## A5: Default command-palette feature
 
 Add a normal manifest-composed feature whose ambient surface renders the default palette. It registers `palette.open` with a default binding, subscribes to the public catalog, and invokes selected ids without privileged callback/channel access.
 
@@ -157,7 +157,7 @@ Acceptance:
 - Chat model actions work from the palette.
 - Non-invokable results explain why they are disabled or conflicted.
 
-## A6 — Customization, documentation, and verification
+## A6: Customization, documentation, and verification
 
 Prove both binding-edit paths. A renderer feature builds and submits a complete candidate through the narrow binding API—its UI may label candidate changes bind, unbind, and reset—and sees the main-confirmed dispatcher/catalog state update immediately. An external or agent edit to `settings.keybindings` takes effect through substrate reload. Do not build the broader cross-feature settings editor in this unit; until that later deliverable lands, the manifest plus reload is the human/agent editing path. The future editor is tracked in the [plans backlog](./backlog.md) as a replaceable feature over a substrate settings catalog, rather than privileged palette behavior.
 

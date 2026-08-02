@@ -16,7 +16,7 @@ Persistence is the phase that ties the conversation tree, canvas versions, and a
 
 ---
 
-## C0 — File-backed session + history rehydration · _foundation, do first_ · **landed**
+## C0: File-backed session + history rehydration · _foundation, do first_ · **landed**
 
 **Goal.** The conversation survives restart.
 
@@ -29,7 +29,7 @@ Persistence is the phase that ties the conversation tree, canvas versions, and a
 
 **Boundary.** No versioning, no custom entries, no extension promotion. Pure pi read + file-backed session. Lands before any render improvement, or the renderers get retrofit when history rehydration arrives.
 
-## C1 — Promote UIX-core agent facets to an in-process pi extension · _foundation, do first · = canvas-plan U3_ · **landed 2026-06-07**
+## C1: Promote UIX-core agent facets to an in-process pi extension · _foundation, do first · = canvas-plan U3_ · **landed 2026-06-07**
 
 **Goal.** Hold pi's `ExtensionAPI` — write access to the session tree, hooks, and the message-transform seam.
 
@@ -44,7 +44,7 @@ Persistence is the phase that ties the conversation tree, canvas versions, and a
 
 > **Scope note.** This landed as the composition-root structure, not just a narrow swap: `createUixCoreExtension` runs an ordered list of per-subsection `AgentFacet` functions, each handed the live `pi`. Order is load-bearing because pi has no priority field — rationale in decision [uix-core-composition-root](../docs/decisions/2026-06-07-uix-core-composition-root.md) and design thread [uix-core-composition](../docs/design/uix-core-composition.md). Read those before adding a _second_ facet.
 
-## C2 — Versioned content store · **first JSON-object store landed 2026-06-17**
+## C2: Versioned content store · **first JSON-object store landed 2026-06-17**
 
 **Goal.** The canvas has a mutable latest working copy plus immutable snapshots; a snapshot restores the editor whole — content **and** anchor state together.
 
@@ -54,7 +54,7 @@ _Landed store:_ `DocumentStore` now has `getCurrent` / `setCurrent` / `createSna
 
 **Boundary.** Store-only; session linkage starts in C3.
 
-## C3 — Submit-boundary entries: turn-state pointers and human canvas diff
+## C3: Submit-boundary entries: turn-state pointers and human canvas diff
 
 **Goal.** Each turn records which document snapshots **and which agent cwd** were live, and the human's pending canvas edits reach the agent as a durable non-user message — both as entries riding the tree, prepared at one boundary and ordered before the user message.
 
@@ -69,7 +69,7 @@ Both entry types rehydrate through the one branch-walk projection ([durable-tran
 
 **Boundary.** Record + read; restore UI is C5. The agent `changeCwd` capability and standardized worktree creation are their own work, gated on an app needing the move.
 
-## C4 — Anchor rehydration from version meta
+## C4: Anchor rehydration from version meta · **landed 2026-07-19**
 
 **Goal.** Resumed/navigated sessions keep anchor identity, so historical anchors in the transcript still resolve and the edit match-guard works without forcing a re-read.
 
@@ -79,7 +79,7 @@ Both entry types rehydrate through the one branch-walk projection ([durable-tran
 
 **Boundary.** Continuity only.
 
-## C5 — Tree preview + restore
+## C5: Tree preview and restore · **activation restore landed; preview remains**
 
 **Goal.** Move around the conversation tree; canvas content and anchor state follow.
 

@@ -161,11 +161,11 @@ These decisions remain valuable, but they do not block the early vertical slices
 
 S0–S3 are the shortest correct route to New Session and then visible session switching. S4 adds titles. S5 hardens failures and presentation under the already-settled contracts. Do not introduce temporary compatibility APIs merely to shorten a unit.
 
-### S0 — Pi runtime replacement foundation · **landed 2026-07-17**
+### S0: Pi runtime replacement foundation · **landed 2026-07-17**
 
 Migrate the driver to Pi's supported `AgentSessionRuntime` while preserving the cheap eager history-manager tier, lazy live agent creation, current prompt/event behavior, and first-render independence. Bind transcript observation and Pi-owned resources to the active runtime generation. This unit changes no visible session behavior; it removes custom replacement mechanics before New Session relies on them.
 
-### S1 — Named state cells and transition restoration · **landed 2026-07-19**
+### S1: Named state cells and transition restoration · **landed 2026-07-19**
 
 The keyed schema/snapshot/restore contract, substrate-derived identities, plain-JSON validation, per-cell complete-value change suppression, cell-scoped history reads, and Canvas `documents` snapshot/restore implementation have landed. The shared selected-branch projection derives transcript items plus turn state as of the leaf, retaining the latest raw value per active cell in one forward pass. The restore scheduler validates all projected values before callbacks, restores features concurrently and each feature's cells sequentially, passes `undefined` for missing cells, and isolates feature failures. Bootstrap activation restores without opening Pi services, runtime creation waits for it, replacement-session rebind completes only after target restoration, and serialized feature reload commits active state after restoration settles before restoring replacement instances and publishing their surfaces.
 
@@ -173,13 +173,13 @@ Migrate turn state from one singleton per feature to keyed schema/snapshot/resto
 
 This is the minimum correctness foundation for New Session. Use existing structured failure logging while building this happy path; the diagnostic registry and host failure overlays intentionally wait for S5. This unit fulfills the D3 overlap and does not build TS7 admission or live message taps.
 
-### S2 — New Session vertical slice · **landed 2026-07-19**
+### S2: New Session vertical slice · **landed 2026-07-19**
 
 The payload-free `new_session` agent request commits current active feature state, asks `AgentSessionRuntime` for a fresh graph, restores every active cell from `undefined`, and returns the new `SessionSummary` only after restoration settles. Main rejects a raced request while the agent is running. The renderer workspace session controller updates its shared active-session projection from the successful response; Chat invalidates old history and clears/loads against the new id while preserving its draft.
 
 The substrate-owned `uix.session.new` action materializes `mod+n` and exists without Chat. Its workspace-level activity guard observes the agent event stream and skips the backend request while busy. Selected-session persistence waits for S3, where selecting a non-most-recent session creates its first user-visible need; a blank unstarted graph does not need to survive restart. Reload action/accelerator work remains in the workspace-actions plan rather than expanding this slice.
 
-### S3 — Session Switching vertical slice · **landed 2026-07-22**
+### S3: Session Switching vertical slice · **landed 2026-07-22**
 
 The final `session_history({ sessionId? })` path routes active reads through the workspace session controller to reconcile the authoritative summary and transcript together, while explicit non-selected reads resolve by durable id without activating or restoring that graph. The old ambiguous `history` request was removed rather than retained as an alias. The typed `list_session_summaries({ limit })` backend path selects files newest-mtime-first, processes the bounded set sequentially through the lightweight summary reader, and does not open Pi services. The substrate-owned `session.selected` workspace setting persists only the selected durable id; startup opens that graph when available, repairs stale selection to the newest graph, and successful New Session transitions persist their replacement only after restoration settles. Backend `switch_session({ sessionId })` applies the same busy rejection, current-state commit, runtime replacement, target restoration, and post-success selection persistence. The renderer controller independently hydrates guarded recent/active projections, refreshes recents after mutations, and exposes busy-aware switching. Chat presents that capability as its own recent-conversation pill and upward-anchored picker, aligned visually with its model picker without introducing a shared selector abstraction.
 
@@ -187,17 +187,17 @@ Add the mtime-ordered `list_session_summaries`, persisted selected-session ident
 
 This unit delivers visible switching before rename polish, diagnostic UI, search, pagination, or indexing.
 
-### S4 — Titles and picker polish · **landed 2026-07-22**
+### S4: Titles and picker polish · **landed 2026-07-22**
 
 The typed `set_session_title({ sessionId, title })` channel and driver path have landed. They target active or inactive graphs without switching or opening Pi services, use native append-only `session_info` metadata, return the updated summary, remain valid during an active run through Pi's synchronous metadata append, and enforce the settled normalization and defensive bound. Renderer coordination has also landed: title mutations serialize with other session mutations without inheriting the agent-running switch guard, update matching active/recent projections without changing selection, promote the response immediately, invalidate stale lists, and refresh recents; post-run refresh reconciles the active first-message preview. Chat now edits titles inline from a hover/focus/touch-visible pencil, uses explicit Save and × controls plus Enter/Escape, preserves the draft on failure, and clears an explicit title through an empty save. Session and model pickers consistently use filled/empty circles for current selection, reserving the checkmark vocabulary for confirmation.
 
 Add explicit title/clear UI over `set_session_title` and refresh the active summary after the first completed turn so Chat can replace its empty-session fallback with the first-message preview. Apply the settled generous defensive bound and update recent rows from mutation responses. Use filled/empty circle markers consistently for current session/model selection; reserve check and × for inline title save/cancel. Settle only the focus/draft details needed by the reviewed UI; richer Chat polish can remain in S5.
 
-### S5 — Defensive hardening and failure presentation
+### S5: Defensive hardening and failure presentation
 
 Build the minimal structured diagnostic registry (`code`, `diagnosticId`, safe summary, sanitized queryable details), preserve/enrich one diagnostic through propagation, and apply the settled no-workspace-rollback/per-feature failure policy consistently across startup, reload, new, and switch. Add host-owned overlays for known failed feature surface areas, settle transport and the no-known-surface placement, and cover schema-validation/restore callback failures. Harden direct reload abort behavior, lifecycle races, failure reporting, and Chat draft/focus behavior. The full toast renderer and **Ask agent to fix** interaction remain separate backlog deliverables.
 
-### S6 — Verification and documentation
+### S6: Verification and documentation
 
 Update shipped agent/state/settings docs, architecture-of-record, durable-transcript-identity D3 status, and persistence restore status as each implemented unit lands rather than waiting for one final documentation batch. At the end, verify representative large summaries without introducing an index absent measured need and run the complete repository checks.
 

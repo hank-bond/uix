@@ -1,11 +1,13 @@
 ---
-summary: "A manifest-backed workspace settings service hydrates feature-declared TypeBox schemas plus explicit defaults into feature entries, exposes validated ctx.settings, and writes atomically without live filesystem watching; tracked document publication is the future file-change primitive."
-status: active
+summary: "Landed workspace settings through manifest-backed TypeBox scopes, materialized defaults, validated feature handles, and atomic persistence without live filesystem watching."
+status: landed
 ---
 
 # Spec: workspace settings
 
-The immediate need is durable workspace/feature settings, not a public arbitrary file-watching primitive. StatusBar layout in [agent-controls](./archive/agent-controls.md) needs cross-session feature-scoped settings that are visible and agent-editable as ordinary workspace data. If the agent or a human edits `uix.workspace.json` while UIX is running, the user runs `/reload` to pick it up.
+> **Landed.** The settings substrate ships and is documented in [`settings.md`](../../src/docs/settings.md). Future tracked document publication remains in [`backlog.md`](../backlog.md).
+
+The immediate need is durable workspace/feature settings, not a public arbitrary file-watching primitive. StatusBar layout in [agent-controls](./agent-controls.md) needs cross-session feature-scoped settings that are visible and agent-editable as ordinary workspace data. If the agent or a human edits `uix.workspace.json` while UIX is running, the user runs `/reload` to pick it up.
 
 This plan replaces the earlier `ctx.files.watch/write` F0 with a smaller settings service. File watching remains valuable, but the better future primitive is tracked document publication: documents loaded into the document store can be published to visible paths and only those tracked paths are watched/imported. That design is now a backlog seed, not part of this settings slice.
 
@@ -20,7 +22,7 @@ No users yet beyond the author, so breaking changes to interfaces/manifest shape
 
 `uix.workspace.json` remains one workspace file. Its `features` entries enumerate the composition, and each feature entry carries that feature's settings.
 
-## W0 — Manifest feature entries carry settings
+## W0: Manifest feature entries carry settings
 
 Move workspace feature entries to objects:
 
@@ -38,7 +40,7 @@ Move workspace feature entries to objects:
 
 The manifest entry does not repeat the feature id. The loaded `FeatureDefinition.id` is the only feature identity; settings are colocated with the manifest entry being activated, and there is no top-level `settings[featureId]` map in this version.
 
-## W1 — Feature-declared setting schemas
+## W1: Feature-declared setting schemas
 
 Settings are declared on `FeatureDefinition`, before `context()` and `contribute()` run, so the loader can hydrate them before handing out `ctx.settings`:
 
@@ -70,7 +72,7 @@ export default {
 
 Hydration uses each setting's explicit `default`, not TypeBox field defaults. Missing values hydrate from the default; plain objects merge recursively so new fields get added without overwriting existing fields; arrays, scalars, and `null` are atomic. `null` is an explicit value and must be allowed by the schema. Unknown persisted setting keys and invalid persisted values fail that feature loudly rather than being silently deleted or replaced.
 
-## W2 — Feature-scoped settings API
+## W2: Feature-scoped settings API
 
 Inject `ctx.settings` on the backend feature context:
 
@@ -92,7 +94,7 @@ Semantics:
 - `/reload` re-reads settings from disk;
 - no live filesystem watcher in v1.
 
-The first consumer is StatusBar layout in [agent-controls](./archive/agent-controls.md) A1. Model/thinking selection is not workspace settings: pi already records model/thinking changes as branch-aware session entries, so agent controls should derive those through the agent/session status path.
+The first consumer is StatusBar layout in [agent-controls](./agent-controls.md) A1. Model/thinking selection is not workspace settings: pi already records model/thinking changes as branch-aware session entries, so agent controls should derive those through the agent/session status path.
 
 ## Boundary / future
 

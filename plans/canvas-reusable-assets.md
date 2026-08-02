@@ -33,7 +33,7 @@ This plan builds on the case-1 hydrated-document model in [canvas-data-channel](
 - Every editable control is authored-and-persisted or controlled-and-excluded; human edits land in reflected props, not generated internals.
 - Conflicts resolve by policy, not by library: humans win; agent writes are conditional atomic replaces; agent edits are guarded merges.
 
-## S0 — Feature-local static resources
+## S0: Feature-local static resources
 
 Add a small static-directory form to feature resource contributions. A feature identifies a directory relative to its entry, and the substrate serves files from that directory through the feature's resource origin.
 
@@ -49,7 +49,7 @@ Acceptance:
 - Existing programmatic resource contributions continue to work unchanged.
 - The static contribution follows the feature's existing activation and disposal lifetime.
 
-## C1 — Canvas public asset collection
+## C1: Canvas public asset collection
 
 Add a conventional `public/` directory to the Canvas feature and expose it through a Canvas-owned `/assets/` route on the same origin as Canvas documents.
 
@@ -87,7 +87,7 @@ Acceptance:
 - The Canvas document stores references to reusable assets rather than copies of their implementations.
 - The convention travels with the Canvas feature when that feature is copied into a workspace.
 
-## C2 — Progressive asset catalog
+## C2: Progressive asset catalog
 
 Give each catalog directory an `AGENTS.md` that follows the repository documentation graph's overview-plus-index pattern.
 
@@ -109,7 +109,7 @@ Acceptance:
 - Index generation is deterministic and preserves prose outside its generated region.
 - The catalog can grow without adding its full contents to the Canvas system prompt or authoring skill.
 
-## C3 — Explicit transient DOM serialization
+## C3: Explicit transient DOM serialization
 
 Extend the Canvas writeback serializer with two explicit persistence policies:
 
@@ -133,7 +133,7 @@ Acceptance:
 - The live DOM is unchanged by serialization.
 - Script-triggered `window.__uixWriteback()` uses the same persistence behavior as ordinary Canvas writeback.
 
-## C4 — Authoring guidance and end-to-end proof
+## C4: Authoring guidance and end-to-end proof
 
 Add a small end-to-end example that combines:
 
@@ -163,7 +163,7 @@ Acceptance:
 - A newly scaffolded workspace receives the convention through its ordinary copied Canvas feature.
 - Shipped documentation clearly separates the generic static-resource capability from the Canvas-owned collection.
 
-## C5 — Component authoring model (how to use components)
+## C5: Component authoring model (how to use components)
 
 Components in the collection follow one authoring contract so documents stay thin, diffs stay meaningful, and agents and humans author the same component.
 
@@ -224,7 +224,7 @@ Acceptance:
 - An instance experiment promotes to its golden document or the library by an explicit gesture, and drift is visible.
 - Components remain usable without the framework library (plain custom elements and HTML).
 
-## C6 — Serve-time expansion (how to serve)
+## C6: Serve-time expansion (how to serve)
 
 The serve layer expands a stored document into the complete view before the frame parses it — internals pre-rendered (declarative shadow DOM where components use shadow) — so the browser paints the final view in one pass. This is the Canvas-specific equivalent of server-side rendering, executed at serve time in the same layer that injects the writeback shim.
 
@@ -240,7 +240,7 @@ Acceptance:
 - Expansion output is reproducible for identical input and invalidated only by document or library change.
 - Documents in the store remain the thin authored form; expansion never persists.
 
-## C7 — Versioned updates and conflict handling (how to handle updates)
+## C7: Versioned updates and conflict handling (how to handle updates)
 
 Every canvas document carries a version; the store is authoritative, and the frame tracks the version it last applied plus a dirty flag for unflushed human edits. All writes declare the base they were made against.
 

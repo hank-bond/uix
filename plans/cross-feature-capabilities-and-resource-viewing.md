@@ -101,27 +101,27 @@ These flows illustrate the agreed relationships, not final APIs.
 
 The ordering is provisional; each unit stops for review before implementation details or the next unit are chosen.
 
-### P0 — Protocol identity and authoring contract
+### P0: Protocol identity and authoring contract
 
 Settle qualified identities, immutable versioning, the public protocol module boundary, and enough package distribution convention for two independently authored features to compile against one protocol. End with type-only examples and no runtime registry.
 
-### P1 — Optional provider/client capability runtime
+### P1: Optional provider/client capability runtime
 
 Settle and prove one minimal protocol registration and optional typed client path, including activation lifetime and schema validation. Reuse the existing channel machinery for transport projection rather than introducing a parallel wire format. Do not add document or viewer semantics in this unit.
 
-### P2 — Shared document resource
+### P2: Shared document resource
 
 Settle the smallest general document contract and prove that two independent consumers bound to one resource observe a committed update. Keep semantic document kinds, filesystem publication, history, and conflict sophistication out until separately decided.
 
-### P3 — Framework-neutral resource viewers
+### P3: Framework-neutral resource viewers
 
 Settle the viewer descriptor, live catalog, matching, and invocation contract. Prove that one resource may match multiple viewer implementations and that an originating feature can present and invoke those choices without importing either implementation. Do not assume a global context-menu UI.
 
-### P4 — Host transport separation
+### P4: Host transport separation
 
 Prove that canonical resource identity and capability/viewer APIs do not expose Electron delivery URLs. Establish the host seam that can provide Electron or hosted browser delivery without changing feature-facing identity.
 
-### P5 — First product vertical
+### P5: First product vertical
 
 Choose a concrete vertical only after P0-P4 clarify the seams. Candidate proofs include a Chat resource link opened by source and rendered viewers or a semantic protocol consumed by a second feature; this plan does not select one yet.
 

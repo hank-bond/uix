@@ -45,7 +45,7 @@ Authorization and device-code URLs automatically open through the Electron-injec
 
 Flow answers are transient renderer-to-main signals. The driver correlates flow and prompt ids, passes each answer to the pending Pi prompt, honors prompt-level and flow-level abort signals, and rejects stale answers. Pi persists the resulting credential in UIX's app-owned profile; complete credential values never return to UIX and appear in neither settings nor session history.
 
-## P0 — Sensitive channel logging and generic agent auth flow
+## P0: Sensitive channel logging and generic agent auth flow · **landed 2026-07-25**
 
 The substrate-owned agent contract provides:
 
@@ -66,7 +66,7 @@ Acceptance:
 - Startup ownership rejects concurrent flows; cancellation/disposal aborts pending prompts and suppresses late provider callbacks.
 - Pi alone persists credentials and refreshes model availability.
 
-## P1 — Generic connection modal
+## P1: Generic connection modal · **landed 2026-07-25**
 
 Chat projects the provider catalog without recipes and renders every method through one `ProviderAuthFlowPanel`.
 
@@ -77,7 +77,7 @@ Acceptance:
 - Browser, device-code, prompt, selection, progress, retry, cancellation, and success states are keyboard-operable and announced appropriately.
 - Success confirms in place and explicitly hands off to ordinary model selection.
 
-## P2 — First-run takeover and model-picker entry
+## P2: First-run takeover and model-picker entry
 
 Wire model availability into Chat:
 
@@ -87,7 +87,7 @@ Wire model availability into Chat:
 - retain the pinned connection action in populated, empty, loading, error, and no-match picker states;
 - refresh the ordinary available-only catalog after auth changes.
 
-## P3 — Verification and docs
+## P3: Verification and docs
 
 Keep the shipped agent reference and architecture-of-record aligned with `ModelRuntime`, provider-owned auth, sensitive channel behavior, and live model refresh. Add focused coordinator, channel-policy, and renderer-state coverage; run the full repository check.
 
