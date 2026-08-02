@@ -29,6 +29,7 @@ import js from "@eslint/js";
 import prettier from "eslint-config-prettier";
 import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
 import tseslint from "typescript-eslint";
 
 const bareNodeBuiltinImports = builtinModules
@@ -521,6 +522,30 @@ export default tseslint.config(
       "no-console": "off",
       // Plain JS has no type annotations; return types cannot be written.
       "@typescript-eslint/explicit-function-return-type": "off",
+    },
+  },
+
+  // Import/export ordering — mechanical and autofixed. Regex groups in order:
+  // side-effect imports first (main.tsx's provide-shared-modules is
+  // load-bearing), then `node:` builtins, then external packages, then
+  // project aliases (@uix/*, #*), then relative imports. Groups are
+  // blank-line separated; within a group imports sort alphabetically.
+  {
+    plugins: { "simple-import-sort": simpleImportSort },
+    rules: {
+      "simple-import-sort/imports": [
+        "error",
+        {
+          groups: [
+            ["^\\u0000"],
+            ["^node:"],
+            ["^(?!@uix/|#)[^./]"],
+            ["^@uix/", "^#"],
+            ["^\\./", "^\\.\\./"],
+          ],
+        },
+      ],
+      "simple-import-sort/exports": "error",
     },
   },
 
