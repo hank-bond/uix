@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 import { CodeBlock } from "../../content/CodeBlock";
 import {
   HighlightedCode,

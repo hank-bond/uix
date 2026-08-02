@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import type { JSX } from "react";
 import { jsx, jsxs } from "react/jsx-runtime";
 import { toJsxRuntime } from "hast-util-to-jsx-runtime";
 import { refractor } from "refractor";

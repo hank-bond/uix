@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import type { JSX } from "react";
 
 import { uixChannels } from "#shared/ipc";
 import type { KeybindingMap } from "@uix/api/actions";

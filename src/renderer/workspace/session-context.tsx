@@ -7,6 +7,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import type { JSX } from "react";
 
 import { agentChannels } from "@uix/api/agent-channels";
 import {

@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 import { ChatBlockFrame } from "./ChatBlockFrame";
 import { toToolState } from "./tool/presentation";
 import type { ToolItem } from "./tool/presentation";

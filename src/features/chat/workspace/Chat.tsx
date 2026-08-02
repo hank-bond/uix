@@ -11,6 +11,7 @@ import {
   useState,
   type FormEvent,
 } from "react";
+import type { JSX } from "react";
 
 import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
 import {

@@ -8,6 +8,7 @@
 // it names, so the create-manifest-after-boot flow is visible instead of dark.
 
 import { Fragment, useMemo, type ReactNode } from "react";
+import type { JSX } from "react";
 import {
   Group as ResizablePanelGroup,
   Panel as ResizablePanel,

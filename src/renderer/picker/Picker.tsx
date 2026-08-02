@@ -5,6 +5,7 @@
 // surface errors and dialog cancellations.
 
 import { useEffect, useState } from "react";
+import type { JSX } from "react";
 
 import {
   Channels,

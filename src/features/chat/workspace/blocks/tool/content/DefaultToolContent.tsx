@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 import { truncateText } from "../../content/text";
 import { toToolPayloadText } from "../presentation";
 import type { ToolItem } from "../presentation";

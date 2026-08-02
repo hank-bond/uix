@@ -11,6 +11,7 @@
 // clients are created by the surface host, not by feature code.
 
 import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { JSX } from "react";
 
 import { uixChannels, type SurfaceEntry } from "#shared/ipc";
 import {

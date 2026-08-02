@@ -5,6 +5,7 @@
 // The channel client is provided by the surface host via props.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { JSX } from "react";
 
 import { agentChannels } from "@uix/api/agent-channels";
 import {
