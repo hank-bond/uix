@@ -72,8 +72,8 @@ export interface FeatureContributions {
   agentContext?: readonly AgentContextContribution[];
   /**
    * Frontend surface entry files, resolved against the feature entry's
-   * directory (absolute paths pass through). Each module's default export
-   * must be a `defineSurface` result; the workspace mounts them in
+   * directory (absolute paths pass through). Each module must export
+   * `surface`, a `defineSurface` result; the workspace mounts them in
    * composition order (manifest order, then declaration order here).
    */
   surfaces?: readonly string[];

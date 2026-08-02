@@ -39,7 +39,7 @@ import { defineFeature } from "@uix/api";
 
 import { chatSettings } from "./shared/settings";
 
-export default defineFeature({
+export const feature = defineFeature({
   id: "chat",
   settings: chatSettings,
   contribute(ctx) {

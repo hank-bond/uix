@@ -142,7 +142,7 @@ async function writeWorkspace(
 }
 
 const toolFeature = (id: string, tool = "greet") => `
-const feature = {
+export const feature = {
   id: "${id}",
   contribute(ctx) {
     ctx.log.debug({}, "activated");
@@ -161,7 +161,6 @@ const feature = {
     };
   },
 };
-export default feature;
 `;
 
 describe("loadFeatures", () => {
@@ -298,7 +297,7 @@ describe("loadFeatures", () => {
   it("removes a provisional settings scope when context throws", async () => {
     const manifestPath = await writeWorkspace({
       "broken.ts": `
-export default {
+export const feature = {
   id: "broken",
   context() { throw new Error("context failed"); },
   contribute: () => ({}),
@@ -322,7 +321,7 @@ export default {
   it("removes buffered settings when contribute throws", async () => {
     const manifestPath = await writeWorkspace({
       "broken.ts": `
-export default {
+export const feature = {
   id: "broken",
   contribute(ctx) {
     ctx.settings.set("enabled", true);
@@ -349,7 +348,7 @@ export default {
     const manifestPath = await writeWorkspace(
       {
         "broken.ts": `
-export default {
+export const feature = {
   id: "recovered",
   contribute: () => ({ agentSystemPrompt: "missing registry" }),
 };
@@ -414,9 +413,9 @@ export default {
     expect(result.activated[0]?.entry).toBe(sharedEntry);
   });
 
-  it("fails an entry whose default export is not a FeatureDefinition", async () => {
+  it("fails an entry whose `feature` export is not a FeatureDefinition", async () => {
     const manifestPath = await writeWorkspace({
-      "bad.mjs": `export default function activate() {};`,
+      "bad.mjs": `export const feature = function activate() {};`,
     });
     const { substrate } = makeSubstrate(manifestPath);
 
@@ -429,6 +428,24 @@ export default {
     expect(result.activated).toEqual([]);
     expect(result.failed[0]?.error.message).toContain(
       "not a FeatureDefinition",
+    );
+  });
+
+  it("fails an entry that exports no `feature`", async () => {
+    const manifestPath = await writeWorkspace({
+      "default-only.mjs": `export default { id: "not-feature" };`,
+    });
+    const { substrate } = makeSubstrate(manifestPath);
+
+    const result = await loadFeatures(
+      { manifestPath },
+      new DisposableBag(),
+      substrate,
+    );
+
+    expect(result.activated).toEqual([]);
+    expect(result.failed[0]?.error.message).toContain(
+      "does not export `feature`",
     );
   });
 
@@ -498,7 +515,7 @@ export default {
   it("registers surface refs resolved against the feature entry's directory", async () => {
     const manifestPath = await writeWorkspace({
       "shiny.ts": `
-export default {
+export const feature = {
   id: "shiny",
   contribute: () => ({ surfaces: ["./workspace/surface.tsx"] }),
 };
@@ -540,7 +557,7 @@ const contract = {
   events: {},
 };
 
-export default {
+export const feature = {
   id: "valuey",
   contribute: () => ({
     channels: [

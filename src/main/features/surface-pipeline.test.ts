@@ -43,7 +43,7 @@ function Panel() {
   return <p>{helper()}{settings.default.demo}{n}</p>;
 }
 
-export default defineSurface({
+export const surface = defineSurface({
   name: "shiny",
   styles: [sheet],
   render: () => <Panel />,
@@ -99,14 +99,14 @@ describe("SurfaceModulePipeline", () => {
 
   it("changes the module URL when the source changes", async () => {
     const reg = await writeFeature({
-      "surface.tsx": `export default { name: "shiny", render: () => null };`,
+      "surface.tsx": `export const surface = { name: "shiny", render: () => null };`,
     });
     const pipeline = new SurfaceModulePipeline("local");
 
     const first = await pipeline.buildAll([reg]);
     await writeFile(
       reg.entry,
-      `export default { name: "shiny", render: () => "changed" };`,
+      `export const surface = { name: "shiny", render: () => "changed" };`,
     );
     const second = await pipeline.buildAll([reg]);
 
@@ -117,10 +117,10 @@ describe("SurfaceModulePipeline", () => {
 
   it("isolates a broken surface as an error entry without failing the pass", async () => {
     const broken = await writeFeature({
-      "surface.tsx": `export default {{{`,
+      "surface.tsx": `export const surface = {{{`,
     });
     const fine = await writeFeature({
-      "surface.tsx": `export default { name: "shiny", render: () => null };`,
+      "surface.tsx": `export const surface = { name: "shiny", render: () => null };`,
     });
     const pipeline = new SurfaceModulePipeline("local");
 
@@ -133,7 +133,7 @@ describe("SurfaceModulePipeline", () => {
 
   it("rejects CSS imports without the module-script attribute", async () => {
     const reg = await writeFeature({
-      "surface.tsx": `import "./styles.css";\nexport default { name: "s", render: () => null };`,
+      "surface.tsx": `import "./styles.css";\nexport const surface = { name: "s", render: () => null };`,
       "styles.css": `.s {}`,
     });
     const pipeline = new SurfaceModulePipeline("local");
@@ -147,7 +147,7 @@ describe("SurfaceModulePipeline", () => {
     // `sheet` must be referenced: esbuild's TS loader elides imports whose
     // binding is never used, so an unused CSS import never reaches resolution.
     const reg = await writeFeature({
-      "nested/surface.tsx": `import sheet from "../../outside.css" with { type: "css" };\nexport default { name: "s", styles: [sheet], render: () => null };`,
+      "nested/surface.tsx": `import sheet from "../../outside.css" with { type: "css" };\nexport const surface = { name: "s", styles: [sheet], render: () => null };`,
     });
     await writeFile(join(reg.featureRoot, "..", "outside.css"), ".x {}");
     const pipeline = new SurfaceModulePipeline("local");
@@ -163,7 +163,7 @@ describe("SurfaceModulePipeline", () => {
 
   it("serves feature files with content types and blocks path traversal", async () => {
     const reg = await writeFeature({
-      "surface.tsx": `export default { name: "s", render: () => null };`,
+      "surface.tsx": `export const surface = { name: "s", render: () => null };`,
       "styles.css": `.s { color: blue; }`,
     });
     const pipeline = new SurfaceModulePipeline("local");
@@ -193,7 +193,7 @@ describe("SurfaceModulePipeline", () => {
     // different origin (dev server / file:), so the grant is load-bearing;
     // feature-origin iframes stay refused.
     const reg = await writeFeature({
-      "surface.tsx": `export default { name: "s", render: () => null };`,
+      "surface.tsx": `export const surface = { name: "s", render: () => null };`,
     });
     const pipeline = new SurfaceModulePipeline("local");
     await pipeline.buildAll([reg]);
@@ -217,7 +217,7 @@ describe("SurfaceModulePipeline", () => {
 
   it("drops previously built modules on rebuild", async () => {
     const reg = await writeFeature({
-      "surface.tsx": `export default { name: "s", render: () => null };`,
+      "surface.tsx": `export const surface = { name: "s", render: () => null };`,
     });
     const pipeline = new SurfaceModulePipeline("local");
     await pipeline.buildAll([reg]);
@@ -232,7 +232,7 @@ describe("SurfaceModulePipeline", () => {
 
   it("does not let an older overlapping build replace a newer composition", async () => {
     const reg = await writeFeature({
-      "surface.tsx": `export default { name: "s", render: () => null };`,
+      "surface.tsx": `export const surface = { name: "s", render: () => null };`,
     });
     const pipeline = new SurfaceModulePipeline("local");
 

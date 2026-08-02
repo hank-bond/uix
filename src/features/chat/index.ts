@@ -9,12 +9,10 @@ import { defineFeature } from "@uix/api/feature";
 
 import { chatSettings } from "./shared/settings";
 
-const feature = defineFeature({
+export const feature = defineFeature({
   id: "chat",
   settings: chatSettings,
   contribute: () => ({
     surfaces: ["./workspace/surface.tsx"],
   }),
 });
-
-export default feature;

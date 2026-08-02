@@ -8,11 +8,9 @@ import { defineFeature } from "@uix/api/feature";
 
 import { createWorkspaceToolOverrideContributions } from "./backend/agent-tools";
 
-const feature = defineFeature({
+export const feature = defineFeature({
   id: "workspace_tools",
   contribute: () => ({
     agentToolOverrides: createWorkspaceToolOverrideContributions(),
   }),
 });
-
-export default feature;

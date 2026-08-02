@@ -48,7 +48,7 @@ Order is **semantic** for every _mutating_ hook, not cosmetic. `input` transform
 
 ### Facets and features
 
-A UIX **facet** is a substrate slice/contribution axis: state management, state messages, surfaces, channels, transcript rendering, feature loading. A UIX **feature** is the capability being added — canvas, chat, an interactive button, a viz surface — and it is also the loadable/lifetime unit: one discovered entry default-exports one `FeatureDefinition` ([features-are-the-loadable-unit](../decisions/2026-07-01-features-are-the-loadable-unit.md)). The earlier "extension package installs features" two-level framing is retired; bundling features for distribution is a future **App** packaging concern.
+A UIX **facet** is a substrate slice/contribution axis: state management, state messages, surfaces, channels, transcript rendering, feature loading. A UIX **feature** is the capability being added — canvas, chat, an interactive button, a viz surface — and it is also the loadable/lifetime unit: one discovered entry exports `feature`, one `FeatureDefinition` ([features-are-the-loadable-unit](../decisions/2026-07-01-features-are-the-loadable-unit.md)). The earlier "extension package installs features" two-level framing is retired; bundling features for distribution is a future **App** packaging concern.
 
 A feature may contribute to several facets at once:
 

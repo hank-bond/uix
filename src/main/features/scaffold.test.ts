@@ -12,7 +12,7 @@ async function makeTemplates(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "uix-scaffold-templates-"));
   const featureDir = join(dir, "features", "pi-tools");
   await mkdir(join(featureDir, "node_modules", "junk"), { recursive: true });
-  await writeFile(join(featureDir, "index.ts"), "export default {};\n");
+  await writeFile(join(featureDir, "index.ts"), "export const feature = {};\n");
   await writeFile(join(featureDir, "read.ts"), "// editable tool\n");
   await writeFile(
     join(featureDir, "package.json"),

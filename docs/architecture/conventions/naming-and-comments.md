@@ -1,5 +1,5 @@
 ---
-summary: "UIX code expresses stable domain contracts through canonical identifier grammar and comments limited to non-obvious rationale and durable constraints."
+summary: "UIX code expresses stable domain contracts through canonical identifier grammar and comment rules: JSDoc coverage and form, why-comments allocated by risk, and no planning artifacts."
 kind: reference
 read_when: "Read before introducing or renaming symbols, recurring vocabulary, projections, predicates, or explanatory comments."
 status: active
@@ -375,3 +375,17 @@ Current projections apply the axes as follows:
 **Only stable placement context.** Keep a comment only when its context is both (a) necessary to place the code in the system and (b) unlikely to change across revisions. If a reader could rediscover the context ad-hoc — who calls this, how it is wired — leave it out; rediscovery is cheaper than keeping a comment honest. Comments that narrate _future_ intentions ("a `diff` method joins here when versioning lands") are the most expensive kind: unverifiable, and they rot silently.
 
 **What earns a comment.** A warning or an explanation the code cannot carry itself: "this must not move or the session file is orphaned," "read defensively because pi may add block kinds," "order is load-bearing — pi has no priority field." Each saves a reader from a wrong assumption.
+
+**Coverage and depth.** Every top-level export and every public interface field carries a `/** JSDoc */` line; depth scales with risk, not with file importance. The public API surface (`src/api/`) earns full JSDoc: a summary, behavioral details, and tags only where they add information. Complex or edge-case-heavy logic earns dense line comments, because a wrong assumption there is expensive (platform quirks, cache semantics, ordering). UI components, tests, and simple code stay thin: a one-line summary on each top-level export, a why-comment where a reader would otherwise guess, nothing else. Zero comments is acceptable only where the names and types carry the whole story, which is rarer than it looks; barrels and pass-through re-exports are the honest zeros.
+
+**JSDoc.** JSDoc is for users of the code; line comments are for the implementation. JSDoc is well-formed Markdown: use lists instead of prose-crushed lines, one tag per line, wrapped tag text indented, and the single-line `/** ... */` form when it fits. Summaries are imperative verb phrases ("Resolve the selected branch projection", "Execute a bash command"); the third-person "This method ..." form is not house style. Do not repeat the name or the type in the summary, and do not put types in `@param` or `@returns`, because TypeScript carries them. `@param` and `@returns` appear only when they add information. `@example` only for genuinely non-trivial usage, with complete runnable code. `@link` for cross-references to related contracts. A type or class comment states the role and how and when to use it, not its fields. Non-JSDoc multi-line comments use `//` per line; `/* */` is reserved for JSDoc and attribution headers.
+
+**Contract nuance lives in the JSDoc.** When a function or field has contract nuance, the comment carries it: defaults ("Call with no argument to restore the default"), ordering ("Continue once so queued messages are delivered"), special values ("Pass `undefined` to clear"), edge cases ("Use an empty array to hide the indicator entirely"). The comment states what a caller must know to use the code correctly, not what the body does.
+
+**Line comments say why, not what.** An inline comment names the reason the code does what it does, never the step: "Fast path: ANSI codes require ESC (7-bit) or CSI (8-bit) introducer", "A submodule's gitdir has no `commondir`, so it lands under `.git/modules`", "Try the curly-quote variant (macOS uses U+2019 in screenshot names)". If a comment narrates the code ("increment the counter", "loop over the entries"), delete it.
+
+**Section titles.** Files that grow past roughly 500 lines get `// Section Title` markers at logical group boundaries: a table of contents for a file too long to scan. Plain titles, no boxes (`// ====` banners are out).
+
+**Silent catches are labeled.** A `catch` that swallows an error carries a comment naming why swallowing is safe: "Process already dead", "Broken symlink, skip it", "Ignore errors" where the surrounding contract makes the choice obvious. An unlabeled swallow reads as a bug.
+
+**Derived code carries attribution.** Code derived from an external source keeps a `/* */` license/attribution header at the top of the file: the one place a boxed block comment is expected.

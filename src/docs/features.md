@@ -1,5 +1,5 @@
 ---
-summary: "Feature entries are trusted local TS/JS modules listed explicitly in uix.workspace.json; each uses defineFeature to default-export a settings-typed FeatureDefinition loaded with jiti, lifetime-scoped under the reload bag, and wired only through @uix/api."
+summary: "Feature entries are trusted local TS/JS modules listed explicitly in uix.workspace.json; each uses defineFeature to export `feature`, a settings-typed FeatureDefinition loaded with jiti, lifetime-scoped under the reload bag, and wired only through @uix/api."
 kind: reference
 status: active
 ---
@@ -22,12 +22,12 @@ A UIX **feature** is trusted local TypeScript/JavaScript loaded by the substrate
 
 `entry` is resolved relative to `uix.workspace.json` unless it is absolute. Manifest order is activation order.
 
-A feature entry uses `defineFeature(...)` to default-export its plain `FeatureDefinition`:
+A feature entry uses `defineFeature(...)` and exports the result as `feature` — the loader contract name:
 
 ```ts
 import { defineFeature } from "@uix/api";
 
-export default defineFeature({
+export const feature = defineFeature({
   id: "hello",
   contribute(ctx) {
     ctx.log.info({}, "hello_loaded");

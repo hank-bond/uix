@@ -465,10 +465,11 @@ export interface ContractlessSurfaceDefinition extends Omit<
 /**
  * Defines a surface. With a `contract`, `render`'s `client` parameter is
  * fully typed from it — features never cast; the client is minted by the
- * substrate mount under the contract's own channel id. A surface module's
- * **default export** must be this result — that is how the runtime loader
- * finds the surface. The single unavoidable cast (erasing the generic for
- * the heterogeneous surface list) lives here in the substrate.
+ * substrate mount under the contract's own channel id. A surface module must
+ * export this result as `surface` (`export const surface = defineSurface(...)`)
+ * — that is how the runtime loader finds it. The single unavoidable cast
+ * (erasing the generic for the heterogeneous surface list) lives here in the
+ * substrate.
  */
 export function defineSurface<const C extends ChannelContract>(
   surface: SurfaceDefinition<C>,

@@ -5,7 +5,7 @@ import { editTool } from "./edit";
 import { readTool } from "./read";
 import { writeTool } from "./write";
 
-export default defineFeature({
+export const feature = defineFeature({
   id: "pi_tools",
   contribute: () => ({
     agentToolOverrides: [readTool, writeTool, editTool, bashTool],

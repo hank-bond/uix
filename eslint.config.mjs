@@ -67,6 +67,91 @@ const LogLevels = new Set(["trace", "debug", "info", "warn", "error", "fatal"]);
 const EventIdPattern = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;
 const uixLintPlugin = {
   rules: {
+    "no-default-export": {
+      meta: {
+        type: "problem",
+        docs: {
+          description:
+            "Ban default exports — the loading contract uses named exports (`feature` entries, `surface` modules).",
+        },
+        schema: [],
+        messages: {
+          default:
+            "No default exports — export named symbols. Feature entries export `feature`, surface modules export `surface`.",
+        },
+      },
+      create(context) {
+        return {
+          ExportDefaultDeclaration(node) {
+            context.report({ node, messageId: "default" });
+          },
+          ExportNamedDeclaration(node) {
+            for (const spec of node.specifiers ?? []) {
+              if (
+                spec.type === "ExportSpecifier" &&
+                spec.exported.type === "Identifier" &&
+                spec.exported.name === "default"
+              ) {
+                context.report({ node: spec, messageId: "default" });
+              }
+            }
+          },
+        };
+      },
+    },
+    "require-export": {
+      meta: {
+        type: "problem",
+        docs: {
+          description:
+            "Require a module to export a named contract symbol (feature entries export `feature`, surface modules export `surface`).",
+        },
+        schema: [
+          {
+            type: "object",
+            properties: { name: { type: "string" } },
+            additionalProperties: false,
+          },
+        ],
+        messages: {
+          missing:
+            "This module must export `{{ name }}` (export const {{ name }} = defineFeature/defineSurface(...)).",
+        },
+      },
+      create(context) {
+        const name = context.options[0]?.name ?? "feature";
+        const exported = new Set();
+        const addExported = (id) => {
+          if (id?.type === "Identifier") exported.add(id.name);
+        };
+        return {
+          ExportNamedDeclaration(node) {
+            if (node.declaration) {
+              if (node.declaration.type === "VariableDeclaration") {
+                for (const decl of node.declaration.declarations) {
+                  addExported(decl.id);
+                }
+              } else {
+                addExported(node.declaration.id);
+              }
+            }
+            for (const spec of node.specifiers ?? []) {
+              if (
+                spec.type === "ExportSpecifier" &&
+                spec.exported.type === "Identifier"
+              ) {
+                exported.add(spec.exported.name);
+              }
+            }
+          },
+          "Program:exit"(node) {
+            if (!exported.has(name)) {
+              context.report({ node, messageId: "missing", data: { name } });
+            }
+          },
+        };
+      },
+    },
     "structured-log-call": {
       meta: {
         type: "problem",
@@ -274,6 +359,43 @@ export default tseslint.config(
           ],
         },
       ],
+    },
+  },
+
+  // The loading contract bans default exports in source and templates: feature
+  // entries export `feature`, surface modules export `surface`. Ambient .d.ts
+  // declarations keep default exports (CSS module typing).
+  {
+    files: ["src/**/*.{ts,tsx}", "templates/**/*.{ts,tsx}"],
+    plugins: { uix: uixLintPlugin },
+    rules: {
+      "uix/no-default-export": "error",
+    },
+  },
+  {
+    files: ["src/**/*.d.ts"],
+    rules: {
+      "uix/no-default-export": "off",
+    },
+  },
+  // Feature entries and surface modules must export the name their loader
+  // reads: `feature` (jiti in main), `surface` (vite dynamic import in the
+  // renderer).
+  {
+    files: [
+      "src/features/*/index.ts",
+      "templates/workspace/features/*/index.ts",
+    ],
+    plugins: { uix: uixLintPlugin },
+    rules: {
+      "uix/require-export": ["error", { name: "feature" }],
+    },
+  },
+  {
+    files: ["src/features/*/workspace/surface.tsx"],
+    plugins: { uix: uixLintPlugin },
+    rules: {
+      "uix/require-export": ["error", { name: "surface" }],
     },
   },
 

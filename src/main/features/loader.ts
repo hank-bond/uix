@@ -197,14 +197,14 @@ const normalize = (thrown: unknown): Error =>
   thrown instanceof Error ? thrown : new Error(String(thrown));
 
 /**
- * Narrows an entry's default export to a FeatureDefinition or throws
+ * Narrows an entry's `feature` export to a FeatureDefinition or throws
  * with a message that names what's wrong — the throw lands in
  * `failed[]` like any other activation error.
  */
 const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
   if (typeof value !== "object" || value === null) {
     throw new Error(
-      "default export is not a FeatureDefinition (expected an object with id + contribute)",
+      "exported `feature` is not a FeatureDefinition (expected an object with id + contribute)",
     );
   }
   const def = value as Partial<FeatureDefinition>;
@@ -239,6 +239,26 @@ const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
     }
   }
   return def as FeatureDefinition;
+};
+
+/**
+ * Load an entry and return its `feature` export — the loader contract name.
+ * Every feature entry exports `export const feature = defineFeature({ ... })`;
+ * a default-only module is a contract violation, not a supported form.
+ * jiti's interop proxy exposes named exports for both ESM and transpiled
+ * modules, so the same call works for every workspace authoring style.
+ */
+const loadFeatureDefinition = async (
+  entry: string,
+  jiti: ReturnType<typeof createFeatureJiti>,
+): Promise<unknown> => {
+  const namespace = await jiti.import<Record<string, unknown>>(entry);
+  if (namespace.feature === undefined) {
+    throw new Error(
+      "Feature entry does not export `feature` (expected `export const feature = defineFeature({ ... })`).",
+    );
+  }
+  return namespace.feature;
 };
 
 /**
@@ -336,7 +356,7 @@ export const activateFeatures = async (
       index,
       ref,
       entry,
-      () => jiti.import<unknown>(entry, { default: true }),
+      () => loadFeatureDefinition(entry, jiti),
       dirname(entry),
     );
   }

@@ -6,7 +6,7 @@ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
 import { Value } from "typebox/value";
 
-import feature from "../index";
+import { feature } from "../index";
 import { createWorkspaceToolOverrideContributions } from "./agent-tools";
 
 function tool(name: "read" | "write" | "edit" | "command") {

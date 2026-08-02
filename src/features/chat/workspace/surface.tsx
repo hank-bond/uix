@@ -19,7 +19,7 @@ import providerControlsSheet from "./provider-controls.css" with { type: "css" }
 import providerLoginModalSheet from "./ProviderLoginModal.css" with { type: "css" };
 import sessionPillSheet from "./SessionPill.css" with { type: "css" };
 
-export default defineSurface({
+export const surface = defineSurface({
   name: "chat",
   contract: agentChannels,
   styles: [

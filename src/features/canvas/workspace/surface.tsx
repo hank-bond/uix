@@ -5,7 +5,7 @@ import { parseCanvasKey } from "../shared/addressing";
 import { canvasChannels } from "../shared/channels";
 import { defineSurface } from "@uix/api/workspace";
 
-export default defineSurface({
+export const surface = defineSurface({
   name: "canvas",
   contract: canvasChannels,
   render: (client) => (

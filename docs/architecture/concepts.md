@@ -12,7 +12,7 @@ This is the canonical vocabulary for UIX architecture discussions and code names
 
 A **feature** is UIX's loadable unit and the coherent capability it adds: Canvas, Chat, a chess board, a file browser, or a report renderer. A feature can be first-party in-tree or supplied by another manifest-referenced module.
 
-A **feature entry** is the concrete TypeScript or JavaScript module referenced by one ordered `uix.workspace.json` manifest entry. It default-exports one `FeatureDefinition`; activation of that definition produces one activated feature instance. UIX does not auto-discover feature entries.
+A **feature entry** is the concrete TypeScript or JavaScript module referenced by one ordered `uix.workspace.json` manifest entry. It exports `feature`, one `FeatureDefinition`; activation of that definition produces one activated feature instance. UIX does not auto-discover feature entries.
 
 A package is only a code-distribution and dependency boundary. It can contain feature entry modules, Pi extensions, or both, but it does not introduce a UIX lifecycle layer above features. The workspace manifest explicitly selects its UIX feature entries.
 

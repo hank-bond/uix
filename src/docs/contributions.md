@@ -33,7 +33,7 @@ The substrate registers every facet under the owning feature id. That id prefixe
 - **Agent skills** — Pi skill files or directories resolved relative to the feature entry file and supplied through Pi's `resources_discover` lifecycle.
 - **Turn state** — named, schema-bound cells of branch-scoped private state. Each cell creates and restores one complete JSON snapshot independently under a substrate-derived id such as `canvas.documents`; the coordinator commits only changed snapshots.
 - **Agent context** — model-visible hidden context sections materialized at agent-run prep.
-- **Surfaces** — frontend surface entry files, resolved relative to the feature entry's directory; each module default-exports a `defineSurface(...)` result.
+- **Surfaces** — frontend surface entry files, resolved relative to the feature entry's directory; each module exports `surface`, a `defineSurface(...)` result.
 
 Turn-state cells use one TypeBox schema for both directions:
 
@@ -61,7 +61,7 @@ A surface's `styles` sheets are wrapped in `@scope ([data-uix-surface="<name>"])
 Surface refs are strings in the contribution because the surface pipeline bundles them on demand from disk:
 
 ```ts
-export default {
+export const feature = {
   id: "hello",
   contribute() {
     return {
