@@ -1,16 +1,18 @@
 ---
-summary: "Durable settings in uix.workspace.json, two scopes: feature settings declared as TypeBox schemas and hydrated into manifest feature entries, and substrate-owned workspace namespaces for agent preferences, selected session state, and keybindings under top-level settings."
+summary: "Workspace manifests store schema-validated feature settings and substrate-owned agent, session, and keybinding namespaces with materialized defaults."
 kind: reference
 status: active
 ---
 
 # Settings
 
-Durable settings live in `uix.workspace.json` in two scopes: **feature settings**, declared by a feature and stored on its manifest feature entry, and **workspace settings**, owned by the substrate and stored under the manifest's top-level `settings` object keyed by namespace. Both scopes share one validation/persistence substrate and one flat scope-id space — a feature id can never collide with a workspace namespace (activation fails on the duplicate).
+Durable settings live in `uix.workspace.json` under two scopes. _Feature settings_ belong to a manifest feature entry. _Workspace settings_ belong to substrate namespaces under the top-level `settings` object.
+
+Both scopes share one validation and persistence substrate. They also share one flat id space, so a feature id cannot match a workspace namespace.
 
 ## Feature settings
 
-Features declare durable settings on their `FeatureDefinition`, before `context()` and `contribute()` run. Put the feature's complete settings-scope schema and optional whole-object default in feature-shared code so backend and workspace surface code import the same keys, validation, defaults, and TypeScript types:
+Features declare durable settings on `FeatureDefinition` before `context()` and `contribute()` run. Put the complete schema and optional whole-object default in feature-shared code. Backend and surface code then import the same keys, validation, defaults, and TypeScript types.
 
 ```ts
 // features/chat/shared/settings.ts
@@ -72,20 +74,24 @@ The manifest entry does not repeat the feature id. The loaded `FeatureDefinition
 
 ## Hydration and validation
 
-During feature activation the loader merges the definition's whole-object default into persisted values and validates the completed scope against its one schema. The scope registers provisionally before `context()` and `contribute()` run: reads, validated writes, and feature-local listeners work during activation, but defaults and activation-time writes remain detached from `uix.workspace.json`. Only after every returned facet registers successfully does the loader commit the final scope, materialize it into the live manifest, and switch later writes to normal write-through. A throwing hook or facet register operation disposes the provisional scope without changing durable settings, and sibling features continue activating.
+During activation, the loader merges the whole-object default into persisted values and validates the completed scope. The scope registers provisionally before either feature hook runs.
+
+Reads, validated writes, and feature-local listeners work during activation. Defaults and activation-time writes remain detached from `uix.workspace.json` until every returned facet registers.
+
+The loader then commits the final scope, materializes it into the live manifest, and enables normal write-through. A failed hook or registration disposes the provisional scope. Durable settings remain unchanged, and sibling features continue activating.
 
 Rules:
 
-- every scope definition has one object schema; `Type.Object` provides named keys and `Type.Record` provides dynamically validated keys through the same path;
-- `defineSettings(...)` closes the object schema so unknown persisted keys fail rather than being silently retained or deleted;
-- the optional `default` must itself be a complete valid scope value;
-- a property with no default must be optional in the TypeBox schema if it may be absent;
-- missing values hydrate from the default object, and registered empty scopes materialize as `{}`;
-- `null` is an explicit persisted value and must be allowed by the schema;
-- `undefined` is not a durable setting value and `set()` rejects it; optional schema properties describe absence during hydration, not a deletion operation;
-- plain objects merge recursively so newly added default fields materialize without clobbering existing fields;
-- arrays, scalars, and `null` are atomic values;
-- invalid persisted values fail loudly so the user or agent can fix the file.
+- Every scope definition has one object schema; `Type.Object` provides named keys and `Type.Record` provides dynamically validated keys through the same path.
+- `defineSettings(...)` closes the object schema so unknown persisted keys fail rather than being silently retained or deleted.
+- The optional `default` must itself be a complete valid scope value.
+- A property with no default must be optional in the TypeBox schema if it may be absent.
+- Missing values hydrate from the default object, and registered empty scopes materialize as `{}`.
+- `null` is an explicit persisted value and must be allowed by the schema.
+- `undefined` is not a durable setting value and `set()` rejects it; optional schema properties describe absence during hydration, not a deletion operation.
+- Plain objects merge recursively so newly added default fields materialize without clobbering existing fields.
+- Arrays, scalars, and `null` are atomic values.
+- Invalid persisted values fail loudly so the user or agent can fix the file.
 
 Defaults fill and persist missing values; they are not a runtime fallback layer. If a later feature version changes a default after a workspace has already materialized a value, the workspace keeps its current value.
 
@@ -99,7 +105,11 @@ ctx.settings.set("statusBar", { order: ["context", "model"], hidden: [] });
 const unsubscribe = ctx.settings.onChange("statusBar", (next) => {});
 ```
 
-After activation commits, `set()` clones the current complete scope, replaces one key, validates the complete candidate against the declared schema, updates memory, writes through to the live manifest generation, and fires `onChange` synchronously. Persistence is debounced and atomically replaces `uix.workspace.json`; a final equality check skips no-op file writes. External edits are picked up on `/reload`; there is no public file watcher API. Reload mirrors first load: the manifest on disk is the source of truth, so a successful reload discards pending unflushed memory, while a rejected manifest leaves the previous live generation and its handles intact.
+After commit, `set()` clones the complete scope and replaces one key. It validates the candidate, updates memory, writes through, and fires `onChange` synchronously.
+
+Persistence is debounced and atomically replaces `uix.workspace.json`. A final equality check skips no-op file writes.
+
+Reload picks up external edits; UIX exposes no public file watcher. Disk is authoritative, so a successful reload discards pending unflushed memory. A rejected manifest leaves the previous generation and its handles intact.
 
 ## Surface API
 
@@ -124,7 +134,7 @@ function StatusBar() {
 
 ## Workspace settings
 
-The substrate owns a small set of workspace-level settings, keyed by namespace under the manifest's **top-level** `settings` object — beside `features`, not inside any feature entry:
+The substrate owns a small set of workspace-level settings. Each namespace lives under top-level `settings`, beside `features` rather than inside a feature entry.
 
 ```json
 {
@@ -153,19 +163,33 @@ The substrate owns a small set of workspace-level settings, keyed by namespace u
 }
 ```
 
-Workspace namespaces are **not user-registerable**: the substrate registers schema-carrying namespace descriptors before any feature loads. The same descriptor is passed to `forNamespace(...)`, which mints a handle with schema-derived keys, values, complete snapshots, and replacements while `Type.Record` scopes retain dynamic string keys plus runtime regex validation. Today that set contains `agent`, `session`, and `keybindings`:
+Workspace namespaces are not feature-registerable. The substrate registers schema-carrying descriptors before any feature loads.
 
-- **`agent.defaultModel`** — the workspace default model, used before a pi session exists and as the default for new sessions/branches that carry no `model_change` entry. Absent until the pilot first selects a model.
-- **`agent.favoriteModels`** — the workspace-local model shortlist. Each entry is a provider-qualified model reference; unavailable entries remain persisted so favorites return when a provider reconnects.
-- **`session.selected`** — the selected durable session id. Startup opens that exact graph when it still exists, otherwise falls back to the newest session. Successful New Session transitions replace this value only after restoration completes; session title and first-message presentation metadata remain authoritative in the session JSONL rather than being copied into workspace settings.
-- **`keybindings`** — a flat dynamic record from canonical dotted action ids to one portable shortcut string or `null` for explicit unbinding. Malformed ids, shortcuts, and unknown value shapes reject the candidate rather than being retained silently.
+Passing the same descriptor to `forNamespace(...)` mints a schema-derived handle for keys, values, snapshots, and replacements. `Type.Record` scopes retain dynamic string keys with runtime pattern validation.
 
-A fresh manifest materializes `settings.agent: {}`, `settings.session: {}`, and `settings.keybindings: {}` even before values are chosen. This keeps the available configuration surface visible; later selections fill concrete properties. See [`agent.md`](./agent.md) for how model selection and favorites flow through the agent channels. Bound main request handlers can reconcile defaults and atomically replace the complete map through the reserved workspace channel, publishing a confirmed snapshot when it changes. The workspace renderer reconciles active action defaults, retains the main-confirmed map, joins active bindings/conflicts into the action catalog, and keeps inactive persisted ids as unresolved bindings. Confirmed, unique bindings dispatch through the same action invocation path used by surfaces; conflicts fail closed. Ctrl/Command/Alt bindings remain active in editable controls, while composition, AltGraph, Shift-only editable gestures, and events already handled by a local control are left untouched. A public renderer editing API is not yet shipped.
+The substrate defines `agent`, `session`, and `keybindings`:
+
+- **`agent.defaultModel`:** The workspace default model. It applies before a Pi session exists and when a new branch carries no `model_change` entry. The value remains absent until the pilot selects a model.
+- **`agent.favoriteModels`:** The workspace-local model shortlist. Each entry is provider-qualified. Unavailable entries remain persisted so favorites return when a provider reconnects.
+- **`session.selected`:** The selected durable session id. Startup opens that graph when it exists and otherwise falls back to the newest session. A successful New Session transition replaces the id only after restoration. Titles and first-message metadata remain authoritative in the session JSONL.
+- **`keybindings`:** A flat record from canonical action ids to portable shortcuts or `null`. Malformed ids, shortcuts, and values reject the candidate.
+
+A fresh manifest materializes empty `agent`, `session`, and `keybindings` namespaces before values are chosen. Later selections fill concrete properties.
+
+Main request handlers reconcile defaults and atomically replace the complete keybinding map. Changes publish one confirmed snapshot.
+
+The renderer joins confirmed bindings and conflicts into the active action catalog. Inactive persisted ids remain visible through a separate unresolved projection.
+
+Confirmed unique bindings dispatch through the same invocation path used by surfaces. Conflicts fail closed.
+
+Control, Command, and Alt bindings remain active in editable controls. Composition, AltGraph, Shift-only gestures, and locally handled events remain untouched.
+
+A public renderer editing API has not shipped. See [`models-and-authentication.md`](./models-and-authentication.md) for model selection and favorites.
 
 Rules:
 
-- initial load and reload stage one detached manifest generation, structurally validate composition and all workspace namespaces, hydrate defaults there, and promote it only after every workspace-level check succeeds;
-- hydration and validation are the same as feature settings (same schema pass, same unknown-key rejection, same debounced atomic write, same disk-wins reload);
-- an unknown namespace under manifest-level `settings` rejects the load pass;
-- namespaces register before features, so a feature whose id collides with a namespace fails activation on the duplicate-scope check;
-- workspace settings are main-process-only — features get no handle to them. Model selection/favorites and session selection change through their agent channels, never by a surface mutating `agent` or `session` settings directly; keybindings currently change through manifest edits plus reload.
+- Initial load and reload stage one detached manifest generation. They validate composition and workspace namespaces, hydrate defaults, and promote only after every check succeeds.
+- Hydration and validation are the same as feature settings (same schema pass, same unknown-key rejection, same debounced atomic write, same disk-wins reload).
+- An unknown namespace under manifest-level `settings` rejects the load pass.
+- Namespaces register before features, so a feature whose id collides with a namespace fails activation on the duplicate-scope check.
+- Workspace settings remain main-process-only; features receive no handle. Agent channels change model and session state, while manifest edits plus reload change keybindings.

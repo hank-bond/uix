@@ -1,45 +1,142 @@
 ---
-summary: "Feature channel contracts declare request handlers and backend-published events with shared schemas; the current Workspace client and preload bridge consume those contracts directly while the public packaged-feature API is still forming."
+summary: "Shared ChannelContract values derive validated backend handlers, feature-bound event publishers, and typed workspace request and event clients."
 kind: reference
-status: stub
+status: active
 ---
 
 # Channels
 
-UIX does not yet ship the final public packaged-feature channel API, but the current direction is in place for bundled features.
+A feature channel groups request operations and backend-published events. Shared code declares one schema-only `ChannelContract`; backend and surface code consume that same value.
 
-A feature channel contribution declares two operation kinds:
+The contract states its owning feature id once. Binding handlers, minting publishers, and creating clients all verify or derive ownership from that field.
 
-- **requests** — Workspace/front-end code asks the backend to do or return something; the backend registers a handler and the caller receives acceptance/result or an error;
-- **events** — backend feature code publishes events; Workspace/front-end code subscribes to them.
+## Declare a contract
 
-Requests and events are grouped into one contribution for a feature. Request handlers are part of the backend contribution, not a separate merge step: shared feature code should export schemas/types/light parsers, while backend code owns executable handlers. A request contribution without a handler is not a complete request contribution. Entries passed to `withHandlers(...)` store that callback as `handler`; `handle` remains reserved for the direct Electron transport operation.
+Define contracts in feature-shared code with TypeBox schemas:
 
-The feature author declares local names and schemas. The channel facet derives both ids from the feature id and local name: the `ContributionId` (registry dedup) `${featureId}.channel.${name}`, and the `ChannelCanonicalId` (transport address) `${featureId}.${name}` with the facet segment dropped:
+```ts
+import { Type } from "typebox";
+import type { ChannelContract } from "@uix/api/channels";
 
-```text
-canvas + writeback -> contributionId canvas.channel.writeback / canonicalId canvas.writeback
-canvas + changed   -> contributionId canvas.channel.changed   / canonicalId canvas.changed
+export const notesChannels = {
+  feature: "notes",
+  requests: {
+    save: {
+      requestSchema: Type.Object({ id: Type.String(), text: Type.String() }),
+      responseSchema: Type.Void(),
+    },
+  },
+  events: {
+    changed: {
+      event: Type.Object({ id: Type.String() }),
+    },
+  },
+} as const satisfies ChannelContract;
 ```
 
-For channels, the canonical id is also the transport address. Both ids are nominal brands; the transport boundary casts to a plain string inline. The current Electron preload bridge still exposes legacy convenience methods on `window.uix`, but those methods now route canvas traffic through the same canonical channel ids.
+Requests describe a frontend-to-backend operation with request and response schemas. Events describe payloads that the backend can publish and surfaces can observe.
 
-Request handlers should be typed from their request/response schemas. Feature-authored handler code should not receive `unknown`; only the transport boundary deals in unknown raw payloads. Explicit `response: Type.Void()` is preferred for ack-only requests because it communicates that the request has completion/backpressure semantics but no response body.
+Use `Type.Void()` for acknowledgement-only requests. This schema communicates completion and backpressure without a response body.
 
-Event schemas are not decorative. The channel facet uses event declarations to type and validate publish calls just as request declarations type and validate handlers. The resolver derives owner-scoped identities for grouped channel metadata. Each request becomes a `ResolvedChannelRequestContribution` before the registry makes its transport handler live. Typed event publishing derives its address directly from the source contract; it does not create a live event registry record.
+## Bind backend handlers
+
+Backend code merges executable handlers into the shared contract:
+
+```ts
+import { withHandlers } from "@uix/api/channels";
+
+const notesChannelContribution = withHandlers(notesChannels, {
+  save: {
+    async handler(request) {
+      await saveNote(request.id, request.text);
+    },
+  },
+});
+```
+
+`withHandlers()` requires one handler for every declared request. Handler input and output types derive from the request and response schemas.
+
+Return the result through the feature's `channels` facet:
+
+```ts
+contribute() {
+  return { channels: [notesChannelContribution] };
+}
+```
+
+The transport boundary alone accepts unknown payloads. Feature handler code receives schema-derived domain types.
+
+## Publish backend events
+
+The feature context exposes a feature-bound event publisher factory. Presenting the shared contract mints only its declared event capabilities:
+
+```ts
+context(ctx) {
+  return {
+    events: ctx.channels.createPublisher(notesChannels),
+  };
+}
+
+// Later, after the authoritative write:
+ctx.events.changed({ id });
+```
+
+Publish calls validate at compile time from the event schema. The main transport also validates payloads when clients receive them.
+
+## Consume a typed client
+
+A surface binds a contract through `defineSurface()`:
+
+```tsx
+import { defineSurface } from "@uix/api/workspace";
+
+export const surface = defineSurface({
+  name: "notes",
+  contract: notesChannels,
+  render(client) {
+    void client.requests.save({ id: "daily", text: "Draft" });
+    return null;
+  },
+});
+```
+
+The substrate gives `render()` a `ChannelClient` derived from the contract. Request methods return typed promises, while event methods return unsubscribe functions.
+
+A component can subscribe through the client received by its owning surface. Dispose every subscription through React effect cleanup or another matching lifetime.
+
+## Id derivation
+
+Authors declare feature-local operation names. The channel facet derives two ids:
+
+```text
+notes + save    -> contribution id notes.channel.save / transport id notes.save
+notes + changed -> contribution id notes.channel.changed / transport id notes.changed
+```
+
+The contribution id is the registry deduplication key. The channel canonical id is the transport address. Both are nominal brands inside UIX.
 
 ## Boundary validation
 
-Every channel payload is deserialized at a boundary. Boundary schemas should validate domain-specific value formats, not just primitive JSON shapes. When a wire string represents a constrained domain value, define its TypeBox schema with a branded static type so successful deserialization emits the domain type for the receiving side.
+Schemas must validate domain formats, not only primitive JSON shapes. A constrained wire string should use a TypeBox schema with a branded static type.
 
-For example, canvas keys travel over the wire as strings, but the schema validates the key format and its static type is `CanvasKey`. Callers that already hold a `CanvasKey` can serialize it normally, while receivers that parse `CanvasKeySchema` regain the branded type after runtime validation.
+For example, Canvas validates each wire key with `CanvasKeySchema`. Successful parsing gives backend code a `CanvasKey` instead of an unchecked string.
 
-Use the same pattern for other deserialization points, including agent tool input and user-provided identifiers: validate at ingress, emit the branded/domain type, and keep internal code from re-validating plain strings repeatedly.
+Apply this pattern at every deserialization boundary, including channel requests, agent tool input, resource parameters, and user-supplied identifiers.
 
 ## Sensitive wire logging
 
-Every renderer/main request, response, and event crossing is observable in the terminal IPC log and, when enabled, the raw NDJSON wire log. Channel descriptors may attach typed logging descriptions with `describeRequest`, `describeResponse`, or `describeEvent`. The crossing is still recorded, but the returned description replaces the payload in both log sinks. Contracts carrying credentials, authorization URLs, codes, or other secrets must describe every potentially sensitive direction; ordinary channels keep raw-payload logging by default.
+Every request, response, and event crossing appears in terminal logs. Raw Newline-Delimited JSON (NDJSON) logging can also capture these crossings.
 
-Agent events/history/prompt are still substrate-owned bridge operations. The reserved `uix` contract carries cockpit-owned surface/settings operations plus complete keybinding reconciliation/replacement and confirmed-snapshot events; it is internal workspace wiring, not a feature capability. Canvas writeback/refresh/changed are feature channels. A canvas document can declare a user-operated agent action with `data-uix-prompt="…"`; the injected iframe shim accepts only a trusted click, serializes the hydrated document, and asks the canvas surface to finish writeback before forwarding the prompt over the substrate-owned agent channel. Canvas HTML never receives direct workspace-channel access.
+A descriptor can provide `describeRequest`, `describeResponse`, or `describeEvent`. The returned description replaces that direction's payload in both log sinks.
 
-See [`agent.md`](./agent.md).
+Contracts carrying credentials, authorization links, codes, or secrets must describe every sensitive direction. Ordinary channels retain raw payload logging by default.
+
+## Substrate contracts and iframe messages
+
+The reserved `agent` contract owns agent operations. The reserved `uix` contract owns surfaces, feature settings, and keybinding synchronization.
+
+These contracts are substrate wiring, not capabilities that a feature can register under another owner. Feature ids `agent` and `uix` are reserved.
+
+Canvas iframe content does not receive a workspace channel client. Its injected shim accepts narrow trusted interactions and forwards them to the Canvas surface.
+
+See [`agent.md`](./agent.md) for the agent contract and [`features.md`](./features.md) for feature registration.
