@@ -33,7 +33,7 @@ Source indexes cover authored production TypeScript and JavaScript files, includ
 
 The summary must distinguish the file from its siblings and remain true when implementation mechanics or callers change. Do not enumerate exports, narrate control flow, describe future intent, or add guessed search synonyms. If one coherent summary cannot describe the file, reconsider its responsibilities.
 
-The header is the summary sentence plus at most one short elaboration paragraph. The elaboration extends the claim with the lower concepts the sentence cannot hold: mechanism, hidden guarantees, external constraints, failure boundaries, and rationale. It never restates the summary. Do not use the paragraph as an export inventory or control-flow narration.
+The header is the summary sentence plus at most one elaboration paragraph, whose length scales with the file's size. The elaboration extends the claim with the file-level concepts the sentence cannot hold: mechanism, hidden guarantees, external constraints, failure boundaries, and rationale. It stays at the file's medium abstraction level; lower-level detail belongs in code comments. It never restates the summary. Do not use the paragraph as an export inventory or control-flow narration.
 
 ### Contract and implementation comments
 

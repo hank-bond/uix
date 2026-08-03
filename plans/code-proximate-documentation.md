@@ -11,7 +11,7 @@ Implement [`2026-08-02-code-proximate-documentation.md`](../docs/decisions/2026-
 
 Align the documentation framework, contributing guidance, code-comment convention, and style guide around the narrowest-owner placement test.
 
-Define the source-file header as one required summary sentence followed by at most one short elaboration paragraph. Define caller-facing JSDoc, implementation why-comments, directory guidance, local Markdown leaves, and repository-level documents as separate scopes. Apply Diátaxis only after information earns a discrete document.
+Define the source-file header as one required summary sentence followed by at most one elaboration paragraph. Define caller-facing JSDoc, implementation why-comments, directory guidance, local Markdown leaves, and repository-level documents as separate scopes. Apply Diátaxis only after information earns a discrete document.
 
 ## Unit two: Generated source indexes
 

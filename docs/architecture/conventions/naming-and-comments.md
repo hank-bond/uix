@@ -394,7 +394,7 @@ Before the condition occurs, the marker creates no pending work. Do not use it f
 
 **What earns a comment:** Add a warning or explanation that code cannot carry itself. Examples include load-bearing order, external format tolerance, and hidden ownership constraints. Each should prevent a plausible wrong assumption.
 
-**Source-file headers:** Every indexed authored production TypeScript and JavaScript file starts with one `//` summary sentence. Every indexed authored production CSS file starts with one single-line `/* */` summary. Every indexed authored production HTML file starts with one single-line `<!-- -->` summary. The summary is physically the first line, without exceptions. The header is the summary plus at most one short `//` elaboration paragraph.
+**Source-file headers:** Every indexed authored production TypeScript and JavaScript file starts with one `//` summary sentence. Every indexed authored production CSS file starts with one single-line `/* */` summary. Every indexed authored production HTML file starts with one single-line `<!-- -->` summary. The summary is physically the first line, without exceptions. The header is the summary plus at most one `//` elaboration paragraph, whose length scales with the file's size.
 
 Colocated `*.test.*` and `*.spec.*` files are not indexed. Their production file and shared basename provide the route, so tests need no summary. Add a test comment only when it preserves context the test structure cannot carry.
 
@@ -404,7 +404,7 @@ JSON, binary assets, and static data are not indexed. A directory `AGENTS.md` or
 
 Use the path and filename as existing context instead of repeating them. Distinguish sibling files without enumerating exports, callers, control flow, implementation mechanics, plans, or guessed search synonyms.
 
-**Elaboration:** At most one short `//` paragraph follows the summary. It extends the claim with the lower concepts the sentence cannot hold: mechanism, hidden guarantees, external constraints, failure boundaries, and rationale. It never restates the summary; if the paragraph re-claims the sentence's content in more words, tighten the summary or cut the paragraph. Do not use the paragraph as an export inventory or control-flow narration. If one coherent summary cannot describe the file, reconsider its responsibilities.
+**Elaboration:** At most one `//` paragraph follows the summary, and its length scales with the file's size. It extends the claim with the file-level concepts the sentence cannot hold: mechanism, hidden guarantees, external constraints, failure boundaries, and rationale. It stays at the file's medium abstraction level; anything lower belongs in code comments. It never restates the summary; if the paragraph re-claims the sentence's content in more words, tighten the summary or cut the paragraph. Do not use the paragraph as an export inventory or control-flow narration. If one coherent summary cannot describe the file, reconsider its responsibilities.
 
 A facade or pass-through module states the boundary that it exposes.
 
