@@ -1,8 +1,4 @@
-// agent-context contribution resolution.
-//
-// Resolution derives the feature-owned ids that make an authored contribution
-// registry-ready. It does not create the mutable buffer state owned by the
-// registry after an update or append contribution is accepted.
+// Derives owner-scoped canonical and contribution identities without creating live agent-context state.
 
 import type { TSchema } from "typebox";
 

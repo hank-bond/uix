@@ -19,6 +19,7 @@ IPC remains a transport boundary rather than a feature contract boundary. Shared
 
 ### Directories
 
+- **[agent-context/](./agent-context/AGENTS.md)** _(active)._ Agent context separates pure feature-owned identity resolution from live buffering and model-visible state-message assembly.
 - **[features/](./features/AGENTS.md)** _(active)._ The main-process feature runtime validates manifest composition, activates feature instances atomically, registers facets, builds surfaces, and scaffolds editable workspaces.
 - **[workspace/](./workspace/AGENTS.md)** _(active)._ Workspace runtime code resolves workspace identity, adopts durable manifest generations, binds settings, and coordinates whole-workspace replacement.
 

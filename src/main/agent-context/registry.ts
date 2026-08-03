@@ -1,4 +1,4 @@
-// state messages: the cockpit→agent state pathway.
+// Registers feature context, manages optional buffers, and assembles model-visible state messages against branch history.
 //
 // An agent-context contribution declares one model-visible state section: its
 // canonical id, vocabulary line, optional UIX-managed buffer, and optional
@@ -20,9 +20,6 @@
 // message. Pi renders custom messages into provider user-role text and strips
 // customType, so the content itself carries a <uix-state> envelope and one
 // inner tag per canonical id. Human prompt text stays verbatim.
-//
-// The contribution types live in @uix/api/agent-context and are re-exported
-// here so existing call sites keep compiling without import changes.
 
 import type {
   SessionEntry,
