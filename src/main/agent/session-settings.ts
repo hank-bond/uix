@@ -1,3 +1,5 @@
+// Defines the workspace setting for the selected Pi session.
+
 import { type Static, Type } from "typebox";
 
 import { SessionIdSchema } from "@uix/api/agent-channels";

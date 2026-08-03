@@ -7,7 +7,7 @@
 //
 // Range edits (`edit`) run Myers diff against the range only, so cost is
 // O(range + replacement). `reconcile(text)` runs Myers against the whole list
-// to preserve unchanged anchors and report a diff, so cost is O(N + D).
+// to preserve unchanged anchors and produce a diff, so cost is O(N + D).
 // `write(text)` is a clobber — it rebuilds from scratch with fresh anchors and
 // no diff, so cost is O(new line count).
 //
@@ -224,7 +224,7 @@ export class AnchoredDocument {
   }
 
   // Reconcile the whole document against new `text`, diffing to preserve the
-  // anchors of unchanged lines and report what changed. This is the human
+  // anchors of unchanged lines and return what changed. This is the human
   // writeback path (the pane flushes new content; the agent must see a stable
   // anchored diff) — unlike `write`, it is not a clobber.
   reconcile(text: string): readonly AnchoredChange[] {

@@ -1,7 +1,7 @@
-// pi session/events → transcript model.
+// Derives the transcript items shown by the renderer from persisted Pi session entries.
 //
 // The renderer consumes one UIX-owned transcript item shape whether the source
-// is a persisted pi session entry or a live pi event. Live streaming may attach
+// is a persisted Pi session entry or a live Pi event. Live streaming may attach
 // volatile fields such as `partialResult`; persisted history only replays the
 // durable completed items.
 
@@ -218,7 +218,7 @@ function parseToolResult(message: unknown):
 }
 
 // Content is a string or a block array whose text blocks carry `{ type: "text",
-// text }`. Read defensively over the block shape so new pi block kinds (tool
+// text }`. Read defensively over the block shape so new Pi block kinds (tool
 // calls, images, thinking) are skipped rather than breaking transcript replay.
 function extractTextContent(content: unknown): string {
   if (typeof content === "string") return content;

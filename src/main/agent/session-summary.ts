@@ -1,3 +1,5 @@
+// Reads session titles, first user-message previews, and timestamps without opening each Pi session.
+
 import { Buffer } from "node:buffer";
 import { readFile, stat } from "node:fs/promises";
 

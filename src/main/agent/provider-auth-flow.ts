@@ -1,3 +1,5 @@
+// Runs one interactive provider sign-in at a time and exposes its prompts, links, progress, and result to the renderer.
+
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
 
 import type {

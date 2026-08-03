@@ -26,7 +26,7 @@ Asynchronous consumers reject stale results instead of letting completion order 
 
 ## Validate candidates atomically; isolate loadable units
 
-Treat disk state, external edits, and batch mutations as candidate snapshots: parse, hydrate, and validate the complete transaction before replacing live state. A rejected candidate applies nothing and leaves the previous live snapshot authoritative; report diagnostics rather than silently repairing, dropping, or mixing fields.
+Treat disk state, external edits, and batch mutations as candidate snapshots: parse, hydrate, and validate the complete transaction before replacing live state. A rejected candidate applies nothing and leaves the previous live snapshot authoritative; expose diagnostics rather than silently repairing, dropping, or mixing fields.
 
 After configuration commits, isolate runtime activation at the loadable-unit boundary. One feature's settings and substrate-owned contributions install provisionally as a unit; failure removes all of them while sibling features continue. This does not promise restoration of the feature's previous implementation or rollback of arbitrary side effects outside substrate ownership. See [`2026-07-13-atomic-candidates-and-feature-activation.md`](../decisions/2026-07-13-atomic-candidates-and-feature-activation.md).
 

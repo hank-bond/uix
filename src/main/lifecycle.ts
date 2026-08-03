@@ -183,7 +183,7 @@ export function setWindowOpenHandler(
 
 /**
  * Subscribe to anything that follows the "subscribe returns an
- * unsubscribe function" pattern (e.g. pi's `AgentSession.subscribe`,
+ * unsubscribe function" pattern (e.g. Pi's `AgentSession.subscribe`,
  * many other observable libraries).
  */
 export function subscribe<E>(

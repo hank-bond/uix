@@ -1,8 +1,8 @@
-// agent-surface composition root.
+// Assembles UIX's ordered Pi setup hooks into the single in-process extension used by each runtime.
 //
-// UIX-core's agent installers ride a single in-process pi extension. Each
-// installer is handed the live pi handle and registers its own tools, hooks, or
-// session behavior. This is substrate wiring onto pi's surface, not a packaged
+// UIX-core's agent installers ride a single in-process Pi extension. Each
+// installer is handed the live Pi handle and registers its own tools, hooks, or
+// session behavior. This is substrate wiring onto Pi's surface, not a packaged
 // extension — installers are substrate-owned and may use cockpit internals
 // directly.
 
@@ -11,15 +11,15 @@ import type {
   ExtensionFactory,
 } from "@earendil-works/pi-coding-agent";
 
-// A subsection handed the live pi ExtensionAPI to install its agent-facing
+// A subsection handed the live Pi ExtensionAPI to install its agent-facing
 // behavior. We keep the subsection as the unit (rather than free-floating
 // install calls) so there is one inventory of UIX-core's agent surface; we hand
-// it pi directly (rather than a declarative bag of tools + context) because
+// it Pi directly (rather than a declarative bag of tools + context) because
 // hooks and appendEntry / sendMessage are imperative calls at a boundary, not
 // static data.
 export type AgentInstaller = (pi: ExtensionAPI) => void | Promise<void>;
 
-// Compose the installers into one pi ExtensionFactory. This is the single place
+// Compose the installers into one Pi ExtensionFactory. This is the single place
 // agent-surface hook order is decided: Pi dispatches every hook in the order
 // it was registered, with no priority field, so the order installers run here
 // is the composition semantics (chained "input" transforms, system-prompt

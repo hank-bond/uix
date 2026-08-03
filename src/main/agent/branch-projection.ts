@@ -1,3 +1,5 @@
+// Derives current transcript and restorable feature state from one selected Pi branch.
+
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 
 import type { TranscriptSnapshot } from "@uix/api/agent-channels";

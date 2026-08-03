@@ -97,4 +97,4 @@ Reload requests serialize. A successful reload gives disk precedence over pendin
 
 Malformed manifests or workspace settings fail before promotion or feature disposal. The active feature composition remains intact.
 
-A per-feature failure after promotion disposes that feature's provisional bag and reports the failed entry. Sibling activation continues.
+A per-feature failure after promotion disposes that feature's provisional bag and names the failed entry. Sibling activation continues.

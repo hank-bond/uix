@@ -1,3 +1,5 @@
+// Derives the provider sign-in list from Pi's available login methods and current connection state.
+
 import type {
   ProviderAuthCatalog,
   ProviderAuthCatalogEntry,

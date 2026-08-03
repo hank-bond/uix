@@ -81,7 +81,7 @@ export type AgentEvent =
       /**
        * Compact in-flight update to an already-appended item. The renderer is
        * the accumulator: `text` appends to a streaming assistant row's text;
-       * `partialResult` overwrites a tool row's live progress payload (pi
+       * `partialResult` overwrites a tool row's live progress payload (Pi
        * tool updates are replacement snapshots, not increments). A full
        * `transcript_replace` still lands at completion, so partials are pure
        * display traffic — dropping one loses nothing durable.
@@ -190,7 +190,7 @@ export type ModelFavoriteUpdate = Static<typeof ModelFavoriteUpdateSchema>;
 /**
  * Current agent status exposed to surfaces. `cwd` is the directory under
  * which tools execute. `model` is the live session model — absent until a
- * session exists, and absent even then when pi resolved no model (e.g. no
+ * session exists, and absent even then when Pi resolved no model (e.g. no
  * provider is authenticated). `defaultModel` is the workspace default —
  * absent until the pilot first selects one. Both model fields absent means
  * "no model chosen": the UI renders that state rather than inventing a
@@ -394,7 +394,7 @@ export const agentChannels = {
       responseSchema: AgentStatusSchema,
     },
     /**
-     * Validated against pi's available models; persists the workspace
+     * Validated against Pi's available models; persists the workspace
      * default and switches the live session when one exists.
      */
     select_model: {

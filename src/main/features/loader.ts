@@ -50,7 +50,7 @@ const deriveBuildAliases = (apiModuleDir?: string): Record<string, string> => ({
 
 const createFeatureJiti = (apiModuleDir?: string): Jiti =>
   createJiti(__filename, {
-    // Same hot-reload lever pi uses. Disabling the runtime module cache
+    // Same hot-reload lever Pi uses. Disabling the runtime module cache
     // lets editing a feature's .ts/.js file and reloading evaluate the
     // new source for the same absolute path. jiti may still keep its
     // filesystem transform cache for performance; that cache tracks

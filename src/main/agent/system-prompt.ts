@@ -1,4 +1,4 @@
-// UIX-owned system-prompt assembly.
+// Assembles UIX and feature prompt sections and appends them to Pi's system prompt before each run.
 //
 // Prompt-producing facets remain separate public concepts. This is their one
 // Pi-facing adapter: when an extension runtime starts/reloads, it computes one

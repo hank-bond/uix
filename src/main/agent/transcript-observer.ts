@@ -1,4 +1,4 @@
-// Active Pi session → UIX transcript observation.
+// Mirrors live Pi session events as renderer transcript updates with the same item shape as persisted history.
 //
 // Session managers are observed before Pi receives them so transcript rows can
 // acquire their durable entry ids at persistence. The active session binding
@@ -181,7 +181,7 @@ function createLiveTranscriptForwarder(
             extractTranscriptText(event.message) || current.text;
           // Final content lands under the pre-key handle first, so display
           // never depends on the append wrapper; the rekey replace follows
-          // in the same tick when pi persists this exact message object.
+          // in the same tick when Pi persists this exact message object.
           const final = { ...current, text: finalText, complete: true };
           replace(final);
           assistant = undefined;
@@ -196,7 +196,7 @@ function createLiveTranscriptForwarder(
         }
 
         // Displayed custom messages don't stream, so hold the row one tick
-        // and append it already keyed when pi persists the entry (pi never
+        // and append it already keyed when Pi persists the entry (pi never
         // hands the manager the CustomMessage object, so there is no handle
         // path to correlate a rekey through).
         const custom = parseCustomTranscriptItem("pending", event.message);
@@ -209,7 +209,7 @@ function createLiveTranscriptForwarder(
       }
 
       case "tool_execution_start": {
-        // Born keyed: pi persisted the assistant message (with this row's
+        // Born keyed: Pi persisted the assistant message (with this row's
         // toolCall block) before execution started, so the durable replay
         // derivation is already known. The live-id fallback only fires if pi
         // reorders persistence, degrading to a pre-key row.

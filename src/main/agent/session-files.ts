@@ -1,3 +1,5 @@
+// Finds recent Pi session files and resolves a session ID to its JSONL file.
+
 import { readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 

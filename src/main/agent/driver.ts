@@ -1,13 +1,13 @@
-// agent driver.
+// Runs the selected Pi session and coordinates prompts, models, sign-in, transcripts, and feature state for the renderer.
 //
 // Owns Pi's `AgentSessionRuntime` lifecycle and coordinates the selected
 // session, services, feature state, transcript observation, and agent controls.
 //
-// Why dynamic `import()`: pi is an ESM-only package and the main bundle
+// Why dynamic `import()`: Pi is an ESM-only package and the main bundle
 // is CJS. A static `import` would be rewritten to `require()` by the
 // bundler and fail at runtime. Dynamic `import()` is preserved through
 // the build and runs as a real ESM load. The `import type` line beside
-// it is erased at compile time, so we still get full pi types in the
+// it is erased at compile time, so we still get full Pi types in the
 // IDE/typechecker without any runtime cost.
 //
 // Lifetime management uses the conventions in src/main/lifecycle.ts:
@@ -123,9 +123,9 @@ export interface AgentDriver extends Disposable {
   /** Current execution cwd plus live/default model state. */
   getStatus(): AgentStatus;
   /**
-   * Validate against pi's available models, persist as the workspace
+   * Validate against Pi's available models, persist as the workspace
    * default, and — when a live session exists — switch it via
-   * `session.setModel`, producing native pi `model_change` state.
+   * `session.setModel`, producing native Pi `model_change` state.
    */
   selectModel(ref: ModelRef): Promise<AgentStatus>;
   listAuthProviders(): Promise<ProviderAuthCatalog>;
@@ -142,7 +142,7 @@ export interface AgentDriver extends Disposable {
 export interface AgentDriverOptions {
   /** Forwarded to the renderer (over IPC). */
   onEvent: (event: AgentEvent) => void;
-  /** UIX-core agent installers composed into the in-process pi extension. */
+  /** UIX-core agent installers composed into the in-process Pi extension. */
   agentInstallers?: readonly AgentInstaller[];
   /** Cockpit-private turn-state registry, installed by the driver. */
   turnState?: TurnStateRegistry;
@@ -158,7 +158,7 @@ export interface AgentDriverOptions {
   piProfileDir: string;
   /**
    * Workspace `agent` settings namespace; holds model defaults and favorites.
-   * Without a default, UIX passes no model and pi's own resolution applies —
+   * Without a default, UIX passes no model and Pi's own resolution applies —
    * including resolving to no model at all when nothing is authenticated.
    */
   agentSettings?: SettingsHandleFrom<typeof agentWorkspaceSettings>;
@@ -384,7 +384,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   async function openManager(): Promise<SessionManager> {
     const sdk = await import("@earendil-works/pi-coding-agent");
     const { agentCwd } = opts.workspace;
-    // Pin the session dir under .uix on the stable state root, not pi's
+    // Pin the session dir under .uix on the stable state root, not Pi's
     // cwd-derived default, so the session file stays with the canvases and does
     // not move when the agent later relocates to a worktree.
     const selected = opts.sessionSettings?.get("selected");
@@ -621,7 +621,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         id: ref.id,
       });
       if (runtime) {
-        // Native pi state: appends a model_change entry, persists pi's own
+        // Native Pi state: appends a model_change entry, persists Pi's own
         // defaults, reclamps thinking. The model_select installer mirrors
         // currentModel; the extra assignment below is a same-payload no-op.
         await runtime.session.setModel(model);
@@ -771,7 +771,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     async prompt(text) {
       // No echo here: the renderer already shows its optimistic pending row,
       // and the authoritative keyed row is emitted by the onUserMessage
-      // observer when pi persists. A prompt that fails before persistence
+      // observer when Pi persists. A prompt that fails before persistence
       // truthfully contributes no user row to the feed — the renderer's
       // unconfirmed row plus the error item below are the whole record.
       try {

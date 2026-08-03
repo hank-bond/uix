@@ -17,8 +17,8 @@ import {
 } from "@uix/api/contribution-id";
 
 /**
- * Canonical agent tool id: the pi tool name. Drops the facet segment (the tool
- * kind is implicit in pi) and uses pi's double-underscore separator:
+ * Canonical agent tool id: the Pi tool name. Drops the facet segment (the tool
+ * kind is implicit in Pi) and uses Pi's double-underscore separator:
  * `${featureId}__${name}` (e.g. `canvas__anchor_read`).
  */
 const AgentToolCanonicalIdBrand: unique symbol = Symbol("AgentToolCanonicalId");
@@ -28,7 +28,7 @@ export type AgentToolCanonicalId = string & {
 };
 
 /**
- * Builds the pi tool name for a contribution: `${featureId}__${name}`.
+ * Builds the Pi tool name for a contribution: `${featureId}__${name}`.
  * Validates each segment; a failure is an app bug.
  */
 export function toAgentToolCanonicalId(
@@ -51,7 +51,7 @@ export function toAgentToolOverrideCanonicalId(
 export interface ResolvedAgentToolContribution {
   readonly contributionId: ContributionId;
   readonly canonicalId: AgentToolCanonicalId;
-  /** Full pi tool definition, with `name` stamped from the canonical id. */
+  /** Full Pi tool definition, with `name` stamped from the canonical id. */
   readonly tool: ToolDefinition;
 }
 

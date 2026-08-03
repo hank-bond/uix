@@ -1,3 +1,5 @@
+// Derives stable absolute and workspace-relative locations for transcript rows from read and write tool paths.
+
 import { homedir } from "node:os";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import process from "node:process";

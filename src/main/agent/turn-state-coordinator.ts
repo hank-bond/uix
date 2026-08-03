@@ -1,3 +1,5 @@
+// Restores feature state from the selected branch before allowing new state to be committed.
+
 import type { SessionManager } from "@earendil-works/pi-coding-agent";
 
 import { deriveSelectedBranchProjection } from "./branch-projection";

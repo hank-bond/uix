@@ -19,7 +19,8 @@ IPC remains a transport boundary rather than a feature contract boundary. Shared
 
 ### Directories
 
-- **[agent-context/](./agent-context/AGENTS.md)** _(active)._ Agent context turns feature-provided state into structured messages that Pi sends to the model before a run.
+- **[agent/](./agent/AGENTS.md)** _(active)._ The agent runtime opens Pi sessions, handles models and provider sign-in, restores feature state, and keeps the renderer's transcript current.
+- **[agent-context/](./agent-context/AGENTS.md)** _(active)._ Agent context assembles feature-provided state into structured messages that Pi sends to the model before a run.
 - **[agent-tools/](./agent-tools/AGENTS.md)** _(active)._ Agent tools give each feature safe Pi tool names, reject duplicates, and install the accepted tools for each agent runtime.
 - **[features/](./features/AGENTS.md)** _(active)._ The feature runtime loads the workspace's chosen features, isolates failed activations, and builds their renderer surfaces. It also creates bare editable workspaces.
 - **[keybindings/](./keybindings/AGENTS.md)** _(active)._ Main-process keybindings merge renderer defaults with persisted workspace overrides and publish the resulting bindings.

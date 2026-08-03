@@ -94,7 +94,7 @@ export function Chat({ client }: ChatProps): JSX.Element {
     setDraft("");
     setPending(true);
     // Optimistic echo: show the message instantly as an unconfirmed pending
-    // row. Main emits the authoritative born-keyed row once pi persists it,
+    // row. Main emits the authoritative born-keyed row once Pi persists it,
     // and the reducer swaps this row out (eventual consistency — display
     // first, confirm via the canonical record).
     setItems((prev) => [...prev, { id: pendingUserId(), kind: "user", text }]);
@@ -274,7 +274,7 @@ function syncItem(
 }
 
 // Merge an in-flight partial into its row: streamed text appends (the
-// renderer is the accumulator), a tool's partialResult overwrites (pi tool
+// renderer is the accumulator), a tool's partialResult overwrites (Pi tool
 // updates are replacement snapshots). The append always precedes its
 // partials and a full replace lands at completion, so an unmatched partial
 // means ordering broke — warn and drop; nothing durable is lost.

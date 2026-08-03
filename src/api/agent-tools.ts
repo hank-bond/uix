@@ -4,15 +4,15 @@
 // contributions retain `name` so a feature can replace a Pi definition or
 // supply app-level vocabulary without weakening the ordinary namespace.
 //
-// A tool body is inherently a pi artifact, so AgentToolDefinition is pi's
+// A tool body is inherently a Pi artifact, so AgentToolDefinition is Pi's
 // ToolDefinition minus `name` — re-exported here so feature authors get the
-// real pi typing from @uix/api without reaching into cockpit internals.
+// real Pi typing from @uix/api without reaching into cockpit internals.
 
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { TSchema } from "typebox";
 
 /**
- * The tool body an author provides: everything in a pi `ToolDefinition` except
+ * The tool body an author provides: everything in a Pi `ToolDefinition` except
  * `name`, which the facet derives from `(featureId, name)` and stamps during
  * normalization. Making it `Omit` turns an author hand-writing `name` into a
  * compile error.

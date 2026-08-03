@@ -4,7 +4,7 @@
 // core — and the anchors it hands the agent — always describes one canonical
 // form. This is what will make the human-writeback diff stable: a human edit is
 // reserialized through the same normalizer, so unchanged regions stay
-// byte-identical to the base and Myers reports only real changes.
+// byte-identical to the base and Myers returns only real changes.
 //
 // This is a *normalizer*, not a formatter. parse5 maps the input to the HTML
 // spec's own serialization (lowercased tags, quoted attributes, normalized void

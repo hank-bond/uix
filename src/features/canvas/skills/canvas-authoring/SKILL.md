@@ -11,7 +11,7 @@ A canvas is a persisted HTML document that both the human and Agent can change. 
 
 ## State belongs in the document
 
-UIX serializes the hydrated document after human interaction. State represented by these mechanisms survives reloads and can be reported back to the Agent as a compact diff:
+UIX serializes the hydrated document after human interaction. State represented by these mechanisms survives reloads and can be relayed back to the Agent as a compact diff:
 
 - native `input`, `textarea`, `select`, checkbox, and radio controls;
 - explicitly authored `contenteditable` regions;

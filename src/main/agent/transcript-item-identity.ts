@@ -1,24 +1,22 @@
-// transcript-item identity (keyed-on-persist).
+// Rekeys temporary live transcript IDs to durable Pi entry IDs when messages are persisted.
 //
-// Implements docs/decisions/2026-06-09-transcript-keyed-on-persist.md: live
-// transcript rows start under a pre-key transport handle and are rekeyed to
-// the canonical pi session entry id the moment pi persists the entry. Pi
-// mints that id inside `appendMessage` / `appendCustomMessageEntry` — *after*
-// the `message_end` listeners run, and there is no post-persist event — so
-// the only way to observe it is to patch those methods on the manager
-// instance before pi receives it. The patch calls through to the original;
-// it never mutates content and never writes the session file itself. Replace
-// it with pi's official post-persist event if one ships.
+// Live transcript rows start under a temporary transport handle and adopt the
+// canonical Pi session entry ID when Pi persists the entry. Pi assigns that ID
+// inside `appendMessage` and `appendCustomMessageEntry`, after `message_end`,
+// and exposes no post-persist event. The observer therefore wraps those methods
+// before Pi receives the manager. The wrappers call through without changing
+// content or writing the session file.
+// Update when: Pi exposes a post-persist event. Replace the append-method wrappers with that event.
 //
-// Correlation per row kind (plans/durable-transcript-identity.md, D1):
-//  - assistant: pi passes the *same* message object to `message_end` and
+// Correlation per row kind:
+//  - assistant: Pi passes the *same* message object to `message_end` and
 //    `appendMessage`, so a WeakMap keyed by the object carries the
 //    continuation without retaining message content.
 //  - user: nothing to correlate — the instant echo is the *renderer's* own
 //    optimistic pending row (composer state, not transcript truth); main
 //    emits the authoritative row born keyed straight from the observed
 //    append, deriving the text from the persisted message itself.
-//  - tool rows: born keyed — pi persists the assistant message (with its
+//  - tool rows: born keyed — Pi persists the assistant message (with its
 //    toolCall blocks) before `tool_execution_start` fires, so the durable
 //    `<entryId>:tool:<toolCallId>` derivation is recorded here and read by
 //    the forwarder at row creation. No handle, no rekey.
@@ -38,7 +36,7 @@ import {
 type OnKeyed = (durableId: string) => void;
 
 export interface TranscriptItemIdentity {
-  /** Patch the manager's append methods. Call before pi receives the manager. */
+  /** Patch the manager's append methods. Call before Pi receives the manager. */
   observe(manager: SessionManager): void;
   /**
    * Single subscriber notified for every persisted user message; the driver

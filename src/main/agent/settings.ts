@@ -1,4 +1,4 @@
-// Substrate-owned `agent` workspace settings namespace.
+// Defines workspace settings for the default model and favorite models.
 //
 // Lives in the manifest's top-level `settings.agent` object. Registered
 // through the workspace settings facade before any feature loads, so a
@@ -15,7 +15,7 @@ export const agentWorkspaceSettings = defineWorkspaceSettingsNamespace({
   id: "agent",
   schema: Type.Object({
     /**
-     * Workspace default model: used before a pi session exists and as the
+     * Workspace default model: used before a Pi session exists and as the
      * default for new sessions/branches without a `model_change` entry.
      * Optional — absent until the pilot first selects a model.
      */

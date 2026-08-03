@@ -210,7 +210,7 @@ async function openWorkspace(
   });
 
   // Facet registries. Features contribute data into these; substrate installers
-  // adapt the registries to pi when the agent session opens.
+  // adapt the registries to Pi when the agent session opens.
   const resources = appBag.add(
     new ResourceRegistry({ workspaceId: LocalWorkspaceId }),
   );
