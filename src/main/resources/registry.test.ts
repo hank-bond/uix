@@ -1,3 +1,5 @@
+// Verifies protocol privileges, route dispatch, validation status, collision rollback, grouped lifetimes, and transport disposal.
+
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 

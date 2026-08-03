@@ -1,13 +1,6 @@
-// resource serving contributions.
+// Owns live feature resource routes and dispatches validated resource URLs through one protocol transport.
 //
-// Resources are request/response byte producers addressed by substrate-owned
-// resource URLs. The local transport is one Electron custom protocol
-// (`uix-resource://...`); a hosted runtime can adapt the same route metadata to
-// HTTP routes.
-//
-// ResourceContribution and ResourceRequestContext are defined in
-// @uix/api/resources. This registry resolves author contributions and owns their
-// live runtime state.
+// Resource declarations remain transport-neutral even though the default adapter uses Electron's custom protocol. A malformed URL recognized by a route yields 400, while a URL matching no registered route yields 404.
 
 import { protocol } from "electron";
 
@@ -55,6 +48,12 @@ export interface ResourceRegistryOptions {
   transportRegistrar?: ResourceTransportRegistrar;
 }
 
+/**
+ * Register the privileged substrate resource scheme before Electron is ready.
+ *
+ * Scheme-level CORS support permits CORS-mode requests to reach handlers; each
+ * response remains responsible for granting an origin.
+ */
 export function registerResourceProtocol(
   registrar: ResourceSchemeRegistrar = (schemes) => {
     protocol.registerSchemesAsPrivileged(schemes);
@@ -77,6 +76,7 @@ export function registerResourceProtocol(
   ]);
 }
 
+/** Own live feature routes and the application-wide transport handler. */
 export class ResourceRegistry implements Disposable {
   readonly #workspaceId: string;
   readonly #transportDisposable: Disposable;
@@ -97,6 +97,7 @@ export class ResourceRegistry implements Disposable {
     );
   }
 
+  /** Register one resolved route and return a lifetime for that exact route. */
   register(resolvedContribution: ResolvedResourceContribution): Disposable {
     if (this.#disposed) {
       throw new Error("Resource registry is disposed");
@@ -153,6 +154,7 @@ export class ResourceRegistry implements Disposable {
   }
 }
 
+/** Register one feature's resource routes as a rollback-safe lifetime. */
 export function registerResourceContributions(
   registry: ResourceRegistry,
   featureId: string,
