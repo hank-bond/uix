@@ -1,89 +1,61 @@
 ---
-summary: "How the substrate drives the agent today: it lazily owns a persisted Pi AgentSessionRuntime, assembles feature system-prompt sections and Pi skills per runtime generation/reload, forwards a UIX-shaped event stream, exposes model controls, binds tools, and flushes agent context."
+summary: "UIX owns a lazy Pi runtime, exposes it through substrate channels, and installs manifest-composed agent facets without ambient built-in tools."
 kind: reference
 status: active
 ---
 
 # Agent integration
 
-UIX owns one Pi `AgentSessionRuntime` for the workspace, created lazily the first time the renderer sends a prompt. Its active `AgentSession` is the ephemeral live agent over the selected durable session graph. The current driver lives in `src/main/agent/driver.ts`.
+UIX owns one Pi `AgentSessionRuntime` for the workspace. The runtime starts lazily when a prompt or session mutation first needs a live session.
 
-Current behavior:
+An authentication-free `SessionManager` opens the selected durable graph before runtime creation. This separation lets surfaces read history and session summaries without loading model or authentication services.
 
-- an auth-free `SessionManager` eagerly opens the durable id in `settings.session.selected`, falling back to the newest graph or creating one when that selection is stale, so history remains independent from live agent startup; the authoritative summary reconciles the cached selected label;
-- the first prompt or session mutation creates the runtime from that manager and any Pi services already opened by model/auth UI; later runtime generations recreate cwd-bound services and bind transcript-item identity/observation to their active session;
-- every initial or replacement `AgentSession` is extension-bound before use, which emits Pi's pending `session_start` event and performs extension resource discovery; runtime extension errors are routed into UIX's structured log;
-- surfaces talk to the driver through the substrate-owned agent channel contract (`@uix/api/agent-channels`, registered under the reserved `agent` id) via the typed channel client — chat is an ordinary feature consuming channels any feature could;
-- the `prompt` request invokes the main-process driver; the renderer receives a UIX-shaped event stream on the `event` channel: transcript item appends, compact in-flight partials (`transcript_partial`: streamed assistant text appends, tool progress snapshots overwrite), whole-item replacements at completion, plus basic lifecycle markers; live in-flight tool partials are discarded when the final item arrives;
-- `session_history({ sessionId? })` replays the durable transcript plus authoritative `SessionSummary`; omitting the id reads the selected graph through the workspace session controller and establishes its shared active-session projection, while an explicit id reads another graph without activating or restoring it;
-- `list_session_summaries({ limit })` returns recent durable graphs newest filesystem activity first without opening Pi services; it selects the bounded file set by mtime, then reads those files sequentially and independently projects the latest explicit title plus up to 512 Unicode code points of the first user message's textual content; presentation fallbacks such as Chat's `New conversation` remain feature-owned;
-- the payload-free `new_session` request rejects while the agent is running, commits active feature turn state, replaces the selected graph through `AgentSessionRuntime.newSession()`, restores the fresh graph's missing cells as defaults, persists its selected identity/cache, and returns its `SessionSummary` only after restoration settles;
-- `switch_session({ sessionId })` likewise rejects while running, resolves the durable id without exposing file paths, commits current feature state, switches through `AgentSessionRuntime.switchSession()`, restores the target graph, and only then persists and returns its authoritative summary; selecting the active id returns that summary without replacing the runtime;
-- `set_session_title({ sessionId, title })` sets a string title or clears it with `null` on any durable graph without switching or opening Pi services; it remains valid while the live agent is running, normalizes through Pi's single-line title semantics, applies a defensive 4,096-Unicode-code-point bound, appends native `session_info` metadata, and returns the updated summary;
-- the workspace renderer session controller owns active and recent session projections, hydrates recents independently after mount, rejects stale history/list responses with state/request versions, refreshes recents after completed runs and successful mutations, and reconciles an active first-message preview from the post-run list; its switch capability skips during agent activity or another session mutation, while title changes may run during agent activity but serialize with session mutations; a successful title response updates matching active/recent projections without changing session selection; its substrate-owned `uix.session.new` action materializes `mod+n` and skips the request while agent events report a run in progress, while Chat independently renders the active label/recent-session picker, edits explicit titles inline through the workspace capability, and clears/reloads history against a successfully selected id without owning session transitions;
-- reload (typed IPC, not an agent channel) reloads manifest features and workspace settings; it recreates Pi's services tier if model/auth resources were already used before a session, delegates to `session.reload()` once a session exists, and initializes neither solely for reload;
-- core substrate tools are registered through internal agent installers (`AgentInstaller`), not through feature contributions.
+Every runtime generation binds one active `AgentSession`. UIX binds Pi extension resources before using that session, so resource discovery and `session_start` follow Pi's supported lifecycle.
 
-## Feature guidance
+Electron gives Pi one application-owned profile under `<userData>/pi`. The profile is shared across UIX workspaces and isolated from the host Pi command-line profile. UIX never copies or falls back to the host profile.
 
-Features can contribute two forms of stable Agent guidance. `agentSystemPrompt` is one Markdown section per feature for short semantics the Agent must always know; UIX assembles active sections in manifest order together with the generated agent-context vocabulary, captures that suffix snapshot when Pi's extension runtime starts or reloads, and appends the unchanged suffix to Pi's base system prompt at each run. `agentSkills` lists skill files or directories relative to the feature entry file; one UIX-owned `resources_discover` handler supplies the resolved paths at runtime start/reload, after which Pi owns skill validation, the compact system-prompt catalog, and on-demand `SKILL.md` loading.
+Pi stores profile-level credentials, settings, custom models, extensions, skills, prompts, and context there. The workspace agent working directory still supplies project-local `.pi` settings and resources, and process environment variables remain available to Pi. Session history remains under the workspace's `.uix/sessions` directory.
 
-Changing/per-turn information does not belong in either mechanism: it uses agent context. Tool schemas and descriptions remain mechanical invocation contracts. The Canvas feature is the first combined consumer: its system-prompt section states the persisted-interaction and `data-uix-prompt` contract, while its `canvas-authoring` skill contains detailed HTML state, accessibility, and interaction guidance.
+## Agent channel
 
-Electron gives Pi one app-owned profile at `<userData>/pi`, shared by every UIX workspace and isolated from the host Pi CLI profile. Pi stores profile-level credentials, settings, custom models, extensions, skills, prompts, and context there. The workspace `agentCwd` still supplies project-local `.pi` settings and resources, while session history remains under that workspace's `.uix/sessions`. UIX does not copy or fall back to the host profile; process environment variables remain available to Pi.
+Surfaces use the substrate-owned `agentChannels` contract from `@uix/api/agent-channels`. The contract registers under the reserved `agent` owner id.
 
-## Model control
+Chat is an ordinary feature that consumes this contract. Any feature surface can consume the same requests and events without importing Chat.
 
-The driver owns one lazy Pi `AgentSessionServices` tier above the session: `ModelRuntime`, settings, and the loaded resource/extension set. `ModelRuntime` is Pi's provider/model/auth authority, so model and authentication questions are answerable before the first prompt, including providers registered by Pi extensions; session creation reuses the same services rather than loading an overlapping copy. Four requests and one event on the agent contract:
+The contract groups four areas:
 
-- `list_models` (`void → { models: ModelCatalog }`) — the **available (auth-configured) model catalog only**, refreshed from pi's registry on each call and decorated with each model's workspace-local `favorite` status. If nothing is authenticated the catalog is empty; provider authentication changes emit `model_availability_changed` so consumers can fetch it again.
-- `set_model_favorite` (`ModelRef & { favorite: boolean } → { models: ModelCatalog }`) — idempotently adds or removes a model from `agent.favoriteModels`, then returns the refreshed model catalog. Favorite references survive provider disconnection and become visible again after reconnecting.
-- `agent_status` (`void → AgentStatus`) — `cwd` is the current tool execution directory and is available before a session exists; `model` is the live session model (absent until a session exists, and absent even then when pi resolved none); `defaultModel` is the workspace default (absent until first selected). Both model fields absent means "no model chosen": the UI renders that state, UIX invents no fallback.
-- `select_model` (`ModelRef → AgentStatus`) — validated against pi's available models (unknown/unauthenticated refs reject), persisted as the workspace default (`agent.defaultModel`, see [`settings.md`](./settings.md)), and — when a live session exists — switched via `session.setModel`, producing a native pi `model_change` entry.
-- `status_changed` (event, `AgentStatus`) — publishes the complete cwd/model snapshot when status changes; currently fired on model selection, when a session opens and its model becomes known, and on any live pi model change (setModel, cycle commands, restore), mirrored through pi's `model_select` extension event.
+- **Prompting and status:** Accept prompts and publish the agent lifecycle and transcript event stream.
+- **Sessions:** Read history, list summaries, replace the selected graph, and set titles.
+- **Models:** Read status, list available models, manage favorites, and select a model.
+- **Provider authentication:** List Pi-owned methods and coordinate one generic login flow.
 
-Two distinct pieces of state, deliberately: the **current model** is pi-owned, branch-aware session state (`model_change` entries; branch replay restores it), while the **workspace default** is a UIX workspace setting applied at session open only when the branch carries no `model_change` of its own. With neither, session creation defers entirely to pi's resolution. Surfaces never mutate `agent.defaultModel` directly — selection goes through `select_model`.
+[`sessions-and-transcripts.md`](./sessions-and-transcripts.md) documents durable sessions and transcript projection. [`models-and-authentication.md`](./models-and-authentication.md) documents model and provider controls.
 
-The chat status bar's model pill (`src/features/chat/workspace/ModelPill.tsx`) is the first consumer: it seeds from `agent_status`, subscribes to `status_changed`, labels by live model → workspace default → explicit "select model" empty state, and opens a searchable Favorites / All models picker over `list_models`. Each row selects the model independently from its star control; stars update through `set_model_favorite`, and a provider-login handoff opens All models with its provider-seeded search rather than hiding matches behind Favorites. On an unfiltered scope's first display, the picker positions its current-model row near the viewport center before paint (clamped naturally near either end), without smooth scrolling; seeded and typed searches retain result-first positioning.
+## Reload
 
-## Provider authentication
+Substrate reload uses typed Electron Inter-Process Communication (IPC), not an agent channel. Reload replaces manifest features and workspace settings before reconciling Pi.
 
-The same agent contract exposes Pi's provider-owned authentication methods through one generic flow. `list_auth_providers` projects each interactive `ModelRuntime` API-key/OAuth login into a `ProviderAuthCatalogEntry`, while connection source and its optional non-secret label come from `getProviderAuthStatus()`. Ambient-only auth remains Pi configuration rather than appearing as a broken login action. The substrate does not merge backend provider identities, author credential fields, inspect `auth.json`, or maintain provider-specific setup recipes.
+If model or authentication services exist, reload recreates that services tier. If a live session exists, reload also calls Pi's native `session.reload()` path.
 
-`begin_provider_auth_flow`, `answer_provider_auth_flow`, `open_provider_auth_link`, and `cancel_provider_auth_flow` run either Pi auth type (`api_key` or `oauth`) through Pi's `AuthInteraction` vocabulary. Main synchronously claims one flow before loading `ModelRuntime` and owns a restorable snapshot containing its phase, retained notices/links, and current prompt. Pi supplies text/secret prompts, selections with descriptions, informational links, authorization URLs, device codes, and progress notifications; Chat renders them generically and returns one correlated answer at a time. `current_provider_auth_flow` restores the snapshot, while `provider_auth_flow_changed` publishes replacements. Flow and prompt ids reject delayed responses, prompt abort signals reject superseded input, cancellation suppresses late provider callbacks, and driver disposal aborts the active flow.
+Reload does not create Pi services or a session solely to reload them. Replacement feature turn state restores before the renderer receives the changed surface composition.
 
-Electron's composition root injects the system-browser opener. It only receives the active URL supplied by Pi; surfaces do not receive a general arbitrary-URL capability. Pi alone persists credentials in UIX's app-owned profile, shared across UIX workspaces; complete credentials never return to UIX and appear in neither workspace settings nor session history. Success refreshes `ModelRuntime` availability and emits `model_availability_changed` so consumers can re-fetch the ordinary available-only model catalog.
+## Agent contributions
 
-Auth answers, current flow snapshots, and flow events use channel log descriptions: the IPC crossing remains observable, but API keys, callback URLs, authorization/device codes, and provider input are absent from terminal and NDJSON payload logs.
+Manifest features can contribute these Pi-facing facets:
 
-Chat's connection modal consumes the provider-auth catalog without provider-specific flow rendering. A pure row projection supplies compact `API key` and `Sign in` labels and groups OpenAI API access with the separate OpenAI Codex subscription identity while retaining distinct backend provider ids. Selecting either method immediately opens the same `ProviderAuthFlowPanel`; retained notices remain visible beside the current prompt, secret prompts use password inputs, provider-supplied authorization/device-code URLs open automatically, and every retained provider link reopens only through main's active-flow validation. Selecting the active method cancels it, while selecting another method cancels successfully before starting the replacement. Closing the modal leaves the backend flow active, and reopening restores its snapshot. Successful persistence refreshes provider/model state and confirms in place, and the explicit `Choose a model` handoff opens the ordinary model search seeded to that provider. The search remains editable; UIX does not select a model automatically.
+- Feature-namespaced agent tools.
+- Intentional exact-name agent tool overrides.
+- One stable system-prompt section.
+- Pi skill files or directories.
+- Branch-scoped turn-state cells.
+- Model-visible agent-context sections.
 
-## Transcript projection
+UIX starts Pi with built-in tools inactive. The workspace feature composition therefore defines the complete available tool surface.
 
-UIX keeps three related units distinct:
+Ordinary tools receive names such as `${featureId}__${name}`. Exact-name overrides retain their authored Pi name and fail activation on a competing claim.
 
-1. **Pi session entries** are the durable history/tree substrate. They are persisted by pi with `id`/`parentId` and represent conversation/state-machine steps such as user messages, assistant messages, tool results, custom messages, custom entries, model changes, and compactions. From the UI's point of view these are the branchable history units, not necessarily the smallest visible UI units.
-2. **`TranscriptItem`s** are UIX's renderer wire shape. Main derives this projection from live pi events and replayed durable session entries so the chat pane consumes the same model for live streaming and startup history. While an item streams, compact `transcript_partial` events update it by id (the renderer accumulates streamed text; tool progress payloads are replacement snapshots); a full replace of that one item lands at completion. Nothing ever replaces a whole turn or whole transcript.
-3. **Chat blocks** are renderer units. A block is the smallest rendered chat-stream unit and is a view over the transcript projection. Today each `TranscriptItem` renders as one block, but the model intentionally allows one session entry to produce many transcript items and one transcript item to render as many blocks later.
+Internal `AgentInstaller` functions adapt live registries into one UIX-owned Pi extension factory. They are substrate wiring, not a feature-facing extension point.
 
-This separation keeps pi's durable tree, UIX's streaming/replay normalization, and React rendering independent enough to evolve without re-keying the session format. Every tool item carries the point-in-time cwd under which it executed. Main also derives a `ToolFileLocation` for `read` and `write`: an absolute path plus a display path that is cwd-relative when possible and absolute otherwise. Live rows capture the active session cwd; history seeds from the session header and folds sparse `uix.turn-state` cwd transitions, so renderers never reinterpret old tool arguments against today's cwd or filesystem. Chat block renderers may also present a human-facing projection of an agent-facing payload: for example, canvas tool results keep anchored lines in the transcript item so the agent can edit safely, while the chat block hides the anchors from the human display.
+The reference `workspace_tools` feature contributes reason-bearing `read`, `write`, and `command` tools plus passthrough `edit`. Bare workspace scaffolding instead copies editable passthrough Pi tool source.
 
-The current canvas agent-tool contribution lives in `src/features/canvas/backend/contributions/agent-tools.ts` and contributes the anchored canvas channel:
-
-- `canvas__anchor_read({ key, start?, end? })`
-- `canvas__anchor_write({ key, html })`
-- `canvas__anchor_edit({ key, start_line, end_line, replacement })`
-
-Canvases are addressed by key through the substrate document store (`src/main/documents/store.ts`), edited via the anchored core (`src/main/anchors/`), and canonicalized at the canvas buffer boundary (`src/features/canvas/backend/normalize.ts`). The tools are canvas-named because every HTML document edited through them is a canvas; the document storage abstraction lives underneath the canvas buffer. Every result returns the affected lines in the `<anchor>§<text>` wire format so the agent never re-reads to learn current anchors.
-
-## State messages
-
-Substrate state reaches the agent through **agent context** (`src/main/agent-context/registry.ts`), never by rewriting the human's prompt text. Features declare contributions with a local `name` and optional buffer semantics; the substrate derives the canonical id (`${featureId}.${name}`, e.g. `canvas.canvas-diff`) which becomes both the dedup key and the inner section tag (used directly: `<canvas.canvas-diff>`). An **update** buffer carries a TypeBox schema and returns a handle with `update(payload)`; UIX retains the latest value and flushes it only when its post-materialized body differs from the nearest persisted section on the branch. An **append** buffer returns a handle with `append(payload)`; UIX queues values, materializes the pending list, and clears the confirmed batch only after the branch shows it was persisted. A contribution with no buffer supplies `materialize()`, called while UIX prepares an agent run, for state that must be created from the owner's live store at that boundary. The driver installs the assembler into Pi when it opens the session and captures the installed hooks for that session. When anything flushed, it ships **one combined `display: false` custom message per run**: a single `<uix-state>` envelope containing one inner tag per section, persisted as one `uix.state` session entry — hidden from the chat, model-visible. The inner tags carry "what kind" on the wire because pi strips customType from LLM context; section bodies are freeform per type (default JSON for buffered payloads, anchored lines for diffs), and `details` carries any structured sidecar. Update buffers are **change-only**; append buffers are **pending-event queues**; no-buffer materializers decide whether to send by returning a message or `undefined`.
-
-Features never call individual registry methods. `registerAgentContextContributions(agentContext, featureId, contributions)` is the sole register path; it accepts the author-facing `AgentContextContribution[]` and returns a `Disposable`.
-
-The canvas agent-context contribution factory (`src/features/canvas/backend/contributions/agent-context.ts`) returns `canvas-diff`: anchored human-edit hunks derived at the boundary from the current and prior `canvas.documents` turn-state commits. Canvas does not send a separate list of viewed documents; document updates are already keyed by document resource id, and future surface instances will carry their own instance identities. The substrate `registerAgentContextContributions(agentContext, featureId, contributions)` helper owns registry enrollment and disposal.
-
-Feature contributions can register feature-namespaced agent tools, explicit exact-name tools, system-prompt sections, Pi skills, and agent context through the manifest feature path. Exact-name tools can establish app-level vocabulary; ordinary tools always retain their feature namespace. UIX starts Pi with built-in tools inactive, so features assume no ambient coding tools and the workspace manifest explicitly composes providers. The reference app's `workspace_tools` feature exposes reason-bearing `read`, `write`, and `command` plus passthrough `edit`; a newly scaffolded bare workspace instead owns editable passthrough `read`, `write`, `edit`, and `bash` source. Canvas HTML can initiate an intentional Agent turn through the narrow trusted-click `data-uix-prompt` shim action described in [`channels.md`](./channels.md); canvas content does not receive direct channel access.
-
-See [`features.md`](./features.md), [`contributions.md`](./contributions.md), [`channels.md`](./channels.md).
+[`agent-context.md`](./agent-context.md) explains system-prompt sections, skills, turn state, and hidden model-visible context. [`contributions.md`](./contributions.md) lists every feature facet.
