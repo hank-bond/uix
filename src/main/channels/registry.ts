@@ -1,10 +1,6 @@
-// typed channel contributions.
+// Owns live channel request registrations and feature-scoped event publication over an injected transport.
 //
-// This is a narrow substrate facet for request/response channels and backend →
-// workspace event publishing. Features declare request handlers and event
-// schemas. The substrate registers them through the current transport adapter.
-// Today that adapter is Electron IPC, but the contribution model is intentionally
-// transport-neutral.
+// The registry validates unknown requests and handler responses at the transport boundary while preserving contract-owned log descriptions. Canonical-id reservations remain recoverable across transport acquisition and disposal failures.
 
 import { Value } from "typebox/value";
 
@@ -41,6 +37,7 @@ export interface ChannelRegistryOptions {
   publish?: ChannelTransportPublisher;
 }
 
+/** Bind resolved channel requests and event publication to one transport. */
 export class ChannelRegistry {
   readonly #transportRegistrar: ChannelTransportRegistrar;
   readonly #publish: ChannelTransportPublisher;
@@ -59,6 +56,12 @@ export class ChannelRegistry {
     this.#publish(canonicalId, payload, logOpts);
   }
 
+  /**
+   * Register one resolved request and return its exact transport lifetime.
+   *
+   * A failed transport acquisition releases the reserved id. Disposal also
+   * releases the id when transport cleanup throws.
+   */
   register<Req, Res>(
     resolvedContribution: ResolvedChannelRequestContribution<Req, Res>,
   ): Disposable {
@@ -99,6 +102,12 @@ export class ChannelRegistry {
   }
 }
 
+/**
+ * Register feature-owned channel groups as one rollback-safe lifetime.
+ *
+ * Every contract must name the feature that contributes it. A later failure
+ * disposes all request handlers acquired earlier in the operation.
+ */
 export function registerChannelContributions(
   registry: ChannelRegistry,
   featureId: string,

@@ -1,3 +1,5 @@
+// Verifies channel validation, ownership, grouped rollback, transport cleanup, event publication, and sensitive log descriptions.
+
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
