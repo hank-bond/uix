@@ -51,7 +51,7 @@ A source `AGENTS.md` is a routing and coordination map for a directory that owns
 
 Do not create a source directory or `AGENTS.md` for one production file plus its tests. Keep that file and its tests in the parent, where the production file appears in the parent's index.
 
-An `AGENTS.md` generated index lists direct production source files, local Markdown leaves, and immediate child `AGENTS.md` summaries. It excludes colocated tests and does not manually summarize every child. A parent does not flatten the contents of a real child ownership boundary.
+An `AGENTS.md` generated index lists direct production source files, local Markdown leaves, and immediate child `AGENTS.md` summaries. It excludes colocated tests. Handwritten guidance must not repeat or paraphrase those file or child summaries; the generated index is their sole directory-level description. Guidance starts where individual summaries stop: relationships, sequencing, shared invariants, composition, and dependency direction. A parent does not flatten the contents of a real child ownership boundary.
 
 A local Markdown leaf earns its place when several files under one source owner must be understood together. Put broader workflows and context in repository documentation. Do not create hand-maintained source listings before the generator and first migration land together under [`code-proximate-documentation.md`](../plans/code-proximate-documentation.md).
 

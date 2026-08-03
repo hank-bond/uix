@@ -5,13 +5,14 @@ import type {
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
+import type { AgentToolDefinition } from "@uix/api/agent-tools";
+
 import {
   AgentToolRegistry,
   createAgentToolInstaller,
   registerAgentToolContributions,
   registerAgentToolOverrideContributions,
 } from "./registry";
-import type { AgentToolDefinition } from "./resolution";
 
 const emptyParams = Type.Object({});
 

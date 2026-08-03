@@ -5,9 +5,9 @@ status: active
 
 # Main process
 
-This directory owns the trusted Electron process and composes the cockpit's live runtime. `index.ts` is the application composition root: concrete services do not enroll themselves, and cleanup-producing bindings join explicit application, workspace, window, feature, or agent lifetimes through `lifecycle.ts`.
+`index.ts` is the application composition root: concrete services do not enroll themselves, and cleanup-producing bindings join explicit application, workspace, window, feature, or agent lifetimes through `lifecycle.ts`.
 
-[`workspace/`](./workspace/AGENTS.md) owns workspace identity, durable manifest adoption, settings binding, and replacement coordination. [`features/`](./features/AGENTS.md) owns manifest-selected feature activation and surface delivery. Agent runtime code owns Pi sessions and restoration, while the direct registry files at this level provide substrate facets shared by feature activation and the composition root.
+Workspace adoption precedes feature activation, which acquires live members from the direct facet registries. The agent runtime consumes that selected workspace and feature composition while retaining its separate Pi session lifecycle.
 
 IPC remains a transport boundary rather than a feature contract boundary. Shared author contracts live under `src/api`; the channel and resource registries bind resolved contributions to transports supplied by the main-process composition.
 
@@ -20,6 +20,7 @@ IPC remains a transport boundary rather than a feature contract boundary. Shared
 ### Directories
 
 - **[agent-context/](./agent-context/AGENTS.md)** _(active)._ Agent context separates pure feature-owned identity resolution from live buffering and model-visible state-message assembly.
+- **[agent-tools/](./agent-tools/AGENTS.md)** _(active)._ Agent tools separate pure owner-scoped Pi-name resolution from live collision enforcement and runtime installation.
 - **[features/](./features/AGENTS.md)** _(active)._ The main-process feature runtime validates manifest composition, activates feature instances atomically, registers facets, builds surfaces, and scaffolds editable workspaces.
 - **[workspace/](./workspace/AGENTS.md)** _(active)._ Workspace runtime code resolves workspace identity, adopts durable manifest generations, binds settings, and coordinates whole-workspace replacement.
 

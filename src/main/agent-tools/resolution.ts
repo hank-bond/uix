@@ -1,10 +1,8 @@
-// agent tool contribution resolution.
+// Resolves feature tool contributions into validated Pi names and contribution identities without live registration.
 //
-// Every tool gets a feature-owned `ContributionId` registry key. Ordinary
-// contributions derive a namespaced Pi tool name (`${featureId}__${name}`),
-// while explicit exact-name contributions retain their authored name.
-// Keeping those author shapes separate prevents ordinary feature tools from
-// accidentally escaping their namespace.
+// Ordinary contributions derive `${featureId}__${name}` while explicit
+// overrides retain their authored Pi name, preventing ordinary feature tools
+// from escaping their owner namespace.
 
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 
@@ -49,11 +47,6 @@ export function toAgentToolOverrideCanonicalId(
   assertAgentToolToken("agent tool override name", name);
   return name as AgentToolCanonicalId;
 }
-
-// The author-facing tool-body alias lives in @uix/api/agent-tools (a tool
-// body is a pi artifact; features get the real pi typing from the API).
-// Re-exported here so main-internal call sites keep one import path.
-export type { AgentToolDefinition } from "@uix/api/agent-tools";
 
 export interface ResolvedAgentToolContribution {
   readonly contributionId: ContributionId;

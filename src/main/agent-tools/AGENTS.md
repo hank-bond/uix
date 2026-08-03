@@ -1,0 +1,23 @@
+---
+summary: "Agent tools separate pure owner-scoped Pi-name resolution from live collision enforcement and runtime installation."
+status: active
+---
+
+# Agent tools
+
+Feature activation passes declarations from `src/api/agent-tools.ts` through pure name resolution before registry acceptance. Ordinary tools must enter through owner-scoped resolution; only the explicit override contribution path may retain an exact Pi name.
+
+Registry acceptance defines the live collision domain, and the agent runtime installs a snapshot of accepted definitions into each Pi runtime generation.
+
+## Contents
+
+<!-- INDEX:START -->
+
+<!-- Generated from production source-file summaries, local Markdown frontmatter, and child AGENTS.md summaries. Do not edit by hand; run `npm run docs:index`. -->
+
+### Source files
+
+- **[registry.ts](./registry.ts)** Owns live resolved agent tools and installs a registry snapshot into each Pi runtime generation.
+- **[resolution.ts](./resolution.ts)** Resolves feature tool contributions into validated Pi names and contribution identities without live registration.
+
+<!-- INDEX:END -->

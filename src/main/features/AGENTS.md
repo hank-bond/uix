@@ -5,7 +5,7 @@ status: active
 
 # Feature runtime
 
-This directory owns main-process feature composition and renderer-surface delivery. Feature-author contracts remain under `src/api/`; the workspace runtime supplies accepted manifest generations, and sibling facet registries own live contributed members.
+Feature-author contracts remain under `src/api/`; the workspace runtime supplies accepted manifest generations, and sibling facet registries own live contributed members.
 
 Feature activation coordinates `manifest.ts`, `loader.ts`, and `contributions.ts`: manifest order is authoritative, each feature's settings and facet registrations remain provisional until its activation succeeds, and one failed feature rolls back without aborting siblings. Adding a facet therefore changes the public contribution contract, registry bundle, grouped registration, and activation rollback coverage together.
 

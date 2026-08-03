@@ -1,12 +1,4 @@
-// agent tool contribution registry.
-//
-// Features contribute pi tool definitions as data. This substrate owns
-// their live registry lifetime and the pi-facing installer that installs them
-// into the live agent extension.
-//
-// Ordinary tools derive a feature-namespaced Pi name; explicit exact-name tools
-// keep their authored Pi name. The registry deduplicates contribution ids and
-// final names, then installs one snapshot into Pi.
+// Owns live resolved agent tools and installs a registry snapshot into each Pi runtime generation.
 
 import type {
   AgentToolContribution,

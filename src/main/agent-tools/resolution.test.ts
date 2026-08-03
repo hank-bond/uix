@@ -1,7 +1,8 @@
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
-import type { AgentToolDefinition } from "./resolution";
+import type { AgentToolDefinition } from "@uix/api/agent-tools";
+
 import {
   resolveAgentToolContribution,
   resolveAgentToolOverrideContribution,
