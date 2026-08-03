@@ -1,25 +1,67 @@
 ---
-summary: "How to author and maintain repository docs: layers and retrieval units, frontmatter and rollups, normative language and writing profiles, convention-rule and lexicon formats, and living design-note threads."
+summary: "Author repository documentation through retrieval units, standard frontmatter, generated indexes, writing profiles, convention cards, lexicons, and living design threads."
 kind: how-to
 status: active
 ---
 
 # Contributing to the docs
 
-How to write and maintain the documentation in this tree. The routing map — which layer answers which question — is in [`AGENTS.md`](./AGENTS.md); this is the authoring reference behind it.
+Use this reference to write and maintain repository documentation. [`AGENTS.md`](./AGENTS.md) maps the dev-facing layers, and the root [`AGENTS.md`](../AGENTS.md) maps every documentation tree.
 
-## The four layers
+## Put descriptive knowledge next to code
 
-Each layer has its own filename convention, summary template, and lifecycle. The rule for where a date goes: **if the _file_ is a point-in-time event, the date is in the filename.** If the file _contains_ dated events, the dates live inside it.
+Code is the primary description of implemented behavior. Agents can inspect source cheaply, while a separate prose description creates synchronization cost.
+
+Do not maintain a discrete document only to enumerate files, types, request paths, contribution fields, or current control flow. Put that knowledge at the narrowest owning source boundary:
+
+- A source file states its stable responsibility in a one-line file summary.
+- An exported contract explains what it is and how to use it directly in JSDoc.
+- A source directory's `AGENTS.md` explains the directory's ownership, boundary, and direct usage.
+- A generated directory index lists source files from their file summaries.
+
+Required headers, shebangs, and license notices may precede a file summary. Otherwise, the summary is the first line. For TypeScript and JavaScript, use one `//` comment that states responsibility rather than repeating the filename.
+
+Contract comments document preconditions, lifetimes, ordering, errors, defaults, and direct examples that callers need. They do not narrate the implementation or duplicate types.
+
+A source `AGENTS.md` adds only directory-level guidance. Its generated listing provides recall and routing without a second hand-maintained implementation inventory.
+
+This source-index model is approved but deferred until the post-sprint documentation migration. Do not create partial hand-maintained listings before the generator and migration path land together.
+
+## What earns a discrete document
+
+A discrete document must provide information that source inspection cannot cheaply and reliably recover. It earns its maintenance cost through at least one of these roles:
+
+- A convention or invariant prescribes choices across multiple source units.
+- A how-to joins several boundaries into one concrete, multi-step workflow.
+- A design note or plan describes future work and unresolved choices.
+- A decision preserves rationale, rejected alternatives, and the constraint that followed.
+- External context explains a dependency, protocol, platform behavior, or product requirement not owned by this repository.
+- A hard-won lesson records a trap, failure mode, or non-obvious reason that prevents a plausible mistake.
+
+Face-value synthesis of implemented code does not qualify. Neither does a prose inventory whose main value is listing what exists today.
+
+Before deleting a descriptive document, preserve anything the code cannot reveal. Look for rationale, rejected alternatives, external constraints, failure history, invariants, and counterintuitive behavior. Move each item to its narrowest durable home: a contract comment, convention, decision, design log, or cross-boundary how-to.
+
+Use this placement test:
+
+1. If one file answers the question, improve that file's names or comments.
+2. If one directory answers it, improve that directory's `AGENTS.md` guidance.
+3. If direct use of one export needs explanation, improve its contract JSDoc.
+4. If a task crosses boundaries, write a concrete how-to.
+5. If the value is prescription, rationale, external context, or future direction, write a discrete document.
+
+## The four document layers
+
+Each document layer has its own filename convention, summary template, and lifecycle. If the file is a point-in-time event, put the date in its filename. If it contains dated events, keep dates inside it.
 
 | Layer | Filename | Summary states | Mutability |
 | --- | --- | --- | --- |
 | `decisions/` | `YYYY-MM-DD-slug` | the conclusion | write-once (only `status` may change) |
 | `design/` | `problem-name` | the open question + axes | synthesis mutable, `## Log` append-only |
-| `architecture/` | `subsystem` | current subsystem state | living, always = HEAD |
-| `plans/` | `deliverable` | the deliverable + units | active → `plans/archive/` |
+| `architecture/` | `constraint-name` | a current cross-cutting invariant or hard-won context | living, always = HEAD |
+| `../plans/` | `deliverable` | the deliverable + units | active → landed or archived under `../plans/archive/` |
 
-The distillation pipeline runs left-to-right in time: **design note → decision → plan → architecture.** Each step is more distilled and more stable than the last. The design note is the only place rejected alternatives and the full reasoning survive; everything downstream records conclusions.
+The distillation pipeline runs left-to-right in time: _design note → decision → plan → architecture_. Each step becomes more distilled and stable. Only the design note preserves every rejected alternative. Later records carry the applicable conclusion or enduring constraint.
 
 ## Frontmatter
 
@@ -27,35 +69,43 @@ The filename already carries the slug (and, for decisions, the date), so frontma
 
 ```yaml
 ---
-summary: "What this document establishes — its thesis, not its topic."
-read_when: "Read … — only when the trigger isn't obvious from the summary." # optional
-status: accepted | exploring | resolved | active | archived | stub | superseded
+summary: "What this document establishes: its thesis, not its topic."
+read_when: "Read before {ACTIVITY} when the trigger is not obvious from the summary." # optional
+status: accepted | exploring | resolved | active | landed | archived | stub | superseded
 ---
 ```
 
 One rule governs both fields: **don't duplicate what's already in the reader's context when they read the field.** The slug is in the link, the category is in the directory, and the summary sits next to `read_when` once the index is in scope. Restating any of those wastes the line.
 
-- **`summary` (required)** is the document's **recall surface**. It is the line an agent scans to decide the doc is relevant, and the only field cheap enough to preload across the whole tree. It states the **thesis** (the conclusion, the shape, the responsibility), not the topic. Compressing the body is fine here — the body _isn't_ in context when the summary is read. Write it to be **findable by concept** and **distinct from its siblings**. If two siblings' summaries are interchangeable, the boundary between the documents is wrong, not the wording.
-- **`read_when` (optional)** is the **external trigger** — the precision step. Author it _only_ when the reason to open the doc isn't inferable from the summary:
+- **`summary` (required):** The document's _recall surface_. An agent scans it to decide whether the document is relevant. It states the thesis rather than the topic. Compressing the body is appropriate because the body is not yet in context. Make each summary findable by concept and distinct from siblings. Interchangeable sibling summaries indicate a boundary problem.
+- **`read_when` (optional):** The _external trigger_ that adds precision. Author it only when the summary does not reveal why to open the document:
 - A **cross-vocabulary** trigger: the task is phrased in words the thesis doesn't use.
 - A **preventive** one: read before starting down a path the doc constrains.
-- A **counterintuitive** one: the doc says _don't_ do the obvious thing. If the trigger is just "read when working on the thing this is obviously about," omit it — that's the `// increment i` of frontmatter.
+- A **counterintuitive** trigger: The document rejects an obvious path. Omit a trigger that only repeats the subject because it adds no retrieval value.
 
 Each layer's summary fills a different template, because each answers a different question:
 
 - Decisions state the conclusion ("X, over Y").
 - Design states the open question and its axes.
-- Architecture states what the subsystem currently _is_.
+- Architecture states an invariant or context that remains necessary at HEAD and is not obvious from source.
 - Plans state the deliverable and its units.
-- `src/docs/` states how to use the shipped surface today. Same template within a layer forces siblings to differ on topic. Different templates across layers keep one subject's recurrence (a decision, its design thread, its current state, its plan) distinct by role.
+- `src/docs/` states a public workflow or contract boundary that spans source units. Direct API facts remain in code comments.
 
-A summary's length tracks the number of independently-addressable **claims** the document exposes — the hooks a task might match on — not its word count. A long single-thesis decision still gets one line; a multi-unit plan enumerates its units. The layer template sets the baseline (a conclusion is short, a deliverable-plus-units is long), and the shared preload budget caps it. Spend length only where the doc has more hooks. A summary that has to balloon to stay distinct is usually a **split signal**. The document is bundling unrelated claims and wants to become several, except in plans and design threads, where multi-unit is the recognized shape.
+The same template within a layer forces siblings to differ by topic. Different templates keep one subject's decision, design, constraint, and plan distinct by role.
 
-This applies to every repo-owned markdown file, including `AGENTS.md` and `README.md`. **Decisions freeze frontmatter at acceptance** (only `status` changes later); **living docs keep it current**. Cross-link between docs with ordinary inline markdown links, not a frontmatter field.
+Summary length follows the number of independently addressable claims, not body length. A long single-thesis decision still gets one short summary. A multi-unit plan can enumerate its units.
+
+The layer template sets a baseline, and the shared preload budget sets a cap. Spend words only on additional retrieval hooks.
+
+A summary that must grow to remain distinct is a _split signal_. The document probably bundles unrelated claims. Plans and design threads remain the accepted multi-unit forms.
+
+This guidance applies to every repository-owned Markdown file, including each `AGENTS.md` file and the `README.md` file. _Decisions freeze their frontmatter and prose at acceptance_; only `status` may change. Link destinations may change when files move so references continue to resolve. _Living docs stay current._ Cross-link documents with ordinary inline Markdown links, not a frontmatter field.
 
 ## Documents are retrieval units
 
-A leaf document is the smallest set of information that a reader should load together to perform one kind of work correctly. Choose document boundaries by retrieval and application, not by heading count, source-directory layout, or similar subject matter.
+First apply the placement test above. Do not create a document retrieval unit when one source file, contract comment, or directory overview should own the information.
+
+A leaf document is the smallest information set a reader should load to perform one kind of work correctly. Choose boundaries by retrieval and application, not heading count or source layout.
 
 Evaluate each candidate section on four axes:
 
@@ -84,7 +134,7 @@ Apply one of these writing profiles to each section. A document can use differen
 
 ### Strict profile
 
-Use the strict profile for conventions, API reference, architecture invariants, and contract comments.
+Use the strict profile for conventions, generated reference, architecture invariants, and contract comments.
 
 - Use approved technical terms with one meaning and grammatical role.
 - Use active voice and present tense.
@@ -114,9 +164,9 @@ Give each convention rule a stable semantic identifier. Use a lowercase dotted i
 Use this structure:
 
 ```markdown
-### naming.callable-role — Name callable types by role
+### naming.callable-role: Name callable types by role
 
-**Rule — must.** Name a callable type with a noun that states its callable role.
+**Rule: must.** Name a callable type with a noun that states its callable role.
 
 **Approved example** ...
 
@@ -149,13 +199,13 @@ The approved meaning defines the term's permitted boundary. The alternatives ide
 
 ### Lexicon row requirements
 
-**Term.** Give the exact approved spelling and part of speech. Give each word form and each approved meaning its own row. Sort terms alphabetically within their class.
+**Term:** Give the exact approved spelling and part of speech. Give each word form and each approved meaning its own row. Sort terms alphabetically within their class.
 
-**Approved meaning / alternatives.** Start with a positive boundary definition. State the property that distinguishes the term from its nearest alternatives, and name those alternatives explicitly. Do not define the term through a current implementation or file location. Do not name an undefined alternative; admit it in the same change or link to its existing entry.
+**Approved meaning and alternatives:** Start with a positive boundary definition. State the property that distinguishes the term from its nearest alternatives, and name those alternatives explicitly. Do not define the term through a current implementation or file location. Do not name an undefined alternative; admit it in the same change or link to its existing entry.
 
-**Approved example.** Use the smallest realistic example that demonstrates the distinguishing property. Prefer an existing UIX identifier or a planned replacement from an active migration. Show a call site when the identifier alone does not demonstrate the meaning. Do not add unrelated details.
+**Approved example:** Use the smallest realistic example that demonstrates the distinguishing property. Prefer an existing UIX identifier or a planned replacement from an active migration. Show a call site when the identifier alone does not demonstrate the meaning. Do not add unrelated details.
 
-**Nonconforming example.** Show a plausible mistake that a competent author might make. Change only the semantic axis that the entry defines when practical. State the approved replacement when it is not obvious. Do not use a strawman, malformed syntax, generally poor code, or only the reverse spelling of the approved example.
+**Nonconforming example:** Show a plausible mistake that a competent author might make. Change only the semantic axis that the entry defines when practical. State the approved replacement when it is not obvious. Do not use a strawman, malformed syntax, generally poor code, or only the reverse spelling of the approved example.
 
 Before admitting a row, apply these quality tests:
 
@@ -183,14 +233,20 @@ Do not preserve a retired alias in code only because it remains in the lexicon. 
 
 ## Every AGENTS.md is overview + index
 
-The shape repeats at every level: an `AGENTS.md` is frontmatter plus **hand-written overview prose**, followed by a **generated index**. The overview is a high-level summary of everything below it, plus any item too small to deserve its own file. The root [`AGENTS.md`](../AGENTS.md) overviews the project and routes to these dir-level files; each dir-level file overviews its dir and routes to its docs.
+An `AGENTS.md` contains hand-written directory guidance followed by a generated index. Guidance states the directory's ownership, boundaries, invariants, and direct usage. It does not manually summarize every child.
 
-The index sits between `<!-- INDEX:START -->` / `<!-- INDEX:END -->` and is derived from each doc's frontmatter by [`scripts/docs-index.mjs`](../scripts/docs-index.mjs). It covers `docs/decisions`, `docs/design`, `docs/architecture`, `plans`, and `src/docs`. Add or edit a doc, then:
+Documentation indexes derive entries from document frontmatter. Source indexes will derive file entries from first-line source summaries after the deferred source-index tooling lands.
+
+The root [`AGENTS.md`](../AGENTS.md) orients the project and routes to directory indexes. Each lower index adds only the guidance owned at that level.
+
+The index sits between `<!-- INDEX:START -->` and `<!-- INDEX:END -->`. [`docs-index.mjs`](../scripts/docs-index.mjs) currently derives documentation entries from frontmatter. It covers `docs/decisions`, `docs/design`, `docs/architecture`, its convention cards, `plans`, `src/docs`, and `website`. Add or edit a document, then run these commands:
 
 ```sh
 npm run docs:index     # regenerate the index blocks
-npm run docs:check     # CI: fail if any index is stale or frontmatter is missing
+npm run docs:check     # fail on stale indexes, malformed docs, or broken links
 ```
+
+The check requires frontmatter and one H1 in living documents. It also validates relative links, lifecycle values, and `kind` tags on indexed documentation. Archived plans retain their historical body shape.
 
 Prose outside the markers is yours; the block between them is derived. **Never hand-edit it.** Do not add, reword, reorder, or delete entries inside the markers. The block is regenerated from frontmatter, so a manual edit is silently overwritten by `npm run docs:index` or fails `npm run docs:check` when it drifts. To change an entry, edit the doc's frontmatter `summary`/`read_when`/`status` (or rename the file) and regenerate. A small idea can live as a line in the overview prose. When it grows past a line, promote it to its own file and delete the prose line. The index then carries it, so it's never maintained in both places. Top-level docs in `docs/` (like this one) sit outside the indexed layers and are reached by prose links from `AGENTS.md`, not an index.
 
@@ -203,18 +259,24 @@ A design note is **a current synthesis on top of an append-only dated log**:
 
 ## Log <- append-only; never rewritten
 
-### 2026-06-01 — framing
+### 2026-06-01: framing
 
-### 2026-07-… — revisited
+### 2026-07-…: revisited
 ```
 
 Revisit a topic across sessions by appending a dated `## Log` entry and updating the synthesis. When it resolves, flip `status: resolved` and link the decisions and plans it spawned.
 
-## Open framework gaps
+## Deferred framework work
 
-Sections identified to build together by going through them reactively — listed here as placeholders, not yet authored:
+Apply these items after the current documentation sprint:
 
-- **Compass test** — the "what kind is this?" classification procedure for new and moved docs (action or cognition? acquisition or application?), per the four kinds.
-- **Migration rules:** the triggers that move content between kinds. Reference traffic spawns a how-to, rationale graduates out of a how-to, repeated comments become convention cards, and decisions graduate to creed.
-- **Loop protocol** — the commit-time steps of the decision loop: capture, distill residue, index regeneration, backport scan, verify pass.
-- **Budget tests** — the creed admission test and the always-loaded root size discipline.
+- **Source indexes:** Define the supported source-file summary syntax, generate directory listings, and introduce source `AGENTS.md` files along ownership boundaries.
+- **Descriptive-doc migration:** Move direct usage into contract comments and directory guidance. Delete face-value synthesis only after preserving hard-won context.
+- **Summary and `read_when`:** Define which documents require a trigger and how the thesis differs from the retrieval condition.
+
+These framework gaps also remain:
+
+- **Compass test:** Define the classification procedure for new and moved documents: action or cognition, then acquisition or application.
+- **Migration rules:** Define triggers between kinds. Reference traffic can spawn a how-to, repeated comments can become conventions, and decisions can graduate to creed.
+- **Loop protocol:** Define the commit-time loop: capture, distill residue, regenerate indexes, scan backports, and verify.
+- **Budget tests:** Define the creed admission test and always-loaded root size discipline.

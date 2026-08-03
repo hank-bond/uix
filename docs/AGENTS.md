@@ -18,7 +18,7 @@ Each indexed document has a _kind_: reference, explanation, how-to, or tutorial.
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
 
 - **[architecture/](./architecture/AGENTS.md)** _(active)_ — Living architecture records for implemented subsystem shape, code conventions, design principles, and open questions at HEAD.
-- **[contributing](./contributing.md)** _(active, how-to)_ — How to author and maintain repository docs: layers and retrieval units, frontmatter and rollups, normative language and writing profiles, convention-rule and lexicon formats, and living design-note threads.
+- **[contributing](./contributing.md)** _(active, how-to)_ — Author repository documentation through retrieval units, standard frontmatter, generated indexes, writing profiles, convention cards, lexicons, and living design threads.
 - **[decisions/](./decisions/AGENTS.md)** _(active)_ — Write-once dated UIX architecture decisions record settled conclusions and rationale for later plans, code, and reference documentation.
 - **[design/](./design/AGENTS.md)** _(active)_ — Living design threads combine mutable synthesis with append-only logs of options, tradeoffs, and rejected alternatives.
 - **[framework](./framework.md)** _(active, explanation)_ — UIX documentation separates reader need, agent memory, readership, meta-level, lifecycle, and evolution into independent organizing axes. _Read before proposing a change to the documentation structure (the how), or when the how has a gap._
