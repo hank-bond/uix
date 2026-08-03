@@ -1,7 +1,7 @@
 ---
 summary: "src/docs/ ships with the app and must track code; the repo-root docs/ tree is dev-facing meta and may lag."
 kind: explanation
-status: accepted
+status: superseded
 ---
 
 # Documentation split: src/docs vs docs

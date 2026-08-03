@@ -6,7 +6,7 @@ status: active
 
 # Features
 
-A UIX **feature** is trusted local TypeScript/JavaScript loaded by the substrate main process. The workspace manifest is the composition record: there is no feature auto-discovery. To add a feature to a workspace, see [`add-a-feature.md`](./add-a-feature.md).
+A UIX **feature** is trusted local TypeScript/JavaScript loaded by the substrate main process. The workspace manifest is the composition record: there is no feature auto-discovery.
 
 ```json
 {
