@@ -19,9 +19,19 @@ Do not create empty, single-file, or symmetric directory layers merely to make u
 
 ## Files express responsibility
 
-**Rule:** Name a source file after the stable responsibility it implements. Keep declarations beside the behavior that gives them meaning.
+**Rule:** A source file owns one responsibility. Name it after the stable responsibility it implements and keep declarations beside the behavior that gives them meaning. A responsibility is a coherent unit of behavior or state: a capability, an operation, a role, or a state boundary. A reader seeks it out as one thing, and it changes as one thing.
+
+Two tests decide whether a file's responsibility is clean.
+
+**Expressibility test:** One sentence of at most 30 words must state the file's whole high-level responsibility. If it takes two sentences, the file has two responsibilities; split it so each half fits one sentence. The summary is the claim. Anything the sentence cannot hold is either a second responsibility (split it) or detail (the elaboration or JSDoc, within the same responsibility).
+
+**Coupling test:** Two files that are always read or edited together are one responsibility expressed as two; merge them. Responsibilities change independently, so a change that always touches both files means they are not two responsibilities.
+
+File length is not a criterion. A file may hold one function plus its type, or a whole pipeline, as long as the single sentence still states the responsibility. Splitting for length alone manufactures boundaries; split only when the expressibility test fails.
 
 Avoid miscellaneous containers such as `utils.ts`, `helpers.ts`, `common.ts`, `misc.ts`, or `types.ts`. When a file accumulates unrelated responsibilities, split it by those responsibilities rather than moving the mixture behind a broader name.
+
+**Sibling separation:** Reading a directory's file summaries together, it must be clear when to read each file. Overlapping summaries mean blurred boundaries: the files share one responsibility (merge them), or the summaries were not separated (resummarize). The directory `AGENTS.md` overview states the group responsibility, what the files accomplish together; the index entries show the division of labor. Do not restate each file's summary in the overview.
 
 ## Same-name pairs identify one primary unit
 
@@ -68,4 +78,4 @@ Do not create repository-wide shared areas for speculative reuse. A few addition
 
 **Rule:** Keep tests, fixtures, and other verification assets beside the source unit or ownership boundary they verify. Use a separate cross-system location only when the verification genuinely has no single source owner.
 
-UI component stylesheet ownership and cascade composition are defined separately in [`user-interface.md`](./user-interface.md). Export and runtime dependency rules are defined in [`module-boundaries.md`](./module-boundaries.md).
+UI component stylesheet ownership and cascade composition are defined separately in [`user-interface.md`](./user-interface.md). Export and runtime dependency rules are defined in [`module-boundaries.md`](./module-boundaries.md). The source-header summary and elaboration forms are defined in [`naming-and-comments.md`](./naming-and-comments.md).

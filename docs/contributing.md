@@ -29,11 +29,11 @@ Direct code relationships remain imports. Do not maintain prose importer lists. 
 
 Every indexed authored production source file starts with one indexable line that states its stable responsibility. The summary is physically the first line, without exceptions. For TypeScript and JavaScript, use one `//` sentence that names the domain responsibility, operation, result, or authority boundary without repeating the path or filename.
 
-Source indexes cover authored production TypeScript and JavaScript files, including declarations, plus CSS and HTML. They exclude colocated `*.test.*` and `*.spec.*` files because the production owner already routes an agent to its tests by basename. Tests need no index summary; add test comments only for context the test structure cannot carry. JSON, binary assets, and static data are not indexed. Local Markdown and child `AGENTS.md` entries derive summaries from frontmatter.
+Source indexes cover authored production TypeScript and JavaScript files, including declarations, plus CSS and HTML. They exclude colocated `*.test.*` and `*.spec.*` files because the production owner already routes an agent to its tests by basename. Tests need no summary; add test comments only for context the test structure cannot carry. JSON, binary assets, and static data are not indexed. Local Markdown and child `AGENTS.md` entries derive summaries from frontmatter.
 
 The summary must distinguish the file from its siblings and remain true when implementation mechanics or callers change. Do not enumerate exports, narrate control flow, describe future intent, or add guessed search synonyms. If one coherent summary cannot describe the file, reconsider its responsibilities.
 
-The header may continue with one concise paragraph of file-wide context. Preserve hidden guarantees, external constraints, failure boundaries, rationale, and other knowledge that is not cheap or reliable to infer from the implementation. Do not use the paragraph as an export inventory or control-flow narration.
+The header is the summary sentence plus at most one short elaboration paragraph. The elaboration extends the claim with the lower concepts the sentence cannot hold: mechanism, hidden guarantees, external constraints, failure boundaries, and rationale. It never restates the summary. Do not use the paragraph as an export inventory or control-flow narration.
 
 ### Contract and implementation comments
 

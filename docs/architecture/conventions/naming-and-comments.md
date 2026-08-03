@@ -394,17 +394,17 @@ Before the condition occurs, the marker creates no pending work. Do not use it f
 
 **What earns a comment:** Add a warning or explanation that code cannot carry itself. Examples include load-bearing order, external format tolerance, and hidden ownership constraints. Each should prevent a plausible wrong assumption.
 
-**Source-file headers:** Every indexed authored production TypeScript and JavaScript file starts with one `//` sentence that states its stable responsibility. Every indexed authored production CSS file starts with one single-line `/* */` summary. Every indexed authored production HTML file starts with one single-line `<!-- -->` summary. The summary is physically the first line, without exceptions.
+**Source-file headers:** Every indexed authored production TypeScript and JavaScript file starts with one `//` summary sentence. Every indexed authored production CSS file starts with one single-line `/* */` summary. Every indexed authored production HTML file starts with one single-line `<!-- -->` summary. The summary is physically the first line, without exceptions. The header is the summary plus at most one short `//` elaboration paragraph.
 
-Colocated `*.test.*` and `*.spec.*` files are not indexed. Their production file and shared basename provide the route, so tests need no index summary. Add a test comment only when it preserves context the test structure cannot carry.
+Colocated `*.test.*` and `*.spec.*` files are not indexed. Their production file and shared basename provide the route, so tests need no summary. Add a test comment only when it preserves context the test structure cannot carry.
 
 JSON, binary assets, and static data are not indexed. A directory `AGENTS.md` or local attribution leaf describes non-code assets when their role is not evident.
 
-Name the domain responsibility, operation, result, or authority boundary. Prefer a concrete actor, action, and object over stacked modifiers or abstract nouns. A summary may use a longer plain sentence when that is easier to understand; do not optimize for the fewest words. Keep specialized terms only when they preserve a distinction that plain language would lose.
+**Summary:** One sentence of at most 30 words states the file's purpose and why a reader would open it. Name the domain responsibility, operation, result, or authority boundary; the summary is the responsibility claim a reader uses to decide. Prefer a concrete actor, action, and object over stacked modifiers or abstract nouns. A summary may use a longer plain sentence when that is easier to understand; do not optimize for the fewest words. Keep specialized terms only when they preserve a distinction that plain language would lose.
 
 Use the path and filename as existing context instead of repeating them. Distinguish sibling files without enumerating exports, callers, control flow, implementation mechanics, plans, or guessed search synonyms.
 
-The header may continue with one concise `//` paragraph of file-wide context. Preserve hidden guarantees, external constraints, failure boundaries, rationale, and other knowledge that is not cheap or reliable to infer from the implementation. Do not use the paragraph as an export inventory or control-flow narration. If one coherent summary cannot describe the file, reconsider its responsibilities.
+**Elaboration:** At most one short `//` paragraph follows the summary. It extends the claim with the lower concepts the sentence cannot hold: mechanism, hidden guarantees, external constraints, failure boundaries, and rationale. It never restates the summary; if the paragraph re-claims the sentence's content in more words, tighten the summary or cut the paragraph. Do not use the paragraph as an export inventory or control-flow narration. If one coherent summary cannot describe the file, reconsider its responsibilities.
 
 A facade or pass-through module states the boundary that it exposes.
 
