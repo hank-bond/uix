@@ -1,5 +1,5 @@
 ---
-summary: "The feature runtime loads the workspace's chosen features, isolates failed activations, and builds their renderer surfaces. It also creates bare editable workspaces."
+summary: "The feature runtime loads the workspace's chosen features, isolates failed activations, builds their renderer surfaces, and scaffolds bare editable workspaces."
 status: active
 ---
 
@@ -21,9 +21,9 @@ Surface delivery coordinates `surfaces.ts` with `surface-pipeline.ts`. Preserve 
 
 - **[contributions.ts](./contributions.ts)** Registers all of one feature's capabilities together and rolls them all back if any registration fails.
 - **[loader.ts](./loader.ts)** Loads the features selected by the workspace manifest and isolates failures so one feature cannot stop its siblings.
-- **[manifest.ts](./manifest.ts)** Checks workspace manifests and resolves each ordered feature entry to an absolute path.
+- **[manifest.ts](./manifest.ts)** Validates workspace manifests and resolves each ordered feature entry to an absolute path.
 - **[scaffold.ts](./scaffold.ts)** Creates a bare editable workspace from feature templates without discarding it when dependency installation fails.
 - **[surface-pipeline.ts](./surface-pipeline.ts)** Builds each active surface for the renderer and serves its code, styles, and feature files through resource URLs.
-- **[surfaces.ts](./surfaces.ts)** Resolves feature surface entry paths and keeps active surfaces in workspace and declaration order.
+- **[surfaces.ts](./surfaces.ts)** Resolves feature surface entry paths and retains active surfaces in workspace and declaration order.
 
 <!-- INDEX:END -->

@@ -1,3 +1,5 @@
+// Renders canvas tool payload text with a show-more toggle.
+
 import type { JSX } from "react";
 import { useState } from "react";
 

@@ -1,3 +1,5 @@
+// Renders the session status pill and session picker for switching and renaming conversations.
+
 import type { JSX } from "react";
 import {
   type RefObject,

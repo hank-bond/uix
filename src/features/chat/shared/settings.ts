@@ -1,3 +1,5 @@
+// the chat feature's settings scope.
+
 import { type Static, Type } from "typebox";
 
 import { defineSettings } from "@uix/api/settings";

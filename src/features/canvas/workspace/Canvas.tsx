@@ -1,4 +1,4 @@
-// canvas surface.
+// Renders agent-authored canvas HTML in a sandboxed iframe with postMessage writeback.
 //
 // Renders agent-authored HTML from the document store in a sandboxed iframe.
 // Human edits flow back to the store via postMessage writeback.

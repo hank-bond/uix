@@ -1,3 +1,5 @@
+// Registers the workspace session actions as a feature action contribution.
+
 import type { JSX } from "react";
 import { useMemo } from "react";
 

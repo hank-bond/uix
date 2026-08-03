@@ -1,4 +1,4 @@
-// Collects each feature's system-prompt section in workspace order and joins them for Pi.
+// Assembles each feature's system-prompt section in workspace order for Pi.
 //
 // One Markdown blob per feature is retained in manifest order. The
 // system-prompt assembler captures the current composition snapshot when Pi's

@@ -1,3 +1,5 @@
+// Renders the default tool block: payload text with optional args disclosure.
+
 import type { JSX } from "react";
 
 import { truncateText } from "../../content/text";

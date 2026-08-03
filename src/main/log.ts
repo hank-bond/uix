@@ -2,7 +2,7 @@
 //
 // Thin wrapper around pino so:
 //   - call sites use one shape: `log.info({ ...fields }, "event_name")`
-//   - every line carries a `component` field for filtering
+//   - every line includes a `component` field for filtering
 //   - dev gets pretty-printed colorized output; prod gets JSON
 //   - extensions get attributed loggers via child(): `log.child({ extension: id })`
 //

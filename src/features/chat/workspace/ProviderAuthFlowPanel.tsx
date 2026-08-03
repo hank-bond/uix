@@ -1,3 +1,5 @@
+// Renders one provider auth flow: notices, prompts, links, and retry or success actions.
+
 import type { JSX } from "react";
 import { useEffect, useRef, useState } from "react";
 

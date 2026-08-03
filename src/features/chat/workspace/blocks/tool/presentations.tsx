@@ -1,3 +1,5 @@
+// Derives per-tool chat block presentations: labels and content for known tool names.
+
 import type { ReactNode } from "react";
 
 import { CanvasToolContent } from "./content/CanvasToolContent";

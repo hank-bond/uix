@@ -1,3 +1,5 @@
+// Renders command tool output: highlighted command and result disclosure.
+
 import type { JSX } from "react";
 
 import { DefaultToolContent } from "./DefaultToolContent";

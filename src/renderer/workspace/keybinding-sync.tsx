@@ -1,3 +1,5 @@
+// Synchronizes confirmed keybindings between the action registry and the substrate keybindings channel.
+
 import type { JSX } from "react";
 import { useEffect, useMemo } from "react";
 

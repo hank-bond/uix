@@ -1,3 +1,5 @@
+// Defines the canvas feature and registers its contributions across every facet.
+
 import { defineFeature } from "@uix/api/feature";
 
 import { createCanvasAgentContextContributions } from "./agent-context";

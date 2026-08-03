@@ -1,4 +1,4 @@
-// anchored line editor core.
+// Edits anchored line documents in place, patching by anchor and diffing on reconcile.
 //
 // The document is a doubly-linked list of line nodes plus a Map<anchor, Node>
 // for O(1) anchor lookup. Edits patch the list in place and never touch

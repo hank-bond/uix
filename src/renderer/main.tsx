@@ -1,4 +1,4 @@
-// renderer entry.
+// Boots the workspace window and renders the workspace page over the preload transport.
 //
 // One BrowserWindow = one workspace. The workspace client wraps window.uix
 // directly — no iframe, no bridge, no sandbox. Multi-workspace isolation is

@@ -1,5 +1,5 @@
 ---
-summary: "Main-process keybindings merge renderer defaults with persisted workspace overrides and publish the resulting bindings."
+summary: "Main-process keybindings assemble renderer defaults with persisted workspace overrides and publish the resulting bindings."
 status: active
 ---
 
@@ -17,7 +17,7 @@ Normalize every candidate before it enters workspace settings, and publish only 
 
 ### Source files
 
-- **[requests.ts](./requests.ts)** Merges renderer action defaults with persisted overrides, normalizes shortcuts, and publishes changed keybindings.
-- **[settings.ts](./settings.ts)** Defines the workspace settings group that stores user keybinding overrides.
+- **[requests.ts](./requests.ts)** Assembles renderer action defaults with persisted overrides, normalizes shortcuts, and publishes changed keybindings.
+- **[settings.ts](./settings.ts)** Defines the workspace settings group that persists user keybinding overrides.
 
 <!-- INDEX:END -->

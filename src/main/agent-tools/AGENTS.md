@@ -17,7 +17,7 @@ Registry acceptance defines the live collision domain, and the agent runtime ins
 
 ### Source files
 
-- **[registry.ts](./registry.ts)** Keeps accepted feature tools, rejects duplicate Pi names, and installs a snapshot into each Pi runtime.
+- **[registry.ts](./registry.ts)** Retains accepted feature tools, rejects duplicate Pi names, and installs a snapshot into each Pi runtime.
 - **[resolution.ts](./resolution.ts)** Checks feature tool names and assigns the Pi name and contribution ID used by the registry.
 
 <!-- INDEX:END -->

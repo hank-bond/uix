@@ -1,3 +1,5 @@
+// Extracts and truncates text from transcript content values for display.
+
 export function extractTextContent(value: unknown): unknown {
   if (typeof value === "string") return value;
   if (Array.isArray(value)) return extractTextBlocks(value) ?? value;

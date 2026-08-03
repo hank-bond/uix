@@ -1,3 +1,5 @@
+// Renders a tool chat block from its tool-state presentation.
+
 import type { JSX } from "react";
 
 import { ChatBlockFrame } from "./ChatBlockFrame";

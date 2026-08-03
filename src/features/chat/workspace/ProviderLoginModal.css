@@ -1,3 +1,5 @@
+/* Provider login modal styles. */
+
 .provider-modal {
   box-sizing: border-box;
   width: min(30rem, calc(100vw - 2rem));

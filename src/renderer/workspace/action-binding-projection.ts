@@ -1,3 +1,5 @@
+// Derives the action binding projection: resolved bindings, conflicts, and unresolved overrides per platform.
+
 import type {
   ActionCatalog,
   ActionCatalogEntry,

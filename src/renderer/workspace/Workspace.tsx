@@ -1,4 +1,4 @@
-// workspace surface composition.
+// Renders the workspace page: the composed surface row wrapped in action, keybinding, and session providers.
 //
 // Renders the composed surface list from useSurfaces(). Each surface
 // provides a render function; the workspace composes them into a persisted

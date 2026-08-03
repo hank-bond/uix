@@ -1,3 +1,5 @@
+// Renders a custom chat block from its content or details text.
+
 import type { JSX } from "react";
 
 import type { TranscriptItem } from "@uix/api/agent-channels";

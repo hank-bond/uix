@@ -1,5 +1,5 @@
-/* Pickers prefer trigger-left alignment, then shift left and finally shrink to
-   remain inside the Chat surface. Each picker supplies its own preferred size. */
+/* Picker positioning: trigger-left alignment, then shift and shrink within the surface. */
+
 .session-picker,
 .model-picker {
   --chat-picker-edge-inset: 0.75rem;

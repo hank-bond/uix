@@ -1,3 +1,5 @@
+// Validates canvas frame postMessages and forwards writeback and prompt actions.
+
 import type { CanvasKey } from "../shared/addressing";
 
 export type CanvasFrameMessage =

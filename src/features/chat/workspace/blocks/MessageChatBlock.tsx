@@ -1,3 +1,5 @@
+// Renders a user or assistant message block with markdown content.
+
 import type { JSX } from "react";
 
 import type { TranscriptItem } from "@uix/api/agent-channels";

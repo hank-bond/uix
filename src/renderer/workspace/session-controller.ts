@@ -1,3 +1,5 @@
+// Owns the active-session projection and session mutations for the workspace renderer.
+
 import type {
   AgentEvent,
   SessionHistoryResponse,

@@ -1,4 +1,4 @@
-// workspace client backed by the preload channel transport (window.channels).
+// Creates the workspace client over the preload channel transport.
 //
 // The workspace runs directly in the BrowserWindow — no iframe, no sandbox.
 // Multi-workspace isolation comes from separate BrowserWindows.

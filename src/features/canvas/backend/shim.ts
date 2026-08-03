@@ -1,4 +1,4 @@
-// canvas writeback shim.
+// Injects the writeback shim into served canvas HTML so human edits flow back to the store.
 //
 // Injected into served canvas HTML so a human can edit the pane and have edits
 // flow back to the store. The canvas frame is sandboxed off `window.uix` (see

@@ -1,3 +1,5 @@
+/* Canvas tool payload and show-more toggle styles. */
+
 .canvas-tool-block__payload {
   display: grid;
   gap: 0.2rem;

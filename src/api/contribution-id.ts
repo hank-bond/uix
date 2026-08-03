@@ -11,7 +11,7 @@
 //
 // The ContributionId brand is nominal: a value of this type can only have come
 // through `toContributionId(...)`, which validates the feature id, facet segment,
-// and optional local name against the shared token grammar. Internal code carries
+// and optional local name against the shared token grammar. Internal code holds
 // the brand; genuine external string boundaries cast inline (`id as string`).
 
 const ContributionIdBrand: unique symbol = Symbol("ContributionId");

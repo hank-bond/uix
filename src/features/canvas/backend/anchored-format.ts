@@ -1,3 +1,5 @@
+// Formats anchored canvas changes as agent-visible diff hunks.
+
 import type { AnchoredChange } from "./anchors/document";
 import { formatAnchoredText } from "./anchors/wire";
 

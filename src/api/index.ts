@@ -1,3 +1,9 @@
+// the `@uix/api` public facade re-exporting shared feature-author contracts.
+//
+// The package entry behind the `@uix/api` import; features that need only the
+// shared contract subset import it through this facade, while feature and
+// substrate internals import their specific contract modules directly.
+
 export type {
   AgentContextAppender,
   AgentContextContribution,

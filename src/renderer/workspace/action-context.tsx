@@ -1,3 +1,5 @@
+// Provides the action registry to the workspace and feature surfaces through React context.
+
 import type { JSX } from "react";
 import { createContext, type ReactNode, useCallback, useContext } from "react";
 

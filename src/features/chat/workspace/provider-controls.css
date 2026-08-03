@@ -1,3 +1,5 @@
+/* Provider auth controls and chat button styles. */
+
 .provider-auth {
   display: grid;
   gap: 0.65rem;

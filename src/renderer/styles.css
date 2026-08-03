@@ -1,5 +1,5 @@
-/* base chrome.
- *
+/* Base cockpit chrome for the workspace window. */
+/*
  * Plain CSS, no framework. The chrome stays tiny on purpose: everything
  * visually interesting happens inside the canvas iframe, which has its
  * own (default) styles.

@@ -1,9 +1,9 @@
 // Reads workspace manifests into staged copies and atomically writes the accepted copy back to disk.
 //
-// The store keeps one active manifest generation and stages disk reads as
+// The store retains one active manifest generation and stages disk reads as
 // separate mutable generations. Callers validate and hydrate a staged
 // generation before promoting it; rejection leaves the active generation and
-// its pending flush untouched. Purpose-built location handles keep tree shape
+// its pending flush untouched. Purpose-built location handles retain tree shape
 // knowledge here and remain bound to the generation that minted them.
 
 import { randomBytes } from "node:crypto";

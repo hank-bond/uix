@@ -1,4 +1,4 @@
-// Checks workspace manifests and resolves each ordered feature entry to an absolute path.
+// Validates workspace manifests and resolves each ordered feature entry to an absolute path.
 
 import path from "node:path";
 

@@ -1,4 +1,4 @@
-// committed anchor pool runtime.
+// Loads the committed anchor pool and advances a per-document index through it.
 //
 // Runtime code loads the small committed newline-separated pool into memory and
 // advances a per-document index through it. The pool is model-agnostic: UIX

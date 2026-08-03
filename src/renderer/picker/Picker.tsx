@@ -1,4 +1,4 @@
-// start picker.
+// Renders the start-picker UI: recent workspaces and create-new, acting over the picker channels.
 //
 // Recents plus create-new over the substrate picker channels. A successful
 // action means main is tearing this window down; the component only has to

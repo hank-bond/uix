@@ -1,4 +1,4 @@
-// page-shared module instances for runtime surfaces.
+// Provides page-shared module instances for runtime surfaces.
 //
 // Surface modules are bundled with the blessed bare specifiers left as
 // virtual modules that read this global (src/shared/surface-shared-modules.ts).

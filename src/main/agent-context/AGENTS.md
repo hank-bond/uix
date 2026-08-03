@@ -17,7 +17,7 @@ The agent runtime controls when accepted contributions are assembled against bra
 
 ### Source files
 
-- **[registry.ts](./registry.ts)** Buffers feature-provided context and assembles the state message that Pi sends to the model before a run.
+- **[registry.ts](./registry.ts)** Accumulates feature-provided context and assembles the state message that Pi sends to the model before a run.
 - **[resolution.ts](./resolution.ts)** Checks feature and contribution names and derives the stable IDs used in agent-context messages.
 
 <!-- INDEX:END -->

@@ -1,4 +1,4 @@
-// resource route normalization and transport URL codecs.
+// Normalizes resource routes and encodes and decodes their transport URLs.
 //
 // Resource routes describe a feature-owned browser-loadable resource location
 // independently of the transport URL used to fetch it. The same normalized

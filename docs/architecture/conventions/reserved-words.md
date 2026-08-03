@@ -51,7 +51,8 @@ Domain nouns own their word; verb uses of the same spelling are nonconforming.
 | `store` (noun) | Durable source-of-truth API or implementation. | "the document store" | "Stores each document's current content" (use `persists`) |
 | `buffer` (noun) | Live, feature-specific working projection over a store. | "canvas document buffer" | "Buffers feature-provided context" (use `accumulates`) |
 | `surface` (noun) | Contributed UI composition. | "the workspace surface" | "the error surfaces when it fails" (use `appears`) |
-| `channel` (noun) | Typed request/response contract. | "feature channel requests" | "channels resources into the runtime" (use `routes`) |
+| `contract` (noun) | The explicit public definition of a feature–substrate boundary: the schema- and type-only surface a feature author declares and the substrate implements. A channel is the request/event form of a contract. | "the agent channel contract"; "author contracts that features import" | "durability defines the contract" (use `guarantees`); "contract comments" (use `behavioral comments`) |
+| `channel` (noun) | A contract for typed requests, responses, and events exchanged over the substrate transport. | "feature channel requests" | "channels resources into the runtime" (use `routes`) |
 | `report` (noun) | A collection of information prepared for agent or human consumption, such as an analysis artifact. | "reports, dashboards, and knowledge tools"; "a report renderer" | "Myers reports only real changes" (use `returns`); "report diagnostics" (use `expose`) |
 
 ## Retired terms

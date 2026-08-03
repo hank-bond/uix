@@ -1,3 +1,5 @@
+// Provides the workspace session handle and agent activity feed to the workspace tree.
+
 import type { JSX } from "react";
 import {
   createContext,

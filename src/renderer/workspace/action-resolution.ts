@@ -1,3 +1,5 @@
+// Resolves action contributions into ids, catalog entries, and default bindings.
+
 import type {
   ActionCatalogEntry,
   ActionContribution,

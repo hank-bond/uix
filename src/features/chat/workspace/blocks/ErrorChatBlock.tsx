@@ -1,3 +1,5 @@
+// Renders an error chat block with the failure message.
+
 import type { JSX } from "react";
 
 import type { TranscriptItem } from "@uix/api/agent-channels";

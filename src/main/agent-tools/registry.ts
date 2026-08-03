@@ -1,4 +1,4 @@
-// Keeps accepted feature tools, rejects duplicate Pi names, and installs a snapshot into each Pi runtime.
+// Retains accepted feature tools, rejects duplicate Pi names, and installs a snapshot into each Pi runtime.
 
 import type {
   AgentToolContribution,

@@ -23,6 +23,6 @@ Whole-workspace reload coordinates independently owned transitions: commit curre
 - **[reload.ts](./reload.ts)** Runs one workspace reload at a time across feature activation, Pi resources, restored state, and renderer notification.
 - **[roots.ts](./roots.ts)** Finds stable paths for workspace state, the agent working directory, and the manifest from one startup target.
 - **[settings-namespace.ts](./settings-namespace.ts)** Defines a named, schema-checked group of workspace settings.
-- **[settings.ts](./settings.ts)** Validates a staged manifest's settings, makes them live together, and connects them to their stored locations.
+- **[settings.ts](./settings.ts)** Validates a staged manifest's settings, makes them live together, and connects them to their persisted locations.
 
 <!-- INDEX:END -->

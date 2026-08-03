@@ -1,3 +1,5 @@
+// the canvas channel contract: writeback requests and change events.
+
 import { type Static, Type } from "typebox";
 
 import type { ChannelContract, FeatureEventPublisher } from "@uix/api/channels";

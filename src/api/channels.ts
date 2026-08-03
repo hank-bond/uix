@@ -1,3 +1,9 @@
+// typed channel request and event contracts.
+//
+// Schema-only descriptors are shared between frontend and backend;
+// `withHandlers` pairs each request with its handler, and
+// `createFeatureEventPublisher` derives a typed publisher from a contract.
+
 import type { Static, TSchema } from "typebox";
 
 export interface ChannelRequestLogOptions<Req, Res> {

@@ -1,10 +1,10 @@
 // agent channel contract.
 //
 // The substrate-owned agent channels (prompt/history/event stream) and the
-// transcript item shapes they carry. This lives behind @uix/api because
+// transcript item shapes they hold. This lives behind @uix/api because
 // feature code binds it — chat is an ordinary feature whose surface renders
-// the same agent connection any other feature could use. The backend merges
-// handlers via `withHandlers` in the composition root; frontends derive a
+// the same agent connection any other feature could use. The backend assembles
+// the channel contribution via `withHandlers` in the composition root; frontends derive a
 // typed client via `createChannelClient`.
 
 import { type Static, Type } from "typebox";

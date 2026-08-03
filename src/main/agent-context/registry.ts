@@ -1,4 +1,4 @@
-// Buffers feature-provided context and assembles the state message that Pi sends to the model before a run.
+// Accumulates feature-provided context and assembles the state message that Pi sends to the model before a run.
 //
 // An agent-context contribution declares one model-visible state section: its
 // canonical id, vocabulary line, optional UIX-managed buffer, and optional

@@ -1,3 +1,5 @@
+// Renders file tool reads and writes: path summary with content or result disclosure.
+
 import type { JSX } from "react";
 
 import { DefaultToolContent } from "./DefaultToolContent";

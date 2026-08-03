@@ -1,3 +1,8 @@
+// Parses, normalizes, and resolves shortcuts for the platform.
+//
+// One shortcut is a single key chord with `mod`/`ctrl`/`alt`/`shift` modifiers;
+// `mod` resolves to meta on macOS and ctrl elsewhere.
+
 import { type Static, Type } from "typebox";
 
 const shortcutModifiers = ["mod", "ctrl", "alt", "shift"] as const;

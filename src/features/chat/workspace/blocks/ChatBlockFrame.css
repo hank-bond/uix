@@ -1,3 +1,5 @@
+/* Chat block frame chrome: message label, running track, and body. */
+
 .msg {
   display: grid;
   gap: 0.35rem;

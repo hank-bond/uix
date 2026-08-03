@@ -1,3 +1,5 @@
+// Renders the model status pill and model picker dialog over the agent controls.
+
 import type { JSX } from "react";
 import {
   useEffect,

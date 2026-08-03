@@ -1,3 +1,5 @@
+// Converts a KeyboardEvent into a resolved shortcut chord for action matching.
+
 import type { ResolvedShortcut } from "@uix/api/shortcuts";
 
 const namedKeys: Readonly<Record<string, string>> = {

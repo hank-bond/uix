@@ -3,7 +3,7 @@
 // Prompt-producing facets remain separate public concepts. This is their one
 // Pi-facing adapter: when an extension runtime starts/reloads, it computes one
 // deterministic suffix after all features have registered. before_agent_start
-// appends that unchanged suffix to Pi's stored base prompt for each run.
+// appends that unchanged suffix to Pi's persisted base prompt for each run.
 
 import type { AgentInstaller } from "./installers";
 

@@ -2,7 +2,7 @@
 //
 // Owns App lifecycle: the shell boots, then either opens a workspace
 // directly (explicit UIX_WORKSPACE target, or a cwd that holds a manifest)
-// or shows the start picker, which supplies the workspace to open. One
+// or shows the start picker, which provides the workspace to open. One
 // open workspace per App instance (v1); everything workspace-bound lives
 // in openWorkspace().
 //

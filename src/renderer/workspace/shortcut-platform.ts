@@ -1,3 +1,5 @@
+// Derives the shortcut platform (macOS or other) from the browser platform.
+
 import type { ShortcutPlatform } from "@uix/api/shortcuts";
 
 interface BrowserPlatformInfo {

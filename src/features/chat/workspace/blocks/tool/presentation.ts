@@ -1,3 +1,5 @@
+// Derives tool block state, display names, and payload text for chat tool rendering.
+
 import type { ReactNode } from "react";
 
 import type { TranscriptItem } from "@uix/api/agent-channels";

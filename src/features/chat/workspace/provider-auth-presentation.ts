@@ -1,3 +1,5 @@
+// Derives the provider rows for the login modal, grouping OpenAI methods.
+
 import type {
   ProviderAuthCatalog,
   ProviderAuthCatalogEntry,

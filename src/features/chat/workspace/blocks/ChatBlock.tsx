@@ -1,3 +1,5 @@
+// Renders one transcript item as its kind-specific chat block.
+
 import type { JSX } from "react";
 
 import type { TranscriptItem } from "@uix/api/agent-channels";

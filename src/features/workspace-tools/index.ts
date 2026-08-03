@@ -1,4 +1,4 @@
-// Default workspace-tool feature.
+// the workspace-tools feature providing reason-bearing tool overrides for conversation surfaces.
 //
 // This feature intentionally has no surface. It provides reason-bearing
 // workspace operations; any conversation surface may progressively enhance

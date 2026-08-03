@@ -1,3 +1,5 @@
+// Binds keyboard shortcuts to action invocation, guarding editable targets and composing input.
+
 import type { JSX } from "react";
 import { useEffect } from "react";
 

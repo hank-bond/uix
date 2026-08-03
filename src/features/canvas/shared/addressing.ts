@@ -1,4 +1,4 @@
-// shared canvas addressing helpers.
+// Parses canvas keys and maps them to document resource ids and route values.
 //
 // Canvas documents are addressed by keys, not filesystem paths. Keys are
 // slash-namespaced lowercase slug segments. Transport URL construction is owned

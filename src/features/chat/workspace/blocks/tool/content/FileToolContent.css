@@ -1,3 +1,5 @@
+/* File tool summary and disclosure styles. */
+
 .file-tool-block__summary {
   display: grid;
   gap: 0.15rem;

@@ -1,3 +1,5 @@
+// Renders the shared chat block chrome: label, running track, and body frame.
+
 import type { ReactNode } from "react";
 import type { JSX } from "react";
 

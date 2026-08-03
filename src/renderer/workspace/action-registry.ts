@@ -1,3 +1,5 @@
+// Retains feature action contributions, projects their bindings, and runs actions for the workspace.
+
 import type {
   ActionCatalog,
   ActionCatalogEntry,

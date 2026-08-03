@@ -1,3 +1,8 @@
+// the settings scope contract.
+//
+// `defineSettings` closes a definition's schema so unknown persisted keys fail
+// validation; handles expose scoped get, set, and change subscription.
+
 import { type Static, type TObject, type TRecord, Type } from "typebox";
 
 export const FeatureSettingAddressSchema = Type.Object({

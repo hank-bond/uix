@@ -1,4 +1,4 @@
-// Validates a staged manifest's settings, makes them live together, and connects them to their stored locations.
+// Validates a staged manifest's settings, makes them live together, and connects them to their persisted locations.
 //
 // All fallible hydration remains detached before manifest promotion. Feature
 // ids and substrate namespaces share one flat settings scope-id space.

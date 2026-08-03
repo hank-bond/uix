@@ -1,4 +1,4 @@
-// Pi skill paths supplied by an active feature.
+// Pi skill paths provided by an active feature.
 //
 // Paths are relative to the feature entry file's directory unless absolute.
 // UIX forwards the resolved paths through Pi's resources_discover lifecycle;

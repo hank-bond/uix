@@ -1,4 +1,4 @@
-// canvas document buffer (session state).
+// Holds one working canvas buffer per document and normalizes content before persisting it.
 //
 // Holds one AnchoredDocument per canvas document id touched by this activated
 // Canvas feature instance. Mutable current content stays plain HTML; immutable

@@ -1,3 +1,5 @@
+// Renders source text with refractor syntax highlighting.
+
 import { toJsxRuntime } from "hast-util-to-jsx-runtime";
 import type { JSX } from "react";
 import { Fragment } from "react";

@@ -1,4 +1,4 @@
-// workspace surface composition.
+// Hosts runtime surfaces: fetches the composition, loads surface modules, and mounts them with clients, scoped styles, and error boundaries.
 //
 // The surface list is registry-driven: the substrate's `uix.surfaces`
 // channel lists what the active feature instances contributed, and the page

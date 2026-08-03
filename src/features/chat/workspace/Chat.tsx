@@ -1,4 +1,4 @@
-// chat surface.
+// Renders the chat surface: transcript blocks, composer, status bar, and provider login.
 //
 // One transcript item shape feeds the surface. Startup history supplies completed
 // durable items; live events append the same items, stream compact partials

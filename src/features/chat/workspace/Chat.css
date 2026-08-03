@@ -1,5 +1,5 @@
-/* chat surface defaults.
- *
+/* Chat surface layout: transcript scroll, composer, and status bar. */
+/*
  * Selectors are written unscoped: the substrate wraps every surface sheet in
  * `@scope ([data-uix-surface="chat"])` at adoption, so nothing here can style
  * other surfaces or the cockpit chrome. Prefix every document-global

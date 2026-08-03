@@ -1,3 +1,5 @@
+// the chat surface contribution over the agent channels.
+
 import { agentChannels } from "@uix/api/agent-channels";
 import { defineSurface } from "@uix/api/workspace";
 

@@ -1,3 +1,5 @@
+// Defines the chat feature's model picker actions: favorites and all models.
+
 import type { ActionContribution } from "@uix/api/workspace";
 
 import type { ModelPickerScope } from "./model-filter";

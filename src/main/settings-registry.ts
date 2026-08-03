@@ -1,4 +1,4 @@
-// Keeps validated settings for each live scope, notifies listeners, and delegates persistence to the workspace layer.
+// Retains validated settings for each live scope, notifies listeners, and delegates persistence to the workspace layer.
 //
 // A scope is one schema-validated object exposed through keyed convenience
 // operations. Feature ids and substrate workspace namespaces share one

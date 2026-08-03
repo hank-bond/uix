@@ -1,3 +1,5 @@
+// Renders the provider login modal: provider rows and auth method selection.
+
 import type { JSX } from "react";
 import { useEffect, useMemo, useRef } from "react";
 

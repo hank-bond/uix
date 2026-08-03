@@ -1,5 +1,5 @@
 ---
-summary: "UIX code expresses stable domain contracts through canonical identifier grammar, indexable file summaries, caller-facing JSDoc, and risk-based why-comments."
+summary: "UIX code expresses stable domain guarantees through canonical identifier grammar, indexable file summaries, caller-facing JSDoc, and risk-based why-comments."
 kind: reference
 read_when: "Read before introducing or renaming symbols, recurring vocabulary, projections, predicates, source-file summaries, or explanatory comments."
 status: active
@@ -23,13 +23,13 @@ Use these rules for UIX-owned architectural vocabulary.
 
 ### naming.role-specificity: Choose the defining approved role
 
-**Rule: must.** When one approved noun specializes another and its additional contract applies, use the specialized noun. Choose the role that communicates the strongest stable guarantees consumers can rely on, not the narrowest description of the current implementation.
+**Rule: must.** When one approved noun specializes another and its additional guarantees apply, use the specialized noun. Choose the role that communicates the strongest stable guarantees consumers can rely on, not the narrowest description of the current implementation.
 
 **Approved examples:** Use `ProviderAuthCatalog`, not `ProviderAuthProjection`, because the value provides a discovery and selection boundary. Use `ToolChatBlockPresentation`, not `ToolChatBlockProjection`, because the value is human-facing material consumed by UI composition.
 
-**Nonconforming example:** Do not call a durable authority `DocumentRegistry` because its implementation uses an in-memory index. Use `DocumentStore` when durability defines the contract.
+**Nonconforming example:** Do not call a durable authority `DocumentRegistry` because its implementation uses an in-memory index. Use `DocumentStore` when durability defines the guarantees.
 
-**Reason:** Broad nouns hide useful guarantees, while implementation-specific nouns become false when mechanics change. The defining approved role preserves the strongest stable contract.
+**Reason:** Broad nouns hide useful guarantees, while implementation-specific nouns become false when mechanics change. The defining approved role preserves the strongest stable guarantees.
 
 ### naming.callable-type: Name a callable type by role
 
@@ -220,7 +220,7 @@ isFailed: boolean;
 | `Handler` (noun) | Callable that a framework invokes to process one occurrence and possibly determine its result. Use `Listener` for passive observation. | `ChannelRequestHandler` | `StatusHandler` for a callable that only observes status changes |
 | `Installer` (noun) | Setup-time callable or component that attaches a whole feature or facet slice to a runtime. Use `Registrar` for a callable that adds one item. | `AgentInstaller` | `SingleAgentToolInstaller` for a callable that registers one tool; use `AgentToolRegistrar` |
 | `Listener` (noun) | Callable that observes an occurrence without determining its result. Use `Handler` when the callable processes the occurrence or supplies its result. | `StatusListener` | `RequestListener` for a callable that must produce the request result |
-| `Presentation` (noun) | Purpose-specific human-facing material that forms an explicit intermediate contract between display-policy derivation and UI composition or display execution. A presentation can be a derived projection; use `Projection` when the result remains consumer-neutral domain data, an ordinary UI component when no intermediate contract exists, and `Renderer` for the mechanism that executes web display. | `ToolChatBlockPresentation` | `ToolChatRenderer`; `MessageChatBlockPresentation` for a component with no intermediate presentation value |
+| `Presentation` (noun) | Purpose-specific human-facing material that forms an explicit intermediate boundary between display-policy derivation and UI composition or display execution. A presentation can be a derived projection; use `Projection` when the result remains consumer-neutral domain data, an ordinary UI component when no intermediate boundary exists, and `Renderer` for the mechanism that executes web display. | `ToolChatBlockPresentation` | `ToolChatRenderer`; `MessageChatBlockPresentation` for a component with no intermediate presentation value |
 | `Projector` (noun) | Stateful component whose private state exists only to incorporate source facts and derive a projection. Use a `deriveX` function for a one-shot transformation. | `TranscriptProjector` | `ModelCatalogProjector` that only maps one input array; use `deriveModelCatalog()` |
 | `Publisher` (noun) | Capability or callable that its holder invokes to publish an event. | `FeatureEventPublisher` | `ChannelTransportPublish` |
 | `Registrar` (noun) | Callable that its holder invokes to add an item to a registry or contribution point. Do not use this term for the registered record or returned lifetime capability. | `ActionContributionRegistrar` | `RegisterActionContribution` |
@@ -311,8 +311,8 @@ In UIX, `resolve` means contextual or reference resolution, not conflict arbitra
 
 - A `DisposableBag` that owns cleanup capabilities is named after the lifetime it tracks: `appBag`, `windowBag`, `sessionBag`.
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
-- Name symbols for their stable domain role and operation, not their current caller, pipeline position, trigger, owner, or implementation strategy. A name should remain correct if the symbol moves, gains another caller, or changes implementation without changing its essential domain contract. Let the receiver provide context (`turnStateCoordinator.restoreCurrent(...)`); do not repeat that context in every method.
-- Function names describe the observable domain operation. Include distinctions that identify materially different operations or results; put lifecycle ordering, current usage, race policy, preconditions, and nuanced skipped outcomes in contract comments. Do not encode those volatile details into a symbol merely because one caller currently depends on them.
+- Name symbols for their stable domain role and operation, not their current caller, pipeline position, trigger, owner, or implementation strategy. A name should remain correct if the symbol moves, gains another caller, or changes implementation without changing its essential domain guarantees. Let the receiver provide context (`turnStateCoordinator.restoreCurrent(...)`); do not repeat that context in every method.
+- Function names describe the observable domain operation. Include distinctions that identify materially different operations or results; put lifecycle ordering, current usage, race policy, preconditions, and nuanced skipped outcomes in behavioral comments. Do not encode those volatile details into a symbol merely because one caller currently depends on them.
 - Apply the ambiguity test: if two materially different operations could share a name, it is underspecified. Add the distinguishing domain, result, or resolution axis. Use `enumerateUniqueModifierSequences`, not `permutations`. Use `resolveShortcutForPlatform`, not `resolveShortcut`.
 - Domain vocabulary is noun-shaped; operations pair those nouns with the established verbs below. A domain noun keeps one grammatical role across types, values, and function results.
 - Parameters name each participant's domain role (`transport`, `contract`, `scope`, `owner`, `session`, `lifetime`, `bag`). Access restrictions live in scoped capability types and handles.
@@ -372,7 +372,7 @@ Current projections apply the axes as follows:
 
 **Rule:** Outside the required source-file header, a comment explains why code exists or records a non-obvious caller or implementation constraint. It does not narrate syntax. Names carry the stable domain operation.
 
-Contract comments may carry preconditions, skipped outcomes, asynchronous ordering, and race policy. Do not encode those volatile details in a symbol tied to one lifecycle use.
+Behavioral comments may carry preconditions, skipped outcomes, asynchronous ordering, and race policy. Do not encode those volatile details in a symbol tied to one lifecycle use.
 
 If an implementation comment only identifies an operation or domain value, the name remains wrong. Rename until the code reads on its own.
 
@@ -400,7 +400,7 @@ Colocated `*.test.*` and `*.spec.*` files are not indexed. Their production file
 
 JSON, binary assets, and static data are not indexed. A directory `AGENTS.md` or local attribution leaf describes non-code assets when their role is not evident.
 
-**Summary:** One sentence of at most 30 words states the file's purpose and why a reader would open it. Name the domain responsibility, operation, result, or authority boundary; the summary is the responsibility claim a reader uses to decide. Prefer a concrete actor, action, and object over stacked modifiers or abstract nouns. A summary may use a longer plain sentence when that is easier to understand; do not optimize for the fewest words. Keep specialized terms only when they preserve a distinction that plain language would lose.
+**Summary:** One sentence of at most 30 words states the file's purpose and why a reader would open it. The summary is the responsibility claim a reader uses to decide. Name the responsibility directly. Use a noun phrase when the file is the thing it defines: a contract, type surface, format, contribution set, entry point, or capability. Open with the operation's verb when the file performs an operation or holds stateful behavior. Decide by what a reader accomplishes. They obtain what the file declares, or follow and reuse what it does. A summary that enumerates parts signals multiple responsibilities. Put the parts in the elaboration instead. Prefer a concrete actor, action, and object over stacked modifiers or abstract nouns. A summary may use a longer plain sentence when that is easier to understand; do not optimize for the fewest words. Keep specialized terms only when they preserve a distinction that plain language would lose.
 
 Use the path and filename as existing context instead of repeating them. Distinguish sibling files without enumerating exports, callers, control flow, implementation mechanics, plans, or guessed search synonyms.
 
@@ -426,7 +426,7 @@ A type or class comment states its role and when to use it, not its fields. Mult
 
 In TypeScript and JavaScript, reserve `/* */` for JSDoc and attribution headers.
 
-**Contract nuance lives in JSDoc:** Document defaults, ordering, special values, and edge cases that callers need. State how to use the contract correctly, not how its body works.
+**API nuance lives in JSDoc:** Document defaults, ordering, special values, and edge cases that callers need. State how to use the API correctly, not how its body works.
 
 **Line comments say why, not what:** An inline comment gives the reason for code, never the narrated step. Useful reasons include format constraints, platform variants, and repository edge cases.
 

@@ -1,3 +1,5 @@
+// Renders the plain code block container for highlighted output.
+
 import type { ReactNode } from "react";
 import type { JSX } from "react";
 

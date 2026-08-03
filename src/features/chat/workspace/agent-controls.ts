@@ -1,3 +1,5 @@
+// Owns chat agent state: model picker, provider auth flow, and status over the agent channels.
+
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
