@@ -1,12 +1,4 @@
-// workspace manifest.
-//
-// `uix.workspace.json` in the workspace root is the composition: a name plus
-// an explicit ordered array of feature entries with entry-file references
-// (relative to the manifest, or absolute for shared/cross-workspace features)
-// and feature-local settings. Manifest order
-// is load order; there is no auto-discovery. Extra fields are tolerated so
-// later additions (layout, agent config, links) don't break older readers.
-// See docs/decisions/2026-07-02-workspace-manifest-not-discovery.md.
+// Validates workspace manifests and resolves ordered feature entry references to absolute paths.
 
 import path from "node:path";
 
@@ -20,6 +12,10 @@ export const WorkspaceManifestFeatureSchema = Type.Object({
   settings: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
 });
 
+/**
+ * Validate the feature-composition fields while retaining unrelated top-level
+ * fields owned by other workspace concerns.
+ */
 export const WorkspaceManifestSchema = Type.Object({
   name: Type.String({ minLength: 1 }),
   settings: Type.Optional(

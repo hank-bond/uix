@@ -1,7 +1,4 @@
-// Loader integration tests over real temp-dir workspaces: manifest
-// reading/validation, jiti entry loading, FeatureDefinition validation,
-// id policy, error isolation, ordering, and reload teardown all exercised
-// through the public loadFeatures path.
+// Verifies manifest-driven feature loading, activation isolation, ordering, aliases, settings rollback, and reload teardown.
 
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

@@ -1,9 +1,4 @@
-// Feature contribution registry integration.
-//
-// The feature contract types (FeatureDefinition, FeatureContributions,
-// FeatureContext, etc.) live behind @uix/api. This module owns the runtime
-// register functions and the per-facet registry shape
-// (FeatureContributionRegistries).
+// Registers one feature's contributed facets as one rollback-safe lifetime.
 
 import type { FeatureContributions, FeatureDefinition } from "@uix/api/feature";
 
@@ -55,6 +50,12 @@ export interface FeatureOrigin {
   entryDir?: string;
 }
 
+/**
+ * Register every contributed facet under one feature lifetime.
+ *
+ * The caller owns the returned lifetime. If any facet fails, this operation
+ * disposes all earlier facet registrations before it rethrows.
+ */
 export function registerFeatureContributions(
   registries: FeatureContributionRegistries,
   featureId: string,
@@ -221,6 +222,7 @@ export function registerFeatureContributions(
   }
 }
 
+/** Register process-wide feature protocols before Electron becomes ready. */
 export function registerFeaturePreflightContributions(
   _features: readonly FeatureDefinition[],
   registerResourceSchemes?: ResourceSchemeRegistrar,

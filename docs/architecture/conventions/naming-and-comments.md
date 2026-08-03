@@ -400,7 +400,7 @@ JSON, binary assets, and static data are not indexed. A directory `AGENTS.md` or
 
 Name the domain responsibility, operation, result, or authority boundary. Use the path and filename as existing context instead of repeating them. Distinguish sibling files without enumerating exports, callers, control flow, implementation mechanics, plans, or guessed search synonyms.
 
-The header may continue with one short `//` paragraph when a reader needs more file-level context after opening the source. Explain the file's boundary rather than its inventory. If one coherent summary cannot describe the file, reconsider its responsibilities.
+The header may continue with one concise `//` paragraph of file-wide context. Preserve hidden guarantees, external constraints, failure boundaries, rationale, and other knowledge that is not cheap or reliable to infer from the implementation. Do not use the paragraph as an export inventory or control-flow narration. If one coherent summary cannot describe the file, reconsider its responsibilities.
 
 A test-file summary states the contract or behavior that the file verifies. A facade or pass-through module states the boundary that it exposes.
 

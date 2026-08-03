@@ -1,11 +1,8 @@
-// surface contributions.
+// Resolves and stores the ordered live surface composition contributed by active features.
 //
-// The backend half of runtime surface composition: features declare surface
-// entry-file refs in their contributions, the loader resolves them against
-// the feature entry's directory, and this registry holds the composition the
-// workspace page mounts (served as modules by the surface pipeline). Order is
-// manifest order, then declaration order within a feature — the same explicit
-// ordered-composition discipline as every other facet.
+// Registration preserves manifest order followed by each feature's declaration
+// order. Returned lifetimes remove the exact contributed entries without
+// disturbing replacement instances.
 
 import { isAbsolute, resolve } from "node:path";
 
@@ -24,9 +21,11 @@ export interface ResolvedSurfaceContribution {
   readonly featureRoot: string;
 }
 
+/** Owns the ordered surface contributions from active feature instances. */
 export class SurfaceRegistry {
   #registeredSurfaces: ResolvedSurfaceContribution[] = [];
 
+  /** Add resolved surfaces and return a lifetime that removes those exact entries. */
   register(
     resolvedContributions: readonly ResolvedSurfaceContribution[],
   ): Disposable {

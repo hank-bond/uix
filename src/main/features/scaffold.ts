@@ -1,25 +1,10 @@
-// create-new workspace scaffolding.
+// Creates bare workspaces from editable feature templates and reports non-fatal dependency-install failures.
 //
-// Create-new copies the bare workspace template into the new workspace and
-// writes manifest references to its editable feature source. The template lives
-// under the repo's `templates/workspace/` in dev; the packaged-binary
-// `resourcesPath` half lands with the packaging arc.
-//
-// Feature deps are ordinary workspace deps, mirroring pi (whose loader
-// aliases only its own packages plus typebox and leaves everything else to
-// node_modules walk-up): a feature declares deps in its own `package.json`
-// (inert to the loader — the manifest still points at entry files), the
-// workspace root gets `workspaces: ["features/*"]`, and one `npm install` at
-// scaffold time hoists them into `<ws>/node_modules` where walk-up resolution
-// finds them. npm skips glob-matched dirs without a `package.json`, so
-// features without dependencies may stay package-less. Install is scaffold-time only —
-// never a startup step; later dep changes are the agent's/user's `npm
-// install`, and a missing dep fails loudly into the loader's `failed[]`.
-//
-// Copy/write failures throw (the picker surfaces them and stays up); an
-// install failure is returned instead, because the workspace is still
-// openable — the dep-less features work and the broken one lands in
-// `failed[]` naming the missing module.
+// Feature package files are optional npm dependency metadata; the manifest
+// remains the only composition authority. One install during scaffolding makes
+// dependencies available through normal node_modules walk-up. Later dependency
+// changes remain explicit workspace package operations rather than startup
+// behavior.
 
 import { spawn } from "node:child_process";
 import { cp, mkdir, writeFile } from "node:fs/promises";
@@ -73,6 +58,12 @@ const packageNameFor = (name: string): string => {
   return slug || "uix-workspace";
 };
 
+/**
+ * Copy editable feature templates and write their manifest and npm workspace.
+ *
+ * Copy and write failures throw. Dependency-install failures return in the
+ * result because the created workspace remains openable.
+ */
 export async function scaffoldWorkspace(
   options: ScaffoldOptions,
 ): Promise<ScaffoldResult> {

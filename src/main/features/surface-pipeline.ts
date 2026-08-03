@@ -1,27 +1,10 @@
-// surface module pipeline.
+// Builds registered surface modules and serves hash-addressed bundles and feature files through substrate resources.
 //
-// Turns registered surface entry files into ES modules the workspace page
-// can dynamic-import, served over the reserved substrate origin
-// (`uix-resource://uix.<ws>`). Per surface, esbuild bundles feature-local
-// code in while two seams stay external:
-//
-//   - The blessed shared set (react, typebox, @uix/api/workspace — see
-//     src/shared/surface-shared-modules.ts) resolves to virtual CommonJS modules
-//     reading the page-populated global, so every surface shares the page's
-//     instances. esbuild's CJS interop turns named imports into runtime
-//     property reads, which is what makes re-exporting a runtime object
-//     work at all.
-//   - CSS module scripts (`with { type: "css" }`) stay external, rewritten
-//     to content-hash-busted URLs on the files route; the browser executes
-//     them natively. A CSS import without the attribute fails the bundle
-//     loudly — the convention is checkable, so it's checked.
-//
-// Module URLs carry a content hash (`?v=`), so a reload after an agent edit
-// is a new URL and the browser's module cache can never serve stale code.
-// Everything rebuilds per list request (boot + reload only — cheap enough,
-// and always correct). Build failures don't fail the list: the entry
-// carries the error and the page renders it as an error card, the frontend
-// twin of the loader's `failed[]`.
+// Esbuild bundles feature-local code while page-owned shared modules and native
+// CSS module scripts remain external. Virtual CommonJS wrappers make named
+// imports read the page's live shared instances. Content-hash URLs prevent
+// reload from reusing stale browser modules, and build failures become
+// per-surface error entries.
 
 import { createHash } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
@@ -91,8 +74,10 @@ const escapeForRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
- * Maps the blessed bare specifiers to virtual CommonJS modules that read the
- * page's shared instances off the well-known global.
+ * Map blessed bare specifiers to virtual CommonJS modules that read the page's
+ * shared instances. Esbuild's CommonJS interop turns named imports into runtime
+ * property reads, avoiding a static re-export list while preserving instance
+ * identity.
  */
 const sharedModulesPlugin: Plugin = {
   name: "uix-shared-modules",
@@ -111,6 +96,7 @@ const sharedModulesPlugin: Plugin = {
   },
 };
 
+/** Owns the replaceable built-module generation served to one workspace. */
 export class SurfaceModulePipeline {
   readonly #workspaceId: string;
   /** `${featureId}/${file}` → last-built module, replaced per build pass. */

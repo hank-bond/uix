@@ -33,7 +33,7 @@ Source indexes cover authored TypeScript and JavaScript files, including tests a
 
 The summary must distinguish the file from its siblings and remain true when implementation mechanics or callers change. Do not enumerate exports, narrate control flow, describe future intent, or add guessed search synonyms. If one coherent summary cannot describe the file, reconsider its responsibilities.
 
-The header may continue with one short paragraph when a reader needs more file-level context after opening the source. The paragraph explains the file's boundary, not its inventory.
+The header may continue with one concise paragraph of file-wide context. Preserve hidden guarantees, external constraints, failure boundaries, rationale, and other knowledge that is not cheap or reliable to infer from the implementation. Do not use the paragraph as an export inventory or control-flow narration.
 
 ### Contract and implementation comments
 

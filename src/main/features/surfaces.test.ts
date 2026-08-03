@@ -1,3 +1,5 @@
+// Verifies surface path resolution, ordering, validation, and identity-safe disposal.
+
 import { describe, expect, it } from "vitest";
 
 import {

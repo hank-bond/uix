@@ -1,3 +1,5 @@
+// Verifies scaffolding copies editable templates, writes composition files, and separates copy failures from install failures.
+
 import { mkdir, mkdtemp, readFile, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

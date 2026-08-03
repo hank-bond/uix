@@ -1,6 +1,4 @@
-// Pipeline tests over real temp-dir surface sources: bundling, shared-module
-// virtualization, CSS module script externalization with hash busting,
-// error isolation, and the module/files route handlers.
+// Verifies surface bundling, shared-module identity, CSS isolation, resource serving, cache busting, and overlapping-build replacement.
 
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

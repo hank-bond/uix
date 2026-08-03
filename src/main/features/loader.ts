@@ -1,48 +1,8 @@
-// Feature loader — activates the workspace's feature composition (the
-// manifest's entries, in manifest order) through `registerFeatureContributions()`.
+// Loads manifest-selected feature entries into isolated, reload-scoped activated instances.
 //
-// Responsibilities:
-//   1. Re-read and validate the workspace manifest for every load pass
-//      (before clearing anything, so a bad manifest leaves the current
-//      tree intact).
-//   2. Clear the owned feature bag before activation.
-//   3. Load each manifest entry file with jiti so workspace features
-//      can be TypeScript files in a packaged Electron app.
-//   4. Validate every definition (shape, id grammar, reserved/duplicate
-//      ids).
-//   5. Build one FeatureContext shape and run each definition through
-//      registerFeatureContributions, into a per-feature DisposableBag.
-//   6. Enroll the per-feature bag into the parent bag so a single
-//      clear or dispose tears every contribution down cleanly.
-//
-// Activation is sequential (`for...of` + `await`), in manifest order —
-// order is the composition semantics (manifest order is semantic for
-// agent-facing facets), so it is explicit and author-controlled,
-// never emergent.
-//
-// Error isolation: each entry is wrapped in try/catch. If loading,
-// validation, or contribution throws, the partially-built per-feature
-// bag is disposed (so anything registered before the throw is torn
-// down) and we move on. The broken feature lands in the `failed`
-// array with a normalized Error. Manifest-level failures (unreadable,
-// bad JSON, schema mismatch) are different: they throw out of the
-// load pass before anything is cleared. Process-level error handlers
-// (installed separately, in lifecycle.ts) catch the
-// async-after-activation case where a feature's interval or promise
-// throws after the loader has moved on.
-//
-// jiti mirrors pi's extension-loading posture one layer up: feature
-// authors can write `.ts` files, and `moduleCache: false` means a
-// reload re-evaluates the same path without Node ESM query-string
-// hacks — which is what makes "agent edits feature source, user
-// reloads" work with no build step. jiti is a loader/transpiler,
-// not a sandbox; workspace features remain trusted local code.
-//
-// An alias table makes the blessed backend deps value-importable from
-// feature code living anywhere on disk (no node_modules walk-up):
-// `@uix/api` maps to the substrate-provided implementation dir and
-// typebox to the app's own copy — the backend twin of the surface
-// pipeline's shared-modules plugin, with the same one-instance guarantee.
+// Each pass validates candidate settings before replacement, then activates
+// entries sequentially in manifest order. A provisional lifetime rolls back one
+// failed feature without aborting its siblings.
 
 import { createRequire } from "node:module";
 import { dirname } from "node:path";

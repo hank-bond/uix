@@ -1,3 +1,5 @@
+// Verifies feature facets register and roll back as one lifetime across registry, origin, and preflight failures.
+
 import { type TSchema, Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
