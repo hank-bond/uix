@@ -15,13 +15,13 @@ Each indexed document has a _kind_: reference, explanation, how-to, or tutorial.
 
 <!-- INDEX:START -->
 
-<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
+<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
-- **[architecture/](./architecture/AGENTS.md)** _(active)_ — Living architecture records for implemented subsystem shape, code conventions, design principles, and open questions at HEAD.
-- **[contributing](./contributing.md)** _(active, how-to)_ — Author repository documentation through retrieval units, standard frontmatter, generated indexes, writing profiles, convention cards, lexicons, and living design threads.
-- **[decisions/](./decisions/AGENTS.md)** _(active)_ — Write-once dated UIX architecture decisions record settled conclusions and rationale for later plans, code, and reference documentation.
-- **[design/](./design/AGENTS.md)** _(active)_ — Living design threads combine mutable synthesis with append-only logs of options, tradeoffs, and rejected alternatives.
-- **[framework](./framework.md)** _(active, explanation)_ — UIX documentation separates reader need, agent memory, readership, meta-level, lifecycle, and evolution into independent organizing axes. _Read before proposing a change to the documentation structure (the how), or when the how has a gap._
-- **[style-guide](./style-guide.md)** _(active)_ — The house style guide for UIX documentation: how this repo formats and writes docs, built from the repo's own practice; prose follows the direction of Simplified Technical English and Vale enforces the mechanical rules.
+- **[architecture/](./architecture/AGENTS.md)** _(active)._ Living architecture records for implemented subsystem shape, code conventions, design principles, and open questions at HEAD.
+- **[contributing](./contributing.md)** _(active, how-to)._ Author repository documentation through retrieval units, standard frontmatter, generated indexes, writing profiles, convention cards, lexicons, and living design threads.
+- **[decisions/](./decisions/AGENTS.md)** _(active)._ Write-once dated UIX architecture decisions record settled conclusions and rationale for later plans, code, and reference documentation.
+- **[design/](./design/AGENTS.md)** _(active)._ Living design threads combine mutable synthesis with append-only logs of options, tradeoffs, and rejected alternatives.
+- **[framework](./framework.md)** _(active, explanation)._ UIX documentation separates reader need, agent memory, readership, meta-level, lifecycle, and evolution into independent organizing axes. _Read before proposing a change to the documentation structure (the how), or when the how has a gap._
+- **[style-guide](./style-guide.md)** _(active, reference)._ UIX documentation uses concise current-state prose, retrieval-oriented structure, consistent Markdown, and mechanically enforced vocabulary.
 
 <!-- INDEX:END -->

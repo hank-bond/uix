@@ -24,11 +24,11 @@ GitHub Pages serves the public UIX landing page at **uix.sh**. It is a _zero-bui
 
 <!-- INDEX:START -->
 
-<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
+<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
-- **[accessibility](./accessibility.md)** _(active, reference)_ — Reduced motion is a primary path with semantic structure, hidden decorative content, operable controls, and no translation, scaling, or parallax.
-- **[brandmark](./brandmark.md)** _(active, reference)_ — The inline SVG brandmark morphs persistent named parts on one timeline and stays crisp through whole-pixel transforms.
-- **[css-architecture](./css-architecture.md)** _(active, reference)_ — styles.css is ordered tokens→reset→a11y→base→motion→keyframes, with the load-bearing rule that ALL motion lives inside the prefers-reduced-motion:no-preference block (scroll-driven bits further under @supports), so the static version is the base; sizes and the dock's scroll timeline are tuned via :root knobs, and named scroll/view timelines are element-scoped. _Read before adding or changing any animation, timeline, or :root sizing or timing variable in styles.css._
-- **[development](./development.md)** _(active, how-to)_ — Preview the site by opening index.html over file:// (the scroll animation works there) and test reduced motion via DevTools rendering emulation; run npm install once in the worktree so the pre-commit hook (Prettier + docs:index) works. _Read before previewing, testing, or committing changes to the site._
+- **[accessibility](./accessibility.md)** _(active, reference)._ Reduced motion is a primary path with semantic structure, hidden decorative content, operable controls, and no translation, scaling, or parallax.
+- **[brandmark](./brandmark.md)** _(active, reference)._ The inline SVG brandmark morphs persistent named parts on one timeline and stays crisp through whole-pixel transforms.
+- **[css-architecture](./css-architecture.md)** _(active, reference)._ styles.css is ordered tokens→reset→a11y→base→motion→keyframes, with the load-bearing rule that ALL motion lives inside the prefers-reduced-motion:no-preference block (scroll-driven bits further under @supports), so the static version is the base; sizes and the dock's scroll timeline are tuned via :root knobs, and named scroll/view timelines are element-scoped. _Read before adding or changing any animation, timeline, or :root sizing or timing variable in styles.css._
+- **[development](./development.md)** _(active, how-to)._ Preview the site by opening index.html over file:// (the scroll animation works there) and test reduced motion via DevTools rendering emulation; run npm install once in the worktree so the pre-commit hook (Prettier + docs:index) works. _Read before previewing, testing, or committing changes to the site._
 
 <!-- INDEX:END -->

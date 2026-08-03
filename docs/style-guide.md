@@ -1,5 +1,6 @@
 ---
-summary: "The house style guide for UIX documentation: how this repo formats and writes docs, built from the repo's own practice; prose follows the direction of Simplified Technical English and Vale enforces the mechanical rules."
+summary: "UIX documentation uses concise current-state prose, retrieval-oriented structure, consistent Markdown, and mechanically enforced vocabulary."
+kind: reference
 status: active
 ---
 
@@ -21,7 +22,7 @@ Docs here are read by both humans and agents, and orientation docs are often pre
 
 **Docs are current state:** a doc describes what exists now. When it is wrong or stale, fix it or delete it; cruft is the enemy.
 
-**References resolve:** a doc references only artifacts that exist. Deleting an artifact deletes the references to it in the same change, including "came from A" provenance in B once A is gone. Migration history is dated material; it survives in the decision or design log that recorded it, not in the current-state doc.
+**References resolve:** a document references only artifacts that exist. Deleting an artifact removes its references in the same change. Moving a target updates link destinations, including those in immutable records. Migration history belongs in dated decisions or design logs, not current-state documents.
 
 **Update docs with code:** change documentation in the same change as the code it describes, so the two cannot drift apart.
 
@@ -39,7 +40,7 @@ Normative keywords are lowercase and bold, per RFC 2119 (Request for Comments 21
 
 ### Document layout
 
-Encode the existing shape. Two trees: `src/docs/` ships with the app and tracks code; `docs/` is dev-facing meta. Inside `docs/` the layers have their own shapes. `decisions/` are write-once and dated, `design/` threads are a living synthesis over an append-only log, and `architecture/` tracks HEAD. Plans live outside the tree.
+Encode the repository shape. The `src/docs/` tree ships with the app and tracks code. The `docs/` tree contains dev-facing architecture, decisions, design threads, and documentation practice. Root-level `plans/` tracks builds, and `website/` documents the marketing site. Decisions are write-once and dated, design threads place mutable synthesis over append-only logs, and architecture tracks HEAD.
 
 Every doc follows its layer's conventions: frontmatter with a `summary` first, an H1 title close to the filename, then the layer's shape. Details live in [`contributing.md`](./contributing.md).
 
@@ -65,7 +66,9 @@ Code items in prose take a qualifying noun and are never inflected or possessed;
 
 ### Links
 
-Internal docs link by relative path, including `../` where needed. Link text is the target's filename in code font ("[`contributing.md`](./contributing.md)"), which opens in the editor and stays machine-checkable. Never "here", "link", or a bare URL as link text; do not link the same destination twice on one page.
+Internal docs link by relative path, including `../` where needed. In prose, use the target filename in code font by default. For example, write "[`contributing.md`](./contributing.md)."
+
+Generated indexes and directory routes use descriptive slugs because repeated `AGENTS.md` labels would hide destinations. Never use "here", "link", or bare URLs. Avoid repeating a destination within one short section. Repeat it in a long reference only when readers need a local route. Generated indexes may repeat authored overview links.
 
 Inline links by default; reference links only for long destinations (typically table cells) or repeats.
 
@@ -185,20 +188,4 @@ Directional references in named form are house style: "the spikes above", "the e
 
 ## Conformance backlog
 
-- Drop the `_(stub)_` pages from `src/docs/` (`add-a-channel`, `add-a-feature`, `channels`, `first-feature`); not-yet-built surfaces are tracked in `plans/`.
-- Set up Vale as the prose linter. Live: `extension` and `sentence-length`. Starter rules still to encode:
-  - `utilize` to `use`.
-  - `e.g.` to `for example`.
-  - `i.e.` to `that is`.
-  - `and/or` to `or both`.
-  - `please` and `simply` to omit.
-  - Curly quotes to straight quotes.
-  - `Pi` capitalization.
-  - `UIX` consistency.
-  - Range hyphens. New rules come from this guide as sections land.
-- Convert normative keywords to lowercase bold (RFC 2119) in `docs/architecture/conventions/naming-and-comments.md` (contributing.md done).
-- Reformat em-dash headings: design log entries to colon form, convention cards to identifier without code font and a colon separator, including `contributing.md`'s templates.
-- Remove em dashes from prose: split em-dash compounds into two sentences or semicolons; lead-ins and cards keep their colon forms.
-- Convert run-in bold lead-ins from period to colon across the corpus.
-- Convert bold term introductions to italics in `AGENTS.md` files and design threads.
-- De-inflect code items in design prose ("`set`s registrations" becomes "calls `set` on registrations").
+- Finish or remove the in-progress how-to and tutorial stubs in `src/docs/`; shipped documentation must describe implemented behavior.

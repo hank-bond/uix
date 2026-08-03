@@ -19,7 +19,7 @@
     "format:check": "prettier --check .",
     "docs:index": "node scripts/docs-index.mjs",
     "docs:check": "node scripts/docs-index.mjs --check",
-    "vocabulary:check": "vale AGENTS.md docs/architecture src/docs",
+    "vocabulary:check": "vale AGENTS.md README.md docs plans src website",
     "test": "vitest run",
     "prepare": "git config core.hooksPath .githooks || true",
     "check": "npm run typecheck && npm run lint && npm run test && npm run format:check && npm run docs:check && npm run vocabulary:check"

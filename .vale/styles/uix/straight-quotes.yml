@@ -1,0 +1,6 @@
+extends: existence
+message: "Use straight quotes in repository documentation."
+level: error
+scope: raw
+raw:
+  - "[“”‘’]"

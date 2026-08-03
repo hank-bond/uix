@@ -1,0 +1,6 @@
+extends: existence
+message: "Use an unspaced hyphen for numeric ranges."
+level: error
+scope: raw
+raw:
+  - '\b\d+\s*[–—]\s*\d+\b'

@@ -88,12 +88,12 @@ The `src/docs/` tree is the shipped substrate reference. The `docs/` tree contai
 
 <!-- INDEX:START -->
 
-<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
+<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
-- **[src/docs/](./src/docs/AGENTS.md)** _(active)_ — The shipped substrate reference covers features, surfaces, channels, agent integration, settings, state, and lifetimes in lockstep with code.
-- **[docs/](./docs/AGENTS.md)** _(active)_ — Dev-facing meta docs for current architecture, settled decisions, design threads, and documentation practice.
-- **[plans/](./plans/AGENTS.md)** _(active)_ — Active build specs, reviewable delivery units, and a backlog of smaller implementation seeds.
-- **[website/](./website/AGENTS.md)** _(active)_ — The zero-build uix.sh landing page uses static HTML, CSS, and JavaScript with a reduced-motion-safe brandmark morph. _Read when editing the landing page, brandmark animation, styles, or favicon._
+- **[src/docs/](./src/docs/AGENTS.md)** _(active)._ The shipped substrate reference covers features, surfaces, channels, agent integration, settings, state, and lifetimes in lockstep with code.
+- **[docs/](./docs/AGENTS.md)** _(active)._ Dev-facing meta docs for current architecture, settled decisions, design threads, and documentation practice.
+- **[plans/](./plans/AGENTS.md)** _(active)._ Active build specs, reviewable delivery units, and a backlog of smaller implementation seeds.
+- **[website/](./website/AGENTS.md)** _(active)._ The zero-build uix.sh landing page uses static HTML, CSS, and JavaScript with a reduced-motion-safe brandmark morph. _Read when editing the landing page, brandmark animation, styles, or favicon._
 
 <!-- INDEX:END -->
 

@@ -21,7 +21,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
@@ -55,7 +55,18 @@ const END = "<!-- INDEX:END -->";
 // someone would be tempted to hand-edit. Part of the generated body, so --check
 // stays consistent.
 const NOTE =
-  "<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->";
+  "<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->";
+const STATUSES = new Set([
+  "accepted",
+  "active",
+  "archived",
+  "exploring",
+  "landed",
+  "resolved",
+  "stub",
+  "superseded",
+]);
+const KINDS = new Set(["explanation", "how-to", "reference", "tutorial"]);
 
 // "2026-05-31-foo.md" -> { date: "2026-05-31", slug: "foo" }
 // "logging.md"        -> { date: null, slug: "logging" }
@@ -99,10 +110,11 @@ function collect(layer) {
   const entries = [];
   for (const name of readdirSync(dir)) {
     if (!name.endsWith(".md") || name === "AGENTS.md") continue;
-    const fm = parseFrontmatter(
-      readFileSync(join(dir, name), "utf8"),
-      `${layer.dir}/${name}`,
-    );
+    const file = `${layer.dir}/${name}`;
+    const fm = parseFrontmatter(readFileSync(join(dir, name), "utf8"), file);
+    if (layer.dir !== "plans" && !fm.kind) {
+      throw new Error(`${file}: indexed documentation missing "kind"`);
+    }
     entries.push({ file: name, ...identify(name), ...fm });
   }
   if (layer.sort === "date-desc") {
@@ -122,7 +134,7 @@ function renderIndex(entries) {
       // how-to, tutorial), orthogonal to status; it renders when present.
       const trigger = e.read_when ? ` _${e.read_when}_` : "";
       const kind = e.kind ? `, ${e.kind}` : "";
-      return `- **[${e.slug}](./${e.file})** _(${e.status}${kind})_ — ${e.summary}${trigger}`;
+      return `- **[${e.slug}](./${e.file})** _(${e.status}${kind})._ ${e.summary}${trigger}`;
     })
     .join("\n");
 }
@@ -159,10 +171,11 @@ function collectContainer(layer) {
     }
     const isDir = statSync(path).isDirectory();
     const fmPath = isDir ? join(path, "AGENTS.md") : path;
-    const fm = parseFrontmatter(
-      readFileSync(fmPath, "utf8"),
-      relative(root, fmPath),
-    );
+    const fmFile = relative(root, fmPath);
+    const fm = parseFrontmatter(readFileSync(fmPath, "utf8"), fmFile);
+    if (!isDir && !fm.kind) {
+      throw new Error(`${fmFile}: indexed documentation missing "kind"`);
+    }
     return isDir
       ? { label: `${name}/`, link: `./${name}/AGENTS.md`, ...fm }
       : { label: identify(name).slug, link: `./${name}`, ...fm };
@@ -175,7 +188,7 @@ function renderContainer(entries) {
     .map((e) => {
       const trigger = e.read_when ? ` _${e.read_when}_` : "";
       const kind = e.kind ? `, ${e.kind}` : "";
-      return `- **[${e.label}](${e.link})** _(${e.status}${kind})_ — ${e.summary}${trigger}`;
+      return `- **[${e.label}](${e.link})** _(${e.status}${kind})._ ${e.summary}${trigger}`;
     })
     .join("\n");
 }
@@ -218,7 +231,55 @@ function markdownFiles(dir) {
 
 function checkAllFrontmatter() {
   for (const path of markdownFiles(root)) {
-    parseFrontmatter(readFileSync(path, "utf8"), relative(root, path));
+    const file = relative(root, path);
+    const frontmatter = parseFrontmatter(readFileSync(path, "utf8"), file);
+    if (!STATUSES.has(frontmatter.status)) {
+      throw new Error(`${file}: unknown documentation status`);
+    }
+    if (frontmatter.kind && !KINDS.has(frontmatter.kind)) {
+      throw new Error(`${file}: unknown documentation kind`);
+    }
+  }
+}
+
+function checkAllDocumentShapes() {
+  for (const path of markdownFiles(root)) {
+    const file = relative(root, path);
+    if (file.startsWith("plans/archive/")) continue;
+    const text = readFileSync(path, "utf8");
+    const body = text
+      .replace(/^---\n[\s\S]*?\n---\n/, "")
+      .replace(/```[\s\S]*?```/g, "");
+    const titles = body.match(/^# .+$/gm) ?? [];
+    if (titles.length !== 1) {
+      throw new Error(`${file}: expected exactly one H1 title`);
+    }
+    if (/[.!?]$/.test(titles[0])) {
+      throw new Error(`${file}: H1 title must not end with punctuation`);
+    }
+  }
+}
+
+function checkAllRelativeLinks() {
+  const linkPattern = /(?<!!)\[[^\]]*\]\(([^)]+)\)/g;
+  for (const path of markdownFiles(root)) {
+    const text = readFileSync(path, "utf8");
+    for (const match of text.matchAll(linkPattern)) {
+      const target = match[1].split("#", 1)[0];
+      if (
+        !target ||
+        target.startsWith("#") ||
+        /^[a-z][a-z0-9+.-]*:/i.test(target)
+      ) {
+        continue;
+      }
+      const destination = resolve(dirname(path), decodeURIComponent(target));
+      if (!existsSync(destination)) {
+        throw new Error(
+          `${relative(root, path)}: relative link target not found: ${target}`,
+        );
+      }
+    }
   }
 }
 
@@ -226,6 +287,8 @@ const check = process.argv.includes("--check");
 let stale = false;
 
 checkAllFrontmatter();
+checkAllDocumentShapes();
+checkAllRelativeLinks();
 
 for (const layer of layers) {
   const agentsPath = join(root, layer.dir, "AGENTS.md");
