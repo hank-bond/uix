@@ -1,4 +1,4 @@
-// Owns live resolved agent tools and installs a registry snapshot into each Pi runtime generation.
+// Keeps accepted feature tools, rejects duplicate Pi names, and installs a snapshot into each Pi runtime.
 
 import type {
   AgentToolContribution,

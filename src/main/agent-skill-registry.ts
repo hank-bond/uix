@@ -1,4 +1,4 @@
-// Resolves and registers feature-supplied Pi skill paths for runtime resource discovery.
+// Collects feature-provided Pi skill paths and supplies them when Pi discovers runtime resources.
 //
 // Features declare files/directories relative to their entry file. The registry
 // stores resolved contributions in manifest and declaration order; one

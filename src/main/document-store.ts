@@ -1,4 +1,4 @@
-// Persists mutable document content and immutable metadata-bearing versions behind namespace and document identifiers.
+// Stores each document's current content and immutable snapshots under stable namespace and document IDs.
 //
 // The filesystem layout is private behind the feature-facing store contract.
 // Snapshot identity includes namespace, document id, content, and caller-owned

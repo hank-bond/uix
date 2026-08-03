@@ -1,4 +1,4 @@
-// Defines typed workspace-owned settings namespaces used to mint schema-bound handles.
+// Defines a named, schema-checked group of workspace settings.
 
 import type { Static } from "typebox";
 

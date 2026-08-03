@@ -1,4 +1,4 @@
-// Creates bare workspaces from editable feature templates and reports non-fatal dependency-install failures.
+// Creates a bare editable workspace from feature templates without discarding it when dependency installation fails.
 //
 // Feature package files are optional npm dependency metadata; the manifest
 // remains the only composition authority. One install during scaffolding makes

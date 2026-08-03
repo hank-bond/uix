@@ -1,4 +1,4 @@
-// Builds registered surface modules and serves hash-addressed bundles and feature files through substrate resources.
+// Builds each active surface for the renderer and serves its code, styles, and feature files through resource URLs.
 //
 // Esbuild bundles feature-local code while page-owned shared modules and native
 // CSS module scripts remain external. Virtual CommonJS wrappers make named

@@ -1,5 +1,5 @@
 ---
-summary: "Workspace runtime code resolves workspace identity, adopts durable manifest generations, binds settings, and coordinates whole-workspace replacement."
+summary: "Workspace runtime code finds the manifest, keeps workspace and feature settings in sync, and coordinates safe reloads of features and Pi resources."
 status: active
 ---
 
@@ -19,10 +19,10 @@ Whole-workspace reload coordinates independently owned transitions: commit curre
 
 ### Source files
 
-- **[manifest-store.ts](./manifest-store.ts)** Stages, adopts, and atomically persists mutable generations of one workspace manifest.
-- **[reload.ts](./reload.ts)** Serializes whole-workspace replacement across feature, Pi-resource, turn-state, and renderer boundaries.
-- **[roots.ts](./roots.ts)** Resolves stable workspace storage, agent working, and manifest paths from one startup target.
-- **[settings-namespace.ts](./settings-namespace.ts)** Defines typed workspace-owned settings namespaces used to mint schema-bound handles.
-- **[settings.ts](./settings.ts)** Adopts validated manifest generations and binds workspace and feature settings to their owned locations.
+- **[manifest-store.ts](./manifest-store.ts)** Reads workspace manifests into staged copies and atomically writes the accepted copy back to disk.
+- **[reload.ts](./reload.ts)** Runs one workspace reload at a time across feature activation, Pi resources, restored state, and renderer notification.
+- **[roots.ts](./roots.ts)** Finds stable paths for workspace state, the agent working directory, and the manifest from one startup target.
+- **[settings-namespace.ts](./settings-namespace.ts)** Defines a named, schema-checked group of workspace settings.
+- **[settings.ts](./settings.ts)** Validates a staged manifest's settings, makes them live together, and connects them to their stored locations.
 
 <!-- INDEX:END -->

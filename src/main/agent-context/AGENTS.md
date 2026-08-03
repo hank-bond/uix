@@ -1,5 +1,5 @@
 ---
-summary: "Agent context separates pure feature-owned identity resolution from live buffering and model-visible state-message assembly."
+summary: "Agent context turns feature-provided state into structured messages that Pi sends to the model before a run."
 status: active
 ---
 
@@ -17,7 +17,7 @@ The agent runtime controls when accepted contributions are assembled against bra
 
 ### Source files
 
-- **[registry.ts](./registry.ts)** Registers feature context, manages optional buffers, and assembles model-visible state messages against branch history.
-- **[resolution.ts](./resolution.ts)** Derives owner-scoped canonical and contribution identities without creating live agent-context state.
+- **[registry.ts](./registry.ts)** Buffers feature-provided context and assembles the state message that Pi sends to the model before a run.
+- **[resolution.ts](./resolution.ts)** Checks feature and contribution names and derives the stable IDs used in agent-context messages.
 
 <!-- INDEX:END -->

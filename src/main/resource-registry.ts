@@ -1,4 +1,4 @@
-// Owns live feature resource routes and dispatches validated resource URLs through one protocol transport.
+// Routes resource URLs to the active feature handlers through one validated protocol boundary.
 //
 // Resource declarations remain transport-neutral even though the default adapter uses Electron's custom protocol. A malformed URL recognized by a route yields 400, while a URL matching no registered route yields 404.
 

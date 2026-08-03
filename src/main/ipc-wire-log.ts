@@ -1,4 +1,4 @@
-// Records one IPC crossing to terminal and optional file loggers under caller-owned payload policy.
+// Writes each IPC request or event to the terminal log and, when enabled, a raw file log.
 
 import type { Logger } from "pino";
 

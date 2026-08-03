@@ -1,4 +1,4 @@
-// Registers one feature's contributed facets as one rollback-safe lifetime.
+// Registers all of one feature's capabilities together and rolls them all back if any registration fails.
 
 import type { FeatureContributions, FeatureDefinition } from "@uix/api/feature";
 

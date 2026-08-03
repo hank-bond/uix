@@ -1,4 +1,4 @@
-// Owns branch-scoped, model-hidden feature state registration, delta commits, projection, history, and restoration.
+// Saves and restores each feature's private branch state in Pi sessions without showing it to the model.
 //
 // State cells become cockpit-private Pi session entries at durable run boundaries.
 // Registry snapshots preserve exact cell identity so deferred restoration can

@@ -1,4 +1,4 @@
-// Composes and owns the Electron application, workspace, window, feature, and agent runtime lifetimes.
+// Starts the Electron app, opens a workspace, and owns the lifetimes of its windows, features, and agent sessions.
 //
 // Owns App lifecycle: the shell boots, then either opens a workspace
 // directly (explicit UIX_WORKSPACE target, or a cwd that holds a manifest)

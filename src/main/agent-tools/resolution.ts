@@ -1,4 +1,4 @@
-// Resolves feature tool contributions into validated Pi names and contribution identities without live registration.
+// Checks feature tool names and assigns the Pi name and contribution ID used by the registry.
 //
 // Ordinary contributions derive `${featureId}__${name}` while explicit
 // overrides retain their authored Pi name, preventing ordinary feature tools

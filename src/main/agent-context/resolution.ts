@@ -1,4 +1,4 @@
-// Derives owner-scoped canonical and contribution identities without creating live agent-context state.
+// Checks feature and contribution names and derives the stable IDs used in agent-context messages.
 
 import type { TSchema } from "typebox";
 

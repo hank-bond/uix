@@ -400,7 +400,9 @@ Colocated `*.test.*` and `*.spec.*` files are not indexed. Their production file
 
 JSON, binary assets, and static data are not indexed. A directory `AGENTS.md` or local attribution leaf describes non-code assets when their role is not evident.
 
-Name the domain responsibility, operation, result, or authority boundary. Use the path and filename as existing context instead of repeating them. Distinguish sibling files without enumerating exports, callers, control flow, implementation mechanics, plans, or guessed search synonyms.
+Name the domain responsibility, operation, result, or authority boundary. Prefer a concrete actor, action, and object over stacked modifiers or abstract nouns. A summary may use a longer plain sentence when that is easier to understand; do not optimize for the fewest words. Keep specialized terms only when they preserve a distinction that plain language would lose.
+
+Use the path and filename as existing context instead of repeating them. Distinguish sibling files without enumerating exports, callers, control flow, implementation mechanics, plans, or guessed search synonyms.
 
 The header may continue with one concise `//` paragraph of file-wide context. Preserve hidden guarantees, external constraints, failure boundaries, rationale, and other knowledge that is not cheap or reliable to infer from the implementation. Do not use the paragraph as an export inventory or control-flow narration. If one coherent summary cannot describe the file, reconsider its responsibilities.
 

@@ -1,5 +1,5 @@
 ---
-summary: "The main-process feature runtime validates manifest composition, activates feature instances atomically, registers facets, builds surfaces, and scaffolds editable workspaces."
+summary: "The feature runtime loads the workspace's chosen features, isolates failed activations, and builds their renderer surfaces. It also creates bare editable workspaces."
 status: active
 ---
 
@@ -19,11 +19,11 @@ Surface delivery coordinates `surfaces.ts` with `surface-pipeline.ts`. Preserve 
 
 ### Source files
 
-- **[contributions.ts](./contributions.ts)** Registers one feature's contributed facets as one rollback-safe lifetime.
-- **[loader.ts](./loader.ts)** Loads manifest-selected feature entries into isolated, reload-scoped activated instances.
-- **[manifest.ts](./manifest.ts)** Validates workspace manifests and resolves ordered feature entry references to absolute paths.
-- **[scaffold.ts](./scaffold.ts)** Creates bare workspaces from editable feature templates and reports non-fatal dependency-install failures.
-- **[surface-pipeline.ts](./surface-pipeline.ts)** Builds registered surface modules and serves hash-addressed bundles and feature files through substrate resources.
-- **[surfaces.ts](./surfaces.ts)** Resolves and stores the ordered live surface composition contributed by active features.
+- **[contributions.ts](./contributions.ts)** Registers all of one feature's capabilities together and rolls them all back if any registration fails.
+- **[loader.ts](./loader.ts)** Loads the features selected by the workspace manifest and isolates failures so one feature cannot stop its siblings.
+- **[manifest.ts](./manifest.ts)** Checks workspace manifests and resolves each ordered feature entry to an absolute path.
+- **[scaffold.ts](./scaffold.ts)** Creates a bare editable workspace from feature templates without discarding it when dependency installation fails.
+- **[surface-pipeline.ts](./surface-pipeline.ts)** Builds each active surface for the renderer and serves its code, styles, and feature files through resource URLs.
+- **[surfaces.ts](./surfaces.ts)** Resolves feature surface entry paths and keeps active surfaces in workspace and declaration order.
 
 <!-- INDEX:END -->

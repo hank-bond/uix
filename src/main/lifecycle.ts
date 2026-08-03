@@ -1,4 +1,4 @@
-// Couples main-process registrations to deterministic application, window, and component lifetimes.
+// Provides disposable helpers that clean up app, window, and component resources with their owners.
 //
 // The rule: every attached callback produces a Disposable, and that
 // Disposable goes into a bag that's torn down together. This makes

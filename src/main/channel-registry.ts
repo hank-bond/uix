@@ -1,4 +1,4 @@
-// Owns live channel request registrations and feature-scoped event publication over an injected transport.
+// Routes feature channel requests and events through the main-process transport with validation at the boundary.
 //
 // The registry validates unknown requests and handler responses at the transport boundary while preserving contract-owned log descriptions. Canonical-id reservations remain recoverable across transport acquisition and disposal failures.
 

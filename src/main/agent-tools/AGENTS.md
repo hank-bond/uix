@@ -1,5 +1,5 @@
 ---
-summary: "Agent tools separate pure owner-scoped Pi-name resolution from live collision enforcement and runtime installation."
+summary: "Agent tools give each feature safe Pi tool names, reject duplicates, and install the accepted tools for each agent runtime."
 status: active
 ---
 
@@ -17,7 +17,7 @@ Registry acceptance defines the live collision domain, and the agent runtime ins
 
 ### Source files
 
-- **[registry.ts](./registry.ts)** Owns live resolved agent tools and installs a registry snapshot into each Pi runtime generation.
-- **[resolution.ts](./resolution.ts)** Resolves feature tool contributions into validated Pi names and contribution identities without live registration.
+- **[registry.ts](./registry.ts)** Keeps accepted feature tools, rejects duplicate Pi names, and installs a snapshot into each Pi runtime.
+- **[resolution.ts](./resolution.ts)** Checks feature tool names and assigns the Pi name and contribution ID used by the registry.
 
 <!-- INDEX:END -->

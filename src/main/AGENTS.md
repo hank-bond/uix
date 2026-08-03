@@ -1,5 +1,5 @@
 ---
-summary: "The Electron main process composes application and window lifetimes, workspace and feature runtimes, substrate registries, IPC, and agent sessions."
+summary: "The Electron main process starts the app, opens one workspace, connects its features to Pi, and owns their runtime lifetimes."
 status: active
 ---
 
@@ -19,26 +19,27 @@ IPC remains a transport boundary rather than a feature contract boundary. Shared
 
 ### Directories
 
-- **[agent-context/](./agent-context/AGENTS.md)** _(active)._ Agent context separates pure feature-owned identity resolution from live buffering and model-visible state-message assembly.
-- **[agent-tools/](./agent-tools/AGENTS.md)** _(active)._ Agent tools separate pure owner-scoped Pi-name resolution from live collision enforcement and runtime installation.
-- **[features/](./features/AGENTS.md)** _(active)._ The main-process feature runtime validates manifest composition, activates feature instances atomically, registers facets, builds surfaces, and scaffolds editable workspaces.
-- **[workspace/](./workspace/AGENTS.md)** _(active)._ Workspace runtime code resolves workspace identity, adopts durable manifest generations, binds settings, and coordinates whole-workspace replacement.
+- **[agent-context/](./agent-context/AGENTS.md)** _(active)._ Agent context turns feature-provided state into structured messages that Pi sends to the model before a run.
+- **[agent-tools/](./agent-tools/AGENTS.md)** _(active)._ Agent tools give each feature safe Pi tool names, reject duplicates, and install the accepted tools for each agent runtime.
+- **[features/](./features/AGENTS.md)** _(active)._ The feature runtime loads the workspace's chosen features, isolates failed activations, and builds their renderer surfaces. It also creates bare editable workspaces.
+- **[keybindings/](./keybindings/AGENTS.md)** _(active)._ Main-process keybindings merge renderer defaults with persisted workspace overrides and publish the resulting bindings.
+- **[workspace/](./workspace/AGENTS.md)** _(active)._ Workspace runtime code finds the manifest, keeps workspace and feature settings in sync, and coordinates safe reloads of features and Pi resources.
 
 ### Source files
 
-- **[agent-skill-registry.ts](./agent-skill-registry.ts)** Resolves and registers feature-supplied Pi skill paths for runtime resource discovery.
-- **[agent-system-prompt-registry.ts](./agent-system-prompt-registry.ts)** Registers ordered feature-owned system-prompt sections and assembles their runtime Markdown.
-- **[channel-registry.ts](./channel-registry.ts)** Owns live channel request registrations and feature-scoped event publication over an injected transport.
-- **[document-store.ts](./document-store.ts)** Persists mutable document content and immutable metadata-bearing versions behind namespace and document identifiers.
+- **[agent-skill-registry.ts](./agent-skill-registry.ts)** Collects feature-provided Pi skill paths and supplies them when Pi discovers runtime resources.
+- **[agent-system-prompt-registry.ts](./agent-system-prompt-registry.ts)** Collects each feature's system-prompt section in workspace order and joins them for Pi.
+- **[channel-registry.ts](./channel-registry.ts)** Routes feature channel requests and events through the main-process transport with validation at the boundary.
+- **[document-store.ts](./document-store.ts)** Stores each document's current content and immutable snapshots under stable namespace and document IDs.
 - **[external-links.ts](./external-links.ts)** Keeps renderer navigation contained while delegating approved web URLs to the operating system.
-- **[index.ts](./index.ts)** Composes and owns the Electron application, workspace, window, feature, and agent runtime lifetimes.
-- **[ipc-wire-log.ts](./ipc-wire-log.ts)** Records one IPC crossing to terminal and optional file loggers under caller-owned payload policy.
-- **[ipc.ts](./ipc.ts)** Owns the renderer-to-main request and main-to-renderer event transport boundary.
-- **[lifecycle.ts](./lifecycle.ts)** Couples main-process registrations to deterministic application, window, and component lifetimes.
-- **[log.ts](./log.ts)** Creates component-attributed structured loggers with environment-appropriate output.
+- **[index.ts](./index.ts)** Starts the Electron app, opens a workspace, and owns the lifetimes of its windows, features, and agent sessions.
+- **[ipc-wire-log.ts](./ipc-wire-log.ts)** Writes each IPC request or event to the terminal log and, when enabled, a raw file log.
+- **[ipc.ts](./ipc.ts)** Carries requests from the renderer to main and sends events back through one logged IPC boundary.
+- **[lifecycle.ts](./lifecycle.ts)** Provides disposable helpers that clean up app, window, and component resources with their owners.
+- **[log.ts](./log.ts)** Creates main-process loggers that label messages by component and choose readable or JSON output for the environment.
 - **[recents.ts](./recents.ts)** Persists a bounded newest-first list of workspace manifests that still exist.
-- **[resource-registry.ts](./resource-registry.ts)** Owns live feature resource routes and dispatches validated resource URLs through one protocol transport.
-- **[settings-registry.ts](./settings-registry.ts)** Owns live schema-validated settings scopes and change routing with persistence externally injected.
-- **[turn-state.ts](./turn-state.ts)** Owns branch-scoped, model-hidden feature state registration, delta commits, projection, history, and restoration.
+- **[resource-registry.ts](./resource-registry.ts)** Routes resource URLs to the active feature handlers through one validated protocol boundary.
+- **[settings-registry.ts](./settings-registry.ts)** Keeps validated settings for each live scope, notifies listeners, and delegates persistence to the workspace layer.
+- **[turn-state.ts](./turn-state.ts)** Saves and restores each feature's private branch state in Pi sessions without showing it to the model.
 
 <!-- INDEX:END -->

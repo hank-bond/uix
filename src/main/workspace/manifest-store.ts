@@ -1,4 +1,4 @@
-// Stages, adopts, and atomically persists mutable generations of one workspace manifest.
+// Reads workspace manifests into staged copies and atomically writes the accepted copy back to disk.
 //
 // The store keeps one active manifest generation and stages disk reads as
 // separate mutable generations. Callers validate and hydrate a staged

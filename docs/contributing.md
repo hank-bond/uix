@@ -109,7 +109,7 @@ status: accepted | exploring | resolved | active | landed | archived | stub | su
 
 One rule governs both fields: **don't duplicate what's already in the reader's context when they read the field.** The slug is in the link, the category is in the directory, and the summary sits next to `read_when` once the index is in scope. Restating any of those wastes the line.
 
-- **`summary` (required):** The document's _recall surface_. An agent scans it to decide whether the document is relevant. It states the thesis rather than the topic. Compressing the body is appropriate because the body is not yet in context. Make each summary findable by concept and distinct from siblings. Interchangeable sibling summaries indicate a boundary problem.
+- **`summary` (required):** The document's _recall surface_. An agent scans it to decide whether the document is relevant. It states the thesis rather than the topic. Summarize the body, but optimize for first-read understanding rather than maximum compression. Prefer concrete actors and actions over stacked modifiers or abstract nouns. Use enough plain language to make the sentence readable without opening the document, and keep specialized terms only when they preserve an important distinction. Make each summary findable by concept and distinct from siblings. Interchangeable sibling summaries indicate a boundary problem.
 - **`read_when` (optional):** The _external trigger_ that adds precision. Author it only when the summary does not reveal why to open the document:
 - A **cross-vocabulary** trigger: the task is phrased in words the thesis doesn't use.
 - A **preventive** one: read before starting down a path the doc constrains.

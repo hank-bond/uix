@@ -1,3 +1,5 @@
+// Merges renderer action defaults with persisted overrides, normalizes shortcuts, and publishes changed keybindings.
+
 import type { KeybindingMap } from "@uix/api/actions";
 import { normalizeShortcut } from "@uix/api/shortcuts";
 

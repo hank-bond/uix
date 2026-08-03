@@ -1,4 +1,4 @@
-// Creates component-attributed structured loggers with environment-appropriate output.
+// Creates main-process loggers that label messages by component and choose readable or JSON output for the environment.
 //
 // Thin wrapper around pino so:
 //   - call sites use one shape: `log.info({ ...fields }, "event_name")`

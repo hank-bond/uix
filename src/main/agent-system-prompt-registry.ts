@@ -1,4 +1,4 @@
-// Registers ordered feature-owned system-prompt sections and assembles their runtime Markdown.
+// Collects each feature's system-prompt section in workspace order and joins them for Pi.
 //
 // One Markdown blob per feature is retained in manifest order. The
 // system-prompt assembler captures the current composition snapshot when Pi's

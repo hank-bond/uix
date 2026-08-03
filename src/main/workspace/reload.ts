@@ -1,4 +1,4 @@
-// Serializes whole-workspace replacement across feature, Pi-resource, turn-state, and renderer boundaries.
+// Runs one workspace reload at a time across feature activation, Pi resources, restored state, and renderer notification.
 
 interface WorkspaceReloadCoordinatorOptions<TFeatureActivation> {
   commitTurnState: () => Promise<boolean>;

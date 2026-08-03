@@ -1,4 +1,4 @@
-// Loads manifest-selected feature entries into isolated, reload-scoped activated instances.
+// Loads the features selected by the workspace manifest and isolates failures so one feature cannot stop its siblings.
 //
 // Each pass validates candidate settings before replacement, then activates
 // entries sequentially in manifest order. A provisional lifetime rolls back one

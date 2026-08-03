@@ -1,4 +1,4 @@
-// Resolves and stores the ordered live surface composition contributed by active features.
+// Resolves feature surface entry paths and keeps active surfaces in workspace and declaration order.
 //
 // Registration preserves manifest order followed by each feature's declaration
 // order. Returned lifetimes remove the exact contributed entries without

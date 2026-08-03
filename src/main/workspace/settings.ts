@@ -1,4 +1,4 @@
-// Adopts validated manifest generations and binds workspace and feature settings to their owned locations.
+// Validates a staged manifest's settings, makes them live together, and connects them to their stored locations.
 //
 // All fallible hydration remains detached before manifest promotion. Feature
 // ids and substrate namespaces share one flat settings scope-id space.
