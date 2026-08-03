@@ -6,17 +6,70 @@
 // open workspace per App instance (v1); everything workspace-bound lives
 // in openWorkspace().
 //
-// All registrations (IPC handlers, app events, window events) flow
-// through the helpers in src/main/ipc.ts and src/main/lifecycle.ts and
+// All cleanup-requiring bindings (IPC handlers, app events, window events)
+// flow through the helpers in src/main/ipc.ts and src/main/lifecycle.ts and
 // land in a single `appBag`. One dispose on `will-quit` tears the whole
-// tree down. See docs/architecture/conventions.md.
+// tree down. See docs/architecture/conventions/lifetimes.md.
 
-import { app, BrowserWindow, dialog, shell } from "electron";
 import fs from "node:fs";
 import { basename, join } from "node:path";
 import process from "node:process";
 
-import { type AgentEvent, agentChannels } from "@uix/api/agent-channels";
+import { app, BrowserWindow, dialog, shell } from "electron";
+
+import { agentChannels, type AgentEvent } from "@uix/api/agent-channels";
+import { withHandlers } from "@uix/api/channels";
+
+import { createAgentDriver } from "./agent/driver";
+import { sessionWorkspaceSettings } from "./agent/session-settings";
+import { agentWorkspaceSettings } from "./agent/settings";
+import { AgentContextRegistry } from "./agent-context/registry";
+import { AgentSkillRegistry } from "./agent-skills/registry";
+import { AgentSystemPromptRegistry } from "./agent-system-prompt/registry";
+import {
+  AgentToolRegistry,
+  createAgentToolInstaller,
+} from "./agent-tools/registry";
+import {
+  ChannelRegistry,
+  createFeatureEventPublisherFactory,
+  registerChannelContributions,
+} from "./channels/registry";
+import { createLocalDocumentStoreFactory } from "./documents/store";
+import { bindExternalWebLinks } from "./external-links";
+import { registerFeaturePreflightContributions } from "./features/contributions";
+import {
+  type ActivationResult,
+  type FeatureSources,
+  type FeatureSubstrate,
+  loadFeatures,
+} from "./features/loader";
+import { WorkspaceManifestFileName } from "./features/manifest";
+import { scaffoldWorkspace } from "./features/scaffold";
+import { SurfaceModulePipeline } from "./features/surface-pipeline";
+import { SurfaceRegistry } from "./features/surfaces";
+import * as ipc from "./ipc";
+import { createKeybindingRequestHandlers } from "./keybindings/requests";
+import { keybindingsWorkspaceSettings } from "./keybindings/settings";
+import {
+  disposable,
+  DisposableBag,
+  installProcessHandlers,
+  onApp,
+  onWindow,
+} from "./lifecycle";
+import { createLogger } from "./log";
+import { createRecentsStore, type RecentsStore } from "./recents";
+import {
+  registerResourceContributions,
+  ResourceRegistry,
+} from "./resources/registry";
+import { SettingsRegistry } from "./settings-registry";
+import { TurnStateRegistry } from "./turn-state/registry";
+import { resolveWorkspace, type Workspace } from "./workspace";
+import { WorkspaceManifestStore } from "./workspace-manifest-store";
+import { createWorkspaceReloadCoordinator } from "./workspace-reload";
+import { createWorkspaceSettings } from "./workspace-settings";
 import {
   Channels,
   type PickerActionResult,
@@ -26,56 +79,6 @@ import {
   type ReloadResult,
   uixChannels,
 } from "../shared/ipc";
-import { createAgentDriver } from "./agent/driver";
-import { AgentContextRegistry } from "./agent-context/registry";
-import { AgentSystemPromptRegistry } from "./agent-system-prompt/registry";
-import { AgentSkillRegistry } from "./agent-skills/registry";
-import {
-  createAgentToolInstaller,
-  AgentToolRegistry,
-} from "./agent-tools/registry";
-import { withHandlers } from "@uix/api/channels";
-import {
-  ChannelRegistry,
-  createFeatureEventPublisherFactory,
-  registerChannelContributions,
-} from "./channels/registry";
-import { TurnStateRegistry } from "./turn-state/registry";
-import { createLocalDocumentStoreFactory } from "./documents/store";
-import { registerFeaturePreflightContributions } from "./features/contributions";
-import {
-  loadFeatures,
-  type ActivationResult,
-  type FeatureSources,
-  type FeatureSubstrate,
-} from "./features/loader";
-import { WorkspaceManifestFileName } from "./features/manifest";
-import { scaffoldWorkspace } from "./features/scaffold";
-import { SurfaceModulePipeline } from "./features/surface-pipeline";
-import { SurfaceRegistry } from "./features/surfaces";
-import { createRecentsStore, type RecentsStore } from "./recents";
-import {
-  registerResourceContributions,
-  ResourceRegistry,
-} from "./resources/registry";
-import { resolveWorkspace, type Workspace } from "./workspace";
-import * as ipc from "./ipc";
-import {
-  disposable,
-  DisposableBag,
-  installProcessHandlers,
-  onApp,
-  onWindow,
-} from "./lifecycle";
-import { createLogger } from "./log";
-import { agentWorkspaceSettings } from "./agent/settings";
-import { sessionWorkspaceSettings } from "./agent/session-settings";
-import { createKeybindingRequestHandlers } from "./keybindings/requests";
-import { keybindingsWorkspaceSettings } from "./keybindings/settings";
-import { SettingsRegistry } from "./settings-registry";
-import { WorkspaceManifestStore } from "./workspace-manifest-store";
-import { createWorkspaceReloadCoordinator } from "./workspace-reload";
-import { createWorkspaceSettings } from "./workspace-settings";
 
 const isDev = !app.isPackaged;
 const LocalWorkspaceId = "local";
@@ -85,9 +88,17 @@ const LocalWorkspaceId = "local";
 // features are runtime contributions by definition).
 registerFeaturePreflightContributions([]);
 
-function createShellWindow(page: "index" | "picker"): BrowserWindow {
+interface OpenShellWindowOptions {
+  page: "index" | "picker";
+  onClosed?: () => void;
+}
+
+function openShellWindow(
+  parentLifetime: DisposableBag,
+  options: OpenShellWindowOptions,
+): BrowserWindow {
   const size =
-    page === "picker"
+    options.page === "picker"
       ? { width: 560, height: 480, resizable: false }
       : { width: 1100, height: 720 };
   const win = new BrowserWindow({
@@ -102,11 +113,24 @@ function createShellWindow(page: "index" | "picker"): BrowserWindow {
     },
   });
 
+  const windowBag = parentLifetime.add(new DisposableBag());
+  windowBag.add(
+    bindExternalWebLinks(win.webContents, (url) => shell.openExternal(url)),
+  );
+  windowBag.add(
+    onWindow(win, "closed", () => {
+      windowBag[Symbol.dispose]();
+      options.onClosed?.();
+    }),
+  );
+
   const devUrl = process.env["ELECTRON_RENDERER_URL"];
   if (isDev && devUrl) {
-    void win.loadURL(page === "picker" ? `${devUrl}/picker.html` : devUrl);
+    void win.loadURL(
+      options.page === "picker" ? `${devUrl}/picker.html` : devUrl,
+    );
   } else {
-    void win.loadFile(join(__dirname, `../renderer/${page}.html`));
+    void win.loadFile(join(__dirname, `../renderer/${options.page}.html`));
   }
 
   return win;
@@ -168,8 +192,8 @@ async function openWorkspace(
   );
 
   // The feature composition lives under its own child scope so reload can
-  // tear down the active feature composition without touching app-lifetime process
-  // handlers, the window, the agent driver, or IPC registrations.
+  // tear down the active feature composition without touching app-lifetime
+  // process handlers, the window, the agent driver, or IPC handler bindings.
   const featuresBag = appBag.add(new DisposableBag());
 
   // The manifest is optional (a dir target without one loads no features).
@@ -177,12 +201,13 @@ async function openWorkspace(
   // picked up by /reload.
   const manifestPath = workspace.manifestPath;
 
-  let mainWindow: BrowserWindow | null = createShellWindow("index");
-  appBag.add(
-    onWindow(mainWindow, "closed", () => {
+  let mainWindow: BrowserWindow | null = null;
+  mainWindow = openShellWindow(appBag, {
+    page: "index",
+    onClosed: () => {
       mainWindow = null;
-    }),
-  );
+    },
+  });
 
   // Facet registries. Features contribute data into these; substrate installers
   // adapt the registries to pi when the agent session opens.
@@ -190,8 +215,8 @@ async function openWorkspace(
     new ResourceRegistry({ workspaceId: LocalWorkspaceId }),
   );
   const channels = new ChannelRegistry({
-    transportHandle(canonicalId, fn, logOpts) {
-      return ipc.handle(canonicalId, fn, logOpts);
+    transportRegistrar(canonicalId, handler, logOpts) {
+      return ipc.handle(canonicalId, handler, logOpts);
     },
     publish(channel, payload, logOpts) {
       for (const win of BrowserWindow.getAllWindows()) {
@@ -256,7 +281,7 @@ async function openWorkspace(
     registerResourceContributions(
       resources,
       "uix",
-      surfacePipeline.resourceContributions(),
+      surfacePipeline.createResourceContributions(),
     ),
   );
   const uixPublisher = createFeatureEventPublisherFactory(
@@ -284,26 +309,26 @@ async function openWorkspace(
     registerChannelContributions(channels, "uix", [
       withHandlers(uixChannels, {
         surfaces: {
-          handle: async () => ({
+          handler: async () => ({
             surfaces: await surfacePipeline.buildAll(surfaces.list()),
             manifestPath,
             manifestFound: fs.existsSync(manifestPath),
           }),
         },
         get_setting: {
-          handle: (req) => settingsRegistry.get(req.featureId, req.key),
+          handler: (req) => settingsRegistry.get(req.featureId, req.key),
         },
         set_setting: {
-          handle: (req) => {
+          handler: (req) => {
             settingsRegistry.set(req.featureId, req.key, req.value);
           },
         },
         reconcile_keybindings: {
-          handle: (defaults) =>
+          handler: (defaults) =>
             keybindingRequestHandlers.reconcileDefaults(defaults),
         },
         replace_keybindings: {
-          handle: (candidate) =>
+          handler: (candidate) =>
             keybindingRequestHandlers.replaceBindings(candidate),
         },
       }),
@@ -316,7 +341,7 @@ async function openWorkspace(
     registerChannelContributions(channels, "agent", [
       withHandlers(agentChannels, {
         prompt: {
-          handle: (req) => {
+          handler: (req) => {
             // Fire and forget — the renderer subscribes to the event
             // stream, and the invoke resolves once the prompt has been
             // accepted.
@@ -324,7 +349,7 @@ async function openWorkspace(
           },
         },
         session_history: {
-          handle: ({ sessionId }) => driver.sessionHistory(sessionId),
+          handler: ({ sessionId }) => driver.sessionHistory(sessionId),
           log: {
             // A snapshot is the entire persisted transcript, already on disk;
             // record only its durable identity and size at the crossing.
@@ -335,7 +360,7 @@ async function openWorkspace(
           },
         },
         list_session_summaries: {
-          handle: ({ limit }) => driver.listSessionSummaries(limit),
+          handler: ({ limit }) => driver.listSessionSummaries(limit),
           log: {
             describeResponse: (sessions) => ({
               sessionIds: sessions.map((session) => session.sessionId),
@@ -343,52 +368,52 @@ async function openWorkspace(
           },
         },
         new_session: {
-          handle: () => driver.newSession(),
+          handler: () => driver.newSession(),
         },
         switch_session: {
-          handle: ({ sessionId }) => driver.switchSession(sessionId),
+          handler: ({ sessionId }) => driver.switchSession(sessionId),
         },
         set_session_title: {
-          handle: ({ sessionId, title }) =>
+          handler: ({ sessionId, title }) =>
             driver.setSessionTitle(sessionId, title),
         },
         list_models: {
-          handle: async () => ({ models: await driver.listModels() }),
+          handler: async () => ({ models: await driver.listModels() }),
         },
         set_model_favorite: {
-          handle: async (update) => ({
+          handler: async (update) => ({
             models: await driver.setModelFavorite(update),
           }),
         },
         agent_status: {
-          handle: () => driver.status(),
+          handler: () => driver.getStatus(),
         },
         select_model: {
-          handle: (ref) => driver.selectModel(ref),
+          handler: (ref) => driver.selectModel(ref),
         },
         list_auth_providers: {
-          handle: async () => ({
+          handler: async () => ({
             providers: await driver.listAuthProviders(),
           }),
         },
         current_provider_auth_flow: {
-          handle: () => driver.getCurrentProviderAuthFlow() ?? null,
+          handler: () => driver.getCurrentProviderAuthFlow() ?? null,
         },
         begin_provider_auth_flow: {
-          handle: ({ providerId, authType }) =>
+          handler: ({ providerId, authType }) =>
             driver.beginProviderAuthFlow(providerId, authType),
         },
         answer_provider_auth_flow: {
-          handle: ({ flowId, promptId, value }) => {
+          handler: ({ flowId, promptId, value }) => {
             driver.answerProviderAuthFlow(flowId, promptId, value);
           },
         },
         open_provider_auth_link: {
-          handle: ({ flowId, linkId }) =>
+          handler: ({ flowId, linkId }) =>
             driver.openProviderAuthLink(flowId, linkId),
         },
         cancel_provider_auth_flow: {
-          handle: ({ flowId }) => {
+          handler: ({ flowId }) => {
             driver.cancelProviderAuthFlow(flowId);
           },
         },
@@ -473,7 +498,7 @@ async function openWorkspace(
   });
 
   appBag.add(
-    ipc.handle<void, ReloadResult>(Channels.reload, async () => {
+    ipc.handle<unknown, ReloadResult>(Channels.reload, async () => {
       const reloadLog = createLogger("main");
       reloadLog.debug({}, "reload_started");
 
@@ -521,13 +546,13 @@ async function openWorkspace(
 
   appBag.add(
     onApp("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
-        mainWindow = createShellWindow("index");
-        appBag.add(
-          onWindow(mainWindow, "closed", () => {
+      if (mainWindow === null) {
+        mainWindow = openShellWindow(appBag, {
+          page: "index",
+          onClosed: () => {
             mainWindow = null;
-          }),
-        );
+          },
+        });
       }
     }),
   );
@@ -544,7 +569,12 @@ function openPicker(
   piProfileDir: string,
 ): void {
   const pickerBag = appBag.add(new DisposableBag());
-  const win = createShellWindow("picker");
+  const win = openShellWindow(pickerBag, {
+    page: "picker",
+    onClosed: () => {
+      pickerBag[Symbol.dispose]();
+    },
+  });
 
   // Respond to the invoke first, then tear the picker down and boot the
   // workspace — disposing the handler that is currently answering would
@@ -570,7 +600,7 @@ function openPicker(
   };
 
   pickerBag.add(
-    ipc.handle<void, PickerState>(Channels.pickerState, () => ({
+    ipc.handle<unknown, PickerState>(Channels.pickerState, () => ({
       recents: recents.list(),
     })),
   );
@@ -610,7 +640,7 @@ function openPicker(
           const name = req.name.trim() || basename(dir);
           try {
             const { installError } = await scaffoldWorkspace({
-              templatesDir: join(__dirname, "../../src/features"),
+              templatesDir: join(__dirname, "../../templates/workspace"),
               workspaceDir: dir,
               name,
             });

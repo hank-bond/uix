@@ -1,5 +1,6 @@
 ---
 summary: "Settings defaults initialize missing durable values by materializing them into the workspace; runtime reads the persisted result instead of layering sparse overrides over live defaults."
+kind: explanation
 status: accepted
 ---
 

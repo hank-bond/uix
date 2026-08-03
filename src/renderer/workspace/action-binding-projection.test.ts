@@ -1,5 +1,6 @@
-import type { ActionCatalog } from "@uix/api/actions";
 import { describe, expect, it } from "vitest";
+
+import type { ActionCatalog } from "@uix/api/actions";
 
 import { deriveActionBindingProjectionForPlatform } from "./action-binding-projection";
 

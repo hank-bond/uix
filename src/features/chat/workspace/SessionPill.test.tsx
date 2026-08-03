@@ -2,8 +2,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import {
-  WorkspaceSessionProvider,
   type WorkspaceSessionHandle,
+  WorkspaceSessionProvider,
 } from "@uix/api/workspace";
 
 import { SessionPill } from "./SessionPill";
@@ -41,12 +41,14 @@ describe("session pill", () => {
   });
 
   it("prefers an explicit title over the first-message preview", () => {
+    const activeSession = session.activeSession;
+    if (!activeSession) throw new Error("missing active session");
     const html = renderToStaticMarkup(
       <WorkspaceSessionProvider
         session={{
           ...session,
           activeSession: {
-            ...session.activeSession!,
+            ...activeSession,
             title: "Session titles",
           },
         }}

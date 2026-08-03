@@ -1,5 +1,6 @@
 ---
 summary: "Extensions are discovered from project/global .uix/extensions (a package.json with pi/uix fields) and identified by the entry file's absolute path; UIX ships none of its own."
+kind: explanation
 status: superseded
 ---
 

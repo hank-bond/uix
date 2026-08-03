@@ -1,5 +1,5 @@
 // Feature loader — activates the workspace's feature composition (the
-// manifest's entries, in manifest order) through one registration path.
+// manifest's entries, in manifest order) through `registerFeatureContributions()`.
 //
 // Responsibilities:
 //   1. Re-read and validate the workspace manifest for every load pass
@@ -16,8 +16,8 @@
 //      clear or dispose tears every contribution down cleanly.
 //
 // Activation is sequential (`for...of` + `await`), in manifest order —
-// order is the composition semantics (registration order is semantic
-// for agent-facing facets), so it is explicit and author-controlled,
+// order is the composition semantics (manifest order is semantic for
+// agent-facing facets), so it is explicit and author-controlled,
 // never emergent.
 //
 // Error isolation: each entry is wrapped in try/catch. If loading,
@@ -47,25 +47,25 @@
 import { createRequire } from "node:module";
 import { dirname } from "node:path";
 
-import type { FeatureContext, FeatureDefinition } from "@uix/api/feature";
-import type { DocumentStoreFactory } from "@uix/api/documents";
-import { defineSettings, type SettingsHandle } from "@uix/api/settings";
-import { createJiti } from "jiti";
+import { createJiti, type Jiti } from "jiti";
 import { Type } from "typebox";
 
-import { createFeatureEventPublisherFactory } from "../channels/registry";
+import { isIdToken } from "@uix/api/contribution-id";
+import type { DocumentStoreFactory } from "@uix/api/documents";
+import type { FeatureContext, FeatureDefinition } from "@uix/api/feature";
+import { defineSettings, type SettingsHandle } from "@uix/api/settings";
+
+import {
+  type FeatureContributionRegistries,
+  registerFeatureContributions,
+} from "./contributions";
+import type { ManifestFeatureRef } from "./manifest";
 import type { ChannelRegistry } from "../channels/registry";
+import { createFeatureEventPublisherFactory } from "../channels/registry";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
 import { bindSettingsHandle } from "../settings-registry";
 import type { WorkspaceSettings } from "../workspace-settings";
-import { isIdToken } from "@uix/api/contribution-id";
-
-import {
-  registerFeatureContributions,
-  type FeatureContributionRegistries,
-} from "./contributions";
-import type { ManifestFeatureRef } from "./manifest";
 
 const log = createLogger("features");
 
@@ -82,13 +82,13 @@ const requireFromLoader = createRequire(__filename);
  * typebox entries are exact because its package has no `main` (exports
  * map only), so a bare dir alias can't resolve.
  */
-const buildAliases = (apiModuleDir?: string): Record<string, string> => ({
+const deriveBuildAliases = (apiModuleDir?: string): Record<string, string> => ({
   ...(apiModuleDir ? { "@uix/api": apiModuleDir } : {}),
   typebox: requireFromLoader.resolve("typebox"),
   "typebox/value": requireFromLoader.resolve("typebox/value"),
 });
 
-const createFeatureJiti = (apiModuleDir?: string) =>
+const createFeatureJiti = (apiModuleDir?: string): Jiti =>
   createJiti(__filename, {
     // Same hot-reload lever pi uses. Disabling the runtime module cache
     // lets editing a feature's .ts/.js file and reloading evaluate the
@@ -96,7 +96,7 @@ const createFeatureJiti = (apiModuleDir?: string) =>
     // filesystem transform cache for performance; that cache tracks
     // source state and is not the stale-module problem Node import() has.
     moduleCache: false,
-    alias: buildAliases(apiModuleDir),
+    alias: deriveBuildAliases(apiModuleDir),
   });
 
 /**
@@ -137,11 +137,11 @@ export interface FeatureSources {
 }
 
 /**
- * Builds the context bag a feature's `context`/`contribute` hooks receive.
+ * Assembles the context bag a feature's `context`/`contribute` hooks receive.
  * One construction path for every feature — the substrate facets a feature
  * can touch are exactly what this returns.
  */
-export function buildFeatureContext(
+export function assembleFeatureContext(
   featureId: string,
   substrate: FeatureSubstrate,
   settings: SettingsHandle,
@@ -197,14 +197,14 @@ const normalize = (thrown: unknown): Error =>
   thrown instanceof Error ? thrown : new Error(String(thrown));
 
 /**
- * Narrows an entry's default export to a FeatureDefinition or throws
+ * Narrows an entry's `feature` export to a FeatureDefinition or throws
  * with a message that names what's wrong — the throw lands in
  * `failed[]` like any other activation error.
  */
 const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
   if (typeof value !== "object" || value === null) {
     throw new Error(
-      "default export is not a FeatureDefinition (expected an object with id + contribute)",
+      "exported `feature` is not a FeatureDefinition (expected an object with id + contribute)",
     );
   }
   const def = value as Partial<FeatureDefinition>;
@@ -220,7 +220,8 @@ const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
     throw new Error(`FeatureDefinition ${def.id} context is not a function`);
   }
   if (def.settings !== undefined) {
-    if (typeof def.settings !== "object" || def.settings === null) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- exported feature objects are untrusted module code; null is a real runtime value and typeof null === "object", so the null check is load-bearing despite the non-nullable type.
+    if (def.settings == null || typeof def.settings !== "object") {
       throw new Error(`FeatureDefinition ${def.id} settings is not an object`);
     }
     const schema = (def.settings as { schema?: unknown }).schema;
@@ -239,6 +240,26 @@ const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
     }
   }
   return def as FeatureDefinition;
+};
+
+/**
+ * Load an entry and return its `feature` export — the loader contract name.
+ * Every feature entry exports `export const feature = defineFeature({ ... })`;
+ * a default-only module is a contract violation, not a supported form.
+ * jiti's interop proxy exposes named exports for both ESM and transpiled
+ * modules, so the same call works for every workspace authoring style.
+ */
+const loadFeatureDefinition = async (
+  entry: string,
+  jiti: ReturnType<typeof createFeatureJiti>,
+): Promise<unknown> => {
+  const namespace = await jiti.import<Record<string, unknown>>(entry);
+  if (namespace.feature === undefined) {
+    throw new Error(
+      "Feature entry does not export `feature` (expected `export const feature = defineFeature({ ... })`).",
+    );
+  }
+  return namespace.feature;
 };
 
 /**
@@ -272,8 +293,8 @@ export const activateFeatures = async (
     const flog = log.child({ feature: displayName, entry });
     flog.debug({}, "activating");
 
-    // The per-feature bag is built early so the definition's
-    // registrations land somewhere disposable. We only enroll
+    // The per-feature bag is created early so every acquired lifetime
+    // capability has an owner. We only enroll
     // it in the parent bag after activation succeeds — a
     // failed feature's bag is disposed immediately and never
     // becomes part of app-shutdown teardown.
@@ -296,10 +317,10 @@ export const activateFeatures = async (
           definition.settings ?? EmptyFeatureSettings,
         ),
       );
-      const baseContext = buildFeatureContext(
+      const baseContext = assembleFeatureContext(
         definition.id,
         substrate,
-        featureSettings.handle,
+        featureSettings.settings,
         bag,
       );
       const contributedContext = definition.context?.(baseContext) ?? {};
@@ -319,8 +340,8 @@ export const activateFeatures = async (
       flog.debug({ id: definition.id }, "activation_succeeded");
     } catch (thrown) {
       const error = normalize(thrown);
-      // Tear down anything the definition managed to register
-      // before it threw — partial activation shouldn't leak
+      // Tear down anything the definition added before it threw —
+      // partial activation shouldn't leak
       // half-wired contributions.
       bag[Symbol.dispose]();
       failed.push({ displayName, entry, error });
@@ -336,7 +357,7 @@ export const activateFeatures = async (
       index,
       ref,
       entry,
-      () => jiti.import<unknown>(entry, { default: true }),
+      () => loadFeatureDefinition(entry, jiti),
       dirname(entry),
     );
   }
@@ -349,7 +370,8 @@ export const activateFeatures = async (
  * into the owned feature bag, replacing whatever that bag currently
  * contains. Safe for initial startup (empty clear) and for manual reload
  * (the active feature composition is disposed before replacement feature
- * instances activate with fresh contexts, callbacks, registrations, and bags).
+ * instances activate with fresh contexts, callbacks, registered contributions,
+ * and bags).
  *
  * The manifest is read and validated before clearing, so a manifest
  * failure (unreadable, bad JSON, schema mismatch) rejects the pass and

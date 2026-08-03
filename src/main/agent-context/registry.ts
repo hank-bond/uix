@@ -1,9 +1,10 @@
 // state messages: the cockpit→agent state pathway.
 //
-// A agent-context contribution declares one model-visible state section: its
+// An agent-context contribution declares one model-visible state section: its
 // canonical id, vocabulary line, optional UIX-managed buffer, and optional
-// materializer. The registered object is the contribution; registrations may
-// return a capability handle when the substrate manages a buffer for the owner.
+// materializer. Resolution derives owner-scoped ids; registry acceptance adds
+// mutable live state only for update and append buffers. The register operation
+// returns a capability when the substrate manages a buffer for the owner.
 //
 // Buffer semantics are intentionally small:
 //   - update: owner calls update(payload); UIX retains the latest value and
@@ -30,59 +31,29 @@ import type {
 import type { TSchema } from "typebox";
 import { Value } from "typebox/value";
 
-import {
-  toContributionId,
-  type ContributionId,
-} from "@uix/api/contribution-id";
-import { createLogger } from "../log";
-import { DisposableBag } from "../lifecycle";
-import { createTurnStateHistoryReader } from "../turn-state/registry";
-
 import type {
+  AgentContextAppender,
   AgentContextContribution,
   AgentContextMaterialization,
-  AgentContextMaterializationContext,
   AgentContextUpdater,
-  AgentContextAppender,
-  UpdateContribution,
   AppendContribution,
   MaterializedContribution,
+  UpdateContribution,
 } from "@uix/api/agent-context";
 
+import {
+  type AgentContextCanonicalId,
+  resolveAgentContextContribution,
+  type ResolvedAgentContextAppendContribution,
+  type ResolvedAgentContextContributionBase,
+  type ResolvedAgentContextMaterializedContribution,
+  type ResolvedAgentContextUpdateContribution,
+} from "./resolution";
+import { DisposableBag } from "../lifecycle";
+import { createLogger } from "../log";
+import { createTurnStateHistoryReader } from "../turn-state/registry";
+
 const log = createLogger("agent-context");
-
-type MaybePromise<T> = T | Promise<T>;
-
-// ---- canonical id brand ----
-
-const AgentContextCanonicalIdBrand: unique symbol = Symbol(
-  "AgentContextCanonicalId",
-);
-
-export type AgentContextCanonicalId = string & {
-  readonly [AgentContextCanonicalIdBrand]: true;
-};
-
-/**
- * Builds the canonical id for a agent-context contribution:
- * `${featureId}.${name}` (e.g. `canvas.canvas-diff`).
- * Validates each segment; a failure is an app bug.
- */
-function toAgentContextCanonicalId(
-  featureId: string,
-  name: string,
-): AgentContextCanonicalId {
-  assertAgentContextToken("feature id", featureId);
-  assertAgentContextToken("state message name", name);
-  return `${featureId}.${name}` as AgentContextCanonicalId;
-}
-
-function assertAgentContextToken(label: string, token: string): void {
-  const pattern = /^[a-z][a-z0-9_-]*$/;
-  if (!pattern.test(token)) {
-    throw new Error(`Invalid ${label}: ${token}. Expected ${pattern}.`);
-  }
-}
 
 export function registerAgentContextContributions(
   agentContext: AgentContextRegistry,
@@ -128,48 +99,24 @@ function isAppendContribution(
   return contribution.buffer?.kind === "append";
 }
 
-type RegisteredContribution =
-  | RegisteredUpdateContribution
-  | RegisteredAppendContribution
-  | RegisteredMaterializedContribution;
+type AgentContextRegistryMember =
+  | RegisteredAgentContextUpdateContribution
+  | RegisteredAgentContextAppendContribution
+  | ResolvedAgentContextMaterializedContribution;
 
-interface RegisteredContributionBase {
-  featureId: string;
-  contributionId: ContributionId;
-  canonicalId: AgentContextCanonicalId;
-  description: string;
-}
-
-interface RegisteredUpdateContribution extends RegisteredContributionBase {
-  kind: "update";
-  schema: TSchema;
-  materialize?: (input: {
-    value: unknown;
-  }) => MaybePromise<AgentContextMaterialization | undefined>;
+export interface RegisteredAgentContextUpdateContribution extends ResolvedAgentContextUpdateContribution {
   hasValue: boolean;
   value?: unknown;
 }
 
-interface RegisteredAppendContribution extends RegisteredContributionBase {
-  kind: "append";
-  schema: TSchema;
-  materialize?: (input: {
-    values: readonly unknown[];
-  }) => MaybePromise<AgentContextMaterialization | undefined>;
+export interface RegisteredAgentContextAppendContribution extends ResolvedAgentContextAppendContribution {
   values: unknown[];
   inFlight?: { content: string; count: number };
 }
 
-interface RegisteredMaterializedContribution extends RegisteredContributionBase {
-  kind: "materialized";
-  materialize: (
-    ctx: AgentContextMaterializationContext,
-  ) => MaybePromise<AgentContextMaterialization | undefined>;
-}
-
-/** Registry for agent-context contributions. Features pass this to `registerAgentContextContributions`; they never call individual registration methods directly. */
+/** Registry for agent-context contributions. Features pass this to `registerAgentContextContributions`; they never call its register methods directly. */
 export class AgentContextRegistry {
-  readonly registeredContributions: RegisteredContribution[] = [];
+  readonly #contributions: AgentContextRegistryMember[] = [];
 
   register<T extends TSchema>(
     featureId: string,
@@ -190,56 +137,57 @@ export class AgentContextRegistry {
       | AppendContribution<TSchema>
       | MaterializedContribution,
   ): AgentContextUpdater<TSchema> | AgentContextAppender<TSchema> | Disposable {
-    const canonicalId = toAgentContextCanonicalId(featureId, contribution.name);
-    const contributionId = toContributionId(
+    const resolvedContribution = resolveAgentContextContribution(
       featureId,
-      "agent-context",
-      contribution.name,
-    );
-
-    if (
-      this.registeredContributions.some((e) => e.canonicalId === canonicalId)
-    ) {
-      throw new Error(`Agent context already registered: ${canonicalId}`);
-    }
-
-    const registeredContribution = toRegisteredContribution(
-      featureId,
-      canonicalId,
-      contributionId,
       contribution,
     );
-    this.registeredContributions.push(registeredContribution);
+    if (
+      this.#contributions.some(
+        (existing) => existing.canonicalId === resolvedContribution.canonicalId,
+      )
+    ) {
+      throw new Error(
+        `Agent context already registered: ${resolvedContribution.canonicalId}`,
+      );
+    }
+
+    const registryMember =
+      resolvedContribution.kind === "materialized"
+        ? resolvedContribution
+        : createRegisteredBufferedContribution(resolvedContribution);
+    this.#contributions.push(registryMember);
 
     const dispose = (): void => {
-      const index = this.registeredContributions.indexOf(
-        registeredContribution,
-      );
-      if (index !== -1) this.registeredContributions.splice(index, 1);
+      const index = this.#contributions.indexOf(registryMember);
+      if (index !== -1) this.#contributions.splice(index, 1);
     };
 
-    if (registeredContribution.kind === "update") {
+    if (registryMember.kind === "update") {
       return {
         update: (payload: unknown): void => {
-          assertPayloadMatchesSchema(registeredContribution, payload);
-          registeredContribution.hasValue = true;
-          registeredContribution.value = payload;
+          assertPayloadMatchesSchema(registryMember, payload);
+          registryMember.hasValue = true;
+          registryMember.value = payload;
         },
         [Symbol.dispose]: dispose,
       };
     }
 
-    if (registeredContribution.kind === "append") {
+    if (registryMember.kind === "append") {
       return {
         append: (payload: unknown): void => {
-          assertPayloadMatchesSchema(registeredContribution, payload);
-          registeredContribution.values.push(payload);
+          assertPayloadMatchesSchema(registryMember, payload);
+          registryMember.values.push(payload);
         },
         [Symbol.dispose]: dispose,
       };
     }
 
     return { [Symbol.dispose]: dispose };
+  }
+
+  list(): readonly AgentContextRegistryMember[] {
+    return this.#contributions;
   }
 }
 
@@ -248,11 +196,11 @@ export interface AgentContextMessage {
   details?: Record<string, unknown>;
 }
 
-/** Build the stable system-prompt vocabulary for registered context tags. */
-export function buildAgentContextVocabularySection(
+/** Assemble the stable system-prompt vocabulary for registered context tags. */
+export function assembleAgentContextVocabularySection(
   registry: AgentContextRegistry,
 ): string | undefined {
-  const contributions = registry.registeredContributions;
+  const contributions = registry.list();
   if (contributions.length === 0) return undefined;
   return vocabularySection(
     contributions.map((contribution) => ({
@@ -263,19 +211,19 @@ export function buildAgentContextVocabularySection(
 }
 
 /**
- * Build the display-hidden uix.state message from all live agent-context
+ * Assemble the display-hidden uix.state message from all live agent-context
  * contributions. Called by the driver before session.prompt(text) so the
  * entry is ordered before the user message in the session tree.
  *
  * Returns undefined when no sections would be emitted (nothing to flush).
  */
-export async function buildAgentContextMessage(
+export async function assembleAgentContextMessage(
   sessionManager: SessionManager,
   registry: AgentContextRegistry,
 ): Promise<AgentContextMessage | undefined> {
-  const liveContributions = registry.registeredContributions;
+  const liveContributions = registry.list();
   if (liveContributions.length === 0) {
-    log.debug("no_live_contributions");
+    log.debug({}, "no_live_contributions");
     return undefined;
   }
 
@@ -325,7 +273,7 @@ export async function buildAgentContextMessage(
   }
 
   if (sections.length === 0) {
-    log.debug("nothing_changed");
+    log.debug({}, "nothing_changed");
     return undefined;
   }
 
@@ -335,68 +283,34 @@ export async function buildAgentContextMessage(
   return { content, details };
 }
 
-function toRegisteredContribution(
-  featureId: string,
-  canonicalId: AgentContextCanonicalId,
-  contributionId: ContributionId,
+function createRegisteredBufferedContribution(
   contribution:
-    | UpdateContribution<TSchema>
-    | AppendContribution<TSchema>
-    | MaterializedContribution,
-): RegisteredContribution {
-  if (contribution.buffer?.kind === "update") {
-    return {
-      kind: "update",
-      featureId,
-      contributionId: contributionId,
-      canonicalId,
-      description: contribution.description,
-      schema: contribution.buffer.schema,
-      materialize:
-        contribution.materialize as RegisteredUpdateContribution["materialize"],
-      hasValue: false,
-    };
-  }
-
-  if (contribution.buffer?.kind === "append") {
-    return {
-      kind: "append",
-      featureId,
-      contributionId: contributionId,
-      canonicalId,
-      description: contribution.description,
-      schema: contribution.buffer.schema,
-      materialize:
-        contribution.materialize as RegisteredAppendContribution["materialize"],
-      values: [],
-    };
-  }
-
-  const materialized = contribution as MaterializedContribution;
-  return {
-    kind: "materialized",
-    featureId,
-    contributionId: contributionId,
-    canonicalId,
-    description: materialized.description,
-    materialize: materialized.materialize,
-  };
+    | ResolvedAgentContextUpdateContribution
+    | ResolvedAgentContextAppendContribution,
+):
+  | RegisteredAgentContextUpdateContribution
+  | RegisteredAgentContextAppendContribution {
+  return contribution.kind === "update"
+    ? { ...contribution, hasValue: false }
+    : { ...contribution, values: [] };
 }
 
 function assertPayloadMatchesSchema(
-  contribution: RegisteredUpdateContribution | RegisteredAppendContribution,
+  contribution:
+    | RegisteredAgentContextUpdateContribution
+    | RegisteredAgentContextAppendContribution,
   payload: unknown,
 ): void {
   if (!Value.Check(contribution.schema, payload)) {
     const [first] = Value.Errors(contribution.schema, payload);
     throw new Error(
-      `Invalid ${contribution.canonicalId} payload: ${first?.message ?? "schema mismatch"}`,
+      `Invalid ${contribution.canonicalId} payload: ${first.message}`,
     );
   }
 }
 
 async function materializeContribution(
-  contribution: RegisteredContribution,
+  contribution: AgentContextRegistryMember,
   branch: readonly SessionEntry[],
 ): Promise<AgentContextMaterialization | undefined> {
   if (contribution.kind === "update") {
@@ -423,7 +337,9 @@ function defaultMaterialization(value: unknown): AgentContextMaterialization {
 }
 
 function reconcileAppendPersistence(
-  contribution: RegisteredUpdateContribution | RegisteredAppendContribution,
+  contribution:
+    | RegisteredAgentContextUpdateContribution
+    | RegisteredAgentContextAppendContribution,
   lastBody: string | undefined,
 ): void {
   if (contribution.kind !== "append") return;
@@ -441,10 +357,9 @@ function renderSection(
 }
 
 function vocabularySection(
-  configs: readonly Pick<
-    RegisteredContributionBase,
-    "canonicalId" | "description"
-  >[],
+  configs: ReadonlyArray<
+    Pick<ResolvedAgentContextContributionBase, "canonicalId" | "description">
+  >,
 ): string {
   return [
     "## UIX cockpit state messages",

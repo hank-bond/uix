@@ -14,14 +14,14 @@ interface ProviderAuthStatus {
 }
 
 interface ProviderAuthRuntime {
-  getProviders(): readonly {
+  getProviders(): ReadonlyArray<{
     id: string;
     name: string;
     auth: {
       apiKey?: { login?: unknown };
       oauth?: { login?: unknown };
     };
-  }[];
+  }>;
   getProviderAuthStatus(providerId: string): ProviderAuthStatus;
   isUsingOAuth(providerId: string): boolean;
 }

@@ -1,5 +1,6 @@
 ---
 summary: "Feature surfaces load at runtime through the manifest: a `surfaces` facet of entry-file refs, esbuild-bundled ES modules served on the reserved substrate origin (CSP widened to exactly that origin), an import map sharing the page's react/typebox/@uix/api instances, platform CSS module scripts for styles — and no builtin concept anywhere: app-shipped defaults are ordinary manifest references, copied into new workspaces at creation."
+kind: explanation
 read_when: "Read before touching surface contributions, the workspace layout/mount path, the surface module pipeline, feature CSS handling, the page CSP/import map, or anything that wants a compiled-in feature fallback."
 status: accepted
 ---
@@ -31,4 +32,4 @@ status: accepted
 - _Surface names in the backend facet_ (`{ name, entry }`): the same fact stated twice, an agent-facing consistency trap, with no backend consumer that needs names before the frontend loads.
 - _HMR for feature surfaces_: the loop is edit → `/reload`, symmetric with feature backends; a consistent pure-reload dev mode may later replace HMR for the page itself.
 
-Distilled from [workspace-feature-composition](../design/workspace-feature-composition.md); built by [runtime-surface-composition](../plans/runtime-surface-composition.md).
+Distilled from [workspace-feature-composition](../design/workspace-feature-composition.md); built by [runtime-surface-composition](../../plans/archive/runtime-surface-composition.md).

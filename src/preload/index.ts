@@ -9,13 +9,17 @@ import { contextBridge, ipcRenderer } from "electron";
 import { Channels, type ChannelTransport } from "../shared/ipc";
 
 const transport: ChannelTransport = {
-  request: (name, payload) => ipcRenderer.invoke(name, payload),
-  subscribe: (name, handler) => {
-    const listener = (_e: Electron.IpcRendererEvent, payload: unknown) =>
+  request: (channel, payload) => ipcRenderer.invoke(channel, payload),
+  subscribe: (channel, handler) => {
+    const listener = (
+      _e: Electron.IpcRendererEvent,
+      payload: unknown,
+    ): void => {
       handler(payload);
-    ipcRenderer.on(name, listener);
+    };
+    ipcRenderer.on(channel, listener);
     return () => {
-      ipcRenderer.off(name, listener);
+      ipcRenderer.off(channel, listener);
     };
   },
   reload: () => ipcRenderer.invoke(Channels.reload),

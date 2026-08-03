@@ -5,8 +5,9 @@
 // feature id colliding with the namespace fails on the registry's
 // duplicate-scope check.
 
-import { ModelRefSchema } from "@uix/api/agent-channels";
 import { Type } from "typebox";
+
+import { ModelRefSchema } from "@uix/api/agent-channels";
 
 import { defineWorkspaceSettingsNamespace } from "../workspace-settings-namespace";
 

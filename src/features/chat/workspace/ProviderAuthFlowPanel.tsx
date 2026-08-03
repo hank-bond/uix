@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import type {
@@ -22,7 +23,7 @@ export function ProviderAuthFlowPanel({
   method: ProviderAuthMethod;
   flow: ProviderAuthFlowSnapshot;
   controls: AgentControls;
-}) {
+}): JSX.Element {
   const chooseModelRef = useRef<HTMLButtonElement>(null);
   const isRunning =
     flow.phase.type === "starting" || flow.phase.type === "active";
@@ -36,7 +37,7 @@ export function ProviderAuthFlowPanel({
       {isRunning &&
         flow.notices.map((notice, index) => (
           <ProviderAuthNoticeView
-            key={`${notice.type}-${index}`}
+            key={`${notice.type}-${String(index)}`}
             notice={notice}
             flowId={flow.flowId}
             providerName={providerName}
@@ -70,7 +71,9 @@ export function ProviderAuthFlowPanel({
               type="button"
               className="chat-button"
               data-variant="primary"
-              onClick={() => controls.chooseModelForProvider(method.providerId)}
+              onClick={() => {
+                controls.chooseModelForProvider(method.providerId);
+              }}
             >
               Choose a model
             </button>
@@ -134,7 +137,7 @@ function ProviderAuthNoticeView({
   flowId: string;
   providerName: string;
   controls: AgentControls;
-}) {
+}): JSX.Element {
   if (notice.type === "info") {
     return (
       <div className="provider-auth__notice">
@@ -204,7 +207,7 @@ function ProviderAuthLinkButton({
   flowId: string;
   controls: AgentControls;
   fallbackLabel?: string;
-}) {
+}): JSX.Element {
   return (
     <div className="provider-auth__actions">
       <button
@@ -226,7 +229,7 @@ function ProviderAuthPromptView({
   prompt: ProviderAuthPrompt;
   flowId: string;
   controls: AgentControls;
-}) {
+}): JSX.Element {
   const [answer, setAnswer] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -245,7 +248,9 @@ function ProviderAuthPromptView({
                 setIsSubmitting(true);
                 void controls
                   .answerProviderAuthPrompt(flowId, prompt.promptId, option.id)
-                  .catch(() => setIsSubmitting(false));
+                  .catch(() => {
+                    setIsSubmitting(false);
+                  });
               }}
             >
               <span>{option.label}</span>
@@ -270,7 +275,9 @@ function ProviderAuthPromptView({
         setIsSubmitting(true);
         void controls
           .answerProviderAuthPrompt(flowId, prompt.promptId, answer)
-          .catch(() => setIsSubmitting(false));
+          .catch(() => {
+            setIsSubmitting(false);
+          });
       }}
     >
       <label htmlFor={`${prompt.promptId}-answer`}>{prompt.message}</label>
@@ -282,7 +289,9 @@ function ProviderAuthPromptView({
         autoComplete={prompt.secret ? "new-password" : "off"}
         spellCheck={false}
         disabled={isSubmitting}
-        onChange={(event) => setAnswer(event.currentTarget.value)}
+        onChange={(event) => {
+          setAnswer(event.currentTarget.value);
+        }}
       />
       <div className="provider-auth__actions">
         <button

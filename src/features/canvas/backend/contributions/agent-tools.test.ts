@@ -1,5 +1,3 @@
-import { describe, expect, it } from "vitest";
-
 import type {
   ExtensionAPI,
   ExtensionContext,
@@ -7,37 +5,36 @@ import type {
   SessionManager,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
+import { describe, expect, it } from "vitest";
 
-import {
-  AgentContextRegistry,
-  buildAgentContextMessage,
-  buildAgentContextVocabularySection,
-  registerAgentContextContributions,
-} from "#backend/agent-context/registry";
+import { createFeatureEventPublisher } from "@uix/api/channels";
+import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
+import type { FeatureContext } from "@uix/api/feature";
 import { createSystemPromptAssembler } from "#backend/agent/system-prompt";
 import {
-  createAgentToolInstaller,
+  AgentContextRegistry,
+  assembleAgentContextMessage,
+  assembleAgentContextVocabularySection,
+  registerAgentContextContributions,
+} from "#backend/agent-context/registry";
+import {
   AgentToolRegistry,
+  createAgentToolInstaller,
   registerAgentToolContributions,
 } from "#backend/agent-tools/registry";
 import {
-  createTurnStateCoordinator,
   commitCurrentTurnState,
-  TurnStateRegistry,
+  createTurnStateInstaller,
   registerTurnStateContributions,
+  TurnStateRegistry,
 } from "#backend/turn-state/registry";
 
-import { createFeatureEventPublisher } from "@uix/api/channels";
-
-import { CanvasDocumentBuffer } from "../document-buffer";
-import { canvasChannels } from "../../shared/channels";
-import type { CanvasContext } from "../context";
-import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
-import type { FeatureContext } from "@uix/api/feature";
-
+import { createCanvasAgentContextContributions } from "./agent-context";
 import { createCanvasAgentToolContributions } from "./agent-tools";
 import { createCanvasTurnStateContributions } from "./turn-state";
-import { createCanvasAgentContextContributions } from "./agent-context";
+import { canvasChannels } from "../../shared/channels";
+import type { CanvasContext } from "../context";
+import { CanvasDocumentBuffer } from "../document-buffer";
 
 function memoryStore(): DocumentStore {
   const map = new Map<string, string>();
@@ -50,7 +47,7 @@ function memoryStore(): DocumentStore {
     },
     createSnapshot: (docId, meta) => {
       const version: DocumentVersion<typeof meta> = {
-        id: `v${versions.size + 1}`,
+        id: `v${String(versions.size + 1)}`,
         documentId: docId,
         content: map.get(docId) ?? "",
         meta,
@@ -105,7 +102,19 @@ type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
 // The canvas agent tool/turn-state/agent-context contributions and the
 // driver-installed substrate installers wired against an in-memory store and a
 // fake pi handle.
-function setup() {
+function setup(): {
+  store: DocumentStore;
+  tools: Map<string, ToolDefinition>;
+  entries: Array<{ customType: string; data: unknown }>;
+  writebackCanvas: (key: string, html: string) => Promise<void>;
+  inputBoundary: () => Promise<void>;
+  agentEnd: () => Promise<void>;
+  flushContext: () => ReturnType<typeof assembleAgentContextMessage>;
+  vocabPrompt: () => Promise<string>;
+  disposeCanvasState: () => void;
+  disposeCanvasAgentContext: () => void;
+  disposeCanvasAgentTools: () => void;
+} {
   const ctx = fakeCanvasContext();
   const state = new TurnStateRegistry();
   const agentContext = new AgentContextRegistry();
@@ -137,10 +146,10 @@ function setup() {
   const entries: Array<{ customType: string; data: unknown }> = [];
   const branch: SessionEntry[] = [];
 
-  const recordEntry = (customType: string, data: unknown) => {
+  const recordEntry = (customType: string, data: unknown): string => {
     entries.push({ customType, data });
     branch.push({
-      id: `entry-${branch.length + 1}`,
+      id: `entry-${String(branch.length + 1)}`,
       parentId: undefined,
       timestamp: new Date(0).toISOString(),
       type: "custom",
@@ -164,7 +173,7 @@ function setup() {
   } as unknown as ExtensionAPI;
 
   void createAgentToolInstaller(agentTools)(pi);
-  void createTurnStateCoordinator(state)(pi);
+  void createTurnStateInstaller(state)(pi);
 
   // Vocabulary is installed separately — it's the only thing that still uses
   // before_agent_start. The message flush is called directly.
@@ -174,7 +183,7 @@ function setup() {
     },
   } as unknown as ExtensionAPI;
   void createSystemPromptAssembler([
-    () => buildAgentContextVocabularySection(agentContext),
+    () => assembleAgentContextVocabularySection(agentContext),
   ])(vocabPi);
 
   const extCtx = {
@@ -202,7 +211,8 @@ function setup() {
       await agentEndHandlers[0]({}, extCtx as unknown as ExtensionContext);
     },
     /** Build the agent-context flush message directly (no longer via before_agent_start). */
-    flushContext: () => buildAgentContextMessage(sessionManager, agentContext),
+    flushContext: () =>
+      assembleAgentContextMessage(sessionManager, agentContext),
     /** System prompt vocabulary (the only thing before_agent_start does now). */
     vocabPrompt: async () => {
       if (vocabHandlers.length === 0) return "BASE";
@@ -212,9 +222,15 @@ function setup() {
       );
       return result.systemPrompt ?? "BASE";
     },
-    disposeCanvasState: () => canvasState[Symbol.dispose](),
-    disposeCanvasAgentContext: () => canvasAgentContext[Symbol.dispose](),
-    disposeCanvasAgentTools: () => canvasAgentTools[Symbol.dispose](),
+    disposeCanvasState: () => {
+      canvasState[Symbol.dispose]();
+    },
+    disposeCanvasAgentContext: () => {
+      canvasAgentContext[Symbol.dispose]();
+    },
+    disposeCanvasAgentTools: () => {
+      canvasAgentTools[Symbol.dispose]();
+    },
   };
 }
 
@@ -229,7 +245,8 @@ describe("canvas agent tool contributions", () => {
   it("does not surface pane writebacks without turn-state snapshots", async () => {
     const { tools, flushContext, writebackCanvas } = setup();
 
-    const write = tools.get("canvas__anchor_write")!;
+    const write = tools.get("canvas__anchor_write");
+    if (!write) throw new Error("missing canvas__anchor_write tool");
     await write.execute(
       "t1",
       { key: "main", html: "<p>hello</p>" },
@@ -253,7 +270,8 @@ describe("canvas agent tool contributions", () => {
       agentEnd,
     } = setup();
 
-    const write = tools.get("canvas__anchor_write")!;
+    const write = tools.get("canvas__anchor_write");
+    if (!write) throw new Error("missing canvas__anchor_write tool");
     await write.execute(
       "t1",
       { key: "main", html: "<p>hello</p>" },
@@ -282,10 +300,11 @@ describe("canvas agent tool contributions", () => {
       },
     ]);
 
-    const content = (await flushContext())!.content;
-    expect(content).toContain("<canvas.canvas-diff>");
-    expect(content).toContain("## main");
-    expect(content).toContain("goodbye");
+    const content = await flushContext();
+    if (!content) throw new Error("missing flushed context");
+    expect(content.content).toContain("<canvas.canvas-diff>");
+    expect(content.content).toContain("## main");
+    expect(content.content).toContain("goodbye");
   });
 
   it("records canvas snapshot pointers before input and after agent writes", async () => {
@@ -302,7 +321,8 @@ describe("canvas agent tool contributions", () => {
       },
     ]);
 
-    const write = tools.get("canvas__anchor_write")!;
+    const write = tools.get("canvas__anchor_write");
+    if (!write) throw new Error("missing canvas__anchor_write tool");
     await write.execute(
       "t1",
       { key: "main", html: "<p>agent</p>" },

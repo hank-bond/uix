@@ -1,0 +1,6 @@
+extends: existence
+message: "Capitalize UIX when naming the product."
+level: error
+ignorecase: false
+tokens:
+  - '\b(?:uix|Uix)\b(?![./-])'

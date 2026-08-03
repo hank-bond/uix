@@ -1,7 +1,8 @@
 #!/bin/sh
-# Pre-commit: keep generated doc indexes current and Prettier-format staged
-# files. Tracked in-repo and wired via core.hooksPath (see package.json
-# "prepare"), so it's shared and needs no extra dependencies.
+# Pre-commit: keep generated doc indexes current, Prettier-format staged
+# files, and gate commits on a clean type-aware lint. Tracked in-repo and
+# wired via core.hooksPath (see package.json "prepare"), so it's shared and
+# needs no extra dependencies.
 #
 # Caveat: a partially-staged file is formatted as a whole and re-staged, so
 # unstaged hunks in that file get pulled in. Stage whole files, or reach for
@@ -15,10 +16,10 @@ files=$(git diff --cached --name-only --diff-filter=ACMR)
 
 # Regenerate doc indexes from frontmatter when any doc changed, and re-stage
 # the index files. (They're Prettier-ignored, so the format step skips them.)
-if printf '%s\n' "$files" | grep -Eq '^(docs|src/docs|website)/.*\.md$'; then
+if printf '%s\n' "$files" | grep -Eq '^(docs|plans|src/docs|website)/.*\.md$'; then
   node scripts/docs-index.mjs >/dev/null
   git add AGENTS.md docs/decisions/AGENTS.md docs/design/AGENTS.md \
-    docs/architecture/AGENTS.md docs/plans/AGENTS.md src/docs/AGENTS.md \
+    docs/architecture/AGENTS.md plans/AGENTS.md src/docs/AGENTS.md \
     website/AGENTS.md \
     2>/dev/null || true
 fi
@@ -26,3 +27,12 @@ fi
 # Format the staged files in place (respects .prettierignore), then re-stage.
 printf '%s\n' "$files" | xargs ./node_modules/.bin/prettier --write --ignore-unknown
 printf '%s\n' "$files" | xargs git add
+
+# Gate the commit on a clean lint when any JS/TS file is staged. The
+# type-aware rules need the full program anyway, so this is a repo-wide
+# lint of the working tree; a failure aborts the commit so un-linted
+# changes can't land. Mechanical failures (import order, formatting) are
+# fixed by running `npm run lint:fix` and re-staging.
+if printf '%s\n' "$files" | grep -Eq '\.(ts|tsx|mts|cts|js|mjs|cjs)$'; then
+  npm run lint
+fi

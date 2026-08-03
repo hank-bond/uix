@@ -1,55 +1,53 @@
 // typed channel contributions.
 //
 // This is a narrow substrate facet for request/response channels and backend →
-// workspace event publishing. Features declare the channels they handle; the
-// substrate owns registration through the current transport adapter. Today that
-// adapter is Electron IPC, but the contribution model is intentionally
+// workspace event publishing. Features declare request handlers and event
+// schemas. The substrate registers them through the current transport adapter.
+// Today that adapter is Electron IPC, but the contribution model is intentionally
 // transport-neutral.
 
+import { Value } from "typebox/value";
+
+import {
+  type ChannelCanonicalId,
+  resolveChannelRequestContributions,
+  type ResolvedChannelRequestContribution,
+  toChannelCanonicalId,
+} from "@uix/api/channel-resolution";
 import type {
   ChannelContribution,
   ChannelEventLogOptions,
   FeatureEventPublisherFactory,
 } from "@uix/api/channels";
 import { createFeatureEventPublisher } from "@uix/api/channels";
-import {
-  toChannelCanonicalId,
-  type ChannelCanonicalId,
-  type ChannelRegistration,
-} from "@uix/api/channel-normalization";
-import {
-  channelRequestRegistrations,
-  normalizeChannelContribution,
-} from "@uix/api/channel-normalization";
-import { Value } from "typebox/value";
 
 import type { HandleLogOptions } from "../ipc";
-import { DisposableBag, disposable } from "../lifecycle";
+import { disposable, DisposableBag } from "../lifecycle";
 
-export type ChannelTransportHandle = (
+export type ChannelTransportRegistrar = (
   canonicalId: ChannelCanonicalId,
-  fn: (req: unknown) => Promise<unknown>,
+  handler: (req: unknown) => Promise<unknown>,
   logOpts?: HandleLogOptions<unknown, unknown>,
 ) => Disposable;
 
-export type ChannelTransportPublish = (
+export type ChannelTransportPublisher = (
   canonicalId: ChannelCanonicalId,
   payload: unknown,
   logOpts?: ChannelEventLogOptions<unknown>,
 ) => void;
 
 export interface ChannelRegistryOptions {
-  transportHandle: ChannelTransportHandle;
-  publish?: ChannelTransportPublish;
+  transportRegistrar: ChannelTransportRegistrar;
+  publish?: ChannelTransportPublisher;
 }
 
 export class ChannelRegistry {
-  readonly #transportHandle: ChannelTransportHandle;
-  readonly #publish: ChannelTransportPublish;
+  readonly #transportRegistrar: ChannelTransportRegistrar;
+  readonly #publish: ChannelTransportPublisher;
   readonly #canonicalIds = new Set<ChannelCanonicalId>();
 
   constructor(opts: ChannelRegistryOptions) {
-    this.#transportHandle = opts.transportHandle;
+    this.#transportRegistrar = opts.transportRegistrar;
     this.#publish = opts.publish ?? (() => undefined);
   }
 
@@ -62,24 +60,24 @@ export class ChannelRegistry {
   }
 
   register<Req, Res>(
-    channelRegistration: ChannelRegistration<Req, Res>,
+    resolvedContribution: ResolvedChannelRequestContribution<Req, Res>,
   ): Disposable {
-    const { canonicalId } = channelRegistration;
+    const { canonicalId } = resolvedContribution;
     if (this.#canonicalIds.has(canonicalId)) {
       throw new Error(`Channel already registered: ${canonicalId}`);
     }
 
     this.#canonicalIds.add(canonicalId);
-    let transportRegistration: Disposable;
+    let handlerDisposable: Disposable;
     try {
-      transportRegistration = this.#transportHandle(
+      handlerDisposable = this.#transportRegistrar(
         canonicalId,
         async (rawReq) => {
-          const req = Value.Parse(channelRegistration.requestSchema, rawReq);
-          const res = await channelRegistration.handle(req as Req);
-          return Value.Parse(channelRegistration.responseSchema, res);
+          const req = Value.Parse(resolvedContribution.requestSchema, rawReq);
+          const res = await resolvedContribution.handler(req as Req);
+          return Value.Parse(resolvedContribution.responseSchema, res);
         },
-        channelRegistration.log as
+        resolvedContribution.log as
           | HandleLogOptions<unknown, unknown>
           | undefined,
       );
@@ -93,7 +91,7 @@ export class ChannelRegistry {
       if (disposed) return;
       disposed = true;
       try {
-        transportRegistration[Symbol.dispose]();
+        handlerDisposable[Symbol.dispose]();
       } finally {
         this.#canonicalIds.delete(canonicalId);
       }
@@ -117,9 +115,11 @@ export function registerChannelContributions(
           `Feature ${featureId} cannot register channels owned by ${contribution.feature}`,
         );
       }
-      const contract = normalizeChannelContribution(featureId, contribution);
-      for (const registration of channelRequestRegistrations(contract)) {
-        bag.add(registry.register(registration));
+      for (const resolvedContribution of resolveChannelRequestContributions(
+        featureId,
+        contribution,
+      )) {
+        bag.add(registry.register(resolvedContribution));
       }
     }
     return bag;
@@ -147,15 +147,13 @@ export function createFeatureEventPublisherFactory(
           `Feature ${featureId} cannot publish events on channels owned by ${contract.feature}`,
         );
       }
-      return createFeatureEventPublisher(
-        (name, payload, logOpts) =>
-          publisher.publish(
-            toChannelCanonicalId(featureId, name),
-            payload,
-            logOpts,
-          ),
-        contract,
-      );
+      return createFeatureEventPublisher((name, payload, logOpts) => {
+        publisher.publish(
+          toChannelCanonicalId(featureId, name),
+          payload,
+          logOpts,
+        );
+      }, contract);
     },
   };
 }

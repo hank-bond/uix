@@ -9,7 +9,7 @@ import { Type } from "typebox";
 import { Value } from "typebox/value";
 
 import {
-  createResourceAddressBuilder,
+  createResourceAddressHandle,
   type ResourceRouteParamValue,
   type ResourceUrl,
 } from "@uix/api/resources";
@@ -72,7 +72,7 @@ export const CanvasResourceQuerySchema = Type.Object({
   v: Type.Optional(Type.String()),
 });
 
-const canvasResourceAddress = createResourceAddressBuilder({
+const canvasResourceAddressHandle = createResourceAddressHandle({
   featureId: "canvas",
   name: CanvasResourceName,
   path: "/:key*",
@@ -81,7 +81,7 @@ const canvasResourceAddress = createResourceAddressBuilder({
 });
 
 /** Normalized route for the resource contribution. */
-export const CanvasResourceRoute = canvasResourceAddress.route;
+export const CanvasResourceRoute = canvasResourceAddressHandle.route;
 
 export function parseCanvasKeyRouteParam(
   value: ResourceRouteParamValue | undefined,
@@ -99,7 +99,7 @@ export function toResourceUrl(
   key: CanvasKey,
   token?: number,
 ): ResourceUrl {
-  return canvasResourceAddress.url({
+  return canvasResourceAddressHandle.toUrl({
     workspaceId,
     params: { key: key.split("/") },
     query: token === undefined ? {} : { v: String(token) },
@@ -107,5 +107,5 @@ export function toResourceUrl(
 }
 
 export function toResourceOrigin(workspaceId: string): string {
-  return canvasResourceAddress.origin(workspaceId);
+  return canvasResourceAddressHandle.toOrigin(workspaceId);
 }

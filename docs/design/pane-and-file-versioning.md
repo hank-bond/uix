@@ -1,5 +1,6 @@
 ---
-summary: "Exploring versioning, history, and rollback of pane documents and optionally the user's working tree — both git-backed and linked to pi's conversation tree (the anchored edit channel in front of this is the sibling canvas-data-channel thread)."
+summary: "Exploring managed-document history and optional workspace checkpoints across version backends, retention, preview, non-destructive rollback, Git state, and cwd transitions."
+kind: explanation
 status: exploring
 ---
 
@@ -7,73 +8,89 @@ status: exploring
 
 ## Current synthesis
 
-**Frame.** This is the layer _behind_ the [canvas-data-channel](./canvas-data-channel.md) document-store seam (`getCurrent` / `setCurrent` / `createSnapshot`). The channel only needs current content + diff; this thread is how versions persist, branch with pi's conversation tree, and roll back. Two stores — the **owned pane store** (always on) and the **opt-in user-file store** — are **wholly separate implementations** that share only two things: **git as the backend**, and a small **conversation-node meta slot**. Everything else (who writes, cadence, branching mechanics, restore safety, gc domain) differs, because one tree we own and the other we borrow.
+### Implemented baseline
 
-**Why git at all.** For panes there is no existing version control, so we'd otherwise hand-roll content-addressing, dedup, and gc — git already is that. For files, the content-addressed store _already exists_ (`.git`), so the alternative would be reimplementing git beside the user's real git. Either way the answer is git; the only variable is which git primitive, which differs by who owns the working tree.
+The implemented document substrate stores mutable current bytes and immutable JSON versions behind `DocumentStore`. Canvas turn state points from each resource id to a version id, so Pi's branch graph selects document state without duplicating document bytes.
 
-**Owned pane store (`.uix`).** A **bare git repo** driven by **plumbing, not porcelain and not stash** (`hash-object` / `mktree` / `commit-tree` / `update-ref`). git shas play the "content hash / object id" role; line anchors stay assigned single-token IDs (the channel's concern, not git's). Properties:
+Canvas versions include anchored metadata. Restoration therefore recovers content and anchor continuity together. Missing metadata can degrade to regenerated anchors without making that fallback authoritative.
 
-- **Emergent branching, not a mirrored tree.** Conversation nodes hold `{docId: sha}` pointers; pi's conversation tree is the _only_ place branch structure lives. A new edit after a rollback commits with the selected node's sha as parent — two children of one commit _is_ a branch in the DAG, drawn by parent links. We never maintain git branches that mirror the conversation tree (that would be two trees to keep in sync). Copy-on-write falls out: unchanged panes just carry the same sha to the next node.
-- **gc off.** pi never deletes conversation branches, so the graph is append-only and permanent; set `gc.auto=0` and let `.uix/objects` grow monotonically (small text). Per-tip refs become optional — the conversation nodes are the index — though a thin ref namespace is cheap if enumeration wants it.
-- **Commit meta carries the editor's anchor state.** A version is commit-like — content ref plus `{anchorMap, allocIndex}` meta — because anchor state is a function of the document's edit history up to that commit (see Log 2026-06-09). Git's commit object is the natural home; blobs stay content-addressed and deduped underneath, and the version id names the commit, not the content hash.
-- **Latest is separate from snapshots.** The rendered canvas opens from the mutable latest working file, which every iframe writeback and canvas tool updates. Snapshots are immutable git versions; they become durable branch state only when a `uix.turn-state` session entry points at them. If implementation creates git objects for intermediate writebacks, they are ephemeral until referenced, so undo/rollback history stays run-boundary-sized rather than keystroke-sized.
-- **Restore is free/safe** because we own every write; checkout hands the channel's editor content **and** anchors as one consistent unit, and the editor re-derives anchors from content only as the degraded fallback (renumbered; the edit match-guard catches stale historical anchors).
+A buffer remains a live feature-owned projection over a store. Versioning belongs behind the store interface; surfaces and agent tools should not depend on local version-file paths.
 
-**Opt-in user-file store (the project's own repo).** Configurable, off by default. Requires the project be a git repo; **no rollback for out-of-project files**.
+### Two authorities, not one rollback promise
 
-- **Non-destructive snapshot primitive.** Not `git stash` push (reverts the working tree), not `git stash create` (non-destructive and returns a commit, but misses untracked files and leaves an unreffed, prunable commit), and not the index (one slot → only one level deep, which is why staging-to-checkpoint caps out). Instead, create the snapshot through a **scratch index** so the user's real staging area is untouched: `GIT_INDEX_FILE=$tmp git add -A` → `write-tree` → `commit-tree -p <prev>` → `update-ref`. This captures untracked/new files, respects `.gitignore` (no build junk), is arbitrarily deep, and never disturbs the working tree.
-- **Cadence = per run, not per agent turn.** A snapshot is created at **user-submit** (the pre-run baseline = end of previous run + any human edits) and at **rollback-initiation** (capture the trailing state before jumping away, so nothing is ever lost). Interruptions aren't their own trigger — partial state folds into the next baseline. This is coarser than the pane store (which versions per agent edit) by design: file snapshots commit at run boundaries, while pane versions commit continuously.
-- **Emergent branching** via the same parent-chaining (parent each snapshot off the previous), so file history rides the conversation tree like the pane store, and you only need a ref per branch tip (these commits live in the _user's_ gc domain, so refs keep them reachable).
-- **Restore is non-destructive by construction:** create-snapshot-then-apply. Rolling back first creates a current-working-tree snapshot, then applies the target — so even the user's own uncommitted edits are recoverable. This supersedes any "refuse on dirty / divert to worktree" guard. Restore stays a deliberate, user-driven action; _auto-restore never happens_.
-- **Async labels.** Snapshots are auto-created unlabeled; the user clicks any snapshot in the UI and names it whenever (labels are mutable app/meta state, never baked into git ref or object names). A labeled snapshot signals "keep this" → promote it to a durable `refs/uix/checkpoints/<name>`; unlabeled per-run snapshots stay thin/prunable. Labels are what the branch/rollback picker shows (prompt text isn't memorable).
-- **Manual checkpoint = a pinned per-run snapshot.** Same objects; "checkpoint now / review the delta since" is just labeling, plus `git diff <snapshot>` (working tree vs mark) or `git diff <a> <b>` (between marks).
+UIX owns managed document history, while the user's Git working tree remains externally owned. These stores may share checkpoint coordination, but they do not share write authority, retention, restore safety, or garbage collection.
 
-**Resource coordinates.** Durable refs use URI-like resource ids when the resource is substrate-managed and an explicit workspace scheme when the resource is cwd-bound:
+Managed documents can guarantee atomic restoration of content and feature metadata because every write crosses their store. Workspace files also have external writers, ignored paths, staging state, and working-directory coordinates. A combined action must not imply atomic reversal unless a coordinator can state and enforce that guarantee.
 
-- `doc://canvas/main` — a managed document-engine resource in the canvas namespace; cwd-invariant, resolved by the document engine/content store.
-- `workspace://src/main.ts` — a workspace file resource; interpreted relative to the `cwd` recorded on the same turn-state entry.
+### Managed-document history proposal
 
-Agent-facing tools may keep ergonomic inputs (`main`, `src/main.ts`), but session state and cross-substrate events use resource ids so managed documents cannot collide with real workspace paths. `cwd` records the coordinate system for workspace resources; immutable snapshot ids record the content/state and can later be materialized into a different cwd/worktree.
+Git remains a candidate backend, not a settled decision. The original proposal used a UIX-owned bare repository and plumbing operations such as `hash-object`, `mktree`, `commit-tree`, and `update-ref`. Git objects would provide content addressing, deduplication, parentage, and packing without exposing repository paths to callers.
 
-**Shared contract — the conversation-node meta slot.** The single coupling between stores, owned by the central UIX turn-state coordinator (`src/main/turn-state/`) rather than by ad-hoc facet hooks. Each contribution reads/writes **only its own opaque JSON-serializable state**, keyed by feature/contribution id; the coordinator never interprets that state:
+Conversation branches should not be mirrored as Git branches. A turn-state cell can point from each resource id to an immutable version. Parent links between versions provide emergent branching when an edit follows a restored ancestor. Pi's graph remains the only user-visible branch structure.
 
-```
-uix.turn-state = {
-  cwd,                                           // substrate-owned: the agent cwd at this turn
-  state: {                                      // one opaque payload per state contribution
-    "canvas":    { "doc://canvas/main": <snapshotId>, ... },
-    "uix.files"?: { "workspace://src/main.ts": <snapshotId>, ... },
-    ...
-  }
-}
-```
+A document version must identify content and feature-owned metadata together. For Canvas, anchor map and allocation index belong to the same version as the bytes. Restoring only one half would produce stale historical anchors or a false edit guard.
 
-Two invariants: heavy contribution state should hold **stable refs, not payload copies** (a beefy doc rides a `snapshotId` into the content store, never inlined — that is what keeps the session JSONL thin and lets the git store stay sufficient), and the **same contribution that writes state provides the restore/preview hook** for it. Small inline JSON state is allowed. The coordinator is store-blind; only the contribution resolves or applies its state. `cwd` is substrate-owned because the content store is id-addressed and path-unaware, so the destination mapping for a workspace-bound restore needs the turn's cwd coordinate. Since the `state` object is already scoped to the state registry, feature contribution ids can be simple (`canvas`); substrate-owned contributions keep the `uix.*` namespace. See Log 2026-06-21.
+Mutable current state remains separate from immutable versions. Human and Agent writes update the working document, while run-boundary state records which immutable version became branch-visible. Intermediate versions may exist without becoming conversation checkpoints.
 
-**Run boundaries are the durable sync points** for both stores. At user submit, before the user message is appended: pending _human_ surface edits are already in latest, the pane and file snapshots are created, the node's contribution state is written, and any model-visible hidden context derived from that state is appended before the user message — one coherent moment. Surface _agent_ edits update latest continuously during the run, but become branch-visible as a post-run surface snapshot at `agent_end` (if anything changed). The other snapshot trigger, rollback-initiation, is symmetric: capture-before-you-leave.
+If Git is used, retention cannot rely on process-local reachability. The design must decide whether session references, a derived ref namespace, or explicit checkpoint refs keep versions alive. Automatic Git garbage collection must not silently invalidate durable session pointers.
 
-**Workspace files and external writes are future work.** `workspace://` resources imply a harder substrate than `doc://` resources: UIX writes must persist both to the snapshot store and to the workspace file, while external writes require a filesystem watcher that suppresses UIX's own writes, detects out-of-process edits, routes them through document-kind normalization, and avoids normalize/write/watch loops. That is the right eventual interoperability path for another agent or UIX instance writing through files, but it is not in the current canvas work. Today canvas documents are UIX-owned managed docs under `.uix`; the current architecture should preserve `resourceId`, `sourceId`, document kinds, write events, and projection listeners so the watcher-backed workspace store can plug in later.
+### Optional workspace-checkpoint proposal
 
-**Cwd transitions materialize refs, not history.** Old turns keep their recorded cwd as historical truth. If the user forks or moves the agent to a new worktree/cwd, the substrate must create a current-state snapshot before leaving, materialize the selected node's current `workspace://` refs into the destination cwd, reinitialize the agent against that cwd, and record the new cwd on the next `uix.turn-state`. It should materialize the relevant refs at the selected node, not every file ever mentioned in the tree. `doc://` resources are simpler: their snapshots are cwd-invariant and resolve through the document engine regardless of the agent cwd.
+Workspace checkpoints must not use `git stash push` because it mutates the working tree. `git stash create` is also insufficient by itself: it omits untracked files and leaves an unreferenced object.
 
-**Rollback model.** Stepping the conversation tree is a transient _preview_ (shows the panes/files for a node so the user picks a restore point visually). Rollback is one graph interaction with append-only actions, each optionally summarized: **conversation-only** (new pi branch from the node, don't commit previewed pane/file state); **pane-only** (stay at current head, copy the node's pane content into a new commit); **files** (snapshot-then-restore the working tree from the node's `userSnapshot`); **both/all** (new pi branch + check out the node's pointers). No action mutates old conversation nodes or commits.
+The retained proposal uses a scratch index. Set `GIT_INDEX_FILE` to a temporary index, add the working tree, write a tree, create a parented commit, and update a UIX-owned ref. This can capture tracked and untracked non-ignored files without touching the user's real index or working tree.
 
-**Hosting compatibility.** Both seams survive the move to hosted/VM: a bare git repo is an excellent hosting-compatible object store (push/pull, volume-backed, post-commit hook → the change-feed/pub-sub), and the user workspace stays a snapshot-able git volume. This builds directly on [hosting-compatible-by-default](../decisions/2026-05-31-hosting-compatible-by-default.md).
+Checkpoint cadence should be coarse. Capture a pre-run baseline after human edits and capture again before applying an older checkpoint. Interruptions can fold into the next baseline rather than creating a snapshot for every partial event.
 
-## Open questions / spikes
+Restore remains non-destructive by construction: capture the state being left, then apply the target. A user can recover the pre-restore working tree even when it contained uncommitted edits.
 
-1. git library vs shelling out — prefer in-process (isomorphic-git or a libgit2 binding) so it runs identically local + hosted and doesn't fork per commit. Spike both stores against it.
-2. Owned store: a **ref per doc** vs a **path-in-tree** per doc. Refs branch more naturally with the conversation tree; paths give simpler multi-doc atomic commits.
-3. ~~Exact commit metadata shape (`docId`, parents, author, optional summary) and precisely where conversation nodes store the pointers in UIX-owned pi sessions.~~ **Resolved 2026-06-06:** pointers live as a `CustomEntry` (`uix.canvas-versions`, `{ panes: { docId: versionId } }`) parent-linked into pi's session tree — we annotate pi's tree, not a parallel one. See [session-file-as-state-substrate](../decisions/2026-06-06-session-file-as-state-substrate.md). Commit metadata shape for the git-backed store (spike 1 below) is still open.
-4. User-file store: do we plant `refs/uix/...` for _auto_ (unlabeled) per-run snapshots to survive the user's gc, or accept that auto snapshots are ephemeral and only _labeled_ ones get durable refs? (Lean: ephemeral auto, durable on label — minimal footprint in the user's repo.)
-5. Rollback UI: how the conversation-only / pane-only / files / all actions are presented, and whether restore offers in-place vs into-a-worktree.
-6. Pane-revision conflict handling: results expose commit ids for observability; do conflict-sensitive calls also accept an optional expected commit id, or is reject-on-stale-anchor-intersection enough?
+Automatic snapshots and named checkpoints may have different retention. A label can pin a durable ref, while unlabeled run snapshots may follow a bounded retention policy. Labels are application metadata rather than Git object names, so they can change without rewriting history.
+
+### Shared turn-state contract
+
+Heavy state belongs behind stable refs, not inside session JSONL. Each turn-state cell owns its schema, snapshot, and restore behavior. The coordinator validates and persists opaque cell values without understanding document or Git internals.
+
+Run boundaries are durable synchronization points. Before a user run, each participating authority captures stable state, then the session records the refs. After an Agent run, changed managed documents can establish the baseline that the Agent most recently observed.
+
+Workspace resources need cwd-aware coordinates, while managed document ids remain cwd-independent. A future `workspace://` identity should record a path relative to the turn's working-directory coordinate. A `doc://` identity continues to resolve through its content store in any worktree.
+
+A working-directory transition should capture state before leaving and materialize only the selected node's relevant workspace refs into the destination. Historical turns keep their original cwd as part of their coordinate system.
+
+### Preview and rollback
+
+Preview must not silently become restore. Selecting an old conversation node can display historical managed documents or workspace state without changing current authority. A later action explicitly chooses what to carry forward.
+
+The retained action split is:
+
+- **Conversation only:** Branch from the selected Pi node without applying previewed document or workspace state.
+- **Managed documents only:** Copy selected versions into new current versions while staying at the current conversation head.
+- **Workspace files:** Capture the current tree, then apply the selected workspace checkpoint.
+- **Explicit combination:** Coordinate conversation, documents, and files while reporting any authority that cannot participate.
+
+Every action appends new state. No rollback action mutates historical session entries or version objects.
+
+### Hosting constraint
+
+Any backend must preserve stable ids, immutable versions, and a change feed without making local paths authoritative. A bare Git repository can satisfy that constraint locally or on a volume, but hosted object storage can implement the same store contract. The choice remains behind the document and checkpoint interfaces.
+
+## Open questions
+
+- Does managed document history need Git semantics, or are immutable store versions with explicit parent metadata sufficient?
+- Should one managed-document version cover multiple resources atomically, or should each resource retain an independent parent graph?
+- What keeps session-referenced versions reachable, and what retention applies after branches become unreachable?
+- How should preview expose historical documents without mutating current buffers or triggering ordinary change effects?
+- Can scratch-index checkpoints preserve submodules, sparse checkouts, file modes, and platform-specific paths without surprising behavior?
+- Which automatic snapshots receive refs, and when may unlabeled snapshots be pruned?
+- How do restore conflicts interact with external writers or another UIX process?
+- What cwd and worktree metadata must accompany a workspace checkpoint?
 
 ## Spawns
 
-- Parent design thread: [canvas-data-channel](./canvas-data-channel.md) (the anchored channel in front of this seam; units P0–U2).
-- Decisions: [hosting-compatible-by-default](../decisions/2026-05-31-hosting-compatible-by-default.md) is the landed constraint; the git-backend + two-store split becomes its own decision once the spikes above resolve.
-- Plan: build units U5–U6 (pane versioning + rollback) and U7 (opt-in user-file rollback), sequenced _after_ the P0–U2 channel proof per the value-first ordering.
+- Parent design: [`canvas-data-channel.md`](./canvas-data-channel.md).
+- Rollback vocabulary: [`rollback-boundaries.md`](./rollback-boundaries.md).
+- Hosting constraint: [`2026-05-31-hosting-compatible-by-default.md`](../decisions/2026-05-31-hosting-compatible-by-default.md).
+- Session pointer decision: [`2026-06-06-session-file-as-state-substrate.md`](../decisions/2026-06-06-session-file-as-state-substrate.md).
+- Active implementation context: [`persistence-and-session-foundation.md`](../../plans/persistence-and-session-foundation.md).
 
 ## Log
 
@@ -103,7 +120,7 @@ Out of the durable-identity walk ([conversation-render-primitives](./conversatio
 
 ### 2026-06-06 — session file resolves the pointer-home question
 
-Researched pi's session file format: an append-only JSONL tree where every entry has `{id, parentId}` and pi ships `CustomEntry`/`CustomMessageEntry` for arbitrary extension state. This **is** the conversation-node meta slot — `{docId: sha/versionId}` pointers ride pi's tree as `CustomEntry` (resolving open-Q #3), so the "emergent branching off conversation nodes" model needs no parallel tree. Write access requires holding pi's `ExtensionAPI` (`appendEntry`), which forces promoting UIX-core bindings from `customTools` to an in-process pi extension — captured in [session-file-as-state-substrate](../decisions/2026-06-06-session-file-as-state-substrate.md). The git-backed owned-pane store from this thread stays the impl behind the versioned `DocumentStore` seam (plan C2); spikes 1–6 above (git library, ref-per-doc vs path-in-tree, etc.) are still open and gate that store specifically. Build sequencing now lives in [persistence-and-session-foundation](../plans/persistence-and-session-foundation.md) (C2 store, C3 pointers, C4 anchor continuity, C5 rollback = this thread's U5–U6).
+Researched pi's session file format: an append-only JSONL tree where every entry has `{id, parentId}` and pi ships `CustomEntry`/`CustomMessageEntry` for arbitrary extension state. This **is** the conversation-node meta slot — `{docId: sha/versionId}` pointers ride pi's tree as `CustomEntry` (resolving open-Q #3), so the "emergent branching off conversation nodes" model needs no parallel tree. Write access requires holding pi's `ExtensionAPI` (`appendEntry`), which forces promoting UIX-core bindings from `customTools` to an in-process pi extension — captured in [session-file-as-state-substrate](../decisions/2026-06-06-session-file-as-state-substrate.md). The git-backed owned-pane store from this thread stays the impl behind the versioned `DocumentStore` seam (plan C2); spikes 1–6 above (git library, ref-per-doc vs path-in-tree, etc.) are still open and gate that store specifically. Build sequencing now lives in [persistence-and-session-foundation](../../plans/persistence-and-session-foundation.md) (C2 store, C3 pointers, C4 anchor continuity, C5 rollback = this thread's U5–U6).
 
 ### 2026-06-02 — split out from canvas-data-channel
 

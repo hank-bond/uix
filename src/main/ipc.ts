@@ -4,9 +4,9 @@
 // is the inbound chokepoint (invoke endpoints), `send()` the outbound one
 // (pushes to a window). The wire log lives here too, module-private, so the
 // only way to produce a wire-log line is to actually cross the wire — the
-// log can be neither dodged nor spoofed. Project policy (enforced by
-// convention for now, eslint later): no direct `ipcMain.handle` or
-// `webContents.send` outside this module.
+// log can be neither dodged nor spoofed. Project policy, enforced for these
+// known calls by ESLint: no direct `ipcMain.handle` or `webContents.send`
+// outside this module.
 //
 // Each crossing is captured twice, in the `ipc` log space:
 //  - terminal (`ipc` component): the payload itself, rendered by the shared
@@ -56,7 +56,7 @@ export function initLogFile(stateRoot: string): void {
   log.info({ path }, "ipc_log_file");
 }
 
-/** Per-registration wire-log policy. The boundary itself is payload-agnostic. */
+/** Per-handler wire-log policy. The boundary itself is payload-agnostic. */
 export interface HandleLogOptions<Req, Res> {
   /** Substitute recorded in place of the raw request. */
   describeRequest?: (req: Req) => unknown;
@@ -93,7 +93,9 @@ export function handle<Req, Res>(
       throw err;
     }
   });
-  return disposable(() => ipcMain.removeHandler(channel));
+  return disposable(() => {
+    ipcMain.removeHandler(channel);
+  });
 }
 
 /** Per-send wire-log policy. The boundary itself is payload-agnostic. */

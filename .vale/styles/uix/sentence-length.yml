@@ -1,0 +1,27 @@
+extends: script
+message: "This sentence is over 25 words; split it."
+level: error
+scope: raw
+script: |
+  text := import("text")
+  fmt := import("fmt")
+
+  matches := []
+  // Whole file minus frontmatter and fenced code blocks.
+  document := text.re_replace("(?s)^-{3}.*?-{3}", scope, "")
+  document = text.re_replace("(?s)```.*?```", document, "")
+
+  for line in text.split(document, "\n") {
+    // Table rows are lookup cells, not prose sentences.
+    if text.has_prefix(text.trim_space(line), "|") { continue }
+    for sentence in text.re_split("[.!?]+[*_`]*\\s+", line) {
+      sentence = text.trim_space(sentence)
+      // Strip inline markup so word counts reflect prose, not syntax.
+      clean := text.re_replace("[*_`]", sentence, "")
+      words := len(text.fields(clean))
+      if words > 25 {
+        start := text.index(scope, sentence)
+        matches = append(matches, {begin: start, end: start + len(sentence), message: fmt.sprintf("This sentence is %d words; the max is 25. Split it.", words)})
+      }
+    }
+  }

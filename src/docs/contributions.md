@@ -1,5 +1,6 @@
 ---
-summary: "FeatureDefinition.contribute returns facet contributions for resources, channels, agent tools, Agent system-prompt sections, Pi skills, turn state, agent context, and surfaces; the substrate registers each facet under the feature id with reload-scoped lifetimes."
+summary: "FeatureDefinition.contribute returns feature-owned resource, channel, agent, state, context, and surface facets under reload-scoped lifetimes."
+kind: reference
 status: active
 ---
 
@@ -12,6 +13,7 @@ interface FeatureContributions {
   resources?: readonly ResourceContribution[];
   channels?: readonly ChannelContribution[];
   agentTools?: readonly AgentToolContribution[];
+  agentToolOverrides?: readonly AgentToolOverrideContribution[];
   agentSystemPrompt?: string;
   agentSkills?: readonly string[];
   turnState?: TurnStateContributions;
@@ -20,18 +22,20 @@ interface FeatureContributions {
 }
 ```
 
-The substrate registers every facet under the owning feature id. That id prefixes contribution namespaces and is the identity used for diagnostics and cleanup.
+The substrate registers every facet under the owning feature id. That id prefixes contribution namespaces and identifies diagnostics and cleanup.
+
+Ordinary agent tools reach Pi as `${featureId}__${name}`. The separate `agentToolOverrides` facet keeps exact authored names for intentional replacements and application vocabulary.
 
 ## Current facets
 
-- **Resources** — route handlers for `uix-resource://...` URLs.
-- **Channels** — typed backend request handlers plus backend-published events.
-- **Agent tools** — pi tool definitions installed into the owned agent session.
-- **Agent system prompt** — one stable Markdown section per feature, appended in manifest order when the Pi runtime starts or reloads.
-- **Agent skills** — Pi skill files or directories resolved relative to the feature entry file and supplied through Pi's `resources_discover` lifecycle.
-- **Turn state** — named, schema-bound cells of branch-scoped private state. Each cell creates and restores one complete JSON snapshot independently under a substrate-derived id such as `canvas.documents`; the coordinator commits only changed snapshots.
-- **Agent context** — model-visible hidden context sections materialized at agent-run prep.
-- **Surfaces** — frontend surface entry files, resolved relative to the feature entry's directory; each module default-exports a `defineSurface(...)` result.
+- **Resources:** Route handlers for `uix-resource://...` URLs. A `ResourceContribution` stores its callback as `handler`; the substrate resolves owner-scoped ids before the resource registry makes the resource live.
+- **Channels:** Typed backend request handlers plus backend-published events.
+- **Agent tools:** Pi tool definitions installed into the owned agent session. The substrate resolves owner-scoped ids and final Pi names before making each tool live. `agentTools` are always feature-namespaced; `agentToolOverrides` intentionally register exact names. A competing exact-name claim fails and rolls back the later feature's activation rather than silently selecting an implementation. UIX starts Pi without active built-in tools, so every available coding tool comes from the workspace's explicit feature composition.
+- **Agent system prompt:** One stable Markdown section per feature, appended in manifest order when the Pi runtime starts or reloads.
+- **Agent skills:** Pi skill files or directories resolved relative to the feature entry file and supplied through Pi's `resources_discover` lifecycle.
+- **Turn state:** Named, schema-bound cells of branch-scoped private state. Each cell creates and restores one complete JSON snapshot independently under a substrate-derived id such as `canvas.documents`; the coordinator commits only changed snapshots.
+- **Agent context:** Model-visible hidden context sections materialized at agent-run prep.
+- **Surfaces:** Frontend surface entry files, resolved relative to the feature entry's directory; each module exports `surface`, a `defineSurface(...)` result.
 
 Turn-state cells use one TypeBox schema for both directions:
 
@@ -54,12 +58,14 @@ turnState: {
 
 The Agent system-prompt section is for short, always-relevant feature semantics and authoring contracts. It is static for one Pi runtime and should not carry per-turn state; use agent context for that. Larger task-specific workflows belong in a skill so Pi can advertise only its description and let the Agent load the full `SKILL.md` on demand. UIX does not parse skills: Pi owns discovery, validation, catalog formatting, and loading.
 
-A surface's `styles` sheets are wrapped in `@scope ([data-uix-surface="<name>"])` when the substrate adopts them at mount, so write selectors unscoped — they cannot reach other surfaces or the cockpit chrome. The exception is name-global at-rules (`@font-face`, `@keyframes`, `@property`): CSS gives their names one document-wide space no scoping can contain, so prefix those names with your feature (e.g. `"UIX Iosevka"`).
+At mount, the substrate wraps surface stylesheets in `@scope ([data-uix-surface="<name>"])`. Write selectors unscoped because they cannot reach other surfaces or cockpit chrome.
+
+Name-global at-rules remain an exception. CSS gives `@font-face`, `@keyframes`, and `@property` one document-wide namespace. Prefix those names with the feature, for example `"UIX Iosevka"`.
 
 Surface refs are strings in the contribution because the surface pipeline bundles them on demand from disk:
 
 ```ts
-export default {
+export const feature = {
   id: "hello",
   contribute() {
     return {
@@ -71,7 +77,13 @@ export default {
 
 ## Lifetimes
 
-Each feature activation gets a per-feature `DisposableBag`. The substrate enrolls the provisional settings scope and each facet registration in that bag; grouped item/facet registration cleans up everything already acquired if a later registration throws. Only a complete activation produces an activated feature instance that joins the active feature composition. Reload disposes that composition before activating replacement feature instances, while a failed activation disposes only its own provisional bag and does not abort siblings. A feature author does not receive the bag directly; cleanup is owned by the substrate registration path.
+Each feature activation gets a per-feature `DisposableBag`. The substrate adds the provisional settings handle and every returned facet capability to that bag.
+
+Grouped registration cleans up acquired capabilities if a later operation throws. Only a complete activation produces an instance in the active composition.
+
+Reload disposes that composition before activating replacements. A failed activation disposes only its provisional bag and does not abort siblings.
+
+Feature authors do not receive the bag directly. The substrate registration path owns cleanup.
 
 There is no command-palette contribution API today.
 

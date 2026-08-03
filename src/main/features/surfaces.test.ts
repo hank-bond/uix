@@ -1,18 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { registerSurfaceContributions, SurfaceRegistry } from "./surfaces";
+import {
+  registerSurfaceContributions,
+  resolveSurfaceContributions,
+  SurfaceRegistry,
+} from "./surfaces";
 
 describe("SurfaceRegistry", () => {
   it("resolves relative refs against the entry dir and keeps absolute refs", () => {
-    const registry = new SurfaceRegistry();
-    registerSurfaceContributions(
-      registry,
+    const resolvedContributions = resolveSurfaceContributions(
       "hello",
       ["./workspace/surface.tsx", "/abs/other.tsx"],
       "/ws/features/hello",
     );
 
-    expect(registry.list()).toEqual([
+    expect(resolvedContributions).toEqual([
       {
         featureId: "hello",
         entry: "/ws/features/hello/workspace/surface.tsx",
@@ -26,7 +28,7 @@ describe("SurfaceRegistry", () => {
     ]);
   });
 
-  it("lists in registration order across features", () => {
+  it("lists in manifest and declaration order across features", () => {
     const registry = new SurfaceRegistry();
     registerSurfaceContributions(registry, "a", ["./one.tsx"], "/ws/a");
     registerSurfaceContributions(
@@ -45,10 +47,15 @@ describe("SurfaceRegistry", () => {
 
   it("disposal removes only the disposed feature's entries", () => {
     const registry = new SurfaceRegistry();
-    const a = registerSurfaceContributions(registry, "a", ["./a.tsx"], "/ws");
+    const surfacesDisposable = registerSurfaceContributions(
+      registry,
+      "a",
+      ["./a.tsx"],
+      "/ws",
+    );
     registerSurfaceContributions(registry, "b", ["./b.tsx"], "/ws");
 
-    a[Symbol.dispose]();
+    surfacesDisposable[Symbol.dispose]();
 
     expect(registry.list()).toEqual([
       { featureId: "b", entry: "/ws/b.tsx", featureRoot: "/ws" },
@@ -56,9 +63,8 @@ describe("SurfaceRegistry", () => {
   });
 
   it("rejects empty surface refs", () => {
-    const registry = new SurfaceRegistry();
-    expect(() =>
-      registerSurfaceContributions(registry, "hello", [""], "/ws"),
-    ).toThrow("Feature hello has an invalid surface entry ref");
+    expect(() => resolveSurfaceContributions("hello", [""], "/ws")).toThrow(
+      "Feature hello has an invalid surface entry ref",
+    );
   });
 });

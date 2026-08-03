@@ -1,8 +1,7 @@
 // agent driver.
 //
-// Wraps Pi's `AgentSessionRuntime` and normalizes each active session's live
-// event stream into the same transcript item model used
-// for persisted history replay in src/shared/ipc.ts.
+// Owns Pi's `AgentSessionRuntime` lifecycle and coordinates the selected
+// session, services, feature state, transcript observation, and agent controls.
 //
 // Why dynamic `import()`: pi is an ESM-only package and the main bundle
 // is CJS. A static `import` would be rewritten to `require()` by the
@@ -12,21 +11,21 @@
 // IDE/typechecker without any runtime cost.
 //
 // Lifetime management uses the conventions in src/main/lifecycle.ts:
-// every cleanup-requiring registration goes into the driver's
-// DisposableBag, and disposing the driver tears everything down at
+// every returned cleanup capability goes into the driver's DisposableBag,
+// and disposing the driver tears everything down at
 // once.
 
 import { join } from "node:path";
 
 import type {
   AgentSession,
-  AgentSessionEvent,
   AgentSessionRuntime,
   AgentSessionServices,
   CreateAgentSessionRuntimeFactory,
   ModelRuntime,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
+
 import type {
   AgentEvent,
   AgentStatus,
@@ -38,54 +37,42 @@ import type {
   ProviderAuthType,
   SessionHistoryResponse,
   SessionSummary,
-  TranscriptItem,
 } from "@uix/api/agent-channels";
 import type { SettingsHandleFrom } from "@uix/api/settings";
 
-import {
-  buildAgentContextMessage,
-  buildAgentContextVocabularySection,
-  type AgentContextRegistry,
-} from "../agent-context/registry";
-import {
-  createAgentSkillInstaller,
-  type AgentSkillRegistry,
-} from "../agent-skills/registry";
-import {
-  buildAgentSystemPromptSection,
-  type AgentSystemPromptRegistry,
-} from "../agent-system-prompt/registry";
-import { DisposableBag, subscribe } from "../lifecycle";
-import { createLogger } from "../log";
-import type { TurnStateRegistry } from "../turn-state/registry";
-import type { Workspace } from "../workspace";
-
 import { deriveProviderAuthCatalog } from "./auth-providers";
-import { createProviderAuthFlowCoordinator } from "./provider-auth-flow";
 import { deriveSelectedBranchProjection } from "./branch-projection";
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
+import { createProviderAuthFlowCoordinator } from "./provider-auth-flow";
 import { resolveSessionFileById } from "./session-files";
-import {
-  sessionWorkspaceSettings,
-  type SelectedSessionSetting,
-} from "./session-settings";
+import type { sessionWorkspaceSettings } from "./session-settings";
+import { type SelectedSessionSetting } from "./session-settings";
 import {
   readRecentSessionSummaries,
   readSessionSummary,
 } from "./session-summary";
-import { agentWorkspaceSettings } from "./settings";
+import type { agentWorkspaceSettings } from "./settings";
 import { createSystemPromptAssembler } from "./system-prompt";
+import { createEphemeralTranscriptItemId } from "./transcript";
+import { createTranscriptObserver } from "./transcript-observer";
+import { createTurnStateCoordinator } from "./turn-state-coordinator";
 import {
-  extractTranscriptText,
-  getMessageRole,
-  parseCustomTranscriptItem,
-  toIpcValue,
-} from "./transcript";
+  type AgentContextRegistry,
+  assembleAgentContextMessage,
+  assembleAgentContextVocabularySection,
+} from "../agent-context/registry";
 import {
-  createTranscriptItemIdentity,
-  type TranscriptItemIdentity,
-} from "./transcript-item-identity";
-import { createTurnStateLifecycle } from "./turn-state-lifecycle";
+  type AgentSkillRegistry,
+  createAgentSkillInstaller,
+} from "../agent-skills/registry";
+import {
+  type AgentSystemPromptRegistry,
+  assembleAgentSystemPromptSection,
+} from "../agent-system-prompt/registry";
+import { DisposableBag } from "../lifecycle";
+import { createLogger } from "../log";
+import type { TurnStateRegistry } from "../turn-state/registry";
+import type { Workspace } from "../workspace";
 
 const MaxSessionTitleCodePoints = 4096;
 const log = createLogger("agent");
@@ -133,8 +120,8 @@ export interface AgentDriver extends Disposable {
   listModels(): Promise<ModelCatalog>;
   /** Persist a favorite update and return the refreshed available model catalog. */
   setModelFavorite(update: ModelFavoriteUpdate): Promise<ModelCatalog>;
-  /** Live session model (when known) plus the workspace default. */
-  status(): AgentStatus;
+  /** Current execution cwd plus live/default model state. */
+  getStatus(): AgentStatus;
   /**
    * Validate against pi's available models, persist as the workspace
    * default, and — when a live session exists — switch it via
@@ -177,7 +164,7 @@ export interface AgentDriverOptions {
   agentSettings?: SettingsHandleFrom<typeof agentWorkspaceSettings>;
   /** Durable identity for the workspace's selected session. */
   sessionSettings?: SettingsHandleFrom<typeof sessionWorkspaceSettings>;
-  /** Fired whenever live/default model status changes. */
+  /** Fired whenever current agent status changes. */
   onStatusChange?: (status: AgentStatus) => void;
   /** Opens only URLs supplied by the active Pi auth provider. */
   openExternal: (url: string) => void | Promise<void>;
@@ -189,7 +176,9 @@ export interface AgentDriverOptions {
 
 export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   const driverBag = new DisposableBag();
-  const sessionBag = new DisposableBag();
+  const transcriptObserver = driverBag.add(
+    createTranscriptObserver({ emit: opts.onEvent }),
+  );
 
   // The bootstrap manager stays cheap and auth-free so startup history does
   // not create a model registry or load extensions. The runtime remains lazy
@@ -211,14 +200,10 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   let currentModel: ModelRef | undefined;
   let disposed = false;
 
-  const transcriptItemIdentityByManager = new WeakMap<
-    SessionManager,
-    TranscriptItemIdentity
-  >();
   const sessionDir = join(opts.workspace.stateRoot, ".uix", "sessions");
-  const turnStateLifecycle = opts.turnState
+  const turnStateCoordinator = opts.turnState
     ? driverBag.add(
-        createTurnStateLifecycle({
+        createTurnStateCoordinator({
           registry: opts.turnState,
           cwd: opts.workspace.agentCwd,
         }),
@@ -226,8 +211,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     : undefined;
 
   const agentInstallers = [...(opts.agentInstallers ?? [])];
-  if (turnStateLifecycle) {
-    agentInstallers.push(turnStateLifecycle.agentInstaller);
+  if (turnStateCoordinator) {
+    agentInstallers.push(turnStateCoordinator.agentInstaller);
   }
   if (opts.agentSkills) {
     agentInstallers.push(createAgentSkillInstaller(opts.agentSkills));
@@ -238,10 +223,10 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     agentInstallers.push(
       createSystemPromptAssembler([
         ...(systemPromptRegistry
-          ? [() => buildAgentSystemPromptSection(systemPromptRegistry)]
+          ? [() => assembleAgentSystemPromptSection(systemPromptRegistry)]
           : []),
         ...(contextRegistry
-          ? [() => buildAgentContextVocabularySection(contextRegistry)]
+          ? [() => assembleAgentContextVocabularySection(contextRegistry)]
           : []),
       ]),
     );
@@ -304,16 +289,17 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     }),
   );
 
-  function status(): AgentStatus {
+  function getStatus(): AgentStatus {
     const defaultModel = opts.agentSettings?.get("defaultModel");
     return {
+      cwd: opts.workspace.agentCwd,
       ...(currentModel && { model: currentModel }),
       ...(defaultModel && { defaultModel }),
     };
   }
 
   function emitStatus(): void {
-    opts.onStatusChange?.(status());
+    opts.onStatusChange?.(getStatus());
   }
 
   function getFavoriteModels(): ModelRef[] {
@@ -368,8 +354,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     if (disposed) return Promise.reject(new Error("Agent driver is disposed"));
     if (
       bootstrapManager &&
-      (!turnStateLifecycle ||
-        turnStateLifecycle.isRestorationSettled(bootstrapManager))
+      (!turnStateCoordinator ||
+        turnStateCoordinator.isRestorationSettled(bootstrapManager))
     ) {
       return Promise.resolve(bootstrapManager);
     }
@@ -377,11 +363,11 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       return inFlightBootstrapTurnStateRestore;
     }
 
-    const registrySnapshot = turnStateLifecycle?.toRegistrySnapshot();
+    const registrySnapshot = turnStateCoordinator?.toRegistrySnapshot();
     const restoration = getBootstrapManager()
       .then(async (manager) => {
-        if (registrySnapshot && turnStateLifecycle) {
-          await turnStateLifecycle.restore(manager, registrySnapshot);
+        if (registrySnapshot && turnStateCoordinator) {
+          await turnStateCoordinator.restore(manager, registrySnapshot);
         }
         if (disposed) throw new Error("Agent driver is disposed");
         return manager;
@@ -427,49 +413,31 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     return manager;
   }
 
-  function getOrObserveTranscriptItemIdentity(
-    manager: SessionManager,
-  ): TranscriptItemIdentity {
-    const existing = transcriptItemIdentityByManager.get(manager);
-    if (existing) return existing;
-
-    const identity = createTranscriptItemIdentity();
-    identity.onUserMessage((durableId, message) => {
-      const text = extractTranscriptText(message);
-      if (!text) return;
-      opts.onEvent({
-        type: "transcript_append",
-        item: { id: durableId, kind: "user", text },
+  async function bindActiveSession(session: AgentSession): Promise<void> {
+    transcriptObserver.bindSession(session);
+    try {
+      await session.bindExtensions({
+        onError: (error) => {
+          log.error(
+            {
+              extension: error.extensionPath,
+              extensionEvent: error.event,
+              err: error.error,
+              stack: error.stack,
+            },
+            "extension_runtime_error",
+          );
+        },
       });
-    });
-    // Pi persists after message_end and has no post-persist event, so this must
-    // wrap the manager before the AgentSession receives it.
-    identity.observe(manager);
-    transcriptItemIdentityByManager.set(manager, identity);
-    return identity;
-  }
-
-  function bindActiveSession(session: AgentSession): void {
-    const identity = transcriptItemIdentityByManager.get(
-      session.sessionManager,
-    );
-    if (!identity) {
-      throw new Error(
-        "Session manager transcript-item identity is unavailable",
-      );
+    } catch (error) {
+      transcriptObserver.unbindSession();
+      throw error;
     }
 
-    sessionBag.clear();
     currentModel = session.model
       ? { provider: session.model.provider, id: session.model.id }
       : undefined;
     emitStatus();
-    sessionBag.add(
-      subscribe<AgentSessionEvent>(
-        session,
-        createLiveTranscriptForwarder(opts.onEvent, identity),
-      ),
-    );
   }
 
   async function openRuntime(): Promise<AgentSessionRuntime> {
@@ -477,7 +445,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     const initialManager = await restoreBootstrapTurnState();
     // The bootstrap request may have become obsolete while its manager opened.
     // Runtime creation still requires the currently active cells to be settled.
-    await turnStateLifecycle?.restoreCurrent(initialManager);
+    await turnStateCoordinator?.restoreCurrent(initialManager);
     let initialRuntimeCreated = false;
 
     const createRuntime: CreateAgentSessionRuntimeFactory = async ({
@@ -486,7 +454,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       sessionManager,
       sessionStartEvent,
     }) => {
-      getOrObserveTranscriptItemIdentity(sessionManager);
+      transcriptObserver.instrumentSessionManager(sessionManager);
       // The first runtime consumes any services already opened by model/auth
       // UI. Replacement generations recreate Pi's cwd-bound resources.
       const sessionServices = initialRuntimeCreated
@@ -518,6 +486,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         sessionManager,
         ...(sessionStartEvent && { sessionStartEvent }),
         ...(initialModel && { model: initialModel }),
+        noTools: "builtin",
       });
       initialRuntimeCreated = true;
       return {
@@ -537,15 +506,15 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       throw new Error("Agent driver is disposed");
     }
     openedRuntime.setBeforeSessionInvalidate(() => {
-      sessionBag.clear();
+      transcriptObserver.unbindSession();
       currentModel = undefined;
-      turnStateLifecycle?.clearRestoration();
+      turnStateCoordinator?.clearRestoration();
     });
     openedRuntime.setRebindSession(async (session) => {
-      bindActiveSession(session);
-      await turnStateLifecycle?.restoreCurrent(session.sessionManager);
+      await bindActiveSession(session);
+      await turnStateCoordinator?.restoreCurrent(session.sessionManager);
     });
-    bindActiveSession(openedRuntime.session);
+    await bindActiveSession(openedRuntime.session);
     return openedRuntime;
   }
 
@@ -574,6 +543,17 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     return opening;
   }
 
+  // Reloads the live runtime when one is in use. Re-reads the current state on
+  // each call so a runtime opened concurrently while awaiting is observed.
+  async function reloadActiveRuntime(): Promise<boolean> {
+    if (runtime || inFlightRuntimeOpen) {
+      const activeRuntime = runtime ?? (await getRuntime());
+      await activeRuntime.session.reload();
+      return true;
+    }
+    return false;
+  }
+
   return {
     init() {
       // Fire the eager manager load and state restore; swallow rejection here
@@ -582,7 +562,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       void restoreBootstrapTurnState().catch(() => {});
     },
 
-    status,
+    getStatus,
     listModels,
 
     async setModelFavorite({ provider, id, favorite }) {
@@ -621,11 +601,14 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     getCurrentProviderAuthFlow: () => providerAuth.getCurrentSnapshot(),
     beginProviderAuthFlow: (providerId, authType) =>
       providerAuth.begin(providerId, authType),
-    answerProviderAuthFlow: (flowId, promptId, value) =>
-      providerAuth.answer(flowId, promptId, value),
+    answerProviderAuthFlow: (flowId, promptId, value) => {
+      providerAuth.answer(flowId, promptId, value);
+    },
     openProviderAuthLink: (flowId, linkId) =>
       providerAuth.openLink(flowId, linkId),
-    cancelProviderAuthFlow: (flowId) => providerAuth.cancel(flowId),
+    cancelProviderAuthFlow: (flowId) => {
+      providerAuth.cancel(flowId);
+    },
 
     async selectModel(ref) {
       const modelRuntime = await getModelRuntime();
@@ -645,7 +628,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         currentModel = { provider: ref.provider, id: ref.id };
       }
       emitStatus();
-      return status();
+      return getStatus();
     },
 
     async sessionHistory(sessionId) {
@@ -674,7 +657,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         session,
         transcript: deriveSelectedBranchProjection(
           manager.getBranch(),
-          turnStateLifecycle?.toRegistrySnapshot(),
+          manager.getHeader()?.cwd || manager.getCwd(),
+          turnStateCoordinator?.toRegistrySnapshot(),
         ).transcript,
       };
     },
@@ -684,16 +668,16 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
 
     async commitFeatureTurnState() {
       if (disposed) throw new Error("Agent driver is disposed");
-      if (!turnStateLifecycle) return true;
+      if (!turnStateCoordinator) return true;
       const manager = runtime?.session.sessionManager ?? bootstrapManager;
-      return turnStateLifecycle.commitIfReady(manager);
+      return turnStateCoordinator.commitIfReady(manager);
     },
 
     async restoreFeatureTurnState() {
       if (disposed) throw new Error("Agent driver is disposed");
       const manager =
         runtime?.session.sessionManager ?? (await getBootstrapManager());
-      await turnStateLifecycle?.restoreCurrent(manager);
+      await turnStateCoordinator?.restoreCurrent(manager);
       commitSessionSelection(await readSessionSummary(manager));
     },
 
@@ -705,7 +689,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         );
       }
 
-      await turnStateLifecycle?.commit(activeRuntime.session.sessionManager);
+      await turnStateCoordinator?.commit(activeRuntime.session.sessionManager);
       const result = await activeRuntime.newSession();
       if (result.cancelled) {
         throw new Error("New session was cancelled");
@@ -733,7 +717,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       const sessionFile = await resolveSessionFileById(sessionDir, sessionId);
       if (!sessionFile) throw new Error(`Unknown session: ${sessionId}`);
 
-      await turnStateLifecycle?.commit(currentManager);
+      await turnStateCoordinator?.commit(currentManager);
       const result = await activeRuntime.switchSession(sessionFile);
       if (result.cancelled) {
         throw new Error("Session switch was cancelled");
@@ -772,21 +756,13 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     async reloadPiResources() {
       // Reload only tiers already in use. A live session owns Pi's native
       // extension rebind; before a session exists, recreate the coherent
-      // services tier so extension provider registrations cannot accumulate.
-      if (runtime || inFlightRuntimeOpen) {
-        const activeRuntime = runtime ?? (await getRuntime());
-        await activeRuntime.session.reload();
-        return true;
-      }
+      // services tier so extension provider hooks cannot accumulate.
+      if (await reloadActiveRuntime()) return true;
       if (!preRuntimeServices && !inFlightServicesCreate) return false;
       await getServices();
       // A concurrent prompt may have consumed the pre-runtime generation while
       // reload waited for it. In that case the live session owns resource reload.
-      if (runtime || inFlightRuntimeOpen) {
-        const activeRuntime = runtime ?? (await getRuntime());
-        await activeRuntime.session.reload();
-        return true;
-      }
+      if (await reloadActiveRuntime()) return true;
       preRuntimeServices = undefined;
       await getServices();
       return true;
@@ -808,13 +784,13 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         // so branch navigation to the gap before a user message still has the
         // state explaining that turn.  We write both before calling
         // session.prompt(text).
-        if (turnStateLifecycle) {
-          log.trace("submitting_turn_state");
-          await turnStateLifecycle.commit(session.sessionManager);
+        if (turnStateCoordinator) {
+          log.trace({}, "submitting_turn_state");
+          await turnStateCoordinator.commit(session.sessionManager);
         }
         if (opts.agentContext) {
-          log.trace("building_agent_context");
-          const message = await buildAgentContextMessage(
+          log.trace({}, "building_agent_context");
+          const message = await assembleAgentContextMessage(
             session.sessionManager,
             opts.agentContext,
           );
@@ -843,7 +819,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         opts.onEvent({
           type: "transcript_append",
           item: {
-            id: liveId("error"),
+            id: createEphemeralTranscriptItemId("error"),
             kind: "error",
             message: errorMessage(err),
           },
@@ -859,7 +835,6 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       disposed = true;
       const activeRuntime = runtime;
       driverBag[Symbol.dispose]();
-      sessionBag[Symbol.dispose]();
       inFlightRuntimeOpen = undefined;
       runtime = undefined;
       inFlightBootstrapManagerOpen = undefined;
@@ -869,7 +844,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       preRuntimeServices = undefined;
       currentModel = undefined;
       if (activeRuntime) {
-        void activeRuntime.dispose().catch((err) => {
+        void activeRuntime.dispose().catch((err: unknown) => {
           log.warn(
             { err: err instanceof Error ? err.message : String(err) },
             "runtime_dispose_failed",
@@ -888,182 +863,10 @@ function normalizeSessionTitle(title: string | null): string {
   }
   if (Array.from(normalized).length > MaxSessionTitleCodePoints) {
     throw new Error(
-      `Session title cannot exceed ${MaxSessionTitleCodePoints} Unicode code points`,
+      `Session title cannot exceed ${String(MaxSessionTitleCodePoints)} Unicode code points`,
     );
   }
   return normalized;
-}
-
-function createLiveTranscriptForwarder(
-  emit: (e: AgentEvent) => void,
-  identity: TranscriptItemIdentity,
-) {
-  let assistant: Extract<TranscriptItem, { kind: "assistant" }> | undefined;
-  const tools = new Map<string, Extract<TranscriptItem, { kind: "tool" }>>();
-
-  function append(item: TranscriptItem): void {
-    emit({ type: "transcript_append", item });
-  }
-
-  function replace(item: TranscriptItem): void {
-    emit({ type: "transcript_replace", item });
-  }
-
-  function ensureAssistant(): Extract<TranscriptItem, { kind: "assistant" }> {
-    if (assistant) return assistant;
-    assistant = {
-      id: liveId("assistant"),
-      kind: "assistant",
-      text: "",
-      complete: false,
-    };
-    append(assistant);
-    return assistant;
-  }
-
-  return (event: AgentSessionEvent): void => {
-    switch (event.type) {
-      case "agent_start":
-        emit({ type: "agent_start" });
-        return;
-
-      case "turn_start":
-        emit({ type: "turn_start" });
-        return;
-
-      case "turn_end":
-        emit({ type: "turn_end" });
-        return;
-
-      case "message_start":
-        if (getMessageRole(event.message) === "assistant") ensureAssistant();
-        return;
-
-      case "message_update": {
-        const inner = event.assistantMessageEvent;
-        if (inner.type === "text_delta") {
-          // Accumulate locally (message_end falls back to this text when the
-          // final message extracts empty) but ship only the increment; the
-          // renderer accumulates its copy from partials.
-          const current = ensureAssistant();
-          assistant = { ...current, text: current.text + inner.delta };
-          emit({
-            type: "transcript_partial",
-            id: current.id,
-            text: inner.delta,
-          });
-        }
-        return;
-      }
-
-      case "message_end": {
-        const role = getMessageRole(event.message);
-        if (role === "assistant") {
-          const current = ensureAssistant();
-          const finalText =
-            extractTranscriptText(event.message) || current.text;
-          // Final content lands under the pre-key handle first, so display
-          // never depends on the append wrapper; the rekey replace follows
-          // in the same tick when pi persists this exact message object.
-          const final = { ...current, text: finalText, complete: true };
-          replace(final);
-          assistant = undefined;
-          identity.expectMessageKey(event.message, (durableId) => {
-            emit({
-              type: "transcript_replace",
-              item: { ...final, id: durableId },
-              previousId: final.id,
-            });
-          });
-          return;
-        }
-
-        // Displayed custom messages don't stream, so hold the row one tick
-        // and append it already keyed when pi persists the entry (pi never
-        // hands the manager the CustomMessage object, so there is no handle
-        // path to correlate a rekey through).
-        const custom = parseCustomTranscriptItem("pending", event.message);
-        if (custom) {
-          identity.expectCustomEntry((durableId) => {
-            append({ ...custom, id: durableId });
-          });
-        }
-        return;
-      }
-
-      case "tool_execution_start": {
-        // Born keyed: pi persisted the assistant message (with this row's
-        // toolCall block) before execution started, so the durable replay
-        // derivation is already known. The liveId fallback only fires if pi
-        // reorders persistence, degrading to a pre-key row.
-        const item = {
-          id: identity.toolRowId(event.toolCallId) ?? liveId("tool"),
-          kind: "tool" as const,
-          toolCallId: event.toolCallId,
-          toolName: event.toolName,
-          args: toIpcValue(event.args),
-          complete: false,
-        };
-        tools.set(event.toolCallId, item);
-        append(item);
-        return;
-      }
-
-      case "tool_execution_update": {
-        // Tool partials are tool-defined replacement snapshots (e.g. bash
-        // ships its bounded output tail every ~100ms), so forward the payload
-        // alone — no point resending the row's args on every tick. The stored
-        // row stays as appended; the completion replace discards partials.
-        const current = tools.get(event.toolCallId);
-        if (!current) return;
-        emit({
-          type: "transcript_partial",
-          id: current.id,
-          partialResult: toIpcValue(event.partialResult),
-        });
-        return;
-      }
-
-      case "tool_execution_end": {
-        const existing = tools.get(event.toolCallId);
-        const current =
-          existing ??
-          ({
-            id: identity.toolRowId(event.toolCallId) ?? liveId("tool"),
-            kind: "tool" as const,
-            toolCallId: event.toolCallId,
-            toolName: event.toolName,
-            complete: false,
-          } satisfies Extract<TranscriptItem, { kind: "tool" }>);
-        const item: Extract<TranscriptItem, { kind: "tool" }> = {
-          id: current.id,
-          kind: "tool",
-          toolCallId: current.toolCallId,
-          toolName: event.toolName,
-          complete: true,
-          args: current.args,
-          result: toIpcValue(event.result),
-          isError: event.isError,
-        };
-        tools.delete(event.toolCallId);
-        if (existing) replace(item);
-        else append(item);
-        return;
-      }
-
-      case "agent_end":
-        emit({ type: "agent_end" });
-        return;
-
-      default:
-        return;
-    }
-  };
-}
-
-let nextLiveId = 1;
-function liveId(kind: string): string {
-  return `live:${kind}:${nextLiveId++}`;
 }
 
 function errorMessage(err: unknown): string {

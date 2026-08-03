@@ -1,0 +1,11 @@
+{
+  "name": "chat",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "hast-util-to-jsx-runtime": "^2.3.6",
+    "react-markdown": "^10.1.0",
+    "refractor": "^5.0.0",
+    "remark-gfm": "^4.0.1"
+  }
+}

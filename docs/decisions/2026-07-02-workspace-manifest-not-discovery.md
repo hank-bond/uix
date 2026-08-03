@@ -1,5 +1,6 @@
 ---
 summary: "A workspace is a directory anywhere on disk defined by its uix.workspace.json manifest — an explicit ordered list of feature entry-file references (relative or absolute) that replaces auto-discovery entirely; the App (the running Electron application) opens manifests via a start picker, and the workspace roots derive from the manifest's directory."
+kind: explanation
 read_when: "Read before touching feature loading, workspace resolution, discovery/roots code, or the start/picker flow — root scanning is retired and the manifest is the one source of composition truth."
 status: accepted
 ---
@@ -24,4 +25,4 @@ status: accepted
 - _A central `~/.uix/features/` materialization for defaults_: creates a template-update policy problem and isn't workspace-scoped; scaffolding at workspace creation stamps templates once and never fights user/agent edits.
 - _Package-dir references in v1_: the `package.json` layer only earned its place under discovery (as the marker/manifest the scanner needed); with explicit references it's ceremony, deferred to the folder-reference upgrade.
 
-Supersedes the discovery/roots portions of [features-are-the-loadable-unit](./2026-07-01-features-are-the-loadable-unit.md) (its `.uix/features/` roots, side-effect-free scan, and `uix.features` package-manifest key); that decision's core — the `FeatureDefinition` export shape, one registration path, reload symmetry, the `@uix/api` contract, reserved ids — stands. Distilled from [workspace-feature-composition](../design/workspace-feature-composition.md); built by [workspace-manifest-and-picker](../plans/workspace-manifest-and-picker.md).
+Supersedes the discovery/roots portions of [features-are-the-loadable-unit](./2026-07-01-features-are-the-loadable-unit.md) (its `.uix/features/` roots, side-effect-free scan, and `uix.features` package-manifest key); that decision's core — the `FeatureDefinition` export shape, one registration path, reload symmetry, the `@uix/api` contract, reserved ids — stands. Distilled from [workspace-feature-composition](../design/workspace-feature-composition.md); built by [workspace-manifest-and-picker](../../plans/archive/workspace-manifest-and-picker.md).

@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 import {
   useEffect,
   useId,
@@ -11,15 +12,19 @@ import type { ModelCatalogEntry } from "@uix/api/agent-channels";
 import { useActionContribution } from "@uix/api/workspace";
 
 import type { AgentControls } from "./agent-controls";
+import { createModelActions } from "./model-actions";
 import {
   filterModels,
   getModelsForScope,
   type ModelPickerScope,
   toModelSource,
 } from "./model-filter";
-import { createModelActions } from "./model-actions";
 
-export function ModelPill({ controls }: { controls: AgentControls }) {
+export function ModelPill({
+  controls,
+}: {
+  controls: AgentControls;
+}): JSX.Element {
   const actions = useMemo(
     () => createModelActions(controls.openModelPicker),
     [controls.openModelPicker],
@@ -28,7 +33,7 @@ export function ModelPill({ controls }: { controls: AgentControls }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const current = controls.status?.model ?? controls.status?.defaultModel;
   const currentOption = controls.models?.find(
-    (model) => model.provider === current?.provider && model.id === current?.id,
+    (model) => model.provider === current?.provider && model.id === current.id,
   );
   return (
     <div className="model-pill">
@@ -73,7 +78,7 @@ function ModelPicker({
   onConnect: () => void;
   onClose: () => void;
   onScopeChange: (scope: ModelPickerScope) => void;
-}) {
+}): JSX.Element {
   const [error, setError] = useState<string>();
   const [query, setQuery] = useState(initialQuery);
   const [favoritePending, setFavoritePending] = useState(false);
@@ -91,11 +96,13 @@ function ModelPicker({
   }, []);
 
   useEffect(() => {
-    const onPointerDown = (event: PointerEvent) => {
+    const onPointerDown = (event: PointerEvent): void => {
       if (!rootRef.current?.contains(event.target as Node)) onClose();
     };
     document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
   }, [onClose]);
 
   const activeScope = scope;
@@ -143,14 +150,14 @@ function ModelPicker({
     scopeScrollPositions.current.set(scope, list.scrollTop);
   }, [controls.models, current, query, scope]);
 
-  const switchScope = (nextScope: ModelPickerScope) => {
+  const switchScope = (nextScope: ModelPickerScope): void => {
     if (listRef.current) {
       scopeScrollPositions.current.set(activeScope, listRef.current.scrollTop);
     }
     onScopeChange(nextScope);
   };
 
-  const select = async (model: ModelCatalogEntry) => {
+  const select = async (model: ModelCatalogEntry): Promise<void> => {
     setError(undefined);
     try {
       await controls.selectModel(model);
@@ -159,7 +166,7 @@ function ModelPicker({
     }
   };
 
-  const toggleFavorite = async (model: ModelCatalogEntry) => {
+  const toggleFavorite = async (model: ModelCatalogEntry): Promise<void> => {
     setError(undefined);
     setFavoritePending(true);
     try {
@@ -189,7 +196,9 @@ function ModelPicker({
           type="button"
           className="model-picker__tab"
           aria-pressed={activeScope === "favorites"}
-          onClick={() => switchScope("favorites")}
+          onClick={() => {
+            switchScope("favorites");
+          }}
         >
           Favorites
         </button>
@@ -197,7 +206,9 @@ function ModelPicker({
           type="button"
           className="model-picker__tab"
           aria-pressed={activeScope === "all"}
-          onClick={() => switchScope("all")}
+          onClick={() => {
+            switchScope("all");
+          }}
         >
           All models
         </button>
@@ -211,7 +222,9 @@ function ModelPicker({
         className="model-picker__input"
         placeholder="search models…"
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onChange={(event) => {
+          setQuery(event.target.value);
+        }}
         onKeyDown={(event) => {
           if (event.key === "Enter" && filtered.length > 0) {
             void select(filtered[0]);

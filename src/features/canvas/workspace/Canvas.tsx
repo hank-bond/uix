@@ -4,32 +4,33 @@
 // Human edits flow back to the store via postMessage writeback.
 // The channel client is provided by the surface host via props.
 
+import type { JSX } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { agentChannels } from "@uix/api/agent-channels";
 import {
+  type ChannelClient,
   createChannelClient,
   useWorkspaceClient,
-  type ChannelClient,
 } from "@uix/api/workspace";
 
-import {
-  toResourceOrigin,
-  toResourceUrl,
-  type CanvasKey,
-} from "../shared/addressing";
-import { canvasChannels } from "../shared/channels";
 import {
   forwardCanvasFrameMessage,
   parseCanvasFrameMessage,
 } from "./frame-messages";
+import {
+  type CanvasKey,
+  toResourceOrigin,
+  toResourceUrl,
+} from "../shared/addressing";
+import type { canvasChannels } from "../shared/channels";
 
 export interface CanvasProps {
   canvasKey: CanvasKey;
   client: ChannelClient<typeof canvasChannels>;
 }
 
-export function Canvas({ canvasKey, client }: CanvasProps) {
+export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
   const workspace = useWorkspaceClient();
   const agent = useMemo(
     () => createChannelClient(workspace, agentChannels),
@@ -52,7 +53,7 @@ export function Canvas({ canvasKey, client }: CanvasProps) {
     // origin, this exact iframe window, and this canvas key. The origin is
     // feature-scoped rather than per-document.
     const origin = toResourceOrigin(workspace.workspaceId);
-    const onMessage = (event: MessageEvent) => {
+    const onMessage = (event: MessageEvent): void => {
       if (event.origin !== origin) return;
       if (event.source !== frameRef.current?.contentWindow) return;
       const message = parseCanvasFrameMessage(event.data, canvasKey);
@@ -64,7 +65,9 @@ export function Canvas({ canvasKey, client }: CanvasProps) {
       );
     };
     window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("message", onMessage);
+    };
   }, [agent, client, canvasKey, workspace.workspaceId]);
 
   return (

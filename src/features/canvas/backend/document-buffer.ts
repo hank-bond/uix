@@ -8,16 +8,16 @@
 // Operations keep the canonical-form invariant by normalizing content before it
 // reaches the core and persisting plain, un-anchored HTML as current content.
 
+import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
+
 import {
   type AnchoredChange,
-  type AnchoredEdit,
-  type AnchoredDocumentSnapshot,
-  type AnchoredLine,
   AnchoredDocument,
+  type AnchoredDocumentSnapshot,
+  type AnchoredEdit,
+  type AnchoredLine,
   diffAnchoredSnapshots,
 } from "./anchors/document";
-
-import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
 import { canonicalizeHtml } from "./normalize";
 
 export interface DocumentVersionMeta {

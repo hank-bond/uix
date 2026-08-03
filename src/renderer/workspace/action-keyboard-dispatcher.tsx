@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 import { useEffect } from "react";
 
 import { useActionRegistry } from "./action-context";
@@ -15,7 +16,7 @@ interface KeyboardEventTarget {
   ): void;
 }
 
-export function ActionKeyboardDispatcher() {
+export function ActionKeyboardDispatcher(): JSX.Element | null {
   const registry = useActionRegistry();
 
   useEffect(() => {
@@ -64,16 +65,12 @@ export function bindActionKeyboardDispatcher(
     if (event.repeat || claimants.length !== 1) return;
 
     const [claimant] = claimants;
-    if (!claimant) return;
     void registry.invoke(claimant.id, "keyboard").catch(() => undefined);
   };
 
   target.addEventListener("keydown", onKeyDown);
-  let active = true;
   return {
     [Symbol.dispose]() {
-      if (!active) return;
-      active = false;
       target.removeEventListener("keydown", onKeyDown);
     },
   };
@@ -85,7 +82,6 @@ function hasEditableGlobalModifier(event: KeyboardEvent): boolean {
 
 function isEditableEventTarget(event: KeyboardEvent): boolean {
   return event.composedPath().some((candidate) => {
-    if (!candidate || typeof candidate !== "object") return false;
     const element = candidate as {
       readonly isContentEditable?: boolean;
       readonly tagName?: unknown;

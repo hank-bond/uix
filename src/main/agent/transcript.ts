@@ -12,15 +12,25 @@ import type {
   TranscriptSnapshot,
 } from "@uix/api/agent-channels";
 
-// The single definition of a tool row's durable id. Live rows
-// (transcript-item-identity.ts) and history replay (below) must derive
-// byte-identical ids; otherwise state keyed against one would miss the other.
+import { deriveToolFileLocation } from "./tool-file-location";
+import { asTurnStateEntryData } from "../turn-state/registry";
+
+/** Derives the durable id for one tool row within its assistant entry. */
 export function toolItemId(entryId: string, toolCallId: string): string {
   return `${entryId}:tool:${toolCallId}`;
 }
 
+let nextEphemeralItemId = 1;
+
+/** Mints a process-local id for a transcript item without durable identity. */
+export function createEphemeralTranscriptItemId(
+  kind: TranscriptItem["kind"],
+): string {
+  return `live:${kind}:${String(nextEphemeralItemId++)}`;
+}
+
 interface TranscriptProjector {
-  projectEntry(entry: SessionEntry): void;
+  projectEntry(entry: SessionEntry, cwd: string): void;
   deriveSnapshot(): TranscriptSnapshot;
 }
 
@@ -29,7 +39,7 @@ export function createTranscriptProjector(): TranscriptProjector {
   const toolIndexes = new Map<string, number>();
 
   return {
-    projectEntry(entry) {
+    projectEntry(entry, cwd) {
       if (entry.type === "custom_message") {
         items.push({
           id: entry.id,
@@ -66,12 +76,16 @@ export function createTranscriptProjector(): TranscriptProjector {
         for (const toolCall of extractToolCalls(
           asRecord(entry.message)?.["content"],
         )) {
+          const args = toIpcValue(toolCall.arguments);
+          const file = deriveToolFileLocation(toolCall.name, args, cwd);
           const item: TranscriptItem = {
             id: toolItemId(entry.id, toolCall.id),
             kind: "tool",
             toolCallId: toolCall.id,
             toolName: toolCall.name,
-            args: toIpcValue(toolCall.arguments),
+            cwd,
+            ...(file && { file }),
+            args,
             complete: true,
           };
           toolIndexes.set(toolCall.id, items.length);
@@ -94,6 +108,7 @@ export function createTranscriptProjector(): TranscriptProjector {
           kind: "tool",
           toolCallId: tool.toolCallId,
           toolName: tool.toolName,
+          cwd,
           result,
           isError: tool.isError,
           complete: true,
@@ -119,9 +134,14 @@ export function createTranscriptProjector(): TranscriptProjector {
 
 export function deriveTranscriptItems(
   entries: readonly SessionEntry[],
+  initialCwd: string,
 ): TranscriptItem[] {
   const projector = createTranscriptProjector();
-  for (const entry of entries) projector.projectEntry(entry);
+  let cwd = initialCwd;
+  for (const entry of entries) {
+    cwd = asTurnStateEntryData(entry)?.cwd ?? cwd;
+    projector.projectEntry(entry, cwd);
+  }
   return projector.deriveSnapshot().items;
 }
 
@@ -172,7 +192,15 @@ export function extractToolCalls(content: unknown): ToolCallBlock[] {
   return calls;
 }
 
-function parseToolResult(message: unknown) {
+function parseToolResult(message: unknown):
+  | {
+      toolCallId: string;
+      toolName: string;
+      content: unknown;
+      details: unknown;
+      isError: boolean;
+    }
+  | undefined {
   const obj = asRecord(message);
   if (!obj || obj["role"] !== "toolResult") return undefined;
   const toolCallId = obj["toolCallId"];
@@ -216,6 +244,7 @@ export function asRecord(value: unknown): Record<string, unknown> | undefined {
 export function toIpcValue(value: unknown): unknown {
   try {
     const json = JSON.stringify(value);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.stringify returns undefined for undefined/function/symbol inputs, but the lib types it string-only.
     return json === undefined ? undefined : JSON.parse(json);
   } catch {
     return String(value);

@@ -1,17 +1,17 @@
-import { describe, expect, it } from "vitest";
-
 import type {
   ExtensionAPI,
   ToolDefinition,
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { describe, expect, it } from "vitest";
 
 import {
-  createAgentToolInstaller,
   AgentToolRegistry,
+  createAgentToolInstaller,
   registerAgentToolContributions,
+  registerAgentToolOverrideContributions,
 } from "./registry";
-import type { AgentToolDefinition } from "./normalization";
+import type { AgentToolDefinition } from "./resolution";
 
 const emptyParams = Type.Object({});
 
@@ -25,7 +25,9 @@ function body(label: string): AgentToolDefinition {
   };
 }
 
-function installTools(registry = new AgentToolRegistry()) {
+function installTools(
+  registry = new AgentToolRegistry(),
+): Map<string, ToolDefinition> {
   const tools = new Map<string, ToolDefinition>();
   const pi = {
     registerTool: (next: ToolDefinition) => tools.set(next.name, next),
@@ -47,18 +49,17 @@ describe("AgentToolRegistry", () => {
       registerAgentToolContributions(registry, "canvas", [
         { name: "anchor_read", tool: body("other") },
       ]),
-    ).toThrow("Agent tool already registered: canvas__anchor_read");
+    ).toThrow(
+      "Agent tool contribution already registered: canvas.agent.anchor_read",
+    );
   });
 
-  it("rejects duplicate canonical tool names across features", () => {
+  it("namespaces the same local tool name across features", () => {
     const registry = new AgentToolRegistry();
     registerAgentToolContributions(registry, "canvas", [
       { name: "anchor_read", tool: body("read") },
     ]);
 
-    // Different featureId + local name, but if canonical ids collided it
-    // would be the pi tool name that dupes. Here they differ, so this should
-    // succeed; the assertion below checks the derived name is distinct.
     expect(() =>
       registerAgentToolContributions(registry, "other", [
         { name: "anchor_read", tool: body("read") },
@@ -72,7 +73,50 @@ describe("AgentToolRegistry", () => {
     ]);
   });
 
-  it("rolls back earlier tools when bulk registration fails", () => {
+  it("registers explicit overrides under exact Pi names", () => {
+    const registry = new AgentToolRegistry();
+    registerAgentToolContributions(registry, "chat", [
+      { name: "inspect", tool: body("inspect") },
+    ]);
+    registerAgentToolOverrideContributions(registry, "chat", [
+      { name: "read", tool: body("read override") },
+    ]);
+
+    expect([...installTools(registry).keys()]).toEqual([
+      "chat__inspect",
+      "read",
+    ]);
+  });
+
+  it("rejects competing exact-name overrides across features", () => {
+    const registry = new AgentToolRegistry();
+    registerAgentToolOverrideContributions(registry, "chat", [
+      { name: "read", tool: body("chat read") },
+    ]);
+
+    expect(() =>
+      registerAgentToolOverrideContributions(registry, "other", [
+        { name: "read", tool: body("other read") },
+      ]),
+    ).toThrow(
+      "Agent tool name already registered: read (existing: chat.agent.read, attempted: other.agent.read)",
+    );
+  });
+
+  it("rejects one feature reusing a local identity across tool paths", () => {
+    const registry = new AgentToolRegistry();
+    registerAgentToolContributions(registry, "chat", [
+      { name: "read", tool: body("namespaced read") },
+    ]);
+
+    expect(() =>
+      registerAgentToolOverrideContributions(registry, "chat", [
+        { name: "read", tool: body("read override") },
+      ]),
+    ).toThrow("Agent tool contribution already registered: chat.agent.read");
+  });
+
+  it("rolls back earlier tools when the bulk register operation fails", () => {
     const registry = new AgentToolRegistry();
     const contribution = { name: "anchor_read", tool: body("read") };
 
@@ -81,7 +125,9 @@ describe("AgentToolRegistry", () => {
         contribution,
         contribution,
       ]),
-    ).toThrow("Agent tool already registered: canvas__anchor_read");
+    ).toThrow(
+      "Agent tool contribution already registered: canvas.agent.anchor_read",
+    );
 
     expect(() =>
       registerAgentToolContributions(registry, "canvas", [contribution]),
@@ -90,7 +136,7 @@ describe("AgentToolRegistry", () => {
 
   it("bulk-registers contributions and installs active tools with derived names", () => {
     const registry = new AgentToolRegistry();
-    const registrations = registerAgentToolContributions(registry, "canvas", [
+    const toolsDisposable = registerAgentToolContributions(registry, "canvas", [
       { name: "anchor_read", tool: body("canvas__anchor_read") },
       { name: "anchor_write", tool: body("canvas__anchor_write") },
     ]);
@@ -100,17 +146,17 @@ describe("AgentToolRegistry", () => {
       "canvas__anchor_write",
     ]);
 
-    registrations[Symbol.dispose]();
+    toolsDisposable[Symbol.dispose]();
     expect([...installTools(registry).keys()]).toEqual([]);
   });
 
   it("unregisters a contribution when disposed", () => {
     const registry = new AgentToolRegistry();
-    const registrations = registerAgentToolContributions(registry, "canvas", [
+    const toolsDisposable = registerAgentToolContributions(registry, "canvas", [
       { name: "anchor_read", tool: body("canvas__anchor_read") },
     ]);
 
-    registrations[Symbol.dispose]();
+    toolsDisposable[Symbol.dispose]();
 
     expect([...installTools(registry).keys()]).toEqual([]);
     // Re-registering the same name after dispose is allowed.

@@ -2,6 +2,7 @@ import { Buffer } from "node:buffer";
 import { readFile, stat } from "node:fs/promises";
 
 import type { SessionManager } from "@earendil-works/pi-coding-agent";
+
 import type { SessionSummary } from "@uix/api/agent-channels";
 
 import { listRecentSessionFiles } from "./session-files";

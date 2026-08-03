@@ -1,5 +1,6 @@
 ---
 summary: "Exploring how UIX admits agent-authored feature source: TypeScript-only API-conformance checks before activation, TypeBox for unknown runtime data, domain assertions for composition, and feature lifetimes for behavioral failure."
+kind: explanation
 status: exploring
 ---
 
@@ -9,11 +10,11 @@ status: exploring
 
 UIX should treat feature source admission as a product rail, not as an attempt to prove arbitrary program correctness. The intended authoring loop is that a non-specialist can direct an agent to build or modify a feature, request reload, and receive precise compiler diagnostics without losing the currently working workspace. The substrate only needs a dependable TypeScript-level assumption: admitted feature and surface definitions conform to the public UIX API shapes they claim to implement. Business logic, deliberate type-system escapes, metaprogramming, and runtime behavior remain the feature author's responsibility.
 
-Feature source is TypeScript-only. JavaScript feature entries are not a supported compatibility path. UIX supplies a strict compiler project so every proposed feature is checked against the same `@uix/api` contract the substrate implements; a feature-local `tsconfig` does not weaken that boundary. `defineFeature(...)` and `defineSurface(...)` provide contextual typing where objects and callbacks are authored, while generated admission wrappers can additionally check that each module's default export is assignable to its required public definition.
+Feature source is TypeScript-only. JavaScript feature entries are not a supported compatibility path. UIX supplies a strict compiler project so every proposed feature is checked against the same `@uix/api` contract the substrate implements; a feature-local `tsconfig` does not weaken that boundary. `defineFeature(...)` and `defineSurface(...)` provide contextual typing where objects and callbacks are authored, while generated admission wrappers can additionally check that each module's `feature` export is assignable to its required public definition.
 
 A reload runs this UIX-owned TS7 check before clearing the current feature composition. Compiler failure rejects the proposed update and reports file/range diagnostics to the human and authoring agent; the existing bags remain live. Successful admission gives the loader the ordinary trust a TypeScript application places in checked internal modules, so the substrate can call hooks and route contribution shapes without recursively recreating their TypeScript types through runtime `if` chains.
 
-Jiti can remain the source execution mechanism behind the compiler gate. UIX does not need a new backend bundling or exact-artifact system merely to establish API conformance: source races, `any`, assertions, ignored diagnostics, and intentionally deceptive code are outside the limited guarantee. A small runtime sanity assertion may still catch a missing module/default export or another loader-level impossibility, but it is defensive diagnostics rather than a parallel feature validator.
+Jiti can remain the source execution mechanism behind the compiler gate. UIX does not need a new backend bundling or exact-artifact system merely to establish API conformance: source races, `any`, assertions, ignored diagnostics, and intentionally deceptive code are outside the limited guarantee. A small runtime sanity assertion may still catch a missing `feature` export or another loader-level impossibility, but it is defensive diagnostics rather than a parallel feature validator.
 
 The validation model has four explicit boundaries:
 

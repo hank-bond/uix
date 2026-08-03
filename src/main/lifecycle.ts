@@ -1,6 +1,6 @@
 // lifecycle helpers (main process).
 //
-// The rule: every callback registration produces a Disposable, and that
+// The rule: every attached callback produces a Disposable, and that
 // Disposable goes into a bag that's torn down together. This makes
 // "register" and "cleanup" structurally inseparable, so you can't
 // register something and forget to clean it up.
@@ -21,7 +21,13 @@
 
 import process from "node:process";
 
-import { app, BrowserWindow } from "electron";
+import type { BrowserWindow } from "electron";
+import {
+  app,
+  type Event,
+  type WebContents,
+  type WebContentsWillNavigateEventParams,
+} from "electron";
 
 import type { Logger } from "./log";
 
@@ -42,7 +48,7 @@ export class DisposableBag implements Disposable {
   #disposed = false;
 
   /**
-   * Register a Disposable with this bag. Returns the same Disposable so
+   * Add a Disposable to this bag. Returns the same Disposable so
    * you can chain (`const sub = bag.add(subscribe(...))`).
    *
    * If the bag is already disposed, the item is disposed immediately —
@@ -73,11 +79,12 @@ export class DisposableBag implements Disposable {
   }
 
   #drain(): void {
-    // LIFO: tear down in reverse order of registration so dependents
+    // LIFO: tear down in reverse acquisition order so dependents
     // go first. (You added the listener after creating the thing it
     // listens to, so dispose the listener first.)
     while (this.#items.length > 0) {
-      const item = this.#items.pop()!;
+      const item = this.#items.pop();
+      if (!item) break;
       try {
         item[Symbol.dispose]();
       } catch {
@@ -99,14 +106,15 @@ export function onAbort(signal: AbortSignal, listener: () => void): Disposable {
     return disposable(() => {});
   }
   signal.addEventListener("abort", listener, { once: true });
-  return disposable(() => signal.removeEventListener("abort", listener));
+  return disposable(() => {
+    signal.removeEventListener("abort", listener);
+  });
 }
 
-// ─── Electron-side registration helpers ──────────────────────────────
+// ─── Electron-side lifetime helpers ──────────────────────────────────
 //
-// Each helper performs the registration and returns a Disposable that
-// undoes it. Project policy (enforced by convention for now, eslint
-// later): code that needs to register a listener uses these helpers
+// Each helper attaches behavior and returns a Disposable that removes it.
+// Project policy: code that needs to register a listener uses these helpers
 // instead of calling `app.on`, `win.on`, etc. directly. The IPC boundary
 // (`handle`/`send`) lives in ./ipc.ts, which follows the same convention.
 
@@ -146,6 +154,30 @@ export function onWindow(
   win.on(event, listener);
   return disposable(() => {
     win.off(event, listener);
+  });
+}
+
+export function onWillNavigate(
+  webContents: WebContents,
+  listener: (event: Event<WebContentsWillNavigateEventParams>) => void,
+): Disposable {
+  webContents.on("will-navigate", listener);
+  return disposable(() => {
+    if (!webContents.isDestroyed()) {
+      webContents.off("will-navigate", listener);
+    }
+  });
+}
+
+export function setWindowOpenHandler(
+  webContents: WebContents,
+  handler: Parameters<WebContents["setWindowOpenHandler"]>[0],
+): Disposable {
+  webContents.setWindowOpenHandler(handler);
+  return disposable(() => {
+    if (!webContents.isDestroyed()) {
+      webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    }
   });
 }
 

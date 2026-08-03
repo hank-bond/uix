@@ -1,0 +1,30 @@
+.tool-block {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  font-size: 0.86rem;
+}
+
+.tool-block__payload,
+.tool-block__details pre {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-family:
+    var(--code-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.tool-block__details {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.tool-block__details summary {
+  cursor: pointer;
+  color: var(--fg-faint);
+  font-size: 0.78rem;
+}

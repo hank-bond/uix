@@ -1,4 +1,4 @@
-import { Type, type Static, type TObject, type TRecord } from "typebox";
+import { type Static, type TObject, type TRecord, Type } from "typebox";
 
 export const FeatureSettingAddressSchema = Type.Object({
   featureId: Type.String(),
@@ -68,6 +68,7 @@ function toClosedSettingsSchema<Schema extends SettingsSchema>(
  * manifest feature entry or a substrate-owned workspace namespace.
  */
 export interface SettingsHandle {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- T is inferred from the call-site context (e.g. `getFavoriteModels(): ModelRef[]`); inlining to unknown would force casts at every consumer.
   get<T = unknown>(key: string): T | undefined;
   set(key: string, value: unknown): void;
   onChange(key: string, handler: (value: unknown) => void): () => void;

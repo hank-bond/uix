@@ -2,9 +2,8 @@ import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
-
 import type { SessionManager } from "@earendil-works/pi-coding-agent";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   readRecentSessionSummaries,
@@ -31,7 +30,10 @@ function fakeManager(options: {
   } as unknown as SessionManager;
 }
 
-function userMessage(text: string) {
+function userMessage(text: string): {
+  type: "message";
+  message: { role: "user"; content: string };
+} {
   return {
     type: "message",
     message: { role: "user", content: text },
@@ -45,7 +47,7 @@ describe("readRecentSessionSummaries", () => {
     const newestPath = join(dir, "newest.jsonl");
     const middlePath = join(dir, "middle.jsonl");
     const excludedPath = join(dir, "excluded.jsonl");
-    const sessionJsonl = (id: string, label: string) =>
+    const sessionJsonl = (id: string, label: string): string =>
       [
         JSON.stringify({
           type: "session",

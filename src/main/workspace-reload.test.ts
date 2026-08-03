@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createWorkspaceReloadCoordinator } from "./workspace-reload";
 
-function deferred() {
+function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;
   const promise = new Promise<void>((done) => {
     resolve = done;

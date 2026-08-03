@@ -1,16 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
-
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import { describe, expect, it, type Mock, vi } from "vitest";
+
 import type {
   ProviderAuthFlowSnapshot,
   ProviderAuthType,
 } from "@uix/api/agent-channels";
 
-import { createProviderAuthFlowCoordinator } from "./provider-auth-flow";
+import {
+  createProviderAuthFlowCoordinator,
+  type ProviderAuthFlowCoordinator,
+} from "./provider-auth-flow";
 
 type AuthInteraction = Parameters<ModelRuntime["login"]>[2];
 
-function deferred<T>() {
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((next) => {
     resolve = next;
@@ -24,7 +27,13 @@ function createHarness(options: {
     interaction: AuthInteraction,
   ) => Promise<void>;
   getModelRuntime?: () => Promise<ReturnType<typeof createRuntime>>;
-}) {
+}): {
+  coordinator: ProviderAuthFlowCoordinator;
+  runtime: ReturnType<typeof createRuntime>;
+  snapshots: ProviderAuthFlowSnapshot[];
+  opened: string[];
+  availabilityChanged: Mock;
+} {
   const snapshots: ProviderAuthFlowSnapshot[] = [];
   const opened: string[] = [];
   const availabilityChanged = vi.fn();
@@ -47,7 +56,21 @@ function createRuntime(
     authType: ProviderAuthType,
     interaction: AuthInteraction,
   ) => Promise<void>,
-) {
+): {
+  getProvider: (providerId: string) =>
+    | {
+        auth: {
+          apiKey: { login: () => void };
+          oauth: { login: () => void };
+        };
+      }
+    | undefined;
+  login: (
+    providerId: string,
+    authType: ProviderAuthType,
+    interaction: AuthInteraction,
+  ) => Promise<void>;
+} {
   return {
     getProvider: (providerId: string) =>
       providerId === "fake"
@@ -124,7 +147,7 @@ describe("provider auth flow coordinator", () => {
     const helpLink = manualCode?.notices[0];
     if (helpLink?.type !== "info") throw new Error("Expected info notice");
     const firstLink = helpLink.links[0];
-    if (!firstLink || !manualCode?.prompt) {
+    if (!manualCode?.prompt) {
       throw new Error("Expected retained link and prompt");
     }
     await harness.coordinator.openLink(started.flowId, firstLink.linkId);
@@ -206,7 +229,9 @@ describe("provider auth flow coordinator", () => {
       login: async (_authType, value) => {
         interaction = value;
         await new Promise<void>((resolve) =>
-          value.signal?.addEventListener("abort", () => resolve()),
+          value.signal?.addEventListener("abort", () => {
+            resolve();
+          }),
         );
       },
     });
@@ -244,9 +269,9 @@ describe("provider auth flow coordinator", () => {
 
     const flow = harness.coordinator.begin("fake", "oauth");
     await settle();
-    expect(() =>
-      harness.coordinator.answer(flow.flowId, "stale-prompt", "value"),
-    ).toThrow("not pending");
+    expect(() => {
+      harness.coordinator.answer(flow.flowId, "stale-prompt", "value");
+    }).toThrow("not pending");
 
     promptAbort.abort();
     await settle();

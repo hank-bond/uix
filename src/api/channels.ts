@@ -12,7 +12,7 @@ export interface ChannelEventLogOptions<Event> {
 /**
  * Schema-only request descriptor — the shared base between frontend and
  * backend. The frontend contract uses this directly; the backend
- * contribution extends it with `handle` and optional `log`.
+ * contribution extends it with a `handler` and optional `log`.
  */
 export interface ChannelRequestSchema<
   Req extends TSchema = TSchema,
@@ -36,7 +36,7 @@ export interface ChannelRequestContribution<
   Req extends TSchema = TSchema,
   Res extends TSchema = TSchema,
 > extends ChannelRequestSchema<Req, Res> {
-  readonly handle: (req: unknown) => unknown;
+  readonly handler: (req: unknown) => unknown;
   readonly log?: ChannelRequestLogOptions<unknown, unknown>;
 }
 
@@ -45,7 +45,7 @@ export type ChannelEventContribution<Event extends TSchema = TSchema> =
   ChannelEventSchema<Event>;
 
 export interface ChannelContribution {
-  /** The owning channel id, carried from the contract for registration checks. */
+  /** The owning channel id, carried from the contract for owner checks. */
   readonly feature: string;
   readonly requests: Record<string, ChannelRequestContribution>;
   readonly events: Record<string, ChannelEventContribution>;
@@ -59,7 +59,7 @@ export interface ChannelContribution {
  *
  * `feature` is the owning channel id, stated once where the contract is
  * defined: clients derive canonical ids from it, and the substrate checks it
- * at every binding site (backend registration, publisher minting) so a
+ * at every binding site (backend register operation, publisher minting) so a
  * contract can't silently register or publish under the wrong namespace.
  */
 export interface ChannelContract {
@@ -70,13 +70,13 @@ export interface ChannelContract {
 
 /**
  * Per-request handler entry — maps each request name in the contract to its
- * backend `handle` function and optional `log` config. Used by
+ * backend `handler` function and optional `log` config. Used by
  * {@link withHandlers}; the mapped type enforces that every request declared
  * in the contract has a matching handler.
  */
 export type ChannelHandlers<C extends ChannelContract> = {
   readonly [K in keyof C["requests"] & string]: {
-    readonly handle: (
+    readonly handler: (
       req: Static<C["requests"][K]["requestSchema"]>,
     ) =>
       | Static<C["requests"][K]["responseSchema"]>
@@ -103,7 +103,7 @@ export function withHandlers<const C extends ChannelContract>(
   const entries = handlers as Record<
     string,
     {
-      readonly handle: (req: unknown) => unknown;
+      readonly handler: (req: unknown) => unknown;
       readonly log?: ChannelRequestLogOptions<unknown, unknown>;
     }
   >;
@@ -113,7 +113,7 @@ export function withHandlers<const C extends ChannelContract>(
     requests[name] = {
       requestSchema: schema.requestSchema,
       responseSchema: schema.responseSchema,
-      handle: entry.handle,
+      handler: entry.handler,
       ...(schema.log || entry.log
         ? { log: { ...schema.log, ...entry.log } }
         : {}),

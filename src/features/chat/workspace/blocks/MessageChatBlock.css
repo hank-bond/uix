@@ -1,0 +1,25 @@
+.msg--user,
+.msg--assistant {
+  padding: 0.55rem;
+  border-radius: 0.4rem;
+}
+
+.msg--user {
+  margin-inline-start: min(2rem, 8%);
+  background: var(--chat-user-message-bg);
+}
+
+.msg--assistant {
+  margin-inline-end: min(2rem, 8%);
+  background: var(--chat-agent-message-bg);
+}
+
+.msg--user .msg__text,
+.msg--assistant .msg__text {
+  color: var(--fg);
+}
+
+/* Keep optimistic rows visually distinct until main confirms their canonical identity. */
+.msg[data-uix-unconfirmed] .msg__text {
+  color: var(--fg-dim);
+}

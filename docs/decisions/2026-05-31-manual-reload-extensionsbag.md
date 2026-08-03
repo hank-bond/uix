@@ -1,5 +1,6 @@
 ---
 summary: "Cockpit reload tears down and re-activates extensions through an extensionsBag child lifetime without restarting Electron, delegating to pi's session.reload()."
+kind: explanation
 read_when: "Read when touching reload, lifetime scoping, or jiti module loading."
 status: accepted
 ---

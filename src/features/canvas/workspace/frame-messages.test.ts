@@ -1,11 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { parseCanvasKey } from "../shared/addressing";
-
 import {
   forwardCanvasFrameMessage,
   parseCanvasFrameMessage,
 } from "./frame-messages";
+import { parseCanvasKey } from "../shared/addressing";
 
 const main = parseCanvasKey("main");
 

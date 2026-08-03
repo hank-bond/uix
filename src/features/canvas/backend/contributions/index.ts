@@ -1,12 +1,12 @@
 import { defineFeature } from "@uix/api/feature";
 
-import { createCanvasContext } from "../context";
+import { createCanvasAgentContextContributions } from "./agent-context";
 import { CanvasAgentSystemPrompt } from "./agent-system-prompt";
 import { createCanvasAgentToolContributions } from "./agent-tools";
 import { createCanvasChannelContributions } from "./channels";
 import { createCanvasResourceContributions } from "./resources";
 import { createCanvasTurnStateContributions } from "./turn-state";
-import { createCanvasAgentContextContributions } from "./agent-context";
+import { createCanvasContext } from "../context";
 
 export const canvasFeature = defineFeature({
   id: "canvas",

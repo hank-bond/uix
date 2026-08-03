@@ -2,9 +2,8 @@
 //
 // A scope is one schema-validated object exposed through keyed convenience
 // operations. Feature ids and substrate workspace namespaces share one
-// unprefixed scope-id space;
-// duplicate registration throws, which is what lets substrate namespaces
-// (registered first, on reload) collide naturally with feature ids.
+// unprefixed scope-id space; duplicate scope ids throw, which lets substrate
+// namespaces (registered first on reload) collide naturally with feature ids.
 //
 // The registry never reads files, resolves manifest locations, or hydrates
 // defaults — `registerScope` takes a finished scope, and persistence exists here
@@ -12,9 +11,10 @@
 // location choreography, while the schema logic stays in the pure
 // `hydrateSettings` pass.
 
-import type { SettingsDefinition, SettingsHandle } from "@uix/api/settings";
 import type { TSchema } from "typebox";
 import { Value } from "typebox/value";
+
+import type { SettingsDefinition, SettingsHandle } from "@uix/api/settings";
 
 import { disposable } from "./lifecycle";
 
@@ -61,7 +61,7 @@ export interface SettingsScope {
   onWrite?: (values: JsonObject) => void;
 }
 
-interface ScopeState {
+interface RegisteredSettingsScope {
   label: string;
   schema: TSchema;
   values: JsonObject;
@@ -69,29 +69,26 @@ interface ScopeState {
   committed: boolean;
 }
 
-/** A live provisional scope; commit accepts its values for write-through use. */
-export interface SettingsScopeRegistration extends Disposable {
-  readonly handle: SettingsHandle;
+/** Capability for one live scope; commit accepts its values for write-through use. */
+export interface SettingsScopeHandle extends Disposable {
+  readonly settings: SettingsHandle;
   commit(): void;
 }
 
 export class SettingsRegistry implements Disposable {
-  readonly #scopes = new Map<string, ScopeState>();
+  readonly #scopes = new Map<string, RegisteredSettingsScope>();
   readonly #listeners = new Map<string, Set<Listener>>();
   readonly #anyListeners = new Set<AnyListener>();
   #disposed = false;
 
-  registerScope(
-    scopeId: string,
-    scope: SettingsScope,
-  ): SettingsScopeRegistration {
+  registerScope(scopeId: string, scope: SettingsScope): SettingsScopeHandle {
     if (this.#disposed) {
       throw new Error("SettingsRegistry is disposed");
     }
     if (this.#scopes.has(scopeId)) {
       throw new Error(`Settings scope already registered: ${scopeId}`);
     }
-    const state: ScopeState = {
+    const state: RegisteredSettingsScope = {
       label: scope.label,
       schema: scope.definition.schema,
       values: scope.values,
@@ -102,11 +99,11 @@ export class SettingsRegistry implements Disposable {
 
     let disposed = false;
     return {
-      handle: this.forScope(scopeId),
+      settings: this.forScope(scopeId),
       commit: () => {
         if (disposed || this.#scopes.get(scopeId) !== state) {
           throw new Error(
-            `Settings scope registration is no longer active: ${scopeId}`,
+            `Settings scope handle is no longer active: ${scopeId}`,
           );
         }
         if (state.committed) return;
@@ -235,9 +232,12 @@ export class SettingsRegistry implements Disposable {
 
   forScope(scopeId: string): SettingsHandle {
     return {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- see SettingsHandle.get: T is inferred from call-site context.
       get: <T = unknown>(key: string) =>
         this.get(scopeId, key) as T | undefined,
-      set: (key, value) => this.set(scopeId, key, value),
+      set: (key, value) => {
+        this.set(scopeId, key, value);
+      },
       onChange: (key, handler) => this.onChange(scopeId, key, handler),
     };
   }
@@ -250,7 +250,7 @@ export class SettingsRegistry implements Disposable {
     this.#anyListeners.clear();
   }
 
-  #requireScope(scopeId: string): ScopeState {
+  #requireScope(scopeId: string): RegisteredSettingsScope {
     const scope = this.#scopes.get(scopeId);
     if (!scope) {
       throw new Error(`Unknown settings scope: ${scopeId}`);
@@ -258,7 +258,7 @@ export class SettingsRegistry implements Disposable {
     return scope;
   }
 
-  #assertKey(scope: ScopeState, key: string): void {
+  #assertKey(scope: RegisteredSettingsScope, key: string): void {
     const schema = scope.schema as TSchema & {
       properties?: Record<string, TSchema>;
       patternProperties?: Record<string, TSchema>;
@@ -278,7 +278,7 @@ export class SettingsRegistry implements Disposable {
   ): void {
     const cloned = cloneJsonChangeValue(value);
     const errors: unknown[] = [];
-    const notify = (run: () => void) => {
+    const notify = (run: () => void): void => {
       try {
         run();
       } catch (err) {
@@ -288,13 +288,17 @@ export class SettingsRegistry implements Disposable {
 
     if (includeAnyListeners) {
       for (const listener of this.#anyListeners) {
-        notify(() => listener(scopeId, key, cloneJsonChangeValue(cloned)));
+        notify(() => {
+          listener(scopeId, key, cloneJsonChangeValue(cloned));
+        });
       }
     }
     const listeners = this.#listeners.get(toListenerKey(scopeId, key));
     if (listeners) {
       for (const listener of listeners) {
-        notify(() => listener(cloneJsonChangeValue(cloned)));
+        notify(() => {
+          listener(cloneJsonChangeValue(cloned));
+        });
       }
     }
     if (errors.length > 0) throw errors[0];
@@ -307,7 +311,9 @@ export function bindSettingsHandle(
 ): SettingsHandle {
   return {
     get: (key) => settings.get(key),
-    set: (key, value) => settings.set(key, value),
+    set: (key, value) => {
+      settings.set(key, value);
+    },
     onChange: (key, handler) => {
       const unsubscribe = settings.onChange(key, handler);
       bag.add(disposable(unsubscribe));
@@ -341,6 +347,7 @@ function cloneJsonObject(value: JsonObject): JsonObject {
 
 function cloneJson(value: unknown): unknown {
   const json = JSON.stringify(value);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.stringify returns undefined for undefined/function/symbol inputs, but the lib types it string-only.
   if (json === undefined) {
     throw new Error("Settings values must be JSON-serializable");
   }

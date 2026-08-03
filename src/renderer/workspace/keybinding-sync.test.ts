@@ -1,8 +1,8 @@
+import { describe, expect, it, type Mock, vi } from "vitest";
+
 import type { KeybindingMap } from "@uix/api/actions";
 import type { ChannelClient } from "@uix/api/workspace";
-import { describe, expect, it, vi } from "vitest";
-
-import { uixChannels } from "#shared/ipc";
+import type { uixChannels } from "#shared/ipc";
 
 import { ActionRegistry } from "./action-registry";
 import { bindKeybindingSync } from "./keybinding-sync";
@@ -13,7 +13,7 @@ function createActionRegistry(): ActionRegistry {
   return new ActionRegistry({ shortcutPlatform: "other" });
 }
 
-function deferred<T>() {
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((res) => {
     resolve = res;
@@ -23,7 +23,14 @@ function deferred<T>() {
 
 function createClient(
   reconcile: (defaults: KeybindingMap) => Promise<KeybindingMap>,
-) {
+): {
+  client: UixChannelClient;
+  reconcileKeybindings: Mock;
+  emitBindingsChanged: (bindings: KeybindingMap) => void;
+  emitSurfacesChanged: () => void;
+  unsubscribeBindings: Mock;
+  unsubscribeSurfaces: Mock;
+} {
   let bindingsChanged: ((bindings: KeybindingMap) => void) | undefined;
   let surfacesChanged: (() => void) | undefined;
   const unsubscribeBindings = vi.fn();

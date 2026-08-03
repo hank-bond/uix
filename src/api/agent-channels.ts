@@ -7,7 +7,7 @@
 // handlers via `withHandlers` in the composition root; frontends derive a
 // typed client via `createChannelClient`.
 
-import { Type, type Static } from "typebox";
+import { type Static, Type } from "typebox";
 
 import type { ChannelContract } from "./channels";
 
@@ -16,6 +16,14 @@ export const PromptRequestSchema = Type.Object({
   text: Type.String(),
 });
 export type PromptRequest = Static<typeof PromptRequestSchema>;
+
+/** Point-in-time file location derived for a filesystem tool invocation. */
+export interface ToolFileLocation {
+  /** Absolute path derived from the invocation args and execution cwd. */
+  absolutePath: string;
+  /** Cwd-relative when that form stays under cwd; otherwise absolute. */
+  displayPath: string;
+}
 
 /**
  * Durable transcript items rendered by conversation surfaces. Live events may
@@ -35,6 +43,10 @@ export type TranscriptItem =
       kind: "tool";
       toolCallId: string;
       toolName: string;
+      /** Point-in-time cwd under which this tool invocation executed. */
+      cwd: string;
+      /** Main-derived reference for filesystem tools whose args identify a file. */
+      file?: ToolFileLocation;
       complete: boolean;
       args?: unknown;
       result?: unknown;
@@ -176,14 +188,16 @@ export const ModelFavoriteUpdateSchema = Type.Object({
 export type ModelFavoriteUpdate = Static<typeof ModelFavoriteUpdateSchema>;
 
 /**
- * Model status shown by agent controls. `model` is the live session model —
- * absent until a session exists, and absent even then when pi resolved no
- * model (e.g. no provider is authenticated). `defaultModel` is the workspace
- * default — absent until the pilot first selects one. Both absent means
+ * Current agent status exposed to surfaces. `cwd` is the directory under
+ * which tools execute. `model` is the live session model — absent until a
+ * session exists, and absent even then when pi resolved no model (e.g. no
+ * provider is authenticated). `defaultModel` is the workspace default —
+ * absent until the pilot first selects one. Both model fields absent means
  * "no model chosen": the UI renders that state rather than inventing a
  * fallback.
  */
 export const AgentStatusSchema = Type.Object({
+  cwd: Type.String(),
   model: Type.Optional(ModelRefSchema),
   defaultModel: Type.Optional(ModelRefSchema),
 });
@@ -324,7 +338,7 @@ const ProviderAuthLinkRequestSchema = Type.Object({
   linkId: Type.String(),
 });
 
-const describeProviderAuthenticationPayload = () => ({
+const describeProviderAuthenticationPayload = (): { redacted: string } => ({
   redacted: "provider authentication payload",
 });
 

@@ -1,7 +1,8 @@
-// agent tool contribution type.
+// agent tool contribution types.
 //
-// Features contribute named tool bodies; the substrate derives the pi tool
-// name (${featureId}__${name}) and stamps it during normalization.
+// Ordinary feature tools derive `${featureId}__${name}`. Explicit exact-name
+// contributions retain `name` so a feature can replace a Pi definition or
+// supply app-level vocabulary without weakening the ordinary namespace.
 //
 // A tool body is inherently a pi artifact, so AgentToolDefinition is pi's
 // ToolDefinition minus `name` — re-exported here so feature authors get the
@@ -30,8 +31,19 @@ export type AgentToolDefinition<TParams extends TSchema = TSchema> = Omit<
 >;
 
 export interface AgentToolContribution {
-  /** Local tool name: the facet derives `${featureId}__${name}` as the pi tool name. */
+  /** Local tool name: the facet derives `${featureId}__${name}` as the Pi tool name. */
   readonly name: string;
   /** Tool body — everything except `name`, which the substrate derives. */
+  readonly tool: AgentToolDefinition;
+}
+
+/**
+ * An intentional exact-name Pi tool. This is a separate contribution shape so
+ * ordinary feature tools cannot accidentally escape their feature namespace.
+ */
+export interface AgentToolOverrideContribution {
+  /** Exact Pi tool name to register, such as `read`, `write`, or `command`. */
+  readonly name: string;
+  /** Exact-name body — the substrate stamps the authored `name`. */
   readonly tool: AgentToolDefinition;
 }

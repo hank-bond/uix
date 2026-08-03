@@ -11,7 +11,23 @@ interface FakeProvider {
   };
 }
 
-function createHarness() {
+function createHarness(): {
+  statuses: Record<
+    string,
+    { configured: boolean; source?: string; label?: string }
+  >;
+  oauth: Set<string>;
+  providers: FakeProvider[];
+  runtime: {
+    getProviders: () => FakeProvider[];
+    getProviderAuthStatus: (id: string) => {
+      configured: boolean;
+      source?: string;
+      label?: string;
+    };
+    isUsingOAuth: (id: string) => boolean;
+  };
+} {
   const statuses: Record<
     string,
     { configured: boolean; source?: string; label?: string }

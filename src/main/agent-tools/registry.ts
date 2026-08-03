@@ -1,45 +1,60 @@
 // agent tool contribution registry.
 //
 // Features contribute pi tool definitions as data. This substrate owns
-// registration lifetime and the pi-facing installer that installs those tools
+// their live registry lifetime and the pi-facing installer that installs them
 // into the live agent extension.
 //
-// Authors give a local `name` + the tool body (everything but the pi tool
-// `name`); the facet derives both ids — see agent-tool-normalization.ts. The
-// registry dedups on the `ContributionId` and the derived pi tool name; the
-// installer forwards the name-stamped `ToolDefinition` to pi.
+// Ordinary tools derive a feature-namespaced Pi name; explicit exact-name tools
+// keep their authored Pi name. The registry deduplicates contribution ids and
+// final names, then installs one snapshot into Pi.
 
-import { DisposableBag } from "../lifecycle";
+import type {
+  AgentToolContribution,
+  AgentToolOverrideContribution,
+} from "@uix/api/agent-tools";
 
 import {
-  type AgentToolRegistration,
-  normalizeAgentToolContribution,
-} from "./normalization";
+  resolveAgentToolContribution,
+  resolveAgentToolOverrideContribution,
+  type ResolvedAgentToolContribution,
+} from "./resolution";
 import type { AgentInstaller } from "../agent/installers";
-import type { AgentToolContribution } from "@uix/api/agent-tools";
+import { DisposableBag } from "../lifecycle";
 
 export class AgentToolRegistry {
-  readonly registeredContributions: AgentToolRegistration[] = [];
+  readonly #registeredTools: ResolvedAgentToolContribution[] = [];
 
-  register(contribution: AgentToolRegistration): Disposable {
+  register(resolvedContribution: ResolvedAgentToolContribution): Disposable {
     if (
-      this.registeredContributions.some(
-        (e) => e.canonicalId === contribution.canonicalId,
+      this.#registeredTools.some(
+        (tool) => tool.contributionId === resolvedContribution.contributionId,
       )
     ) {
       throw new Error(
-        `Agent tool already registered: ${contribution.canonicalId}`,
+        `Agent tool contribution already registered: ${resolvedContribution.contributionId}`,
+      );
+    }
+    const existingCanonical = this.#registeredTools.find(
+      (tool) => tool.canonicalId === resolvedContribution.canonicalId,
+    );
+    if (existingCanonical) {
+      throw new Error(
+        `Agent tool name already registered: ${resolvedContribution.canonicalId} (existing: ${existingCanonical.contributionId}, attempted: ${resolvedContribution.contributionId})`,
       );
     }
 
-    this.registeredContributions.push(contribution);
+    this.#registeredTools.push(resolvedContribution);
 
     return {
       [Symbol.dispose]: (): void => {
-        const index = this.registeredContributions.indexOf(contribution);
-        if (index !== -1) this.registeredContributions.splice(index, 1);
+        const index = this.#registeredTools.indexOf(resolvedContribution);
+        if (index !== -1) this.#registeredTools.splice(index, 1);
       },
     };
+  }
+
+  list(): readonly ResolvedAgentToolContribution[] {
+    return [...this.#registeredTools];
   }
 }
 
@@ -48,14 +63,40 @@ export function registerAgentToolContributions(
   featureId: string,
   contributions: readonly AgentToolContribution[],
 ): Disposable {
+  return registerContributions(
+    registry,
+    featureId,
+    contributions,
+    resolveAgentToolContribution,
+  );
+}
+
+export function registerAgentToolOverrideContributions(
+  registry: AgentToolRegistry,
+  featureId: string,
+  contributions: readonly AgentToolOverrideContribution[],
+): Disposable {
+  return registerContributions(
+    registry,
+    featureId,
+    contributions,
+    resolveAgentToolOverrideContribution,
+  );
+}
+
+function registerContributions<Contribution>(
+  registry: AgentToolRegistry,
+  featureId: string,
+  contributions: readonly Contribution[],
+  resolve: (
+    featureId: string,
+    contribution: Contribution,
+  ) => ResolvedAgentToolContribution,
+): Disposable {
   const bag = new DisposableBag();
   try {
     for (const contribution of contributions) {
-      bag.add(
-        registry.register(
-          normalizeAgentToolContribution(featureId, contribution),
-        ),
-      );
+      bag.add(registry.register(resolve(featureId, contribution)));
     }
     return bag;
   } catch (err) {
@@ -68,21 +109,8 @@ export function createAgentToolInstaller(
   registry: AgentToolRegistry,
 ): AgentInstaller {
   return (pi) => {
-    const installedContributions = [...registry.registeredContributions];
-    for (const contribution of liveContributions(
-      registry,
-      installedContributions,
-    )) {
-      pi.registerTool(contribution.tool);
+    for (const registeredTool of registry.list()) {
+      pi.registerTool(registeredTool.tool);
     }
   };
-}
-
-function liveContributions(
-  registry: AgentToolRegistry,
-  installedContributions: readonly AgentToolRegistration[],
-): readonly AgentToolRegistration[] {
-  return installedContributions.filter((contribution) =>
-    registry.registeredContributions.includes(contribution),
-  );
 }

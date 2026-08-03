@@ -12,8 +12,8 @@ import path from "node:path";
 import process from "node:process";
 
 import {
-  parseWorkspaceManifest,
   type ParsedWorkspaceManifest,
+  parseWorkspaceManifest,
 } from "./features/manifest";
 import { createLogger } from "./log";
 
@@ -264,11 +264,12 @@ function requireManifestFeatureEntry(
   manifestIndex: number,
 ): JsonObject {
   const features = rawManifest["features"] as JsonObject[];
-  const feature = features[manifestIndex];
-  if (feature) return feature;
-  throw new Error(
-    `workspace manifest has no feature entry at index ${String(manifestIndex)}`,
-  );
+  if (manifestIndex >= features.length) {
+    throw new Error(
+      `workspace manifest has no feature entry at index ${String(manifestIndex)}`,
+    );
+  }
+  return features[manifestIndex];
 }
 
 function getOrCreateRecord(parent: JsonObject, key: string): JsonObject {
@@ -286,7 +287,7 @@ async function atomicWriteFile(
   const dir = path.dirname(targetPath);
   const tempPath = path.join(
     dir,
-    `.${path.basename(targetPath)}.${process.pid}.${Date.now()}.${randomBytes(6).toString("hex")}.tmp`,
+    `.${path.basename(targetPath)}.${String(process.pid)}.${String(Date.now())}.${randomBytes(6).toString("hex")}.tmp`,
   );
 
   try {

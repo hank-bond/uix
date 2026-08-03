@@ -6,17 +6,17 @@ status: active
 
 # UIX
 
-Minimal protocol + cockpit for agent ↔ HTML ↔ human interfaces.
+A local Electron cockpit for composing human-agent surfaces over Pi.
 
 - Current architecture: [`AGENTS.md`](./AGENTS.md)
-- Archived project brief: [`docs/plans/archive/project-brief.md`](./docs/plans/archive/project-brief.md)
-- Archived v0 protocol spec: [`docs/plans/archive/v0-canvas-protocol.md`](./docs/plans/archive/v0-canvas-protocol.md)
+- Archived project brief: [`project-brief.md`](./plans/archive/project-brief.md)
+- Archived v0 protocol spec: [`v0-canvas-protocol.md`](./plans/archive/v0-canvas-protocol.md)
 
 ## Status
 
-Pre-scaffold. Specs only. Cockpit and pi extension land incrementally — see §9 "Day-one milestones" in `docs/plans/archive/v0-canvas-protocol.md`.
+The cockpit, manifest feature loader, runtime surfaces, typed channels, agent sessions, settings, Canvas, and Chat are implemented. See the root orientation above and [`AGENTS.md`](./plans/AGENTS.md) for remaining build specs.
 
 ## Requirements
 
-- Node `>=20` (`.nvmrc` pins to 24)
-- npm (bun also works; pnpm not required)
+- Node.js 24 (`package.json` requires Node.js 22.19 or later).
+- npm.

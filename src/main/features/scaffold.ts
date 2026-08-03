@@ -1,11 +1,9 @@
 // create-new workspace scaffolding.
 //
-// Create-new copies the default feature templates (chat, canvas) into the new
-// workspace and writes manifest references to the copies, so the workspace
-// owns editable source from day one — editing `<ws>/features/canvas/` changes
-// that workspace without touching the templates. Templates come from the
-// repo's `src/features/` in dev; the packaged-binary `resourcesPath` half
-// lands with the packaging arc.
+// Create-new copies the bare workspace template into the new workspace and
+// writes manifest references to its editable feature source. The template lives
+// under the repo's `templates/workspace/` in dev; the packaged-binary
+// `resourcesPath` half lands with the packaging arc.
 //
 // Feature deps are ordinary workspace deps, mirroring pi (whose loader
 // aliases only its own packages plus typebox and leaves everything else to
@@ -30,11 +28,11 @@ import process from "node:process";
 
 import { WorkspaceManifestFileName } from "./manifest";
 
-/** Template dirs copied into every new workspace, in composition order. */
-const DefaultFeatures = ["chat", "canvas"] as const;
+/** Template feature dirs copied into every new workspace, in composition order. */
+const DefaultFeatures = ["pi-tools"] as const;
 
 export interface ScaffoldOptions {
-  /** Directory holding the feature templates (repo `src/features/` in dev). */
+  /** Bare workspace template root (repo `templates/workspace/` in dev). */
   templatesDir: string;
   /** Workspace root to scaffold into (exists; has no manifest). */
   workspaceDir: string;
@@ -85,7 +83,7 @@ export async function scaffoldWorkspace(
   await mkdir(featuresDir, { recursive: true });
   for (const feature of DefaultFeatures) {
     await cp(
-      path.join(templatesDir, feature),
+      path.join(templatesDir, "features", feature),
       path.join(featuresDir, feature),
       {
         recursive: true,

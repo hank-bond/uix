@@ -1,0 +1,14 @@
+extends: substitution
+message: "Use '%s' instead of '%s'."
+level: error
+ignorecase: true
+swap:
+  '\butili[sz]e\b': use
+  '\be\.g\.': for example
+  '\bi\.e\.': that is
+  '\betc\.': name the set
+  '\band/or\b': or both
+  '\bplease\b': omit
+  '\bsimply\b': omit
+  '\bit(?:''|’)?s easy\b': describe the action directly
+  '\bquickly\b': describe the action directly

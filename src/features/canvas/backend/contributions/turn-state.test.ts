@@ -5,6 +5,8 @@ import { createFeatureEventPublisher } from "@uix/api/channels";
 import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
 import type { FeatureContext } from "@uix/api/feature";
 import type { TurnStateCellDefinition } from "@uix/api/turn-state";
+
+import { createCanvasTurnStateContributions } from "./turn-state";
 import {
   createTurnStateProjector,
   registerTurnStateContributions,
@@ -12,12 +14,9 @@ import {
   toTurnStateRegistrySnapshot,
   TurnStateRegistry,
 } from "../../../../main/turn-state/registry";
-
 import { canvasChannels } from "../../shared/channels";
-import { CanvasDocumentBuffer } from "../document-buffer";
 import type { CanvasContext } from "../context";
-
-import { createCanvasTurnStateContributions } from "./turn-state";
+import { CanvasDocumentBuffer } from "../document-buffer";
 
 function memoryStore(initial: Record<string, string> = {}): DocumentStore {
   const latest = new Map<string, string>(Object.entries(initial));
@@ -31,7 +30,7 @@ function memoryStore(initial: Record<string, string> = {}): DocumentStore {
     },
     createSnapshot: (docId, meta) => {
       const version: DocumentVersion<typeof meta> = {
-        id: `v${versions.size + 1}`,
+        id: `v${String(versions.size + 1)}`,
         documentId: docId,
         content: latest.get(docId) ?? "",
         meta,
@@ -75,7 +74,13 @@ async function restoreCanvasDocuments(
   ).resolves.toEqual({ failures: [] });
 }
 
-function captureCanvasState(store = memoryStore()) {
+function captureCanvasState(store = memoryStore()): {
+  contribution: NonNullable<
+    ReturnType<typeof createCanvasTurnStateContributions>["documents"]
+  >;
+  buffer: CanvasDocumentBuffer;
+  store: DocumentStore;
+} {
   const base: FeatureContext = {
     documents: { createStore: () => store },
     settings: {
@@ -104,7 +109,6 @@ function captureCanvasState(store = memoryStore()) {
   };
   const contribution = createCanvasTurnStateContributions(ctx).documents;
 
-  if (!contribution) throw new Error("Canvas documents state was not created");
   return { contribution, buffer, store };
 }
 

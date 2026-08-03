@@ -1,5 +1,6 @@
 ---
 summary: "Pi's append-only session JSONL is UIX's persistence substrate — all state (canvas pointers, anchor state) rides it as parent-linked custom entries, which is why UIX-core agent facets run as an in-process pi extension to get write access."
+kind: explanation
 status: accepted
 ---
 
@@ -30,4 +31,4 @@ Reading is open everywhere: `parseSessionEntries`, `loadEntriesFromFile`, `build
 
 A UIX sidecar keyed by pi entry ids would work but shadows pi's tree structure and risks divergence on fork/branch/compaction — and pi already content-addresses, branches, and persists the conversation we'd be keying against. Riding the session file keeps one source of truth for tree structure and inherits pi's branching, compaction handling, and (later) tree navigation. It also stays [hosting-compatible](./2026-05-31-hosting-compatible-by-default.md): the session file is a portable artifact, and the versioned content behind the `ContentStore` seam remains a separate, swappable store.
 
-Build sequencing lives in the plan: [persistence-and-session-foundation](../plans/persistence-and-session-foundation.md).
+Build sequencing lives in the plan: [persistence-and-session-foundation](../../plans/persistence-and-session-foundation.md).

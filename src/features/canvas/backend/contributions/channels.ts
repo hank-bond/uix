@@ -1,10 +1,10 @@
 // canvas channel contributions.
 
-import type { CanvasKey } from "../../shared/addressing";
 import type { ChannelContribution } from "@uix/api/channels";
 import { withHandlers } from "@uix/api/channels";
-import { canvasChannels } from "../../shared/channels";
 
+import type { CanvasKey } from "../../shared/addressing";
+import { canvasChannels } from "../../shared/channels";
 import type { CanvasContext } from "../context";
 
 export function publishCanvasChanged(ctx: CanvasContext, key: CanvasKey): void {
@@ -18,7 +18,7 @@ export function createCanvasChannelContributions(
   return [
     withHandlers(canvasChannels, {
       writeback: {
-        async handle(req) {
+        async handler(req) {
           ctx.log.debug(
             { key: req.key, bytes: req.html.length },
             "canvas_writeback",

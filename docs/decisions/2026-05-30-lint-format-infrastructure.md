@@ -1,5 +1,6 @@
 ---
 summary: "ESLint flat config plus Prettier, enforcing node: imports, the lifecycle helpers, and pino logging through the check gate."
+kind: explanation
 status: accepted
 ---
 

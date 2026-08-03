@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -6,14 +7,15 @@ import {
   WorkspaceSessionProvider,
 } from "@uix/api/workspace";
 
-function Probe() {
+function Probe(): JSX.Element {
   const { activeSession } = useWorkspaceSession();
   return <span>{activeSession?.title ?? "not established"}</span>;
 }
 
-const loadActiveHistory = () => Promise.resolve({ items: [] });
-const switchSession = () => Promise.resolve(undefined);
-const setSessionTitle = () => Promise.resolve(undefined);
+const loadActiveHistory = (): Promise<{ items: never[] }> =>
+  Promise.resolve({ items: [] });
+const switchSession = (): Promise<undefined> => Promise.resolve(undefined);
+const setSessionTitle = (): Promise<undefined> => Promise.resolve(undefined);
 
 describe("active session context", () => {
   it("exposes the controller-owned projection read-only", () => {

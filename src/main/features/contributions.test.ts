@@ -1,47 +1,75 @@
+import { type TSchema, Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
-import { Type } from "typebox";
-
-import { AgentContextRegistry } from "../agent-context/registry";
-import { AgentSystemPromptRegistry } from "../agent-system-prompt/registry";
-import { AgentSkillRegistry } from "../agent-skills/registry";
-import { AgentToolRegistry } from "../agent-tools/registry";
-import { ChannelRegistry } from "../channels/registry";
-import { ResourceRegistry } from "../resources/registry";
-import { normalizeResourceRoute } from "@uix/api/resource-routes";
-import { TurnStateRegistry } from "../turn-state/registry";
+import {
+  type NormalizedResourceRoute,
+  normalizeResourceRoute,
+} from "@uix/api/resource-routes";
 
 import {
   registerFeatureContributions,
   registerFeaturePreflightContributions,
 } from "./contributions";
 import { SurfaceRegistry } from "./surfaces";
+import { AgentContextRegistry } from "../agent-context/registry";
+import { AgentSkillRegistry } from "../agent-skills/registry";
+import { AgentSystemPromptRegistry } from "../agent-system-prompt/registry";
+import { AgentToolRegistry } from "../agent-tools/registry";
+import { ChannelRegistry } from "../channels/registry";
+import { ResourceRegistry } from "../resources/registry";
+import { TurnStateRegistry } from "../turn-state/registry";
 
 const emptyParams = Type.Object({});
 
-function channelContribution(name = "refresh") {
+function channelContribution(name = "refresh"): {
+  feature: string;
+  requests: Record<
+    string,
+    {
+      requestSchema: TSchema;
+      responseSchema: TSchema;
+      handler: () => undefined;
+    }
+  >;
+  events: Record<string, never>;
+} {
   return {
     feature: "canvas",
     requests: {
       [name]: {
         requestSchema: emptyParams,
         responseSchema: Type.Void(),
-        handle: () => undefined,
+        handler: () => undefined,
       },
     },
     events: {},
   };
 }
 
-function resourceContribution(name = "doc") {
+function resourceContribution(name = "doc"): {
+  name: string;
+  route: NormalizedResourceRoute;
+  handler: () => Response;
+} {
   return {
     name,
     route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
-    handle: () => new Response(""),
+    handler: () => new Response(""),
   };
 }
 
-function agentTool(name: string) {
+function agentTool(name: string): {
+  name: string;
+  tool: {
+    label: string;
+    description: string;
+    parameters: typeof emptyParams;
+    execute: () => Promise<{
+      content: never[];
+      details: Record<string, never>;
+    }>;
+  };
+} {
   return {
     name,
     tool: {
@@ -53,7 +81,13 @@ function agentTool(name: string) {
   };
 }
 
-function turnStateCells() {
+function turnStateCells(): {
+  documents: {
+    schema: typeof emptyParams;
+    createSnapshot: () => Record<string, unknown>;
+    restore: () => undefined;
+  };
+} {
   return {
     documents: {
       schema: Type.Object({}),
@@ -67,11 +101,12 @@ describe("registerFeatureContributions", () => {
   it("registers all contribution groups and disposes them together", () => {
     const resources = new ResourceRegistry({
       workspaceId: "local",
-      handle: () => undefined,
-      unhandle: () => undefined,
+      transportRegistrar: () => ({
+        [Symbol.dispose]() {},
+      }),
     });
     const channels = new ChannelRegistry({
-      transportHandle: () => ({
+      transportRegistrar: () => ({
         [Symbol.dispose]() {},
       }),
     });
@@ -90,13 +125,14 @@ describe("registerFeatureContributions", () => {
       turnState,
       agentContext,
     };
-    const registration = registerFeatureContributions(
+    const featureLifetime = registerFeatureContributions(
       registries,
       "canvas",
       {
         resources: [resourceContribution()],
         channels: [channelContribution()],
         agentTools: [agentTool("anchor_read")],
+        agentToolOverrides: [agentTool("read")],
         agentSystemPrompt: "Canvas guidance",
         agentSkills: ["./skills/canvas-authoring"],
         turnState: turnStateCells(),
@@ -130,14 +166,26 @@ describe("registerFeatureContributions", () => {
           },
         ],
       }),
-    ).toThrow("Agent tool already registered: canvas__anchor_read");
+    ).toThrow(
+      "Agent tool contribution already registered: canvas.agent.anchor_read",
+    );
+    expect(() =>
+      registerFeatureContributions({ agentTools }, "other", {
+        agentToolOverrides: [agentTool("read")],
+      }),
+    ).toThrow(
+      "Agent tool name already registered: read (existing: canvas.agent.read, attempted: other.agent.read)",
+    );
     expect(() =>
       registerFeatureContributions({ agentSystemPrompt }, "canvas", {
         agentSystemPrompt: "Again",
       }),
     ).toThrow("Agent system prompt already registered: canvas");
     expect(agentSkills.list()).toEqual([
-      "/workspace/features/canvas/skills/canvas-authoring",
+      {
+        featureId: "canvas",
+        path: "/workspace/features/canvas/skills/canvas-authoring",
+      },
     ]);
     expect(() =>
       registerFeatureContributions({ turnState }, "canvas", {
@@ -167,7 +215,7 @@ describe("registerFeatureContributions", () => {
       }),
     ).toThrow("Agent context already registered: canvas.canvas-diff");
 
-    registration[Symbol.dispose]();
+    featureLifetime[Symbol.dispose]();
 
     expect(() =>
       registerFeatureContributions(
@@ -177,6 +225,7 @@ describe("registerFeatureContributions", () => {
           resources: [resourceContribution()],
           channels: [channelContribution()],
           agentTools: [agentTool("anchor_read")],
+          agentToolOverrides: [agentTool("read")],
           agentSystemPrompt: "Reloaded guidance",
           agentSkills: ["./skills/canvas-authoring"],
           turnState: turnStateCells(),
@@ -196,8 +245,9 @@ describe("registerFeatureContributions", () => {
   it("rolls back earlier facets when a later facet fails", () => {
     const resources = new ResourceRegistry({
       workspaceId: "local",
-      handle: () => undefined,
-      unhandle: () => undefined,
+      transportRegistrar: () => ({
+        [Symbol.dispose]() {},
+      }),
     });
 
     expect(() =>
@@ -239,6 +289,14 @@ describe("registerFeatureContributions", () => {
       }),
     ).toThrow(
       "Feature canvas contributes agent tools but no agent tool registry was provided",
+    );
+
+    expect(() =>
+      registerFeatureContributions({}, "canvas", {
+        agentToolOverrides: [agentTool("read")],
+      }),
+    ).toThrow(
+      "Feature canvas contributes agent tool overrides but no agent tool registry was provided",
     );
 
     expect(() =>

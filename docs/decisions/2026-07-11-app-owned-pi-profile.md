@@ -1,5 +1,6 @@
 ---
 summary: "UIX uses one app-owned Pi profile shared across workspaces, while workspace cwd supplies project-local resources and the host Pi profile is never inherited."
+kind: explanation
 status: accepted
 ---
 

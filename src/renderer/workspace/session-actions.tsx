@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 import { useMemo } from "react";
 
 import type { ActionContribution } from "@uix/api/actions";
@@ -31,7 +32,7 @@ export function createWorkspaceSessionActions(
   };
 }
 
-export function WorkspaceSessionActions() {
+export function WorkspaceSessionActions(): JSX.Element | null {
   const controller = useWorkspaceSessionController();
   const actions = useMemo(
     () =>

@@ -6,8 +6,8 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Type } from "typebox";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 import type { AgentStatus, ModelRef } from "@uix/api/agent-channels";
 import type {
@@ -15,14 +15,15 @@ import type {
   SettingsHandleFrom,
   SettingsValues,
 } from "@uix/api/settings";
+
+import { type AgentDriver, createAgentDriver } from "./driver";
+import { sessionWorkspaceSettings } from "./session-settings";
+import { agentWorkspaceSettings } from "./settings";
 import {
   registerTurnStateContributions,
   TurnStateRegistry,
 } from "../turn-state/registry";
-
-import { createAgentDriver } from "./driver";
-import { agentWorkspaceSettings } from "./settings";
-import { sessionWorkspaceSettings } from "./session-settings";
+import type { Workspace } from "../workspace";
 
 interface FakeModel {
   provider: string;
@@ -39,8 +40,12 @@ const sdk = vi.hoisted(() => {
     models: [] as FakeModel[],
     branch: [] as Array<Record<string, unknown>>,
     replacementBranch: undefined as Array<Record<string, unknown>> | undefined,
-    // Extension `on(event, handler)` registrations from the session open.
+    // Extension `on(event, handler)` hooks installed when the session opens.
     extensionHandlers: new Map<string, (event: unknown) => void>(),
+    extensionBindings: [] as Array<{
+      sessionId: string;
+      bindings: Record<string, unknown>;
+    }>,
     session: undefined as Record<string, unknown> | undefined,
     runtimeCreates: 0,
     runtimeOptions: undefined as Record<string, unknown> | undefined,
@@ -91,7 +96,11 @@ const sdk = vi.hoisted(() => {
     getSessionId: () => "session-id",
     getSessionDir: () => "/tmp/sessions",
     getSessionFile: () => "/tmp/session.jsonl",
-    getHeader: () => ({ timestamp: "2026-07-19T10:00:00.000Z" }),
+    getCwd: () => "/tmp/ws",
+    getHeader: () => ({
+      timestamp: "2026-07-19T10:00:00.000Z",
+      cwd: "/tmp/ws",
+    }),
     getEntries: () => state.branch,
     getSessionName: () => state.sessionTitle,
     appendMessage: () => "entry-id",
@@ -106,7 +115,19 @@ const sdk = vi.hoisted(() => {
   function makeSession(
     model: FakeModel | undefined,
     sessionManager: Record<string, unknown> = manager,
-  ) {
+  ): {
+    model: FakeModel | undefined;
+    sessionManager: Record<string, unknown>;
+    isStreaming: boolean;
+    unsubscribe: Mock;
+    setModel: Mock;
+    setSessionName: Mock;
+    subscribe: Mock;
+    bindExtensions: Mock;
+    dispose: Mock;
+    prompt: Mock;
+    reload: Mock;
+  } {
     const unsubscribe = vi.fn();
     return {
       model,
@@ -126,6 +147,18 @@ const sdk = vi.hoisted(() => {
         manager.appendSessionInfo(title);
       }),
       subscribe: vi.fn(() => unsubscribe),
+      bindExtensions: vi.fn((bindings: Record<string, unknown>) => {
+        const getSessionId = sessionManager.getSessionId as () => string;
+        state.extensionBindings.push({
+          sessionId: getSessionId(),
+          bindings,
+        });
+        state.extensionHandlers.get("session_start")?.({
+          type: "session_start",
+          reason: "startup",
+        });
+        return Promise.resolve();
+      }),
       dispose: vi.fn(),
       prompt: vi.fn(async () => {}),
       reload: vi.fn(async () => {}),
@@ -147,7 +180,7 @@ const sdk = vi.hoisted(() => {
         cwd: string;
         agentDir: string;
         resourceLoaderOptions: {
-          extensionFactories: ((pi: unknown) => Promise<void>)[];
+          extensionFactories: Array<(pi: unknown) => Promise<void>>;
         };
       }) => {
         state.servicesLoads += 1;
@@ -240,7 +273,10 @@ const sdk = vi.hoisted(() => {
             getBranch: () => state.replacementBranch ?? state.branch,
             getSessionId: () => state.replacementSessionId,
             getSessionFile: () => state.replacementSessionFile,
-            getHeader: () => ({ timestamp: "2026-07-19T11:00:00.000Z" }),
+            getHeader: () => ({
+              timestamp: "2026-07-19T11:00:00.000Z",
+              cwd: "/tmp/ws",
+            }),
           };
           const replacement = await createRuntime({
             ...options,
@@ -291,18 +327,33 @@ function createFakeSettings<Definition extends SettingsDefinition>(
   };
 }
 
-function fakeAgentSettings(initial?: ModelRef) {
+function fakeAgentSettings(initial?: ModelRef): SettingsHandleFrom<
+  typeof agentWorkspaceSettings
+> & {
+  values: Map<string, unknown>;
+} {
   return createFakeSettings(
     agentWorkspaceSettings,
     new Map(initial ? [["defaultModel", initial]] : []),
   );
 }
 
-function fakeSessionSettings() {
+function fakeSessionSettings(): SettingsHandleFrom<
+  typeof sessionWorkspaceSettings
+> & {
+  values: Map<string, unknown>;
+} {
   return createFakeSettings(sessionWorkspaceSettings);
 }
 
-function turnStateEntry(state: Record<string, unknown>) {
+function turnStateEntry(state: Record<string, unknown>): {
+  id: string;
+  parentId: undefined;
+  timestamp: string;
+  type: "custom";
+  customType: string;
+  data: { state: Record<string, unknown> };
+} {
   return {
     id: "turn-state",
     parentId: undefined,
@@ -313,7 +364,7 @@ function turnStateEntry(state: Record<string, unknown>) {
   };
 }
 
-function deferred() {
+function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;
   const promise = new Promise<void>((done) => {
     resolve = done;
@@ -321,7 +372,9 @@ function deferred() {
   return { promise, resolve };
 }
 
-async function createSessionTarget(sessionId: string) {
+async function createSessionTarget(
+  sessionId: string,
+): Promise<{ root: string; sessionFile: string; workspace: Workspace }> {
   const root = await mkdtemp(join(tmpdir(), "uix-driver-switch-"));
   const sessionDir = join(root, ".uix", "sessions");
   const sessionFile = join(
@@ -350,7 +403,11 @@ function createDriver(
     agentCwd: "/tmp/ws",
     manifestPath: "/tmp/ws/uix.workspace.json",
   },
-) {
+): {
+  driver: AgentDriver;
+  statuses: AgentStatus[];
+  readonly availabilityChanges: number;
+} {
   const statuses: AgentStatus[] = [];
   let availabilityChanges = 0;
   const driver = createAgentDriver({
@@ -385,6 +442,7 @@ beforeEach(() => {
   sdk.state.branch = [];
   sdk.state.replacementBranch = undefined;
   sdk.state.extensionHandlers.clear();
+  sdk.state.extensionBindings = [];
   sdk.state.session = undefined;
   sdk.state.runtimeCreates = 0;
   sdk.state.runtimeOptions = undefined;
@@ -406,6 +464,23 @@ beforeEach(() => {
   sdk.module.SessionManager.open.mockClear();
   sdk.manager.appendSessionInfo.mockClear();
   sdk.manager.appendCustomEntry.mockClear();
+});
+
+describe("driver extension lifecycle", () => {
+  it("binds extensions for the initial and replacement sessions", async () => {
+    const { driver } = createDriver();
+
+    await driver.prompt("hello");
+    await driver.newSession();
+
+    expect(sdk.state.extensionBindings.map((entry) => entry.sessionId)).toEqual(
+      ["session-id", "replacement-session-id"],
+    );
+    for (const entry of sdk.state.extensionBindings) {
+      expect(entry.bindings["onError"]).toBeTypeOf("function");
+    }
+    expect(sdk.state.lastCreateOptions?.["noTools"]).toBe("builtin");
+  });
 });
 
 describe("driver model service (pre-session)", () => {
@@ -541,15 +616,19 @@ describe("driver model service (pre-session)", () => {
     expect(sdk.state.session).toBeUndefined();
   });
 
-  it("reports empty status with no session and no workspace default", () => {
-    const { driver } = createDriver(fakeAgentSettings());
-    expect(driver.status()).toEqual({});
+  it("reports the execution cwd with no session or workspace default", () => {
+    const { driver } = createDriver(fakeAgentSettings(), undefined, undefined, {
+      stateRoot: "/tmp/state",
+      agentCwd: "/tmp/worktree",
+      manifestPath: "/tmp/state/uix.workspace.json",
+    });
+    expect(driver.getStatus()).toEqual({ cwd: "/tmp/worktree" });
   });
 
   it("reports the workspace default before a session exists", () => {
     const ref = { provider: "openai", id: "gpt-5" };
     const { driver } = createDriver(fakeAgentSettings(ref));
-    expect(driver.status()).toEqual({ defaultModel: ref });
+    expect(driver.getStatus()).toEqual({ cwd: "/tmp/ws", defaultModel: ref });
   });
 
   it("selectModel before a session writes the default only and notifies", async () => {
@@ -559,9 +638,9 @@ describe("driver model service (pre-session)", () => {
 
     const status = await driver.selectModel(ref);
 
-    expect(status).toEqual({ defaultModel: ref });
+    expect(status).toEqual({ cwd: "/tmp/ws", defaultModel: ref });
     expect(settings.values.get("defaultModel")).toEqual(ref);
-    expect(statuses).toEqual([{ defaultModel: ref }]);
+    expect(statuses).toEqual([{ cwd: "/tmp/ws", defaultModel: ref }]);
     expect(sdk.state.session).toBeUndefined();
   });
 
@@ -780,7 +859,7 @@ describe("driver selected-session activation", () => {
   it("ignores an obsolete bootstrap registry snapshot and restores replacement instances once", async () => {
     const turnState = new TurnStateRegistry();
     const restorePreviousInstance = vi.fn();
-    const previousRegistration = registerTurnStateContributions(
+    const previousCellsDisposable = registerTurnStateContributions(
       turnState,
       "canvas",
       {
@@ -795,7 +874,7 @@ describe("driver selected-session activation", () => {
     const { driver } = createDriver(undefined, turnState);
 
     driver.init();
-    previousRegistration[Symbol.dispose]();
+    previousCellsDisposable[Symbol.dispose]();
     const restoreReplacementInstance = vi.fn();
     registerTurnStateContributions(turnState, "canvas", {
       documents: {
@@ -819,7 +898,7 @@ describe("driver selected-session activation", () => {
     const restorePreviousInstance = vi.fn(
       async () => previousRestoreGate.promise,
     );
-    const previousRegistration = registerTurnStateContributions(
+    const previousCellsDisposable = registerTurnStateContributions(
       turnState,
       "canvas",
       {
@@ -839,7 +918,7 @@ describe("driver selected-session activation", () => {
     });
     await expect(driver.commitFeatureTurnState()).resolves.toBe(false);
 
-    previousRegistration[Symbol.dispose]();
+    previousCellsDisposable[Symbol.dispose]();
     const restoreReplacementInstance = vi.fn();
     const createReplacementSnapshot = vi.fn(() => "replacement-live");
     registerTurnStateContributions(turnState, "canvas", {
@@ -1341,7 +1420,8 @@ describe("driver model service (session open)", () => {
       agentDir: "/tmp/uix-pi-profile",
       sessionManager: sdk.manager,
     });
-    expect(driver.status()).toEqual({
+    expect(driver.getStatus()).toEqual({
+      cwd: "/tmp/ws",
       model: { provider: "openai", id: "gpt-5" },
       defaultModel: { provider: "openai", id: "gpt-5" },
     });
@@ -1375,7 +1455,7 @@ describe("driver model service (session open)", () => {
 
     await driver.prompt("hi");
 
-    expect(driver.status()).toEqual({});
+    expect(driver.getStatus()).toEqual({ cwd: "/tmp/ws" });
   });
 });
 
@@ -1425,7 +1505,11 @@ describe("driver model service (live session)", () => {
     const session = sdk.state.session as { setModel: ReturnType<typeof vi.fn> };
     expect(session.setModel).toHaveBeenCalledWith(openai);
     expect(settings.values.get("defaultModel")).toEqual(ref);
-    expect(status).toEqual({ model: ref, defaultModel: ref });
+    expect(status).toEqual({
+      cwd: "/tmp/ws",
+      model: ref,
+      defaultModel: ref,
+    });
   });
 
   it("mirrors pi-initiated model changes into status", async () => {
@@ -1440,9 +1524,15 @@ describe("driver model service (live session)", () => {
       source: "cycle",
     });
 
-    expect(driver.status()).toEqual({
+    expect(driver.getStatus()).toEqual({
+      cwd: "/tmp/ws",
       model: { provider: "openai", id: "gpt-5" },
     });
-    expect(statuses).toEqual([{ model: { provider: "openai", id: "gpt-5" } }]);
+    expect(statuses).toEqual([
+      {
+        cwd: "/tmp/ws",
+        model: { provider: "openai", id: "gpt-5" },
+      },
+    ]);
   });
 });

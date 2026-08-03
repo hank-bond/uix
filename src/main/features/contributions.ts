@@ -1,18 +1,25 @@
-// feature contribution registration.
+// Feature contribution registry integration.
 //
 // The feature contract types (FeatureDefinition, FeatureContributions,
 // FeatureContext, etc.) live behind @uix/api. This module owns the runtime
-// registration functions and the per-facet registry shape
+// register functions and the per-facet registry shape
 // (FeatureContributionRegistries).
 
+import type { FeatureContributions, FeatureDefinition } from "@uix/api/feature";
+
+import type { SurfaceRegistry } from "./surfaces";
+import { registerSurfaceContributions } from "./surfaces";
 import type { AgentContextRegistry } from "../agent-context/registry";
 import { registerAgentContextContributions } from "../agent-context/registry";
-import type { AgentSystemPromptRegistry } from "../agent-system-prompt/registry";
-import { registerAgentSystemPromptContribution } from "../agent-system-prompt/registry";
 import type { AgentSkillRegistry } from "../agent-skills/registry";
 import { registerAgentSkillContributions } from "../agent-skills/registry";
+import type { AgentSystemPromptRegistry } from "../agent-system-prompt/registry";
+import { registerAgentSystemPromptContribution } from "../agent-system-prompt/registry";
 import type { AgentToolRegistry } from "../agent-tools/registry";
-import { registerAgentToolContributions } from "../agent-tools/registry";
+import {
+  registerAgentToolContributions,
+  registerAgentToolOverrideContributions,
+} from "../agent-tools/registry";
 import type { ChannelRegistry } from "../channels/registry";
 import { registerChannelContributions } from "../channels/registry";
 import { DisposableBag } from "../lifecycle";
@@ -26,10 +33,6 @@ import {
 } from "../resources/registry";
 import type { TurnStateRegistry } from "../turn-state/registry";
 import { registerTurnStateContributions } from "../turn-state/registry";
-import type { SurfaceRegistry } from "./surfaces";
-import { registerSurfaceContributions } from "./surfaces";
-
-import type { FeatureDefinition, FeatureContributions } from "@uix/api/feature";
 
 export interface FeatureContributionRegistries {
   resources?: ResourceRegistry;
@@ -102,6 +105,21 @@ export function registerFeatureContributions(
           registries.agentTools,
           featureId,
           contributions.agentTools,
+        ),
+      );
+    }
+
+    if (contributions.agentToolOverrides?.length) {
+      if (!registries.agentTools) {
+        throw new Error(
+          `Feature ${featureId} contributes agent tool overrides but no agent tool registry was provided`,
+        );
+      }
+      bag.add(
+        registerAgentToolOverrideContributions(
+          registries.agentTools,
+          featureId,
+          contributions.agentToolOverrides,
         ),
       );
     }

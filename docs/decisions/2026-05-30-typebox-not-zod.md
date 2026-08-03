@@ -1,5 +1,6 @@
 ---
 summary: "TypeBox for every schema surface (IPC, channels, config, on-disk data) instead of splitting validation with Zod."
+kind: explanation
 status: accepted
 ---
 

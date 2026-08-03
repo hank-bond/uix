@@ -1,6 +1,7 @@
 ---
 summary: "Workspace actions are feature-owned renderer workflows arranged in presentation trees: one renderer registry privately holds callbacks, publicly derives a serializable action-catalog projection, resolves durable workspace keybindings and conflicts, and lets replaceable palette/menu/tree features invoke actions by id while backend effects continue through typed channels."
-status: exploring
+kind: explanation
+status: resolved
 ---
 
 # Workspace actions
@@ -9,48 +10,48 @@ status: exploring
 
 UIX needs human-callable operations that do not assume Chat is the interaction shell. Features should be able to publish actions such as opening a model picker, showing a dialog, refreshing backend state, or reloading the workspace. Other features should be able to discover and invoke those actions without importing the owner's React state or backend channel contract.
 
-The substrate supplies an action registry and keybinding dispatch, not a command-palette UI. UIX ships an opinionated Ray/VS Code-style palette as a default feature over that substrate. A workspace may remove it, replace it, render the same actions as menus or a tree, or expose no global action browser at all; direct keybindings continue to work without a palette.
+The substrate supplies an action registry and keybinding dispatch, not command-palette UI. The settled plan adds an opinionated palette as an ordinary replaceable feature. A workspace may omit it or present actions through another surface. Direct keybindings work without a palette. Build progress is tracked in [`workspace-actions-and-command-palette.md`](../../plans/workspace-actions-and-command-palette.md).
 
 ### Action model
 
-An **action is a renderer workflow**. Its callback may change feature-local UI state, open a native `<dialog>`, invoke another action, or call a typed channel request. UIX should not add a parallel main-process action-handler system: channels already own typed backend validation, logging, events, and durable effects. Even a backend-only operation is represented by a small renderer callback over a channel request.
+An _action is a renderer workflow_. Its callback may change feature-local UI state, open a native `<dialog>`, invoke another action, or call a typed channel request. UIX should not add a parallel main-process action-handler system: channels already own typed backend validation, logging, events, and durable effects. Even a backend-only operation is represented by a small renderer callback over a channel request.
 
-Actions are contributed as nested keyed objects. Each object key is a local name, never a caller-supplied id; the feature-scoped registration facet derives the canonical id from the feature owner and complete key path, such as `chat.conversation.compact`. Group/action titles are display-only and produce paths such as `Chat > Conversation > Compact`, so titles may change without changing identity. Moving a contribution to a different keyed path intentionally gives it a new identity; its old saved binding remains as a harmless dormant entry.
+Actions are contributed as nested keyed objects. Each object key is a local name, never a caller-supplied id; the feature-scoped action contribution point derives the canonical id from the feature owner and complete key path, such as `chat.conversation.compact`. Group/action titles are display-only and produce paths such as `Chat > Conversation > Compact`, so titles may change without changing identity. Moving a contribution to a different keyed path intentionally gives it a new identity; its old saved binding remains as a harmless dormant entry.
 
 The renderer registry flattens contributed leaves in authored order. The key path retains identity and each descriptor's title path retains enough presentation structure for palette, menu, and tree features; no normalized public group objects are exposed until a concrete consumer needs group metadata that paths cannot express. A palette searches title, canonical id, and path.
 
-One authored action contribution deterministically becomes three renderer projections with the same derived id and lifetime:
+One authored action contribution deterministically becomes three renderer values with the same derived id and lifetime:
 
-- the private registrations retain callbacks and enabled/running state;
+- the private `ResolvedActionContribution` values retain callbacks and authored enabled state before the registry creates live `RegisteredAction` state;
 - the public catalog is a flat list of JSON-safe `ActionCatalogEntry` values: id, owner, title, path, optional description, resolved binding, enabled/running state, and conflicts;
 - the default-binding template contains only ids whose leaves declare `defaultBinding` and changes independently from enabled/running-only catalog updates.
 
-Keeping `defaultBinding` on the action leaf is authoring colocation, not runtime coupling: the callback never receives or reads it, and normalization splits the metadata immediately. A separate default contribution tree would duplicate keyed paths, create drift, and add another registration lifetime for no current benefit.
+Keeping `defaultBinding` on the action leaf is authoring colocation, not runtime coupling: the callback never receives or reads it, and resolution splits the metadata immediately. A separate default contribution tree would duplicate keyed paths, create drift, and add another registered-item lifetime for no current benefit.
 
 Any surface can subscribe to the catalog and invoke an id. The registry executes the owner's private callback, so cross-feature composition exposes neither callback references nor another feature's channels. The callback normally closes over the state and typed client of the surface that registered it. Substrate-scoped channel contracts remain available where intended, as Chat already demonstrates with the `agent` contract.
 
-Action invocation is asynchronous and errors return to the invoking UI; keybinding-triggered errors need a central observable diagnostic because there is no direct caller UI. Each action id has one in-flight invocation slot: another invocation while its callback promise is pending returns `already_running` and is not queued. Registration lifetime owns callback availability, but unregistering does not claim to cancel work the callback already started.
+Action invocation is asynchronous and errors return to the invoking UI; keybinding-triggered errors need a central observable diagnostic because there is no direct caller UI. Each action id has one in-flight invocation slot: another invocation while its callback promise is pending returns `already_running` and is not queued. The registered action's lifetime owns callback availability, but unregistering does not claim to cancel work the callback already started.
 
 Long-running operation lifecycle belongs to the feature or backend that understands it, not to the action registry. A start action normally finishes once a typed channel accepts the operation; progress, cancellation, deduplication, and any queue remain feature-owned state exposed through channel events and requests. The feature can contribute separate start/cancel/show-progress actions whose enabled state follows that operation. This avoids a generic queue guessing whether repeated intents should be dropped, merged, supersede one another, or execute sequentially.
 
 ### Surface composition
 
-Actions register from mounted surfaces so they can close over real React state. Surface composition gains one presentation distinction instead of a separate action-module pipeline:
+Actions already register from mounted surfaces so they can close over React state. The unsettled implementation unit adds one presentation distinction instead of a separate action-module pipeline:
 
 - **panel surfaces** participate in workspace layout;
 - **ambient surfaces** mount for the workspace lifetime without taking panel space.
 
-An ambient surface may render a native `<dialog>` or only register effects/actions. Chromium's modal top layer already provides cross-workspace stacking, backdrop, focus trapping, and Escape behavior while the dialog retains DOM ancestry under the feature's scoped-CSS root. The default command palette is therefore an ordinary ambient surface, not substrate overlay UI.
+An ambient surface may render a native `<dialog>` or only register effects and actions. Chromium's modal top layer already supplies workspace-wide stacking, backdrop, focus trapping, and Escape behavior. The dialog still retains DOM ancestry under the feature's scoped-CSS root. The proposed default command palette is therefore an ordinary ambient surface, not substrate overlay UI.
 
 Future action-triggered sidebars remain panel surfaces. Their show/hide/focus model should be designed when that concrete consumer arrives; ambient surfaces do not need to solve panel visibility or surface instances.
 
 ### Bindings and customization
 
-Bindings are durable workspace choices stored directly as the dynamic action-id map at `settings.keybindings` in `uix.workspace.json` — there is no inner `bindings` property. Per the [workspace-settings design](./workspace-settings.md), every settings scope has one object schema plus optional whole-object defaults: ordinary named scopes use `Type.Object`, while keybindings use `Type.Record(ActionId, Shortcut | null)` through the same hydration, validation, persistence, and subscription path. Dynamic keys remain structurally validated, but syntactically valid ids need not be active. Registered settings namespaces materialize at least `{}` so the manifest exposes the configurable area instead of hiding it behind sparse overrides.
+Bindings are durable workspace choices stored directly as the dynamic action-id map at `settings.keybindings`; there is no inner `bindings` property. Every settings scope has one schema and an optional whole-object default. Keybindings use `Type.Record(ActionId, Shortcut | null)` through the same hydration, validation, persistence, and subscription path as fixed-key settings. Dynamic keys remain structurally validated, but syntactically valid ids need not be active. Registered namespaces materialize at least `{}` so the manifest exposes the configurable area instead of hiding it behind sparse overrides.
 
-Defaults create complete configuration rather than participating in runtime resolution. After frontend actions register, the renderer sends its batched default-template projection to main; main computes `{ ...declaredDefaults, ...persistedBindings }`, validates and persists the complete map, then returns/broadcasts the confirmed snapshot. Existing values—including `null`—always win, later default changes do not rewrite existing workspaces, removed actions leave dormant entries, and reinstalling an action recovers its prior binding. Renderer catalog and dispatch remain gated until initial confirmation and then consult only the main-owned map. A changed default template may repeat the idempotent reconciliation for late-mounted actions without turning defaults into a live fallback layer.
+Defaults create complete configuration instead of participating in runtime resolution. After actions register, the renderer sends its batched default-template projection to main. Main computes `{ ...declaredDefaults, ...persistedBindings }`, validates and persists the complete map, then returns and broadcasts the confirmed snapshot. Existing values, including `null`, always win. Later default changes do not rewrite existing workspaces, removed actions leave dormant entries, and reinstalling an action recovers its prior binding. Renderer catalog and dispatch remain gated until initial confirmation and then consult only the main-owned map. A changed default template may repeat this idempotent reconciliation for late-mounted actions without turning defaults into a live fallback layer.
 
-Main owns durable configuration and complete-scope replacement; the renderer owns keyboard interpretation and action execution. A renderer customization feature submits one complete candidate map, main validates and atomically replaces it, and main broadcasts the confirmed result. Missing means eligible for materialization, `null` means explicitly unbound, and a shortcut is concrete; UI intents called bind/unbind/reset merely construct the next candidate, with reset copying the current declared default (or omitting an id that has none). Human or agent file edits still require substrate reload, while channel edits publish immediately.
+Main owns durable configuration and complete-scope replacement; the renderer owns keyboard interpretation and action execution. The planned public customization capability submits one complete candidate map. Main validates and atomically replaces it, then broadcasts the confirmed result. Missing means eligible for materialization, `null` means explicitly unbound, and a shortcut is concrete. UI intents such as bind, unbind, and reset only construct the next candidate; reset copies the current declared default or omits an id that has none. Manifest edits still require substrate reload, while channel edits publish immediately.
 
 The renderer joins active catalog entries with confirmed bindings and computes conflicts centrally after resolving `mod` for its own platform. If multiple active actions resolve to one shortcut, that shortcut invokes none; each action remains invokable by id. Conflicts are included in the public catalog but never persisted because they depend on the active client and composition. A well-formed persisted id with no action appears in a separate unresolved projection, not rejected or represented as a fake action: it may be a typo, or it may belong to a temporarily removed feature. A future settings editor can repair/delete these entries while preserving intentional dormant choices.
 
@@ -63,7 +64,7 @@ Renderer actions do not run without an attached workspace renderer, access Node/
 ## Open questions
 
 - What panel visibility/focus API should follow once an action-triggered sidebar is concrete?
-- When should the generic cross-feature settings catalog and replaceable settings-modal feature be promoted from the [plans backlog](../plans/backlog.md)?
+- When should the generic cross-feature settings catalog and replaceable settings-modal feature be promoted from the [plans backlog](../../plans/backlog.md)?
 
 ## Log
 
@@ -102,3 +103,7 @@ We kept `defaultBinding` colocated on the action leaf because deterministic norm
 ### 2026-07-15 — shortcut strings describe gestures
 
 The `Shift+1` case clarified that persisted bindings describe the keys a human presses, not the text produced after a keyboard layout applies modifiers. Modifiers therefore stay explicit and the base key remains named as part of the gesture (`shift+1`, not `!`). DOM `KeyboardEvent.key`, `code`, and layout translation belong to the later dispatcher adapter; deprecated numeric key codes and browser-specific names do not enter the durable format.
+
+### 2026-08-01 — resolved
+
+The action model landed: feature-owned renderer workflows with a flat serializable catalog, main-owned durable keybindings, and a replaceable default palette feature. Remaining work is build-tracked in [workspace actions and command palette](../../plans/workspace-actions-and-command-palette.md); the design question this thread posed is settled.

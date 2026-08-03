@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
+import type { JSX } from "react";
 
 import type { TranscriptItem } from "@uix/api/agent-channels";
 
-export interface ChatBlockFrameProps {
+interface ChatBlockFrameProps {
   className: string;
   kind: TranscriptItem["kind"];
   state?: "running" | "success" | "error";
@@ -11,7 +12,7 @@ export interface ChatBlockFrameProps {
   label?: ReactNode;
   body: ReactNode;
   /** Optimistic row awaiting its canonical counterpart from main. */
-  unconfirmed?: boolean;
+  isUnconfirmed?: boolean;
 }
 
 export function ChatBlockFrame({
@@ -22,8 +23,8 @@ export function ChatBlockFrame({
   customType,
   label,
   body,
-  unconfirmed,
-}: ChatBlockFrameProps) {
+  isUnconfirmed,
+}: ChatBlockFrameProps): JSX.Element {
   return (
     <article
       className={`msg msg--${className}`}
@@ -32,7 +33,7 @@ export function ChatBlockFrame({
       data-uix-state={state}
       data-uix-tool-name={toolName}
       data-uix-custom-type={customType}
-      data-uix-unconfirmed={unconfirmed ? "" : undefined}
+      data-uix-unconfirmed={isUnconfirmed ? "" : undefined}
     >
       {label ? (
         <div className="msg__label" data-uix-part="label">

@@ -10,7 +10,7 @@
 
 import path from "node:path";
 
-import { Type, type Static } from "typebox";
+import { type Static, Type } from "typebox";
 import { Value } from "typebox/value";
 
 export const WorkspaceManifestFileName = "uix.workspace.json";
@@ -25,7 +25,7 @@ export const WorkspaceManifestSchema = Type.Object({
   settings: Type.Optional(
     Type.Record(Type.String(), Type.Record(Type.String(), Type.Unknown())),
   ),
-  /** Ordered feature entries; order is registration order. */
+  /** Ordered feature entries; declaration order is composition order. */
   features: Type.Array(WorkspaceManifestFeatureSchema),
 });
 

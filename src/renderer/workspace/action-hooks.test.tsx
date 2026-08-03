@@ -1,16 +1,17 @@
+import type { JSX } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import type {
+  ActionCatalogEntry,
+  ActionInvocationResult,
+} from "@uix/api/actions";
 import {
   useActionCatalog,
   useActionContribution,
   useInvokeAction,
   WorkspaceActionsProvider,
 } from "@uix/api/workspace";
-import type {
-  ActionCatalogEntry,
-  ActionInvocationResult,
-} from "@uix/api/actions";
 
 const catalogEntry: ActionCatalogEntry = {
   id: "chat.models.favorites",
@@ -34,7 +35,7 @@ describe("workspace action hooks", () => {
       | ((id: string) => Promise<ActionInvocationResult>)
       | undefined;
 
-    function Probe() {
+    function Probe(): JSX.Element {
       const actions = useActionCatalog();
       invokeFromHook = useInvokeAction();
       return <span>{actions.map(({ title }) => title).join(", ")}</span>;
@@ -58,11 +59,11 @@ describe("workspace action hooks", () => {
   });
 
   it("fails clearly when workspace or feature action wiring is missing", () => {
-    function CatalogProbe() {
+    function CatalogProbe(): JSX.Element | null {
       useActionCatalog();
       return null;
     }
-    function ContributionProbe() {
+    function ContributionProbe(): JSX.Element | null {
       useActionContribution({});
       return null;
     }

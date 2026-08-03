@@ -10,6 +10,6 @@ status: active
 
 Source: <https://github.com/dirac-run/dirac/tree/c4f1df66981bcc3d546c782583db64467623f878>
 
-Dirac is licensed under Apache License 2.0. Copyright 2026 Dirac Delta Labs and Copyright 2026 Cline Bot Inc. See `../../../../third_party/licenses/APACHE-2.0.txt` for the standard license text.
+Dirac is licensed under Apache License 2.0. Copyright 2026 Dirac Delta Labs and Copyright 2026 Cline Bot Inc. See [`APACHE-2.0.txt`](../../../../../../third_party/licenses/APACHE-2.0.txt) for the standard license text.
 
 UIX uses this pool as a model-agnostic set of compact anchor IDs. It is committed as a static asset and is not regenerated or fetched during install.

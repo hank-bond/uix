@@ -11,14 +11,13 @@ import { describe, expect, it } from "vitest";
 
 import type { DocumentStoreFactory } from "@uix/api/documents";
 
+import { type FeatureSubstrate, loadFeatures } from "./loader";
+import { WorkspaceManifestFileName } from "./manifest";
+import { SurfaceRegistry } from "./surfaces";
 import { AgentToolRegistry } from "../agent-tools/registry";
 import { ChannelRegistry } from "../channels/registry";
 import { DisposableBag } from "../lifecycle";
 import { WorkspaceManifestStore } from "../workspace-manifest-store";
-
-import { loadFeatures, type FeatureSubstrate } from "./loader";
-import { WorkspaceManifestFileName } from "./manifest";
-import { SurfaceRegistry } from "./surfaces";
 
 const documents: DocumentStoreFactory = {
   createStore: () => {
@@ -26,7 +25,17 @@ const documents: DocumentStoreFactory = {
   },
 };
 
-function makeSubstrate(manifestPath?: string) {
+function makeSubstrate(manifestPath?: string): {
+  substrate: FeatureSubstrate;
+  agentTools: AgentToolRegistry;
+  surfaces: SurfaceRegistry;
+  channelIds: Set<string>;
+  settingsScopes: Map<
+    string,
+    { committed: boolean; values: Map<string, unknown> }
+  >;
+  committedSettings: string[];
+} {
   const manifestStore = manifestPath
     ? new WorkspaceManifestStore(manifestPath)
     : undefined;
@@ -54,7 +63,8 @@ function makeSubstrate(manifestPath?: string) {
       settingsScopes.set(featureId, state);
       let disposed = false;
       return {
-        handle: {
+        settings: {
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- see SettingsHandle.get: T is inferred from call-site context.
           get: <T = unknown>(key: string) =>
             settingsScopes.get(featureId)?.values.get(key) as T | undefined,
           set: (key: string, value: unknown) => {
@@ -86,7 +96,7 @@ function makeSubstrate(manifestPath?: string) {
   const surfaces = new SurfaceRegistry();
   const channelIds = new Set<string>();
   const channels = new ChannelRegistry({
-    transportHandle: (canonicalId) => {
+    transportRegistrar: (canonicalId) => {
       channelIds.add(canonicalId);
       return {
         [Symbol.dispose]() {
@@ -141,8 +151,8 @@ async function writeWorkspace(
   return join(dir, WorkspaceManifestFileName);
 }
 
-const toolFeature = (id: string, tool = "greet") => `
-const feature = {
+const toolFeature = (id: string, tool = "greet"): string => `
+export const feature = {
   id: "${id}",
   contribute(ctx) {
     ctx.log.debug({}, "activated");
@@ -161,7 +171,6 @@ const feature = {
     };
   },
 };
-export default feature;
 `;
 
 describe("loadFeatures", () => {
@@ -179,15 +188,13 @@ describe("loadFeatures", () => {
     expect(result.activated).toHaveLength(1);
     expect(result.activated[0]?.id).toBe("greeter");
     expect(result.activated[0]?.displayName).toBe("./greeter.ts");
-    expect(agentTools.registeredContributions[0]?.canonicalId).toBe(
-      "greeter__greet",
-    );
+    expect(agentTools.list()[0]?.canonicalId).toBe("greeter__greet");
     expect(settingsScopes.get("greeter")?.committed).toBe(true);
     expect(committedSettings).toEqual(["greeter"]);
 
     // Reload teardown: clearing the bag removes the contribution and scope.
     bag.clear();
-    expect(agentTools.registeredContributions).toHaveLength(0);
+    expect(agentTools.list()).toHaveLength(0);
     expect(settingsScopes.has("greeter")).toBe(false);
   });
 
@@ -208,9 +215,10 @@ describe("loadFeatures", () => {
     );
 
     expect(result.activated.map((f) => f.id)).toEqual(["zzz", "aaa"]);
-    expect(
-      agentTools.registeredContributions.map((c) => c.canonicalId),
-    ).toEqual(["zzz__greet", "aaa__greet"]);
+    expect(agentTools.list().map((c) => c.canonicalId)).toEqual([
+      "zzz__greet",
+      "aaa__greet",
+    ]);
   });
 
   it("loads nothing without a manifest", async () => {
@@ -220,7 +228,7 @@ describe("loadFeatures", () => {
 
     expect(result.failed).toEqual([]);
     expect(result.activated).toEqual([]);
-    expect(agentTools.registeredContributions).toHaveLength(0);
+    expect(agentTools.list()).toHaveLength(0);
   });
 
   it("scopes in-flight loads to their owned feature bags", async () => {
@@ -258,20 +266,20 @@ describe("loadFeatures", () => {
     const bag = new DisposableBag();
 
     await loadFeatures({ manifestPath }, bag, substrate);
-    expect(agentTools.registeredContributions).toHaveLength(1);
+    expect(agentTools.list()).toHaveLength(1);
 
     await writeFile(manifestPath, "{ not json");
     await expect(
       loadFeatures({ manifestPath }, bag, substrate),
     ).rejects.toThrow("not valid JSON");
     // The failed pass never cleared the bag: the feature is still live.
-    expect(agentTools.registeredContributions).toHaveLength(1);
+    expect(agentTools.list()).toHaveLength(1);
 
     await writeFile(manifestPath, JSON.stringify({ features: "nope" }));
     await expect(
       loadFeatures({ manifestPath }, bag, substrate),
     ).rejects.toThrow("does not match schema");
-    expect(agentTools.registeredContributions).toHaveLength(1);
+    expect(agentTools.list()).toHaveLength(1);
   });
 
   it("isolates a throwing entry and continues with later manifest lines", async () => {
@@ -293,13 +301,13 @@ describe("loadFeatures", () => {
     expect(result.failed).toHaveLength(1);
     expect(result.failed[0]?.error.message).toContain("deliberate canary");
     expect(result.activated.map((f) => f.id)).toEqual(["greeter"]);
-    expect(agentTools.registeredContributions).toHaveLength(1);
+    expect(agentTools.list()).toHaveLength(1);
   });
 
   it("removes a provisional settings scope when context throws", async () => {
     const manifestPath = await writeWorkspace({
       "broken.ts": `
-export default {
+export const feature = {
   id: "broken",
   context() { throw new Error("context failed"); },
   contribute: () => ({}),
@@ -323,7 +331,7 @@ export default {
   it("removes buffered settings when contribute throws", async () => {
     const manifestPath = await writeWorkspace({
       "broken.ts": `
-export default {
+export const feature = {
   id: "broken",
   contribute(ctx) {
     ctx.settings.set("enabled", true);
@@ -350,7 +358,7 @@ export default {
     const manifestPath = await writeWorkspace(
       {
         "broken.ts": `
-export default {
+export const feature = {
   id: "recovered",
   contribute: () => ({ agentSystemPrompt: "missing registry" }),
 };
@@ -374,7 +382,7 @@ export default {
     expect(result.activated.map((feature) => feature.id)).toEqual([
       "recovered",
     ]);
-    expect(agentTools.registeredContributions).toHaveLength(1);
+    expect(agentTools.list()).toHaveLength(1);
     expect(settingsScopes.get("recovered")?.committed).toBe(true);
     expect(committedSettings).toEqual(["recovered"]);
   });
@@ -415,9 +423,9 @@ export default {
     expect(result.activated[0]?.entry).toBe(sharedEntry);
   });
 
-  it("fails an entry whose default export is not a FeatureDefinition", async () => {
+  it("fails an entry whose `feature` export is not a FeatureDefinition", async () => {
     const manifestPath = await writeWorkspace({
-      "bad.mjs": `export default function activate() {};`,
+      "bad.mjs": `export const feature = function activate() {};`,
     });
     const { substrate } = makeSubstrate(manifestPath);
 
@@ -430,6 +438,24 @@ export default {
     expect(result.activated).toEqual([]);
     expect(result.failed[0]?.error.message).toContain(
       "not a FeatureDefinition",
+    );
+  });
+
+  it("fails an entry that exports no `feature`", async () => {
+    const manifestPath = await writeWorkspace({
+      "default-only.mjs": `export default { id: "not-feature" };`,
+    });
+    const { substrate } = makeSubstrate(manifestPath);
+
+    const result = await loadFeatures(
+      { manifestPath },
+      new DisposableBag(),
+      substrate,
+    );
+
+    expect(result.activated).toEqual([]);
+    expect(result.failed[0]?.error.message).toContain(
+      "does not export `feature`",
     );
   });
 
@@ -493,13 +519,13 @@ export default {
 
     expect(second.failed).toEqual([]);
     expect(second.activated.map((f) => f.id)).toEqual(["greeter", "waver"]);
-    expect(agentTools.registeredContributions).toHaveLength(2);
+    expect(agentTools.list()).toHaveLength(2);
   });
 
   it("registers surface refs resolved against the feature entry's directory", async () => {
     const manifestPath = await writeWorkspace({
       "shiny.ts": `
-export default {
+export const feature = {
   id: "shiny",
   contribute: () => ({ surfaces: ["./workspace/surface.tsx"] }),
 };
@@ -541,10 +567,12 @@ const contract = {
   events: {},
 };
 
-export default {
+export const feature = {
   id: "valuey",
   contribute: () => ({
-    channels: [withHandlers(contract, { ping: { handle: () => ({ ok: true }) } })],
+    channels: [
+      withHandlers(contract, { ping: { handler: () => ({ ok: true }) } }),
+    ],
   }),
 };
 `,

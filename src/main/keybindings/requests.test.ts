@@ -1,9 +1,14 @@
-import type { KeybindingMap } from "@uix/api/actions";
 import { describe, expect, it } from "vitest";
+
+import type { KeybindingMap } from "@uix/api/actions";
 
 import { createKeybindingRequestHandlers } from "./requests";
 
-function createHarness(initial: KeybindingMap) {
+function createHarness(initial: KeybindingMap): {
+  requestHandlers: ReturnType<typeof createKeybindingRequestHandlers>;
+  replacements: KeybindingMap[];
+  published: KeybindingMap[];
+} {
   let persisted = structuredClone(initial);
   const replacements: KeybindingMap[] = [];
   const published: KeybindingMap[] = [];

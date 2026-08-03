@@ -1,6 +1,5 @@
-import { describe, expect, it } from "vitest";
-
 import { Value } from "typebox/value";
+import { describe, expect, it } from "vitest";
 
 import { ActionIdSchema, KeybindingMapSchema } from "./actions";
 

@@ -1,8 +1,9 @@
-import { createContext, useCallback, useContext, type ReactNode } from "react";
+import type { JSX } from "react";
+import { createContext, type ReactNode, useCallback, useContext } from "react";
 
 import { WorkspaceActionsProvider } from "@uix/api/workspace";
 
-import { ActionRegistry } from "./action-registry";
+import type { ActionRegistry } from "./action-registry";
 
 const ActionRegistryContext = createContext<ActionRegistry | undefined>(
   undefined,
@@ -14,7 +15,7 @@ export function ActionRegistryProvider({
 }: {
   registry: ActionRegistry;
   children: ReactNode;
-}) {
+}): JSX.Element {
   const getCatalogSnapshot = useCallback(
     () => registry.getCatalogSnapshot(),
     [registry],

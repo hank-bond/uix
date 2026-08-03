@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  parseCanvasKeyFromDocumentResourceId,
   parseCanvasDocumentResourceId,
   parseCanvasKey,
+  parseCanvasKeyFromDocumentResourceId,
   toCanvasDocumentResourceId,
 } from "./addressing";
 

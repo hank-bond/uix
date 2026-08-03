@@ -1,5 +1,6 @@
 ---
 summary: "Every state value has exactly one owner — renderer (this-machine presentation, cache semantics), main-durable (session entries / content store), or main app-local (window bounds) — never durable-but-locally-overridable; main's in-memory state is never an owner, only regenerable working memory."
+kind: explanation
 status: accepted
 ---
 

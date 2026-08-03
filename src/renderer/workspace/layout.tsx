@@ -10,17 +10,19 @@
 // workspace. Surface definitions live with their features; channel
 // clients are created by the surface host, not by feature code.
 
-import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { JSX } from "react";
+import { Component, type ReactNode, useEffect, useMemo, useState } from "react";
 
-import { uixChannels, type SurfaceEntry } from "#shared/ipc";
 import {
   createChannelClient,
   createFeatureSettingsClient,
   FeatureActionsProvider,
   FeatureSettingsProvider,
-  useWorkspaceClient,
   type SurfaceContribution,
+  useWorkspaceClient,
 } from "@uix/api/workspace";
+import { type SurfaceEntry, uixChannels } from "#shared/ipc";
+
 import { useActionRegistry } from "./action-context";
 
 /** The composed surface list plus where it came from (or didn't). */
@@ -47,7 +49,7 @@ export function useSurfaces(): SurfaceComposition | undefined {
   useEffect(() => {
     let alive = true;
     let requestVersion = 0;
-    const refresh = () => {
+    const refresh = (): void => {
       const version = ++requestVersion;
       void client.requests
         .surfaces(undefined)
@@ -75,7 +77,7 @@ export function SurfaceMount({
 }: {
   entry: SurfaceEntry;
   surface: SurfaceContribution;
-}) {
+}): JSX.Element {
   const workspace = useWorkspaceClient();
   const actionRegistry = useActionRegistry();
   const registerActions = useMemo(
@@ -167,7 +169,7 @@ interface RuntimeSurfaceState {
 
 /**
  * Loads a runtime surface entry: dynamic-imports the pipeline-built module,
- * validates its default export, and mounts it behind an error boundary.
+ * validates its `surface` export, and mounts it behind an error boundary.
  * Returns the surface name (the module's, once loaded) plus the body to render.
  */
 export function useRuntimeSurface(entry: SurfaceEntry): RuntimeSurfaceState {
@@ -179,10 +181,10 @@ export function useRuntimeSurface(entry: SurfaceEntry): RuntimeSurfaceState {
     if (entry.error !== undefined || entry.url === undefined) return;
     let alive = true;
     import(/* @vite-ignore */ entry.url).then(
-      (module: { default?: unknown }) => {
+      (module: { surface?: unknown }) => {
         if (!alive) return;
         try {
-          setLoaded({ surface: validateSurfaceContribution(module.default) });
+          setLoaded({ surface: validateSurfaceContribution(module.surface) });
         } catch (thrown) {
           setLoaded({
             error: thrown instanceof Error ? thrown.message : String(thrown),
@@ -227,20 +229,20 @@ export function useRuntimeSurface(entry: SurfaceEntry): RuntimeSurfaceState {
 }
 
 /**
- * Narrows a module's default export to a SurfaceContribution or throws
+ * Narrows a module's `surface` export to a SurfaceContribution or throws
  * with a message that names what's wrong — loaded code is validated, not
  * trusted, mirroring the backend loader's `validateFeatureDefinition`.
  */
 function validateSurfaceContribution(value: unknown): SurfaceContribution {
   if (typeof value !== "object" || value === null) {
     throw new Error(
-      "Default export is not a surface (expected a defineSurface result).",
+      "Surface module does not export `surface` (expected a defineSurface result).",
     );
   }
   const surface = value as Partial<SurfaceContribution>;
   if (typeof surface.name !== "string") {
     throw new Error(
-      "Surface has no name — export default defineSurface({ name, ... }).",
+      "Surface has no name — export const surface = defineSurface({ name, ... }).",
     );
   }
   if (typeof surface.render !== "function") {
@@ -255,7 +257,7 @@ function SurfaceErrorCard({
 }: {
   entry: SurfaceEntry;
   message: string;
-}) {
+}): JSX.Element {
   return (
     <div className="surface-error" role="alert">
       <p className="surface-error__title">
@@ -277,11 +279,11 @@ class SurfaceErrorBoundary extends Component<
 > {
   state: { error?: Error } = {};
 
-  static getDerivedStateFromError(error: Error) {
+  static getDerivedStateFromError(error: Error): { error?: Error } {
     return { error };
   }
 
-  render() {
+  render(): ReactNode {
     if (this.state.error) {
       return (
         <SurfaceErrorCard

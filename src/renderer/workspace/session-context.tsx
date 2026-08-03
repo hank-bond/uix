@@ -1,11 +1,12 @@
+import type { JSX } from "react";
 import {
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useSyncExternalStore,
-  type ReactNode,
 } from "react";
 
 import { agentChannels } from "@uix/api/agent-channels";
@@ -27,7 +28,7 @@ export function WorkspaceSessionControllerProvider({
   children,
 }: {
   children: ReactNode;
-}) {
+}): JSX.Element {
   const workspace = useWorkspaceClient();
   const agent = useMemo(
     () => createChannelClient(workspace, agentChannels),
@@ -54,7 +55,10 @@ export function WorkspaceSessionControllerProvider({
   );
 
   useEffect(
-    () => agent.events.event((event) => controller.updateAgentActivity(event)),
+    () =>
+      agent.events.event((event) => {
+        controller.updateAgentActivity(event);
+      }),
     [agent, controller],
   );
   useEffect(() => {

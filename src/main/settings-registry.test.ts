@@ -1,7 +1,8 @@
-import { KeybindingMapSchema } from "@uix/api/actions";
-import { defineSettings } from "@uix/api/settings";
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
+
+import { KeybindingMapSchema } from "@uix/api/actions";
+import { defineSettings } from "@uix/api/settings";
 
 import { DisposableBag } from "./lifecycle";
 import {
@@ -44,9 +45,9 @@ function registerCommitted(
   scopeId: string,
   settingsScope: SettingsScope,
 ): Disposable {
-  const registration = registry.registerScope(scopeId, settingsScope);
-  registration.commit();
-  return registration;
+  const scopeHandle = registry.registerScope(scopeId, settingsScope);
+  scopeHandle.commit();
+  return scopeHandle;
 }
 
 describe("hydrateSettings", () => {
@@ -168,7 +169,7 @@ describe("SettingsRegistry", () => {
     );
   });
 
-  it("disposes only the exact scope registration it created", () => {
+  it("disposes only the exact registered scope it created", () => {
     using registry = new SettingsRegistry();
     const stale = registry.registerScope("chat", scope());
 
@@ -184,7 +185,7 @@ describe("SettingsRegistry", () => {
     const written: unknown[] = [];
     const scopedChanges: unknown[] = [];
     const globalChanges: unknown[] = [];
-    const registration = registry.registerScope(
+    const scopeHandle = registry.registerScope(
       "chat",
       scope({ onWrite: (values) => written.push(structuredClone(values)) }),
     );
@@ -203,7 +204,7 @@ describe("SettingsRegistry", () => {
     expect(globalChanges).toEqual([]);
     expect(written).toEqual([]);
 
-    registration.commit();
+    scopeHandle.commit();
     expect(written).toEqual([
       { statusBar: { order: ["context"], hidden: [] } },
     ]);
@@ -239,7 +240,9 @@ describe("SettingsRegistry", () => {
     expect(written).toEqual([
       { statusBar: { order: ["model"], hidden: ["context"] } },
     ]);
-    expect(() => chat.set("statusBar", { order: [1], hidden: [] })).toThrow();
+    expect(() => {
+      chat.set("statusBar", { order: [1], hidden: [] });
+    }).toThrow();
   });
 
   it("rejects undefined instead of treating it as a persisted deletion", () => {
@@ -257,9 +260,9 @@ describe("SettingsRegistry", () => {
     written.length = 0;
     registry.onChange("agent", "favorite", (value) => changes.push(value));
 
-    expect(() => registry.set("agent", "favorite", undefined)).toThrow(
-      "favorite cannot be undefined",
-    );
+    expect(() => {
+      registry.set("agent", "favorite", undefined);
+    }).toThrow("favorite cannot be undefined");
     expect(registry.get("agent", "favorite")).toBeUndefined();
     expect(written).toEqual([]);
     expect(changes).toEqual([]);
@@ -279,9 +282,9 @@ describe("SettingsRegistry", () => {
       throw new Error("listener failed");
     });
 
-    expect(() =>
-      registry.set("chat", "statusBar", { order: [], hidden: [] }),
-    ).toThrow("listener failed");
+    expect(() => {
+      registry.set("chat", "statusBar", { order: [], hidden: [] });
+    }).toThrow("listener failed");
     expect(order).toEqual(["write", "notify"]);
   });
 
@@ -300,7 +303,7 @@ describe("SettingsRegistry", () => {
   it("replaces one complete scope with one write before keyed notifications", () => {
     using registry = new SettingsRegistry();
     const writes: unknown[] = [];
-    const changes: [string, unknown][] = [];
+    const changes: Array<[string, unknown]> = [];
     registerCommitted(registry, "keybindings", {
       label: "workspace namespace keybindings",
       definition: defineSettings({ schema: KeybindingMapSchema }),
@@ -379,10 +382,12 @@ describe("SettingsRegistry", () => {
 
     expect(registry.get("keybindings", "chat.models")).toBe("mod+m");
     expect(registry.get("keybindings", "chat.disabled")).toBeNull();
-    expect(() => registry.set("keybindings", "Chat models", "mod+m")).toThrow(
-      "Unknown setting",
-    );
-    expect(() => registry.set("keybindings", "chat.bad", "shift m")).toThrow();
+    expect(() => {
+      registry.set("keybindings", "Chat models", "mod+m");
+    }).toThrow("Unknown setting");
+    expect(() => {
+      registry.set("keybindings", "chat.bad", "shift m");
+    }).toThrow();
   });
 
   it("throws for unknown scopes and unknown keys", () => {
@@ -412,7 +417,7 @@ describe("SettingsRegistry", () => {
 
   it("notifies onAnyChange with the scope id", () => {
     using registry = new SettingsRegistry();
-    const seen: [string, string, unknown][] = [];
+    const seen: Array<[string, string, unknown]> = [];
     registerCommitted(registry, "agent", {
       label: "workspace namespace agent",
       definition: defineSettings({

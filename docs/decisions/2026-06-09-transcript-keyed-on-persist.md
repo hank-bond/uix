@@ -1,5 +1,6 @@
 ---
 summary: "Transcript items are keyed the moment pi persists them — only the streaming assistant row is ever pre-key (transport-only handle, one in-place rekey); the user echo is renderer-local composer state confirmed by the born-keyed row — over a session-long backend alias map or holding items until durable; durable interactions gate on the key, ephemeral ones never need it."
+kind: explanation
 status: accepted
 ---
 
@@ -23,4 +24,4 @@ Two consequences do most of the simplifying:
 - _Session-long backend alias map_ (renderer keeps provisional ids forever; main translates every inbound id): the map becomes a permanent ledger every durable write path must remember to consult, and a forgotten resolve writes a provisional id into the session file — fails dirty, into the durable record. Keyed-on-persist fails safe (a button is briefly inert) and confines bookkeeping to per-row promises that die at keying.
 - _Hold items until durable_ (emit each row once, already keyed): kills streaming — the assistant row exists on screen precisely so deltas have somewhere to render. For every other row kind holding _is_ the design: customs and user rows are emitted once, born keyed, with the user echo's instant feedback supplied renderer-locally instead of by a pre-key emission from main.
 
-**Scope.** Main still owns all durable display/block state, keyed canonically and validated against the session on every inbound action (the renderer gate is UX, not the security boundary). The renderer may keep its own stable React key and treat `item.id` as data if the one remount per rekey ever bites — renderer-local bookkeeping, not a protocol commitment. Build: [durable-transcript-identity](../plans/durable-transcript-identity.md); reasoning trail: [conversation-render-primitives](../design/conversation-render-primitives.md).
+**Scope.** Main still owns all durable display/block state, keyed canonically and validated against the session on every inbound action (the renderer gate is UX, not the security boundary). The renderer may keep its own stable React key and treat `item.id` as data if the one remount per rekey ever bites — renderer-local bookkeeping, not a protocol commitment. Build: [durable-transcript-identity](../../plans/durable-transcript-identity.md); reasoning trail: [conversation-render-primitives](../design/conversation-render-primitives.md).

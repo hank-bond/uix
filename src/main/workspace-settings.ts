@@ -12,11 +12,11 @@ import type {
 
 import type { ParsedWorkspaceManifest } from "./features/manifest";
 import { DisposableBag } from "./lifecycle";
+import type { SettingsRegistry } from "./settings-registry";
 import {
   hydrateSettings,
-  SettingsRegistry,
   type SettingsScope,
-  type SettingsScopeRegistration,
+  type SettingsScopeHandle,
 } from "./settings-registry";
 import type { WorkspaceManifestStore } from "./workspace-manifest-store";
 import type {
@@ -45,7 +45,7 @@ export interface WorkspaceSettings {
     featureId: string,
     manifestIndex: number,
     settings: SettingsDefinition,
-  ): SettingsScopeRegistration;
+  ): SettingsScopeHandle;
   /** Mint a schema-bound handle from one registered namespace definition. */
   forNamespace<Namespace extends AnyWorkspaceSettingsNamespace>(
     namespace: Namespace,
@@ -81,12 +81,12 @@ export function createWorkspaceSettings(
       }
 
       // Every fallible read/hydration stays detached. Returning from this
-      // preparation means promotion and namespace registration contain no
+      // preparation means promotion and namespace acceptance contain no
       // user code or schema work and can run synchronously as one adoption.
-      const staged: {
+      const staged: Array<{
         namespace: string;
         scope: SettingsScope;
-      }[] = [];
+      }> = [];
       for (const namespace of namespaces) {
         const label = `workspace namespace ${namespace.id}`;
         const location = next.settingsNamespace(namespace.id);
@@ -109,10 +109,10 @@ export function createWorkspaceSettings(
       registry.clearScopes();
       namespaceBag.clear();
       for (const { namespace, scope } of staged) {
-        const registration = namespaceBag.add(
+        const scopeHandle = namespaceBag.add(
           registry.registerScope(namespace, scope),
         );
-        registration.commit();
+        scopeHandle.commit();
       }
       return composition;
     },
@@ -125,7 +125,9 @@ export function createWorkspaceSettings(
         label,
         definition: settings,
         values,
-        onWrite: (next) => location.write(next),
+        onWrite: (next) => {
+          location.write(next);
+        },
       });
     },
 
@@ -147,11 +149,13 @@ function createWorkspaceNamespaceHandle<Definition extends SettingsDefinition>(
   const settings = registry.forScope(namespace);
   return {
     get: (key) => settings.get(key),
-    set: (key, value) => settings.set(key, value),
+    set: (key, value) => {
+      settings.set(key, value);
+    },
     onChange: (key, handler) =>
-      settings.onChange(key, (value) =>
-        handler(value as SettingsValues<Definition>[typeof key] | undefined),
-      ),
+      settings.onChange(key, (value) => {
+        handler(value as SettingsValues<Definition>[typeof key] | undefined);
+      }),
     getSnapshot: () =>
       registry.getScopeSnapshot(namespace) as SettingsValues<Definition>,
     replace: (candidate) =>

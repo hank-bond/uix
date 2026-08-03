@@ -1,5 +1,6 @@
 ---
-summary: "Exploring extensible rendering of typed conversation blocks by porting pi's render architecture from TUI to React: a forwarded event stream plus two registries (tool renderers by tool name, message renderers by customType) and pi's content/display/details split."
+summary: "Exploring public React transcript presentation through separate tool and custom-message registries, typed payloads, durable interaction identity, fallback, and failure isolation."
+kind: explanation
 status: exploring
 ---
 
@@ -7,71 +8,62 @@ status: exploring
 
 ## Problem
 
-The conversation pane is UIX's first React-path surface. The bare-bones move is to hardcode turn types and style a React component for each. But UIX's ethos ([pi-self-extension-ethos](../decisions/2026-06-05-pi-self-extension-ethos.md)) says ship primitives, not fixed features: a user should be able to decide "I want to render this conversational element a new way" — or let the agent _emit_ a rich element (e.g. a `<rich-diff>`) that renders as a registered React component — without forking the pane. What are the primitives, and how do we avoid inventing them when pi already solved the same problem for its TUI?
+Chat was UIX's first React surface, and its initial blocks were concrete components. The design question is which renderer seams deserve a public feature contribution. Pi's terminal UI offers useful precedent, but UIX must preserve React, transcript projection, feature lifetimes, and browser failure isolation.
 
 ## Current synthesis
 
-**Port pi's render architecture from TUI to React.** Pi already has a two-axis registry for custom conversation rendering; we copy the _shape_ and swap the render target. We are not running pi's TUI renderers — we forward pi's event stream and render it ourselves in React.
+UIX projects Pi's durable and live events into `TranscriptItem` values, then Chat renders each item as a block. The projection separates Pi session entries, UIX wire items, and React presentation.
 
-### What pi gives us (researched 2026-06-05, `pi-coding-agent` dist types)
+Chat has type-specific React components for user, assistant, tool, custom, and error items. Tool presentation dispatch currently uses a first-party map keyed by exact tool name, with generic fallback for unknown or incompatible payloads.
 
-- **A typed event stream** (`session.subscribe`), ~6 families: agent/turn lifecycle (`agent_start/end`, `turn_start/end`), message streaming (`message_start` / `message_update` token deltas / `message_end`), tool _model view_ (`tool_call` / `tool_result`, both mutable hook points), tool _execution view_ (`tool_execution_start/update/end`, where `_update` carries streaming `partialResult`), interaction (`input`, `user_bash`, `model_select`), and session/context. A single tool invocation surfaces as three events: decided (`tool_call`) → running/streaming (`tool_execution_*`) → final (`tool_result`). Built-in tools get typed event variants; custom tools collapse to `CustomTool{Call,Result}Event` with `toolName: string`.
-- **Two custom-render mechanisms, deliberately separate:**
-  1. **Tool renderers** on the `ToolDefinition` — `renderCall` / `renderResult` returning a `Component`, with `renderShell: "default" | "self"` and a rich `ToolRenderContext` (stable `toolCallId`, `invalidate()`, `lastComponent`, persistent per-row `state`, plus `isPartial` / `isError` / `expanded`). Streaming-aware, stateful, expandable. This is the agent-authored-artifact path.
-  2. **Custom messages + message renderers** — `registerMessageRenderer(customType, renderer)` + `sendMessage({ customType, content, display, details }, { triggerTurn, deliverAs })`, plus `appendEntry(customType, data)` for not-sent-to-LLM state. The not-a-tool-call path: injected notices, lifecycle markers, app/extension surfaced state.
-- **The content/display/details split** (`CustomMessage`): `content` = what the LLM sees, `display` = whether it renders in the transcript, `details<T>` = the typed payload the renderer draws from. This is precisely "agent emits validated props → renderer draws" — pi already designed the data shape, and it cleanly separates what the model reads from what the human sees from the structured data behind the render.
+Specialized Canvas, file, and command presentations demonstrate consumer-side selection. Agent-facing anchored results remain intact while the human display can hide mechanical gutters or disclose large payloads.
 
-### The one divergence
+The public cross-feature renderer registry has not landed. A useful contract must keep executable React callbacks private, support lifetime-scoped replacement, and expose enough typed item state for streaming and errors.
 
-Both pi render paths return `Component` from `@earendil-works/pi-tui` — terminal cells, useless in Chromium. We keep the architecture and swap `Component` → `ReactNode`, `Theme` → our CSS. We get the _event stream_ for free; the driver now normalizes pi live events and persisted session entries into UIX transcript items, but React renderers are still net-new.
+Tool and custom-message presentation remain distinct axes. Tools carry call, progress, completion, and error semantics. Custom messages carry `customType`, model-facing content, display policy, and structured `details`.
 
-### UIX design
+Static rich blocks can render from one transcript item without durable interaction state. Interactive blocks require durable keyed identity and an explicit backend action contract before they can persist choices or references.
 
-- **Two registries, mirroring pi:** a **tool-renderer registry** keyed by tool name (renders a tool call/result as a React component — the `<rich-diff>`-as-tool path, "the agent calls a component") and a **message-renderer registry** keyed by `customType` (injected non-tool blocks). Different producers, different semantics; keep them separate as pi did. A registered component is, in pi's terms, `renderResult` for a tool call — we are porting that, not inventing it.
-- **Adopt content/display/details** as the injected-block shape.
-- **Mirror `ToolRenderContext`** for tool blocks (`toolCallId`, `args`, `isPartial`, `isError`, `expanded`, `state`, `invalidate`) → React props, so a tool component can update as `tool_execution_update.partialResult` streams in. The tool's TypeBox params schema is the single contract: agent tool signature on one side, component props on the other (see [typebox-not-zod](../decisions/2026-05-30-typebox-not-zod.md)).
-- **Token shape of an agent-authored block (e.g. `rich-diff`).** The agent passes _references, not payloads_ — a canvas key + anchor range, not raw before/after text it would have to re-emit — and the backend computes the render payload into `details`. The tool result `content` returned to the model is a compact acknowledgment (`"rendered diff: +3/−1"`), **not** the rendered artifact; `details` is render-only and never re-enters context. Nobody emits TSX/HTML — the component is registered code, `details` are its props.
-- **Built-ins register through the same API.** The default user / assistant / tool / error renderers are first-party registrations with no privileged path — the bare-bones experience and the extensible path are one path.
-- **Base style only, not a theme ecosystem.** UIX ships one minimal, sane default stylesheet for the essential blocks. It should expose semantic tokens and stable block parts so user/project styles can start from scratch without forking renderer behavior, but UIX does **not** bundle theme discovery, a theme gallery, or alternate aesthetics as part of the base application deliverable. Treat CSS/style contributions like any other extension surface later: registered by stable id/scope/layer, replace-on-same-id for hot reload; path is provenance, not identity.
-- **React is the render ABI, not a UI-kit commitment.** Core UIX uses React because it gives panes and blocks a common component boundary. Mantine, Radix, or any other component system belongs inside optional app panes or renderer packs, not in the core API surface.
-- **Current hardcoded slice.** The renderer implementation is named `chat` for brevity (`src/renderer/chat/`). It renders `TranscriptItem`s as chat blocks with scoped CSS hooks (`data-uix-pane="chat"`, `data-uix-chat-block`, `data-uix-part`). There is no static registry ceremony yet because a map with no real registration/override path is just a disguised switch; the first useful exact renderer is hardcoded along the grain for `canvas__anchor_read` / `write` / `edit`. Those canvas tool blocks extract text content, strip anchor gutters from the human display, show five lines, and expand the rest inline while preserving the anchored agent-facing payload.
-- **Reconciles with [no-agent-ui-manipulation](../decisions/2026-05-30-no-agent-ui-manipulation.md):** the agent emits a typed, validated, registered block into _its own transcript_ — not a UI handle, not another pane's state. The line to fold into that decision: the agent may author conversation blocks (presentation of its own turn output); it may not hold UI handles or mutate other panes except through their file/channel contracts.
+The agent may author presentation of its own output by calling a typed tool that commits or returns structured data. It must not receive live UI handles or mutate another surface outside that feature's authoritative contract.
 
-### Build the contract, not the loader
+React is the surface presentation boundary, not a commitment to one component library. Feature styles remain scoped, ordered, and independently owned.
 
-The full vision — a dropped-in package whose `uix` field contributes a tool (main process) _and_ a renderer (renderer process) — pulls in unbuilt substrate: frontend extension loading, the pane-host slot registry, and the tool-half/renderer-half IPC crossing. Build the **contract, not the delivery**: the registries + the render-from-typed-event primitive, proven with built-in renderers plus one agent-triggered component (`rich-diff`), all in-process and first-party. The loader becomes "discover a package and call the same `register*` API" later — the same sequencing that proved the canvas channel on `customTools` before any lower-level refactor.
+### Pi precedent to retain
 
-### User-space interactive custom-message shape
+Pi separates tool renderers from custom-message renderers. Tool rendering receives call, partial result, completion, error, expansion, and row-local state. Custom messages separate model-facing `content`, human display policy, and typed render-only `details`. UIX should preserve those semantic axes while replacing Pi's terminal component with React.
 
-The target user-space proof is an extension-owned interactive prompt with no core-special path:
+A public contract should port the architecture, not Pi's terminal implementation. Tool definitions already provide schema and streaming semantics; custom messages cover notices and blocks that are not tool executions. Merging them into one generic renderer would discard useful lifecycle information.
 
-```text
-UIX extension registers a pi tool + chat renderer
-  -> agent calls the tool
-  -> tool emits a displayed CustomMessage via pi.sendMessage({ customType, content, display, details })
-  -> chat pane renders details with the registered customType renderer
-  -> human clicks/submits inside that chat block
-  -> renderer sends a typed block action to main, keyed by the opaque block/item id
-  -> main validates and converts the action into pi.sendUserMessage(...)
-     or another explicit pi-side continuation
-  -> the agent may get a new turn even if the normal chat input is empty/unchanged
-```
+### Proposed contribution contract
 
-The custom message's `content` is what the model sees; `details` are typed props for the React renderer; the submitted human choice is an ephemeral renderer action until main converts it into a user message, tool result, or custom entry. The renderer never talks directly to the agent and never mutates session state. This is the concrete shape we want before treating custom-message fallback UI as a first-class product surface.
+The likely shape remains two lifetime-scoped registries: one keyed by exact tool identity and one keyed by `customType`. Built-in presentations should eventually register through the same path as feature presentations. Unknown types and failed renderers must fall back to the underlying transcript content.
 
-### Durable identity before interactive blocks
+Agent-authored presentation should pass references rather than repeat large artifacts. A diff block can identify a resource and range while backend code computes structured `details`. The compact tool result remains model context; render-only details do not re-enter the model.
 
-Durable transcript identity is a gate for **interactive or stateful** blocks, not for every richer rendering. A static rich block can be a React component today if it renders only from the current `TranscriptItem` payload (`toolName`/`args`/`result`/`partialResult`, or `customType`/`content`/`details`) and treats `item.id` as an opaque React key — a stateless view has nothing durable to migrate.
+Build the contract before its package loader. First prove registration, fallback, streaming, replacement, and one typed component with in-tree features. Package discovery should later call the same API rather than define a second path.
 
-The identity model is [transcript-keyed-on-persist](../decisions/2026-06-09-transcript-keyed-on-persist.md): items are **pre-key** (transport handle, no durable interactions) until pi persists them, then keyed with the canonical session id via one in-place rekey; tool rows are born keyed. Ephemeral interactions (scroll, highlight, open) fire pre-key off the handle; durable effects (state writes, persisted references, tool-result conversion) gate on the key and queue in main across the gap. Durable block state is main-owned as `uix.*` custom entries per [one-owner-per-state](../decisions/2026-06-09-one-owner-per-state.md); renderer state — including tool-row expansion — is a cache. The concrete build is [durable-transcript-identity](../plans/durable-transcript-identity.md); land it before the choice/input-block proof, not before static component renderers.
+### Interactive block boundary
 
-### Deferred decisions
+A human interaction inside a block is initially a renderer event keyed by opaque item identity. It travels through a typed backend contract, which may convert it into a user message, tool continuation, or durable custom entry. The renderer never writes Pi state directly.
 
-- **Flat per component vs grouped tools.** Flat per component for now; models may dislike many always-present tools — revisit grouping (e.g. by pane) once there are enough to feel it. A performance question, not a correctness one.
-- **Append-only vs updatable blocks.** Ship append-only; reserve an instance id so the agent can later mutate a block in place (the addressable, app-state-as-config direction — the conversation is the ephemeral testbed for what canvas v2 would persist).
-- **Inline-in-prose vs block-level.** Block-level (tool calls interleave with text deltas naturally in the timeline); inline markdown directives are a later refinement.
-- **Tool-render vs agent-`sendMessage` for agent artifacts.** Both are possible; lead with tool-render (it carries call/result/streaming/state semantics a flat message render loses). An agent tool may also `sendMessage` a standalone block when it wants one decoupled from the tool row.
-- **`@uix/api` shape.** How `register*` is exposed to a (first-party, later third-party) frontend extension is the unresolved context-shape question this forces — see [open-questions](../architecture/open-questions.md).
+Static rich blocks need no durable state beyond their transcript item. Durable choices and references must wait for canonical persisted identity. Pre-key interactions may remain ephemeral; durable effects queue until the item receives its session identity.
+
+### Deferred choices retained
+
+- Keep tool and custom-message renderers separate unless a concrete shared abstraction preserves both lifecycles.
+- Start with block-level presentation; inline prose directives require another parsing and identity design.
+- Start append-only while reserving an instance identity for a future update-in-place use case.
+- Let tools lead for streamed Agent artifacts; use standalone custom messages when no tool-row lifecycle is desired.
+- Keep grouping and tool-count optimization out until enough contributed renderers create measured model or discovery pressure.
+- Expose semantic styling parts without turning the base substrate into a theme or component-library ecosystem.
+
+## Open questions
+
+- What is the smallest public tool-presentation contribution that improves on Chat's private map?
+- Should custom-message renderers share that contribution point or remain a separate registry?
+- How does a renderer contribution prove payload types when transcript schemas can contain `unknown` tool data?
+- Which durable block actions justify the remaining D2 transcript-state work?
+- How should renderer failures fall back without losing the underlying transcript content?
 
 ## Log
 
@@ -87,7 +79,7 @@ Walked the identity design against pi's dist source and reversed D1's mechanism.
 
 Three models were weighed. **Hold-until-durable** (emit each row once, already keyed) dies on streaming (the assistant row exists so deltas have somewhere to land) and on the instant user echo (persistence waits on the lazy session open at first prompt) — but the objection only holds for those two row kinds, which sharpened the question. **Session-long alias map** (renderer keeps provisional ids forever, main translates) keeps renderer ids stable but makes the map a permanent ledger every durable write path must consult; a forgotten resolve writes a provisional id into the session file — fails dirty into the durable record. Also: it doesn't actually avoid waiting — nobody can durably reference an id that doesn't exist yet, so the map's resolve degenerates to the same await in exactly the tight cases. **Keyed-on-persist** won: pre-key items carry a transport-only handle (a delivery nonce, not identity), rekey once in place when the append is observed, and interactivity gates on the key — which arrives with `complete`, so the gate is the semantics a half-streamed block wants anyway. The refinements that make it lossless: ephemeral interactions (nothing durable refers to the item) fire pre-key off the handle, and durable effects initiated pre-key **queue in main** until the key lands. Decision: [transcript-keyed-on-persist](../decisions/2026-06-09-transcript-keyed-on-persist.md); plan rewritten.
 
-Downstream of identity, three more things settled. **Block state homes in pi `CustomEntry` records** (hidden from model and human, branch-aware, `LabelEntry` is the precedent shape `{targetId, …}`), superseding the D2 sidecar; append-only last-wins chains make low-frequency meaningful state (a choice block's submitted answer) the fit and high-frequency UI state (tool expansion) explicitly renderer-local. **State ownership got its invariant** — one owner per value, no durable-but-locally-overridable hybrids; renderer-managed presentation (localStorage fine, cache semantics), main-durable (session entries + content store), main app-local (window bounds), main RAM never an owner — [one-owner-per-state](../decisions/2026-06-09-one-owner-per-state.md). And **rehydration unified**: one branch walk with reducers registered per `customType` beside the binding that writes each key; `toTranscriptItems` is that walk hardcoded, so the transcript becomes the first reducer and the canvas consumers (turn-state, visibility latch, block state) plug into the same pass. The human canvas diff and pane visibility also became durable agent-visible custom messages at the submit boundary — specified in [persistence-and-session-foundation](../plans/persistence-and-session-foundation.md) C3.
+Downstream of identity, three more things settled. **Block state homes in pi `CustomEntry` records** (hidden from model and human, branch-aware, `LabelEntry` is the precedent shape `{targetId, …}`), superseding the D2 sidecar; append-only last-wins chains make low-frequency meaningful state (a choice block's submitted answer) the fit and high-frequency UI state (tool expansion) explicitly renderer-local. **State ownership got its invariant** — one owner per value, no durable-but-locally-overridable hybrids; renderer-managed presentation (localStorage fine, cache semantics), main-durable (session entries + content store), main app-local (window bounds), main RAM never an owner — [one-owner-per-state](../decisions/2026-06-09-one-owner-per-state.md). And **rehydration unified**: one branch walk with reducers registered per `customType` beside the binding that writes each key; `toTranscriptItems` is that walk hardcoded, so the transcript becomes the first reducer and the canvas consumers (turn-state, visibility latch, block state) plug into the same pass. The human canvas diff and pane visibility also became durable agent-visible custom messages at the submit boundary — specified in [persistence-and-session-foundation](../../plans/persistence-and-session-foundation.md) C3.
 
 ### 2026-06-08 — chat blocks, scoped styles, and first exact tool renderer
 
@@ -97,7 +89,7 @@ We deliberately skipped a static renderer registry because without a real regist
 
 ### 2026-06-07 — durable transcript ids before rich blocks
 
-While reviewing normalized transcript items, we separated row transport identity from durable block identity. For current flat rendering, provisional live ids are enough; for rich blocks they are not. The chosen direction: renderer sees one opaque id and sends display/actions to main; main resolves provisional ids to canonical pi-session-derived ids, persists display/block state server-side, and joins that state back into transcript items. A `WeakMap` keyed by the in-process pi message object can correlate current `message_end` objects with `SessionManager.appendMessage(message)` as a local adapter; a future pi post-persist entry event would replace the adapter. This spawned [durable-transcript-identity](../plans/durable-transcript-identity.md).
+While reviewing normalized transcript items, we separated row transport identity from durable block identity. For current flat rendering, provisional live ids are enough; for rich blocks they are not. The chosen direction: renderer sees one opaque id and sends display/actions to main; main resolves provisional ids to canonical pi-session-derived ids, persists display/block state server-side, and joins that state back into transcript items. A `WeakMap` keyed by the in-process pi message object can correlate current `message_end` objects with `SessionManager.appendMessage(message)` as a local adapter; a future pi post-persist entry event would replace the adapter. This spawned [durable-transcript-identity](../../plans/durable-transcript-identity.md).
 
 ### 2026-06-07 — consumer-side selection + the inbound interaction round-trip
 
@@ -109,7 +101,7 @@ Two additions from the composition walk ([uix-core-composition](./uix-core-compo
 
 ### 2026-06-06 — gated behind the persistence foundation
 
-Persistence work landed ahead of this thread in the dev order. Two consequences for the render build, both captured in [persistence-and-session-foundation](../plans/persistence-and-session-foundation.md) (C0/C1):
+Persistence work landed ahead of this thread in the dev order. Two consequences for the render build, both captured in [persistence-and-session-foundation](../../plans/persistence-and-session-foundation.md) (C0/C1):
 
 - **C0 changed the renderer's input shape.** A file-backed session rehydrates history on startup as _complete_ entries (full messages, tool calls/results). The current pane normalizes both history and live events into one transcript item model; block renderers should build on that normalized shape.
 - **C1 puts this work on the final substrate.** Promoting UIX-core bindings to an in-process pi extension hands us `sendMessage` / `registerMessageRenderer` / message-transforms. Host-authored blocks (the pending human-diff strip, lifecycle markers) can then be real `CustomMessageEntry` session entries from day one instead of ephemeral React state we later migrate. The agent-authored tool path (`details` → registered component) is unaffected and still works on either substrate.

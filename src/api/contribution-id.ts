@@ -47,6 +47,8 @@ export function isIdToken(token: string): boolean {
 
 function assertIdToken(label: string, token: string): void {
   if (!isIdToken(token)) {
-    throw new Error(`Invalid ${label}: ${token}. Expected ${idTokenPattern}.`);
+    throw new Error(
+      `Invalid ${label}: ${token}. Expected ${String(idTokenPattern)}.`,
+    );
   }
 }

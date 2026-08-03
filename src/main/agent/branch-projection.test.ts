@@ -1,14 +1,13 @@
-import { describe, expect, it } from "vitest";
-
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { describe, expect, it } from "vitest";
 
+import { deriveSelectedBranchProjection } from "./branch-projection";
 import {
   registerTurnStateContributions,
   toTurnStateRegistrySnapshot,
   TurnStateRegistry,
 } from "../turn-state/registry";
-import { deriveSelectedBranchProjection } from "./branch-projection";
 
 function entry(value: Record<string, unknown>): SessionEntry {
   return value as unknown as SessionEntry;
@@ -74,6 +73,7 @@ describe("deriveSelectedBranchProjection", () => {
           },
         }),
       ],
+      "/workspace",
       toTurnStateRegistrySnapshot(turnState),
     );
 
@@ -107,6 +107,7 @@ describe("deriveSelectedBranchProjection", () => {
 
     const projection = deriveSelectedBranchProjection(
       [],
+      "/workspace",
       toTurnStateRegistrySnapshot(turnState),
     );
 
@@ -114,6 +115,6 @@ describe("deriveSelectedBranchProjection", () => {
     expect([...projection.turnStateAsOfLeaf.latestValuePerCell.keys()]).toEqual(
       [],
     );
-    expect(projection.turnStateAsOfLeaf.cwd).toBeUndefined();
+    expect(projection.turnStateAsOfLeaf.cwd).toBe("/workspace");
   });
 });

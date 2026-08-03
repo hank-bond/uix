@@ -1,26 +1,44 @@
+import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
-import { Type } from "typebox";
-
 import { agentChannels, type AgentStatus } from "@uix/api/agent-channels";
+import {
+  type ChannelCanonicalId,
+  toChannelCanonicalId,
+} from "@uix/api/channel-resolution";
 import {
   type ChannelEventLogOptions,
   type ChannelRequestLogOptions,
   withHandlers,
 } from "@uix/api/channels";
+import { toContributionId } from "@uix/api/contribution-id";
 
 import {
   ChannelRegistry,
   createFeatureEventPublisherFactory,
   registerChannelContributions,
 } from "./registry";
-import {
-  toChannelCanonicalId,
-  type ChannelCanonicalId,
-} from "@uix/api/channel-normalization";
-import { toContributionId } from "@uix/api/contribution-id";
 
-function fakeTransport() {
+function fakeTransport(): {
+  handlers: Map<string, (req: unknown) => Promise<unknown>>;
+  disposed: string[];
+  handleLogs: Map<
+    string,
+    ChannelRequestLogOptions<unknown, unknown> | undefined
+  >;
+  published: Array<{ canonicalId: string; payload: unknown }>;
+  publishLogs: Array<ChannelEventLogOptions<unknown> | undefined>;
+  handle(
+    canonicalId: ChannelCanonicalId,
+    handler: (req: unknown) => Promise<unknown>,
+    logOpts?: ChannelRequestLogOptions<unknown, unknown>,
+  ): { [Symbol.dispose](): void };
+  publish(
+    canonicalId: ChannelCanonicalId,
+    payload: unknown,
+    logOpts?: ChannelEventLogOptions<unknown>,
+  ): void;
+} {
   const handlers = new Map<string, (req: unknown) => Promise<unknown>>();
   const disposed: string[] = [];
   const handleLogs = new Map<
@@ -38,10 +56,10 @@ function fakeTransport() {
     publishLogs,
     handle(
       canonicalId: ChannelCanonicalId,
-      fn: (req: unknown) => Promise<unknown>,
+      handler: (req: unknown) => Promise<unknown>,
       logOpts?: ChannelRequestLogOptions<unknown, unknown>,
     ) {
-      handlers.set(canonicalId, fn);
+      handlers.set(canonicalId, handler);
       handleLogs.set(canonicalId, logOpts);
       return {
         [Symbol.dispose]() {
@@ -66,22 +84,23 @@ describe("ChannelRegistry", () => {
   it("registers request handlers and disposes them", async () => {
     const transport = fakeTransport();
     const registry = new ChannelRegistry({
-      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
+      transportRegistrar: (canonicalId, handler) =>
+        transport.handle(canonicalId, handler),
     });
 
-    const registration = registry.register({
+    const channelDisposable = registry.register({
       contributionId: toContributionId("canvas", "channel", "writeback"),
       canonicalId: toChannelCanonicalId("canvas", "writeback"),
       requestSchema: Type.Object({ key: Type.Unknown() }),
       responseSchema: Type.Object({ ok: Type.Unknown() }),
-      handle: (req: unknown) => ({ ok: req }),
+      handler: (req: unknown) => ({ ok: req }),
     });
 
     await expect(
       transport.handlers.get("canvas.writeback")?.({ key: "main" }),
     ).resolves.toEqual({ ok: { key: "main" } });
 
-    registration[Symbol.dispose]();
+    channelDisposable[Symbol.dispose]();
 
     expect(transport.handlers.has("canvas.writeback")).toBe(false);
     expect(transport.disposed).toEqual(["canvas.writeback"]);
@@ -90,15 +109,16 @@ describe("ChannelRegistry", () => {
   it("rejects duplicate canonical ids until disposed", () => {
     const transport = fakeTransport();
     const registry = new ChannelRegistry({
-      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
+      transportRegistrar: (canonicalId, handler) =>
+        transport.handle(canonicalId, handler),
     });
 
-    const registration = registry.register({
+    const channelDisposable = registry.register({
       contributionId: toContributionId("canvas", "channel", "refresh"),
       canonicalId: toChannelCanonicalId("canvas", "refresh"),
       requestSchema: Type.Object({}),
       responseSchema: Type.Void(),
-      handle: () => undefined,
+      handler: () => undefined,
     });
 
     expect(() =>
@@ -107,11 +127,11 @@ describe("ChannelRegistry", () => {
         canonicalId: toChannelCanonicalId("canvas", "refresh"),
         requestSchema: Type.Object({}),
         responseSchema: Type.Void(),
-        handle: () => undefined,
+        handler: () => undefined,
       }),
     ).toThrow("Channel already registered: canvas.refresh");
 
-    registration[Symbol.dispose]();
+    channelDisposable[Symbol.dispose]();
 
     expect(() =>
       registry.register({
@@ -119,7 +139,7 @@ describe("ChannelRegistry", () => {
         canonicalId: toChannelCanonicalId("canvas", "refresh"),
         requestSchema: Type.Object({}),
         responseSchema: Type.Void(),
-        handle: () => undefined,
+        handler: () => undefined,
       }),
     ).not.toThrow();
   });
@@ -128,52 +148,57 @@ describe("ChannelRegistry", () => {
     const canonicalId = toChannelCanonicalId("canvas", "refresh");
     let shouldThrow = true;
     const registry = new ChannelRegistry({
-      transportHandle: () => {
+      transportRegistrar: () => {
         if (shouldThrow) throw new Error("transport failed");
         return { [Symbol.dispose]() {} };
       },
     });
-    const registration = {
+    const resolvedContribution = {
       contributionId: toContributionId("canvas", "channel", "refresh"),
       canonicalId,
       requestSchema: Type.Object({}),
       responseSchema: Type.Void(),
-      handle: () => undefined,
+      handler: () => undefined,
     };
 
-    expect(() => registry.register(registration)).toThrow("transport failed");
+    expect(() => registry.register(resolvedContribution)).toThrow(
+      "transport failed",
+    );
     shouldThrow = false;
-    expect(() => registry.register(registration)).not.toThrow();
+    expect(() => registry.register(resolvedContribution)).not.toThrow();
   });
 
   it("releases its id even when transport disposal throws", () => {
     const canonicalId = toChannelCanonicalId("canvas", "refresh");
     let disposalThrows = true;
     const registry = new ChannelRegistry({
-      transportHandle: () => ({
+      transportRegistrar: () => ({
         [Symbol.dispose]() {
           if (disposalThrows) throw new Error("transport disposal failed");
         },
       }),
     });
-    const registration = {
+    const resolvedContribution = {
       contributionId: toContributionId("canvas", "channel", "refresh"),
       canonicalId,
       requestSchema: Type.Object({}),
       responseSchema: Type.Void(),
-      handle: () => undefined,
+      handler: () => undefined,
     };
 
-    const handle = registry.register(registration);
-    expect(() => handle[Symbol.dispose]()).toThrow("transport disposal failed");
+    const channelDisposable = registry.register(resolvedContribution);
+    expect(() => {
+      channelDisposable[Symbol.dispose]();
+    }).toThrow("transport disposal failed");
     disposalThrows = false;
-    expect(() => registry.register(registration)).not.toThrow();
+    expect(() => registry.register(resolvedContribution)).not.toThrow();
   });
 
   it("validates requests and responses when schemas are provided", async () => {
     const transport = fakeTransport();
     const registry = new ChannelRegistry({
-      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
+      transportRegistrar: (canonicalId, handler) =>
+        transport.handle(canonicalId, handler),
     });
 
     registry.register({
@@ -181,7 +206,7 @@ describe("ChannelRegistry", () => {
       canonicalId: toChannelCanonicalId("canvas", "writeback"),
       requestSchema: Type.Object({ key: Type.String() }),
       responseSchema: Type.Object({ ok: Type.Boolean() }),
-      handle: (req: { key: string }) => ({ ok: req.key === "main" }),
+      handler: (req: { key: string }) => ({ ok: req.key === "main" }),
     });
 
     await expect(
@@ -195,9 +220,11 @@ describe("ChannelRegistry", () => {
   it("publishes through the configured transport", () => {
     const transport = fakeTransport();
     const registry = new ChannelRegistry({
-      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
-      publish: (canonicalId, payload) =>
-        transport.publish(canonicalId, payload),
+      transportRegistrar: (canonicalId, handler) =>
+        transport.handle(canonicalId, handler),
+      publish: (canonicalId, payload) => {
+        transport.publish(canonicalId, payload);
+      },
     });
 
     registry.publish(toChannelCanonicalId("canvas", "changed"), {
@@ -212,14 +239,21 @@ describe("ChannelRegistry", () => {
   it("propagates request, response, and event log descriptions", () => {
     const transport = fakeTransport();
     const registry = new ChannelRegistry({
-      transportHandle: (canonicalId, fn, logOpts) =>
-        transport.handle(canonicalId, fn, logOpts),
-      publish: (canonicalId, payload, logOpts) =>
-        transport.publish(canonicalId, payload, logOpts),
+      transportRegistrar: (canonicalId, handler, logOpts) =>
+        transport.handle(canonicalId, handler, logOpts),
+      publish: (canonicalId, payload, logOpts) => {
+        transport.publish(canonicalId, payload, logOpts);
+      },
     });
-    const describeRequest = () => ({ redacted: "auth request" });
-    const describeResponse = () => ({ redacted: "auth response" });
-    const describeEvent = () => ({ redacted: "auth event" });
+    const describeRequest = (): { redacted: string } => ({
+      redacted: "auth request",
+    });
+    const describeResponse = (): { redacted: string } => ({
+      redacted: "auth response",
+    });
+    const describeEvent = (): { redacted: string } => ({
+      redacted: "auth event",
+    });
     const contract = {
       feature: "agent",
       requests: {
@@ -239,7 +273,7 @@ describe("ChannelRegistry", () => {
 
     registerChannelContributions(registry, "agent", [
       withHandlers(contract, {
-        auth_response: { handle: () => undefined },
+        auth_response: { handler: () => undefined },
       }),
     ]);
     const publisher = createFeatureEventPublisherFactory(
@@ -258,43 +292,49 @@ describe("ChannelRegistry", () => {
   it("registers contribution groups and disposes them together", () => {
     const transport = fakeTransport();
     const registry = new ChannelRegistry({
-      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
+      transportRegistrar: (canonicalId, handler) =>
+        transport.handle(canonicalId, handler),
     });
 
-    const registration = registerChannelContributions(registry, "canvas", [
-      {
-        feature: "canvas",
-        requests: {
-          refresh: {
-            requestSchema: Type.Object({}),
-            responseSchema: Type.Void(),
-            handle: () => undefined,
+    const channelsDisposable = registerChannelContributions(
+      registry,
+      "canvas",
+      [
+        {
+          feature: "canvas",
+          requests: {
+            refresh: {
+              requestSchema: Type.Object({}),
+              responseSchema: Type.Void(),
+              handler: () => undefined,
+            },
+            writeback: {
+              requestSchema: Type.Object({}),
+              responseSchema: Type.Void(),
+              handler: () => undefined,
+            },
           },
-          writeback: {
-            requestSchema: Type.Object({}),
-            responseSchema: Type.Void(),
-            handle: () => undefined,
-          },
+          events: {},
         },
-        events: {},
-      },
-    ]);
+      ],
+    );
 
     expect([...transport.handlers.keys()].sort()).toEqual([
       "canvas.refresh",
       "canvas.writeback",
     ]);
 
-    registration[Symbol.dispose]();
+    channelsDisposable[Symbol.dispose]();
 
     expect(transport.handlers.size).toBe(0);
     expect(transport.disposed).toEqual(["canvas.writeback", "canvas.refresh"]);
   });
 
-  it("rolls back earlier channels when bulk registration fails", () => {
+  it("rolls back earlier channels when the bulk register operation fails", () => {
     const transport = fakeTransport();
     const registry = new ChannelRegistry({
-      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
+      transportRegistrar: (canonicalId, handler) =>
+        transport.handle(canonicalId, handler),
     });
     const owned = {
       feature: "canvas",
@@ -302,7 +342,7 @@ describe("ChannelRegistry", () => {
         refresh: {
           requestSchema: Type.Object({}),
           responseSchema: Type.Void(),
-          handle: () => undefined,
+          handler: () => undefined,
         },
       },
       events: {},
@@ -324,8 +364,9 @@ describe("ChannelRegistry", () => {
     const transport = fakeTransport();
 
     const channels = createFeatureEventPublisherFactory("canvas", {
-      publish: (canonicalId, payload) =>
-        transport.publish(canonicalId, payload),
+      publish: (canonicalId, payload) => {
+        transport.publish(canonicalId, payload);
+      },
     });
 
     const typed = channels.createPublisher({
@@ -349,18 +390,19 @@ describe("ChannelRegistry", () => {
   it("validates the agent model channels through the real contract", async () => {
     const transport = fakeTransport();
     const registry = new ChannelRegistry({
-      transportHandle: (canonicalId, fn, logOpts) =>
-        transport.handle(canonicalId, fn, logOpts),
+      transportRegistrar: (canonicalId, handler, logOpts) =>
+        transport.handle(canonicalId, handler, logOpts),
     });
 
     const status: AgentStatus = {
+      cwd: "/workspace",
       defaultModel: { provider: "anthropic", id: "claude-sonnet-4-5" },
     };
     registerChannelContributions(registry, "agent", [
       withHandlers(agentChannels, {
-        prompt: { handle: () => undefined },
+        prompt: { handler: () => undefined },
         session_history: {
-          handle: () => ({
+          handler: () => ({
             session: {
               sessionId: "session-1",
               title: "Existing conversation",
@@ -371,7 +413,7 @@ describe("ChannelRegistry", () => {
           }),
         },
         list_session_summaries: {
-          handle: () => [
+          handler: () => [
             {
               sessionId: "session-1",
               title: "Existing conversation",
@@ -381,14 +423,14 @@ describe("ChannelRegistry", () => {
           ],
         },
         new_session: {
-          handle: () => ({
+          handler: () => ({
             sessionId: "session-2",
             createdAt: "2026-07-19T11:00:00.000Z",
             modifiedAt: "2026-07-19T11:00:00.000Z",
           }),
         },
         switch_session: {
-          handle: ({ sessionId }) => ({
+          handler: ({ sessionId }) => ({
             sessionId,
             title: "Existing conversation",
             createdAt: "2026-07-19T10:00:00.000Z",
@@ -396,7 +438,7 @@ describe("ChannelRegistry", () => {
           }),
         },
         set_session_title: {
-          handle: ({ sessionId, title }) => ({
+          handler: ({ sessionId, title }) => ({
             sessionId,
             ...(title !== null && { title }),
             createdAt: "2026-07-19T10:00:00.000Z",
@@ -404,7 +446,7 @@ describe("ChannelRegistry", () => {
           }),
         },
         list_models: {
-          handle: () => ({
+          handler: () => ({
             models: [
               {
                 provider: "anthropic",
@@ -416,15 +458,15 @@ describe("ChannelRegistry", () => {
           }),
         },
         set_model_favorite: {
-          handle: () => ({ models: [] }),
+          handler: () => ({ models: [] }),
         },
-        // Both fields absent — the explicit "no model chosen" status.
-        agent_status: { handle: () => ({}) },
-        select_model: { handle: () => status },
-        list_auth_providers: { handle: () => ({ providers: [] }) },
-        current_provider_auth_flow: { handle: () => null },
+        // Both model fields absent — the explicit "no model chosen" status.
+        agent_status: { handler: () => ({ cwd: "/workspace" }) },
+        select_model: { handler: () => status },
+        list_auth_providers: { handler: () => ({ providers: [] }) },
+        current_provider_auth_flow: { handler: () => null },
         begin_provider_auth_flow: {
-          handle: () => ({
+          handler: () => ({
             flowId: "flow-1",
             providerId: "anthropic",
             authType: "api_key" as const,
@@ -432,9 +474,9 @@ describe("ChannelRegistry", () => {
             notices: [],
           }),
         },
-        answer_provider_auth_flow: { handle: () => undefined },
-        open_provider_auth_link: { handle: () => undefined },
-        cancel_provider_auth_flow: { handle: () => undefined },
+        answer_provider_auth_flow: { handler: () => undefined },
+        open_provider_auth_link: { handler: () => undefined },
+        cancel_provider_auth_flow: { handler: () => undefined },
       }),
     ]);
 
@@ -510,10 +552,10 @@ describe("ChannelRegistry", () => {
         id: "claude-sonnet-4-5",
       }),
     ).resolves.toEqual(status);
-    // The both-absent "no model chosen" status is a valid response shape.
+    // Both model fields may be absent while current cwd remains required.
     await expect(
       transport.handlers.get("agent.agent_status")?.(undefined),
-    ).resolves.toEqual({});
+    ).resolves.toEqual({ cwd: "/workspace" });
     await expect(
       transport.handlers.get("agent.set_model_favorite")?.({
         provider: "anthropic",
@@ -560,7 +602,8 @@ describe("ChannelRegistry", () => {
   it("rejects registering channels under another contract's owner", () => {
     const transport = fakeTransport();
     const registry = new ChannelRegistry({
-      transportHandle: (canonicalId, fn) => transport.handle(canonicalId, fn),
+      transportRegistrar: (canonicalId, handler) =>
+        transport.handle(canonicalId, handler),
     });
 
     expect(() =>
@@ -577,8 +620,9 @@ describe("ChannelRegistry", () => {
   it("rejects minting a publisher for another contract's owner", () => {
     const transport = fakeTransport();
     const channels = createFeatureEventPublisherFactory("impostor", {
-      publish: (canonicalId, payload) =>
-        transport.publish(canonicalId, payload),
+      publish: (canonicalId, payload) => {
+        transport.publish(canonicalId, payload);
+      },
     });
 
     expect(() =>

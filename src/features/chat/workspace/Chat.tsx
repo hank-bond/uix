@@ -4,22 +4,24 @@
 // durable items; live events append the same items, stream compact partials
 // into them, and replace them whole at completion.
 
+import type { JSX } from "react";
 import {
+  type FormEvent,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
-  type FormEvent,
 } from "react";
 
 import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
+import type { agentChannels } from "@uix/api/agent-channels";
 import {
+  type ChannelClient,
   useFeatureSetting,
   useWorkspaceSession,
-  type ChannelClient,
 } from "@uix/api/workspace";
-import type { agentChannels } from "@uix/api/agent-channels";
-import { useAgentControls, type AgentControls } from "./agent-controls";
+
+import { type AgentControls, useAgentControls } from "./agent-controls";
 import { ChatBlock } from "./blocks/ChatBlock";
 import { ModelPill } from "./ModelPill";
 import { isPendingUserId, pendingUserId } from "./pending";
@@ -33,7 +35,7 @@ export interface ChatProps {
   client: AgentChannelClient;
 }
 
-export function Chat({ client }: ChatProps) {
+export function Chat({ client }: ChatProps): JSX.Element {
   const [items, setItems] = useState<TranscriptItem[]>([]);
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState(false);
@@ -85,7 +87,7 @@ export function Chat({ client }: ChatProps) {
     if (el) el.scrollTop = el.scrollHeight;
   }, [items]);
 
-  const onSubmit = async (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
     const text = draft.trim();
     if (!text || pending) return;
@@ -103,7 +105,7 @@ export function Chat({ client }: ChatProps) {
       setItems((prev) => [
         ...prev,
         {
-          id: `local:error:${Date.now()}`,
+          id: `local:error:${String(Date.now())}`,
           kind: "error",
           message: String(err),
         },
@@ -134,7 +136,9 @@ export function Chat({ client }: ChatProps) {
           className="composer__input"
           placeholder="say something…"
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
@@ -177,7 +181,7 @@ function StatusBar({
   hidden: readonly string[];
   loading: boolean;
   error: Error | undefined;
-}) {
+}): JSX.Element {
   const visible = order.filter((id) => !hidden.includes(id));
   return (
     <div className="status-bar" aria-label="Chat status bar">

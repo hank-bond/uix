@@ -1,19 +1,20 @@
+import type { JSX } from "react";
 import { useEffect, useMemo } from "react";
 
-import { uixChannels } from "#shared/ipc";
 import type { KeybindingMap } from "@uix/api/actions";
 import {
-  createChannelClient,
   type ChannelClient,
+  createChannelClient,
   useWorkspaceClient,
 } from "@uix/api/workspace";
+import { uixChannels } from "#shared/ipc";
 
 import { useActionRegistry } from "./action-context";
 import type { ActionRegistry } from "./action-registry";
 
 type UixChannelClient = ChannelClient<typeof uixChannels>;
 
-export function KeybindingSync() {
+export function KeybindingSync(): JSX.Element | null {
   const workspace = useWorkspaceClient();
   const registry = useActionRegistry();
   const client = useMemo(
@@ -23,7 +24,9 @@ export function KeybindingSync() {
 
   useEffect(() => {
     const binding = bindKeybindingSync(registry, client);
-    return () => binding[Symbol.dispose]();
+    return () => {
+      binding[Symbol.dispose]();
+    };
   }, [client, registry]);
 
   return null;

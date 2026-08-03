@@ -1,4 +1,5 @@
 import type { ModelRuntime } from "@earendil-works/pi-coding-agent";
+
 import type {
   ProviderAuthFlowSnapshot,
   ProviderAuthLink,
@@ -53,9 +54,22 @@ interface CreateProviderAuthFlowCoordinatorOptions {
   onAvailabilityChange: () => void;
 }
 
+/** The coordinator's public surface — drives interactive provider auth flows. */
+export interface ProviderAuthFlowCoordinator {
+  begin(
+    providerId: string,
+    authType: ProviderAuthType,
+  ): ProviderAuthFlowSnapshot;
+  answer(flowId: string, promptId: string, value: string): void;
+  openLink(flowId: string, linkId: string): Promise<void>;
+  cancel(flowId: string): void;
+  getCurrentSnapshot(): ProviderAuthFlowSnapshot | undefined;
+  [Symbol.dispose](): void;
+}
+
 export function createProviderAuthFlowCoordinator(
   opts: CreateProviderAuthFlowCoordinatorOptions,
-) {
+): ProviderAuthFlowCoordinator {
   let activeFlow: ActiveProviderAuthFlow | undefined;
   let nextFlowId = 1;
   let nextPromptId = 1;
@@ -87,7 +101,7 @@ export function createProviderAuthFlowCoordinator(
     url: string,
     label?: string,
   ): ProviderAuthLink {
-    const linkId = `link-${nextLinkId++}`;
+    const linkId = `link-${String(nextLinkId++)}`;
     flow.linksById.set(linkId, url);
     return { linkId, url, ...(label && { label }) };
   }
@@ -147,7 +161,7 @@ export function createProviderAuthFlowCoordinator(
     }
 
     rejectPendingPrompt(flow, "Provider auth prompt was replaced");
-    const promptId = `prompt-${nextPromptId++}`;
+    const promptId = `prompt-${String(nextPromptId++)}`;
     return new Promise((resolve, reject) => {
       const pendingPrompt: PendingProviderAuthPrompt = {
         promptId,
@@ -263,7 +277,9 @@ export function createProviderAuthFlowCoordinator(
       await modelRuntime.login(flow.providerId, flow.authType, {
         signal: flow.abortController.signal,
         prompt: (prompt) => requestPromptAnswer(flow, prompt),
-        notify: (event) => notifyProviderAuthEvent(flow, event),
+        notify: (event) => {
+          notifyProviderAuthEvent(flow, event);
+        },
       });
       if (!isActiveFlow(flow)) return;
 
@@ -290,7 +306,7 @@ export function createProviderAuthFlowCoordinator(
         );
       }
 
-      const flowId = `flow-${nextFlowId++}`;
+      const flowId = `flow-${String(nextFlowId++)}`;
       const snapshot: ProviderAuthFlowSnapshot = {
         flowId,
         providerId,

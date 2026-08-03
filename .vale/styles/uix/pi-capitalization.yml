@@ -1,0 +1,6 @@
+extends: existence
+message: "Capitalize Pi when naming the product."
+level: error
+ignorecase: false
+tokens:
+  - '\bpi\b'

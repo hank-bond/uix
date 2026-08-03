@@ -10,7 +10,7 @@ const PENDING_USER_ID_PREFIX = "local:pending:";
 let nextPendingId = 1;
 
 export function pendingUserId(): string {
-  return `${PENDING_USER_ID_PREFIX}${nextPendingId++}`;
+  return `${PENDING_USER_ID_PREFIX}${String(nextPendingId++)}`;
 }
 
 export function isPendingUserId(id: string): boolean {

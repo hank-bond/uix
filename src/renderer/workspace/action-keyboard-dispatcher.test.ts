@@ -291,7 +291,9 @@ describe("bindActionKeyboardDispatcher", () => {
     using _binding = bindActionKeyboardDispatcher(registry, target);
 
     target.dispatch(keyboardEvent({ ctrlKey: true }).event);
-    await vi.waitFor(() => expect(diagnostic).toHaveBeenCalledOnce());
+    await vi.waitFor(() => {
+      expect(diagnostic).toHaveBeenCalledOnce();
+    });
 
     expect(diagnostic).toHaveBeenCalledWith({
       actionId: "test.open",

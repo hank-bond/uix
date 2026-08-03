@@ -4,11 +4,14 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { createRecentsStore } from "./recents";
+import { createRecentsStore, type RecentsStore } from "./recents";
 
-async function setup() {
+async function setup(): Promise<{
+  store: RecentsStore;
+  manifest: (name: string) => Promise<string>;
+}> {
   const dir = await mkdtemp(join(tmpdir(), "uix-recents-test-"));
-  const manifest = async (name: string) => {
+  const manifest = async (name: string): Promise<string> => {
     const p = join(dir, `${name}.uix.workspace.json`);
     await writeFile(p, "{}");
     return p;
@@ -53,7 +56,10 @@ describe("recents store", () => {
   it("caps the list at ten entries", async () => {
     const { store, manifest } = await setup();
     for (let i = 0; i < 12; i++) {
-      store.record({ manifestPath: await manifest(`w${i}`), name: `W${i}` });
+      store.record({
+        manifestPath: await manifest(`w${String(i)}`),
+        name: `W${String(i)}`,
+      });
     }
     const names = store.list().map((e) => e.name);
     expect(names).toHaveLength(10);

@@ -20,8 +20,8 @@ import type {
 export type AgentInstaller = (pi: ExtensionAPI) => void | Promise<void>;
 
 // Compose the installers into one pi ExtensionFactory. This is the single place
-// agent-surface registration order is decided: pi dispatches every hook by
-// registration order with no priority field, so the order installers run here
+// agent-surface hook order is decided: Pi dispatches every hook in the order
+// it was registered, with no priority field, so the order installers run here
 // is the composition semantics (chained "input" transforms, system-prompt
 // edits, tool_call mutations). Order is legible because it is exactly the list
 // order.

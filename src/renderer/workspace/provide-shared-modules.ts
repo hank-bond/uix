@@ -13,11 +13,11 @@ import * as reactDom from "react-dom";
 import * as reactDomClient from "react-dom/client";
 import * as typebox from "typebox";
 import * as typeboxValue from "typebox/value";
+
 import * as uixAgent from "@uix/api/agent-channels";
 import * as uixResources from "@uix/api/resources";
 import * as uixSettings from "@uix/api/settings";
 import * as uixWorkspace from "@uix/api/workspace";
-
 import {
   SurfaceSharedGlobal,
   type SurfaceSharedModule,

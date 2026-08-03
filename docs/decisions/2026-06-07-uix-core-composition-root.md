@@ -1,5 +1,6 @@
 ---
 summary: "UIX-core's agent contributions (tools, hooks, transforms) register through one in-process pi extension at a single root that fixes their order explicitly, rather than scattered across modules."
+kind: explanation
 status: accepted
 ---
 

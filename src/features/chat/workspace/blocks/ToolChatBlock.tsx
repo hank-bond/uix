@@ -1,54 +1,21 @@
+import type { JSX } from "react";
+
 import { ChatBlockFrame } from "./ChatBlockFrame";
-import { CanvasToolContent } from "./CanvasToolContent";
-import { DefaultToolContent } from "./DefaultToolContent";
-import { toToolDisplayName, toToolState } from "./tool";
-import type { ToolChatRenderer, ToolItem } from "./tool";
+import type { ToolItem } from "./tool/presentation";
+import { toToolState } from "./tool/presentation";
+import { deriveToolChatBlockPresentation } from "./tool/presentations";
 
-const toolChatRenderers = new Map<string, ToolChatRenderer>();
-
-registerToolChatRenderer("canvas__anchor_read", {
-  displayName: "Read Canvas",
-  render: ({ item }) => <CanvasToolContent item={item} />,
-});
-registerToolChatRenderer("canvas__anchor_write", {
-  displayName: "Write Canvas",
-  render: ({ item }) => <CanvasToolContent item={item} />,
-});
-registerToolChatRenderer("canvas__anchor_edit", {
-  displayName: "Edit Canvas",
-  render: ({ item }) => <CanvasToolContent item={item} />,
-});
-
-export function ToolChatBlock({ item }: { item: ToolItem }) {
+export function ToolChatBlock({ item }: { item: ToolItem }): JSX.Element {
   const state = toToolState(item);
-  const renderer = toolChatRenderers.get(item.toolName);
-  const name = renderer?.displayName ?? toToolDisplayName(item.toolName);
+  const presentation = deriveToolChatBlockPresentation(item, state);
   return (
     <ChatBlockFrame
-      className={item.isError ? "tool-error" : "tool"}
+      className={state === "error" ? "tool-error" : "tool"}
       kind="tool"
       state={state}
       toolName={item.toolName}
-      label={
-        <>
-          tool: <span data-uix-part="tool-name">{name}</span>
-          {item.isError ? " (error)" : ""}
-        </>
-      }
-      body={
-        renderer ? (
-          renderer.render({ item, state })
-        ) : (
-          <DefaultToolContent item={item} />
-        )
-      }
+      label={presentation.label}
+      body={presentation.content}
     />
   );
-}
-
-function registerToolChatRenderer(
-  toolName: string,
-  renderer: ToolChatRenderer,
-): void {
-  toolChatRenderers.set(toolName, renderer);
 }

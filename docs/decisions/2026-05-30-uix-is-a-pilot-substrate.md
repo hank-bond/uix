@@ -1,5 +1,6 @@
 ---
 summary: "UIX adds capabilities for the human piloting the agent, not for the agent, and is a reusable substrate rather than a single app — the framing test behind feature decisions."
+kind: explanation
 status: accepted
 ---
 
@@ -30,4 +31,4 @@ These same shapes serve the wiki app, a design-system deliverables app, and the 
 - Functions over classes.
 - Events over polling. Pi gives events; files have watchers; state emits.
 - Append-only where possible (reports, sessions, custom entries).
-- Lifetime bags enforce pairing by construction; registration without a bag is a bug. See [architecture/conventions](../architecture/conventions.md).
+- Lifetime bags enforce pairing by construction; registration without a bag is a bug. See [architecture/lifetimes](../architecture/conventions/lifetimes.md).

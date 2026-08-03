@@ -3,16 +3,19 @@
 // derive the same id replay produces, and the wrapper stays a pass-through.
 
 import type { SessionManager } from "@earendil-works/pi-coding-agent";
+import { describe, expect, it, type Mock, vi } from "vitest";
 
-import { describe, expect, it, vi } from "vitest";
-
-import { createTranscriptItemIdentity } from "./transcript-item-identity";
 import { deriveTranscriptItems } from "./transcript";
+import { createTranscriptItemIdentity } from "./transcript-item-identity";
 
-function fakeManager() {
+function fakeManager(): {
+  manager: SessionManager;
+  appendMessage: Mock;
+  appendCustomMessageEntry: Mock;
+} {
   let next = 1;
-  const appendMessage = vi.fn(() => `entry-${next++}`);
-  const appendCustomMessageEntry = vi.fn(() => `entry-${next++}`);
+  const appendMessage = vi.fn(() => `entry-${String(next++)}`);
+  const appendCustomMessageEntry = vi.fn(() => `entry-${String(next++)}`);
   const manager = {
     appendMessage,
     appendCustomMessageEntry,
@@ -70,15 +73,18 @@ describe("createTranscriptItemIdentity", () => {
 
     // The live id must equal what history replay produces for the same entry,
     // or live and replayed state would key differently.
-    const replayed = deriveTranscriptItems([
-      {
-        type: "message",
-        id: entryId,
-        parentId: null,
-        timestamp: "",
-        message,
-      } as never,
-    ]);
+    const replayed = deriveTranscriptItems(
+      [
+        {
+          type: "message",
+          id: entryId,
+          parentId: null,
+          timestamp: "",
+          message,
+        } as never,
+      ],
+      "/workspace",
+    );
     expect(replayed).toEqual([
       expect.objectContaining({ id: identity.toolRowId("call-1") }),
       expect.objectContaining({ id: identity.toolRowId("call-2") }),

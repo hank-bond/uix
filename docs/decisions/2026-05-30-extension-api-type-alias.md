@@ -1,5 +1,6 @@
 ---
 summary: "Extension types live behind the @uix/api path alias, and the extension shape mirrors pi: a default-exported factory that takes the injected API."
+kind: explanation
 status: superseded
 ---
 

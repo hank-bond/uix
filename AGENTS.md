@@ -1,94 +1,104 @@
 ---
 summary: "Project orientation for UIX, its substrate model, invariants, layers, and documentation routing."
-read_when: "Read first when entering the repo or deciding whether a change belongs in UIX or pi."
+read_when: "Read first when entering the repo or deciding whether a change belongs in UIX or Pi."
 status: active
 ---
 
 # UIX
 
-UIX is a local Electron cockpit for building bidirectional human-agent surfaces on top of pi. Pi is the agent framework (sessions, tools, prompts, skills, extensions, model providers, agent events); UIX is the UI substrate (surfaces, channels, contribution facets, and the bridge between agent tool calls and frontend state). The goal is not one fixed app but the wiring to build many local agent-facing apps: reports, dashboards, knowledge tools, design-system deliverables, interactive canvases.
+UIX is a local Electron cockpit for building bidirectional human-agent surfaces on Pi. Pi supplies sessions, tools, prompts, skills, providers, extensions, and agent events. UIX supplies surfaces, channels, feature facets, and the bridge between agent activity and frontend state.
 
-This file is the always-loaded orientation — the core model, the load-bearing invariants, and a routing map. Everything else lives one level down and is read on demand; nothing below this file is pinned into the agent's context.
+The project provides wiring for many local agent-facing applications, not one fixed application. Examples include reports, dashboards, knowledge tools, design-system deliverables, and interactive canvases.
 
-## Working with the documentation graph
+This file is the always-loaded orientation and routing map. Read lower documentation nodes only when their summaries match the task.
 
-The repository documentation is a **graph you traverse on demand**, not a corpus to read up front. The root [`AGENTS.md`](./AGENTS.md) is always in your context; everything else is reached by following links down from it.
+## Work with the documentation graph
 
-Each node carries a one-line **summary** (what it establishes — its thesis) and, only when the trigger isn't obvious from that summary, a **read_when** (when to open it). Use these to decide what to open: descend only into what's relevant to the task in front of you.
+The repository documentation is a graph, not a corpus to read up front. Start at this file and descend through each directory's `AGENTS.md` index.
 
-**Traverse regularly, in both modes:**
+Each node has a one-line _summary_ that states its thesis. A node adds _read_when_ only when the summary does not reveal its retrieval trigger.
 
-- **When thinking** (planning, designing, weighing options) — pull in the decisions, design threads, and open questions that bound the choice _before_ committing to an approach.
-- **When doing** (writing or changing code) — pull in the architecture record, the relevant `src/docs/` reference, and any plan or decision that constrains the change.
+Traverse the graph in both working modes:
 
-**Rules:**
+- **When thinking:** Read the decisions, design threads, and open questions that constrain the choice before selecting an approach.
+- **When doing:** Read the architecture record, shipped reference, and active plan that govern the change.
 
-- Start at the root `AGENTS.md` and follow its routing map down through the dir-level `AGENTS.md` indexes to the leaf docs.
-- Open a doc when its summary (or `read_when`) matches your task; skip the rest.
-- **Do not re-read what is already in your context window** — if a file's content is already loaded, use it in place.
-- Follow inline cross-links between docs: sibling threads and the decisions/plans a doc spawned are linked in prose, not in the index.
+Follow these retrieval rules:
 
-For now this is pure on-demand traversal. Preloading the top ~100 summaries breadth-first (a project-wide bird's-eye map) is a later optimization, not yet in effect.
+- Open only documents whose summary or trigger matches the task.
+- Do not reload a document that is already in the context window.
+- Follow inline cross-links because decisions, plans, and sibling threads often carry constraints outside the index.
 
-## Core idea
+The project uses on-demand traversal. Broad summary preloading remains a possible later optimization.
 
-The atomic UIX unit is a **feature**: a loadable definition that contributes to substrate facets — visible **surfaces**, typed **channels**, agent tools, system-prompt sections, Pi skills, turn state, agent context, resources. A **workspace** (one page, one window) composes enabled feature surfaces over one agent session; on disk it is a directory defined by its `uix.workspace.json` manifest, whose ordered feature entry-file references are the composition — no auto-discovery. Channels let a surface talk to its feature's backend, to other features, and optionally to the pi agent. Chat and canvas are default features loaded from source like any manifest entry, not core app structure. Everything else layers on top.
+## Core model
+
+A _feature_ is UIX's loadable unit. It can contribute resources, typed channels, agent facets, turn state, agent context, settings, and visible surfaces.
+
+A _workspace_ is a directory defined by `uix.workspace.json`. Its ordered feature entry references are the complete composition; UIX performs no feature auto-discovery. One workspace page composes the active feature surfaces over one selected Pi session graph.
+
+Channels connect surfaces to feature backends and substrate services. A feature can also publish a contract that another feature imports deliberately. Chat consumes the substrate agent contract through this same path.
+
+Chat, Canvas, and the reference workspace tools are ordinary source-loaded features. Bare workspace scaffolding copies only editable passthrough Pi tool providers.
 
 ## Layers
 
 ```text
-pi                  agent sessions, tools, prompts, skills, providers, events
-UIX main            feature loading, lifetimes, facet registries, agent session ownership
-UIX workspace       surface composition, layout, typed channel clients
-UIX features        surfaces, channels, agent tools/system prompts/skills, turn state, agent context, resources
-surface content     React (trusted feature UI) or iframe HTML (contained/authored content)
+Pi                  agent sessions, tools, prompts, skills, providers, events
+UIX main            feature loading, facet registries, state services, agent runtime
+UIX workspace       surface composition, actions, session projection, channel clients
+UIX features        surfaces, channels, resources, agent facets, settings, turn state
+surface content     trusted React feature UI or contained authored iframe HTML
 ```
 
-Pi and UIX are separate systems. A loadable package may contribute to either or both via optional `pi` and `uix` fields in `package.json`: the `pi` field teaches the agent backend capabilities, the `uix` field teaches the cockpit frontend capabilities.
+Pi and UIX have separate lifecycles. A package may contain both Pi extensions and UIX feature entries. Pi loads its extension resources, while the workspace manifest selects UIX entries.
 
 ## Substrate primitives
 
-The cockpit provides exactly these; anything else is a feature responsibility.
+The cockpit provides these primitives. Product behavior above them belongs to features.
 
 | Primitive | Purpose |
 | --- | --- |
-| **Feature loader** | Load, register, hot-reload the workspace manifest's features (bundled and workspace alike). |
-| **Surface composition** | Mount contributed feature surfaces into the workspace layout. |
-| **Typed channel** | Contract-derived requests and events, validated both directions, between surfaces, feature backends, and the agent. |
-| **Lifetime bags** | Per-feature `DisposableBag`; disposes everything a feature registered. |
-| **Agent session manager** | Owns the pi session, installs agent-facet contributions, routes channel events to pi. |
-| **File watcher service** | Cockpit-owned watcher; features register glob → callback. |
+| **Feature runtime** | Load manifest entries, activate each feature atomically, and replace the active composition on reload. |
+| **Facet registries** | Own live resources, channels, surfaces, agent facets, turn state, and agent context. |
+| **Surface runtime** | Bundle, mount, style-scope, and isolate contributed surface modules. |
+| **Typed channels** | Derive validated requests, responses, events, handlers, publishers, and clients from shared contracts. |
+| **State services** | Own workspace settings, document persistence, and branch-scoped feature turn state. |
+| **Agent runtime** | Own Pi services and sessions, install agent facets, project transcripts, and coordinate restoration. |
+| **Workspace services** | Own renderer actions, keybindings, selected-session projection, and fixed shell behavior. |
+| **Lifetime bags** | Dispose app, feature, window, and agent capabilities in deterministic order. |
 
-The cockpit shell (window, workspace layout, error boundaries) sits underneath these and is not itself extensible.
+The cockpit shell remains fixed infrastructure. Features provide opinionated surfaces such as Chat, Canvas, palettes, settings editors, and report viewers.
 
 ## Invariants
 
-The rules that constrain every change — hold these before reaching for detail:
+Apply these rules before reaching for subsystem details:
 
-- **Pilot, not the pilot's brain.** UIX adds capabilities for the _human working with the agent_, not for the agent; anything that makes the agent smarter belongs in pi. → [decision](docs/decisions/2026-05-30-uix-is-a-pilot-substrate.md)
-- **Mirror pi's self-extension ethos for UI.** Pi ships the tools to customize itself and little else (no subagents, permissions, or MCP — you build those through its integration points). UIX does the same one layer up for visual UI: ship composable primitives and thin default chrome, not fixed features. When tempted to hardcode a UI feature, make it a primitive something registers or composes. → [decision](docs/decisions/2026-06-05-pi-self-extension-ethos.md)
-- **Features never import cockpit internals.** All feature ↔ cockpit traffic flows through the injected context and the `@uix/api` types, which keeps a future worker/utility-process isolation a mechanical swap. → [decision](docs/decisions/2026-07-01-features-are-the-loadable-unit.md)
-- **The agent edits files, not the UI.** Persistent artifacts change through ordinary file-edit tools; channels carry validated events, not an agent-side UI API. → [decision](docs/decisions/2026-05-30-no-agent-ui-manipulation.md)
-- **Hosting-compatible by default.** The filesystem is never load-bearing — it's one local impl of a content store + change feed; address by id, cockpit is sole writer, content-hash echo suppression, field-level merge. → [decision](docs/decisions/2026-05-31-hosting-compatible-by-default.md)
-- **One channel API, two transports.** In-process and iframe `postMessage` sit behind one channel API (hosting later adds a third).
-- **Docs are read on demand.** Nothing below this file is preloaded; route via the map below and follow links.
+- **Pilot, not the pilot's brain:** UIX adds capabilities for the human working with the agent. Agent intelligence belongs in Pi. See [`2026-05-30-uix-is-a-pilot-substrate.md`](docs/decisions/2026-05-30-uix-is-a-pilot-substrate.md).
+- **Mirror Pi's self-extension ethos:** Ship composable primitives and thin default chrome, not fixed product features. See [`2026-06-05-pi-self-extension-ethos.md`](docs/decisions/2026-06-05-pi-self-extension-ethos.md).
+- **Features do not import cockpit internals:** Feature traffic uses the injected context and `@uix/api`. See [`2026-07-01-features-are-the-loadable-unit.md`](docs/decisions/2026-07-01-features-are-the-loadable-unit.md).
+- **The agent changes artifacts, not live views:** Agent tools change authoritative feature data. Channels carry validated events instead of exposing UI handles. See [`2026-05-30-no-agent-ui-manipulation.md`](docs/decisions/2026-05-30-no-agent-ui-manipulation.md).
+- **Hosting-compatible by default:** Address durable content by id behind owned stores. Do not expose local filesystem mechanics as feature contracts. See [`2026-05-31-hosting-compatible-by-default.md`](docs/decisions/2026-05-31-hosting-compatible-by-default.md).
+- **One logical channel API:** The Electron transport implements the contract today. Future iframe or hosted adapters must preserve the same request and event model.
+- **Documentation is on demand:** Route through the map below and load only the relevant leaves.
 
 ## Where to read
 
-Two doc trees — `src/docs/` is the user-facing substrate reference (building on UIX); `docs/` is the dev-facing meta tree (why things are the way they are). Runnable examples live in `examples/`, and `website/` is the public marketing site served at uix.sh.
+The `src/docs/` tree is the shipped substrate reference. The `docs/` tree contains architecture, decisions, design threads, and documentation practice. Root-level `plans/` tracks builds. The `website/` directory contains the public uix.sh marketing site.
 
 <!-- INDEX:START -->
 
-<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs — do not edit by hand; run `npm run docs:index`. -->
+<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
-- **[src/docs/](./src/docs/AGENTS.md)** _(active)_ — The shipped, user-facing substrate reference for building on UIX — surfaces, channels, agent, features, lifetimes, state — kept in lockstep with current code.
-- **[docs/](./docs/AGENTS.md)** _(active)_ — Dev-facing meta docs — decisions, design threads, architecture records, and plans — and the map for routing into them.
-- **[website/](./website/AGENTS.md)** _(active)_ — The public uix.sh marketing site — a zero-build static landing page (plain HTML/CSS/JS) whose centerpiece is a scroll-driven brandmark morph, with all motion gated behind prefers-reduced-motion. _Read when editing the public landing page at uix.sh — its markup, the scroll-driven logo animation/CSS, or the favicon._
+- **[src/docs/](./src/docs/AGENTS.md)** _(active)._ The shipped substrate reference covers features, surfaces, channels, agent integration, settings, state, and lifetimes in lockstep with code.
+- **[docs/](./docs/AGENTS.md)** _(active)._ Dev-facing meta docs for current architecture, settled decisions, design threads, and documentation practice.
+- **[plans/](./plans/AGENTS.md)** _(active)._ Active build specs, reviewable delivery units, and a backlog of smaller implementation seeds.
+- **[website/](./website/AGENTS.md)** _(active)._ The zero-build uix.sh landing page uses static HTML, CSS, and JavaScript with a reduced-motion-safe brandmark morph. _Read when editing the landing page, brandmark animation, styles, or favicon._
 
 <!-- INDEX:END -->
 
-The cockpit injects this same orientation plus the doc map into its UIX-owned agent through core agent facets (`src/main/agent/`) — not an extension; it's how the cockpit talks to the agent at all. Skills add capabilities; docs explain the architecture.
+The cockpit injects this orientation and routing map through its owned agent integration. Skills add capabilities; documentation explains project architecture.
 
 ## Non-goals
 
-UIX is not a marketplace, a sandbox for hostile features, a web-only deployment, a template/database persistence system, or a multi-agent orchestrator. The cockpit ships default chrome only — design system, markdown rendering, syntax highlighting, and a code editor are feature territory. All of these can be built on top of the substrate later.
+UIX is not a marketplace, hostile-code sandbox, web-only deployment, or multi-agent orchestrator. Design systems, rendering libraries, editors, and opinionated workflows remain feature territory.

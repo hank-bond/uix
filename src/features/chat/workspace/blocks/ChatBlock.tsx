@@ -1,14 +1,17 @@
+import type { JSX } from "react";
+
 import type { TranscriptItem } from "@uix/api/agent-channels";
+
 import { CustomMessageChatBlock } from "./CustomMessageChatBlock";
 import { ErrorChatBlock } from "./ErrorChatBlock";
 import { MessageChatBlock } from "./MessageChatBlock";
 import { ToolChatBlock } from "./ToolChatBlock";
 
-export interface ChatBlockProps {
+interface ChatBlockProps {
   item: TranscriptItem;
 }
 
-export function ChatBlock({ item }: ChatBlockProps) {
+export function ChatBlock({ item }: ChatBlockProps): JSX.Element {
   switch (item.kind) {
     case "user":
       return <MessageChatBlock item={item} className="user" />;

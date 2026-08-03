@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 import { useEffect, useMemo, useRef } from "react";
 
 import type {
@@ -6,10 +7,14 @@ import type {
 } from "@uix/api/agent-channels";
 
 import type { AgentControls } from "./agent-controls";
-import { ProviderAuthFlowPanel } from "./ProviderAuthFlowPanel";
 import { deriveProviderAuthRows } from "./provider-auth-presentation";
+import { ProviderAuthFlowPanel } from "./ProviderAuthFlowPanel";
 
-export function ProviderLoginModal({ controls }: { controls: AgentControls }) {
+export function ProviderLoginModal({
+  controls,
+}: {
+  controls: AgentControls;
+}): JSX.Element {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const providerRows = useMemo(
@@ -103,7 +108,7 @@ function ProviderRow({
   flow: ProviderAuthFlowSnapshot | undefined;
   onSelectMethod: (method: ProviderAuthMethod) => void;
   controls: AgentControls;
-}) {
+}): JSX.Element {
   const activeMethod = provider.methods.find(
     (method) =>
       method.providerId === flow?.providerId &&
@@ -127,7 +132,9 @@ function ProviderRow({
                 data-connected={method.connection ? "" : undefined}
                 aria-expanded={isExpanded}
                 aria-controls={panelId}
-                onClick={() => onSelectMethod(method)}
+                onClick={() => {
+                  onSelectMethod(method);
+                }}
               >
                 {method.authType === "api_key" ? "API key" : "Sign in"}
                 {method.connection && (

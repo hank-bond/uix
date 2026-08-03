@@ -1,5 +1,6 @@
-import { defineSettings, type SettingsDefinition } from "@uix/api/settings";
 import type { Static } from "typebox";
+
+import { defineSettings, type SettingsDefinition } from "@uix/api/settings";
 
 export type WorkspaceSettingsNamespace<
   Id extends string,

@@ -6,63 +6,61 @@
 // HTTP routes.
 //
 // ResourceContribution and ResourceRequestContext are defined in
-// @uix/api/resources and re-exported here so existing call sites keep compiling.
+// @uix/api/resources. This registry resolves author contributions and owns their
+// live runtime state.
 
 import { protocol } from "electron";
 
-import type { ResourceCanonicalId } from "#shared/resource-canonical-id";
-import { toResourceCanonicalId } from "#shared/resource-canonical-id";
 import {
-  toContributionId,
   type ContributionId,
+  toContributionId,
 } from "@uix/api/contribution-id";
 import {
-  decodeResourceUrl,
-  ResourceProtocolScheme,
   type DecodedResourceUrl,
+  decodeResourceUrl,
   type NormalizedResourceRoute,
+  ResourceProtocolScheme,
 } from "@uix/api/resource-routes";
-
-import { DisposableBag, disposable } from "../lifecycle";
-
 import type {
   ResourceContribution,
   ResourceRequestContext,
 } from "@uix/api/resources";
+import type { ResourceCanonicalId } from "#shared/resource-canonical-id";
+import { toResourceCanonicalId } from "#shared/resource-canonical-id";
 
-interface ResourceRegistration {
-  featureId: string;
-  name: string;
-  contributionId: ContributionId;
-  canonicalId: ResourceCanonicalId;
-  route: NormalizedResourceRoute;
-  handle: (ctx: ResourceRequestContext) => Response | Promise<Response>;
+import { disposable, DisposableBag } from "../lifecycle";
+
+interface ResolvedResourceContribution {
+  readonly featureId: string;
+  readonly name: string;
+  readonly contributionId: ContributionId;
+  readonly canonicalId: ResourceCanonicalId;
+  readonly route: NormalizedResourceRoute;
+  readonly handler: (
+    ctx: ResourceRequestContext,
+  ) => Response | Promise<Response>;
 }
 
 export type ResourceSchemeRegistrar = (
   schemes: Electron.CustomScheme[],
 ) => void;
 
-export type ResourceTransportHandle = (
+export type ResourceTransportRegistrar = (
   scheme: typeof ResourceProtocolScheme,
-  handle: (request: Request) => Response | Promise<Response>,
-) => void;
-
-export type ResourceTransportUnhandle = (
-  scheme: typeof ResourceProtocolScheme,
-) => void;
+  handler: (request: Request) => Response | Promise<Response>,
+) => Disposable;
 
 export interface ResourceRegistryOptions {
   workspaceId: string;
-  handle?: ResourceTransportHandle;
-  unhandle?: ResourceTransportUnhandle;
+  transportRegistrar?: ResourceTransportRegistrar;
 }
 
 export function registerResourceProtocol(
-  register: ResourceSchemeRegistrar = (schemes) =>
-    protocol.registerSchemesAsPrivileged(schemes),
+  registrar: ResourceSchemeRegistrar = (schemes) => {
+    protocol.registerSchemesAsPrivileged(schemes);
+  },
 ): void {
-  register([
+  registrar([
     {
       scheme: ResourceProtocolScheme,
       privileges: {
@@ -81,63 +79,69 @@ export function registerResourceProtocol(
 
 export class ResourceRegistry implements Disposable {
   readonly #workspaceId: string;
-  readonly #unhandle: ResourceTransportUnhandle;
+  readonly #transportDisposable: Disposable;
   readonly #canonicalIds = new Set<ResourceCanonicalId>();
-  readonly #registrations = new Map<
+  readonly #registeredResources = new Map<
     ResourceCanonicalId,
-    ResourceRegistration
+    ResolvedResourceContribution
   >();
   #disposed = false;
 
   constructor(opts: ResourceRegistryOptions) {
     this.#workspaceId = opts.workspaceId;
-    const handle = opts.handle ?? ((scheme, fn) => protocol.handle(scheme, fn));
-    this.#unhandle = opts.unhandle ?? ((scheme) => protocol.unhandle(scheme));
-    handle(ResourceProtocolScheme, (request) => this.#dispatch(request));
+    const transportRegistrar =
+      opts.transportRegistrar ?? registerResourceTransportHandler;
+    this.#transportDisposable = transportRegistrar(
+      ResourceProtocolScheme,
+      (request) => this.#dispatch(request),
+    );
   }
 
-  register(registration: ResourceRegistration): Disposable {
+  register(resolvedContribution: ResolvedResourceContribution): Disposable {
     if (this.#disposed) {
       throw new Error("Resource registry is disposed");
     }
-    if (this.#canonicalIds.has(registration.canonicalId)) {
+    if (this.#canonicalIds.has(resolvedContribution.canonicalId)) {
       throw new Error(
-        `Resource already registered: ${registration.canonicalId as string}`,
+        `Resource already registered: ${resolvedContribution.canonicalId as string}`,
       );
     }
 
-    this.#canonicalIds.add(registration.canonicalId);
-    this.#registrations.set(registration.canonicalId, registration);
+    this.#canonicalIds.add(resolvedContribution.canonicalId);
+    this.#registeredResources.set(
+      resolvedContribution.canonicalId,
+      resolvedContribution,
+    );
 
     let disposed = false;
     return disposable(() => {
       if (disposed) return;
       disposed = true;
-      this.#canonicalIds.delete(registration.canonicalId);
-      this.#registrations.delete(registration.canonicalId);
+      this.#canonicalIds.delete(resolvedContribution.canonicalId);
+      this.#registeredResources.delete(resolvedContribution.canonicalId);
     });
   }
 
   [Symbol.dispose](): void {
     if (this.#disposed) return;
     this.#disposed = true;
-    this.#registrations.clear();
+    this.#registeredResources.clear();
     this.#canonicalIds.clear();
-    this.#unhandle(ResourceProtocolScheme);
+    this.#transportDisposable[Symbol.dispose]();
   }
 
   async #dispatch(request: Request): Promise<Response> {
     let badRequestReason: string | null = null;
 
-    for (const registration of this.#registrations.values()) {
-      const decoded = decodeResourceUrl(registration.route, {
-        featureId: registration.featureId,
-        name: registration.name,
+    for (const contribution of this.#registeredResources.values()) {
+      const decoded = decodeResourceUrl(contribution.route, {
+        featureId: contribution.featureId,
+        name: contribution.name,
         workspaceId: this.#workspaceId,
         url: request.url,
       });
       if (decoded.ok) {
-        return registration.handle(toRequestContext(request, decoded.value));
+        return contribution.handler(toRequestContext(request, decoded.value));
       }
       if (decoded.status === 400) {
         badRequestReason = decoded.reason;
@@ -158,7 +162,7 @@ export function registerResourceContributions(
   try {
     for (const contribution of contributions) {
       bag.add(
-        registry.register(toResourceRegistration(featureId, contribution)),
+        registry.register(resolveResourceContribution(featureId, contribution)),
       );
     }
     return bag;
@@ -168,18 +172,28 @@ export function registerResourceContributions(
   }
 }
 
-function toResourceRegistration(
+function resolveResourceContribution(
   featureId: string,
   contribution: ResourceContribution,
-): ResourceRegistration {
+): ResolvedResourceContribution {
   return {
     featureId,
     name: contribution.name,
     contributionId: toContributionId(featureId, "resource", contribution.name),
     canonicalId: toResourceCanonicalId(featureId, contribution.name),
     route: contribution.route,
-    handle: contribution.handle,
+    handler: contribution.handler,
   };
+}
+
+function registerResourceTransportHandler(
+  scheme: typeof ResourceProtocolScheme,
+  handler: (request: Request) => Response | Promise<Response>,
+): Disposable {
+  protocol.handle(scheme, handler);
+  return disposable(() => {
+    protocol.unhandle(scheme);
+  });
 }
 
 function toRequestContext(

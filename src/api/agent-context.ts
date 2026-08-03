@@ -50,7 +50,7 @@ export interface UpdateContribution<
   T extends TSchema,
 > extends BaseContribution {
   buffer: UpdateBuffer<T>;
-  /** Optional initial update applied by bulk contribution registration. */
+  /** Optional initial update applied when the contribution group is registered. */
   initialValue?: Static<T>;
   /** Optional formatter; default is JSON.stringify(value) with value as details. */
   materialize?: (input: {
@@ -64,7 +64,7 @@ export interface AppendContribution<
   buffer: AppendBuffer<T>;
   /** Optional formatter; default is JSON.stringify(values) with values as details. */
   materialize?: (input: {
-    values: readonly Static<T>[];
+    values: ReadonlyArray<Static<T>>;
   }) => MaybePromise<AgentContextMaterialization | undefined>;
 }
 

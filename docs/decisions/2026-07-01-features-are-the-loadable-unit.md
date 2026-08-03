@@ -1,5 +1,6 @@
 ---
 summary: "The feature is the one uix-side loadable unit: a discovered entry default-exports a plain FeatureDefinition (no injected-API factory), bundled and discovered features register through one contribution path under the reload bag, and the contribution contract lives behind @uix/api — retiring ExtensionAPI and the parallel extension system."
+kind: explanation
 read_when: "Read before touching src/main/extensions/ or src/main/features/, the @uix/api surface, or anything named 'extension' on the uix side — the extension vocabulary and the injected-API factory shape are retired."
 status: accepted
 ---
@@ -35,4 +36,4 @@ Two parallel systems grew side by side: the extension loader (discovery, jiti en
 
 **Out of scope.** Discovery-fed _surface_ composition (the renderer's layout is still a build-time import list; foreign/generated surface code additionally needs the iframe surface transport) — backlog. A commands facet, if commands return, returns on `FeatureContributions`. Preflight for discovered features — today's preflight is feature-independent (one substrate resource scheme), so nothing is lost by deferring.
 
-Supersedes [extension-api-type-alias](./2026-05-30-extension-api-type-alias.md), [extension-discovery-and-identity](./2026-05-30-extension-discovery-and-identity.md), and [extension-activation-and-isolation](./2026-05-30-extension-activation-and-isolation.md). Distilled from [workspace-feature-composition](../design/workspace-feature-composition.md) and [uix-core-composition](../design/uix-core-composition.md); built by [feature-loading-convergence](../plans/feature-loading-convergence.md).
+Supersedes [extension-api-type-alias](./2026-05-30-extension-api-type-alias.md), [extension-discovery-and-identity](./2026-05-30-extension-discovery-and-identity.md), and [extension-activation-and-isolation](./2026-05-30-extension-activation-and-isolation.md). Distilled from [workspace-feature-composition](../design/workspace-feature-composition.md) and [uix-core-composition](../design/uix-core-composition.md); built by [feature-loading-convergence](../../plans/archive/feature-loading-convergence.md).

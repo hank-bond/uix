@@ -2,20 +2,21 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
+import { Type } from "typebox";
+import { afterEach, describe, expect, expectTypeOf, it } from "vitest";
+
 import type { KeybindingMap } from "@uix/api/actions";
 import {
   defineSettings,
   type SettingsDefinition,
   type SettingsHandle,
 } from "@uix/api/settings";
-import { Type } from "typebox";
-import { afterEach, describe, expect, expectTypeOf, it } from "vitest";
 
-import { keybindingsWorkspaceSettings } from "./keybindings/settings";
 import {
-  sessionWorkspaceSettings,
   type SelectedSessionSetting,
+  sessionWorkspaceSettings,
 } from "./agent/session-settings";
+import { keybindingsWorkspaceSettings } from "./keybindings/settings";
 import { SettingsRegistry } from "./settings-registry";
 import { WorkspaceManifestStore } from "./workspace-manifest-store";
 import {
@@ -82,10 +83,9 @@ interface Harness extends Disposable {
 
 function createHarness(
   manifestPath: string,
-  namespaces: readonly WorkspaceSettingsNamespace<
-    string,
-    SettingsDefinition
-  >[] = [],
+  namespaces: ReadonlyArray<
+    WorkspaceSettingsNamespace<string, SettingsDefinition>
+  > = [],
 ): Harness {
   const manifest = new WorkspaceManifestStore(manifestPath, {
     flushDebounceMs: 1000,
@@ -118,7 +118,7 @@ function activateFeatureSettings(
     definition,
   );
   loaded.commit();
-  return loaded.handle;
+  return loaded.settings;
 }
 
 afterEach(async () => {
@@ -152,7 +152,7 @@ describe("feature settings", () => {
 
     await manifest.flush();
     const written = (await readManifest(manifestPath)) as {
-      features: { settings: Record<string, unknown> }[];
+      features: Array<{ settings: Record<string, unknown> }>;
     };
     expect(written.features[0]?.settings).toEqual({
       statusBar: {
@@ -174,7 +174,7 @@ describe("feature settings", () => {
 
     await settings.reload();
     const failed = settings.loadFeatureSettings("chat", 0, statusSettings());
-    failed.handle.set("statusBar", {
+    failed.settings.set("statusBar", {
       order: ["context"],
       hidden: [],
     });
@@ -183,7 +183,7 @@ describe("feature settings", () => {
     expect(await readManifest(manifestPath)).toEqual(initialManifest);
 
     failed[Symbol.dispose]();
-    expect(() => failed.handle.get("statusBar")).toThrow(
+    expect(() => failed.settings.get("statusBar")).toThrow(
       "Unknown settings scope: chat",
     );
 
@@ -192,14 +192,14 @@ describe("feature settings", () => {
     await manifest.flush();
 
     const written = (await readManifest(manifestPath)) as {
-      features: { settings: Record<string, unknown> }[];
+      features: Array<{ settings: Record<string, unknown> }>;
     };
     expect(written.features[0]?.settings).toEqual({
       statusBar: StatusBarDefault,
     });
 
     recovered[Symbol.dispose]();
-    expect(() => recovered.handle.get("statusBar")).toThrow(
+    expect(() => recovered.settings.get("statusBar")).toThrow(
       "Unknown settings scope: chat",
     );
     expect(await readManifest(manifestPath)).toEqual(written);
@@ -317,12 +317,14 @@ describe("feature settings", () => {
       hidden: ["context"],
     });
     expect(changes).toEqual([{ order: ["model"], hidden: ["context"] }]);
-    expect(() => chat.set("statusBar", { order: [1], hidden: [] })).toThrow();
+    expect(() => {
+      chat.set("statusBar", { order: [1], hidden: [] });
+    }).toThrow();
 
     await manifest.flush();
     const written = (await readManifest(manifestPath)) as {
       unknown: unknown;
-      features: { entry: string; settings: Record<string, unknown> }[];
+      features: Array<{ entry: string; settings: Record<string, unknown> }>;
     };
 
     expect(written.unknown).toEqual({ preserved: true });
@@ -364,7 +366,7 @@ describe("feature settings", () => {
     await manifest.flush();
 
     const written = (await readManifest(manifestPath)) as {
-      features: { settings: Record<string, unknown> }[];
+      features: Array<{ settings: Record<string, unknown> }>;
     };
     expect(written.features[0]?.settings).toEqual({
       statusBar: { order: ["model"], hidden: [] },
@@ -385,16 +387,16 @@ describe("feature settings", () => {
       throw new Error("listener failed");
     });
 
-    expect(() =>
+    expect(() => {
       chat.set("statusBar", {
         order: ["model"],
         hidden: [],
-      }),
-    ).toThrow("listener failed");
+      });
+    }).toThrow("listener failed");
 
     await manifest.flush();
     const written = (await readManifest(manifestPath)) as {
-      features: { settings: Record<string, unknown> }[];
+      features: Array<{ settings: Record<string, unknown> }>;
     };
     expect(written.features[0]?.settings).toEqual({
       statusBar: { order: ["model"], hidden: [] },
@@ -528,7 +530,7 @@ describe("workspace namespace settings", () => {
     using harness = createHarness(manifestPath, [agentNamespace]);
     const { settings, manifest, registry } = harness;
     const changes: unknown[] = [];
-    const any: [string, string][] = [];
+    const any: Array<[string, string]> = [];
 
     await settings.reload();
     const agent = settings.forNamespace(agentNamespace);

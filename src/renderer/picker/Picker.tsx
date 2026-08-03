@@ -4,6 +4,7 @@
 // action means main is tearing this window down; the component only has to
 // surface errors and dialog cancellations.
 
+import type { JSX } from "react";
 import { useEffect, useState } from "react";
 
 import {
@@ -13,7 +14,7 @@ import {
   type RecentWorkspace,
 } from "#shared/ipc";
 
-export function Picker() {
+export function Picker(): JSX.Element {
   const [recents, setRecents] = useState<RecentWorkspace[] | null>(null);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,11 +23,15 @@ export function Picker() {
   useEffect(() => {
     void window.channels
       .request(Channels.pickerState, undefined)
-      .then((state) => setRecents((state as PickerState).recents))
-      .catch(() => setRecents([]));
+      .then((state) => {
+        setRecents((state as PickerState).recents);
+      })
+      .catch(() => {
+        setRecents([]);
+      });
   }, []);
 
-  const act = async (channel: string, payload: unknown) => {
+  const act = async (channel: string, payload: unknown): Promise<void> => {
     setBusy(true);
     setError(null);
     try {
@@ -94,7 +99,9 @@ export function Picker() {
             value={name}
             placeholder="Workspace name (defaults to folder name)"
             disabled={busy}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+            }}
           />
           <button type="submit" disabled={busy}>
             Choose folder…

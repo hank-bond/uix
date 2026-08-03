@@ -1,5 +1,6 @@
 ---
 summary: "The stable UIX project root (session history + canvas store, one per app instance) is separate from the mutable agent cwd — a free pointer the agent moves per turn, recorded per turn, and NOT a history branch."
+kind: explanation
 status: accepted
 ---
 
@@ -15,7 +16,7 @@ Two locations, deliberately decoupled:
 ## How a cwd change works
 
 - **Agent-initiated, as a turn.** Most cwd changes come from the agent's own workflow (e.g. "work in a worktree for this task") — a capability that _is_ a turn, not a side channel. A human-facing UI control may come later; the per-turn record (below) handles either initiator since it is captured at the turn boundary. cwd is agent _operating context_ (like `cd`), not a UI handle, so this stays inside [no-agent-ui-manipulation](./2026-05-30-no-agent-ui-manipulation.md).
-- **Reopen the same history, do not branch.** Pi binds cwd at session creation, but `SessionManager.open(file, sessionDir, cwdOverride)` re-opens the _same_ session file under a different cwd (the header cwd stays the home/root; the override is runtime-only). In the cockpit this rebuilds the two in-memory tiers — the `SessionManager` and the live `AgentSession` (see [persistence-and-session-foundation](../plans/persistence-and-session-foundation.md) C0's two-tier load) — against the unchanged file. **Same conversation tree, same leaf, full prior context.** The persisted history is untouched; only where the agent's tools point changes.
+- **Reopen the same history, do not branch.** Pi binds cwd at session creation, but `SessionManager.open(file, sessionDir, cwdOverride)` re-opens the _same_ session file under a different cwd (the header cwd stays the home/root; the override is runtime-only). In the cockpit this rebuilds the two in-memory tiers — the `SessionManager` and the live `AgentSession` (see [persistence-and-session-foundation](../../plans/persistence-and-session-foundation.md) C0's two-tier load) — against the unchanged file. **Same conversation tree, same leaf, full prior context.** The persisted history is untouched; only where the agent's tools point changes.
 - **`forkFrom` is not used for cwd.** History branching is a discrete action on its own axis (tree navigation / throwaway alternatives, C5) that _may or may not_ coincide with a cwd change depending on impetus. You never branch _in order to_ move cwd. A branch can carry its own cwd; that composition falls out for free.
 
 ## How cwd survives resume

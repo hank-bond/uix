@@ -4,4 +4,4 @@
 // what the manifest references, so surface refs and served CSS/assets
 // resolve against the whole feature directory.
 
-export { canvasFeature as default } from "./backend/contributions";
+export { canvasFeature as feature } from "./backend/contributions";

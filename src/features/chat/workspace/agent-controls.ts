@@ -10,6 +10,7 @@ import type {
   ProviderAuthType,
 } from "@uix/api/agent-channels";
 import type { ChannelClient } from "@uix/api/workspace";
+
 import { getInitialModelScope, type ModelPickerScope } from "./model-filter";
 
 type AgentChannelClient = ChannelClient<typeof agentChannels>;
@@ -23,7 +24,40 @@ function isProviderAuthFlowRunning(flow: ProviderAuthFlowSnapshot): boolean {
   return flow.phase.type === "starting" || flow.phase.type === "active";
 }
 
-export function useAgentControls(client: AgentChannelClient) {
+export function useAgentControls(client: AgentChannelClient): {
+  status: AgentStatus | undefined;
+  models: ModelCatalog | undefined;
+  modelError: string | undefined;
+  modelPicker: ModelPickerState | undefined;
+  toggleModelPicker: () => void;
+  openModelPicker: (scope: ModelPickerScope) => void;
+  closeModelPicker: () => void;
+  setModelPickerScope: (scope: ModelPickerScope) => void;
+  selectModel: (model: ModelCatalogEntry) => Promise<void>;
+  setModelFavorite: (
+    model: ModelCatalogEntry,
+    favorite: boolean,
+  ) => Promise<void>;
+  providerModalOpen: boolean;
+  providers: ProviderAuthCatalog | undefined;
+  providerError: string | undefined;
+  openProviderModal: (invoker: HTMLElement) => void;
+  closeProviderModal: () => void;
+  providerAuthFlow: ProviderAuthFlowSnapshot | undefined;
+  providerAuthError: string | undefined;
+  selectProviderAuthMethod: (
+    providerId: string,
+    authType: ProviderAuthType,
+  ) => Promise<void>;
+  answerProviderAuthPrompt: (
+    flowId: string,
+    promptId: string,
+    value: string,
+  ) => Promise<void>;
+  openProviderAuthLink: (flowId: string, linkId: string) => Promise<void>;
+  cancelProviderAuthFlow: () => Promise<void>;
+  chooseModelForProvider: (providerId: string) => void;
+} {
   const [status, setStatus] = useState<AgentStatus>();
   const [models, setModels] = useState<ModelCatalog>();
   const [modelError, setModelError] = useState<string>();
@@ -200,7 +234,9 @@ export function useAgentControls(client: AgentChannelClient) {
           if (providerAuthEventVersion.current !== eventVersion) return;
           commitProviderAuthFlow(flow ?? undefined);
         })
-        .catch((error: unknown) => setProviderAuthError(String(error)));
+        .catch((error: unknown) => {
+          setProviderAuthError(String(error));
+        });
     },
     [client, commitProviderAuthFlow, refreshProviders],
   );

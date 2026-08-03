@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { normalizeActionContribution } from "./action-normalization";
+import { resolveActionContribution } from "./action-resolution";
 import { createWorkspaceSessionActions } from "./session-actions";
 
 describe("workspace session actions", () => {
   it("registers New Session under the substrate owner with mod+n", () => {
-    const normalized = normalizeActionContribution(
+    const resolved = resolveActionContribution(
       "uix",
       createWorkspaceSessionActions({
         isAgentRunning: () => false,
@@ -13,7 +13,7 @@ describe("workspace session actions", () => {
       }),
     );
 
-    expect(normalized.catalogEntries).toMatchObject([
+    expect(resolved.catalogEntries).toMatchObject([
       {
         id: "uix.session.new",
         owner: "uix",
@@ -21,7 +21,7 @@ describe("workspace session actions", () => {
         path: ["Session", "New Session"],
       },
     ]);
-    expect(normalized.defaultBindings).toEqual({
+    expect(resolved.defaultBindings).toEqual({
       "uix.session.new": "mod+n",
     });
   });
@@ -29,15 +29,14 @@ describe("workspace session actions", () => {
   it("invokes the controller only while the agent is idle", async () => {
     let agentRunning = true;
     const newSession = vi.fn(() => Promise.resolve());
-    const normalized = normalizeActionContribution(
+    const resolved = resolveActionContribution(
       "uix",
       createWorkspaceSessionActions({
         isAgentRunning: () => agentRunning,
         newSession,
       }),
     );
-    const run = normalized.registrations[0]?.run;
-    if (!run) throw new Error("New Session action is missing");
+    const run = resolved.resolvedContributions[0]?.run;
 
     await run();
     expect(newSession).not.toHaveBeenCalled();

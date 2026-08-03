@@ -1,20 +1,22 @@
-import { describe, expect, it } from "vitest";
-
 import type {
   SessionEntry,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
+import { describe, expect, it } from "vitest";
 
 import {
   AgentContextRegistry,
-  buildAgentContextMessage,
-  buildAgentContextVocabularySection,
+  assembleAgentContextMessage,
+  assembleAgentContextVocabularySection,
   registerAgentContextContributions,
 } from "./registry";
 
-function flush(registry: AgentContextRegistry, branch: SessionEntry[] = []) {
-  return buildAgentContextMessage(
+function flush(
+  registry: AgentContextRegistry,
+  branch: SessionEntry[] = [],
+): ReturnType<typeof assembleAgentContextMessage> {
+  return assembleAgentContextMessage(
     { getBranch: () => branch } as SessionManager,
     registry,
   );
@@ -56,22 +58,22 @@ describe("AgentContextRegistry", () => {
       materialize: () => undefined,
     });
 
-    const vocabulary = buildAgentContextVocabularySection(sm);
+    const vocabulary = assembleAgentContextVocabularySection(sm);
 
     expect(vocabulary).toContain("## UIX cockpit state messages");
     expect(vocabulary).toContain("- `<test.pane-visibility>` — open keys");
     expect(vocabulary).toContain("- `<test.canvas-diff>` — human hunks");
   });
 
-  it("does not build vocabulary with no registrations", () => {
+  it("does not assemble vocabulary with no contributions", () => {
     expect(
-      buildAgentContextVocabularySection(new AgentContextRegistry()),
+      assembleAgentContextVocabularySection(new AgentContextRegistry()),
     ).toBeUndefined();
   });
 
   it("bulk-registers contributions, applies initial update values, and disposes them together", async () => {
     const sm = new AgentContextRegistry();
-    const registrations = registerAgentContextContributions(sm, "test", [
+    const lifetime = registerAgentContextContributions(sm, "test", [
       {
         name: "pane-visibility",
         description: "d",
@@ -93,7 +95,7 @@ describe("AgentContextRegistry", () => {
     expect(result?.content).toContain('{"canvases_open":["main"]}');
     expect(result?.content).toContain("<test.canvas-diff>\nchanged");
 
-    registrations[Symbol.dispose]();
+    lifetime[Symbol.dispose]();
     expect(await flush(sm)).toBeUndefined();
   });
 
@@ -175,12 +177,13 @@ describe("AgentContextRegistry", () => {
 
     const persisted = await flush(sm);
     expect(persisted).toBeDefined();
+    if (!persisted) throw new Error("missing persisted state");
 
-    const next = await flush(sm, [stateEntry(persisted!.content)]);
+    const next = await flush(sm, [stateEntry(persisted.content)]);
     expect(next).toBeUndefined();
 
     visibility.update({ canvases_open: [] });
-    const changed = await flush(sm, [stateEntry(persisted!.content)]);
+    const changed = await flush(sm, [stateEntry(persisted.content)]);
     expect(changed?.content).toContain('{"canvases_open":[]}');
   });
 
@@ -196,9 +199,14 @@ describe("AgentContextRegistry", () => {
     });
     visibility.update({ canvases_open: ["main"] });
 
-    const visible = (await flush(sm))!.content;
+    const visible = await flush(sm);
+    if (!visible) throw new Error("missing visible state");
+    expect(visible.content).toContain("<test.pane-visibility>");
     const other = "<uix-state>\n<other>\nx\n</other>\n</uix-state>";
-    const result = await flush(sm, [stateEntry(visible), stateEntry(other)]);
+    const result = await flush(sm, [
+      stateEntry(visible.content),
+      stateEntry(other),
+    ]);
     expect(result).toBeUndefined();
   });
 
@@ -229,7 +237,7 @@ describe("AgentContextRegistry", () => {
           { limit: 2 },
         );
         return {
-          content: `${previous?.state.main ?? "none"}->${current?.state.main ?? "none"}`,
+          content: `${previous.state.main}->${current.state.main}`,
         };
       },
     });
@@ -267,7 +275,8 @@ describe("AgentContextRegistry", () => {
       },
     });
 
-    const first = (await flush(sm))!;
+    const first = await flush(sm);
+    if (!first) throw new Error("missing first state");
     expect(first.details).toEqual({ "test.canvas-diff": { hunks: 1 } });
 
     const again = await flush(sm, [stateEntry(first.content)]);
@@ -285,7 +294,7 @@ describe("AgentContextRegistry", () => {
     expect(await flush(sm)).toBeUndefined();
   });
 
-  it("combines sections from multiple registrations in registration order", async () => {
+  it("combines sections from multiple contributions in registry insertion order", async () => {
     const sm = new AgentContextRegistry();
     const visibility = sm.register("test", {
       name: "pane-visibility",
@@ -302,7 +311,9 @@ describe("AgentContextRegistry", () => {
     });
     visibility.update({ canvases_open: ["main"] });
 
-    const content = (await flush(sm))!.content;
+    const flushed = await flush(sm);
+    if (!flushed) throw new Error("missing state");
+    const content = flushed.content;
     expect(content.indexOf("<test.pane-visibility>")).toBeLessThan(
       content.indexOf("<test.canvas-diff>"),
     );
@@ -310,7 +321,7 @@ describe("AgentContextRegistry", () => {
     expect(content.endsWith("\n</uix-state>")).toBe(true);
   });
 
-  it("validates update payloads against the registration schema", () => {
+  it("validates update payloads against the contribution schema", () => {
     const sm = new AgentContextRegistry();
     const visibility = sm.register("test", {
       name: "pane-visibility",
@@ -320,12 +331,14 @@ describe("AgentContextRegistry", () => {
         schema: Type.Object({ canvases_open: Type.Array(Type.String()) }),
       },
     });
-    expect(() =>
+    expect(() => {
       visibility.update({ canvases_open: [1] } as unknown as {
         canvases_open: string[];
-      }),
-    ).toThrow(/Invalid test.pane-visibility payload/);
-    expect(() => visibility.update({ canvases_open: ["main"] })).not.toThrow();
+      });
+    }).toThrow(/Invalid test.pane-visibility payload/);
+    expect(() => {
+      visibility.update({ canvases_open: ["main"] });
+    }).not.toThrow();
   });
 
   it("appends pending values and confirms drain from the branch", async () => {
@@ -338,7 +351,8 @@ describe("AgentContextRegistry", () => {
     moves.append({ move: "e4" });
     moves.append({ move: "e5" });
 
-    const first = (await flush(sm))!;
+    const first = await flush(sm);
+    if (!first) throw new Error("missing first state");
     expect(first.content).toContain('[{"move":"e4"},{"move":"e5"}]');
 
     // Not persisted yet: the same pending events are retried.
@@ -360,13 +374,14 @@ describe("AgentContextRegistry", () => {
       description: "d",
       buffer: { kind: "update", schema: Type.Object({ count: Type.Number() }) },
       materialize: ({ value: payload }) => ({
-        content: `count=${payload.count}`,
+        content: `count=${String(payload.count)}`,
         details: payload,
       }),
     });
     value.update({ count: 1 });
 
-    const first = (await flush(sm))!;
+    const first = await flush(sm);
+    if (!first) throw new Error("missing first state");
     expect(first.content).toContain("count=1");
     expect(await flush(sm, [stateEntry(first.content)])).toBeUndefined();
   });
@@ -397,7 +412,7 @@ describe("AgentContextRegistry", () => {
     ).not.toThrow();
   });
 
-  it("rejects a second active registration of the same name within a feature", () => {
+  it("rejects a duplicate active name within a feature", () => {
     const sm = new AgentContextRegistry();
     sm.register("test", {
       name: "a",

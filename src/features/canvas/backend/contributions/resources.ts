@@ -1,13 +1,13 @@
 // canvas resource contributions.
 
+import type { ResourceContribution } from "@uix/api/resources";
+
 import {
   CanvasResourceName,
   CanvasResourceRoute,
   parseCanvasKeyRouteParam,
 } from "../../shared/addressing";
-import type { ResourceContribution } from "@uix/api/resources";
 import type { CanvasContext } from "../context";
-
 import { injectCanvasShim } from "../shim";
 
 export function createCanvasResourceContributions(
@@ -17,7 +17,7 @@ export function createCanvasResourceContributions(
     {
       name: CanvasResourceName,
       route: CanvasResourceRoute,
-      async handle({ params }) {
+      async handler({ params }) {
         const key = parseCanvasKeyRouteParam(params["key"]);
         const html = key ? await ctx.store.getCurrent(key) : null;
 

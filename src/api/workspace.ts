@@ -1,6 +1,4 @@
-import type { Static, TSchema } from "typebox";
-import { Value } from "typebox/value";
-import type { SessionSummary, TranscriptSnapshot } from "./agent-channels";
+import type { ReactNode } from "react";
 import {
   createContext,
   createElement,
@@ -13,10 +11,13 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import type { ReactNode } from "react";
-import { toChannelCanonicalId } from "./channel-normalization";
-import { isIdToken } from "./contribution-id";
+import type { Static, TSchema } from "typebox";
+import { Value } from "typebox/value";
+
+import type { SessionSummary, TranscriptSnapshot } from "./agent-channels";
+import { toChannelCanonicalId } from "./channel-resolution";
 import type { ChannelContract } from "./channels";
+import { isIdToken } from "./contribution-id";
 import {
   FeatureSettingValueEnvelopeSchema,
   type SettingsDefinition,
@@ -27,33 +28,31 @@ export type {
   ActionCatalogEntry,
   ActionContribution,
   ActionGroupContribution,
-  ActionLeafContribution,
   ActionInvocationResult,
+  ActionLeafContribution,
   ActionNotInvokedReason,
-  ActionRun,
+  ActionRunner,
 } from "./actions";
 import type {
   ActionCatalog,
   ActionContribution,
+  ActionContributionRegistrar,
   ActionContributionUpdater,
   ActionInvocationResult,
-  RegisterActionContribution,
 } from "./actions";
 
-type GetActionCatalogSnapshot = () => ActionCatalog;
-type SubscribeToActionCatalog = (listener: () => void) => () => void;
-type InvokeAction = (id: string) => Promise<ActionInvocationResult>;
-
-const RegisterActionContributionContext = createContext<
-  RegisterActionContribution | undefined
+const ActionContributionRegistrarContext = createContext<
+  ActionContributionRegistrar | undefined
 >(undefined);
 const GetActionCatalogSnapshotContext = createContext<
-  GetActionCatalogSnapshot | undefined
+  (() => ActionCatalog) | undefined
 >(undefined);
 const SubscribeToActionCatalogContext = createContext<
-  SubscribeToActionCatalog | undefined
+  ((listener: () => void) => () => void) | undefined
 >(undefined);
-const InvokeActionContext = createContext<InvokeAction | undefined>(undefined);
+const InvokeActionContext = createContext<
+  ((id: string) => Promise<ActionInvocationResult>) | undefined
+>(undefined);
 type SessionSummaryProjection = Readonly<SessionSummary>;
 
 export interface WorkspaceSessionHandle {
@@ -101,9 +100,9 @@ export function useWorkspaceSession(): WorkspaceSessionHandle {
 }
 
 export interface WorkspaceActionsProviderProps {
-  getCatalogSnapshot: GetActionCatalogSnapshot;
-  subscribeToCatalog: SubscribeToActionCatalog;
-  invoke: InvokeAction;
+  getCatalogSnapshot: () => ActionCatalog;
+  subscribeToCatalog: (listener: () => void) => () => void;
+  invoke: (id: string) => Promise<ActionInvocationResult>;
   children: ReactNode;
 }
 
@@ -125,7 +124,7 @@ export function WorkspaceActionsProvider({
 }
 
 export interface FeatureActionsProviderProps {
-  register: RegisterActionContribution;
+  register: ActionContributionRegistrar;
   children: ReactNode;
 }
 
@@ -134,32 +133,32 @@ export function FeatureActionsProvider({
   children,
 }: FeatureActionsProviderProps): ReactNode {
   return createElement(
-    RegisterActionContributionContext.Provider,
+    ActionContributionRegistrarContext.Provider,
     { value: register },
     children,
   );
 }
 
 export function useActionContribution(contribution: ActionContribution): void {
-  const register = useContext(RegisterActionContributionContext);
+  const register = useContext(ActionContributionRegistrarContext);
   if (!register) {
     throw new Error("FeatureActionsProvider is missing");
   }
 
   const contributionRef = useRef(contribution);
   contributionRef.current = contribution;
-  const registrationRef = useRef<ActionContributionUpdater>();
+  const updaterRef = useRef<ActionContributionUpdater>();
   const registeredValueRef = useRef<ActionContribution>();
 
   useLayoutEffect(() => {
     const registeredValue = contributionRef.current;
-    const registration = register(registeredValue);
-    registrationRef.current = registration;
+    const updater = register(registeredValue);
+    updaterRef.current = updater;
     registeredValueRef.current = registeredValue;
     return () => {
-      registration[Symbol.dispose]();
-      if (registrationRef.current === registration) {
-        registrationRef.current = undefined;
+      updater[Symbol.dispose]();
+      if (updaterRef.current === updater) {
+        updaterRef.current = undefined;
         registeredValueRef.current = undefined;
       }
     };
@@ -167,7 +166,7 @@ export function useActionContribution(contribution: ActionContribution): void {
 
   useLayoutEffect(() => {
     if (registeredValueRef.current === contribution) return;
-    registrationRef.current?.update(contribution);
+    updaterRef.current?.update(contribution);
     registeredValueRef.current = contribution;
   }, [contribution]);
 }
@@ -181,7 +180,9 @@ export function useActionCatalog(): ActionCatalog {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
-export function useInvokeAction(): InvokeAction {
+export function useInvokeAction(): (
+  id: string,
+) => Promise<ActionInvocationResult> {
   const invoke = useContext(InvokeActionContext);
   if (!invoke) {
     throw new Error("WorkspaceActionsProvider is missing");
@@ -191,10 +192,10 @@ export function useInvokeAction(): InvokeAction {
 
 export interface WorkspaceClient {
   readonly workspaceId: string;
-  readonly request: <Req, Res = void>(name: string, req: Req) => Promise<Res>;
-  readonly subscribe: <Event>(
-    name: string,
-    handler: (event: Event) => void,
+  readonly request: (channel: string, req: unknown) => Promise<unknown>;
+  readonly subscribe: (
+    channel: string,
+    handler: (event: unknown) => void,
   ) => () => void;
 }
 
@@ -382,6 +383,7 @@ function settingSchema(schema: TSchema, key: string): TSchema {
   throw new Error(`Unknown setting: ${key}`);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- Value is inferred contextually at each call site from the setState argument; inlining to unknown would force casts.
 function parseFeatureSettingValue<Value>(
   schema: TSchema,
   value: unknown,
@@ -424,9 +426,9 @@ export function createChannelClient<const C extends ChannelContract>(
     // Events cross the transport unvalidated (the registry only parses
     // request/response payloads), so the schema check lives here.
     events[name] = (handler: (payload: unknown) => void) =>
-      workspace.subscribe(canonicalId, (raw: unknown) =>
-        handler(Value.Parse(evt.event, raw)),
-      );
+      workspace.subscribe(canonicalId, (raw: unknown) => {
+        handler(Value.Parse(evt.event, raw));
+      });
   }
 
   return { requests, events } as ChannelClient<C>;
@@ -465,10 +467,11 @@ export interface ContractlessSurfaceDefinition extends Omit<
 /**
  * Defines a surface. With a `contract`, `render`'s `client` parameter is
  * fully typed from it — features never cast; the client is minted by the
- * substrate mount under the contract's own channel id. A surface module's
- * **default export** must be this result — that is how the runtime loader
- * finds the surface. The single unavoidable cast (erasing the generic for
- * the heterogeneous surface list) lives here in the substrate.
+ * substrate mount under the contract's own channel id. A surface module must
+ * export this result as `surface` (`export const surface = defineSurface(...)`)
+ * — that is how the runtime loader finds it. The single unavoidable cast
+ * (erasing the generic for the heterogeneous surface list) lives here in the
+ * substrate.
  */
 export function defineSurface<const C extends ChannelContract>(
   surface: SurfaceDefinition<C>,
