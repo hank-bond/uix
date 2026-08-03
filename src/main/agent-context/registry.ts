@@ -51,7 +51,7 @@ import {
 } from "./resolution";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
-import { createTurnStateHistoryReader } from "../turn-state/registry";
+import { createTurnStateHistoryReader } from "../turn-state";
 
 const log = createLogger("agent-context");
 

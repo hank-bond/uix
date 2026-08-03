@@ -9,7 +9,7 @@ import { createTurnStateCoordinator } from "./turn-state-coordinator";
 import {
   registerTurnStateContributions,
   TurnStateRegistry,
-} from "../turn-state/registry";
+} from "../turn-state";
 
 function turnStateEntry(state: Record<string, unknown>): SessionEntry {
   return {

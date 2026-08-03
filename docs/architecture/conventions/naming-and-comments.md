@@ -394,7 +394,9 @@ Before the condition occurs, the marker creates no pending work. Do not use it f
 
 **What earns a comment:** Add a warning or explanation that code cannot carry itself. Examples include load-bearing order, external format tolerance, and hidden ownership constraints. Each should prevent a plausible wrong assumption.
 
-**Source-file headers:** Every indexed authored TypeScript and JavaScript file starts with one `//` sentence that states its stable responsibility. Every indexed authored CSS file starts with one single-line `/* */` summary, and every indexed authored HTML file starts with one single-line `<!-- -->` summary. The summary is physically the first line, without exceptions.
+**Source-file headers:** Every indexed authored production TypeScript and JavaScript file starts with one `//` sentence that states its stable responsibility. Every indexed authored production CSS file starts with one single-line `/* */` summary. Every indexed authored production HTML file starts with one single-line `<!-- -->` summary. The summary is physically the first line, without exceptions.
+
+Colocated `*.test.*` and `*.spec.*` files are not indexed. Their production file and shared basename provide the route, so tests need no index summary. Add a test comment only when it preserves context the test structure cannot carry.
 
 JSON, binary assets, and static data are not indexed. A directory `AGENTS.md` or local attribution leaf describes non-code assets when their role is not evident.
 
@@ -402,7 +404,7 @@ Name the domain responsibility, operation, result, or authority boundary. Use th
 
 The header may continue with one concise `//` paragraph of file-wide context. Preserve hidden guarantees, external constraints, failure boundaries, rationale, and other knowledge that is not cheap or reliable to infer from the implementation. Do not use the paragraph as an export inventory or control-flow narration. If one coherent summary cannot describe the file, reconsider its responsibilities.
 
-A test-file summary states the contract or behavior that the file verifies. A facade or pass-through module states the boundary that it exposes.
+A facade or pass-through module states the boundary that it exposes.
 
 **Coverage and depth:** JSDoc coverage follows supported ownership boundaries, not the TypeScript `export` keyword alone. Every supported `@uix/api` contract carries caller-facing JSDoc. An internal export needs JSDoc when correct use or a conceptual relationship is not evident from its name and type.
 

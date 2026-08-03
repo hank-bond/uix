@@ -8,7 +8,7 @@ import {
   createAgentSkillInstaller,
   registerAgentSkillContributions,
   resolveAgentSkillContributions,
-} from "./registry";
+} from "./agent-skill-registry";
 
 describe("AgentSkillRegistry", () => {
   it("resolves feature-relative paths in manifest and declaration order and disposes them", () => {

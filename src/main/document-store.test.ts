@@ -1,12 +1,10 @@
-// Verifies namespaced current content, immutable metadata-bearing versions, and document-id validation in the local store.
-
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { createLocalDocumentStore } from "./store";
+import { createLocalDocumentStore } from "./document-store";
 
 async function tempRoot(): Promise<string> {
   return mkdtemp(join(tmpdir(), "uix-doc-store-"));

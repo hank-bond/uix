@@ -1,5 +1,3 @@
-// Verifies format-aware source summaries and direct-child source index rendering.
-
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  assertSourceBoundary,
   collectSourceDirectory,
   parseSourceSummary,
   renderSourceIndex,
@@ -54,7 +53,19 @@ describe("parseSourceSummary", () => {
 });
 
 describe("source directory indexes", () => {
-  it("collects direct source files, local documentation, and indexed child directories", () => {
+  it("rejects a boundary with only one production owner", () => {
+    expect(() =>
+      assertSourceBoundary("single", {
+        directories: [],
+        documents: [],
+        files: [{ label: "only.ts", link: "./only.ts", summary: "Owns it." }],
+      }),
+    ).toThrow(
+      "single/AGENTS.md: source boundary must route at least two production owners",
+    );
+  });
+
+  it("collects production source files, local documentation, and indexed child directories", () => {
     const repositoryRoot = mkdtempSync(join(tmpdir(), "uix-source-index-"));
     temporaryDirectories.push(repositoryRoot);
     const boundary = join(repositoryRoot, "boundary");
@@ -64,6 +75,10 @@ describe("source directory indexes", () => {
     writeFileSync(
       join(boundary, "behavior.ts"),
       "// Owns the boundary behavior.\n",
+    );
+    writeFileSync(
+      join(boundary, "behavior.test.ts"),
+      'import { test } from "vitest";\n',
     );
     writeFileSync(join(boundary, "package.json"), "{}\n");
     writeFileSync(
@@ -76,9 +91,11 @@ describe("source directory indexes", () => {
     );
 
     const entries = collectSourceDirectory(repositoryRoot, "boundary");
+    expect(() => assertSourceBoundary("boundary", entries)).not.toThrow();
     expect(entries.directories.map(({ label }) => label)).toEqual(["child/"]);
     expect(entries.documents.map(({ label }) => label)).toEqual(["guide.md"]);
     expect(entries.files.map(({ label }) => label)).toEqual(["behavior.ts"]);
+    expect(renderSourceIndex(entries)).not.toContain("behavior.test.ts");
 
     expect(renderSourceIndex(entries)).toContain(
       "### Directories\n\n- **[child/](./child/AGENTS.md)** _(active)._ Owns the child responsibility.",

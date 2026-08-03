@@ -1,5 +1,3 @@
-// Verifies feature facets register and roll back as one lifetime across registry, origin, and preflight failures.
-
 import { type TSchema, Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
@@ -14,12 +12,12 @@ import {
 } from "./contributions";
 import { SurfaceRegistry } from "./surfaces";
 import { AgentContextRegistry } from "../agent-context/registry";
-import { AgentSkillRegistry } from "../agent-skills/registry";
-import { AgentSystemPromptRegistry } from "../agent-system-prompt/registry";
+import { AgentSkillRegistry } from "../agent-skill-registry";
+import { AgentSystemPromptRegistry } from "../agent-system-prompt-registry";
 import { AgentToolRegistry } from "../agent-tools/registry";
-import { ChannelRegistry } from "../channels/registry";
-import { ResourceRegistry } from "../resources/registry";
-import { TurnStateRegistry } from "../turn-state/registry";
+import { ChannelRegistry } from "../channel-registry";
+import { ResourceRegistry } from "../resource-registry";
+import { TurnStateRegistry } from "../turn-state";
 
 const emptyParams = Type.Object({});
 

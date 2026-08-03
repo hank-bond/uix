@@ -1,4 +1,4 @@
-// the renderer↔main IPC boundary.
+// Owns the renderer-to-main request and main-to-renderer event transport boundary.
 //
 // Every crossing goes through this module and is recorded by it. `handle()`
 // is the inbound chokepoint (invoke endpoints), `send()` the outbound one

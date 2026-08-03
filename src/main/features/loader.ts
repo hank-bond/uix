@@ -20,12 +20,12 @@ import {
   registerFeatureContributions,
 } from "./contributions";
 import type { ManifestFeatureRef } from "./manifest";
-import type { ChannelRegistry } from "../channels/registry";
-import { createFeatureEventPublisherFactory } from "../channels/registry";
+import type { ChannelRegistry } from "../channel-registry";
+import { createFeatureEventPublisherFactory } from "../channel-registry";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
 import { bindSettingsHandle } from "../settings-registry";
-import type { WorkspaceSettings } from "../workspace-settings";
+import type { WorkspaceSettings } from "../workspace/settings";
 
 const log = createLogger("features");
 

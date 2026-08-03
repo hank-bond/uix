@@ -1,3 +1,5 @@
+// Records one IPC crossing to terminal and optional file loggers under caller-owned payload policy.
+
 import type { Logger } from "pino";
 
 interface WireLoggers {

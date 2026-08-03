@@ -1,4 +1,4 @@
-// Feature-supplied Pi skills.
+// Resolves and registers feature-supplied Pi skill paths for runtime resource discovery.
 //
 // Features declare files/directories relative to their entry file. The registry
 // stores resolved contributions in manifest and declaration order; one
@@ -9,8 +9,8 @@ import { isAbsolute, resolve } from "node:path";
 
 import type { AgentSkillContribution } from "@uix/api/agent-skills";
 
-import type { AgentInstaller } from "../agent/installers";
-import { disposable } from "../lifecycle";
+import type { AgentInstaller } from "./agent/installers";
+import { disposable } from "./lifecycle";
 
 export interface ResolvedAgentSkillContribution {
   readonly featureId: string;

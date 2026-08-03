@@ -1,5 +1,3 @@
-// Verifies channel validation, ownership, grouped rollback, transport cleanup, event publication, and sensitive log descriptions.
-
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
@@ -19,7 +17,7 @@ import {
   ChannelRegistry,
   createFeatureEventPublisherFactory,
   registerChannelContributions,
-} from "./registry";
+} from "./channel-registry";
 
 function fakeTransport(): {
   handlers: Map<string, (req: unknown) => Promise<unknown>>;

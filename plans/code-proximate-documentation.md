@@ -15,13 +15,13 @@ Define the source-file header as one required index summary followed by at most 
 
 ## Unit two: Generated source indexes
 
-Extend the documentation tooling to generate source-directory indexes from first-line file summaries, local Markdown frontmatter, and immediate child `AGENTS.md` summaries.
+Extend the documentation tooling to generate source-directory indexes from first-line production-file summaries, local Markdown frontmatter, and immediate child `AGENTS.md` summaries.
 
-Define included source kinds, exclusions for generated or vendored content, summary validation, generated-block shape, and stale-index checks. Parent indexes must not recursively flatten descendant files.
+Define included source kinds, exclusions for tests, generated, or vendored content, summary validation, generated-block shape, and stale-index checks. A source directory and `AGENTS.md` must route among multiple production owners; one production file and its tests remain at the parent boundary. Parent indexes must not recursively flatten real descendant ownership boundaries.
 
 ## Unit three: Representative migration
 
-Migrate one coherent source ownership boundary together with the generator. Add its file headers and `AGENTS.md`, move caller-facing contracts into JSDoc, preserve local coordination in directory guidance or a local leaf, and remove duplicate descriptive prose only after preserving non-obvious knowledge.
+Migrate one coherent multi-file source ownership boundary together with the generator. Add its production-file headers and `AGENTS.md`, move caller-facing contracts into JSDoc, preserve cross-file coordination in directory guidance or a local leaf, and remove duplicate descriptive prose only after preserving non-obvious knowledge.
 
 Use the migration to confirm that each summary distinguishes siblings and that conceptual relationships remain discoverable without maintaining reverse-import prose.
 

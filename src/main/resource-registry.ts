@@ -21,7 +21,7 @@ import type {
 import type { ResourceCanonicalId } from "#shared/resource-canonical-id";
 import { toResourceCanonicalId } from "#shared/resource-canonical-id";
 
-import { disposable, DisposableBag } from "../lifecycle";
+import { disposable, DisposableBag } from "./lifecycle";
 
 interface ResolvedResourceContribution {
   readonly featureId: string;

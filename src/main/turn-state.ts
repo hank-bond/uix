@@ -1,8 +1,8 @@
-// private state lifecycle registry.
+// Owns branch-scoped, model-hidden feature state registration, delta commits, projection, history, and restoration.
 //
-// State cells create snapshots that the coordinator commits as cockpit-private
-// session entries at durable run boundaries. Unlike model-visible agent context,
-// this pathway records branch state the substrate needs to restore later.
+// State cells become cockpit-private Pi session entries at durable run boundaries.
+// Registry snapshots preserve exact cell identity so deferred restoration can
+// reject feature instances replaced by reload.
 
 import type {
   SessionEntry,
@@ -23,8 +23,8 @@ import type {
   TurnStateHistoryReader,
 } from "@uix/api/turn-state";
 
-import type { AgentInstaller } from "../agent/installers";
-import { createLogger } from "../log";
+import type { AgentInstaller } from "./agent/installers";
+import { createLogger } from "./log";
 
 const log = createLogger("turn-state");
 
@@ -59,7 +59,7 @@ export interface ResolvedTurnStateCellContribution {
   readonly restore: TurnStateCellDefinition["restore"];
 }
 
-/** Registry for independently committed feature state cells. */
+/** Own live, independently committed feature state cells in registration order. */
 export class TurnStateRegistry {
   readonly #registeredCells: ResolvedTurnStateCellContribution[] = [];
 
@@ -158,6 +158,7 @@ interface TurnStateProjector {
   deriveAsOfLeaf(): TurnStateAsOfLeaf;
 }
 
+/** Project the latest active cell values and cwd from branch entries. */
 export function createTurnStateProjector(
   registrySnapshot?: TurnStateRegistrySnapshot,
   initialCwd?: string,
@@ -168,6 +169,12 @@ export function createTurnStateProjector(
   );
 }
 
+/**
+ * Restore one registry generation from projected branch state.
+ *
+ * Validation is atomic per feature. Features restore concurrently, while each
+ * feature's cells restore sequentially and stop after their first failure.
+ */
 export async function restoreTurnStateCellsAsOfLeaf(
   registrySnapshot: TurnStateRegistrySnapshot,
   turnState: TurnStateAsOfLeaf,
@@ -252,6 +259,7 @@ export async function restoreTurnStateCellsAsOfLeaf(
   };
 }
 
+/** Resolve and validate one feature's cell definitions without registering them. */
 export function resolveTurnStateContributions(
   featureId: string,
   contributions: TurnStateContributions,

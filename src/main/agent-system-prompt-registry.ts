@@ -1,4 +1,4 @@
-// Stable feature-owned system-prompt sections.
+// Registers ordered feature-owned system-prompt sections and assembles their runtime Markdown.
 //
 // One Markdown blob per feature is retained in manifest order. The
 // system-prompt assembler captures the current composition snapshot when Pi's
@@ -11,7 +11,7 @@ import {
   toContributionId,
 } from "@uix/api/contribution-id";
 
-import { disposable } from "../lifecycle";
+import { disposable } from "./lifecycle";
 
 export interface ResolvedAgentSystemPromptContribution {
   readonly featureId: string;

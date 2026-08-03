@@ -7,7 +7,7 @@ import {
   registerTurnStateContributions,
   toTurnStateRegistrySnapshot,
   TurnStateRegistry,
-} from "../turn-state/registry";
+} from "../turn-state";
 
 function entry(value: Record<string, unknown>): SessionEntry {
   return value as unknown as SessionEntry;

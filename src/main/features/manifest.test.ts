@@ -1,5 +1,3 @@
-// Verifies manifest parsing retains unrelated top-level fields while resolving ordered feature references.
-
 import { dirname, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";

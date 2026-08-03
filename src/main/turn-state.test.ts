@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 
 import type { TurnStateContributions } from "@uix/api/turn-state";
 
-import type { TurnStateAsOfLeaf } from "./registry";
+import type { TurnStateAsOfLeaf } from "./turn-state";
 import {
   commitCurrentTurnState,
   createTurnStateHistoryReader,
@@ -22,7 +22,7 @@ import {
   restoreTurnStateCellsAsOfLeaf,
   toTurnStateRegistrySnapshot,
   TurnStateRegistry,
-} from "./registry";
+} from "./turn-state";
 
 type VoidHandler = (event: unknown, ctx: ExtensionContext) => Promise<void>;
 

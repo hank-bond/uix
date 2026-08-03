@@ -1,4 +1,4 @@
-// Structured logging for the main process.
+// Creates component-attributed structured loggers with environment-appropriate output.
 //
 // Thin wrapper around pino so:
 //   - call sites use one shape: `log.info({ ...fields }, "event_name")`

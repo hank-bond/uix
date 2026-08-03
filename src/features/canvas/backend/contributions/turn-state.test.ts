@@ -13,7 +13,7 @@ import {
   restoreTurnStateCellsAsOfLeaf,
   toTurnStateRegistrySnapshot,
   TurnStateRegistry,
-} from "../../../../main/turn-state/registry";
+} from "../../../../main/turn-state";
 import { canvasChannels } from "../../shared/channels";
 import type { CanvasContext } from "../context";
 import { CanvasDocumentBuffer } from "../document-buffer";

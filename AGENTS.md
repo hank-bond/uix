@@ -92,6 +92,7 @@ The `src/docs/` tree remains the centralized substrate reference during its owne
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
+- **[src/main/](./src/main/AGENTS.md)** _(active)._ The Electron main process composes application and window lifetimes, workspace and feature runtimes, substrate registries, IPC, and agent sessions.
 - **[src/docs/](./src/docs/AGENTS.md)** _(active)._ The shipped substrate reference covers features, surfaces, channels, agent integration, settings, state, and lifetimes in lockstep with code.
 - **[docs/](./docs/AGENTS.md)** _(active)._ Repository-level documentation holds cross-boundary architecture, workflows, external context, decisions, design threads, and documentation practice.
 - **[plans/](./plans/AGENTS.md)** _(active)._ Active build specs, reviewable delivery units, and a backlog of smaller implementation seeds.

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createWorkspaceReloadCoordinator } from "./workspace-reload";
+import { createWorkspaceReloadCoordinator } from "./reload";
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;

@@ -1,4 +1,4 @@
-// Live settings state and routing, with persistence fully externalized.
+// Owns live schema-validated settings scopes and change routing with persistence externally injected.
 //
 // A scope is one schema-validated object exposed through keyed convenience
 // operations. Feature ids and substrate workspace namespaces share one

@@ -1,4 +1,4 @@
-// Generates repository AGENTS.md indexes from document frontmatter and source-file summaries.
+// Generates repository AGENTS.md indexes from document frontmatter and production source-owner summaries.
 //
 // Documentation layers are configured explicitly, while source ownership indexes are discovered under supported roots. Each AGENTS.md keeps hand-written guidance outside one generated INDEX block.
 
@@ -25,7 +25,7 @@ const layers = [
   {
     dir: ".",
     kind: "container",
-    children: ["src/docs", "docs", "plans", "website"],
+    children: ["src/main", "src/docs", "docs", "plans", "website"],
   },
   { dir: "docs", kind: "container" },
   { dir: "docs/decisions", sort: "date-desc" },
@@ -48,7 +48,7 @@ const END = "<!-- INDEX:END -->";
 const NOTE =
   "<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->";
 const SOURCE_NOTE =
-  "<!-- Generated from source-file summaries, local Markdown frontmatter, and child AGENTS.md summaries. Do not edit by hand; run `npm run docs:index`. -->";
+  "<!-- Generated from production source-file summaries, local Markdown frontmatter, and child AGENTS.md summaries. Do not edit by hand; run `npm run docs:index`. -->";
 const STATUSES = new Set([
   "accepted",
   "active",
@@ -197,6 +197,10 @@ function sourceSummaryStyle(name) {
   return undefined;
 }
 
+function isTestSource(name) {
+  return /\.(?:test|spec)\./.test(name);
+}
+
 export function parseSourceSummary(name, text, file = name) {
   const style = sourceSummaryStyle(name);
   if (!style) return undefined;
@@ -256,7 +260,7 @@ export function collectSourceDirectory(repositoryRoot, directory) {
       continue;
     }
 
-    if (!sourceSummaryStyle(name)) continue;
+    if (!sourceSummaryStyle(name) || isTestSource(name)) continue;
     const file = relative(repositoryRoot, path);
     const summary = parseSourceSummary(name, readFileSync(path, "utf8"), file);
     if (!summary) continue;
@@ -270,6 +274,14 @@ function renderSourceFiles(entries) {
   return entries
     .map((entry) => `- **[${entry.label}](${entry.link})** ${entry.summary}`)
     .join("\n");
+}
+
+export function assertSourceBoundary(directory, { directories, files }) {
+  if (directories.length + files.length < 2) {
+    throw new Error(
+      `${directory}/AGENTS.md: source boundary must route at least two production owners`,
+    );
+  }
 }
 
 export function renderSourceIndex({ directories, documents, files }) {
@@ -431,7 +443,9 @@ export function main(args = process.argv.slice(2)) {
 
   for (const directory of collectSourceIndexDirectories(root)) {
     const agentsPath = join(root, directory, "AGENTS.md");
-    const body = renderSourceIndex(collectSourceDirectory(root, directory));
+    const entries = collectSourceDirectory(root, directory);
+    assertSourceBoundary(directory, entries);
+    const body = renderSourceIndex(entries);
     if (updateIndex(agentsPath, body, SOURCE_NOTE, check)) {
       stale = true;
       console.error(`stale source index: ${directory}/AGENTS.md`);

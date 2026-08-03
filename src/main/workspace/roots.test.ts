@@ -3,7 +3,7 @@ import process from "node:process";
 
 import { describe, expect, it } from "vitest";
 
-import { resolveWorkspace } from "./workspace";
+import { resolveWorkspace } from "./roots";
 
 describe("resolveWorkspace", () => {
   it("derives roots from a manifest file target", () => {

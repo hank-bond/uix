@@ -19,17 +19,17 @@ Place each item at the narrowest boundary whose correctness changes with that in
 | One implementation choice or constraint | A line comment beside the code. |
 | Direct use of one exported contract | JSDoc above the export. |
 | One file's stable responsibility | The source-file header. |
-| Ownership, dependency direction, or coordination within one source directory | That directory's `AGENTS.md`. |
-| One source directory's multi-file context | A local Markdown leaf indexed by that directory's `AGENTS.md`. |
+| Routing among immediate production owners, or coordination spanning files or subsystem boundaries | That directory's `AGENTS.md`. |
+| One source directory's cross-file context | A local Markdown leaf indexed by that directory's `AGENTS.md`. |
 | A multi-boundary workflow, convention, invariant, external constraint, decision, or design history | Repository documentation. |
 
 Direct code relationships remain imports. Do not maintain prose importer lists. Use a JSDoc `{@link}` or directory guidance only when a conceptual relationship is necessary for correct use and is not evident from imports and types.
 
 ### Source-file headers
 
-Every indexed authored source file starts with one indexable line that states its stable responsibility. The summary is physically the first line, without exceptions. For TypeScript and JavaScript, use one `//` sentence that names the domain responsibility, operation, result, or authority boundary without repeating the path or filename.
+Every indexed authored production source file starts with one indexable line that states its stable responsibility. The summary is physically the first line, without exceptions. For TypeScript and JavaScript, use one `//` sentence that names the domain responsibility, operation, result, or authority boundary without repeating the path or filename.
 
-Source indexes cover authored TypeScript and JavaScript files, including tests and declarations, plus CSS and HTML. CSS uses one single-line `/* */` summary, while HTML uses one single-line `<!-- -->` summary. JSON, binary assets, and static data are not indexed. Local Markdown and child `AGENTS.md` entries derive summaries from frontmatter.
+Source indexes cover authored production TypeScript and JavaScript files, including declarations, plus CSS and HTML. They exclude colocated `*.test.*` and `*.spec.*` files because the production owner already routes an agent to its tests by basename. Tests need no index summary; add test comments only for context the test structure cannot carry. JSON, binary assets, and static data are not indexed. Local Markdown and child `AGENTS.md` entries derive summaries from frontmatter.
 
 The summary must distinguish the file from its siblings and remain true when implementation mechanics or callers change. Do not enumerate exports, narrate control flow, describe future intent, or add guessed search synonyms. If one coherent summary cannot describe the file, reconsider its responsibilities.
 
@@ -47,7 +47,11 @@ An update trigger records the known validity boundary of an artifact that is com
 
 ### Directory guidance and local leaves
 
-A source `AGENTS.md` states its directory's ownership, boundary, dependency direction, composition points, and non-obvious conceptual coordination. Its generated index lists direct source files, local Markdown leaves, and immediate child `AGENTS.md` summaries. A parent does not flatten every descendant source file.
+A source `AGENTS.md` is a routing and coordination map for a directory that owns multiple production files or child boundaries. It identifies those immediate owners and records ownership, dependency direction, composition points, or conceptual coordination whose correctness spans more than one of them. Behavior owned by one source file belongs in that file's header, JSDoc, or implementation comments instead.
+
+Do not create a source directory or `AGENTS.md` for one production file plus its tests. Keep that file and its tests in the parent, where the production file appears in the parent's index.
+
+An `AGENTS.md` generated index lists direct production source files, local Markdown leaves, and immediate child `AGENTS.md` summaries. It excludes colocated tests and does not manually summarize every child. A parent does not flatten the contents of a real child ownership boundary.
 
 A local Markdown leaf earns its place when several files under one source owner must be understood together. Put broader workflows and context in repository documentation. Do not create hand-maintained source listings before the generator and first migration land together under [`code-proximate-documentation.md`](../plans/code-proximate-documentation.md).
 
@@ -75,7 +79,7 @@ Use this placement test:
 2. If correct use of one export needs explanation, improve its JSDoc.
 3. If one implementation site owns the reason, add a line comment there.
 4. If one file owns the responsibility, improve its header.
-5. If one directory owns the coordination, improve its `AGENTS.md` or add one local retrieval unit.
+5. If knowledge coordinates several owners in one directory, improve its `AGENTS.md` or add one local retrieval unit.
 6. If the task or context crosses ownership boundaries, write a repository document.
 
 ## The four document layers
@@ -261,9 +265,9 @@ Do not preserve a retired alias in code only because it remains in the lexicon. 
 
 ## Every AGENTS.md is overview + index
 
-An `AGENTS.md` contains hand-written directory guidance followed by a generated index. Guidance states the directory's ownership, boundaries, invariants, dependency direction, composition points, and direct usage. It does not manually summarize every child.
+An `AGENTS.md` contains hand-written directory guidance followed by a generated index. Guidance routes among multiple immediate production owners and records only cross-file or cross-boundary ownership, invariants, dependency direction, and composition points. File-local behavior remains with its source owner. A directory with one production file does not earn an `AGENTS.md`; keep the file at the parent ownership boundary instead.
 
-Documentation indexes derive entries from document frontmatter. Source indexes derive direct file entries from first-line source summaries, local Markdown entries from frontmatter, and immediate child-directory entries from nested `AGENTS.md` frontmatter. The source-index tooling lands with its first migrated boundary; do not create those listings by hand.
+Documentation indexes derive entries from document frontmatter. Source indexes derive direct production-file entries from first-line source summaries, local Markdown entries from frontmatter, and immediate child-directory entries from nested `AGENTS.md` frontmatter. Colocated test and spec files are found from the routed production file and do not receive index entries. The source-index tooling lands with its first migrated boundary; do not create those listings by hand.
 
 The root [`AGENTS.md`](../AGENTS.md) orients the project and routes to directory indexes. Each lower index adds only the guidance owned at that level. Parent indexes expose child-directory summaries without recursively copying their file entries.
 

@@ -13,7 +13,9 @@ The source tree is a dependency map, not a taxonomy for its own sake. Its paths 
 
 **Rule:** A directory groups source owned by one coherent domain or implementation unit. A directory does not automatically define a module, namespace, or public API.
 
-Introduce a directory when it creates a meaningful ownership boundary. Do not create empty or symmetric directory layers merely to make unrelated parts of the tree look alike.
+Introduce a directory when one concept groups multiple production files or child ownership boundaries. A colocated test does not by itself justify a directory. When a directory contains one production file and only its tests, move that file and its tests to the parent.
+
+Do not create empty, single-file, or symmetric directory layers merely to make unrelated parts of the tree look alike. Split a large responsibility into several files when the code has real internal ownership boundaries, not to justify a directory.
 
 ## Files express responsibility
 
@@ -23,14 +25,17 @@ Avoid miscellaneous containers such as `utils.ts`, `helpers.ts`, `common.ts`, `m
 
 ## Same-name pairs identify one primary unit
 
-**Rule:** A directory and source file may share a name when the directory is the support bundle for one primary unit:
+**Rule:** A directory and source file may share a name when several production owners form the support bundle for one primary unit:
 
 ```text
 parser/
   parser.ts
+  token-stream.ts
   parser.test.ts
-  fixtures/
+  token-stream.test.ts
 ```
+
+Do not create the directory when the primary file and its test would be its only source units. Keep `parser.ts` and `parser.test.ts` together in the parent instead.
 
 Do not add a same-name file as a catch-all inside a category directory:
 

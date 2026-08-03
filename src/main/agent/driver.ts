@@ -64,15 +64,15 @@ import {
 import {
   type AgentSkillRegistry,
   createAgentSkillInstaller,
-} from "../agent-skills/registry";
+} from "../agent-skill-registry";
 import {
   type AgentSystemPromptRegistry,
   assembleAgentSystemPromptSection,
-} from "../agent-system-prompt/registry";
+} from "../agent-system-prompt-registry";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
-import type { TurnStateRegistry } from "../turn-state/registry";
-import type { Workspace } from "../workspace";
+import type { TurnStateRegistry } from "../turn-state";
+import type { Workspace } from "../workspace/roots";
 
 const MaxSessionTitleCodePoints = 4096;
 const log = createLogger("agent");

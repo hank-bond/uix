@@ -1,8 +1,7 @@
-// Workspace candidate/settings facade wiring `WorkspaceManifestStore` and
-// `SettingsRegistry`. It stages and promotes one structurally validated
-// manifest generation, returns that generation's accepted composition to the
-// loader, and binds feature/workspace settings scopes to generation locations.
-// Feature ids and substrate namespaces share one flat scope-id space.
+// Adopts validated manifest generations and binds workspace and feature settings to their owned locations.
+//
+// All fallible hydration remains detached before manifest promotion. Feature
+// ids and substrate namespaces share one flat settings scope-id space.
 
 import type {
   SettingsDefinition,
@@ -10,19 +9,19 @@ import type {
   SettingsValues,
 } from "@uix/api/settings";
 
-import type { ParsedWorkspaceManifest } from "./features/manifest";
-import { DisposableBag } from "./lifecycle";
-import type { SettingsRegistry } from "./settings-registry";
+import type { WorkspaceManifestStore } from "./manifest-store";
+import type {
+  AnyWorkspaceSettingsNamespace,
+  WorkspaceSettingsNamespace,
+} from "./settings-namespace";
+import type { ParsedWorkspaceManifest } from "../features/manifest";
+import { DisposableBag } from "../lifecycle";
+import type { SettingsRegistry } from "../settings-registry";
 import {
   hydrateSettings,
   type SettingsScope,
   type SettingsScopeHandle,
-} from "./settings-registry";
-import type { WorkspaceManifestStore } from "./workspace-manifest-store";
-import type {
-  AnyWorkspaceSettingsNamespace,
-  WorkspaceSettingsNamespace,
-} from "./workspace-settings-namespace";
+} from "../settings-registry";
 
 export type WorkspaceSettingsReload = ParsedWorkspaceManifest;
 

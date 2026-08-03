@@ -8,7 +8,7 @@ import {
   createTurnStateProjector,
   type TurnStateAsOfLeaf,
   type TurnStateRegistrySnapshot,
-} from "../turn-state/registry";
+} from "../turn-state";
 
 export interface SelectedBranchProjection {
   readonly transcript: TranscriptSnapshot;

@@ -1,5 +1,3 @@
-// Verifies protocol privileges, route dispatch, validation status, collision rollback, grouped lifetimes, and transport disposal.
-
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
@@ -12,7 +10,7 @@ import {
   registerResourceContributions,
   registerResourceProtocol,
   ResourceRegistry,
-} from "./registry";
+} from "./resource-registry";
 
 function fakeTransport(): {
   handlers: Map<string, (request: Request) => Response | Promise<Response>>;

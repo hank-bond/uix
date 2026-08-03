@@ -4,7 +4,7 @@
 // tools, always in the anchored §-gutter wire format, and gets fresh anchors
 // back in every result so it never re-reads to learn current anchors. Content
 // is canonicalized at the core boundary and the local file store is hidden
-// behind the document-store seam (see ../../documents/store.ts and
+// behind the document-store seam (see ../../../../main/document-store.ts and
 // ../document-buffer.ts).
 //
 // Every HTML document edited here is a canvas, so these tools are canvas-named;

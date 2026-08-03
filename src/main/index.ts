@@ -1,4 +1,4 @@
-// main process.
+// Composes and owns the Electron application, workspace, window, feature, and agent runtime lifetimes.
 //
 // Owns App lifecycle: the shell boots, then either opens a workspace
 // directly (explicit UIX_WORKSPACE target, or a cwd that holds a manifest)
@@ -24,8 +24,8 @@ import { createAgentDriver } from "./agent/driver";
 import { sessionWorkspaceSettings } from "./agent/session-settings";
 import { agentWorkspaceSettings } from "./agent/settings";
 import { AgentContextRegistry } from "./agent-context/registry";
-import { AgentSkillRegistry } from "./agent-skills/registry";
-import { AgentSystemPromptRegistry } from "./agent-system-prompt/registry";
+import { AgentSkillRegistry } from "./agent-skill-registry";
+import { AgentSystemPromptRegistry } from "./agent-system-prompt-registry";
 import {
   AgentToolRegistry,
   createAgentToolInstaller,
@@ -34,8 +34,8 @@ import {
   ChannelRegistry,
   createFeatureEventPublisherFactory,
   registerChannelContributions,
-} from "./channels/registry";
-import { createLocalDocumentStoreFactory } from "./documents/store";
+} from "./channel-registry";
+import { createLocalDocumentStoreFactory } from "./document-store";
 import { bindExternalWebLinks } from "./external-links";
 import { registerFeaturePreflightContributions } from "./features/contributions";
 import {
@@ -63,13 +63,13 @@ import { createRecentsStore, type RecentsStore } from "./recents";
 import {
   registerResourceContributions,
   ResourceRegistry,
-} from "./resources/registry";
+} from "./resource-registry";
 import { SettingsRegistry } from "./settings-registry";
-import { TurnStateRegistry } from "./turn-state/registry";
-import { resolveWorkspace, type Workspace } from "./workspace";
-import { WorkspaceManifestStore } from "./workspace-manifest-store";
-import { createWorkspaceReloadCoordinator } from "./workspace-reload";
-import { createWorkspaceSettings } from "./workspace-settings";
+import { TurnStateRegistry } from "./turn-state";
+import { WorkspaceManifestStore } from "./workspace/manifest-store";
+import { createWorkspaceReloadCoordinator } from "./workspace/reload";
+import { resolveWorkspace, type Workspace } from "./workspace/roots";
+import { createWorkspaceSettings } from "./workspace/settings";
 import {
   Channels,
   type PickerActionResult,

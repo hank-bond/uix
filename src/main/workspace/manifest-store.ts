@@ -1,4 +1,4 @@
-// Persistence owner for `uix.workspace.json`.
+// Stages, adopts, and atomically persists mutable generations of one workspace manifest.
 //
 // The store keeps one active manifest generation and stages disk reads as
 // separate mutable generations. Callers validate and hydrate a staged
@@ -14,8 +14,8 @@ import process from "node:process";
 import {
   type ParsedWorkspaceManifest,
   parseWorkspaceManifest,
-} from "./features/manifest";
-import { createLogger } from "./log";
+} from "../features/manifest";
+import { createLogger } from "../log";
 
 const log = createLogger("workspace-manifest");
 

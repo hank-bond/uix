@@ -1,4 +1,4 @@
-// recent workspaces.
+// Persists a bounded newest-first list of workspace manifests that still exist.
 //
 // A tiny JSON list under the App's userData dir: which workspace manifests
 // were opened, newest first. The start picker reads it; opening a workspace

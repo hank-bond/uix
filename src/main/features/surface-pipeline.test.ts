@@ -1,5 +1,3 @@
-// Verifies surface bundling, shared-module identity, CSS isolation, resource serving, cache busting, and overlapping-build replacement.
-
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";

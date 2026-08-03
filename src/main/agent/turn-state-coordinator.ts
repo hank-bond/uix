@@ -11,7 +11,7 @@ import {
   toTurnStateRegistrySnapshot,
   type TurnStateRegistry,
   type TurnStateRegistrySnapshot,
-} from "../turn-state/registry";
+} from "../turn-state";
 
 interface TurnStateCoordinatorOptions {
   readonly registry: TurnStateRegistry;

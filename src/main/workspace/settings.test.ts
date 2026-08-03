@@ -12,21 +12,18 @@ import {
   type SettingsHandle,
 } from "@uix/api/settings";
 
-import {
-  type SelectedSessionSetting,
-  sessionWorkspaceSettings,
-} from "./agent/session-settings";
-import { keybindingsWorkspaceSettings } from "./keybindings/settings";
-import { SettingsRegistry } from "./settings-registry";
-import { WorkspaceManifestStore } from "./workspace-manifest-store";
-import {
-  createWorkspaceSettings,
-  type WorkspaceSettings,
-} from "./workspace-settings";
+import { WorkspaceManifestStore } from "./manifest-store";
+import { createWorkspaceSettings, type WorkspaceSettings } from "./settings";
 import {
   defineWorkspaceSettingsNamespace,
   type WorkspaceSettingsNamespace,
-} from "./workspace-settings-namespace";
+} from "./settings-namespace";
+import {
+  type SelectedSessionSetting,
+  sessionWorkspaceSettings,
+} from "../agent/session-settings";
+import { keybindingsWorkspaceSettings } from "../keybindings/settings";
+import { SettingsRegistry } from "../settings-registry";
 
 const roots: string[] = [];
 

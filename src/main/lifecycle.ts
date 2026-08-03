@@ -1,4 +1,4 @@
-// lifecycle helpers (main process).
+// Couples main-process registrations to deterministic application, window, and component lifetimes.
 //
 // The rule: every attached callback produces a Disposable, and that
 // Disposable goes into a bag that's torn down together. This makes

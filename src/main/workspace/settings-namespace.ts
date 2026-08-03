@@ -1,3 +1,5 @@
+// Defines typed workspace-owned settings namespaces used to mint schema-bound handles.
+
 import type { Static } from "typebox";
 
 import { defineSettings, type SettingsDefinition } from "@uix/api/settings";

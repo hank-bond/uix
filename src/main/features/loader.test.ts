@@ -1,5 +1,3 @@
-// Verifies manifest-driven feature loading, activation isolation, ordering, aliases, settings rollback, and reload teardown.
-
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,9 +10,9 @@ import { type FeatureSubstrate, loadFeatures } from "./loader";
 import { WorkspaceManifestFileName } from "./manifest";
 import { SurfaceRegistry } from "./surfaces";
 import { AgentToolRegistry } from "../agent-tools/registry";
-import { ChannelRegistry } from "../channels/registry";
+import { ChannelRegistry } from "../channel-registry";
 import { DisposableBag } from "../lifecycle";
-import { WorkspaceManifestStore } from "../workspace-manifest-store";
+import { WorkspaceManifestStore } from "../workspace/manifest-store";
 
 const documents: DocumentStoreFactory = {
   createStore: () => {

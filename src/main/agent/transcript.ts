@@ -13,7 +13,7 @@ import type {
 } from "@uix/api/agent-channels";
 
 import { deriveToolFileLocation } from "./tool-file-location";
-import { asTurnStateEntryData } from "../turn-state/registry";
+import { asTurnStateEntryData } from "../turn-state";
 
 /** Derives the durable id for one tool row within its assistant entry. */
 export function toolItemId(entryId: string, toolCallId: string): string {

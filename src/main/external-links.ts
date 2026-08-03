@@ -1,3 +1,5 @@
+// Keeps renderer navigation contained while delegating approved web URLs to the operating system.
+
 import type { WebContents } from "electron";
 
 import {

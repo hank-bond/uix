@@ -6,28 +6,28 @@ import type { SurfaceRegistry } from "./surfaces";
 import { registerSurfaceContributions } from "./surfaces";
 import type { AgentContextRegistry } from "../agent-context/registry";
 import { registerAgentContextContributions } from "../agent-context/registry";
-import type { AgentSkillRegistry } from "../agent-skills/registry";
-import { registerAgentSkillContributions } from "../agent-skills/registry";
-import type { AgentSystemPromptRegistry } from "../agent-system-prompt/registry";
-import { registerAgentSystemPromptContribution } from "../agent-system-prompt/registry";
+import type { AgentSkillRegistry } from "../agent-skill-registry";
+import { registerAgentSkillContributions } from "../agent-skill-registry";
+import type { AgentSystemPromptRegistry } from "../agent-system-prompt-registry";
+import { registerAgentSystemPromptContribution } from "../agent-system-prompt-registry";
 import type { AgentToolRegistry } from "../agent-tools/registry";
 import {
   registerAgentToolContributions,
   registerAgentToolOverrideContributions,
 } from "../agent-tools/registry";
-import type { ChannelRegistry } from "../channels/registry";
-import { registerChannelContributions } from "../channels/registry";
+import type { ChannelRegistry } from "../channel-registry";
+import { registerChannelContributions } from "../channel-registry";
 import { DisposableBag } from "../lifecycle";
 import type {
   ResourceRegistry,
   ResourceSchemeRegistrar,
-} from "../resources/registry";
+} from "../resource-registry";
 import {
   registerResourceContributions,
   registerResourceProtocol,
-} from "../resources/registry";
-import type { TurnStateRegistry } from "../turn-state/registry";
-import { registerTurnStateContributions } from "../turn-state/registry";
+} from "../resource-registry";
+import type { TurnStateRegistry } from "../turn-state";
+import { registerTurnStateContributions } from "../turn-state";
 
 export interface FeatureContributionRegistries {
   resources?: ResourceRegistry;

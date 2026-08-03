@@ -17,8 +17,8 @@ import type {
 } from "@uix/api/channels";
 import { createFeatureEventPublisher } from "@uix/api/channels";
 
-import type { HandleLogOptions } from "../ipc";
-import { disposable, DisposableBag } from "../lifecycle";
+import type { HandleLogOptions } from "./ipc";
+import { disposable, DisposableBag } from "./lifecycle";
 
 export type ChannelTransportRegistrar = (
   canonicalId: ChannelCanonicalId,

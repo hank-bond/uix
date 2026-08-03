@@ -4,7 +4,7 @@ import {
   AgentSystemPromptRegistry,
   assembleAgentSystemPromptSection,
   registerAgentSystemPromptContribution,
-} from "./registry";
+} from "./agent-system-prompt-registry";
 
 describe("AgentSystemPromptRegistry", () => {
   it("assembles feature blobs in manifest order", () => {

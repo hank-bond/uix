@@ -22,8 +22,8 @@ import { agentWorkspaceSettings } from "./settings";
 import {
   registerTurnStateContributions,
   TurnStateRegistry,
-} from "../turn-state/registry";
-import type { Workspace } from "../workspace";
+} from "../turn-state";
+import type { Workspace } from "../workspace/roots";
 
 interface FakeModel {
   provider: string;

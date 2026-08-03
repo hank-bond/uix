@@ -9,7 +9,7 @@ import { Type } from "typebox";
 
 import { ModelRefSchema } from "@uix/api/agent-channels";
 
-import { defineWorkspaceSettingsNamespace } from "../workspace-settings-namespace";
+import { defineWorkspaceSettingsNamespace } from "../workspace/settings-namespace";
 
 export const agentWorkspaceSettings = defineWorkspaceSettingsNamespace({
   id: "agent",

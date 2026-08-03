@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { WorkspaceManifestStore } from "./workspace-manifest-store";
+import { WorkspaceManifestStore } from "./manifest-store";
 
 const roots: string[] = [];
 

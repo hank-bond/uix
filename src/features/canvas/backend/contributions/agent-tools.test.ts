@@ -27,7 +27,7 @@ import {
   createTurnStateInstaller,
   registerTurnStateContributions,
   TurnStateRegistry,
-} from "#backend/turn-state/registry";
+} from "#backend/turn-state";
 
 import { createCanvasAgentContextContributions } from "./agent-context";
 import { createCanvasAgentToolContributions } from "./agent-tools";
