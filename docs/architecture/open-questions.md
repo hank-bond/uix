@@ -17,11 +17,6 @@ These questions remain unresolved. A blocking question joins a milestone, then g
 - **Slot taxonomy:** What named slots should the cockpit shell expose? Balance a useful minimum against premature layout commitments.
 - **Feature reload during an agent turn:** If reload replaces active tools, should UIX delay replacement, abort the turn, or let the turn finish?
 
-## Documentation
-
-- **`src/docs/` ↔ `docs/` split discipline.** Easy to drift. The habit: when a feature-facing API changes, the `src/docs/` page changes in the same commit. `docs/` may lag code; `src/docs/` may not.
-- **Convention responsibility:** Cockpit-internal lifetime rules stay under [`conventions/`](./conventions/AGENTS.md). Feature-author rules belong in [`lifetimes.md`](../../src/docs/lifetimes.md).
-
 ## Future apps (not substrate, but shaping it)
 
 - **Code-reviewer application:** The original design lives in [`project-brief.md`](../../plans/archive/project-brief.md). Create a design thread when it becomes a composed feature set.

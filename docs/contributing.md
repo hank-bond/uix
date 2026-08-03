@@ -1,38 +1,63 @@
 ---
-summary: "Author repository documentation through retrieval units, standard frontmatter, generated indexes, writing profiles, convention cards, lexicons, and living design threads."
+summary: "Place code-related knowledge at its narrowest owner and author discrete documents through retrieval units, frontmatter, generated indexes, writing profiles, conventions, and living design threads."
 kind: how-to
 status: active
 ---
 
 # Contributing to the docs
 
-Use this reference to write and maintain repository documentation. [`AGENTS.md`](./AGENTS.md) maps the dev-facing layers, and the root [`AGENTS.md`](../AGENTS.md) maps every documentation tree.
+Use this reference to write and maintain repository documentation. [`AGENTS.md`](./AGENTS.md) maps the repository-level layers, and the root [`AGENTS.md`](../AGENTS.md) maps every documentation tree.
 
-## Put descriptive knowledge next to code
+## Place knowledge at its narrowest owner
 
-Code is the primary description of implemented behavior. Agents can inspect source cheaply, while a separate prose description creates synchronization cost.
+Code is the primary description of implemented structure and behavior. Names, types, imports, and control flow carry knowledge _of_ the code. Documentation carries knowledge _about_ the code: responsibility, correct usage, ownership, rationale, coordination, constraints, and external context.
 
-Do not maintain a discrete document only to enumerate files, types, request paths, contribution fields, or current control flow. Put that knowledge at the narrowest owning source boundary:
+Place each item at the narrowest boundary whose correctness changes with that information:
 
-- A source file states its stable responsibility in a one-line file summary.
-- An exported contract explains what it is and how to use it directly in JSDoc.
-- A source directory's `AGENTS.md` explains the directory's ownership, boundary, and direct usage.
-- A generated directory index lists source files from their file summaries.
+| Scope | Owner |
+| --- | --- |
+| One implementation choice or constraint | A line comment beside the code. |
+| Direct use of one exported contract | JSDoc above the export. |
+| One file's stable responsibility | The source-file header. |
+| Ownership, dependency direction, or coordination within one source directory | That directory's `AGENTS.md`. |
+| One source directory's multi-file context | A local Markdown leaf indexed by that directory's `AGENTS.md`. |
+| A multi-boundary workflow, convention, invariant, external constraint, decision, or design history | Repository documentation. |
 
-Required headers, shebangs, and license notices may precede a file summary. Otherwise, the summary is the first line. For TypeScript and JavaScript, use one `//` comment that states responsibility rather than repeating the filename.
+Direct code relationships remain imports. Do not maintain prose importer lists. Use a JSDoc `{@link}` or directory guidance only when a conceptual relationship is necessary for correct use and is not evident from imports and types.
 
-Contract comments document preconditions, lifetimes, ordering, errors, defaults, and direct examples that callers need. They do not narrate the implementation or duplicate types.
+### Source-file headers
 
-A source `AGENTS.md` adds only directory-level guidance. Its generated listing provides recall and routing without a second hand-maintained implementation inventory.
+Every authored source file starts with one indexable line that states its stable responsibility. Required headers, shebangs, and license notices may precede it. For TypeScript and JavaScript, use one `//` sentence that names the domain responsibility, operation, result, or authority boundary without repeating the path or filename.
 
-This source-index model is approved but deferred until the post-sprint documentation migration. Do not create partial hand-maintained listings before the generator and migration path land together.
+The summary must distinguish the file from its siblings and remain true when implementation mechanics or callers change. Do not enumerate exports, narrate control flow, describe future intent, or add guessed search synonyms. If one coherent summary cannot describe the file, reconsider its responsibilities.
+
+The header may continue with one short paragraph when a reader needs more file-level context after opening the source. The paragraph explains the file's boundary, not its inventory.
+
+### Contract and implementation comments
+
+JSDoc serves callers. Document preconditions, lifetimes, ownership, ordering, errors, defaults, special outcomes, and direct examples that callers need. Do not duplicate names, fields, parameter types, or return types.
+
+A TypeScript `export` keyword does not by itself create a supported public boundary. Document every supported `@uix/api` contract. Document an internal export when correct use or a conceptual relationship is not evident from its name and type.
+
+Line comments serve implementation readers. Explain a non-obvious reason, external quirk, load-bearing order, or hidden constraint. The implementation already shows its ordinary process, so do not narrate syntax or control flow.
+
+An update trigger records the known validity boundary of an artifact that is complete and correct under present conditions. Use the exact `Update when:` label, followed by one observable condition and the required update or removal. Before that condition occurs, the marker creates no pending work. Do not use it for unfinished work, desired improvements, speculative changes, or plan stages.
+
+### Directory guidance and local leaves
+
+A source `AGENTS.md` states its directory's ownership, boundary, dependency direction, composition points, and non-obvious conceptual coordination. Its generated index lists direct source files, local Markdown leaves, and immediate child `AGENTS.md` summaries. A parent does not flatten every descendant source file.
+
+A local Markdown leaf earns its place when several files under one source owner must be understood together. Put broader workflows and context in repository documentation. Do not create hand-maintained source listings before the generator and first migration land together under [`code-proximate-documentation.md`](../plans/code-proximate-documentation.md).
 
 ## What earns a discrete document
+
+First find the narrowest durable owner. If the information belongs in a discrete Markdown leaf, use Diátaxis to classify the reader need. File summaries, code comments, and routing indexes do not need a Diátaxis kind.
 
 A discrete document must provide information that source inspection cannot cheaply and reliably recover. It earns its maintenance cost through at least one of these roles:
 
 - A convention or invariant prescribes choices across multiple source units.
 - A how-to joins several boundaries into one concrete, multi-step workflow.
+- A tutorial provides an ordered learning experience rather than one contract's direct usage.
 - A design note or plan describes future work and unresolved choices.
 - A decision preserves rationale, rejected alternatives, and the constraint that followed.
 - External context explains a dependency, protocol, platform behavior, or product requirement not owned by this repository.
@@ -40,15 +65,16 @@ A discrete document must provide information that source inspection cannot cheap
 
 Face-value synthesis of implemented code does not qualify. Neither does a prose inventory whose main value is listing what exists today.
 
-Before deleting a descriptive document, preserve anything the code cannot reveal. Look for rationale, rejected alternatives, external constraints, failure history, invariants, and counterintuitive behavior. Move each item to its narrowest durable home: a contract comment, convention, decision, design log, or cross-boundary how-to.
+Before deleting a descriptive document, preserve anything the code cannot reveal. Look for rationale, rejected alternatives, external constraints, failure history, invariants, and counterintuitive behavior. Move each item to its narrowest durable home. Valid homes include JSDoc, implementation comments, directory guidance, local leaves, conventions, decisions, design logs, and cross-boundary how-tos.
 
 Use this placement test:
 
-1. If one file answers the question, improve that file's names or comments.
-2. If one directory answers it, improve that directory's `AGENTS.md` guidance.
-3. If direct use of one export needs explanation, improve its contract JSDoc.
-4. If a task crosses boundaries, write a concrete how-to.
-5. If the value is prescription, rationale, external context, or future direction, write a discrete document.
+1. If the code already answers the question cheaply, improve its names, types, or structure instead of adding prose.
+2. If correct use of one export needs explanation, improve its JSDoc.
+3. If one implementation site owns the reason, add a line comment there.
+4. If one file owns the responsibility, improve its header.
+5. If one directory owns the coordination, improve its `AGENTS.md` or add one local retrieval unit.
+6. If the task or context crosses ownership boundaries, write a repository document.
 
 ## The four document layers
 
@@ -89,7 +115,7 @@ Each layer's summary fills a different template, because each answers a differen
 - Design states the open question and its axes.
 - Architecture states an invariant or context that remains necessary at HEAD and is not obvious from source.
 - Plans state the deliverable and its units.
-- `src/docs/` states a public workflow or contract boundary that spans source units. Direct API facts remain in code comments.
+- A source-local leaf states one owning directory's multi-file context. A repository leaf states a cross-boundary reader need. Direct API facts remain in code comments.
 
 The same template within a layer forces siblings to differ by topic. Different templates keep one subject's decision, design, constraint, and plan distinct by role.
 
@@ -233,11 +259,11 @@ Do not preserve a retired alias in code only because it remains in the lexicon. 
 
 ## Every AGENTS.md is overview + index
 
-An `AGENTS.md` contains hand-written directory guidance followed by a generated index. Guidance states the directory's ownership, boundaries, invariants, and direct usage. It does not manually summarize every child.
+An `AGENTS.md` contains hand-written directory guidance followed by a generated index. Guidance states the directory's ownership, boundaries, invariants, dependency direction, composition points, and direct usage. It does not manually summarize every child.
 
-Documentation indexes derive entries from document frontmatter. Source indexes will derive file entries from first-line source summaries after the deferred source-index tooling lands.
+Documentation indexes derive entries from document frontmatter. Source indexes derive direct file entries from first-line source summaries, local Markdown entries from frontmatter, and immediate child-directory entries from nested `AGENTS.md` frontmatter. The source-index tooling lands with its first migrated boundary; do not create those listings by hand.
 
-The root [`AGENTS.md`](../AGENTS.md) orients the project and routes to directory indexes. Each lower index adds only the guidance owned at that level.
+The root [`AGENTS.md`](../AGENTS.md) orients the project and routes to directory indexes. Each lower index adds only the guidance owned at that level. Parent indexes expose child-directory summaries without recursively copying their file entries.
 
 The index sits between `<!-- INDEX:START -->` and `<!-- INDEX:END -->`. [`docs-index.mjs`](../scripts/docs-index.mjs) currently derives documentation entries from frontmatter. It covers `docs/decisions`, `docs/design`, `docs/architecture`, its convention cards, `plans`, `src/docs`, and `website`. Add or edit a document, then run these commands:
 
@@ -268,13 +294,7 @@ Revisit a topic across sessions by appending a dated `## Log` entry and updating
 
 ## Deferred framework work
 
-Apply these items after the current documentation sprint:
-
-- **Source indexes:** Define the supported source-file summary syntax, generate directory listings, and introduce source `AGENTS.md` files along ownership boundaries.
-- **Descriptive-doc migration:** Move direct usage into contract comments and directory guidance. Delete face-value synthesis only after preserving hard-won context.
-- **Summary and `read_when`:** Define which documents require a trigger and how the thesis differs from the retrieval condition.
-
-These framework gaps also remain:
+The active [`code-proximate-documentation.md`](../plans/code-proximate-documentation.md) plan covers source-index tooling and ownership-based migration. These framework gaps remain:
 
 - **Compass test:** Define the classification procedure for new and moved documents: action or cognition, then acquisition or application.
 - **Migration rules:** Define triggers between kinds. Reference traffic can spawn a how-to, repeated comments can become conventions, and decisions can graduate to creed.

@@ -1,7 +1,7 @@
 ---
-summary: "UIX code expresses stable domain contracts through canonical identifier grammar and comment rules: JSDoc coverage and form, why-comments allocated by risk, and no planning artifacts."
+summary: "UIX code expresses stable domain contracts through canonical identifier grammar, indexable file summaries, caller-facing JSDoc, and risk-based why-comments."
 kind: reference
-read_when: "Read before introducing or renaming symbols, recurring vocabulary, projections, predicates, or explanatory comments."
+read_when: "Read before introducing or renaming symbols, recurring vocabulary, projections, predicates, source-file summaries, or explanatory comments."
 status: active
 ---
 
@@ -370,11 +370,11 @@ Current projections apply the axes as follows:
 
 ## Comments
 
-**Rule:** A comment explains why code exists or records a non-obvious contract constraint. It does not narrate syntax. Names carry the stable domain operation.
+**Rule:** Outside the required source-file header, a comment explains why code exists or records a non-obvious caller or implementation constraint. It does not narrate syntax. Names carry the stable domain operation.
 
 Contract comments may carry preconditions, skipped outcomes, asynchronous ordering, and race policy. Do not encode those volatile details in a symbol tied to one lifecycle use.
 
-If a comment only identifies an operation or domain value, the name remains wrong. Rename until the code reads on its own.
+If an implementation comment only identifies an operation or domain value, the name remains wrong. Rename until the code reads on its own.
 
 **No planning artifacts:** Plan phases, stage numbers, ticket ids, and version-zero labels do not belong in code. They lose meaning after the plan changes.
 
@@ -386,17 +386,25 @@ A link to a living convention is the exception. The target tracks a stable rule 
 
 Do not narrate future intentions. They are unverifiable and become stale silently.
 
+**Known invalidation triggers:** An update-trigger comment records an artifact that is complete and correct under present conditions. One known condition will invalidate its current form. The comment does not record unfinished work or a desired future improvement.
+
+Use the exact `Update when:` label, followed by one observable condition and the required code or documentation update. In TypeScript and JavaScript, use the form `// Update when: {condition}. {action}.` Other source formats use their ordinary comment syntax with the same label. Place the comment at the narrowest affected boundary and preserve the current reason separately when the trigger does not explain it.
+
+Before the condition occurs, the marker creates no pending work. Do not use it for speculative refactors, generic TODOs, preferences, plan stages, or ticket ids. Do not link a code marker to a plan; its validity boundary must remain understandable after planning artifacts archive.
+
 **What earns a comment:** Add a warning or explanation that code cannot carry itself. Examples include load-bearing order, external format tolerance, and hidden ownership constraints. Each should prevent a plausible wrong assumption.
 
-**Coverage and depth:** Every top-level export and public interface field carries a JSDoc line. Depth follows risk rather than file importance.
+**Source-file headers:** Every authored TypeScript and JavaScript file starts with one `//` sentence that states its stable responsibility. Required shebangs, license notices, generated-file notices, and external attribution may precede the summary.
 
-Public `src/api/` contracts need a summary and behavioral detail. Add tags only when they provide information.
+Name the domain responsibility, operation, result, or authority boundary. Use the path and filename as existing context instead of repeating them. Distinguish sibling files without enumerating exports, callers, control flow, implementation mechanics, plans, or guessed search synonyms.
 
-Complex or edge-case-heavy logic needs denser explanation because wrong assumptions are expensive. Examples include platform quirks, cache semantics, and ordering.
+The header may continue with one short `//` paragraph when a reader needs more file-level context after opening the source. Explain the file's boundary rather than its inventory. If one coherent summary cannot describe the file, reconsider its responsibilities.
 
-Keep UI components, tests, and simple code thin. Give top-level exports a one-line summary and add only necessary why-comments.
+A test-file summary states the contract or behavior that the file verifies. A facade or pass-through module states the boundary that it exposes.
 
-Zero comments is acceptable when names and types carry the complete story. Barrels and pass-through re-exports are common examples.
+**Coverage and depth:** JSDoc coverage follows supported ownership boundaries, not the TypeScript `export` keyword alone. Every supported `@uix/api` contract carries caller-facing JSDoc. An internal export needs JSDoc when correct use or a conceptual relationship is not evident from its name and type.
+
+Complex or edge-case-heavy logic needs denser explanation because wrong assumptions are expensive. Examples include platform quirks, cache semantics, and ordering. Keep UI components, tests, and simple code thin. A file can have no comments beyond its required header when names and types carry the complete story.
 
 **JSDoc:** JSDoc serves code users; line comments serve implementation readers. Write JSDoc as well-formed Markdown.
 
@@ -406,11 +414,11 @@ Write summaries as imperative verb phrases, such as "Resolve the selected branch
 
 Do not repeat the name or type in a summary. TypeScript already carries types, so omit them from `@param` and `@returns`.
 
-Use `@param` and `@returns` only when they add information. Reserve `@example` for non-trivial complete code and `@link` for related contracts.
+Use `@param` and `@returns` only when they add information. Reserve `@example` for non-trivial complete code. Use `@link` when a related contract is necessary for correct use and the relationship is not evident from imports and types.
 
 A type or class comment states its role and when to use it, not its fields. Multi-line implementation comments use `//` per line.
 
-Reserve `/* */` for JSDoc and attribution headers.
+In TypeScript and JavaScript, reserve `/* */` for JSDoc and attribution headers.
 
 **Contract nuance lives in JSDoc:** Document defaults, ordering, special values, and edge cases that callers need. State how to use the contract correctly, not how its body works.
 

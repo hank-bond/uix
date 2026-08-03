@@ -37,4 +37,4 @@ A chunk is too large when review has to answer unrelated questions at once, such
 - Keep first-party defaults hardcoded **along the future contribution grain** rather than extracting registries before there is a real second contributor.
 - Ask before introducing new public APIs, dependencies, or persistent formats.
 - Commit at stable boundaries after checks pass and the human approves.
-- Keep docs current with pivots made during the session; user-facing `src/docs/` should describe current code, and dev-facing `docs/` should capture rationale and future shape.
+- Keep documentation current with pivots made during the session. Put source-coupled knowledge at its narrowest code owner, cross-boundary knowledge in repository documentation, and future work in plans.

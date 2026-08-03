@@ -84,14 +84,16 @@ Apply these rules before reaching for subsystem details:
 
 ## Where to read
 
-The `src/docs/` tree is the shipped substrate reference. The `docs/` tree contains architecture, decisions, design threads, and documentation practice. Root-level `plans/` tracks builds. The `website/` directory contains the public uix.sh marketing site.
+> **Update when:** Every centralized `src/docs/` page has moved or been deleted. Remove the transitional route below and describe only the resulting ownership-based documentation trees.
+
+The `src/docs/` tree remains the centralized substrate reference during its ownership-based migration. The `docs/` tree contains cross-boundary architecture, workflows, external context, decisions, design threads, and documentation practice. Root-level `plans/` tracks builds. The `website/` directory contains the public uix.sh marketing site.
 
 <!-- INDEX:START -->
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
 - **[src/docs/](./src/docs/AGENTS.md)** _(active)._ The shipped substrate reference covers features, surfaces, channels, agent integration, settings, state, and lifetimes in lockstep with code.
-- **[docs/](./docs/AGENTS.md)** _(active)._ Dev-facing meta docs for current architecture, settled decisions, design threads, and documentation practice.
+- **[docs/](./docs/AGENTS.md)** _(active)._ Repository-level documentation holds cross-boundary architecture, workflows, external context, decisions, design threads, and documentation practice.
 - **[plans/](./plans/AGENTS.md)** _(active)._ Active build specs, reviewable delivery units, and a backlog of smaller implementation seeds.
 - **[website/](./website/AGENTS.md)** _(active)._ The zero-build uix.sh landing page uses static HTML, CSS, and JavaScript with a reduced-motion-safe brandmark morph. _Read when editing the landing page, brandmark animation, styles, or favicon._
 

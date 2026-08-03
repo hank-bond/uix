@@ -24,7 +24,7 @@ Docs here are read by both humans and agents, and orientation docs are often pre
 
 **References resolve:** a document references only artifacts that exist. Deleting an artifact removes its references in the same change. Moving a target updates link destinations, including those in immutable records. Migration history belongs in dated decisions or design logs, not current-state documents.
 
-**Update docs with code:** change documentation in the same change as the code it describes, so the two cannot drift apart.
+**Keep knowledge with its owner:** update documentation in the same change as the code that it constrains. This includes source headers, JSDoc, implementation comments, directory guidance, and broader documents.
 
 **Plans are not docs:** planning artifacts live outside the docs tree, in the root-level `plans/`, and archive when done.
 
@@ -40,7 +40,11 @@ Normative keywords are lowercase and bold, per RFC 2119 (Request for Comments 21
 
 ### Document layout
 
-Encode the repository shape. The `src/docs/` tree ships with the app and tracks code. The `docs/` tree contains dev-facing architecture, decisions, design threads, and documentation practice. Root-level `plans/` tracks builds, and `website/` documents the marketing site. Decisions are write-once and dated, design threads place mutable synthesis over append-only logs, and architecture tracks HEAD.
+Encode ownership and scope. Source-coupled guidance lives beside its owning code. The `docs/` tree contains cross-boundary workflows, architecture, decisions, design threads, external context, and documentation practice. Root-level `plans/` tracks builds, and `website/` documents the marketing site. Decisions are write-once and dated, design threads place mutable synthesis over append-only logs, and architecture tracks HEAD.
+
+> **Update when:** Every centralized `src/docs/` page has moved or been deleted. Remove the migration exception below.
+
+The existing `src/docs/` tree remains during the migration in [`code-proximate-documentation.md`](../plans/code-proximate-documentation.md). Do not add a face-value implementation inventory there merely because the page is feature-facing.
 
 Every doc follows its layer's conventions: frontmatter with a `summary` first, an H1 title close to the filename, then the layer's shape. Details live in [`contributing.md`](./contributing.md).
 
@@ -107,7 +111,7 @@ The repo's own framework governs: the writing profiles and the RFC 2119 keywords
 
 Present tense for what exists. No "currently", "now", "new", "recently", or "as of this writing" as doc-time anchors; the present tense implies them. "Will" only for genuinely future behavior, and "currently" is fine when it describes live runtime state rather than document time. Decisions and design logs are date-anchored by design.
 
-`src/docs/` is current state only: a not-yet-built surface lives in `plans/`, not as a stub in shipped docs.
+Living reference and source-local guidance describe current state only. A not-yet-built surface lives in `plans/`, not as a documentation stub.
 
 ### Person
 
@@ -163,6 +167,8 @@ Bold for lead-ins and directional emphasis; italics for emphasis and for marking
 
 Blockquote banners mark lifecycle status: "> **Archived 2026-06-02.** Stage 1 shipped and is recorded in [...]".
 
+An update notice marks content that is complete and correct under present conditions but has a known invalidation trigger. It does not record unfinished work or a desired future improvement. Use the exact `> **Update when:**` label, followed by one observable condition and the required update or removal. Place it immediately before the smallest affected paragraph or section. Use one trigger per notice when practical. Do not use it for speculative changes, ordinary living content, generic TODOs, decisions, or plans. A supporting plan link may provide context, but it does not replace the observable condition.
+
 A "**Note:**" is rare: one paragraph of information that is relevant but not necessary, where the reader succeeds without it. Never for cross-references, prerequisites, procedural steps, or anything in flow with the surrounding text. Never stack notices.
 
 ### Jargon and terms
@@ -185,7 +191,3 @@ Directional references in named form are house style: "the spikes above", "the e
 
 - The positive voice target and the LLM-ese avoidance list (Voice and tone).
 - A Procedures section, to be authored when the how-tos are built.
-
-## Conformance backlog
-
-- Finish or remove the in-progress how-to and tutorial stubs in `src/docs/`; shipped documentation must describe implemented behavior.

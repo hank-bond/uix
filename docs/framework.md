@@ -33,15 +33,15 @@ Each indexed document carries a `kind` tag that names its quadrant, and classify
 
 Agents have no memory across sessions. A human may forget document details but still remember that a document exists. The documentation therefore uses three delivery tiers.
 
-- **Always loaded:** The root `AGENTS.md` orientation and top-level routing map.
-- **Routed indexes:** Lower `AGENTS.md` files, loaded only after a matching top-level route.
-- **On demand:** Leaf documents fetched when a summary or trigger matches the task.
+- **Always loaded:** The root `AGENTS.md` orientation and top-level routing map, with an adjustable budget for nested ownership summaries.
+- **Routed indexes:** Lower `AGENTS.md` files, loaded only after a matching ownership route.
+- **On demand:** Source files and leaf documents fetched when their summary or trigger matches the task.
 
-Two frontmatter fields support this routing. `summary` is the recall surface, while `read_when` adds a non-obvious trigger. Each traversal should fetch only the relevant path and leaves.
+Document frontmatter provides a `summary` recall surface and an optional `read_when` trigger. Source files provide one first-line responsibility summary. Generated indexes expose those summaries without copying complete descendants into every ancestor. Each traversal should fetch only the relevant path and leaves.
 
 ### Readership
 
-The documentation serves two audiences: the human pilot and the agent. The human directs, and the agent performs the work. The explanation quadrant serves the human and records reasoning, product judgment, and taste. The how-to and reference quadrants serve the agent and state what to do and how the machinery behaves. Agent-facing quadrants are the default, and human-facing content exists only where the work requires judgment, taste, or perspective that an agent cannot supply.
+Repository documentation primarily serves agents, while the human pilot directs and reviews their work. Diátaxis classifies the reader's need rather than the reader's identity. Agents use every quadrant: tutorials for acquisition, how-tos for tasks, reference for lookup, and explanation when architectural judgment or external rationale affects implementation. Human-readable prose remains necessary because the pilot must understand and review the same constraints.
 
 ### Meta-level
 
@@ -53,7 +53,9 @@ The documentation has three meta-levels.
 
 An agent needs the what to make code changes and the how to make structural documentation changes. It needs the why only when a how-change is proposed or the how has a gap.
 
-The why is placed by its scope. A why that applies to one place is a code comment, staying near the code and changing with it. A why that recurs is a convention card's Reason section, and a why that shapes the architecture is a decision document. The documentation carries only whys that cannot be a comment.
+Code-related knowledge is placed before it is classified by reader need. A contract owns its JSDoc, and an implementation site owns its why-comment. A file owns its responsibility header, while a source directory owns its boundary and coordination guidance. A local Markdown leaf can join several files under that owner. Repository documentation carries workflows, conventions, invariants, external context, and history that cross source ownership boundaries.
+
+Diátaxis applies after information earns a discrete document. It does not force source-coupled knowledge into Markdown or assign a kind to file summaries, comments, and routing indexes.
 
 ### Lifecycle
 
