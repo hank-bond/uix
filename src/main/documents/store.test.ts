@@ -1,3 +1,5 @@
+// Verifies namespaced current content, immutable metadata-bearing versions, and document-id validation in the local store.
+
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -44,9 +46,11 @@ describe("createLocalDocumentStore", () => {
 
     await store.setCurrent("main", "first");
     const first = await store.createSnapshot("main", { anchors: ["a"] });
+    const duplicate = await store.createSnapshot("main", { anchors: ["a"] });
     await store.setCurrent("main", "second");
     const loaded = await store.getVersion("main", first.id);
 
+    expect(duplicate).toEqual(first);
     expect(loaded).toEqual(first);
     expect(loaded).toMatchObject({
       documentId: "main",

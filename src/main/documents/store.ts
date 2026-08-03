@@ -1,12 +1,8 @@
-// substrate document store.
+// Persists mutable document content and immutable metadata-bearing versions behind namespace and document identifiers.
 //
-// A document is addressed by namespace + id behind getCurrent/setCurrent; the
-// backing store is hidden so it can later become a git-backed or remote store
-// without touching feature-owned buffers above it.
-//
-// The type-only contract (DocumentStoreFactory, DocumentStore, DocumentVersion,
-// DocumentStoreOptions) lives in @uix/api/documents; the local implementation
-// (createLocalDocumentStoreFactory) satisfies those interfaces.
+// The filesystem layout is private behind the feature-facing store contract.
+// Snapshot identity includes namespace, document id, content, and caller-owned
+// metadata, so recreating the same snapshot reuses its immutable version.
 
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -19,6 +15,7 @@ import type {
   DocumentVersion,
 } from "@uix/api/documents";
 
+/** Bind every created document store to one workspace state root. */
 export function createLocalDocumentStoreFactory(
   stateRoot: string,
 ): DocumentStoreFactory {
@@ -27,6 +24,7 @@ export function createLocalDocumentStoreFactory(
   };
 }
 
+/** Create a namespace-scoped local implementation of the document-store contract. */
 export function createLocalDocumentStore(
   stateRoot: string,
   opts: DocumentStoreOptions,
