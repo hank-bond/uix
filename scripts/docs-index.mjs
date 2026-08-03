@@ -1,18 +1,6 @@
-#!/usr/bin/env node
-// Generates (or checks) the per-directory AGENTS.md indexes from each doc's
-// frontmatter. The filename is the slug (and, for decisions, the date); the
-// frontmatter carries summary + status (and an optional read_when). The index is derived from those,
-// so adding a doc means editing one place (its own frontmatter + name), and CI
-// can fail when an index drifts from the docs it claims to list.
+// Generates repository AGENTS.md indexes from document frontmatter and source-file summaries.
 //
-//   node scripts/docs-index.mjs           # rewrite the INDEX blocks in place
-//   node scripts/docs-index.mjs --check   # exit 1 if any block is stale
-//
-// Every repo-owned markdown file carries that frontmatter, including AGENTS.md
-// files; indexed directories additionally have an AGENTS.md whose hand-written overview prose sits
-// above a managed region:
-//   <!-- INDEX:START --> ... <!-- INDEX:END -->
-// Everything outside the markers is prose and left untouched.
+// Documentation layers are configured explicitly, while source ownership indexes are discovered under supported roots. Each AGENTS.md keeps hand-written guidance outside one generated INDEX block.
 
 import {
   existsSync,
@@ -49,6 +37,9 @@ const layers = [
   { dir: "website", sort: "slug-asc" },
 ];
 
+const SOURCE_ROOTS = ["src", "scripts", "templates"];
+const SOURCE_EXCLUDED_DIRECTORIES = new Set(["src/docs"]);
+
 const START = "<!-- INDEX:START -->";
 const END = "<!-- INDEX:END -->";
 // Stamped as the first line of every managed block so the warning lives where
@@ -56,6 +47,8 @@ const END = "<!-- INDEX:END -->";
 // stays consistent.
 const NOTE =
   "<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->";
+const SOURCE_NOTE =
+  "<!-- Generated from source-file summaries, local Markdown frontmatter, and child AGENTS.md summaries. Do not edit by hand; run `npm run docs:index`. -->";
 const STATUSES = new Set([
   "accepted",
   "active",
@@ -67,6 +60,8 @@ const STATUSES = new Set([
   "superseded",
 ]);
 const KINDS = new Set(["explanation", "how-to", "reference", "tutorial"]);
+
+// Documentation Indexes
 
 // "2026-05-31-foo.md" -> { date: "2026-05-31", slug: "foo" }
 // "logging.md"        -> { date: null, slug: "logging" }
@@ -193,16 +188,136 @@ function renderContainer(entries) {
     .join("\n");
 }
 
-function applyIndex(agentsPath, body) {
+// Source Indexes
+
+function sourceSummaryStyle(name) {
+  if (/\.(?:[cm]?[jt]sx?)$/.test(name)) return "slash";
+  if (name.endsWith(".css")) return "css";
+  if (name.endsWith(".html")) return "html";
+  return undefined;
+}
+
+export function parseSourceSummary(name, text, file = name) {
+  const style = sourceSummaryStyle(name);
+  if (!style) return undefined;
+
+  const line = text
+    .replace(/^\uFEFF/, "")
+    .split(/\r?\n/, 1)[0]
+    .trim();
+
+  let summary;
+  if (style === "slash") {
+    const match = line.match(/^\/\/\s+(.+)$/);
+    summary = match?.[1].trim();
+  } else if (style === "css") {
+    const match = line.match(/^\/\*\s*(.+?)\s*\*\/$/);
+    if (!line.startsWith("/**")) summary = match?.[1].trim();
+  } else {
+    const match = line.match(/^<!--\s*(.+?)\s*-->$/);
+    summary = match?.[1].trim();
+  }
+
+  if (!summary) {
+    throw new Error(`${file}: missing one-line source summary`);
+  }
+  return summary;
+}
+
+export function collectSourceDirectory(repositoryRoot, directory) {
+  const absoluteDirectory = join(repositoryRoot, directory);
+  const directories = [];
+  const documents = [];
+  const files = [];
+
+  for (const name of readdirSync(absoluteDirectory).sort((a, b) =>
+    a.localeCompare(b),
+  )) {
+    if (name === "AGENTS.md") continue;
+    const path = join(absoluteDirectory, name);
+    const stat = statSync(path);
+    if (stat.isDirectory()) {
+      const agentsPath = join(path, "AGENTS.md");
+      if (!existsSync(agentsPath)) continue;
+      const fmFile = relative(repositoryRoot, agentsPath);
+      const fm = parseFrontmatter(readFileSync(agentsPath, "utf8"), fmFile);
+      directories.push({
+        label: `${name}/`,
+        link: `./${name}/AGENTS.md`,
+        ...fm,
+      });
+      continue;
+    }
+
+    if (name.endsWith(".md")) {
+      const fmFile = relative(repositoryRoot, path);
+      const fm = parseFrontmatter(readFileSync(path, "utf8"), fmFile);
+      documents.push({ label: name, link: `./${name}`, ...fm });
+      continue;
+    }
+
+    if (!sourceSummaryStyle(name)) continue;
+    const file = relative(repositoryRoot, path);
+    const summary = parseSourceSummary(name, readFileSync(path, "utf8"), file);
+    if (!summary) continue;
+    files.push({ label: name, link: `./${name}`, summary });
+  }
+
+  return { directories, documents, files };
+}
+
+function renderSourceFiles(entries) {
+  return entries
+    .map((entry) => `- **[${entry.label}](${entry.link})** ${entry.summary}`)
+    .join("\n");
+}
+
+export function renderSourceIndex({ directories, documents, files }) {
+  const sections = [];
+  if (directories.length > 0) {
+    sections.push(`### Directories\n\n${renderContainer(directories)}`);
+  }
+  if (documents.length > 0) {
+    sections.push(`### Local documentation\n\n${renderContainer(documents)}`);
+  }
+  if (files.length > 0) {
+    sections.push(`### Source files\n\n${renderSourceFiles(files)}`);
+  }
+  return sections.join("\n\n") || "_(none yet)_";
+}
+
+function collectSourceIndexDirectories(repositoryRoot) {
+  const directories = [];
+
+  function visit(directory) {
+    if (SOURCE_EXCLUDED_DIRECTORIES.has(directory)) return;
+    const absoluteDirectory = join(repositoryRoot, directory);
+    if (!existsSync(absoluteDirectory)) return;
+    if (existsSync(join(absoluteDirectory, "AGENTS.md"))) {
+      directories.push(directory);
+    }
+    for (const name of readdirSync(absoluteDirectory)) {
+      const child = join(absoluteDirectory, name);
+      if (statSync(child).isDirectory()) visit(relative(repositoryRoot, child));
+    }
+  }
+
+  for (const sourceRoot of SOURCE_ROOTS) visit(sourceRoot);
+  return directories.sort((a, b) => a.localeCompare(b));
+}
+
+function applyIndex(agentsPath, body, note = NOTE) {
   const text = readFileSync(agentsPath, "utf8");
   const s = text.indexOf(START);
   const e = text.indexOf(END);
   if (s === -1 || e === -1) {
     throw new Error(`${agentsPath}: missing ${START}/${END} markers`);
   }
-  const next = `${text.slice(0, s + START.length)}\n\n${NOTE}\n\n${body}\n\n${text.slice(e)}`;
+  const next = `${text.slice(0, s + START.length)}\n\n${note}\n\n${body}\n\n${text.slice(e)}`;
   return { text, next };
 }
+
+// Repository Documentation Validation
 
 function markdownFiles(dir) {
   // CLAUDE.md is a local tooling pointer (an `@./AGENTS.md` import), not a
@@ -283,32 +398,55 @@ function checkAllRelativeLinks() {
   }
 }
 
-const check = process.argv.includes("--check");
-let stale = false;
+// Index Command
 
-checkAllFrontmatter();
-checkAllDocumentShapes();
-checkAllRelativeLinks();
+function updateIndex(agentsPath, body, note, check) {
+  const { text, next } = applyIndex(agentsPath, body, note);
+  if (text === next) return false;
+  if (check) return true;
+  writeFileSync(agentsPath, next);
+  console.log(`updated ${relative(root, dirname(agentsPath))}/AGENTS.md`);
+  return false;
+}
 
-for (const layer of layers) {
-  const agentsPath = join(root, layer.dir, "AGENTS.md");
-  if (!existsSync(agentsPath)) continue;
-  const body =
-    layer.kind === "container"
-      ? renderContainer(collectContainer(layer))
-      : renderIndex(collect(layer));
-  const { text, next } = applyIndex(agentsPath, body);
-  if (text === next) continue;
-  if (check) {
-    stale = true;
-    console.error(`stale index: ${layer.dir}/AGENTS.md`);
-  } else {
-    writeFileSync(agentsPath, next);
-    console.log(`updated ${layer.dir}/AGENTS.md`);
+export function main(args = process.argv.slice(2)) {
+  const check = args.includes("--check");
+  let stale = false;
+
+  checkAllFrontmatter();
+  checkAllDocumentShapes();
+
+  for (const layer of layers) {
+    const agentsPath = join(root, layer.dir, "AGENTS.md");
+    if (!existsSync(agentsPath)) continue;
+    const body =
+      layer.kind === "container"
+        ? renderContainer(collectContainer(layer))
+        : renderIndex(collect(layer));
+    if (updateIndex(agentsPath, body, NOTE, check)) {
+      stale = true;
+      console.error(`stale index: ${layer.dir}/AGENTS.md`);
+    }
   }
+
+  for (const directory of collectSourceIndexDirectories(root)) {
+    const agentsPath = join(root, directory, "AGENTS.md");
+    const body = renderSourceIndex(collectSourceDirectory(root, directory));
+    if (updateIndex(agentsPath, body, SOURCE_NOTE, check)) {
+      stale = true;
+      console.error(`stale source index: ${directory}/AGENTS.md`);
+    }
+  }
+
+  // Generation removes links to deleted indexed children before validation.
+  checkAllRelativeLinks();
+
+  if (check && stale) {
+    console.error('Run "npm run docs:index" to regenerate.');
+    process.exitCode = 1;
+  }
+  return !stale;
 }
 
-if (check && stale) {
-  console.error('Run "npm run docs:index" to regenerate.');
-  process.exit(1);
-}
+const scriptPath = fileURLToPath(import.meta.url);
+if (process.argv[1] && resolve(process.argv[1]) === scriptPath) main();

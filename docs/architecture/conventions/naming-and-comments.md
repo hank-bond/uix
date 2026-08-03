@@ -394,7 +394,9 @@ Before the condition occurs, the marker creates no pending work. Do not use it f
 
 **What earns a comment:** Add a warning or explanation that code cannot carry itself. Examples include load-bearing order, external format tolerance, and hidden ownership constraints. Each should prevent a plausible wrong assumption.
 
-**Source-file headers:** Every authored TypeScript and JavaScript file starts with one `//` sentence that states its stable responsibility. Required shebangs, license notices, generated-file notices, and external attribution may precede the summary.
+**Source-file headers:** Every indexed authored TypeScript and JavaScript file starts with one `//` sentence that states its stable responsibility. Every indexed authored CSS file starts with one single-line `/* */` summary, and every indexed authored HTML file starts with one single-line `<!-- -->` summary. The summary is physically the first line, without exceptions.
+
+JSON, binary assets, and static data are not indexed. A directory `AGENTS.md` or local attribution leaf describes non-code assets when their role is not evident.
 
 Name the domain responsibility, operation, result, or authority boundary. Use the path and filename as existing context instead of repeating them. Distinguish sibling files without enumerating exports, callers, control flow, implementation mechanics, plans, or guessed search synonyms.
 

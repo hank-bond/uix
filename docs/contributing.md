@@ -27,7 +27,9 @@ Direct code relationships remain imports. Do not maintain prose importer lists. 
 
 ### Source-file headers
 
-Every authored source file starts with one indexable line that states its stable responsibility. Required headers, shebangs, and license notices may precede it. For TypeScript and JavaScript, use one `//` sentence that names the domain responsibility, operation, result, or authority boundary without repeating the path or filename.
+Every indexed authored source file starts with one indexable line that states its stable responsibility. The summary is physically the first line, without exceptions. For TypeScript and JavaScript, use one `//` sentence that names the domain responsibility, operation, result, or authority boundary without repeating the path or filename.
+
+Source indexes cover authored TypeScript and JavaScript files, including tests and declarations, plus CSS and HTML. CSS uses one single-line `/* */` summary, while HTML uses one single-line `<!-- -->` summary. JSON, binary assets, and static data are not indexed. Local Markdown and child `AGENTS.md` entries derive summaries from frontmatter.
 
 The summary must distinguish the file from its siblings and remain true when implementation mechanics or callers change. Do not enumerate exports, narrate control flow, describe future intent, or add guessed search synonyms. If one coherent summary cannot describe the file, reconsider its responsibilities.
 
