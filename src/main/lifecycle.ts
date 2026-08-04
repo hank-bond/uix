@@ -15,7 +15,7 @@
 // Why a "Bag" (and not just `using` everywhere):
 //   - `using` cleans up at the end of the enclosing block. Great when a
 //     resource's lifetime is exactly that block.
-//   - Our subscriptions outlive the function that creates them; they
+//   - Our subscriptions outlive the function that creates them. They
 //     live for the driver's lifetime, or the app's. For those, we need
 //     a container we explicitly dispose later. That's the Bag.
 
@@ -38,8 +38,8 @@ import type { Logger } from "./log";
  *
  * Usage:
  *   const bag = new DisposableBag();
- *   bag.add(handle(...));   // register an IPC channel
- *   bag.add(onApp(...));    // listen to an app event
+ *   bag.add(handle(...))   // register an IPC channel
+ *   bag.add(onApp(...))    // listen to an app event
  *   // ...later, when this lifetime ends:
  *   bag[Symbol.dispose]();
  */
@@ -59,7 +59,7 @@ export class DisposableBag implements Disposable {
       try {
         item[Symbol.dispose]();
       } catch {
-        // Swallow: we're past cleanup; nothing useful to do here.
+        // Swallow: we're past cleanup. Nothing useful to do here.
       }
       return item;
     }
@@ -120,13 +120,13 @@ export function onAbort(signal: AbortSignal, listener: () => void): Disposable {
 
 /**
  * Listen for an `app` event. Typed against the small union of events
- * we actually use; extend `AppEvent` as we adopt more.
+ * we actually use. Extend `AppEvent` as we adopt more.
  *
  * The cast on `app.on`/`app.off` is intentional. Electron types each
  * event with a specific listener signature (e.g. `activate` expects
  * `(event, hasVisibleWindows) => void`), so passing our uniform
  * `() => void` listener fails strict overload resolution even though
- * it's runtime-safe; Node's EventEmitter ignores extra args. The
+ * it's runtime-safe. Node's EventEmitter ignores extra args. The
  * cast widens to a single shape we can satisfy without forcing every
  * caller to spell the event-specific listener signature.
  */
@@ -141,7 +141,7 @@ export function onApp(event: AppEvent, listener: () => void): Disposable {
 }
 
 /**
- * Listen for a `BrowserWindow` event. Same idea as `onApp`; we only
+ * Listen for a `BrowserWindow` event. Same idea as `onApp`. We only
  * need `closed` today.
  */
 type WindowEvent = "closed";

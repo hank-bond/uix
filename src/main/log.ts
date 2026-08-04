@@ -3,7 +3,7 @@
 // Thin wrapper around pino so:
 //   - call sites use one shape: `log.info({ ...fields }, "event_name")`
 //   - every line includes a `component` field for filtering
-//   - dev gets pretty-printed colorized output; prod gets JSON
+//   - dev gets pretty-printed colorized output. Prod gets JSON
 //   - extensions get attributed loggers via child(): `log.child({ extension: id })`
 //
 // Conventions live in docs/architecture/conventions/logging.md.

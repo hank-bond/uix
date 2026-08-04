@@ -1,7 +1,7 @@
 // the settings scope contract.
 //
 // `defineSettings` closes a definition's schema so unknown persisted keys fail
-// validation; handles expose scoped get, set, and change subscription.
+// validation. Handles expose scoped get, set, and change subscription.
 
 import { type Static, type TObject, type TRecord, Type } from "typebox";
 
@@ -35,7 +35,7 @@ export interface SettingsDefinition<
 
 /**
  * Defines one settings scope and closes its object schema. A `Type.Object`
- * schema gives the scope named keys; a `Type.Record` schema gives it dynamic,
+ * schema gives the scope named keys. A `Type.Record` schema gives it dynamic,
  * schema-validated keys without introducing a second settings concept.
  */
 export function defineSettings<const Schema extends SettingsSchema>(
@@ -73,7 +73,7 @@ function toClosedSettingsSchema<Schema extends SettingsSchema>(
  * manifest feature entry or a substrate-owned workspace namespace.
  */
 export interface SettingsHandle {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- T is inferred from the call-site context (e.g. `getFavoriteModels(): ModelRef[]`); inlining to unknown would force casts at every consumer.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- T is inferred from the call-site context (e.g. `getFavoriteModels(): ModelRef[]`). Inlining to unknown would force casts at every consumer.
   get<T = unknown>(key: string): T | undefined;
   set(key: string, value: unknown): void;
   onChange(key: string, handler: (value: unknown) => void): () => void;

@@ -175,7 +175,7 @@ function setup(): {
   void createAgentToolInstaller(agentTools)(pi);
   void createTurnStateInstaller(state)(pi);
 
-  // Vocabulary is installed separately; it's the only thing that still uses
+  // Vocabulary is installed separately. It's the only thing that still uses
   // before_agent_start. The message flush is called directly.
   const vocabPi = {
     on: (event: string, handler: (typeof vocabHandlers)[0]) => {

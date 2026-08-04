@@ -29,7 +29,7 @@ export type AgentToolCanonicalId = string & {
 
 /**
  * Builds the Pi tool name for a contribution: `${featureId}__${name}`.
- * Validates each segment; a failure is an app bug.
+ * Validates each segment. A failure is an app bug.
  */
 export function toAgentToolCanonicalId(
   featureId: string,
@@ -57,7 +57,7 @@ export interface ResolvedAgentToolContribution {
 
 /**
  * Derives both ids for an agent tool contribution and stamps `tool.name` from
- * the canonical id. Pure; no registry, no side effects.
+ * the canonical id. Pure. No registry, no side effects.
  */
 export function resolveAgentToolContribution(
   featureId: string,

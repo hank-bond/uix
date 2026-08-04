@@ -1,5 +1,5 @@
 extends: script
-message: "This sentence is over 25 words; split it."
+message: "This sentence is over 25 words. Split it."
 level: error
 scope: raw
 script: |
@@ -21,7 +21,7 @@ script: |
       words := len(text.fields(clean))
       if words > 25 {
         start := text.index(scope, sentence)
-        matches = append(matches, {begin: start, end: start + len(sentence), message: fmt.sprintf("This sentence is %d words; the max is 25. Split it.", words)})
+        matches = append(matches, {begin: start, end: start + len(sentence), message: fmt.sprintf("This sentence is %d words. The max is 25. Split it.", words)})
       }
     }
   }

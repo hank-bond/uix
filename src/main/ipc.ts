@@ -3,14 +3,14 @@
 // Every crossing goes through this module and is recorded by it. `handle()`
 // is the inbound chokepoint (invoke endpoints), `send()` the outbound one
 // (pushes to a window). The wire log lives here too, module-private, so the
-// only way to produce a wire-log line is to actually cross the wire; the
+// only way to produce a wire-log line is to actually cross the wire. The
 // log can be neither dodged nor spoofed. Project policy, enforced for these
 // known calls by ESLint: no direct `ipcMain.handle` or `webContents.send`
 // outside this module.
 //
 // Each crossing is captured twice, in the `ipc` log space:
 //  - terminal (`ipc` component): the payload itself, rendered by the shared
-//    pino-pretty transport. Read with UIX_LOG_LEVEL=debug; callers can demote
+//    pino-pretty transport. Read with UIX_LOG_LEVEL=debug. Callers can demote
 //    chatty lines to trace so debug stays readable.
 //  - file: the full raw payload as NDJSON under `<stateRoot>/.uix/logs/`,
 //    one per-run file, armed only when the ipc space is audible at all. The
@@ -43,10 +43,10 @@ export function initLogFile(stateRoot: string): void {
   // `sync` is a deliberate trade, not a default: blocking write per crossing,
   // in exchange for the tail surviving even hard kills (segfault, OOM,
   // SIGKILL). Going buffered (`sync: false, minLength: 4096`) is purely a
-  // perf knob; pino auto-flushes its buffer on any exit that runs handlers,
+  // perf knob. Pino auto-flushes its buffer on any exit that runs handlers,
   // including uncaught exceptions, so buffering only loses the hard-kill
   // class. Streaming now crosses as compact transcript_partial events, so the
-  // per-crossing payload is small; flip this only if armed-mode streaming
+  // per-crossing payload is small. Flip this only if armed-mode streaming
   // still drags, and soften this comment's guarantee to "JS crashes" if you
   // do.
   fileLog = pino(
@@ -103,7 +103,7 @@ export interface SendOptions<Payload = unknown> {
   /**
    * The payload is an in-flight partial that repeats at streaming cadence
    * (per token / per progress tick). Consequence today: the terminal line
-   * logs at trace instead of debug, always; even small partials are noise
+   * logs at trace instead of debug, always. Even small partials are noise
    * at that rate. Whatever else partial-ness implies later hangs off this
    * flag, not off new parameters.
    */

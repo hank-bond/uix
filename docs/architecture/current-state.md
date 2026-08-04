@@ -38,7 +38,7 @@ A shared `ChannelContract` defines request, response, and event schemas. Backend
 
 Electron Inter-Process Communication (IPC) is the implemented channel transport. Canvas iframe writeback still uses a feature-owned `postMessage` shim before entering typed channels. A general iframe channel adapter does not exist.
 
-The `uix-resource://` protocol dispatches normalized feature resource routes. Surface bundles and files use a reserved substrate origin; Canvas documents use a feature-isolated resource origin.
+The `uix-resource://` protocol dispatches normalized feature resource routes. Surface bundles and files use a reserved substrate origin. Canvas documents use a feature-isolated resource origin.
 
 ## Surface and workspace runtime
 
@@ -80,7 +80,7 @@ The substrate agent contract handles prompts, history, recent summaries, session
 
 Pi's `ModelRuntime` remains authoritative for providers, models, and authentication interactions. UIX projects available models and provider-owned login methods without persisting credentials itself.
 
-Main projects live and replayed Pi entries into one `TranscriptSnapshot` model. Streaming assistant text appends through partial events; tool progress uses replacement snapshots. Completed items replace one row.
+Main projects live and replayed Pi entries into one `TranscriptSnapshot` model. Streaming assistant text appends through partial events. Tool progress uses replacement snapshots. Completed items replace one row.
 
 Tool transcript items retain their execution working directory. Main derives file locations for supported filesystem tools, so historical rows do not reinterpret paths against later state.
 

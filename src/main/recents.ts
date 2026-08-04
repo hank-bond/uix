@@ -1,7 +1,7 @@
 // Persists a bounded newest-first list of workspace manifests that still exist.
 //
 // A tiny JSON list under the App's userData dir: which workspace manifests
-// were opened, newest first. The start picker reads it; opening a workspace
+// were opened, newest first. The start picker reads it. Opening a workspace
 // records it. Entries whose manifest file no longer exists are pruned on
 // read, so deleted workspaces silently drop off the list.
 //
@@ -47,7 +47,7 @@ export function createRecentsStore(filePath: string): RecentsStore {
           typeof (e as RecentWorkspace).openedAt === "string",
       );
     } catch (err) {
-      // A corrupt recents file is cosmetic state; log and start over.
+      // A corrupt recents file is cosmetic state. Log and start over.
       log.warn({ filePath, err: (err as Error).message }, "recents_corrupt");
       return [];
     }

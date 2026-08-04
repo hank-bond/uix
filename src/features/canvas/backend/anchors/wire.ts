@@ -1,7 +1,7 @@
 // anchor wire format.
 //
 // How anchored lines are rendered to, and parsed from, the agent. The document
-// core deals only in structured `{ anchor, text }`; the §-gutter representation
+// core deals only in structured `{ anchor, text }`. The §-gutter representation
 // is a protocol detail that lives here, at the agent boundary (the Pi tool
 // layer uses these to render results for the agent and to parse the lines the
 // agent echoes back). The core never sees the delimiter.

@@ -163,7 +163,7 @@ describe("AnchoredDocument", () => {
         allocate: testAllocate(),
       });
 
-      // B's real text is "two"; the caller referenced a stale/mistaken line.
+      // B's real text is "two". The caller referenced a stale/mistaken line.
       expect(() =>
         doc.edit({
           start: { anchor: "B", text: "WRONG" },
@@ -197,7 +197,7 @@ describe("AnchoredDocument", () => {
 
       const after = doc.write("a\nb");
 
-      // Same text, but a clobber never reuses anchors; the two versions are
+      // Same text, but a clobber never reuses anchors. The two versions are
       // anchor-disjoint, so they can coexist in one chat unambiguously.
       expect(after).toEqual([
         { anchor: "C", text: "a" },

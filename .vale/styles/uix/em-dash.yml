@@ -1,5 +1,5 @@
 extends: existence
-message: "Avoid the em dash. Prefer two sentences, a semicolon, or a colon."
+message: "Avoid the em dash. Prefer two sentences, a comma, or a colon."
 level: error
 scope: raw
 raw:

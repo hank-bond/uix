@@ -51,7 +51,7 @@ export interface ResourceRegistryOptions {
 /**
  * Register the privileged substrate resource scheme before Electron is ready.
  *
- * Scheme-level CORS support permits CORS-mode requests to reach handlers; each
+ * Scheme-level CORS support permits CORS-mode requests to reach handlers. Each
  * response remains responsible for granting an origin.
  */
 export function registerResourceProtocol(
@@ -67,7 +67,7 @@ export function registerResourceProtocol(
         secure: true,
         supportFetchAPI: true,
         // Without this Chromium refuses CORS-mode requests *to* the scheme
-        // at the network layer; module scripts (the surface pipeline)
+        // at the network layer. Module scripts (the surface pipeline)
         // are always fetched in CORS mode. Actual grants stay per-response:
         // the surface routes echo non-uix-resource origins only.
         corsEnabled: true,

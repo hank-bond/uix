@@ -29,7 +29,7 @@ export type ChannelCanonicalId = string & {
 
 /**
  * Builds the transport address for a channel: `${featureId}.${name}`.
- * Validates each segment; a failure is an app bug.
+ * Validates each segment. A failure is an app bug.
  */
 export function toChannelCanonicalId(
   featureId: string,

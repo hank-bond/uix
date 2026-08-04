@@ -3,7 +3,7 @@
 // FeatureDefinition is the shape a manifest-selected feature entry exports:
 // an id, an optional context hook, and a contribute function that returns the
 // feature's facet contributions. First-party and workspace modules are
-// indistinguishable here; the substrate activates both through the same path.
+// indistinguishable here. The substrate activates both through the same path.
 //
 // FeatureContext is the service bag injected by the host into every feature
 // at activation time. Features access external state only through this object
@@ -73,7 +73,7 @@ export interface FeatureContributions {
   /**
    * Frontend surface entry files, resolved against the feature entry's
    * directory (absolute paths pass through). Each module must export
-   * `surface`, a `defineSurface` result; the workspace mounts them in
+   * `surface`, a `defineSurface` result. The workspace mounts them in
    * composition order (manifest order, then declaration order here).
    */
   surfaces?: readonly string[];
@@ -121,7 +121,7 @@ type AuthoredFeatureDefinition<
 
 /**
  * Preserve an authored settings schema through the feature's injected context.
- * Runtime loading consumes the erased `FeatureDefinition`; this helper carries
+ * Runtime loading consumes the erased `FeatureDefinition`. This helper carries
  * only source-level agreement between the definition and its callbacks.
  */
 export function defineFeature<

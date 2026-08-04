@@ -1,5 +1,5 @@
 ---
-summary: "Pi owns model availability and provider authentication; UIX projects generic catalogs, workspace defaults, favorites, status, and one restorable login flow."
+summary: "Pi owns model availability and provider authentication. UIX projects generic catalogs, workspace defaults, favorites, status, and one restorable login flow."
 kind: reference
 status: active
 ---

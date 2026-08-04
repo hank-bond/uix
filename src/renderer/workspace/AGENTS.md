@@ -9,7 +9,7 @@ The workspace page is one composition. The surface host (`layout.tsx`) fetches t
 
 Actions form one chain. Contributions resolve into ids and catalog entries (`action-resolution.ts`). The registry retains them and projects confirmed bindings (`action-registry.ts`, `action-binding-projection.ts`). Keyboard events convert to chords (`keyboard-event-shortcut.ts`, `shortcut-platform.ts`) and dispatch into the registry (`action-keyboard-dispatcher.tsx`). `keybinding-sync.tsx` reconciles defaults with the substrate settings. `action-context.tsx` provides the registry to the tree.
 
-Sessions flow from the agent channels into `session-controller.ts`, which owns the projection and mutations, exposed through `session-context.tsx`; `session-actions.tsx` registers the session actions into the registry.
+Sessions flow from the agent channels into `session-controller.ts`, which owns the projection and mutations, exposed through `session-context.tsx`. `session-actions.tsx` registers the session actions into the registry.
 
 ## Contents
 

@@ -5,7 +5,7 @@ status: active
 
 # Workspace runtime
 
-Feature manifest shape and activation live in [`../features/`](../features/AGENTS.md); the generic settings registry, turn-state mechanics, and agent runtime remain sibling owners.
+Feature manifest shape and activation live in [`../features/`](../features/AGENTS.md). The generic settings registry, turn-state mechanics, and agent runtime remain sibling owners.
 
 The workspace manifest is both the selected feature composition and the durable location for feature and substrate settings. Settings adoption stages a manifest generation, validates and hydrates every workspace namespace while detached, and only then promotes the generation. Only after promotion does the settings registry receive the generation's locations. Feature settings locations remain bound to the manifest generation and manifest index selected by the feature loader.
 

@@ -29,11 +29,11 @@ Direct code relationships remain imports. Do not maintain prose importer lists. 
 
 Every indexed authored production source file starts with one indexable line that states its stable responsibility. The summary is physically the first line, without exceptions. For TypeScript and JavaScript, use one `//` sentence that names the domain responsibility, operation, result, or authority boundary without repeating the path or filename.
 
-Source indexes cover authored production TypeScript and JavaScript files, including declarations, plus CSS and HTML. They exclude colocated `*.test.*` and `*.spec.*` files because the production owner already routes an agent to its tests by basename. Tests need no summary; add test comments only for context the test structure cannot carry. JSON, binary assets, and static data are not indexed. Local Markdown and child `AGENTS.md` entries derive summaries from frontmatter.
+Source indexes cover authored production TypeScript and JavaScript files, including declarations, plus CSS and HTML. They exclude colocated `*.test.*` and `*.spec.*` files because the production owner already routes an agent to its tests by basename. Tests need no summary. Add test comments only for context the test structure cannot carry. JSON, binary assets, and static data are not indexed. Local Markdown and child `AGENTS.md` entries derive summaries from frontmatter.
 
 The summary must distinguish the file from its siblings and remain true when implementation mechanics or callers change. Do not enumerate exports, narrate control flow, describe future intent, or add guessed search synonyms. If one coherent summary cannot describe the file, reconsider its responsibilities.
 
-The header is the summary sentence plus at most one elaboration paragraph, whose length scales with the file's size. The elaboration extends the claim with the file-level concepts the sentence cannot hold: mechanism, hidden guarantees, external constraints, failure boundaries, and rationale. It stays at the file's medium abstraction level; lower-level detail belongs in code comments. It never restates the summary. Do not use the paragraph as an export inventory or control-flow narration.
+The header is the summary sentence plus at most one elaboration paragraph, whose length scales with the file's size. The elaboration extends the claim with the file-level concepts the sentence cannot hold: mechanism, hidden guarantees, external constraints, failure boundaries, and rationale. It stays at the file's medium abstraction level. Lower-level detail belongs in code comments. It never restates the summary. Do not use the paragraph as an export inventory or control-flow narration.
 
 ### Contract and implementation comments
 
@@ -51,7 +51,7 @@ A source `AGENTS.md` is a routing and coordination map for a directory that owns
 
 Do not create a source directory or `AGENTS.md` for one production file plus its tests. Keep that file and its tests in the parent, where the production file appears in the parent's index.
 
-An `AGENTS.md` generated index lists direct production source files, local Markdown leaves, and immediate child `AGENTS.md` summaries. It excludes colocated tests. Handwritten guidance must not repeat or paraphrase those file or child summaries; the generated index is their sole directory-level description. Guidance starts where individual summaries stop: relationships, sequencing, shared invariants, composition, and dependency direction. A parent does not flatten the contents of a real child ownership boundary.
+An `AGENTS.md` generated index lists direct production source files, local Markdown leaves, and immediate child `AGENTS.md` summaries. It excludes colocated tests. Handwritten guidance must not repeat or paraphrase those file or child summaries. The generated index is their sole directory-level description. Guidance starts where individual summaries stop: relationships, sequencing, shared invariants, composition, and dependency direction. A parent does not flatten the contents of a real child ownership boundary.
 
 A local Markdown leaf earns its place when several files under one source owner must be understood together. Put broader workflows and context in repository documentation. Do not create hand-maintained source listings before the generator and first migration land together under [`code-proximate-documentation.md`](../plans/code-proximate-documentation.md).
 
@@ -131,7 +131,7 @@ The layer template sets a baseline, and the shared preload budget sets a cap. Sp
 
 A summary that must grow to remain distinct is a _split signal_. The document probably bundles unrelated claims. Plans and design threads remain the accepted multi-unit forms.
 
-This guidance applies to every repository-owned documentation Markdown file, including each `AGENTS.md` file. `README.md` files are public GitHub-facing documentation and are intentionally excluded from the agent indexes and documentation validation. _Decisions freeze their frontmatter and prose at acceptance_; only `status` may change. Link destinations may change when files move so references continue to resolve. _Living docs stay current._ Cross-link documents with ordinary inline Markdown links, not a frontmatter field.
+This guidance applies to every repository-owned documentation Markdown file, including each `AGENTS.md` file. `README.md` files are public GitHub-facing documentation and are intentionally excluded from the agent indexes and documentation validation. _Decisions freeze their frontmatter and prose at acceptance_. Only `status` may change. Link destinations may change when files move so references continue to resolve. _Living docs stay current._ Cross-link documents with ordinary inline Markdown links, not a frontmatter field.
 
 ## Documents are retrieval units
 
@@ -227,13 +227,13 @@ Use an STE-style contrast table for controlled architectural vocabulary:
 | --- | --- | --- | --- |
 | `Handler` (noun) | Callable that processes one occurrence. Use `Handle` for a consumer-held capability. | `ChannelRequestHandler` | `ChannelTransportHandle` |
 
-The approved meaning defines the term's permitted boundary. The alternatives identify the approved term for a meaning that this term does not cover. The nonconforming example shows a plausible use that violates the boundary; it is not an example of generally poor code.
+The approved meaning defines the term's permitted boundary. The alternatives identify the approved term for a meaning that this term does not cover. The nonconforming example shows a plausible use that violates the boundary. It is not an example of generally poor code.
 
 ### Lexicon row requirements
 
 **Term:** Give the exact approved spelling and part of speech. Give each word form and each approved meaning its own row. Sort terms alphabetically within their class.
 
-**Approved meaning and alternatives:** Start with a positive boundary definition. State the property that distinguishes the term from its nearest alternatives, and name those alternatives explicitly. Do not define the term through a current implementation or file location. Do not name an undefined alternative; admit it in the same change or link to its existing entry.
+**Approved meaning and alternatives:** Start with a positive boundary definition. State the property that distinguishes the term from its nearest alternatives, and name those alternatives explicitly. Do not define the term through a current implementation or file location. Do not name an undefined alternative. Admit it in the same change or link to its existing entry.
 
 **Approved example:** Use the smallest realistic example that demonstrates the distinguishing property. Prefer an existing UIX identifier or a planned replacement from an active migration. Show a call site when the identifier alone does not demonstrate the meaning. Do not add unrelated details.
 
@@ -261,13 +261,13 @@ Maintain separate tables for these term classes:
 
 Add a UIX-owned term when it first becomes exported, architectural, or recurrent. Add it in the same change that introduces that use. Do not add every local implementation word. If the term's boundary cannot be stated with an approved and a nonconforming example, continue the design work before admitting the term.
 
-Do not preserve a retired alias in code only because it remains in the lexicon. The retired entry supports migration and review; it does not provide compatibility.
+Do not preserve a retired alias in code only because it remains in the lexicon. The retired entry supports migration and review. It does not provide compatibility.
 
 ## Every AGENTS.md is overview + index
 
-An `AGENTS.md` contains hand-written directory guidance followed by a generated index. Guidance routes among multiple immediate production owners and records only cross-file or cross-boundary ownership, invariants, dependency direction, and composition points. File-local behavior remains with its source owner. A directory with one production file does not earn an `AGENTS.md`; keep the file at the parent ownership boundary instead.
+An `AGENTS.md` contains hand-written directory guidance followed by a generated index. Guidance routes among multiple immediate production owners and records only cross-file or cross-boundary ownership, invariants, dependency direction, and composition points. File-local behavior remains with its source owner. A directory with one production file does not earn an `AGENTS.md`. Keep the file at the parent ownership boundary instead.
 
-Documentation indexes derive entries from document frontmatter. Source indexes derive direct production-file entries from first-line source summaries, local Markdown entries from frontmatter, and immediate child-directory entries from nested `AGENTS.md` frontmatter. `README.md` files are excluded from both indexing and validation because they serve public GitHub-facing documentation rather than agent retrieval. Colocated test and spec files are found from the routed production file and do not receive index entries. The source-index tooling lands with its first migrated boundary; do not create those listings by hand.
+Documentation indexes derive entries from document frontmatter. Source indexes derive direct production-file entries from first-line source summaries, local Markdown entries from frontmatter, and immediate child-directory entries from nested `AGENTS.md` frontmatter. `README.md` files are excluded from both indexing and validation because they serve public GitHub-facing documentation rather than agent retrieval. Colocated test and spec files are found from the routed production file and do not receive index entries. The source-index tooling lands with its first migrated boundary. Do not create those listings by hand.
 
 The root [`AGENTS.md`](../AGENTS.md) orients the project and routes to directory indexes. Each lower index adds only the guidance owned at that level. Parent indexes expose child-directory summaries without recursively copying their file entries.
 
@@ -280,7 +280,7 @@ npm run docs:check     # fail on stale indexes, malformed docs, or broken links
 
 The check requires frontmatter and one H1 in living documentation Markdown files, except `README.md`. It also validates relative links, lifecycle values, and `kind` tags on indexed documentation. Archived plans retain their historical body shape.
 
-Prose outside the markers is yours; the block between them is derived. **Never hand-edit it.** Do not add, reword, reorder, or delete entries inside the markers. The block is regenerated from frontmatter, so a manual edit is silently overwritten by `npm run docs:index` or fails `npm run docs:check` when it drifts. To change an entry, edit the doc's frontmatter `summary`/`read_when`/`status` (or rename the file) and regenerate. A small idea can live as a line in the overview prose. When it grows past a line, promote it to its own file and delete the prose line. The index then carries it, so it's never maintained in both places. Top-level docs in `docs/` (like this one) sit outside the indexed layers and are reached by prose links from `AGENTS.md`, not an index.
+Prose outside the markers is yours. The block between them is derived. **Never hand-edit it.** Do not add, reword, reorder, or delete entries inside the markers. The block is regenerated from frontmatter, so a manual edit is silently overwritten by `npm run docs:index` or fails `npm run docs:check` when it drifts. To change an entry, edit the doc's frontmatter `summary`/`read_when`/`status` (or rename the file) and regenerate. A small idea can live as a line in the overview prose. When it grows past a line, promote it to its own file and delete the prose line. The index then carries it, so it's never maintained in both places. Top-level docs in `docs/` (like this one) sit outside the indexed layers and are reached by prose links from `AGENTS.md`, not an index.
 
 ## Design notes are living threads
 

@@ -23,7 +23,7 @@ import type { TSchema } from "typebox";
  * type-checks the `parameters` field against the specific schema. Defaults to
  * the widened `TSchema` so one-off inline tool literals can use the bare alias.
  * (Pi's own `createReadToolDefinition` uses `ToolDefinition<typeof readSchema>`
- * the same way; this mirrors that for feature-authored tools.)
+ * the same way. This mirrors that for feature-authored tools.)
  */
 export type AgentToolDefinition<TParams extends TSchema = TSchema> = Omit<
   ToolDefinition<TParams>,
@@ -44,6 +44,6 @@ export interface AgentToolContribution {
 export interface AgentToolOverrideContribution {
   /** Exact Pi tool name to register, such as `read`, `write`, or `command`. */
   readonly name: string;
-  /** Exact-name body; the substrate stamps the authored `name`. */
+  /** Exact-name body. The substrate stamps the authored `name`. */
   readonly tool: AgentToolDefinition;
 }

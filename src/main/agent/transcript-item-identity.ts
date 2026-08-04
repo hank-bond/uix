@@ -13,10 +13,10 @@
 //    `appendMessage`, so a WeakMap keyed by the object carries the
 //    continuation without retaining message content.
 //  - user: nothing to correlate. The instant echo is the *renderer's* own
-//    optimistic pending row (composer state, not transcript truth); main
+//    optimistic pending row (composer state, not transcript truth). Main
 //    emits the authoritative row born keyed straight from the observed
 //    append, deriving the text from the persisted message itself.
-//  - tool rows: born keyed; Pi persists the assistant message (with its
+//  - tool rows: born keyed. Pi persists the assistant message (with its
 //    toolCall blocks) before `tool_execution_start` fires, so the durable
 //    `<entryId>:tool:<toolCallId>` derivation is recorded here and read by
 //    the forwarder at row creation. No handle, no rekey.
@@ -39,7 +39,7 @@ export interface TranscriptItemIdentity {
   /** Patch the manager's append methods. Call before Pi receives the manager. */
   observe(manager: SessionManager): void;
   /**
-   * Single subscriber notified for every persisted user message; the driver
+   * Single subscriber notified for every persisted user message. The driver
    * emits the authoritative born-keyed user row from it.
    */
   onUserMessage(cb: (durableId: string, message: unknown) => void): void;
@@ -47,7 +47,7 @@ export interface TranscriptItemIdentity {
   expectMessageKey(message: object, onKeyed: OnKeyed): void;
   /** Pair the next persisted custom message with a held displayed custom row. */
   expectCustomEntry(onKeyed: OnKeyed): void;
-  /** Durable tool-row id; present once the owning assistant entry persisted. */
+  /** Durable tool-row id. Present once the owning assistant entry persisted. */
   toolRowId(toolCallId: string): string | undefined;
 }
 
@@ -70,7 +70,7 @@ export function createTranscriptItemIdentity(): TranscriptItemIdentity {
         }
         // At most one of these fires: user rows have no live counterpart to
         // rekey (the renderer's pending row is composer state), so they
-        // notify the subscriber; all other message rows register by object
+        // notify the subscriber. All other message rows register by object
         // identity.
         if (role === "user") onUser?.(id, message);
         byMessage.get(message)?.(id);

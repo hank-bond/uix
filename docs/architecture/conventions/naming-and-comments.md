@@ -80,9 +80,9 @@ pipeline.resourceContributions();
 
 **Approved examples:** `deriveSelectedBranchProjection()`, `resolveAgentToolContribution()`, and `assembleAgentContextMessage()` pair a transition with its result role. Use `deriveToolChatBlockPresentation()`, where `derive` identifies pure policy computation and `Presentation` identifies the human-facing result.
 
-**Nonconforming example:** Do not verbalize the result noun when that verb adds no transition semantics. `presentToolChatBlock()` restates `ToolChatBlockPresentation`; use `deriveToolChatBlockPresentation()` for a pure rebuildable view.
+**Nonconforming example:** Do not verbalize the result noun when that verb adds no transition semantics. `presentToolChatBlock()` restates `ToolChatBlockPresentation`. Use `deriveToolChatBlockPresentation()` for a pure rebuildable view.
 
-**Reason:** Controlled verbs collapse synonyms for recurring transitions; controlled nouns collapse synonyms for recurring roles and stages. Keeping those axes orthogonal lets an unfamiliar identifier communicate both facts.
+**Reason:** Controlled verbs collapse synonyms for recurring transitions. Controlled nouns collapse synonyms for recurring roles and stages. Keeping those axes orthogonal lets an unfamiliar identifier communicate both facts.
 
 ### naming.callable-value: Name a callable by its semantic role
 
@@ -214,14 +214,14 @@ isFailed: boolean;
 | `Appender` (noun) | Consumer-held capability that appends values to an ordered pending collection. Use `Updater` when only the latest value remains current. | `AgentContextAppender` | `AgentContextUpdater` for an ordered pending list |
 | `Assembler` (noun) | Component that assembles one runtime artifact from multiple registered or materialized parts. Use `Factory` for instance creation and `Projector` for derivation state. | `AgentContextAssembler` | `AgentContextBuilder` |
 | `Callback` (noun) | Callable supplied for a continuation or customization point when no more specific role applies. Prefer the specific role when one exists. | `CompletionCallback` | `RequestCallback` for a request handler |
-| `Coordinator` (noun) | Substrate-owned, stateful component that sequences a multi-step lifecycle across independently owned participants and performs its side effects. Use `Installer` for setup-time runtime attachment, `Driver` for ownership of a runtime boundary, and `Assembler` for combining parts into one artifact. | `TurnStateCoordinator`; `WorkspaceReloadCoordinator` | `TurnStateCoordinator` for a callable whose only role is installing Pi hooks; use `TurnStateInstaller` |
-| `Factory` (noun) | Component or callable that creates domain instances from known inputs and transfers responsibility for them to an owner. Use `Assembler` to combine defined parts into one artifact. | `DocumentStoreFactory` | `AgentContextFactory` for combining registered contributions; use `AgentContextAssembler` |
+| `Coordinator` (noun) | Substrate-owned, stateful component that sequences a multi-step lifecycle across independently owned participants and performs its side effects. Use `Installer` for setup-time runtime attachment, `Driver` for ownership of a runtime boundary, and `Assembler` for combining parts into one artifact. | `TurnStateCoordinator`, `WorkspaceReloadCoordinator` | `TurnStateCoordinator` for a callable whose only role is installing Pi hooks. Use `TurnStateInstaller` |
+| `Factory` (noun) | Component or callable that creates domain instances from known inputs and transfers responsibility for them to an owner. Use `Assembler` to combine defined parts into one artifact. | `DocumentStoreFactory` | `AgentContextFactory` for combining registered contributions. Use `AgentContextAssembler` |
 | `Handle` (noun) | Object that gives its holder a scoped capability. Use `Handler` for a callable that processes an occurrence. | `SettingsHandle` | `ChannelTransportHandle` for a registrar callable |
 | `Handler` (noun) | Callable that a framework invokes to process one occurrence and possibly determine its result. Use `Listener` for passive observation. | `ChannelRequestHandler` | `StatusHandler` for a callable that only observes status changes |
-| `Installer` (noun) | Setup-time callable or component that attaches a whole feature or facet slice to a runtime. Use `Registrar` for a callable that adds one item. | `AgentInstaller` | `SingleAgentToolInstaller` for a callable that registers one tool; use `AgentToolRegistrar` |
+| `Installer` (noun) | Setup-time callable or component that attaches a whole feature or facet slice to a runtime. Use `Registrar` for a callable that adds one item. | `AgentInstaller` | `SingleAgentToolInstaller` for a callable that registers one tool. Use `AgentToolRegistrar` |
 | `Listener` (noun) | Callable that observes an occurrence without determining its result. Use `Handler` when the callable processes the occurrence or supplies its result. | `StatusListener` | `RequestListener` for a callable that must produce the request result |
-| `Presentation` (noun) | Purpose-specific human-facing material that forms an explicit intermediate boundary between display-policy derivation and UI composition or display execution. A presentation can be a derived projection; use `Projection` when the result remains consumer-neutral domain data, an ordinary UI component when no intermediate boundary exists, and `Renderer` for the mechanism that executes web display. | `ToolChatBlockPresentation` | `ToolChatRenderer`; `MessageChatBlockPresentation` for a component with no intermediate presentation value |
-| `Projector` (noun) | Stateful component whose private state exists only to incorporate source facts and derive a projection. Use a `deriveX` function for a one-shot transformation. | `TranscriptProjector` | `ModelCatalogProjector` that only maps one input array; use `deriveModelCatalog()` |
+| `Presentation` (noun) | Purpose-specific human-facing material that forms an explicit intermediate boundary between display-policy derivation and UI composition or display execution. A presentation can be a derived projection. Use `Projection` when the result remains consumer-neutral domain data, an ordinary UI component when no intermediate boundary exists, and `Renderer` for the mechanism that executes web display. | `ToolChatBlockPresentation` | `ToolChatRenderer`, `MessageChatBlockPresentation` for a component with no intermediate presentation value |
+| `Projector` (noun) | Stateful component whose private state exists only to incorporate source facts and derive a projection. Use a `deriveX` function for a one-shot transformation. | `TranscriptProjector` | `ModelCatalogProjector` that only maps one input array. Use `deriveModelCatalog()` |
 | `Publisher` (noun) | Capability or callable that its holder invokes to publish an event. | `FeatureEventPublisher` | `ChannelTransportPublish` |
 | `Registrar` (noun) | Callable that its holder invokes to add an item to a registry or contribution point. Do not use this term for the registered record or returned lifetime capability. | `ActionContributionRegistrar` | `RegisterActionContribution` |
 | `Runner` (noun) | Callable that executes an action. | `ActionRunner` | `ActionRun` |
@@ -233,7 +233,7 @@ isFailed: boolean;
 | --- | --- | --- | --- |
 | `Contribution` (noun) | Declarative value supplied by an author to a contribution point. Use `Installer` for code that directly attaches a whole slice to a runtime. | `ActionContribution` | `AgentInstaller` named as a contribution |
 | `Normalized` (adjective) | Converted into one canonical representation without binding live ownership, environment-dependent references, or derived identities. Use `Resolved` after those values become concrete. | `NormalizedResourceRoute` | `NormalizedActionContribution` after owner-derived ids are assigned |
-| `Registered` (adjective) | A separate live record created by registry acceptance with registry-owned state beyond the resolved input. When acceptance stores the resolved value unchanged, keep its `Resolved` type and let membership express liveness. | `RegisteredAction`; `RegisteredAgentContextAppendContribution` | `RegisteredAgentContextMaterializedContribution` with no fields beyond its resolved input |
+| `Registered` (adjective) | A separate live record created by registry acceptance with registry-owned state beyond the resolved input. When acceptance stores the resolved value unchanged, keep its `Resolved` type and let membership express liveness. | `RegisteredAction`, `RegisteredAgentContextAppendContribution` | `RegisteredAgentContextMaterializedContribution` with no fields beyond its resolved input |
 | `Resolved` (adjective) | Owner-derived identifiers, paths, references, or environment-dependent values are concrete and the value is ready to register. | `ResolvedActionContribution` | `ActionRegistration` for a registry-ready value |
 
 #### UIX-owned operation terms
@@ -244,7 +244,7 @@ Use _normalize_ when the result depends only on the input value. Use _resolve_ w
 
 For example, `normalizeShortcut()` is context-free. `resolveAgentToolContribution()` derives a concrete Pi tool name for each owning feature.
 
-In UIX, `resolve` means contextual or reference resolution, not conflict arbitration. A resolver makes identities and references concrete; the receiving registry rejects collisions instead of selecting a winner.
+In UIX, `resolve` means contextual or reference resolution, not conflict arbitration. A resolver makes identities and references concrete. The receiving registry rejects collisions instead of selecting a winner.
 
 | Term (part of speech) | Approved meaning / alternatives | Approved example | Nonconforming example |
 | --- | --- | --- | --- |
@@ -256,7 +256,7 @@ In UIX, `resolve` means contextual or reference resolution, not conflict arbitra
 | `create` (verb) | Construct a domain instance or independently identified artifact whose identity, evolving state, or ownership matters. | `createAgentDriver()` | `createSelectedBranchProjection()` for a rebuildable view |
 | `decode` (verb) | Apply the reverse half of a reversible representation transform. Use `parse` when the transform is validation without a paired encoding. | `decodeResourceUrl()` | `parseResourceUrl()` when paired with `encodeResourceUrl()` |
 | `define` (verb) | Preserve identity or type agreement around public-API plain data without creating a live instance. | `defineSurface()` | `createSurface()` for a plain surface definition |
-| `derive` (verb) | Compute a new immutable, rebuildable value through filtering, joining, folding, reduction, or domain policy. Use a more specific approved transformation when its boundary applies; otherwise use `derive` for pure policy computation instead of coining a verb from the result noun or return type. | `deriveSelectedBranchProjection()`; `deriveToolChatBlockPresentation()` | `createSelectedBranchProjection()`; `presentToolChatBlock()` |
+| `derive` (verb) | Compute a new immutable, rebuildable value through filtering, joining, folding, reduction, or domain policy. Use a more specific approved transformation when its boundary applies. Otherwise use `derive` for pure policy computation instead of coining a verb from the result noun or return type. | `deriveSelectedBranchProjection()`, `deriveToolChatBlockPresentation()` | `createSelectedBranchProjection()`, `presentToolChatBlock()` |
 | `encode` (verb) | Apply one half of a reversible representation transform. Use `to` for an ordinary representation without a paired decoder. | `encodeResourceUrl()` | `toResourceUrl()` when a paired decoder defines the representation |
 | `enumerate` (verb) | Eagerly derive every member of a finite possibility set. Use `list` to retrieve existing items. | `enumerateUniqueModifierSequences()` | `listUniqueModifierSequences()` when the operation generates possibilities |
 | `extract` (verb) | Pull an existing part from a larger value without applying domain reduction policy. Use `derive` when policy computes a new view. | `extractTranscriptText()` | `deriveTranscriptText()` for direct extraction |
@@ -267,14 +267,14 @@ In UIX, `resolve` means contextual or reference resolution, not conflict arbitra
 | `list` (verb) | Retrieve existing items. Use `enumerate` when the operation generates every member of a possibility set. | `listModels()` | `enumerateModels()` for models that already exist |
 | `load` (verb) | Turn persisted or external content into its live registered runtime form. A load can contain a read and can have runtime side effects. | `loadFeatures()` | `readFeatures()` when the operation activates them |
 | `materialize` (verb) | Turn one abstract, lazy, or buffered contribution into concrete content. Use `assemble` to combine many concrete parts. | `materializeContribution()` | `assembleContribution()` for one contribution |
-| `normalize` (verb) | Convert a value into one canonical representation without binding owner-derived identities or environment-dependent references. Use `resolve` when those values become concrete. | `normalizeShortcut()` | `normalizeActionContribution()` when the operation derives owner-scoped ids; use `resolveActionContribution()` |
+| `normalize` (verb) | Convert a value into one canonical representation without binding owner-derived identities or environment-dependent references. Use `resolve` when those values become concrete. | `normalizeShortcut()` | `normalizeActionContribution()` when the operation derives owner-scoped ids. Use `resolveActionContribution()` |
 | `open` (verb) | Start a long-lived stateful object whose lifetime an owner must manage. | `openWorkspace()` | `getWorkspace()` when the operation starts its runtime lifetime |
 | `parse` (verb) | Validate unknown or external input into a domain value and throw when it is invalid. Use `as` or `tryParse` for a non-throwing result. | `parseWorkspaceManifest()` | `asWorkspaceManifest()` when invalid input throws |
-| `project` (verb) | Incorporate one source fact into a projector's private derivation state. Use `derive` to return the final immutable result. | `projector.projectEntry(entry)` | `const result = projector.project()`; use `deriveSnapshot()` |
+| `project` (verb) | Incorporate one source fact into a projector's private derivation state. Use `derive` to return the final immutable result. | `projector.projectEntry(entry)` | `const result = projector.project()`. Use `deriveSnapshot()` |
 | `read` (verb) | Read from disk, a store, a stream, or another I/O-shaped source without creating a live registered runtime. Use `get` for a cheap lookup and `load` for activation. | `readSessionSummary()` | `getSessionSummary()` when the operation reads a file |
 | `register` (verb) | Put one item into a registry or contribution point. Use `install` for setup that attaches a whole slice to a runtime. | `actionRegistry.register()` | `installAction()` for one registry item |
 | `require` (verb) | Retrieve an expected value and throw when it is absent. Use `get` when absence is an ordinary result. | `requireManifestFeatureEntry()` | `getManifestFeatureEntry()` when absence throws |
-| `resolve` (verb) | Make owner-derived identifiers, paths, references, or environment-dependent values concrete. Include an axis when it can produce materially different results. | `resolveActionContribution()`; `resolveAgentToolContribution()`; `resolveShortcutForPlatform()` | `normalizeActionContribution()` after owner-scoped ids are derived |
+| `resolve` (verb) | Make owner-derived identifiers, paths, references, or environment-dependent values concrete. Include an axis when it can produce materially different results. | `resolveActionContribution()`, `resolveAgentToolContribution()`, `resolveShortcutForPlatform()` | `normalizeActionContribution()` after owner-scoped ids are derived |
 | `restore` (verb) | Replace live state from previously committed state or a referenced snapshot. Use `set` for an ordinary value replacement. | `cell.restore(state)` | `cell.set(state)` for branch restoration |
 | `set` (verb) | Replace an ordinary current value through its owning object. Use `commit` at an authority boundary and `restore` for previously committed state. | `settings.set(key, value)` | `settings.commit(key, value)` for an ordinary replacement |
 | `to` (preposition) | Produce a deterministic, side-effect-free representation of the same underlying value. The result has no independent identity. | `toChannelCanonicalId()` | `createChannelCanonicalId()` for a recomputable value |
@@ -297,35 +297,35 @@ In UIX, `resolve` means contextual or reference resolution, not conflict arbitra
 
 | Term (part of speech) | Approved meaning / alternatives | Approved example | Nonconforming example |
 | --- | --- | --- | --- |
-| `Registration` (noun) | Retired because it named several lifecycle stages. Use `ResolvedXContribution` for registry-ready input, `RegisteredX` for live registry state, and a capability role for the returned value. | `ResolvedActionContribution`; `RegisteredAction` | `ActionRegistration` |
+| `Registration` (noun) | Retired because it named several lifecycle stages. Use `ResolvedXContribution` for registry-ready input, `RegisteredX` for live registry state, and a capability role for the returned value. | `ResolvedActionContribution`, `RegisteredAction` | `ActionRegistration` |
 
 #### Imported terms
 
 | Term (part of speech) | Approved meaning / alternatives | Approved example | Nonconforming example |
 | --- | --- | --- | --- |
-| `Disposable` (noun; ECMAScript) | Object with deterministic cleanup through `Symbol.dispose`. Use a more specific capability role when cleanup is not its defining operation. | `DisposableBag` | `ActionContributionDisposable` for an update-and-dispose capability |
-| `handle` (verb; Electron) | Register an Electron IPC invocation handler. Use UIX-owned role nouns outside a direct representation of that API. | `ipc.handle(...)` | `ChannelRequestContribution.handle` for a stored UIX callback |
-| `Renderer` (noun; browser/Electron) | The web display execution environment or a mechanism that directly manages it. Reserve UIX-owned adoption for substrate display execution; use `Presentation` for human-facing material prepared for that boundary. | `renderer process` | `ToolChatRenderer` |
+| `Disposable` (noun, ECMAScript) | Object with deterministic cleanup through `Symbol.dispose`. Use a more specific capability role when cleanup is not its defining operation. | `DisposableBag` | `ActionContributionDisposable` for an update-and-dispose capability |
+| `handle` (verb, Electron) | Register an Electron IPC invocation handler. Use UIX-owned role nouns outside a direct representation of that API. | `ipc.handle(...)` | `ChannelRequestContribution.handle` for a stored UIX callback |
+| `Renderer` (noun, browser/Electron) | The web display execution environment or a mechanism that directly manages it. Reserve UIX-owned adoption for substrate display execution. Use `Presentation` for human-facing material prepared for that boundary. | `renderer process` | `ToolChatRenderer` |
 
 ## Naming
 
 - A `DisposableBag` that owns cleanup capabilities is named after the lifetime it tracks: `appBag`, `windowBag`, `sessionBag`.
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
-- Name symbols for their stable domain role and operation, not their current caller, pipeline position, trigger, owner, or implementation strategy. A name should remain correct if the symbol moves, gains another caller, or changes implementation without changing its essential domain guarantees. Let the receiver provide context (`turnStateCoordinator.restoreCurrent(...)`); do not repeat that context in every method.
-- Function names describe the observable domain operation. Include distinctions that identify materially different operations or results; put lifecycle ordering, current usage, race policy, preconditions, and nuanced skipped outcomes in behavioral comments. Do not encode those volatile details into a symbol merely because one caller currently depends on them.
+- Name symbols for their stable domain role and operation, not their current caller, pipeline position, trigger, owner, or implementation strategy. A name should remain correct if the symbol moves, gains another caller, or changes implementation without changing its essential domain guarantees. Let the receiver provide context (`turnStateCoordinator.restoreCurrent(...)`). Do not repeat that context in every method.
+- Function names describe the observable domain operation. Include distinctions that identify materially different operations or results. Put lifecycle ordering, current usage, race policy, preconditions, and nuanced skipped outcomes in behavioral comments. Do not encode those volatile details into a symbol merely because one caller currently depends on them.
 - Apply the ambiguity test: if two materially different operations could share a name, it is underspecified. Add the distinguishing domain, result, or resolution axis. Use `enumerateUniqueModifierSequences`, not `permutations`. Use `resolveShortcutForPlatform`, not `resolveShortcut`.
-- Domain vocabulary is noun-shaped; operations pair those nouns with the established verbs below. A domain noun keeps one grammatical role across types, values, and function results.
+- Domain vocabulary is noun-shaped. Operations pair those nouns with the established verbs below. A domain noun keeps one grammatical role across types, values, and function results.
 - Parameters name each participant's domain role (`transport`, `contract`, `scope`, `owner`, `session`, `lifetime`, `bag`). Access restrictions live in scoped capability types and handles.
-- A domain catalog is `XCatalog`; one public item is `XCatalogEntry`. Reserve these names for the catalog concept in [`concepts.md`](../concepts.md). Do not use them for arbitrary lists or snapshots. Avoid `Descriptor` when the value is a catalog entry.
+- A domain catalog is `XCatalog`. One public item is `XCatalogEntry`. Reserve these names for the catalog concept in [`concepts.md`](../concepts.md). Do not use them for arbitrary lists or snapshots. Avoid `Descriptor` when the value is a catalog entry.
 - State-shape nouns carry these meanings:
-  - A **snapshot** is an immutable point-in-time value or independently identified artifact. `toSnapshot()` converts one live value to its snapshot representation; `createDocumentSnapshot()` creates a store-owned artifact; `getCatalogSnapshot()` retrieves an existing current snapshot.
-  - A **projection** is a purpose-specific, read-only, lower-information view of authoritative state. It is rebuildable and never independently authoritative; a physically persisted projection has cache semantics. Use `deriveXProjection()` for a one-shot derivation.
-  - A **baseline** is the reference value used for comparison by a later operation; it remains derived unless its owning domain commits it.
+  - A **snapshot** is an immutable point-in-time value or independently identified artifact. `toSnapshot()` converts one live value to its snapshot representation. `createDocumentSnapshot()` creates a store-owned artifact. `getCatalogSnapshot()` retrieves an existing current snapshot.
+  - A **projection** is a purpose-specific, read-only, lower-information view of authoritative state. It is rebuildable and never independently authoritative. A physically persisted projection has cache semantics. Use `deriveXProjection()` for a one-shot derivation.
+  - A **baseline** is the reference value used for comparison by a later operation. It remains derived unless its owning domain commits it.
 - React components are the exception: keep PascalCase noun names such as `Conversation` or `ChoiceButton`.
 - Add any `Disposable` implementation directly to a bag without another wrapper.
-- Use `Store` for durable source-of-truth APIs/implementations. A store may expose a change feed when the change semantics are generic at that layer; otherwise domain-specific buffers/features publish higher-level invalidation events.
+- Use `Store` for durable source-of-truth APIs/implementations. A store may expose a change feed when the change semantics are generic at that layer. Otherwise domain-specific buffers/features publish higher-level invalidation events.
 - Use `Buffer` for live, feature-specific working projections over a store. Buffers may cache regenerable state, normalize writes, and reconcile feature/editor semantics, but durable authority stays in the backing store.
-- Use `Registry` for central in-memory maps of contributed things plus their routing (`ChannelRegistry`, `SettingsRegistry`); registries don't persist.
+- Use `Registry` for central in-memory maps of contributed things plus their routing (`ChannelRegistry`, `SettingsRegistry`). Registries don't persist.
 
 ### Projection naming
 
@@ -334,14 +334,14 @@ Describe a projection through the axes that can change its result. Not every pro
 | Axis | Question | Naming pattern |
 | --- | --- | --- |
 | **Sources** | Which authoritative inputs are viewed? | Name the domain sources in the projection or its parameters. |
-| **Viewpoint** | From which contextual coordinate are the sources interpreted? | `AsOfX` for a position in ordered history; `ForX` for an observer or environment. |
+| **Viewpoint** | From which contextual coordinate are the sources interpreted? | `AsOfX` for a position in ordered history. `ForX` for an observer or environment. |
 | **Selection** | Which source facts participate? | Use domain qualifiers such as `active`, `visible`, `offered`, or `unresolved`. |
 | **Correlation** | How are facts from different sources or positions joined? | `ByX` names a lookup or join key (`bindingByActionId`, `resultByToolCallId`). |
 | **Partition** | Which groups are reduced independently? | `PerX` names the partition (`latestValuePerCell`, `claimantsPerShortcut`). |
 | **Reduction** | How does each partition become a result? | Name the policy before the partition: `latestValuePerCell`, `countPerStatus`, `averageLatencyPerWindow`. |
 | **Result shape** | What consumer-facing view is produced? | Use the domain noun: `TranscriptSnapshot`, `ActionBindingProjection`, `ProviderAuthCatalog`. |
 
-A **projector** is the stateful derivation component used when cross-entry correlation or one shared source traversal requires incremental state. Name its factory `createXProjector`; `projectX(...)` incorporates one source fact into private derivation state; a receiver-qualified `deriveX()` returns the immutable result. For example:
+A **projector** is the stateful derivation component used when cross-entry correlation or one shared source traversal requires incremental state. Name its factory `createXProjector`. `projectX(...)` incorporates one source fact into private derivation state. A receiver-qualified `deriveX()` returns the immutable result. For example:
 
 ```ts
 const transcriptProjector = createTranscriptProjector();
@@ -363,8 +363,8 @@ Current projections apply the axes as follows:
 
 | Projection | Viewpoint | Selection / correlation | Partition / reduction | Result |
 | --- | --- | --- | --- | --- |
-| Selected branch | `asOfLeaf` | Displayable messages; registered turn-state cells; tool results joined by tool-call id | Ordered transcript; latest value per cell | `SelectedBranchProjection` with `transcript` and `turnStateAsOfLeaf.latestValuePerCell` |
-| Action bindings | `forPlatform` | Active actions joined to confirmed bindings by action id; inactive bindings split out as unresolved | Conflict claimants collected per resolved shortcut | `ActionBindingProjection` |
+| Selected branch | `asOfLeaf` | Displayable messages, registered turn-state cells, tool results joined by tool-call id | Ordered transcript, latest value per cell | `SelectedBranchProjection` with `transcript` and `turnStateAsOfLeaf.latestValuePerCell` |
+| Action bindings | `forPlatform` | Active actions joined to confirmed bindings by action id. Inactive bindings split out as unresolved | Conflict claimants collected per resolved shortcut | `ActionBindingProjection` |
 | Provider authentication | current `ModelRuntime` | Interactive provider-owned login methods joined with non-secret connection status | Connected providers ranked before remaining provider names | `ProviderAuthCatalog` |
 | Canvas anchors | `asOfDocumentVersion` or current working content | Addressable text joined to retained anchor identity | Anchor continuity reconciled per document and line | `AnchoredDocument` working projection |
 
@@ -390,7 +390,7 @@ Do not narrate future intentions. They are unverifiable and become stale silentl
 
 Use the exact `Update when:` label, followed by one observable condition and the required code or documentation update. In TypeScript and JavaScript, use the form `// Update when: {condition}. {action}.` Other source formats use their ordinary comment syntax with the same label. Place the comment at the narrowest affected boundary and preserve the current reason separately when the trigger does not explain it.
 
-Before the condition occurs, the marker creates no pending work. Do not use it for speculative refactors, generic TODOs, preferences, plan stages, or ticket ids. Do not link a code marker to a plan; its validity boundary must remain understandable after planning artifacts archive.
+Before the condition occurs, the marker creates no pending work. Do not use it for speculative refactors, generic TODOs, preferences, plan stages, or ticket ids. Do not link a code marker to a plan. Its validity boundary must remain understandable after planning artifacts archive.
 
 **What earns a comment:** Add a warning or explanation that code cannot carry itself. Examples include load-bearing order, external format tolerance, and hidden ownership constraints. Each should prevent a plausible wrong assumption.
 
@@ -400,11 +400,11 @@ Colocated `*.test.*` and `*.spec.*` files are not indexed. Their production file
 
 JSON, binary assets, and static data are not indexed. A directory `AGENTS.md` or local attribution leaf describes non-code assets when their role is not evident.
 
-**Summary:** One sentence of at most 30 words states the file's purpose and why a reader would open it. The summary is the responsibility claim a reader uses to decide. Name the responsibility directly. Use a noun phrase when the file is the thing it defines: a contract, type surface, format, contribution set, entry point, or capability. Open with the operation's verb when the file performs an operation or holds stateful behavior. Decide by what a reader accomplishes. They obtain what the file declares, or follow and reuse what it does. A summary that enumerates parts signals multiple responsibilities. Put the parts in the elaboration instead. Prefer a concrete actor, action, and object over stacked modifiers or abstract nouns. A summary may use a longer plain sentence when that is easier to understand; do not optimize for the fewest words. Keep specialized terms only when they preserve a distinction that plain language would lose.
+**Summary:** One sentence of at most 30 words states the file's purpose and why a reader would open it. The summary is the responsibility claim a reader uses to decide. Name the responsibility directly. Use a noun phrase when the file is the thing it defines: a contract, type surface, format, contribution set, entry point, or capability. Open with the operation's verb when the file performs an operation or holds stateful behavior. Decide by what a reader accomplishes. They obtain what the file declares, or follow and reuse what it does. A summary that enumerates parts signals multiple responsibilities. Put the parts in the elaboration instead. Prefer a concrete actor, action, and object over stacked modifiers or abstract nouns. A summary may use a longer plain sentence when that is easier to understand. Do not optimize for the fewest words. Keep specialized terms only when they preserve a distinction that plain language would lose.
 
 Use the path and filename as existing context instead of repeating them. Distinguish sibling files without enumerating exports, callers, control flow, implementation mechanics, plans, or guessed search synonyms.
 
-**Elaboration:** At most one `//` paragraph follows the summary, and its length scales with the file's size. It extends the claim with the file-level concepts the sentence cannot hold: mechanism, hidden guarantees, external constraints, failure boundaries, and rationale. It stays at the file's medium abstraction level; anything lower belongs in code comments. It never restates the summary; if the paragraph re-claims the sentence's content in more words, tighten the summary or cut the paragraph. Do not use the paragraph as an export inventory or control-flow narration. If one coherent summary cannot describe the file, reconsider its responsibilities.
+**Elaboration:** At most one `//` paragraph follows the summary, and its length scales with the file's size. It extends the claim with the file-level concepts the sentence cannot hold: mechanism, hidden guarantees, external constraints, failure boundaries, and rationale. It stays at the file's medium abstraction level. Anything lower belongs in code comments. It never restates the summary. If the paragraph re-claims the sentence's content in more words, tighten the summary or cut the paragraph. Do not use the paragraph as an export inventory or control-flow narration. If one coherent summary cannot describe the file, reconsider its responsibilities.
 
 A facade or pass-through module states the boundary that it exposes.
 
@@ -412,7 +412,7 @@ A facade or pass-through module states the boundary that it exposes.
 
 Complex or edge-case-heavy logic needs denser explanation because wrong assumptions are expensive. Examples include platform quirks, cache semantics, and ordering. Keep UI components, tests, and simple code thin. A file can have no comments beyond its required header when names and types carry the complete story.
 
-**JSDoc:** JSDoc serves code users; line comments serve implementation readers. Write JSDoc as well-formed Markdown.
+**JSDoc:** JSDoc serves code users. Line comments serve implementation readers. Write JSDoc as well-formed Markdown.
 
 Use lists instead of compressed prose. Put one tag on each line and indent wrapped tag text. Use single-line `/** ... */` form when it fits.
 

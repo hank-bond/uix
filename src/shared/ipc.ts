@@ -2,7 +2,7 @@
 //
 // Substrate-owned channels are scoped under `uix:` so they don't collide with
 // feature channels or other transport messages. Renderer never imports
-// `electron`; it only sees the surface exposed by the preload via
+// `electron`. It only sees the surface exposed by the preload via
 // contextBridge. These types describe that contract so both sides stay
 // in sync.
 
@@ -15,7 +15,7 @@ import {
   FeatureSettingValueEnvelopeSchema,
 } from "@uix/api/settings";
 
-/** Substrate channel names. Keep this list small; features register their own. */
+/** Substrate channel names. Keep this list small. Features register their own. */
 export const Channels = {
   /** Renderer → main. invoke-style. Reloads host resources in place. */
   reload: "uix:reload",
@@ -46,7 +46,7 @@ export interface PickerOpenRequest {
 }
 
 export interface PickerCreateRequest {
-  /** Workspace name written into the new manifest; falls back to the dir name. */
+  /** Workspace name written into the new manifest. Falls back to the dir name. */
   name: string;
 }
 

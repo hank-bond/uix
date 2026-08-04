@@ -1,7 +1,7 @@
 // Assembles feature-provided Pi skill paths and provides them when Pi discovers runtime resources.
 //
 // Features declare files/directories relative to their entry file. The registry
-// retains resolved contributions in manifest and declaration order; one
+// retains resolved contributions in manifest and declaration order. One
 // substrate installer forwards the active path snapshot through Pi's
 // resources_discover event.
 

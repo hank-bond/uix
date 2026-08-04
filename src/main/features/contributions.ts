@@ -43,7 +43,7 @@ export interface FeatureContributionRegistries {
 /** Where the feature's definition came from, for path-relative facets. */
 export interface FeatureOrigin {
   /**
-   * Directory of the feature's entry file; surface entry refs resolve
+   * Directory of the feature's entry file. Surface entry refs resolve
    * against it. Absent for compiled-in definitions, which therefore cannot
    * contribute surfaces.
    */

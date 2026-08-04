@@ -1,6 +1,6 @@
 // Creates the workspace client over the preload channel transport.
 //
-// The workspace runs directly in the BrowserWindow; no iframe, no sandbox.
+// The workspace runs directly in the BrowserWindow. No iframe, no sandbox.
 // Multi-workspace isolation comes from separate BrowserWindows.
 
 import type { WorkspaceClient } from "@uix/api/workspace";

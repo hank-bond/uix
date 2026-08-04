@@ -6,8 +6,8 @@
 // merged context bag. Keeping construction here (rather than inline in the
 // feature's contribute wiring) gives the shared objects a single home and a
 // single importable type, and keeps the import graph one-directional:
-// context.ts depends only on substrate + the buffer; the facet factories
-// depend on context.ts; the feature wiring depends on both.
+// context.ts depends only on substrate + the buffer. The facet factories
+// depend on context.ts. The feature wiring depends on both.
 
 import type { DocumentStore } from "@uix/api/documents";
 import type { FeatureContext } from "@uix/api/feature";

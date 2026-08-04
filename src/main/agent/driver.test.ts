@@ -32,7 +32,7 @@ interface FakeModel {
   authed: boolean;
 }
 
-// Mutable state the mocked sdk reads at call time; tests reconfigure it via
+// Mutable state the mocked sdk reads at call time. Tests reconfigure it via
 // the returned handles below. Hoisted because vi.mock factories run before
 // module-scope initializers.
 const sdk = vi.hoisted(() => {

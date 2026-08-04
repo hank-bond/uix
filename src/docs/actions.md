@@ -1,5 +1,5 @@
 ---
-summary: "Feature surfaces register renderer action trees; the workspace derives catalogs, invokes ids, materializes defaults, and disables conflicted keybindings."
+summary: "Feature surfaces register renderer action trees. The workspace derives catalogs, invokes ids, materializes defaults, and disables conflicted keybindings."
 kind: reference
 status: active
 ---
@@ -29,7 +29,7 @@ useActionContribution({
 });
 ```
 
-Object keys are local identity segments. The substrate binds the owning feature id and derives `chat.models.all`; authors do not provide canonical ids.
+Object keys are local identity segments. The substrate binds the owning feature id and derives `chat.models.all`. Authors do not provide canonical ids.
 
 Group titles organize presentation paths. A leaf contains `title`, optional `description`, optional `defaultBinding`, optional `enabled`, and a synchronous or asynchronous `run` callback.
 

@@ -6,7 +6,7 @@ status: active
 
 # Conventions
 
-Short, opinionated rules. Each one buys back review effort by making a class of bugs hard to write. Most are main-process specifics (lifetimes, logging, imports); **Source organization**, **Naming**, and **Comments** apply to all UIX code, including UI, shared, and feature modules.
+Short, opinionated rules. Each one buys back review effort by making a class of bugs hard to write. Most are main-process specifics (lifetimes, logging, imports). **Source organization**, **Naming**, and **Comments** apply to all UIX code, including UI, shared, and feature modules.
 
 This directory contains prescriptive code rules. Each leaf is living architecture and describes HEAD. Use the summaries to open only rules relevant to the task.
 

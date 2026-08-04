@@ -15,7 +15,7 @@ export interface ResolvedSurfaceContribution {
   readonly entry: string;
   /**
    * The feature's root directory (its entry file's dir). Surface refs
-   * resolved against it; the pipeline serves CSS/assets from inside it and
+   * resolved against it. The pipeline serves CSS/assets from inside it and
    * refuses imports that escape it.
    */
   readonly featureRoot: string;

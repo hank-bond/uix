@@ -5,7 +5,7 @@ status: active
 
 # Tool content
 
-Each component renders one tool family's row inside the shared tool block chrome. `CanvasToolContent.tsx` shows anchored canvas payload text with a show-more toggle. `CommandToolContent.tsx` renders a highlighted command and result disclosure; `FileToolContent.tsx` shows a path summary with content or result. `DefaultToolContent.tsx` is the fallback for unrecognized tools.
+Each component renders one tool family's row inside the shared tool block chrome. `CanvasToolContent.tsx` shows anchored canvas payload text with a show-more toggle. `CommandToolContent.tsx` renders a highlighted command and result disclosure. `FileToolContent.tsx` shows a path summary with content or result. `DefaultToolContent.tsx` is the fallback for unrecognized tools.
 
 ## Contents
 

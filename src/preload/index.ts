@@ -1,7 +1,7 @@
 // Exposes the typed channel transport on `window.channels` for sandboxed renderer pages.
 //
 // Sandboxed + contextIsolated. The renderer never sees `ipcRenderer`
-// directly; it gets a typed surface on `window.channels` mirroring the
+// directly. It gets a typed surface on `window.channels` mirroring the
 // contract in src/shared/ipc.ts.
 
 import { contextBridge, ipcRenderer } from "electron";

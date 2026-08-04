@@ -14,7 +14,7 @@ Files involved:
 - [`src/api/feature.ts`](../../../src/api/feature.ts), `FeatureDefinition`, `FeatureContext`, `FeatureContributions`
 - [`src/api/workspace.ts`](../../../src/api/workspace.ts), `defineSurface`
 
-A real feature combining every facet is [`src/features/canvas/`](../../../src/features/canvas/); use it as the reference for a complete contribution set.
+A real feature combining every facet is [`src/features/canvas/`](../../../src/features/canvas/). Use it as the reference for a complete contribution set.
 
 ## Author the entry
 
@@ -33,7 +33,7 @@ export const feature = defineFeature({
 });
 ```
 
-`id` is the feature's identity. It owns contribution namespaces, channel ids, settings access, and logs. Workspace manifest entries do not repeat the id; if two entries export the same id, activation fails for the later one.
+`id` is the feature's identity. It owns contribution namespaces, channel ids, settings access, and logs. Workspace manifest entries do not repeat the id. If two entries export the same id, activation fails for the later one.
 
 `ctx` is the injected [`FeatureContext`](../../../src/api/feature.ts): `documents` (a document-store factory), `settings`, `channels` (an event-publisher factory), and `log`. Features access external state **only** through `ctx` and the typed `@uix/api` contracts, never by importing host internals.
 
@@ -53,7 +53,7 @@ Add an ordered entry reference to `uix.workspace.json`. Manifest order is activa
 }
 ```
 
-`entry` resolves relative to `uix.workspace.json` unless it is absolute. Then reload; entries are `.ts`/`.js` loaded from disk, so no Electron rebuild is needed:
+`entry` resolves relative to `uix.workspace.json` unless it is absolute. Then reload. Entries are `.ts`/`.js` loaded from disk, so no Electron rebuild is needed:
 
 ```ts
 await window.uix.reload();
@@ -202,7 +202,7 @@ UIX starts Pi with built-in tools inactive, so the feature composition defines t
 
 ## System-prompt section and skills
 
-`agentSystemPrompt` appends one stable Markdown section per feature to the agent's system prompt, in manifest order. Keep it short and always-relevant; detailed optional workflows belong in an `agentSkills` entry, which Pi loads on demand from its `SKILL.md`:
+`agentSystemPrompt` appends one stable Markdown section per feature to the agent's system prompt, in manifest order. Keep it short and always-relevant. Detailed optional workflows belong in an `agentSkills` entry, which Pi loads on demand from its `SKILL.md`:
 
 ```ts
 agentSystemPrompt: `## Notes
@@ -212,7 +212,7 @@ agentSkills: ["./skills/notes-authoring"], // resolved relative to the entry fil
 
 ## Turn state
 
-Turn state holds branch-scoped durable state the model does not see. Each named cell has one schema plus `createSnapshot`/`restore`; the substrate compares cells independently and persists only changed ones:
+Turn state holds branch-scoped durable state the model does not see. Each named cell has one schema plus `createSnapshot`/`restore`. The substrate compares cells independently and persists only changed ones:
 
 ```ts
 import {
@@ -250,7 +250,7 @@ export const notesContext: AgentContextContribution[] = [
 ];
 ```
 
-Buffers (`update`/`append`) offer UIX-managed alternatives that push state independently of the turn. The assembler emits one hidden `uix.state` message to the model; surfaces do not see it.
+Buffers (`update`/`append`) offer UIX-managed alternatives that push state independently of the turn. The assembler emits one hidden `uix.state` message to the model. Surfaces do not see it.
 
 ## Surfaces
 

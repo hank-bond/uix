@@ -116,7 +116,7 @@ export function registerChannelContributions(
   const bag = new DisposableBag();
   try {
     for (const contribution of contributions) {
-      // The contract states its owner once, where it's defined; a mismatch
+      // The contract states its owner once, where it's defined. A mismatch
       // here means a feature is registering handlers under someone else's
       // channel namespace: always a wiring bug, never valid.
       if (contribution.feature !== featureId) {
@@ -141,7 +141,7 @@ export function registerChannelContributions(
 /**
  * The `channels` capability handed to a feature's context. The feature id and
  * the registry are closed over here, so a publisher can only be minted for
- * the feature's own namespace and only by presenting a contract; there is no
+ * the feature's own namespace and only by presenting a contract. There is no
  * untyped publish surface and no way to emit onto canonical ids nobody
  * declared.
  */

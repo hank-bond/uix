@@ -2,7 +2,7 @@
 //
 // The renderer consumes one UIX-owned transcript item shape whether the source
 // is a persisted Pi session entry or a live Pi event. Live streaming may attach
-// volatile fields such as `partialResult`; persisted history only replays the
+// volatile fields such as `partialResult`. Persisted history only replays the
 // durable completed items.
 
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";

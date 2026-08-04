@@ -99,7 +99,7 @@ export interface AgentDriver extends Disposable {
   restoreFeatureTurnState(): Promise<void>;
   /**
    * Kick the eager, auth-free selected-session load and turn-state restore off
-   * the boot path. Safe to call before any prompt; lets sessionHistory()
+   * the boot path. Safe to call before any prompt. Lets sessionHistory()
    * resolve without waiting on a prompt.
    */
   init(): void;
@@ -157,7 +157,7 @@ export interface AgentDriverOptions {
   /** App-owned Pi profile shared across UIX workspaces. */
   piProfileDir: string;
   /**
-   * Workspace `agent` settings namespace; holds model defaults and favorites.
+   * Workspace `agent` settings namespace. Holds model defaults and favorites.
    * Without a default, UIX passes no model and Pi's own resolution applies,
    * including resolving to no model at all when nothing is authenticated.
    */
@@ -556,7 +556,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
 
   return {
     init() {
-      // Fire the eager manager load and state restore; swallow rejection here
+      // Fire the eager manager load and state restore. Swallow rejection here
       // so an early failure doesn't surface as an unhandled rejection.
       // prompt()/sessionHistory() retry.
       void restoreBootstrapTurnState().catch(() => {});
@@ -623,7 +623,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       if (runtime) {
         // Native Pi state: appends a model_change entry, persists Pi's own
         // defaults, reclamps thinking. The model_select installer mirrors
-        // currentModel; the extra assignment below is a same-payload no-op.
+        // currentModel. The extra assignment below is a same-payload no-op.
         await runtime.session.setModel(model);
         currentModel = { provider: ref.provider, id: ref.id };
       }
@@ -755,7 +755,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
 
     async reloadPiResources() {
       // Reload only tiers already in use. A live session owns Pi's native
-      // extension rebind; before a session exists, recreate the coherent
+      // extension rebind. Before a session exists, recreate the coherent
       // services tier so extension provider hooks cannot accumulate.
       if (await reloadActiveRuntime()) return true;
       if (!preRuntimeServices && !inFlightServicesCreate) return false;
@@ -772,10 +772,10 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       // No echo here: the renderer already shows its optimistic pending row,
       // and the authoritative keyed row is emitted by the onUserMessage
       // observer when Pi persists. A prompt that fails before persistence
-      // truthfully contributes no user row to the feed; the renderer's
+      // truthfully contributes no user row to the feed. The renderer's
       // unconfirmed row plus the error item below are the whole record.
       try {
-        // Runtime opening is retryable; getRuntime() shares only the current
+        // Runtime opening is retryable. getRuntime() shares only the current
         // in-flight operation and records authority separately on success.
         const session = (await getRuntime()).session;
 
@@ -812,7 +812,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         }
 
         // Send the human's text verbatim. Agent-run context rides the
-        // uix.state entry pushed above; the stored user entry is exactly
+        // uix.state entry pushed above. The stored user entry is exactly
         // what the human typed.
         await session.prompt(text);
       } catch (err) {
@@ -824,7 +824,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
             message: errorMessage(err),
           },
         });
-        // Renderer treats agent_end as "you can send again"; emit it on error
+        // Renderer treats agent_end as "you can send again". Emit it on error
         // so the composer unlocks.
         opts.onEvent({ type: "agent_end" });
       }

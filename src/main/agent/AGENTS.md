@@ -5,7 +5,7 @@ status: active
 
 # Agent runtime
 
-The driver owns each live Pi runtime and delegates focused work rather than letting helpers enroll themselves. Ordered installers attach UIX behavior when a runtime starts; their order matters because Pi runs hooks in registration order.
+The driver owns each live Pi runtime and delegates focused work rather than letting helpers enroll themselves. Ordered installers attach UIX behavior when a runtime starts. Their order matters because Pi runs hooks in registration order.
 
 A selected Pi branch is the shared source for the persisted transcript and restored feature state. Historical projection and live observation must produce the same renderer transcript shape. Live rows begin with temporary IDs when necessary, then adopt Pi's durable entry IDs when their messages are persisted.
 

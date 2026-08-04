@@ -1,7 +1,7 @@
 // Renders the start-picker UI: recent workspaces and create-new, acting over the picker channels.
 //
 // Recents plus create-new over the substrate picker channels. A successful
-// action means main is tearing this window down; the component only has to
+// action means main is tearing this window down. The component only has to
 // surface errors and dialog cancellations.
 
 import type { JSX } from "react";
@@ -40,7 +40,7 @@ export function Picker(): JSX.Element {
         payload,
       )) as PickerActionResult;
       if (!result.ok && result.error) setError(result.error);
-      // ok: main is transitioning; canceled: nothing to do.
+      // ok: main is transitioning. Canceled: nothing to do.
     } catch (thrown) {
       setError(thrown instanceof Error ? thrown.message : String(thrown));
     } finally {

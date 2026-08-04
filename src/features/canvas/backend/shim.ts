@@ -9,7 +9,7 @@
 
 import type { CanvasKey } from "../shared/addressing";
 
-// Embedded raw into the script via a template; the key is validated so it
+// Embedded raw into the script via a template. The key is validated so it
 // cannot contain quotes or break out of the string literal.
 function shimScript(key: CanvasKey): string {
   return `(function () {
@@ -18,7 +18,7 @@ function shimScript(key: CanvasKey): string {
   var KEY = "${key}";
   var timer;
   var lastHtml = "";
-  // outerHTML serializes attributes, not live form state; reflect each
+  // outerHTML serializes attributes, not live form state. Reflect each
   // control's current property onto the clone so a selection/typed value is
   // captured, not just the markup it was parsed from.
   function reflectFormState(live, copy) {

@@ -6,14 +6,14 @@ status: active
 
 # UIX marketing site
 
-GitHub Pages serves the public UIX landing page at **uix.sh**. It is a _zero-build static site_ using plain HTML, CSS, and JavaScript. Edit the files directly; no bundler runs.
+GitHub Pages serves the public UIX landing page at **uix.sh**. It is a _zero-build static site_ using plain HTML, CSS, and JavaScript. Edit the files directly. No bundler runs.
 
 ## Files
 
 | File | Role |
 | --- | --- |
 | `index.html` | Markup. One page: sticky bar, hero (the brandmark), mock app. |
-| `styles.css` | All styling + the scroll-driven animation. Sectioned; read its header comment. |
+| `styles.css` | All styling + the scroll-driven animation. Sectioned. Read its header comment. |
 | `mock.js` | Toggles the mock theme and slows the arrow's click-scroll. It never changes user-driven scrolling. |
 | `uix-logo-white.svg` | Favicon. The brandmark on the page is inlined in `index.html`. |
 | `CNAME` | `uix.sh` for Pages. |

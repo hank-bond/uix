@@ -5,9 +5,9 @@
 // re-fetches on `surfaces_changed` (fired after every load pass, so
 // /reload updates the composition live). Every surface, chat and canvas
 // included, is dynamic-imported from its content-hash-busted
-// substrate-origin URL; a failing surface renders an error card, the
+// substrate-origin URL. A failing surface renders an error card, the
 // frontend twin of the loader's `failed[]`, without taking down the
-// workspace. Surface definitions live with their features; channel
+// workspace. Surface definitions live with their features. Channel
 // clients are created by the surface host, not by feature code.
 
 import type { JSX } from "react";
@@ -98,7 +98,7 @@ export function SurfaceMount({
     [workspace, entry.featureId],
   );
 
-  // A surface's sheets apply only while it is mounted; unmount (or a
+  // A surface's sheets apply only while it is mounted. Unmount (or a
   // reload that drops the surface) removes them, so styles can't leak
   // across composition changes. Adoption also wraps every sheet in the
   // surface's @scope, so containment is structural rather than an authoring
@@ -128,10 +128,10 @@ export function SurfaceMount({
  * Rebuild a surface's sheet with every rule wrapped in
  * `@scope ([data-uix-surface="<name>"])`, so feature CSS cannot style other
  * surfaces or the host chrome no matter how its selectors are written.
- * Feature authors write plain selectors; the substrate owns containment.
+ * Feature authors write plain selectors. The substrate owns containment.
  *
  * Name-global at-rules (@font-face, @keyframes, @property) are hoisted out
- * of the wrap: scoping cannot contain them; their names are document-global
+ * of the wrap: scoping cannot contain them. Their names are document-global
  * by CSS's design, and inside @scope they would be ignored. Collisions
  * there remain a (documented) naming responsibility.
  *
@@ -230,7 +230,7 @@ export function useRuntimeSurface(entry: SurfaceEntry): RuntimeSurfaceState {
 
 /**
  * Narrows a module's `surface` export to a SurfaceContribution or throws
- * with a message that names what's wrong; loaded code is validated, not
+ * with a message that names what's wrong. Loaded code is validated, not
  * trusted, mirroring the backend loader's `validateFeatureDefinition`.
  */
 function validateSurfaceContribution(value: unknown): SurfaceContribution {

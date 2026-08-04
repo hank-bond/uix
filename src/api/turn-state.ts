@@ -35,7 +35,7 @@ export interface TurnStateCellDefinition<Schema extends TSchema = TSchema> {
   readonly schema: Schema;
   /** Creates this cell's complete current JSON snapshot for a durable commit. */
   readonly createSnapshot: () => MaybePromise<Static<Schema>>;
-  /** Replaces live state from the selected branch; undefined means defaults. */
+  /** Replaces live state from the selected branch. Undefined means defaults. */
   readonly restore: (state: Static<Schema> | undefined) => MaybePromise<void>;
 }
 

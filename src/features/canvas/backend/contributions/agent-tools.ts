@@ -91,7 +91,7 @@ function createReadTool(
     promptSnippet: "Read a canvas as anchored lines.",
     parameters: readParams,
     // `params: ReadParams` is inferred from `AgentToolDefinition<typeof readParams>`.
-    // No hand-annotation needed; the factory return type carries the schema.
+    // No hand-annotation needed. The factory return type carries the schema.
     async execute(_toolCallId, params) {
       const lines = await ctx.buffer.read(params.key, params.start, params.end);
       return {

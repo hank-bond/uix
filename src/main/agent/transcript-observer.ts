@@ -160,7 +160,7 @@ function createLiveTranscriptForwarder(
         const inner = event.assistantMessageEvent;
         if (inner.type === "text_delta") {
           // Accumulate locally (message_end falls back to this text when the
-          // final message extracts empty) but ship only the increment; the
+          // final message extracts empty) but ship only the increment. The
           // renderer accumulates its copy from partials.
           const current = ensureAssistant();
           assistant = { ...current, text: current.text + inner.delta };
@@ -180,7 +180,7 @@ function createLiveTranscriptForwarder(
           const finalText =
             extractTranscriptText(event.message) || current.text;
           // Final content lands under the pre-key handle first, so display
-          // never depends on the append wrapper; the rekey replace follows
+          // never depends on the append wrapper. The rekey replace follows
           // in the same tick when Pi persists this exact message object.
           const final = { ...current, text: finalText, complete: true };
           replace(final);
@@ -236,7 +236,7 @@ function createLiveTranscriptForwarder(
         // Tool partials are tool-defined replacement snapshots (e.g. bash
         // ships its bounded output tail every ~100ms), so forward the payload
         // alone. No point resending the row's args on every tick. The stored
-        // row stays as appended; the completion replace discards partials.
+        // row stays as appended. The completion replace discards partials.
         const current = tools.get(event.toolCallId);
         if (!current) return;
         emit({

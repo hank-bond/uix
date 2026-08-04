@@ -17,10 +17,10 @@ export const agentWorkspaceSettings = defineWorkspaceSettingsNamespace({
     /**
      * Workspace default model: used before a Pi session exists and as the
      * default for new sessions/branches without a `model_change` entry.
-     * Optional; absent until the user first selects a model.
+     * Optional. Absent until the user first selects a model.
      */
     defaultModel: Type.Optional(ModelRefSchema),
-    /** Workspace-local shortlist; unavailable entries remain for reconnects. */
+    /** Workspace-local shortlist. Unavailable entries remain for reconnects. */
     favoriteModels: Type.Optional(Type.Array(ModelRefSchema)),
   }),
 });

@@ -11,13 +11,13 @@
 // elements and entities, tree correction) and deliberately does NOT reflow:
 // whitespace text nodes, including the author's newlines, are preserved
 // verbatim, so canonicalization can't change how the document renders. The flip
-// side is that line granularity is whatever the author emitted; the agent is
+// side is that line granularity is whatever the author emitted. The agent is
 // asked to write one block-level element per line so edits address fine-grained
 // anchors. Imposing line breaks (reflow) is a separate, later concern.
 //
 // parse5 is an ordinary feature dep, declared in this feature's package.json
 // and resolved by node_modules walk-up from this file (the repo's copy in
-// dev; the workspace-root install in a scaffolded workspace). jiti transpiles
+// dev. The workspace-root install in a scaffolded workspace). jiti transpiles
 // its ESM entry, so these stay synchronous.
 
 import { parse, serialize } from "parse5";

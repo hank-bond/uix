@@ -48,7 +48,7 @@ export async function readRecentSessionSummaries(
 ): Promise<SessionSummary[]> {
   const files = await listRecentSessionFiles(sessionDir, limit);
   const summaries: SessionSummary[] = [];
-  // Files are selected by mtime first; parse that bounded set sequentially so
+  // Files are selected by mtime first. Parse that bounded set sequentially so
   // only one whole-file buffer is live at a time.
   for (const file of files) {
     const summary = await readSessionFileSummary(file.path, file.modifiedAt);

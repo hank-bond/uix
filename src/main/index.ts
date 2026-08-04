@@ -3,7 +3,7 @@
 // Owns App lifecycle: the shell boots, then either opens a workspace
 // directly (explicit UIX_WORKSPACE target, or a cwd that holds a manifest)
 // or shows the start picker, which provides the workspace to open. One
-// open workspace per App instance (v1); everything workspace-bound lives
+// open workspace per App instance (v1). Everything workspace-bound lives
 // in openWorkspace().
 //
 // All cleanup-requiring bindings (IPC handlers, app events, window events)
@@ -83,8 +83,8 @@ import {
 const isDev = !app.isPackaged;
 const LocalWorkspaceId = "local";
 
-// Preflight declarations must land before app ready; today that's just the
-// substrate resource protocol (no feature is loaded this early; manifest
+// Preflight declarations must land before app ready. Today that's just the
+// substrate resource protocol (no feature is loaded this early. Manifest
 // features are runtime contributions by definition).
 registerFeaturePreflightContributions([]);
 
@@ -136,7 +136,7 @@ function openShellWindow(
   return win;
 }
 
-// Level policy: what the chat displays is info; plumbing is debug; partials
+// Level policy: what the chat displays is info. Plumbing is debug. Partials
 // are trace. The IPC boundary already records every crossing at debug/trace,
 // so these info lines exist purely to keep the human-visible conversation
 // readable in the default log.
@@ -148,7 +148,7 @@ function logChatContent(event: AgentEvent): void {
     createLogger("chat").info({ text: item.text }, "user_message");
     return;
   }
-  // The completion replace logs once; the same-text rekey replace (carries
+  // The completion replace logs once. The same-text rekey replace (carries
   // previousId) and streaming partials do not.
   if (
     item.kind === "assistant" &&
@@ -163,7 +163,7 @@ function logChatContent(event: AgentEvent): void {
 /**
  * Boot the substrate against a workspace and open its window. Everything
  * workspace-bound (state root, registries, agent driver, feature load,
- * reload handler) lives here; the shell above it only decides *which*
+ * reload handler) lives here. The shell above it only decides *which*
  * workspace to open.
  */
 async function openWorkspace(
@@ -172,7 +172,7 @@ async function openWorkspace(
   workspace: Workspace,
   piProfileDir: string,
 ): Promise<void> {
-  // Raw IPC payloads spill to a per-run file under the state root; path is
+  // Raw IPC payloads spill to a per-run file under the state root. Path is
   // logged as `ipc_log_file` when armed.
   ipc.initLogFile(workspace.stateRoot);
 
@@ -209,7 +209,7 @@ async function openWorkspace(
     },
   });
 
-  // Facet registries. Features contribute data into these; substrate installers
+  // Facet registries. Features contribute data into these. Substrate installers
   // adapt the registries to Pi when the agent session opens.
   const resources = appBag.add(
     new ResourceRegistry({ workspaceId: LocalWorkspaceId }),
@@ -273,8 +273,8 @@ async function openWorkspace(
   // Substrate workspace channels under the reserved `uix` id: the surface
   // composition the renderer mounts, plus the changed signal fired after
   // every load pass so the page re-fetches. The pipeline bundles each
-  // registered surface entry into a servable module; its routes live on the
-  // substrate origin (uix-resource://uix.<ws>); the only origin the page's
+  // registered surface entry into a servable module. Its routes live on the
+  // substrate origin (uix-resource://uix.<ws>). The only origin the page's
   // CSP lets scripts and styles load from.
   const surfacePipeline = new SurfaceModulePipeline(LocalWorkspaceId);
   appBag.add(
@@ -342,7 +342,7 @@ async function openWorkspace(
       withHandlers(agentChannels, {
         prompt: {
           handler: (req) => {
-            // Fire and forget; the renderer subscribes to the event
+            // Fire and forget. The renderer subscribes to the event
             // stream, and the invoke resolves once the prompt has been
             // accepted.
             void driver.prompt(req.text);
@@ -424,8 +424,8 @@ async function openWorkspace(
   // One load pass activates the whole composition, the manifest's entries,
   // in manifest order, all under featuresBag, so reload re-runs everything.
   // Where feature value-imports of @uix/api resolve. In dev this is the
-  // repo's source; a packaged app ships the API source with the feature
-  // templates (packaging arc); until then the alias is simply absent there
+  // repo's source. A packaged app ships the API source with the feature
+  // templates (packaging arc). Until then the alias is simply absent there
   // and features can only type-import the API.
   const apiModuleDir = join(app.getAppPath(), "src/api");
   const substrate: FeatureSubstrate = {
@@ -449,7 +449,7 @@ async function openWorkspace(
   });
 
   // A bad manifest must not brick the app: log it loudly and boot with no
-  // features; the user can then fix the manifest and /reload. Reload
+  // features. The user can then fix the manifest and /reload. Reload
   // keeps strict semantics (a bad manifest rejects, tree intact).
   let initialActivation: ActivationResult;
   try {
@@ -577,7 +577,7 @@ function openPicker(
   });
 
   // Respond to the invoke first, then tear the picker down and boot the
-  // workspace; disposing the handler that is currently answering would
+  // workspace. Disposing the handler that is currently answering would
   // race its own response.
   const transition = (target: string): void => {
     setImmediate(() => {
@@ -696,7 +696,7 @@ void app.whenReady().then(async () => {
   );
 
   // Dispose the whole tree on shutdown. Registered raw (not via
-  // onApp) because the listener's job IS to dispose appBag; putting
+  // onApp) because the listener's job IS to dispose appBag. Putting
   // it in the bag would make teardown circular. The handler is a
   // one-shot process-end event with no useful moment to remove it
   // anyway, so the lack of cleanup is fine.
@@ -712,7 +712,7 @@ void app.whenReady().then(async () => {
   );
 
   // Which workspace? An explicit target (UIX_WORKSPACE, manifest path or
-  // workspace dir) opens directly; so does a cwd that already holds a
+  // workspace dir) opens directly. So does a cwd that already holds a
   // manifest (the repo dev flow). Otherwise the start picker decides.
   const envTarget = process.env["UIX_WORKSPACE"];
   if (envTarget) {

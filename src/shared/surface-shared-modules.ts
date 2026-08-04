@@ -4,7 +4,7 @@
 // but the blessed shared set below must resolve to the *page's* live
 // instances (one React, one typebox, one @uix/api) rather than being bundled
 // per surface. The pipeline maps these bare specifiers to virtual modules
-// that read the page-provided global; the page populates that global at boot
+// that read the page-provided global. The page populates that global at boot
 // (src/renderer/workspace/provide-shared-modules.ts) before any surface loads.
 
 export const SurfaceSharedModules = [

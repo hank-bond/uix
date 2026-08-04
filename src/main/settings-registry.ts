@@ -2,7 +2,7 @@
 //
 // A scope is one schema-validated object exposed through keyed convenience
 // operations. Feature ids and substrate workspace namespaces share one
-// unprefixed scope-id space; duplicate scope ids throw, which lets substrate
+// unprefixed scope-id space. Duplicate scope ids throw, which lets substrate
 // namespaces (registered first on reload) collide naturally with feature ids.
 //
 // The registry never reads files, resolves manifest locations, or hydrates
@@ -69,7 +69,7 @@ interface RegisteredSettingsScope {
   committed: boolean;
 }
 
-/** Capability for one live scope; commit accepts its values for write-through use. */
+/** Capability for one live scope. Commit accepts its values for write-through use. */
 export interface SettingsScopeHandle extends Disposable {
   readonly settings: SettingsHandle;
   commit(): void;
@@ -121,7 +121,7 @@ export class SettingsRegistry implements Disposable {
   }
 
   /**
-   * Drops all scopes (reload). Listeners survive; subscriptions are owned
+   * Drops all scopes (reload). Listeners survive. Subscriptions are owned
    * by their subscribers' lifetimes (feature bags), not by scope identity.
    */
   clearScopes(): void {

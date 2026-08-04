@@ -23,15 +23,15 @@ Do not create empty, single-file, or symmetric directory layers merely to make u
 
 Two tests decide whether a file's responsibility is clean.
 
-**Expressibility test:** One sentence of at most 30 words must state the file's whole high-level responsibility. If it takes two sentences, the file has two responsibilities; split it so each half fits one sentence. The summary is the claim. Anything the sentence cannot hold is either a second responsibility (split it) or detail (the elaboration or JSDoc, within the same responsibility).
+**Expressibility test:** One sentence of at most 30 words must state the file's whole high-level responsibility. If it takes two sentences, the file has two responsibilities. Split it so each half fits one sentence. The summary is the claim. Anything the sentence cannot hold is either a second responsibility (split it) or detail (the elaboration or JSDoc, within the same responsibility).
 
-**Coupling test:** Two files that are always read or edited together are one responsibility expressed as two; merge them. Responsibilities change independently, so a change that always touches both files means they are not two responsibilities.
+**Coupling test:** Two files that are always read or edited together are one responsibility expressed as two. Merge them. Responsibilities change independently, so a change that always touches both files means they are not two responsibilities.
 
-File length is not a criterion. A file may hold one function plus its type, or a whole pipeline, as long as the single sentence still states the responsibility. Splitting for length alone manufactures boundaries; split only when the expressibility test fails.
+File length is not a criterion. A file may hold one function plus its type, or a whole pipeline, as long as the single sentence still states the responsibility. Splitting for length alone manufactures boundaries. Split only when the expressibility test fails.
 
 Avoid miscellaneous containers such as `utils.ts`, `helpers.ts`, `common.ts`, `misc.ts`, or `types.ts`. When a file accumulates unrelated responsibilities, split it by those responsibilities rather than moving the mixture behind a broader name.
 
-**Sibling separation:** Reading a directory's file summaries together, it must be clear when to read each file. Overlapping summaries mean blurred boundaries: the files share one responsibility (merge them), or the summaries were not separated (resummarize). The directory `AGENTS.md` overview states the group responsibility, what the files accomplish together; the index entries show the division of labor. Do not restate each file's summary in the overview.
+**Sibling separation:** Reading a directory's file summaries together, it must be clear when to read each file. Overlapping summaries mean blurred boundaries: the files share one responsibility (merge them), or the summaries were not separated (resummarize). The directory `AGENTS.md` overview states the group responsibility, what the files accomplish together. The index entries show the division of labor. Do not restate each file's summary in the overview.
 
 ## Same-name pairs identify one primary unit
 
@@ -58,7 +58,7 @@ Name each category member for the responsibility it owns.
 
 ## Entrypoints are deliberate boundaries
 
-**Rule:** Use `index.ts` only when a directory intentionally presents one entrypoint or public facade. A facade exposes a smaller, deliberate API; it does not mechanically re-export every descendant.
+**Rule:** Use `index.ts` only when a directory intentionally presents one entrypoint or public facade. A facade exposes a smaller, deliberate API. It does not mechanically re-export every descendant.
 
 Do not add a barrel solely to shorten import paths. Within an ownership boundary, import the source module that owns the symbol. Import through a facade when crossing the boundary that facade intentionally represents.
 

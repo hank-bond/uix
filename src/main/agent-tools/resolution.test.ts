@@ -96,7 +96,7 @@ describe("resolveAgentToolContribution", () => {
       tool: input,
     });
 
-    // The author shape is Omit<ToolDefinition, "name">; the original input
+    // The author shape is Omit<ToolDefinition, "name">. The original input
     // object must not gain a `name` key.
     expect("name" in input).toBe(false);
   });

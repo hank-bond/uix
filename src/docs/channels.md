@@ -6,7 +6,7 @@ status: active
 
 # Channels
 
-A feature channel groups request operations and backend-published events. Shared code declares one schema-only `ChannelContract`; backend and surface code consume that same value.
+A feature channel groups request operations and backend-published events. Shared code declares one schema-only `ChannelContract`. Backend and surface code consume that same value.
 
 The contract states its owning feature id once. Binding handlers, minting publishers, and creating clients all verify or derive ownership from that field.
 

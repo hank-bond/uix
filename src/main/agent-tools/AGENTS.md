@@ -5,7 +5,7 @@ status: active
 
 # Agent tools
 
-Feature activation passes declarations from `src/api/agent-tools.ts` through pure name resolution before registry acceptance. Ordinary tools must enter through owner-scoped resolution; only the explicit override contribution path may retain an exact Pi name.
+Feature activation passes declarations from `src/api/agent-tools.ts` through pure name resolution before registry acceptance. Ordinary tools must enter through owner-scoped resolution. Only the explicit override contribution path may retain an exact Pi name.
 
 Registry acceptance defines the live collision domain, and the agent runtime installs a snapshot of accepted definitions into each Pi runtime generation.
 

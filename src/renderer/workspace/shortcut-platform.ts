@@ -12,7 +12,7 @@ interface BrowserPlatformInfo {
 export function toShortcutPlatform(
   browserPlatform: BrowserPlatformInfo,
 ): ShortcutPlatform {
-  // UA Client Hints are not universal; retain the legacy browser value as a
+  // UA Client Hints are not universal. Retain the legacy browser value as a
   // compatibility fallback rather than coupling detection to Electron.
   const platform =
     browserPlatform.userAgentData?.platform ?? browserPlatform.platform;

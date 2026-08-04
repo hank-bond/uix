@@ -5,7 +5,7 @@ status: active
 
 # Keybindings
 
-The application composition root binds keybinding request handling to the `keybindings` workspace settings namespace and the substrate event publisher. The renderer contributes the current action defaults; persisted entries, including explicit `null` disables, take precedence.
+The application composition root binds keybinding request handling to the `keybindings` workspace settings namespace and the substrate event publisher. The renderer contributes the current action defaults. Persisted entries, including explicit `null` disables, take precedence.
 
 Normalize every candidate before it enters workspace settings, and publish only the value confirmed by that durable settings path. This keeps renderer defaults rebuildable while user overrides remain authoritative across reloads.
 

@@ -3,7 +3,7 @@
 // UIX-core's agent installers ride a single in-process Pi extension. Each
 // installer is handed the live Pi handle and registers its own tools, hooks, or
 // session behavior. This is substrate wiring onto Pi's surface, not a packaged
-// extension; installers are substrate-owned and may use host internals
+// extension. Installers are substrate-owned and may use host internals
 // directly.
 
 import type {
@@ -13,7 +13,7 @@ import type {
 
 // A subsection handed the live Pi ExtensionAPI to install its agent-facing
 // behavior. We keep the subsection as the unit (rather than free-floating
-// install calls) so there is one inventory of UIX-core's agent surface; we hand
+// install calls) so there is one inventory of UIX-core's agent surface. We hand
 // it Pi directly (rather than a declarative bag of tools + context) because
 // hooks and appendEntry / sendMessage are imperative calls at a boundary, not
 // static data.

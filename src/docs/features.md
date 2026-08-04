@@ -38,7 +38,7 @@ export const feature = defineFeature({
 
 The helper changes no runtime shape. It preserves an authored settings definition so callback `ctx.settings` keys and values derive from that schema. The loader still receives and validates an ordinary object.
 
-The exported `id` is the feature identity. It owns contribution namespaces, channel ids, settings access, and logs. Workspace manifest entries do not duplicate the id; if two entries export the same id, activation fails for the later entry.
+The exported `id` is the feature identity. It owns contribution namespaces, channel ids, settings access, and logs. Workspace manifest entries do not duplicate the id. If two entries export the same id, activation fails for the later entry.
 
 ## Activation and activated feature instances
 
@@ -56,7 +56,7 @@ Feature entries are loaded with [`jiti`](https://github.com/unjs/jiti) in the ma
 
 The loader configures jiti with `moduleCache: false`, so reload evaluates the current source for the same path instead of returning a stale Node module instance.
 
-Jiti is not a sandbox. Features are trusted local code and run with Electron main-process permissions. Features must not import substrate internals; backend capabilities come through `ctx` and `@uix/api`.
+Jiti is not a sandbox. Features are trusted local code and run with Electron main-process permissions. Features must not import substrate internals. Backend capabilities come through `ctx` and `@uix/api`.
 
 ## Context and contributions
 
@@ -71,7 +71,7 @@ interface FeatureDefinition {
 }
 ```
 
-`context()` runs before `contribute()` and may return feature-local objects merged onto the context handed to `contribute()`. `settings`, when present, are declared before either hook runs so the loader can hydrate and validate a provisional feature scope first. `defineFeature(...)` carries that definition into both hooks' `ctx.settings` type. Both hooks may use the scope; its defaults and writes commit only after every returned facet registers successfully.
+`context()` runs before `contribute()` and may return feature-local objects merged onto the context handed to `contribute()`. `settings`, when present, are declared before either hook runs so the loader can hydrate and validate a provisional feature scope first. `defineFeature(...)` carries that definition into both hooks' `ctx.settings` type. Both hooks may use the scope. Its defaults and writes commit only after every returned facet registers successfully.
 
 `contribute()` can return resources, channels, agent facets, turn state, agent context, and surfaces. A backend-only feature can omit surfaces without occupying workspace layout.
 

@@ -2,7 +2,7 @@
 //
 // The store retains one active manifest generation and stages disk reads as
 // separate mutable generations. Callers validate and hydrate a staged
-// generation before promoting it; rejection leaves the active generation and
+// generation before promoting it. Rejection leaves the active generation and
 // its pending flush untouched. Purpose-built location handles retain tree shape
 // knowledge here and remain bound to the generation that minted them.
 
@@ -31,7 +31,7 @@ interface ManifestGenerationState {
 /**
  * A spot in one manifest generation where a settings object lives. `write`
  * aliases the given values into that generation. Staged writes stay detached;
- * active writes mark the store dirty only when the JSON value changed; stale
+ * active writes mark the store dirty only when the JSON value changed. Stale
  * writes reject.
  */
 export interface ManifestLocation {

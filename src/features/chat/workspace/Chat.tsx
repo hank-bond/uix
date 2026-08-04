@@ -1,7 +1,7 @@
 // Renders the chat surface: transcript blocks, composer, status bar, and provider login.
 //
 // One transcript item shape feeds the surface. Startup history supplies completed
-// durable items; live events append the same items, stream compact partials
+// durable items. Live events append the same items, stream compact partials
 // into them, and replace them whole at completion.
 
 import type { JSX } from "react";
@@ -221,7 +221,7 @@ function reduce(prev: TranscriptItem[], event: AgentEvent): TranscriptItem[] {
 // authoritative born-keyed user row replaces the composer's unconfirmed echo.
 // Text equality is the match guard so an unrelated user message (e.g.
 // extension-injected via sendUserMessage) appends normally instead of
-// consuming someone else's pending row; today the persisted user entry is
+// consuming someone else's pending row. Today the persisted user entry is
 // the human's text verbatim, so equality holds. If input enrichment ever
 // changes the canonical text, relax this to confirm the oldest pending row
 // and let the canonical version win.
@@ -245,10 +245,10 @@ function appendItem(
 
 // Reconcile an item's presence in the list to match its visibility: a visible
 // item is replaced in place (kept current), an invisible one is removed. A
-// rekey replace carries previousId (the pre-key transport handle); matching
+// rekey replace carries previousId (the pre-key transport handle). Matching
 // the new id first keeps a re-delivered rekey idempotent. The driver only
 // replaces ids it already appended, so a net-new insert here means a replace
-// outran or lost its append; recover gracefully but warn, since that
+// outran or lost its append. Recover gracefully but warn, since that
 // ordering invariant is load-bearing for durable transcript identity.
 function syncItem(
   items: TranscriptItem[],
@@ -266,7 +266,7 @@ function syncItem(
       : [...items.slice(0, index), ...items.slice(index + 1)];
   }
   if (index === -1) {
-    // eslint-disable-next-line no-console -- ordering-broke diagnostic; the renderer has no logger facility
+    // eslint-disable-next-line no-console -- ordering-broke diagnostic. The renderer has no logger facility
     console.warn("transcript_replace inserted a net-new item", item.id);
     return [...items, item];
   }
@@ -277,14 +277,14 @@ function syncItem(
 // renderer is the accumulator), a tool's partialResult overwrites (Pi tool
 // updates are replacement snapshots). The append always precedes its
 // partials and a full replace lands at completion, so an unmatched partial
-// means ordering broke. Warn and drop; nothing durable is lost.
+// means ordering broke. Warn and drop. Nothing durable is lost.
 function applyPartial(
   items: TranscriptItem[],
   event: Extract<AgentEvent, { type: "transcript_partial" }>,
 ): TranscriptItem[] {
   const index = lastIndexById(items, event.id);
   if (index === -1) {
-    // eslint-disable-next-line no-console -- ordering-broke diagnostic; the renderer has no logger facility
+    // eslint-disable-next-line no-console -- ordering-broke diagnostic. The renderer has no logger facility
     console.warn("transcript_partial for unknown item", event.id);
     return items;
   }

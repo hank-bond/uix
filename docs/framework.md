@@ -11,7 +11,7 @@ This page explains why UIX documentation is structured the way it is. The struct
 
 ## The axes
 
-Six axes shape the documentation, and each answers a different question about a piece of content: a document occupies one position on each axis. Keep the axes separate; treating a lifecycle position as a kind, or a delivery tier as a readership, causes organizational confusion.
+Six axes shape the documentation, and each answers a different question about a piece of content: a document occupies one position on each axis. Keep the axes separate. Treating a lifecycle position as a kind, or a delivery tier as a readership, causes organizational confusion.
 
 ### Need
 

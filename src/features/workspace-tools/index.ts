@@ -1,7 +1,7 @@
 // the workspace-tools feature providing reason-bearing tool overrides for conversation surfaces.
 //
 // This feature intentionally has no surface. It provides reason-bearing
-// workspace operations; any conversation surface may progressively enhance
+// workspace operations. Any conversation surface may progressively enhance
 // those calls without depending on this provider.
 
 import { defineFeature } from "@uix/api/feature";

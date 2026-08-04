@@ -70,7 +70,7 @@ Settings live on the corresponding manifest feature entry, not in a top-level fe
 }
 ```
 
-The manifest entry does not repeat the feature id. The loaded `FeatureDefinition.id` is the only feature identity; the loader binds settings to the manifest entry while activating that feature.
+The manifest entry does not repeat the feature id. The loaded `FeatureDefinition.id` is the only feature identity. The loader binds settings to the manifest entry while activating that feature.
 
 ## Hydration and validation
 
@@ -82,18 +82,18 @@ The loader then commits the final scope, materializes it into the live manifest,
 
 Rules:
 
-- Every scope definition has one object schema; `Type.Object` provides named keys and `Type.Record` provides dynamically validated keys through the same path.
+- Every scope definition has one object schema. `Type.Object` provides named keys and `Type.Record` provides dynamically validated keys through the same path.
 - `defineSettings(...)` closes the object schema so unknown persisted keys fail rather than being silently retained or deleted.
 - The optional `default` must itself be a complete valid scope value.
 - A property with no default must be optional in the TypeBox schema if it may be absent.
 - Missing values hydrate from the default object, and registered empty scopes materialize as `{}`.
 - `null` is an explicit persisted value and must be allowed by the schema.
-- `undefined` is not a durable setting value and `set()` rejects it; optional schema properties describe absence during hydration, not a deletion operation.
+- `undefined` is not a durable setting value and `set()` rejects it. Optional schema properties describe absence during hydration, not a deletion operation.
 - Plain objects merge recursively so newly added default fields materialize without clobbering existing fields.
 - Arrays, scalars, and `null` are atomic values.
 - Invalid persisted values fail loudly so the user or agent can fix the file.
 
-Defaults fill and persist missing values; they are not a runtime fallback layer. If a later feature version changes a default after a workspace has already materialized a value, the workspace keeps its current value.
+Defaults fill and persist missing values. They are not a runtime fallback layer. If a later feature version changes a default after a workspace has already materialized a value, the workspace keeps its current value.
 
 ## Backend API
 
@@ -109,7 +109,7 @@ After commit, `set()` clones the complete scope and replaces one key. It validat
 
 Persistence is debounced and atomically replaces `uix.workspace.json`. A final equality check skips no-op file writes.
 
-Reload picks up external edits; UIX exposes no public file watcher. Disk is authoritative, so a successful reload discards pending unflushed memory. A rejected manifest leaves the previous generation and its handles intact.
+Reload picks up external edits. UIX exposes no public file watcher. Disk is authoritative, so a successful reload discards pending unflushed memory. A rejected manifest leaves the previous generation and its handles intact.
 
 ## Surface API
 
@@ -192,4 +192,4 @@ Rules:
 - Hydration and validation are the same as feature settings (same schema pass, same unknown-key rejection, same debounced atomic write, same disk-wins reload).
 - An unknown namespace under manifest-level `settings` rejects the load pass.
 - Namespaces register before features, so a feature whose id collides with a namespace fails activation on the duplicate-scope check.
-- Workspace settings remain main-process-only; features receive no handle. Agent channels change model and session state, while manifest edits plus reload change keybindings.
+- Workspace settings remain main-process-only. Features receive no handle. Agent channels change model and session state, while manifest edits plus reload change keybindings.

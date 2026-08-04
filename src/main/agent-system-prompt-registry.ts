@@ -2,7 +2,7 @@
 //
 // One Markdown blob per feature is retained in manifest order. The
 // system-prompt assembler captures the current composition snapshot when Pi's
-// extension runtime starts or reloads; registering a contribution never
+// extension runtime starts or reloads. Registering a contribution never
 // touches Pi.
 
 import type { AgentSystemPromptContribution } from "@uix/api/agent-system-prompt";

@@ -386,7 +386,7 @@ export function useAgentControls(client: AgentChannelClient): {
 
   const chooseModelForProvider = useCallback((providerId: string) => {
     // This is an explicit handoff from the modal's success action, so do not
-    // restore focus to its invoker; the picker will focus its search input.
+    // restore focus to its invoker. The picker will focus its search input.
     setProviderModalOpen(false);
     setModelPicker({ scope: "all", initialQuery: providerId });
   }, []);

@@ -13,7 +13,7 @@ import type { TurnStateHistoryReader } from "./turn-state";
 export type { TurnStateHistoryReader } from "./turn-state";
 
 export interface AgentContextMaterialization {
-  /** Body rendered inside this contribution's state tag; this is what the model sees. */
+  /** Body rendered inside this contribution's state tag. This is what the model sees. */
   content: string;
   /** Optional structured sidecar persisted with the combined custom message. */
   details?: unknown;
@@ -36,13 +36,13 @@ interface BaseContribution {
 
 export interface UpdateBuffer<T extends TSchema> {
   kind: "update";
-  /** Validates update payloads; a failure is an app bug. */
+  /** Validates update payloads. A failure is an app bug. */
   schema: T;
 }
 
 export interface AppendBuffer<T extends TSchema> {
   kind: "append";
-  /** Validates appended payloads; a failure is an app bug. */
+  /** Validates appended payloads. A failure is an app bug. */
   schema: T;
 }
 
@@ -52,7 +52,7 @@ export interface UpdateContribution<
   buffer: UpdateBuffer<T>;
   /** Optional initial update applied when the contribution group is registered. */
   initialValue?: Static<T>;
-  /** Optional formatter; default is JSON.stringify(value) with value as details. */
+  /** Optional formatter. The default is JSON.stringify(value) with value as details. */
   materialize?: (input: {
     value: Static<T>;
   }) => MaybePromise<AgentContextMaterialization | undefined>;
@@ -62,7 +62,7 @@ export interface AppendContribution<
   T extends TSchema,
 > extends BaseContribution {
   buffer: AppendBuffer<T>;
-  /** Optional formatter; default is JSON.stringify(values) with values as details. */
+  /** Optional formatter. The default is JSON.stringify(values) with values as details. */
   materialize?: (input: {
     values: ReadonlyArray<Static<T>>;
   }) => MaybePromise<AgentContextMaterialization | undefined>;
@@ -70,7 +70,7 @@ export interface AppendContribution<
 
 export interface MaterializedContribution extends BaseContribution {
   buffer?: never;
-  /** Called while UIX prepares an agent run; owns any external state it touches. */
+  /** Called while UIX prepares an agent run. Owns any external state it touches. */
   materialize: (
     ctx: AgentContextMaterializationContext,
   ) => MaybePromise<AgentContextMaterialization | undefined>;

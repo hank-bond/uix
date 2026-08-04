@@ -53,7 +53,7 @@ describe("CanvasDocumentBuffer", () => {
 
     expect(lines.some((line) => line.text === "<p>hi</p>")).toBe(true);
     expect(lines.every((line) => line.anchor.length > 0)).toBe(true);
-    // Current content is plain canonical HTML; no anchors leak to the store.
+    // Current content is plain canonical HTML. No anchors leak to the store.
     expect(store.dump("main")).toContain("<p>hi</p>");
     expect(store.dump("main")).not.toContain("§");
   });
@@ -219,7 +219,7 @@ describe("CanvasDocumentBuffer", () => {
     const a = lines.find((l) => l.text === "<p>a</p>");
     if (!a) throw new Error("missing <p>a</p> line");
 
-    // Human changes c out of band; agent then edits a against its stale view.
+    // Human changes c out of band. Agent then edits a against its stale view.
     const outOfBand = store.dump("main");
     if (!outOfBand) throw new Error("missing main");
     await store.setCurrent("main", outOfBand.replace("<p>c</p>", "<p>C</p>"));
@@ -237,7 +237,7 @@ describe("CanvasDocumentBuffer", () => {
     const buffer = new CanvasDocumentBuffer(store);
     const before = await buffer.write("main", "<body>\n<p>x</p>\n</body>");
 
-    // Same content, non-canonical casing; canonicalization absorbs it.
+    // Same content, non-canonical casing. Canonicalization absorbs it.
     const rewritten = store.dump("main");
     if (!rewritten) throw new Error("missing main");
     await store.setCurrent("main", rewritten.replace("<p>x</p>", "<P>x</P>"));

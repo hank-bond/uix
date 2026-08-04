@@ -12,7 +12,7 @@ export type ResourceCanonicalId = string & {
 
 /**
  * Builds the canonical resource type for a resource contribution: `${featureId}-${name}`.
- * Validates each segment; a failure is an app bug.
+ * Validates each segment. A failure is an app bug.
  */
 export function toResourceCanonicalId(
   featureId: string,

@@ -1,10 +1,10 @@
 // Renders the workspace page: the composed surface row wrapped in action, keybinding, and session providers.
 //
 // Renders the composed surface list from useSurfaces(). Each surface
-// provides a render function; the workspace composes them into a persisted
+// provides a render function. The workspace composes them into a persisted
 // horizontal resize row. Channel clients are created by SurfaceMount, not by
 // feature code. An empty composition renders an explanatory card instead of a
-// blank window; which of the two empty states (no manifest vs. no surfaces)
+// blank window. Which of the two empty states (no manifest vs. no surfaces)
 // it names, so the create-manifest-after-boot flow is visible instead of dark.
 
 import type { JSX } from "react";
@@ -54,7 +54,7 @@ export function Workspace(): JSX.Element {
 
 function WorkspaceContent(): JSX.Element {
   const composition = useSurfaces();
-  // Not yet fetched; render the bare shell, no empty-state flash.
+  // Not yet fetched. Render the bare shell, no empty-state flash.
   if (!composition) return <div className="workspace" />;
   if (composition.surfaces.length === 0) {
     return (

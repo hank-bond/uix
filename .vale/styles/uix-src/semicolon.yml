@@ -1,0 +1,27 @@
+extends: script
+message: "Avoid the semicolon in code comments. Split the sentence, or use a comma or colon."
+level: error
+scope: comment
+script: |
+  text := import("text")
+
+  matches := []
+  offset := 0
+  for line in text.split(scope, "\n") {
+    start := 0
+    for {
+      rest := line[start:]
+      index := text.index(rest, ";")
+      if index < 0 { break }
+      // Flag prose semicolons: `;` followed by whitespace and a word on the
+      // same line. Statement terminators in code examples end the line (or
+      // trail into a `//` comment), so they stay unflagged.
+      after := rest[index + 1:]
+      if text.re_match("^\\s+\\w", after) {
+        pos := offset + start + index
+        matches = append(matches, {begin: pos, end: pos + 1, message: "Avoid the semicolon in code comments. Split the sentence, or use a comma or colon."})
+      }
+      start = start + index + 1
+    }
+    offset = offset + len(line) + 1
+  }

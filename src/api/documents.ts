@@ -1,7 +1,7 @@
 // document store contract.
 //
 // Type-only definition of the document-store seam. Features declare their
-// dependency on DocumentStoreFactory through FeatureContext.documents; the
+// dependency on DocumentStoreFactory through FeatureContext.documents. The
 // host binds the local filesystem implementation (src/main/document-store.ts)
 // at activation time without features importing any Node.js or Electron APIs.
 

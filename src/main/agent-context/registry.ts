@@ -2,17 +2,17 @@
 //
 // An agent-context contribution declares one model-visible state section: its
 // canonical id, vocabulary line, optional UIX-managed buffer, and optional
-// materializer. Resolution derives owner-scoped ids; registry acceptance adds
+// materializer. Resolution derives owner-scoped ids. Registry acceptance adds
 // mutable live state only for update and append buffers. The register operation
 // returns a capability when the substrate manages a buffer for the owner.
 //
 // Buffer semantics are intentionally small:
-//   - update: owner calls update(payload); UIX retains the latest value and
+//   - update: owner calls update(payload). UIX retains the latest value and
 //     flushes only when the post-materialized body differs from the nearest
 //     persisted body on the branch.
-//   - append: owner calls append(payload); UIX queues values, flushes the
+//   - append: owner calls append(payload). UIX queues values, flushes the
 //     pending list, and clears only after the branch confirms persistence.
-//   - no buffer: owner supplies materialize(); UIX calls it while preparing an
+//   - no buffer: owner supplies materialize(). UIX calls it while preparing an
 //     agent run, and the contribution owns any external state it reads or
 //     consumes.
 //
@@ -111,7 +111,7 @@ export interface RegisteredAgentContextAppendContribution extends ResolvedAgentC
   inFlight?: { content: string; count: number };
 }
 
-/** Registry for agent-context contributions. Features pass this to `registerAgentContextContributions`; they never call its register methods directly. */
+/** Registry for agent-context contributions. Features pass this to `registerAgentContextContributions`. They never call its register methods directly. */
 export class AgentContextRegistry {
   readonly #contributions: AgentContextRegistryMember[] = [];
 

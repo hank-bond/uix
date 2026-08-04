@@ -1,0 +1,6 @@
+extends: existence
+message: "Avoid the semicolon. Split the sentence, or use a comma or colon."
+level: error
+scope: text
+raw:
+  - ";"

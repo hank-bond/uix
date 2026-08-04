@@ -7,7 +7,7 @@ read_when: "Read when adding a channel to a feature, or when asked to add a chan
 
 # Add a channel to a feature
 
-A **channel** groups frontend-to-backend request operations with backend-published events. Shared code declares one schema-only `ChannelContract`; the backend binds handlers and publishes events. A surface consumes a fully typed client derived from that same value.
+A **channel** groups frontend-to-backend request operations with backend-published events. Shared code declares one schema-only `ChannelContract`. The backend binds handlers and publishes events. A surface consumes a fully typed client derived from that same value.
 
 Files involved:
 
@@ -42,8 +42,8 @@ export const notesChannels = {
 
 - **Requests** describe a frontend-to-backend operation with request and response schemas.
 - **Events** describe payloads the backend publishes and surfaces observe.
-- Use `Type.Void()` for acknowledgement-only requests; it communicates completion and backpressure without a response body.
-- `feature` is the owning id, stated once; the substrate checks it at every binding; a contract can't register or publish under the wrong namespace.
+- Use `Type.Void()` for acknowledgement-only requests. It communicates completion and backpressure without a response body.
+- `feature` is the owning id, stated once. The substrate checks it at every binding. A contract can't register or publish under the wrong namespace.
 
 ## Bind backend handlers
 
@@ -169,18 +169,18 @@ function Notes({ client }: { client: ChannelClient<typeof notesChannels> }) {
 }
 ```
 
-Request returns resolve with the response type; event subscriptions must be disposed (usually through React effect cleanup). See [`add-a-surface.md`](./add-a-surface.md) for more on surfaces and styles.
+Request returns resolve with the response type. Event subscriptions must be disposed (usually through React effect cleanup). See [`add-a-surface.md`](./add-a-surface.md) for more on surfaces and styles.
 
 ## Id derivation
 
-You author feature-local operation names; the facet derives two ids:
+You author feature-local operation names. The facet derives two ids:
 
 ```text
 notes + add   -> contribution id notes.channel.add   / transport id notes.add
 notes + added -> contribution id notes.channel.added / transport id notes.added
 ```
 
-The contribution id is the registry deduplication key; the canonical channel id is the transport address. Both are nominal brands inside UIX; you never write them by hand.
+The contribution id is the registry deduplication key. The canonical channel id is the transport address. Both are nominal brands inside UIX. You never write them by hand.
 
 ## Boundary validation
 
@@ -188,7 +188,7 @@ Schemas validate domain formats, not only primitive JSON shapes. A constrained w
 
 ## Sensitive logging
 
-Every request, response, and event crossing appears in terminal logs (and optionally raw NDJSON). A descriptor can carry `log` with `describeRequest`, `describeResponse`, or `describeEvent`; the returned description replaces that direction's payload in both log sinks. Contracts carrying credentials, authorization links, codes, or secrets must describe every sensitive direction.
+Every request, response, and event crossing appears in terminal logs (and optionally raw NDJSON). A descriptor can carry `log` with `describeRequest`, `describeResponse`, or `describeEvent`. The returned description replaces that direction's payload in both log sinks. Contracts carrying credentials, authorization links, codes, or secrets must describe every sensitive direction.
 
 ## What happens on bind
 

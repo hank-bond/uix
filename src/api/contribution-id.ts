@@ -12,7 +12,7 @@
 // The ContributionId brand is nominal: a value of this type can only have come
 // through `toContributionId(...)`, which validates the feature id, facet segment,
 // and optional local name against the shared token grammar. Internal code holds
-// the brand; genuine external string boundaries cast inline (`id as string`).
+// the brand. Genuine external string boundaries cast inline (`id as string`).
 
 const ContributionIdBrand: unique symbol = Symbol("ContributionId");
 
@@ -22,7 +22,7 @@ export type ContributionId = string & {
 
 /**
  * Builds the registry dedup id for a contribution: `${featureId}.<facet>.<name>`.
- * Validates each segment; a failure is an app bug.
+ * Validates each segment. A failure is an app bug.
  */
 export function toContributionId(
   featureId: string,

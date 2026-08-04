@@ -37,7 +37,7 @@ const requireFromLoader = createRequire(__filename);
  * The alias table feature entry imports resolve through: exactly the
  * blessed backend set. `@uix/api` is a prefix mapping onto the
  * implementation dir the composition root supplies (the API is
- * self-contained, so one directory serves it; when absent, features can
+ * self-contained, so one directory serves it. When absent, features can
  * only type-import it and a value import fails loudly into `failed[]`).
  * typebox entries are exact because its package has no `main` (exports
  * map only), so a bare dir alias can't resolve.
@@ -53,7 +53,7 @@ const createFeatureJiti = (apiModuleDir?: string): Jiti =>
     // Same hot-reload lever Pi uses. Disabling the runtime module cache
     // lets editing a feature's .ts/.js file and reloading evaluate the
     // new source for the same absolute path. jiti may still keep its
-    // filesystem transform cache for performance; that cache tracks
+    // filesystem transform cache for performance. That cache tracks
     // source state and is not the stale-module problem Node import() has.
     moduleCache: false,
     alias: deriveBuildAliases(apiModuleDir),
@@ -91,14 +91,14 @@ export interface FeatureSubstrate {
 export interface FeatureSources {
   /**
    * Absolute path to the workspace's `uix.workspace.json`. Omitted when
-   * the workspace has no manifest; no features load.
+   * the workspace has no manifest. No features load.
    */
   manifestPath?: string;
 }
 
 /**
  * Assembles the context bag a feature's `context`/`contribute` hooks receive.
- * One construction path for every feature; the substrate facets a feature
+ * One construction path for every feature. The substrate facets a feature
  * can touch are exactly what this returns.
  */
 export function assembleFeatureContext(
@@ -123,14 +123,14 @@ export interface ActivatedFeatureInstance {
   displayName: string;
   /** Absolute entry-file path. */
   entry: string;
-  /** Per-feature bag; disposing it removes all the feature's contributions. */
+  /** Per-feature bag. Disposing it removes all the feature's contributions. */
   bag: DisposableBag;
 }
 
 /**
  * A single entry whose activation threw. Separate type from
  * `ActivatedFeatureInstance` because the use cases diverge: activated
- * instances contribute behavior; failed entries are inert, surfaced in logs and
+ * instances contribute behavior. Failed entries are inert, surfaced in logs and
  * (eventually) a status panel. Keeping them in different arrays
  * means callers don't have to narrow a discriminator and can't
  * accidentally treat a failed feature as if it had a bag. No `id`
@@ -158,7 +158,7 @@ const normalize = (thrown: unknown): Error =>
 
 /**
  * Narrows an entry's `feature` export to a FeatureDefinition or throws
- * with a message that names what's wrong; the throw lands in
+ * with a message that names what's wrong. The throw lands in
  * `failed[]` like any other activation error.
  */
 const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
@@ -180,7 +180,7 @@ const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
     throw new Error(`FeatureDefinition ${def.id} context is not a function`);
   }
   if (def.settings !== undefined) {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- exported feature objects are untrusted module code; null is a real runtime value and typeof null === "object", so the null check is load-bearing despite the non-nullable type.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- exported feature objects are untrusted module code. Null is a real runtime value and typeof null === "object", so the null check is load-bearing despite the non-nullable type.
     if (def.settings == null || typeof def.settings !== "object") {
       throw new Error(`FeatureDefinition ${def.id} settings is not an object`);
     }
@@ -224,7 +224,7 @@ const loadFeatureDefinition = async (
 
 /**
  * Activate the manifest's feature entries in manifest order. Each successful
- * entry produces its own ActivatedFeatureInstance with its own bag; a throwing
+ * entry produces its own ActivatedFeatureInstance with its own bag. A throwing
  * entry lands in `failed[]` instead of aborting the pass.
  *
  * @param entries resolved manifest refs, in manifest order.
@@ -255,7 +255,7 @@ export const activateFeatures = async (
 
     // The per-feature bag is created early so every acquired lifetime
     // capability has an owner. We only enroll
-    // it in the parent bag after activation succeeds; a
+    // it in the parent bag after activation succeeds. A
     // failed feature's bag is disposed immediately and never
     // becomes part of app-shutdown teardown.
     const bag = new DisposableBag();
@@ -337,7 +337,7 @@ export const activateFeatures = async (
  * failure (unreadable, bad JSON, schema mismatch) rejects the pass and
  * leaves the active feature composition intact. Concurrent callers for one owned
  * feature bag share the same in-flight pass so its clear/activate never
- * overlaps; independent workspace bags load independently.
+ * overlaps. Independent workspace bags load independently.
  */
 const inFlightFeatureLoadByBag = new WeakMap<
   DisposableBag,

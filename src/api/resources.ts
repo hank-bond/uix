@@ -1,7 +1,7 @@
 // resource address capability and contribution type.
 //
 // ResourceContribution is the type feature authors declare in their
-// FeatureContributions.resources array; the substrate registers and dispatches
+// FeatureContributions.resources array. The substrate registers and dispatches
 // requests through the ResourceRegistry.
 //
 // ResourceAddressHandle is the substrate-provided capability for features to
@@ -35,9 +35,9 @@ export interface ResourceRequestContext {
 }
 
 export interface ResourceContribution<Query extends TSchema = TSchema> {
-  /** Local resource name; the substrate derives the resource type as `${featureId}-${name}`. */
+  /** Local resource name. The substrate derives the resource type as `${featureId}-${name}`. */
   name: string;
-  /** Normalized route from a `createResourceAddressHandle` call; pass `handle.route`. */
+  /** Normalized route from a `createResourceAddressHandle` call. Pass `handle.route`. */
   route: NormalizedResourceRoute<Query>;
   handler: (ctx: ResourceRequestContext) => Response | Promise<Response>;
 }
@@ -51,7 +51,7 @@ export interface ResourceRouteDefinition<Query extends TSchema = TSchema> {
 }
 
 export interface ResourceAddressHandle<Query extends TSchema = TSchema> {
-  /** The normalized route; pass as the `route` field on a ResourceContribution. */
+  /** The normalized route. Pass it as the `route` field on a ResourceContribution. */
   route: NormalizedResourceRoute<Query>;
   /** Produce a transport URL for iframe src, fetch, etc. */
   toUrl(input: {

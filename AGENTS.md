@@ -35,7 +35,7 @@ The project uses on-demand traversal. Broad summary preloading remains a possibl
 
 A _feature_ is UIX's loadable unit. It can contribute resources, typed channels, agent facets, turn state, agent context, settings, and visible surfaces.
 
-A _workspace_ is a directory defined by `uix.workspace.json`. Its ordered feature entry references are the complete composition; UIX performs no feature auto-discovery. One workspace page composes the active feature surfaces over one selected Pi session graph.
+A _workspace_ is a directory defined by `uix.workspace.json`. Its ordered feature entry references are the complete composition. UIX performs no feature auto-discovery. One workspace page composes the active feature surfaces over one selected Pi session graph.
 
 Channels connect surfaces to feature backends and substrate services. A feature can also publish a contract that another feature imports deliberately. Chat consumes the substrate agent contract through this same path.
 
@@ -100,7 +100,7 @@ The `src/docs/` tree remains the centralized substrate reference during its owne
 
 <!-- INDEX:END -->
 
-The framework injects this orientation and routing map through its owned agent integration. Skills add capabilities; documentation explains project architecture.
+The framework injects this orientation and routing map through its owned agent integration. Skills add capabilities. Documentation explains project architecture.
 
 ## Non-goals
 

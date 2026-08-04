@@ -17,7 +17,7 @@ export interface ChannelEventLogOptions<Event> {
 
 /**
  * Schema-only request descriptor: the shared base between frontend and
- * backend. The frontend contract uses this directly; the backend
+ * backend. The frontend contract uses this directly. The backend
  * contribution extends it with a `handler` and optional `log`.
  */
 export interface ChannelRequestSchema<
@@ -59,7 +59,7 @@ export interface ChannelContribution {
 
 /**
  * Frontend channel contract: schema-only view of a backend contribution.
- * Features export an object of this shape in `shared/`; both the backend
+ * Features export an object of this shape in `shared/`. Both the backend
  * (via {@link withHandlers}) and the frontend (via `createChannelClient`)
  * consume the same object.
  *
@@ -77,7 +77,7 @@ export interface ChannelContract {
 /**
  * Per-request handler entry: maps each request name in the contract to its
  * backend `handler` function and optional `log` config. Used by
- * {@link withHandlers}; the mapped type enforces that every request declared
+ * {@link withHandlers}. The mapped type enforces that every request declared
  * in the contract has a matching handler.
  */
 export type ChannelHandlers<C extends ChannelContract> = {
@@ -97,7 +97,7 @@ export type ChannelHandlers<C extends ChannelContract> = {
 /**
  * Merges a schema-only {@link ChannelContract} with backend handlers to
  * produce a {@link ChannelContribution}. Every request in the contract must
- * have a matching handler; if a request is added to the contract without a
+ * have a matching handler. If a request is added to the contract without a
  * handler, TypeScript errors at the call site.
  */
 export function withHandlers<const C extends ChannelContract>(
@@ -105,7 +105,7 @@ export function withHandlers<const C extends ChannelContract>(
   handlers: ChannelHandlers<C>,
 ): ChannelContribution {
   // Per-name request/handler pairing is enforced at the call site by
-  // ChannelHandlers<C>; the walk below only needs the erased shape.
+  // ChannelHandlers<C>. The walk below only needs the erased shape.
   const entries = handlers as Record<
     string,
     {
@@ -147,7 +147,7 @@ export type FeatureEventPublisher<C extends ChannelContract> = {
  * The channel capability injected into feature contexts (the channel
  * counterpart of `DocumentStoreFactory`). The host closes over the
  * feature id, so the only way a feature obtains publish capability is by
- * presenting a contract; there is no untyped publish surface.
+ * presenting a contract. There is no untyped publish surface.
  */
 export interface FeatureEventPublisherFactory {
   createPublisher<const C extends ChannelContract>(
@@ -158,7 +158,7 @@ export interface FeatureEventPublisherFactory {
 /**
  * Binds a contract's declared events onto a raw name/payload publish function,
  * producing a typed {@link FeatureEventPublisher}. The publish function is the
- * feature-scoped seam the host supplies (it canonicalizes names); it stays
+ * feature-scoped seam the host supplies (it canonicalizes names). It stays
  * a bare function type rather than a named abstraction.
  */
 export function createFeatureEventPublisher<const C extends ChannelContract>(

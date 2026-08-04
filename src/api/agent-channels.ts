@@ -4,7 +4,7 @@
 // transcript item shapes they hold. This lives behind @uix/api because
 // feature code binds it: chat is an ordinary feature whose surface renders
 // the same agent connection any other feature could use. The backend assembles
-// the channel contribution via `withHandlers` in the composition root; frontends derive a
+// the channel contribution via `withHandlers` in the composition root. Frontends derive a
 // typed client via `createChannelClient`.
 
 import { type Static, Type } from "typebox";
@@ -21,13 +21,13 @@ export type PromptRequest = Static<typeof PromptRequestSchema>;
 export interface ToolFileLocation {
   /** Absolute path derived from the invocation args and execution cwd. */
   absolutePath: string;
-  /** Cwd-relative when that form stays under cwd; otherwise absolute. */
+  /** Cwd-relative when that form stays under cwd. Otherwise absolute. */
   displayPath: string;
 }
 
 /**
  * Durable transcript items rendered by conversation surfaces. Live events may
- * carry in-flight fields on the same item shape; history replay only returns
+ * carry in-flight fields on the same item shape. History replay only returns
  * completed durable items.
  */
 export type TranscriptItem =
@@ -50,7 +50,7 @@ export type TranscriptItem =
       complete: boolean;
       args?: unknown;
       result?: unknown;
-      /** Live-only progress payload; discarded when the tool completes. */
+      /** Live-only progress payload. Discarded when the tool completes. */
       partialResult?: unknown;
       isError?: boolean;
     }
@@ -84,7 +84,7 @@ export type AgentEvent =
        * `partialResult` overwrites a tool row's live progress payload (Pi
        * tool updates are replacement snapshots, not increments). A full
        * `transcript_replace` still lands at completion, so partials are pure
-       * display traffic; dropping one loses nothing durable.
+       * display traffic. Dropping one loses nothing durable.
        */
       type: "transcript_partial";
       id: string;
@@ -345,7 +345,7 @@ const describeProviderAuthenticationPayload = (): { redacted: string } => ({
 // Agent channel contract: the single source of truth for substrate agent
 // channels. `Type.Unsafe` is used for the complex union types (`AgentEvent`,
 // `TranscriptSnapshot`) whose full TypeBox encoding would be
-// disproportionate; the runtime types are already validated by the driver
+// disproportionate. The runtime types are already validated by the driver
 // that produces them.
 export const AgentEventSchema = Type.Unsafe<AgentEvent>(Type.Any());
 
@@ -394,7 +394,7 @@ export const agentChannels = {
       responseSchema: AgentStatusSchema,
     },
     /**
-     * Validated against Pi's available models; persists the workspace
+     * Validated against Pi's available models. Persists the workspace
      * default and switches the live session when one exists.
      */
     select_model: {

@@ -18,7 +18,7 @@ A _version_ is a monotonic scalar that orders asynchronous work and rejects stal
 | Mechanism | Role | Constraint |
 | --- | --- | --- |
 | Plain field, React state, registry, buffer, or store | Current authority at its layer | Replaced at one explicit generation boundary. |
-| Promise slot | Shared in-flight operation | Cleared when the operation settles; it is not mutable current state. |
+| Promise slot | Shared in-flight operation | Cleared when the operation settles. It is not mutable current state. |
 | `DisposableBag` or React effect cleanup | Deterministic lifetime | Owns teardown only, never lookup or current-state selection. |
 | `WeakMap` | Metadata or memo derived from an externally owned object | Use only when the value needs no deterministic cleanup and entries need no enumeration. |
 | `Map` / `Set` | Owned live index or temporary algorithmic index | If it is a registry, expose register and disposal semantics rather than a raw collection. |
@@ -88,4 +88,4 @@ const location = manifest.settingsNamespace("agent");
 Two corollaries:
 
 - **The owner API may remain open:** Trusted composition code can call `registry.get(scopeId, key)`. Narrow access when minting the smallest handle that serves each consumer.
-- **Handles resolve lazily by id, not by captured object reference**, wherever the owner's contents can be replaced underneath (reload). A handle minted before a reload keeps working after it; an unknown target fails on first _use_, not at mint time.
+- **Handles resolve lazily by id, not by captured object reference**, wherever the owner's contents can be replaced underneath (reload). A handle minted before a reload keeps working after it. An unknown target fails on first _use_, not at mint time.

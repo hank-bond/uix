@@ -1,6 +1,6 @@
 // Creates a bare editable workspace from feature templates without discarding it when dependency installation fails.
 //
-// Feature package files are optional npm dependency metadata; the manifest
+// Feature package files are optional npm dependency metadata. The manifest
 // remains the only composition authority. One install during scaffolding makes
 // dependencies available through normal node_modules walk-up. Later dependency
 // changes remain explicit workspace package operations rather than startup
@@ -19,16 +19,16 @@ const DefaultFeatures = ["pi-tools"] as const;
 export interface ScaffoldOptions {
   /** Bare workspace template root (repo `templates/workspace/` in dev). */
   templatesDir: string;
-  /** Workspace root to scaffold into (exists; has no manifest). */
+  /** Workspace root to scaffold into (exists. Has no manifest). */
   workspaceDir: string;
   /** Workspace name written to the manifest. */
   name: string;
-  /** Dependency installer; defaults to `npm install` in the workspace. */
+  /** Dependency installer. Defaults to `npm install` in the workspace. */
   install?: (workspaceDir: string) => Promise<void>;
 }
 
 export interface ScaffoldResult {
-  /** Set when the dependency install failed; the workspace still opens. */
+  /** Set when the dependency install failed. The workspace still opens. */
   installError?: Error;
 }
 
@@ -47,7 +47,7 @@ const npmInstall = (workspaceDir: string): Promise<void> =>
   });
 
 /**
- * npm package names can't carry spaces/uppercase/most punctuation; the
+ * npm package names can't carry spaces/uppercase/most punctuation. The
  * workspace-root package.json is never published, so any readable slug does.
  */
 const packageNameFor = (name: string): string => {
