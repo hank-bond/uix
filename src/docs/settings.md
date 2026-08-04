@@ -169,7 +169,7 @@ Passing the same descriptor to `forNamespace(...)` mints a schema-derived handle
 
 The substrate defines `agent`, `session`, and `keybindings`:
 
-- **`agent.defaultModel`:** The workspace default model. It applies before a Pi session exists and when a new branch carries no `model_change` entry. The value remains absent until the pilot selects a model.
+- **`agent.defaultModel`:** The workspace default model. It applies before a Pi session exists and when a new branch carries no `model_change` entry. The value remains absent until the user selects a model.
 - **`agent.favoriteModels`:** The workspace-local model shortlist. Each entry is provider-qualified. Unavailable entries remain persisted so favorites return when a provider reconnects.
 - **`session.selected`:** The selected durable session id. Startup opens that graph when it exists and otherwise falls back to the newest session. A successful New Session transition replaces the id only after restoration. Titles and first-message metadata remain authoritative in the session JSONL.
 - **`keybindings`:** A flat record from canonical action ids to portable shortcuts or `null`. Malformed ids, shortcuts, and values reject the candidate.

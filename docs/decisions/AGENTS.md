@@ -38,6 +38,6 @@ A dated, append-only log of load-bearing decisions: what we chose, what we rejec
 - **[no-agent-ui-manipulation](./2026-05-30-no-agent-ui-manipulation.md)** _(accepted, explanation)._ The agent mutates artifacts through ordinary file-edit tools, never bespoke UI or RPC tools; channels carry validated events, not an agent-side UI API. _Read before giving the agent any tool that manipulates the UI or panes directly._
 - **[stack-landings](./2026-05-30-stack-landings.md)** _(accepted, explanation)._ The initial stack and the alternative each piece beat: Electron, React + Compiler, Zustand, TypeBox, Monaco, SQLite-as-index, and in-process pi.
 - **[typebox-not-zod](./2026-05-30-typebox-not-zod.md)** _(accepted, explanation)._ TypeBox for every schema surface (IPC, channels, config, on-disk data) instead of splitting validation with Zod.
-- **[uix-is-a-pilot-substrate](./2026-05-30-uix-is-a-pilot-substrate.md)** _(accepted, explanation)._ UIX adds capabilities for the human piloting the agent, not for the agent, and is a reusable substrate rather than a single app — the framing test behind feature decisions.
+- **[uix-is-a-framework-not-an-app](./2026-05-30-uix-is-a-framework-not-an-app.md)** _(accepted, explanation)._ UIX is a reusable framework for building human-agent apps, not a single app — the framing test behind feature decisions.
 
 <!-- INDEX:END -->

@@ -20,9 +20,9 @@ status: archived
 
 > "I am basically just creating a UI to hook [pi] into like a human in a Gundam. Normally the harness is tools you give to the agent, but I mostly want **tools you give to the human to work with the agent**."
 
-This frame is the single most important design constraint. UIX is not adding agent capabilities. It is adding **pilot capabilities**: displays the human sees, controls the human's hands operate, and memory aids that mean the human doesn't have to hold everything in their head.
+This frame is the single most important design constraint. UIX is not adding agent capabilities. It is adding **user capabilities**: displays the human sees, controls the human's hands operate, and memory aids that mean the human doesn't have to hold everything in their head.
 
-Every feature decision should pass the test: _does this help the pilot see, decide, or act?_ If it's "make the agent smarter," it belongs in pi, not UIX.
+Every feature decision should pass the test: _does this help the user see, decide, or act?_ If it's "make the agent smarter," it belongs in pi, not UIX.
 
 ---
 
@@ -118,7 +118,7 @@ A small **SQLite mirror** of session metadata is the right way to make these cro
 
 ### 3.8 HUD
 
-Things the pilot should see without asking:
+Things the user should see without asking:
 
 - Pending steering / follow-up queue (pi emits `queue_update`).
 - Token burn, cost per branch, context-window usage.

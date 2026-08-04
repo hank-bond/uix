@@ -1,14 +1,14 @@
 ---
-summary: "UIX adds capabilities for the human piloting the agent, not for the agent, and is a reusable substrate rather than a single app — the framing test behind feature decisions."
+summary: "UIX is a reusable framework for building human-agent apps, not a single app — the framing test behind feature decisions."
 kind: explanation
 status: accepted
 ---
 
-# UIX is a pilot substrate, not an agent app
+# UIX is a framework, not an app
 
 > "I am basically just creating a UI to hook [pi] into like a human in a Gundam. Normally the harness is tools you give to the agent, but I mostly want **tools you give to the human to work with the agent**."
 
-This frame is the single most important design constraint. UIX adds **pilot capabilities**: displays the human sees, controls the human's hands operate, and memory aids so the human doesn't have to hold everything in their head. Every feature passes the test: _does this help the pilot see, decide, or act?_ If it's "make the agent smarter," it belongs in pi, not UIX.
+This frame is the single most important design constraint. UIX adds **user capabilities**: displays the human sees, controls the human's hands operate, and memory aids so the human doesn't have to hold everything in their head. Every feature passes the test: _does this help the user see, decide, or act?_ If it's "make the agent smarter," it belongs in pi, not UIX.
 
 ## Substrate, not app
 

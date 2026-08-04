@@ -74,7 +74,7 @@ The host shell remains fixed infrastructure. Features provide opinionated surfac
 
 Apply these rules before reaching for subsystem details:
 
-- **Pilot, not the pilot's brain:** UIX adds capabilities for the human working with the agent. Agent intelligence belongs in Pi. See [`2026-05-30-uix-is-a-pilot-substrate.md`](docs/decisions/2026-05-30-uix-is-a-pilot-substrate.md).
+- **For the user, not the agent:** UIX adds capabilities for the human working with the agent. Agent intelligence belongs in Pi. See [`2026-05-30-uix-is-a-framework-not-an-app.md`](docs/decisions/2026-05-30-uix-is-a-framework-not-an-app.md).
 - **Mirror Pi's self-extension ethos:** Ship composable primitives and thin default chrome, not fixed product features. See [`2026-06-05-pi-self-extension-ethos.md`](docs/decisions/2026-06-05-pi-self-extension-ethos.md).
 - **Features do not import host internals:** Feature traffic uses the injected context and `@uix/api`. See [`2026-07-01-features-are-the-loadable-unit.md`](docs/decisions/2026-07-01-features-are-the-loadable-unit.md).
 - **The agent changes artifacts, not live views:** Agent tools change authoritative feature data. Channels carry validated events instead of exposing UI handles. See [`2026-05-30-no-agent-ui-manipulation.md`](docs/decisions/2026-05-30-no-agent-ui-manipulation.md).

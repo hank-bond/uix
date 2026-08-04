@@ -12,4 +12,4 @@ The profile is separate from both other state scopes. Each workspace's agent cwd
 
 UIX does not call Pi's host-profile resolver, copy from `~/.pi/agent`, or fall back to host configuration. Existing users reconnect providers inside UIX; migration and import UI are separate product work. Process environment variables remain ambient and can still provide credentials or configuration to Pi—isolating those would require a separate process with a controlled environment.
 
-A single shared profile matches the product boundary: pilots normally connect a provider once for UIX rather than maintaining credentials per workspace. If a future application needs per-workspace credentials, it should make that an explicit profile choice rather than add implicit dual-profile fallback.
+A single shared profile matches the product boundary: users normally connect a provider once for UIX rather than maintaining credentials per workspace. If a future application needs per-workspace credentials, it should make that an explicit profile choice rather than add implicit dual-profile fallback.

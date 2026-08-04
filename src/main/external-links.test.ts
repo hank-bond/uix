@@ -50,7 +50,7 @@ describe("external web links", () => {
     expect(isExternalWebUrl("https://uix.sh/docs")).toBe(true);
     expect(isExternalWebUrl("http://localhost:3000/path")).toBe(true);
     expect(isExternalWebUrl("/relative")).toBe(false);
-    expect(isExternalWebUrl("mailto:pilot@example.com")).toBe(false);
+    expect(isExternalWebUrl("mailto:user@example.com")).toBe(false);
     expect(isExternalWebUrl("file:///Users/work/secret.txt")).toBe(false);
     expect(isExternalWebUrl("javascript:alert(1)")).toBe(false);
   });

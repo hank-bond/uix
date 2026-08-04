@@ -41,7 +41,7 @@ Document frontmatter provides a `summary` recall surface and an optional `read_w
 
 ### Readership
 
-Repository documentation primarily serves agents, while the human pilot directs and reviews their work. Diátaxis classifies the reader's need rather than the reader's identity. Agents use every quadrant: tutorials for acquisition, how-tos for tasks, reference for lookup, and explanation when architectural judgment or external rationale affects implementation. Human-readable prose remains necessary because the pilot must understand and review the same constraints.
+Repository documentation primarily serves agents, while the user directs and reviews their work. Diátaxis classifies the reader's need rather than the reader's identity. Agents use every quadrant: tutorials for acquisition, how-tos for tasks, reference for lookup, and explanation when architectural judgment or external rationale affects implementation. Human-readable prose remains necessary because the user must understand and review the same constraints.
 
 ### Meta-level
 

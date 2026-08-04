@@ -9,7 +9,7 @@ Build the action layer settled in [workspace-actions](../docs/design/workspace-a
 
 ## Decisions assumed
 
-- [Pilot substrate](../docs/decisions/2026-05-30-uix-is-a-pilot-substrate.md) and [Pi self-extension ethos](../docs/decisions/2026-06-05-pi-self-extension-ethos.md) — actions help the human operate the workspace, while the opinionated palette remains replaceable feature UI.
+- [Framework, not app](../docs/decisions/2026-05-30-uix-is-a-framework-not-an-app.md) and [Pi self-extension ethos](../docs/decisions/2026-06-05-pi-self-extension-ethos.md) — actions help the human operate the workspace, while the opinionated palette remains replaceable feature UI.
 - [Features are the loadable unit](../docs/decisions/2026-07-01-features-are-the-loadable-unit.md) and [runtime surface pipeline](../docs/decisions/2026-07-02-runtime-surface-pipeline.md) — action callbacks arrive through manifest-composed surfaces and use the shared `@uix/api/workspace` runtime.
 - [One owner per state](../docs/decisions/2026-06-09-one-owner-per-state.md) — callbacks/catalog are renderer runtime state; bindings are main-durable workspace settings; conflicts are derived.
 - [Workspace manifest, not discovery](../docs/decisions/2026-07-02-workspace-manifest-not-discovery.md) — materialized bindings remain inspectable and agent-editable in `uix.workspace.json`.

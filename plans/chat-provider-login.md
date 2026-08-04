@@ -5,13 +5,13 @@ status: active
 
 # Chat provider login
 
-Add the first-run path from an unconfigured UIX workspace to a usable Pi model without requiring the pilot to leave UIX. Chat renders the experience, but Pi's `ModelRuntime` owns provider definitions, authentication methods, prompts, credentials, model refresh, and availability.
+Add the first-run path from an unconfigured UIX workspace to a usable Pi model without requiring the user to leave UIX. Chat renders the experience, but Pi's `ModelRuntime` owns provider definitions, authentication methods, prompts, credentials, model refresh, and availability.
 
 The original split between UIX-authored API credential forms and a separate OAuth callback flow no longer applies. Pi providers now own both `api_key` and `oauth` login interactions through one prompt/notification vocabulary. UIX projects those methods and renders one generic flow; it does not merge backend provider identities, inspect `auth.json`, write credentials directly, or maintain provider-specific setup recipes. Chat may group related identities for presentation while every method retains Pi's provider id.
 
 ## Decisions assumed
 
-- [Pilot substrate](../docs/decisions/2026-05-30-uix-is-a-pilot-substrate.md) and [Pi self-extension ethos](../docs/decisions/2026-06-05-pi-self-extension-ethos.md) — UIX presents Pi authentication; it does not own provider definitions, credentials, or availability policy.
+- [Framework, not app](../docs/decisions/2026-05-30-uix-is-a-framework-not-an-app.md) and [Pi self-extension ethos](../docs/decisions/2026-06-05-pi-self-extension-ethos.md) — UIX presents Pi authentication; it does not own provider definitions, credentials, or availability policy.
 - [Features are the loadable unit](../docs/decisions/2026-07-01-features-are-the-loadable-unit.md) — Chat consumes substrate-owned agent channels like any other feature. There is no Chat-private auth backend.
 - [Agent controls](./archive/agent-controls.md) — model state remains Pi-native session state plus UIX's workspace default; provider login changes Pi auth and refreshes availability.
 - [One owner per state](../docs/decisions/2026-06-09-one-owner-per-state.md) — one Chat controls owner coordinates model availability, the picker, modal, and active provider-auth flow.

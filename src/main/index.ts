@@ -449,7 +449,7 @@ async function openWorkspace(
   });
 
   // A bad manifest must not brick the app: log it loudly and boot with no
-  // features — the pilot can then fix the manifest and /reload. Reload
+  // features — the user can then fix the manifest and /reload. Reload
   // keeps strict semantics (a bad manifest rejects, tree intact).
   let initialActivation: ActivationResult;
   try {

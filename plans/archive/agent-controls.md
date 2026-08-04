@@ -5,13 +5,13 @@ status: landed
 
 # Spec: agent controls
 
-Build the first useful chat status-bar control: a model pill that shows the current/default model, opens a searchable picker, and lets the pilot select an available pi model without leaving UIX.
+Build the first useful chat status-bar control: a model pill that shows the current/default model, opens a searchable picker, and lets the user select an available pi model without leaving UIX.
 
 This is intentionally smaller than a full auth/control surface. v1 assumes pi auth is already configured elsewhere and lists **available models only**. OAuth/API-key UI, thinking-level controls, context usage, and reorderable status-bar cells remain later work.
 
 ## Decisions assumed
 
-- [pilot substrate](../../docs/decisions/2026-05-30-uix-is-a-pilot-substrate.md) / [pi self-extension ethos](../../docs/decisions/2026-06-05-pi-self-extension-ethos.md) — UIX renders controls over pi's model/auth machinery; it does not fork provider/model logic.
+- [Framework, not app](../../docs/decisions/2026-05-30-uix-is-a-framework-not-an-app.md) / [pi self-extension ethos](../../docs/decisions/2026-06-05-pi-self-extension-ethos.md) — UIX renders controls over pi's model/auth machinery; it does not fork provider/model logic.
 - [features are the loadable unit](../../docs/decisions/2026-07-01-features-are-the-loadable-unit.md) — chat consumes substrate-owned agent channels like any feature could; model control belongs to the agent substrate, not a chat-private backend.
 - [no agent UI manipulation](../../docs/decisions/2026-05-30-no-agent-ui-manipulation.md) — persistent defaults change through workspace settings in `uix.workspace.json`, not through an agent-side UI API.
 - [agent-state-messages](../../docs/design/agent-state-messages.md) — model/thinking status is transcript-native pi state (`model_change` / `thinking_level_change`), not a new `uix.turn-state` cache.

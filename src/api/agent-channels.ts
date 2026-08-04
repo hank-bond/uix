@@ -111,7 +111,7 @@ export const SessionIdSchema = Type.String({
 /** Durable identity and lightweight metadata for one session graph. */
 export const SessionSummarySchema = Type.Object({
   sessionId: SessionIdSchema,
-  /** Pilot-authored title from Pi's latest session_info entry. */
+  /** User-authored title from Pi's latest session_info entry. */
   title: Type.Optional(Type.String()),
   /** Bounded textual projection of the graph's first user message. */
   firstUserMessage: Type.Optional(
@@ -192,7 +192,7 @@ export type ModelFavoriteUpdate = Static<typeof ModelFavoriteUpdateSchema>;
  * which tools execute. `model` is the live session model — absent until a
  * session exists, and absent even then when Pi resolved no model (e.g. no
  * provider is authenticated). `defaultModel` is the workspace default —
- * absent until the pilot first selects one. Both model fields absent means
+ * absent until the user first selects one. Both model fields absent means
  * "no model chosen": the UI renders that state rather than inventing a
  * fallback.
  */
