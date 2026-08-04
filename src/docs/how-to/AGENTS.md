@@ -1,0 +1,23 @@
+---
+summary: "Task-focused feature-authoring guides for implementing UIX applications, colocated with the framework and findable by the agents and builders who use it."
+status: active
+---
+
+# How-to guides
+
+These guides walk an implementer through a concrete feature-authoring task, each step ending in a checkable result. They are written for builders and agents making their own UIX applications: the "what do I need to know to implement my app" layer. They sit inside `src/` so they stay colocated with the code they reference.
+
+Reference facts live in the `@uix/api` contracts and source summaries; these pages add the worked sequence and the implementation logic the docs don't provide. Revisit a guide whenever the contribution it exercises changes.
+
+## Guides
+
+<!-- INDEX:START -->
+
+<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
+
+- **[add-a-channel](./add-a-channel.md)** _(stub, how-to)._ Add a typed channel: declare a schema-only contract, bind handlers, publish events, and consume the client from a surface. _Read when adding a channel to a feature, or when asked to add a channel._
+- **[add-a-feature](./add-a-feature.md)** _(active, how-to)._ Add a feature to a workspace: author the entry with defineFeature, declare it in uix.workspace.json, and reload. _Read when adding a feature to a workspace, or when asked to add a feature._
+- **[add-a-resource](./add-a-resource.md)** _(stub, how-to)._ Add a resource to a feature: declare an address handle in shared code, contribute a handler, and create transport URLs and origins. _Read when adding a resource to a feature, or when asked to add a resource._
+- **[add-a-surface](./add-a-surface.md)** _(stub, how-to)._ Add a surface to a feature: author an entry with defineSurface, bind a channel contract, and mount it in the workspace. _Read when adding a surface to a feature, or when asked to add a surface._
+
+<!-- INDEX:END -->
