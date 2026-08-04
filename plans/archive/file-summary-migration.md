@@ -1,6 +1,6 @@
 ---
 summary: "Migrate every production source header to the summary-plus-elaboration model with controlled vocabulary, add missing headers and AGENTS.md overviews, and align AGENTS.md summaries."
-status: active
+status: landed
 ---
 
 # File summary migration
@@ -9,9 +9,9 @@ Apply the reserved-word vocabulary and the summary-plus-elaboration header model
 
 Read these three governing docs before editing anything:
 
-- [`reserved-words.md`](../docs/architecture/conventions/reserved-words.md) — the controlled vocabulary, its operating rules, and the STE table shape
-- [`naming-and-comments.md`](../docs/architecture/conventions/naming-and-comments.md) — the Source-file headers section (summary plus elaboration)
-- [`source-organization.md`](../docs/architecture/conventions/source-organization.md) — the Files express responsibility section (one-responsibility boundary, expressibility and coupling tests, sibling separation)
+- [`reserved-words.md`](../../docs/architecture/conventions/reserved-words.md) — the controlled vocabulary, its operating rules, and the STE table shape
+- [`naming-and-comments.md`](../../docs/architecture/conventions/naming-and-comments.md) — the Source-file headers section (summary plus elaboration)
+- [`source-organization.md`](../../docs/architecture/conventions/source-organization.md) — the Files express responsibility section (one-responsibility boundary, expressibility and coupling tests, sibling separation)
 
 ## Vocabulary cheat sheet
 
