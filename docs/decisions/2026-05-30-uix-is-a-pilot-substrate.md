@@ -18,7 +18,7 @@ The motivating problems still drive substrate decisions because they're _why_ th
 
 1. **TUI agents force linear, scroll-heavy interaction** → panes need inline interactive content anchored to document position (channels, iframe panes).
 2. **Agent-generated code is unreviewable at volume** → extensions render structured artifacts (diffs, call-paths) richly, separate from chat (pane host, slot registry, file-watching).
-3. **Side-quest workflows are clunky** → the cockpit owns the agent session and exposes tree navigation as a first-class capability (turn/silent/local channel modes).
+3. **Side-quest workflows are clunky** → the host owns the agent session and exposes tree navigation as a first-class capability (turn/silent/local channel modes).
 4. **No queue for "fix this later," no cross-session memory aid** → cross-session enumeration and on-disk state are first-class (file watcher, on-disk state).
 
 These same shapes serve the wiki app, a design-system deliverables app, and the not-yet-imagined ones. That's the test the substrate keeps having to pass.

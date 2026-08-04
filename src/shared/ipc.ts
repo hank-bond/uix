@@ -17,7 +17,7 @@ import {
 
 /** Substrate channel names. Keep this list small — features register their own. */
 export const Channels = {
-  /** Renderer → main. invoke-style. Reloads cockpit resources in place. */
+  /** Renderer → main. invoke-style. Reloads host resources in place. */
   reload: "uix:reload",
   /** Picker → main. invoke-style. Recents for the start picker. */
   pickerState: "uix:picker:state",

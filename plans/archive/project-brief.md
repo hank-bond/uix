@@ -14,7 +14,7 @@ status: archived
 
 ## 1. What we're building
 
-**UIX is a tailor-made desktop IDE for working with coding agents.** It is not an agent — the agent is [pi](https://github.com/earendil-works/pi-mono) (`@earendil-works/pi-coding-agent`). UIX is the **cockpit** around pi.
+**UIX is a tailor-made desktop IDE for working with coding agents.** It is not an agent — the agent is [pi](https://github.com/earendil-works/pi-mono) (`@earendil-works/pi-coding-agent`). UIX is the **framework** around pi.
 
 ### The Gundam metaphor (load-bearing)
 
@@ -103,7 +103,7 @@ The signature interaction:
 4. If it worked: continue. If not: navigate back and try a different fix.
 ```
 
-This maps almost 1:1 onto pi's `session.navigateTree()`, `appendLabelChange()`, `fork()`, and `branchWithSummary()` APIs. The cockpit's job is to make this a few-click gesture, not a manual orchestration.
+This maps almost 1:1 onto pi's `session.navigateTree()`, `appendLabelChange()`, `fork()`, and `branchWithSummary()` APIs. The framework's job is to make this a few-click gesture, not a manual orchestration.
 
 ### 3.7 Reflection queue
 
@@ -116,7 +116,7 @@ Cross-session worklist of "fix this later" items. Implementation:
 
 A small **SQLite mirror** of session metadata is the right way to make these cross-session queries instant (parsing all JSONL on every query is slow). JSONL stays the source of truth; SQLite is a derived index rebuilt as sessions append.
 
-### 3.8 Cockpit-style HUD
+### 3.8 HUD
 
 Things the pilot should see without asking:
 
@@ -177,7 +177,7 @@ Subprocess via `--mode rpc` is the _wrong_ choice here because we want type safe
 
 ### 4.3 What pi gives us for free
 
-Pi's primitives map directly onto what UIX needs. Things the cockpit consumes rather than reimplements:
+Pi's primitives map directly onto what UIX needs. Things the framework consumes rather than reimplements:
 
 - **Tree structure**: `SessionManager.getTree()`, `getChildren()`, `getEntry()`, `getBranch()`.
 - **In-place tree navigation**: `session.navigateTree(targetId, { summarize, customInstructions, label })`.
@@ -278,4 +278,4 @@ These came up but weren't fully resolved:
 
 ## 9. The shape of the project, in one sentence
 
-**UIX is an Electron + React cockpit around pi that turns pi's already-rich session tree and file-editing primitives into a 2D workspace for reviewing, navigating, and steering coding agents — with structured reports as the central artifact and tree-based side-quest workflows as the central interaction pattern.**
+**UIX is an Electron + React framework around pi that turns pi's already-rich session tree and file-editing primitives into a 2D workspace for reviewing, navigating, and steering coding agents — with structured reports as the central artifact and tree-based side-quest workflows as the central interaction pattern.**

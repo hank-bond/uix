@@ -10,15 +10,15 @@ status: archived
 >
 > Original framing: the next unit after the extension loader. Gets agent-authored HTML onto the screen and, in later stages, makes it a stateful surface whose source of truth is the file on disk.
 >
-> Read [hosting-compatible-by-default](../../docs/decisions/2026-05-31-hosting-compatible-by-default.md) first — it constrains this work (address by key not path, cockpit is sole writer, no `fs.watch`, content-hash echo suppression, field-level merge). This spec assumes those decisions.
+> Read [hosting-compatible-by-default](../../docs/decisions/2026-05-31-hosting-compatible-by-default.md) first — it constrains this work (address by key not path, host is sole writer, no `fs.watch`, content-hash echo suppression, field-level merge). This spec assumes those decisions.
 
 ## The model (all stages)
 
 A **canvas** is an HTML document addressed by a **canvas key**. A key is an S3-like slash-namespaced slug such as `main`, `reports/security-review`, or `apps/demo-dashboard/v1`. The agent never addresses a filesystem path; it reads and writes canvas keys through dedicated canvas tools. The local Stage-1 store persists those keys at `<project>/.uix/canvas/<key>.html`, but that path mapping is an adapter detail and may later become a DB row, object-store key, or remote document.
 
-The canvas document is the **source of truth**; the cockpit is its **sole writer** (agent through canvas tools, cockpit writeback later — no external-editor support, so no `fs.watch`).
+The canvas document is the **source of truth**; the host is its **sole writer** (agent through canvas tools, host writeback later — no external-editor support, so no `fs.watch`).
 
-The cockpit shows a canvas in an **own-origin sandboxed iframe**. Own origin is the load-bearing security decision: agent HTML must never reach `window.uix` or the cockpit DOM. So content is served from a custom protocol and loaded via `src` — **never `srcdoc`** (srcdoc inherits the parent origin and reopens the hole).
+The host shows a canvas in an **own-origin sandboxed iframe**. Own origin is the load-bearing security decision: agent HTML must never reach `window.uix` or the host DOM. So content is served from a custom protocol and loaded via `src` — **never `srcdoc`** (srcdoc inherits the parent origin and reopens the hole).
 
 Three stages, each shippable:
 
@@ -57,9 +57,9 @@ reports/security-review    -> uix-canvas://security-review.reports/
 apps/demo-dashboard/v1     -> uix-canvas://v1.demo-dashboard.apps/
 ```
 
-Each key is therefore its own stable origin, isolating canvases from each other as well as from the cockpit. Requirements:
+Each key is therefore its own stable origin, isolating canvases from each other as well as from the host. Requirements:
 
-- A top-level `protocol.registerSchemesAsPrivileged([...])` call that runs at **module load, before `app.whenReady`** (Electron requires this). `index.ts` must import this module before ready for the side effect to land in time. Mark `standard: true` (gives it a real origin: same-origin to itself, cross-origin to the cockpit), `secure: true`, `supportFetchAPI: true` (Stage 2 shim will need it).
+- A top-level `protocol.registerSchemesAsPrivileged([...])` call that runs at **module load, before `app.whenReady`** (Electron requires this). `index.ts` must import this module before ready for the side effect to land in time. Mark `standard: true` (gives it a real origin: same-origin to itself, cross-origin to the host), `secure: true`, `supportFetchAPI: true` (Stage 2 shim will need it).
 - A `registerCanvasProtocol(): Disposable` called after ready that wires the handler via `protocol.handle` and returns the unregister Disposable (enrolled in `appBag`). Return HTML with `Content-Type: text/html` and `Cache-Control: no-store`; on `null` return a 404 with a tiny placeholder body (the pane renders it as-is — a missing canvas is a normal empty state, not an error). Use a minimal inline placeholder for now, e.g. `No canvas yet: <key>`; richer empty-state buttons for templates/docs can come later. Canvas refreshes are infrequent whole-document swaps; the store is truth and stale protocol caching is not useful.
 
 **Canvas tools (main / agent binding).** Stage 1 should not infer canvas writes from generic filesystem tools. Canvas is core substrate wiring, not a user extension, so it binds its agent-facing surface through an internal `AgentBinding` gathered by the agent subsystem:
@@ -86,12 +86,12 @@ uix_canvas_write({ key: string, html: string });
 **Canvas-changed signal (main → renderer).** The pane needs to know when to re-fetch. The Stage-1 writer is `uix_canvas_write` — **not** the filesystem and not generic pi file-write events.
 
 - Add to `src/shared/ipc.ts`: a `canvasChanged` channel (main→renderer `send`) and a `{ key: string }` payload; extend the preload bridge with `onCanvasChanged(handler)` mirroring `onAgentEvent`. Build this part **first** — it's the durable seam for tool writes and later writeback.
-- Broadcast `canvasChanged` to all live cockpit windows. Stage 1 has one app per window, so this is equivalent to sending to the current window; the broadcast shape is the future-compatible outer delivery mechanism. Pane/app/tab-level opt-in, dirty marking, and cold/warm lifecycle policy stay in the renderer.
+- Broadcast `canvasChanged` to all live host windows. Stage 1 has one app per window, so this is equivalent to sending to the current window; the broadcast shape is the future-compatible outer delivery mechanism. Pane/app/tab-level opt-in, dirty marking, and cold/warm lifecycle policy stay in the renderer.
 - Optional dev fallback: register an invoke-style manual refresh endpoint (via `handle`, into `appBag`) that validates a key and sends `canvasChanged`. This is only for dogfooding hand-edits; it is not the canonical agent path.
 
 **Canvas pane (renderer).** New `src/renderer/Canvas.tsx`. Replace the placeholder block in `App.tsx` (the `.uix/canvas/main.html will render here` section) with `<Canvas canvasKey="main" />`. Hardcode `canvasKey="main"` for now.
 
-- Renders `<iframe src="uix-canvas://main/?v={token}" sandbox="allow-scripts allow-same-origin">`. The pairing looks alarming (`allow-scripts` + `allow-same-origin` normally lets content break its own sandbox) but is **safe here precisely because the origin is the canvas's own, not the cockpit's** — "same-origin" means same as the canvas, which holds nothing privileged. This is the whole reason for the custom protocol. Leave a comment saying so; it will be questioned.
+- Renders `<iframe src="uix-canvas://main/?v={token}" sandbox="allow-scripts allow-same-origin">`. The pairing looks alarming (`allow-scripts` + `allow-same-origin` normally lets content break its own sandbox) but is **safe here precisely because the origin is the canvas's own, not the host's** — "same-origin" means same as the canvas, which holds nothing privileged. This is the whole reason for the custom protocol. Leave a comment saying so; it will be questioned.
 - Subscribe to `window.uix.onCanvasChanged`; when the key matches, bump `token` (a monotonic counter; not `Date.now()` — two refreshes in the same ms must differ) to force a re-fetch. Whole-document swap via re-pointing `src` — no DOM patching.
 
   > `// TODO: hardcoded pane — becomes a registered iframe pane when the pane host + registerPane contribution land.`
@@ -118,7 +118,7 @@ Shim, `postMessage`, writeback, `[name]` capture, interaction, htmx, fragment/pa
 
 1. `npm run dev` with no `.uix/canvas/main.html` present — pane shows the empty-state placeholder (404 body), no crash.
 2. Ask the agent to write canvas key `main` with a heading using the canvas tool; it renders. If dogfooding by hand, create `.uix/canvas/main.html` and trigger the optional manual refresh.
-3. Rewrite the key through the canvas tool and refresh again. Pane shows new content; **the cockpit window does not reload** and the conversation pane is untouched (proves this is content refresh, not extension/window reload).
+3. Rewrite the key through the canvas tool and refresh again. Pane shows new content; **the host window does not reload** and the conversation pane is untouched (proves this is content refresh, not extension/window reload).
 4. Confirm isolation: in the iframe's devtools context, `window.parent.uix` is `undefined` (cross-origin throws/blocks).
 5. `npm run check` passes.
 
@@ -140,7 +140,7 @@ Make the canvas stateful with the file as truth.
 - **Capture:** shim finds `[name]` elements, listens for `input`/`change`, `postMessage`s `{ name, value }` to the parent. Naming discipline: every interactive element gets a unique `name`; radio groups share a name, value discriminates.
 - **Renderer ↔ iframe** `postMessage` hop appears here (Stage 1 has none).
 - **Writeback channel** (renderer → main → `writeCanvas(key, html)`): parse5 sets `value`/`checked`/`selected` on existing named elements, structure untouched.
-- **Flush cadence:** debounced `input` (crash insurance) + flush on blur (natural boundary) + **drain before teardown** (the cockpit-initiated reload case — ask the iframe for current values before disposing).
+- **Flush cadence:** debounced `input` (crash insurance) + flush on blur (natural boundary) + **drain before teardown** (the host-initiated reload case — ask the iframe for current values before disposing).
 - **Echo suppression:** content-hash — remember what we wrote, ignore the matching change-feed event; don't re-render from changes that originated in the live pane.
 - **Conflict:** field-level merge — on agent rewrite, swap structure but re-apply unflushed user `[name]` values.
 - **No localStorage** — file holds the state; capture shim is ~vanilla DOM; htmx adds nothing to capture.

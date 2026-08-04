@@ -58,7 +58,7 @@ turnState: {
 
 The Agent system-prompt section is for short, always-relevant feature semantics and authoring contracts. It is static for one Pi runtime and should not carry per-turn state; use agent context for that. Larger task-specific workflows belong in a skill so Pi can advertise only its description and let the Agent load the full `SKILL.md` on demand. UIX does not parse skills: Pi owns discovery, validation, catalog formatting, and loading.
 
-At mount, the substrate wraps surface stylesheets in `@scope ([data-uix-surface="<name>"])`. Write selectors unscoped because they cannot reach other surfaces or cockpit chrome.
+At mount, the substrate wraps surface stylesheets in `@scope ([data-uix-surface="<name>"])`. Write selectors unscoped because they cannot reach other surfaces or host chrome.
 
 Name-global at-rules remain an exception. CSS gives `@font-face`, `@keyframes`, and `@property` one document-wide namespace. Prefix those names with the feature, for example `"UIX Iosevka"`.
 

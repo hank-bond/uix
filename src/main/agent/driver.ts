@@ -144,13 +144,13 @@ export interface AgentDriverOptions {
   onEvent: (event: AgentEvent) => void;
   /** UIX-core agent installers composed into the in-process Pi extension. */
   agentInstallers?: readonly AgentInstaller[];
-  /** Cockpit-private turn-state registry, installed by the driver. */
+  /** Host-private turn-state registry, installed by the driver. */
   turnState?: TurnStateRegistry;
   /** Stable feature-owned system-prompt sections. */
   agentSystemPrompt?: AgentSystemPromptRegistry;
   /** Feature-supplied Pi skills discovered at session start/reload. */
   agentSkills?: AgentSkillRegistry;
-  /** Cockpit→agent context registry, installed by the driver. */
+  /** Host→agent context registry, installed by the driver. */
   agentContext?: AgentContextRegistry;
   /** State root (pins the session dir) + agent cwd. */
   workspace: Workspace;

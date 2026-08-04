@@ -67,7 +67,7 @@ Prioritize names that teach authors the contribution model: feature definitions/
 Acceptance:
 
 - Public names follow the approved glossary with no compatibility aliases.
-- Feature authors never provide substrate-derived ids or import cockpit internals.
+- Feature authors never provide substrate-derived ids or import host internals.
 - Shipped docs and in-tree features compile against only the new names.
 - Every public migration passes focused tests and the full repository check.
 

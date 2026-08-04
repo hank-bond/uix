@@ -6,7 +6,7 @@ status: active
 
 # UIX
 
-UIX is a local Electron cockpit for building bidirectional human-agent surfaces on Pi. Pi supplies sessions, tools, prompts, skills, providers, extensions, and agent events. UIX supplies surfaces, channels, feature facets, and the bridge between agent activity and frontend state.
+UIX is a local Electron framework for building bidirectional human-agent surfaces on Pi. Pi supplies sessions, tools, prompts, skills, providers, extensions, and agent events. UIX supplies surfaces, channels, feature facets, and the bridge between agent activity and frontend state.
 
 The project provides wiring for many local agent-facing applications, not one fixed application. Examples include reports, dashboards, knowledge tools, design-system deliverables, and interactive canvases.
 
@@ -55,7 +55,7 @@ Pi and UIX have separate lifecycles. A package may contain both Pi extensions an
 
 ## Substrate primitives
 
-The cockpit provides these primitives. Product behavior above them belongs to features.
+The framework provides these primitives. Product behavior above them belongs to features.
 
 | Primitive | Purpose |
 | --- | --- |
@@ -68,7 +68,7 @@ The cockpit provides these primitives. Product behavior above them belongs to fe
 | **Workspace services** | Own renderer actions, keybindings, selected-session projection, and fixed shell behavior. |
 | **Lifetime bags** | Dispose app, feature, window, and agent capabilities in deterministic order. |
 
-The cockpit shell remains fixed infrastructure. Features provide opinionated surfaces such as Chat, Canvas, palettes, settings editors, and report viewers.
+The host shell remains fixed infrastructure. Features provide opinionated surfaces such as Chat, Canvas, palettes, settings editors, and report viewers.
 
 ## Invariants
 
@@ -76,7 +76,7 @@ Apply these rules before reaching for subsystem details:
 
 - **Pilot, not the pilot's brain:** UIX adds capabilities for the human working with the agent. Agent intelligence belongs in Pi. See [`2026-05-30-uix-is-a-pilot-substrate.md`](docs/decisions/2026-05-30-uix-is-a-pilot-substrate.md).
 - **Mirror Pi's self-extension ethos:** Ship composable primitives and thin default chrome, not fixed product features. See [`2026-06-05-pi-self-extension-ethos.md`](docs/decisions/2026-06-05-pi-self-extension-ethos.md).
-- **Features do not import cockpit internals:** Feature traffic uses the injected context and `@uix/api`. See [`2026-07-01-features-are-the-loadable-unit.md`](docs/decisions/2026-07-01-features-are-the-loadable-unit.md).
+- **Features do not import host internals:** Feature traffic uses the injected context and `@uix/api`. See [`2026-07-01-features-are-the-loadable-unit.md`](docs/decisions/2026-07-01-features-are-the-loadable-unit.md).
 - **The agent changes artifacts, not live views:** Agent tools change authoritative feature data. Channels carry validated events instead of exposing UI handles. See [`2026-05-30-no-agent-ui-manipulation.md`](docs/decisions/2026-05-30-no-agent-ui-manipulation.md).
 - **Hosting-compatible by default:** Address durable content by id behind owned stores. Do not expose local filesystem mechanics as feature contracts. See [`2026-05-31-hosting-compatible-by-default.md`](docs/decisions/2026-05-31-hosting-compatible-by-default.md).
 - **One logical channel API:** The Electron transport implements the contract today. Future iframe or hosted adapters must preserve the same request and event model.
@@ -100,7 +100,7 @@ The `src/docs/` tree remains the centralized substrate reference during its owne
 
 <!-- INDEX:END -->
 
-The cockpit injects this orientation and routing map through its owned agent integration. Skills add capabilities; documentation explains project architecture.
+The framework injects this orientation and routing map through its owned agent integration. Skills add capabilities; documentation explains project architecture.
 
 ## Non-goals
 

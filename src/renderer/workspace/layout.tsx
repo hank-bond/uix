@@ -127,7 +127,7 @@ export function SurfaceMount({
 /**
  * Rebuild a surface's sheet with every rule wrapped in
  * `@scope ([data-uix-surface="<name>"])`, so feature CSS cannot style other
- * surfaces or the cockpit chrome no matter how its selectors are written.
+ * surfaces or the host chrome no matter how its selectors are written.
  * Feature authors write plain selectors; the substrate owns containment.
  *
  * Name-global at-rules (@font-face, @keyframes, @property) are hoisted out

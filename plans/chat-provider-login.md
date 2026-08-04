@@ -5,7 +5,7 @@ status: active
 
 # Chat provider login
 
-Add the first-run path from an unconfigured UIX workspace to a usable Pi model without requiring the pilot to leave the cockpit. Chat renders the experience, but Pi's `ModelRuntime` owns provider definitions, authentication methods, prompts, credentials, model refresh, and availability.
+Add the first-run path from an unconfigured UIX workspace to a usable Pi model without requiring the pilot to leave UIX. Chat renders the experience, but Pi's `ModelRuntime` owns provider definitions, authentication methods, prompts, credentials, model refresh, and availability.
 
 The original split between UIX-authored API credential forms and a separate OAuth callback flow no longer applies. Pi providers now own both `api_key` and `oauth` login interactions through one prompt/notification vocabulary. UIX projects those methods and renders one generic flow; it does not merge backend provider identities, inspect `auth.json`, write credentials directly, or maintain provider-specific setup recipes. Chat may group related identities for presentation while every method retains Pi's provider id.
 

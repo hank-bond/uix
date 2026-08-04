@@ -145,7 +145,7 @@ export type FeatureEventPublisher<C extends ChannelContract> = {
 
 /**
  * The channel capability injected into feature contexts (the channel
- * counterpart of `DocumentStoreFactory`). The cockpit closes over the
+ * counterpart of `DocumentStoreFactory`). The host closes over the
  * feature id, so the only way a feature obtains publish capability is by
  * presenting a contract — there is no untyped publish surface.
  */
@@ -158,7 +158,7 @@ export interface FeatureEventPublisherFactory {
 /**
  * Binds a contract's declared events onto a raw name/payload publish function,
  * producing a typed {@link FeatureEventPublisher}. The publish function is the
- * feature-scoped seam the cockpit supplies (it canonicalizes names); it stays
+ * feature-scoped seam the host supplies (it canonicalizes names); it stays
  * a bare function type rather than a named abstraction.
  */
 export function createFeatureEventPublisher<const C extends ChannelContract>(

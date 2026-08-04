@@ -8,12 +8,12 @@ status: superseded
 
 > **Superseded by [features-are-the-loadable-unit](./2026-07-01-features-are-the-loadable-unit.md).** The discovery mechanics and identity model carry forward; "extension" is retired as the uix-side unit (the unit is a feature) and the roots/manifest rename to `.uix/features/` / `uix.features`.
 
-**User-installed, not first-party.** Putting `uix-core` under `src/extensions/` was a category mistake. Extensions are user-installed; what `uix-core` does (orientation + doc map + cockpit tools) is _embedded-pi config_ — how the cockpit configures its own pi instance, not a feature users opt into.
+**User-installed, not first-party.** Putting `uix-core` under `src/extensions/` was a category mistake. Extensions are user-installed; what `uix-core` does (orientation + doc map + host tools) is _embedded-pi config_ — how the host configures its own pi instance, not a feature users opt into.
 
 Corrected model (mirrors pi's layout):
 
 - **Discovery roots** (extensions only): `<project>/.uix/extensions/` (common case) and `~/.uix/extensions/` (global, optional). No app-shipped first-party root — UIX ships zero extensions.
-- **Embedded-pi config** lives in cockpit source (under `src/main/`, exact path with milestone 4).
+- **Embedded-pi config** lives in host source (under `src/main/`, exact path with milestone 4).
 - The uix repo dogfoods via `<repo>/.uix/extensions/` (gitignored), as pi's dev workflow uses `<repo>/.pi/extensions/`.
 
 **Discovery shape.** `<root>/<name>/package.json` with optional independent `pi` and `uix` fields. Stricter than pi (which allows bare `<name>.ts`, folder-with-index, or full package) because UIX must disambiguate which side(s) an extension targets (pi-only, uix-only, both). A file/folder-name convention could carry that later; decide when ceremony is felt (~3–5 dogfood extensions). No `uixApi` version gate in v0 — pi doesn't gate, and the precondition (user extensions outliving substrate upgrades) doesn't exist yet; it's one field

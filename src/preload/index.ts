@@ -25,7 +25,7 @@ const transport: ChannelTransport = {
   reload: () => ipcRenderer.invoke(Channels.reload),
 };
 
-// BrowserWindow preload is for the cockpit shell only. Agent-authored canvas
+// BrowserWindow preload is for the host shell only. Agent-authored canvas
 // iframes must not receive window.channels even if Electron ever loads this preload
 // in a subframe.
 if (process.isMainFrame) {

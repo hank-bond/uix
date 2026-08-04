@@ -2,7 +2,7 @@
 //
 // Injected into served canvas HTML so a human can edit the pane and have edits
 // flow back to the store. The canvas frame is sandboxed off `window.uix` (see
-// preload), so the only channel out is postMessage to the cockpit parent, which
+// preload), so the only channel out is postMessage to the host, which
 // forwards over IPC. The shim is added at serve time and never persisted: it
 // removes its own <script> node before serializing, so it never leaks into
 // stored content.

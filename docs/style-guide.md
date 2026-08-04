@@ -115,7 +115,7 @@ Living reference and source-local guidance describe current state only. A not-ye
 
 ### Person
 
-The register is split. Reference and descriptive prose is impersonal ("the substrate registers each facet under the feature id"). Instructions and read-when triggers are imperative ("Add or edit a doc"). "You" appears where the reader is the actor. "We" and "our" may refer to the UIX project when the reader is not the actor. "user" is reserved for the cockpit's end user, never the doc reader.
+The register is split. Reference and descriptive prose is impersonal ("the substrate registers each facet under the feature id"). Instructions and read-when triggers are imperative ("Add or edit a doc"). "You" appears where the reader is the actor. "We" and "our" may refer to the UIX project when the reader is not the actor. "user" is reserved for the software's end user, never the doc reader.
 
 ### Active voice
 

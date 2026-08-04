@@ -5,7 +5,7 @@ status: active
 
 # Architecture
 
-Living docs for the current state of UIX: what is built, how subsystems are shaped, code conventions, and unresolved architecture questions. Read here when changing cockpit internals or checking the architecture-of-record.
+Living docs for the current state of UIX: what is built, how subsystems are shaped, code conventions, and unresolved architecture questions. Read here when changing host internals or checking the architecture-of-record.
 
 <!-- INDEX:START -->
 

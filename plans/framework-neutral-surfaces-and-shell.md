@@ -122,7 +122,7 @@ The questions are intentionally more exhaustive than the decisions above. They a
 
 - Which capabilities must every surface receive, and which are optional or feature-bound: typed channel client, raw workspace client, settings, actions, session control, resources, diagnostics, host capabilities, or future agent links?
 - Should a surface receive the raw workspace client at all when narrower clients can be minted by the substrate?
-- How does a contractless surface request additional public feature channels without gaining ambient access to cockpit internals?
+- How does a contractless surface request additional public feature channels without gaining ambient access to host internals?
 - Are settings exposed as current `get`/`set`/`onChange` operations, as a feature-bound handle, or through another domain-specific shape?
 - Which session and action projections are legitimate substrate capabilities versus conveniences currently exposed because Chat needed them?
 - Where a domain has a current immutable projection plus invalidation, should its public shape use `getSnapshot()`/`subscribe()`, callback payloads, an `EventTarget`, or a purpose-specific API?

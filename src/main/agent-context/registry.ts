@@ -359,9 +359,9 @@ function vocabularySection(
   >,
 ): string {
   return [
-    "## UIX cockpit state messages",
+    "## UIX host state messages",
     "",
-    "UIX (the cockpit hosting this session) injects state updates as context",
+    "UIX (the host of this session) injects state updates as context",
     "messages alongside the user's message. The human did not write them.",
     "State arrives in a single <uix-state> block containing one tagged",
     "section per update:",

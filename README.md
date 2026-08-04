@@ -6,7 +6,7 @@ status: active
 
 # UIX
 
-A local Electron cockpit for composing human-agent surfaces over Pi.
+A local Electron framework for composing human-agent surfaces over Pi.
 
 - Current architecture: [`AGENTS.md`](./AGENTS.md)
 - Archived project brief: [`project-brief.md`](./plans/archive/project-brief.md)
@@ -14,7 +14,7 @@ A local Electron cockpit for composing human-agent surfaces over Pi.
 
 ## Status
 
-The cockpit, manifest feature loader, runtime surfaces, typed channels, agent sessions, settings, Canvas, and Chat are implemented. See the root orientation above and [`AGENTS.md`](./plans/AGENTS.md) for remaining build specs.
+The framework, manifest feature loader, runtime surfaces, typed channels, agent sessions, settings, Canvas, and Chat are implemented. See the root orientation above and [`AGENTS.md`](./plans/AGENTS.md) for remaining build specs.
 
 ## Requirements
 

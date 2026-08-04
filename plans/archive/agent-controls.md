@@ -1,5 +1,5 @@
 ---
-summary: "Add the first cockpit agent control: a chat status-bar model pill backed by available pi models, workspace-level default-model settings, native pi model_change entries for live/branch state, and a searchable picker."
+summary: "Add the first UIX agent control: a chat status-bar model pill backed by available pi models, workspace-level default-model settings, native pi model_change entries for live/branch state, and a searchable picker."
 status: landed
 ---
 
@@ -21,7 +21,7 @@ This is intentionally smaller than a full auth/control surface. v1 assumes pi au
 - `ModelRegistry.create(authStorage)` can list known models; `getAvailable()` returns only models with configured auth.
 - `AgentSession.setModel(model)` validates auth, updates the live agent model, appends a native `model_change` entry, persists pi's default model/provider, reclamps thinking level, and emits model-select hooks.
 - `SessionManager` persists native `model_change` entries with `{ provider, modelId }`; `createAgentSession(...)` restores the current model from branch history before falling back to configured defaults.
-- pi's `SettingsManager` has default provider/model APIs, but UIX wants a **workspace default** in the workspace manifest rather than a global/project pi default as the cockpit source of truth.
+- pi's `SettingsManager` has default provider/model APIs, but UIX wants a **workspace default** in the workspace manifest rather than a global/project pi default as the framework source of truth.
 
 ## Target model
 

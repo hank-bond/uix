@@ -161,7 +161,7 @@ body {
   }
 }
 
-/* mock cockpit (theme demo) */
+/* mock app (theme demo) */
 .stage {
   /* top-aligned so the mock window itself (not its empty centering space) is what
      scrolls into view as the brand rises */

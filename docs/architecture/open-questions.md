@@ -14,7 +14,7 @@ These questions remain unresolved. A blocking question joins a milestone, then g
 - **Channel transport expansion:** Electron IPC implements typed channels. Canvas separately owns a narrow iframe `postMessage` shim. Determine the adapter boundary before adding iframe or hosted channel transports.
 - **Substrate-owned `postMessage` filtering:** Canvas manually checks message origin, source window, and type before writeback. Determine how the substrate can bind known resource origins and iframe windows into a filtered subscription.
 - **Resource address handle after substrate-owned iframe transport:** `ResourceAddressHandle` combines a declarative route with imperative `toUrl()` and `toOrigin()` operations. A future iframe surface can make those conversions substrate-internal. Determine whether that surface model removes the public handle.
-- **Slot taxonomy:** What named slots should the cockpit shell expose? Balance a useful minimum against premature layout commitments.
+- **Slot taxonomy:** What named slots should the host shell expose? Balance a useful minimum against premature layout commitments.
 - **Feature reload during an agent turn:** If reload replaces active tools, should UIX delay replacement, abort the turn, or let the turn finish?
 
 ## Future apps (not substrate, but shaping it)

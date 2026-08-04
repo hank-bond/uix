@@ -6,7 +6,7 @@
 //
 // A tool body is inherently a Pi artifact, so AgentToolDefinition is Pi's
 // ToolDefinition minus `name` — re-exported here so feature authors get the
-// real Pi typing from @uix/api without reaching into cockpit internals.
+// real Pi typing from @uix/api without reaching into host internals.
 
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { TSchema } from "typebox";

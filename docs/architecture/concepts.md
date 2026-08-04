@@ -103,7 +103,7 @@ A _contribution_ is a declarative capability or state value that a feature suppl
 A contribution must be:
 
 - **owned by one feature:** One feature is responsible for its identity, schema, materialization/rendering contract, and disposal.
-- **registered at a contribution point:** It enters UIX through a `register*` API rather than by importing cockpit internals.
+- **registered at a contribution point:** It enters UIX through a `register*` API rather than by importing host internals.
 - **lifetime-scoped by the substrate:** Disposal/unload removes it from the registry.
 - **described by what it offers, not by how a downstream consumer happens to use it**.
 

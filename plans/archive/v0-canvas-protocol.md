@@ -33,7 +33,7 @@ UIX v0 is **the minimal surface for an efficient, expressive, reliable agent ↔
 It ships as two halves connected by a small file/URL contract:
 
 - A set of **pi extensions** (agent-facing): a system-prompt addendum, turn-boundary hooks, custom entry types, and (eventually) tools.
-- An **Electron cockpit** (human-facing): panes, an in-iframe bridge, a URL resolver, file watchers, snapshot lookup.
+- An **Electron host** (human-facing): panes, an in-iframe bridge, a URL resolver, file watchers, snapshot lookup.
 
 Everything richer — design systems, component libraries, specific HUD recipes, viz tools, code-review flows — is meant to be built on top by users. a batteries included version would look like the same relationship oh-my-pi has to pi. we want to focus on the scaffolding that enables others to build the interface they want.
 
@@ -68,7 +68,7 @@ When in doubt: out.
 
 ```
 ┌─────────────────────┐         ┌─────────────────────┐
-│ pi extension(s)     │         │ Electron cockpit    │
+│ pi extension(s)     │         │ Electron host       │
 │ (agent-side)        │         │ (human-side)        │
 │                     │         │                     │
 │ - system-prompt     │         │ - conversation pane │
@@ -89,10 +89,10 @@ When in doubt: out.
 Neither half owns the contract. Either can be replaced. Each is independently useful:
 
 - The pi extension alone gives anyone running pi in a terminal a canvas-writing workflow that produces meaningful HTML files (unrendered, but real).
-- The cockpit alone could render any HTML following the convention, regardless of who wrote it (an extension, a cron job, a totally different agent).
-- Together they make the cockpit experience.
+- The host alone could render any HTML following the convention, regardless of who wrote it (an extension, a cron job, a totally different agent).
+- Together they make the app experience.
 
-This is the network-effect mechanism. New pi extensions paint new HUDs in the same cockpit; alternate cockpits render the same extensions; both compose freely.
+This is the network-effect mechanism. New pi extensions paint new HUDs in the same host; alternate hosts render the same extensions; both compose freely.
 
 ---
 
@@ -127,7 +127,7 @@ The split rule: **schemes are nouns or `uix://`.** If you want the user to be ab
 
 ### 4.2 Canvas files
 
-A canvas is an HTML file at `<project>/.uix/canvas/<name>.html`. The agent writes it using normal file tools (`Write`, `Edit`, or pi's hash-anchor variants). The cockpit renders it in a sandboxed iframe with one bridge script injected.
+A canvas is an HTML file at `<project>/.uix/canvas/<name>.html`. The agent writes it using normal file tools (`Write`, `Edit`, or pi's hash-anchor variants). The host renders it in a sandboxed iframe with one bridge script injected.
 
 **Naming discipline** (taught by the skill):
 
@@ -153,7 +153,7 @@ At each agent turn boundary, the **pi-extension hook** does:
    });
    ```
 
-When the **cockpit** resolves which snapshot to show for a canvas:
+When the **host** resolves which snapshot to show for a canvas:
 
 1. Walk back from the current tree entry to the most recent `uix:canvas` entry whose `canvas` matches.
 2. Load `snapshots/<contentHash>.html`.
@@ -191,7 +191,7 @@ When the user sends a message in the conversation pane, the bridge:
 
 ### 4.5 Stream URL detection
 
-The cockpit watches the agent's streaming text output for completed URLs (terminated by whitespace, quote, or angle bracket). Behavior:
+The host watches the agent's streaming text output for completed URLs (terminated by whitespace, quote, or angle bracket). Behavior:
 
 - **Noun-scheme URL completes mid-stream** → auto-fire navigation (open in the appropriate pane). Cheap to undo, useful for "the agent is about to explain `parseConfig` and the code pane already shows it."
 - **Verb-scheme URL** (`uix://`) → render as a live link/button in the conversation pane. Never auto-executes. User must click.
@@ -212,7 +212,7 @@ The canvas convention is environment, not opt-in behavior, so it lives in the sy
 - The URL schemes (noun vs verb, when to use each).
 - The `name`-attribute discipline.
 - How user state arrives (the delta block on the next message).
-- "Preserve user input fields when you rewrite the HTML — the cockpit syncs values, but if you delete the element they're gone."
+- "Preserve user input fields when you rewrite the HTML — the host syncs values, but if you delete the element they're gone."
 
 Exact wording is an open question (§10); the content above is the minimum coverage.
 
@@ -235,7 +235,7 @@ Defer.
 
 ---
 
-## 6. Cockpit surface
+## 6. Host surface
 
 What the **base** Electron app does. All small, all composable.
 
@@ -251,7 +251,7 @@ What the **base** Electron app does. All small, all composable.
 - **Snapshot resolver** — given the current pi tree entry, walks back to find the latest `uix:canvas` entry per canvas; loads the HTML by hash.
 - **State diff emitter** — on user-message-send: snapshot iframe DOM, compute named-element delta, write attrs back to HTML, prepend delta to prompt before forwarding.
 
-That's the entire cockpit. No code editor. No tree pane. No labels UI. No HUD widgets. No design system beyond the iframe's default styles.
+That's the entire host. No code editor. No tree pane. No labels UI. No HUD widgets. No design system beyond the iframe's default styles.
 
 ---
 
@@ -263,7 +263,7 @@ None of these ship in base:
 - **Component library / UI primitives** beyond raw HTML.
 - **Templates, web components, "rich block" vocabularies, JSX-as-output.**
 - **Renderer extensions** (template engines, JSON → HTML compilers).
-- **Code editor pane.** VS Code is right there. UIX is the cockpit next to it.
+- **Code editor pane.** VS Code is right there. UIX is the app next to it.
 - **Tree visualization pane.**
 - **Reflection queue.**
 - **Cost / HUD widgets.**
@@ -279,7 +279,7 @@ All of the above belong in oh-my-uix packages built on the protocol.
 
 ## 8. Tech stack v0
 
-Cockpit:
+Host:
 
 - Electron + electron-vite
 - TypeScript
@@ -308,13 +308,13 @@ Each refused thing has a clear trigger condition. None of those triggers exist f
 
 Each step end-to-end before the next.
 
-1. **Scaffold the cockpit.** electron-vite + React + TS. `pnpm dev` runs.
+1. **Scaffold the host.** electron-vite + React + TS. `pnpm dev` runs.
 2. **Wire pi into main.** `createAgentSessionRuntime()`, one IPC channel for `prompt`, one for `agent-event`. Conversation pane renders plain-text streaming.
 3. **Scaffold the pi extension package.** Empty extension that registers the system-prompt addendum + custom entry type. No tools, no hooks yet.
-4. **Canvas v0.** Cockpit watches `.uix/canvas/main.html`, renders in a sandboxed iframe. Agent writing a file produces a visible page.
+4. **Canvas v0.** Host watches `.uix/canvas/main.html`, renders in a sandboxed iframe. Agent writing a file produces a visible page.
 5. **Bridge script.** Injects into the iframe, catches `click` on `uix://` and noun-scheme links, posts a stub message back via IPC.
 6. **Snapshot hook.** Extension captures HTML at turn boundary, writes to `snapshots/`, appends `uix:canvas` custom entry.
-7. **Snapshot resolver.** Cockpit walks tree on navigation, loads the right snapshot per canvas. Rollback works.
+7. **Snapshot resolver.** Host walks tree on navigation, loads the right snapshot per canvas. Rollback works.
 8. **State diff emitter.** On user-message-send, compute delta against current baseline snapshot, write attrs back to HTML, prepend delta to prompt.
 
 After step 8, the entire protocol is live end-to-end. Everything else is built on top.
@@ -324,7 +324,7 @@ After step 8, the entire protocol is live end-to-end. Everything else is built o
 ## 10. Open questions
 
 - **One pi extension package or several?** Pi philosophy says several — hash-anchor extension separate from canvas extension separate from snapshot-hook extension. Defer until repo layout forces a decision; lean toward several.
-- **Cockpit handling of multiple canvases.** v0 supports it (file basename = canvas name) but UX of "which canvases are open / which is focused" is undecided. Probably hardcode single canvas for the first real iteration.
+- **Host handling of multiple canvases.** v0 supports it (file basename = canvas name) but UX of "which canvases are open / which is focused" is undecided. Probably hardcode single canvas for the first real iteration.
 - **Conversation pane during tree navigation.** When you navigate back, does the conversation pane also re-render to the historical state? Probably yes, following pi's semantics. Confirm against SDK.
 - **Bridge security model.** Iframe is sandboxed (`sandbox="allow-forms allow-same-origin allow-scripts"`). What about CDN scripts the agent embeds (mermaid, etc.)? Default permissive, revisit when something breaks.
 - **Exact system-prompt addendum wording.** Iterate against real sessions.
@@ -335,4 +335,4 @@ After step 8, the entire protocol is live end-to-end. Everything else is built o
 
 ## 11. The shape, in one sentence
 
-**UIX v0 is a minimal protocol — HTML files plus URL schemes plus snapshot-per-turn — and the smallest pi-extension/Electron-cockpit pair that makes the protocol work; everything richer is meant to be grown on top as oh-my-uix.**
+**UIX v0 is a minimal protocol — HTML files plus URL schemes plus snapshot-per-turn — and the smallest pi-extension/Electron-host pair that makes the protocol work; everything richer is meant to be grown on top as oh-my-uix.**

@@ -2,7 +2,7 @@
 //
 // The minimal structured-logging surface features receive via
 // FeatureContext.log. One call shape: `log.info({ ...fields }, "event_name")`.
-// The cockpit binds a feature-id-scoped child of its own logger; keeping this
+// The host binds a feature-id-scoped child of its own logger; keeping this
 // a pino-free subset means feature code never depends on the main-process
 // logging stack (and the interface stays web-typecheck-safe).
 

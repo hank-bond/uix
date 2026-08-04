@@ -685,7 +685,7 @@ void app.whenReady().then(async () => {
 
   // Process-level error handlers are the catch-all for anything
   // that escapes the synchronous call stack — a feature's
-  // interval throwing, a stray promise rejection in cockpit code.
+  // interval throwing, a stray promise rejection in host code.
   // They go in early so they're armed before any user code runs.
   appBag.add(installProcessHandlers(createLogger("main")));
 

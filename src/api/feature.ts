@@ -5,9 +5,9 @@
 // feature's facet contributions. First-party and workspace modules are
 // indistinguishable here — the substrate activates both through the same path.
 //
-// FeatureContext is the service bag injected by the cockpit into every feature
+// FeatureContext is the service bag injected by the host into every feature
 // at activation time. Features access external state only through this object
-// and the typed contribution schemas — never by importing cockpit internals.
+// and the typed contribution schemas — never by importing host internals.
 
 import type { AgentContextContribution } from "./agent-context";
 import type { AgentSkillContribution } from "./agent-skills";
@@ -51,7 +51,7 @@ export interface FeatureContext {
   documents: DocumentStoreFactory;
   settings: SettingsHandle;
   channels: FeatureEventPublisherFactory;
-  /** Feature-id-scoped structured logger bound by the cockpit. */
+  /** Feature-id-scoped structured logger bound by the host. */
   log: FeatureLogger;
 }
 

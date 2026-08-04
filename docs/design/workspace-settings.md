@@ -41,7 +41,7 @@ Workspace actions exposed three connected problems in the current settings shape
 
 Second, sparse overrides were rejected as distributed state management. Defaults are materialization inputs: missing values fill and persist, existing values always win, and runtime reads only the durable result. Empty registered scopes remain visible as `{}` because this is both simpler and a useful manifest affordance. The stable conclusion was distilled into [settings defaults materialize](../decisions/2026-07-13-settings-defaults-materialize.md).
 
-Third, a pan-feature settings modal does not require hardcoded cockpit UI. It mirrors the command palette: the hub standardizes a narrow serializable catalog and validated operations where cross-feature composition is worthwhile; an ordinary feature decides how to render them. Owner-scoped handles remain the normal feature API. This was seeded as [replaceable cross-feature settings editor](../../plans/backlog.md), while keybindings retain unresolved ids so that editor can eventually distinguish malformed data, likely typos, and intentional dormant configuration.
+Third, a pan-feature settings modal does not require hardcoded framework UI. It mirrors the command palette: the hub standardizes a narrow serializable catalog and validated operations where cross-feature composition is worthwhile; an ordinary feature decides how to render them. Owner-scoped handles remain the normal feature API. This was seeded as [replaceable cross-feature settings editor](../../plans/backlog.md), while keybindings retain unresolved ids so that editor can eventually distinguish malformed data, likely typos, and intentional dormant configuration.
 
 ### 2026-08-01 — resolved
 

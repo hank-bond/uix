@@ -2,7 +2,7 @@
   "name": "uix",
   "version": "0.0.0",
   "private": true,
-  "description": "Minimal protocol + cockpit for agent ↔ HTML ↔ human interfaces. See AGENTS.md.",
+  "description": "Minimal protocol + framework for agent ↔ HTML ↔ human interfaces. See AGENTS.md.",
   "main": "out/main/index.js",
   "engines": {
     "node": ">=22.19.0"

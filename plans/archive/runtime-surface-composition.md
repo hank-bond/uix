@@ -41,7 +41,7 @@ Acceptance: a workspace feature entry that value-imports `@uix/api` and `typebox
 
 Purify both features to user-space imports only — relative paths, blessed bares, `@uix/api`; no `#shared`/`#features`/`#backend` aliases. The known wrinkles this surfaces are the point: the agent channel contract (and the transcript types chat consumes) moves from `#shared/ipc` behind `@uix/api`, and chat's font assets flow through the feature-dir file serving. Chat gains a small feature entry file contributing only its surface; canvas's `FeatureDefinition` gains its `surfaces` entry. The dev workspace manifest lists both by reference into `src/features/`. Then delete: `bundled.ts`, the static renderer tail, and `layout.tsx`'s import list.
 
-Acceptance: bare `npm run dev` boots behaviorally identical with everything runtime-loaded; deleting chat's manifest line removes the chat pane on `/reload`; editing `Chat.tsx` + `/reload` shows the change; `rg` finds no cockpit-internal imports under `src/features/`.
+Acceptance: bare `npm run dev` boots behaviorally identical with everything runtime-loaded; deleting chat's manifest line removes the chat pane on `/reload`; editing `Chat.tsx` + `/reload` shows the change; `rg` finds no host-internal imports under `src/features/`.
 
 ### S5 — Create-new scaffolds the default features
 

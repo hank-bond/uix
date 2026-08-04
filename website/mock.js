@@ -30,7 +30,7 @@ if (cue && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
   });
 }
 
-// Flip the mock cockpit's theme.
+// Flip the mock app's theme.
 const mock = document.getElementById("mock");
 if (mock) {
   for (const btn of mock.querySelectorAll("[data-set-theme]")) {

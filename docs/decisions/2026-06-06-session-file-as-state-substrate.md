@@ -25,7 +25,7 @@ Reading is open everywhere: `parseSessionEntries`, `loadEntriesFromFile`, `build
    - **`appendEntry(customType, data)` takes no `parentId`** — pi auto-attaches to the current leaf. `getLeafId()` / `getLeafEntry()` are available for correlation. The submit-boundary hook (`input`, before processing) vs turn hooks (`turn_start`/`turn_end`) chooses which node a pointer associates with.
    - **Do not hand-append the JSONL.** It races pi's own writer; always go through the API.
 
-3. **This is the pi _extension_ system, distinct from UIX's frontend one.** `src/main/extensions/` + `@uix/api` is the cockpit's own extension system for frontend/pane contributions. The promotion here targets pi's separate backend extension system (`@earendil-works/pi-coding-agent`), loaded through pi's resource loader. The two share the factory _shape_ (a default-exported factory taking an injected API) but are different API objects with different jobs.
+3. **This is the pi _extension_ system, distinct from UIX's frontend one.** `src/main/extensions/` + `@uix/api` is the framework's own extension system for frontend/pane contributions. The promotion here targets pi's separate backend extension system (`@earendil-works/pi-coding-agent`), loaded through pi's resource loader. The two share the factory _shape_ (a default-exported factory taking an injected API) but are different API objects with different jobs.
 
 ## Why this over a UIX-side store
 

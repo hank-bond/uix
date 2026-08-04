@@ -12,7 +12,7 @@ GitHub Pages serves the public UIX landing page at **uix.sh**. It is a _zero-bui
 
 | File | Role |
 | --- | --- |
-| `index.html` | Markup. One page: sticky bar, hero (the brandmark), mock cockpit. |
+| `index.html` | Markup. One page: sticky bar, hero (the brandmark), mock app. |
 | `styles.css` | All styling + the scroll-driven animation. Sectioned; read its header comment. |
 | `mock.js` | Toggles the mock theme and slows the arrow's click-scroll. It never changes user-driven scrolling. |
 | `uix-logo-white.svg` | Favicon. The brandmark on the page is inlined in `index.html`. |

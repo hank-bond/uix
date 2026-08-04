@@ -18,7 +18,7 @@ The original plan follows unedited.
 
 ## Context snapshot
 
-We pivoted from "pane contribution in the cockpit renderer" to **Host → Workspace → Surface**. Host is the embedding layer: Electron desktopification now, web/page/server shell later. Workspace is the web-compatible app runtime hosted inside a Host-owned iframe. Surfaces live inside Workspace: shadow surfaces are trusted reusable feature UI, iframe surfaces are stronger nested containment for imported/generated/runtime-isolated UI. Backend substrate owns agents, documents, resources, channels, durable state, and rehydration.
+We pivoted from "pane contribution in the host renderer" to **Host → Workspace → Surface**. Host is the embedding layer: Electron desktopification now, web/page/server shell later. Workspace is the web-compatible app runtime hosted inside a Host-owned iframe. Surfaces live inside Workspace: shadow surfaces are trusted reusable feature UI, iframe surfaces are stronger nested containment for imported/generated/runtime-isolated UI. Backend substrate owns agents, documents, resources, channels, durable state, and rehydration.
 
 Chat and canvas are default features, not core app structure. Chat is a naive surface over a linked agent connection: it sends prompts and renders transcript/events using the same agent/bus API other features can use. Canvas is a feature with document resources, channels, tools, state, state messages, and UI; authored canvas HTML remains iframe-contained because canvas needs document/style/origin isolation.
 
@@ -28,7 +28,7 @@ A renderer-side `SurfaceHost` stepping stone was tried and reverted because it h
 
 ## Decisions to preserve
 
-- Use **Host**, not cockpit, for the outer embedding/runtime shell vocabulary.
+- Use **Host** for the outer embedding/runtime shell vocabulary.
 - Use **Workspace** for the composed app runtime: enabled features, surface layout, feature-agent links, and workspace bus client.
 - Use **Surface** for visible feature UI areas inside a Workspace. Avoid `pane` as the public concept for now; it is too form-specific.
 - A surface contribution declares that a visible surface exists; workspace/layout state decides order, size, focus, visibility, and later persistence.

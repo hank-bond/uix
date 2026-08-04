@@ -17,7 +17,7 @@
 //          stable event id (in the main process only — renderer/preload don't
 //          have a logging story yet)
 //        - Node built-ins use explicit `node:` imports
-//        - production feature modules do not import cockpit internals
+//        - production feature modules do not import host internals
 //        - React hooks obey call-order and dependency rules
 //
 // Prettier handles formatting and is layered last so its rule
@@ -414,7 +414,7 @@ export default tseslint.config(
     },
   },
 
-  // Features depend on the injected API, not cockpit implementation modules.
+  // Features depend on the injected API, not host implementation modules.
   // White-box integration tests are outside the loadable feature boundary and
   // retain explicit access to the subsystem they exercise.
   {
@@ -436,7 +436,7 @@ export default tseslint.config(
             {
               group: ["#backend", "#backend/*", "**/main/**"],
               message:
-                "Features must use @uix/api and injected context instead of importing cockpit internals.",
+                "Features must use @uix/api and injected context instead of importing host internals.",
             },
           ],
         },

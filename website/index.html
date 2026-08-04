@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>UIX — a local cockpit for working with your agent</title>
+    <title>UIX — a local framework for working with your agent</title>
     <meta
       name="description"
-      content="UIX is a small, local cockpit for talking to your agent, watching it work, and building your own visual tools on top of it."
+      content="UIX is a small, local framework for talking to your agent, watching it work, and building your own visual tools on top of it."
     />
     <link rel="icon" href="uix-logo-white.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
@@ -36,7 +36,7 @@
 
     <main id="top">
       <h1 class="u-visually-hidden">
-        UIX — a local cockpit for working with your agent
+        UIX — a local framework for working with your agent
       </h1>
 
       <!-- Hero. Motion: the brand is position:fixed (so its DOM spot is irrelevant)
@@ -73,7 +73,7 @@
         <a
           class="scroll-cue"
           href="#stage"
-          aria-label="Scroll to the cockpit preview"
+          aria-label="Scroll to the app preview"
         >
           <svg
             viewBox="0 0 24 24"
@@ -89,19 +89,19 @@
         </a>
       </section>
 
-      <!-- Mock cockpit: an interactive illustration. The chat/canvas panels are
+      <!-- Mock app: an interactive illustration. The chat/canvas panels are
          decorative (aria-hidden); the theme switcher is a real control. -->
       <section
         class="stage"
         id="stage"
-        aria-label="Live preview of the UIX cockpit"
+        aria-label="Live preview of the UIX app"
       >
         <div class="mock" data-theme="dusk" id="mock">
           <div class="mock__chrome">
             <span class="mock__dots" aria-hidden="true"
               ><i></i><i></i><i></i
             ></span>
-            <span class="mock__themes" role="group" aria-label="Cockpit theme">
+            <span class="mock__themes" role="group" aria-label="App theme">
               <button type="button" data-set-theme="dusk" aria-pressed="true">
                 dusk
               </button>

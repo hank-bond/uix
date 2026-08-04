@@ -60,7 +60,7 @@ describe("AgentContextRegistry", () => {
 
     const vocabulary = assembleAgentContextVocabularySection(sm);
 
-    expect(vocabulary).toContain("## UIX cockpit state messages");
+    expect(vocabulary).toContain("## UIX host state messages");
     expect(vocabulary).toContain("- `<test.pane-visibility>` — open keys");
     expect(vocabulary).toContain("- `<test.canvas-diff>` — human hunks");
   });
