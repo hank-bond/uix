@@ -1,8 +1,10 @@
 ---
 summary: "ESLint flat config plus Prettier, enforcing node: imports, the lifecycle helpers, and pino logging through the check gate."
 kind: explanation
-status: accepted
+status: archived
 ---
+
+> **Archived.** Record of a lint/format setup decision; it is infrastructure inventory, not a load-bearing behavioral boundary. The current toolchain remains as implemented; this file is write-once history.
 
 # Lint + format infrastructure
 

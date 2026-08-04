@@ -2,6 +2,7 @@
 summary: "Source AGENTS.md files route among multiple production owners; single-file units stay at their parent boundary, and colocated tests remain implicit."
 kind: explanation
 status: accepted
+read_when: "Read before deciding whether a source directory needs an AGENTS.md, whether tests are routing destinations, or whether directory guidance can restate single-file behavior."
 ---
 
 # Source AGENTS.md files route multiple owners

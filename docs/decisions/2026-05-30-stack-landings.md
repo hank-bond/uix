@@ -1,8 +1,10 @@
 ---
 summary: "The initial stack and the alternative each piece beat: Electron, React + Compiler, Zustand, TypeBox, Monaco, SQLite-as-index, and in-process pi."
 kind: explanation
-status: accepted
+status: archived
 ---
+
+> **Archived.** Record of a chosen stack at a point in time; it is inventory, not a load-bearing behavioral boundary. The still-active selection of TypeBox is captured in [`2026-05-30-typebox-not-zod.md`](./2026-05-30-typebox-not-zod.md).
 
 # Stack landings
 

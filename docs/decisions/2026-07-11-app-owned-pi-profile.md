@@ -2,6 +2,7 @@
 summary: "UIX uses one app-owned Pi profile shared across workspaces, while workspace cwd supplies project-local resources and the host Pi profile is never inherited."
 kind: explanation
 status: accepted
+read_when: "Read before touching Pi profile/credential storage, the agent working directory, or how authentication, settings, or credentials are isolated between UIX and the host."
 ---
 
 # UIX owns one shared Pi profile

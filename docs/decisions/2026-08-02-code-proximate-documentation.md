@@ -16,6 +16,8 @@ This hierarchy serves agents that need broad semantic navigation without loading
 
 Diátaxis remains the need taxonomy for discrete documents. Placement comes first: find the narrowest durable owner. If the result is a discrete document, classify it as tutorial, how-to, reference, or explanation. File summaries, code comments, and routing indexes do not need a Diátaxis kind.
 
+Source-directory routing among owners and the implicit handling of colocated tests are refined separately in [`2026-08-02-source-agents-route-multiple-owners.md`](./2026-08-02-source-agents-route-multiple-owners.md).
+
 This decision supersedes the audience-based placement in [`2026-05-30-documentation-split.md`](./2026-05-30-documentation-split.md). Distribution can still expose selected documentation to feature authors, but whether a page ships does not determine its source location.
 
 **Rejected:** Central prose inventories of implemented files and exports; hand-maintained importer lists; mandatory implementation narration; placing all feature-facing documentation in one tree regardless of ownership; and flattening every source-file summary into the always-loaded root context.
