@@ -118,7 +118,7 @@ export function registerChannelContributions(
     for (const contribution of contributions) {
       // The contract states its owner once, where it's defined; a mismatch
       // here means a feature is registering handlers under someone else's
-      // channel namespace — always a wiring bug, never valid.
+      // channel namespace: always a wiring bug, never valid.
       if (contribution.feature !== featureId) {
         throw new Error(
           `Feature ${featureId} cannot register channels owned by ${contribution.feature}`,
@@ -141,7 +141,7 @@ export function registerChannelContributions(
 /**
  * The `channels` capability handed to a feature's context. The feature id and
  * the registry are closed over here, so a publisher can only be minted for
- * the feature's own namespace and only by presenting a contract — there is no
+ * the feature's own namespace and only by presenting a contract; there is no
  * untyped publish surface and no way to emit onto canonical ids nobody
  * declared.
  */

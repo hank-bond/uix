@@ -90,8 +90,8 @@ function createReadTool(
       "Read a canvas as anchored lines (`<anchor>§<text>`). Each line is addressable by its anchor in canvas__anchor_edit. The key is not a filesystem path.",
     promptSnippet: "Read a canvas as anchored lines.",
     parameters: readParams,
-    // `params: ReadParams` is inferred from `AgentToolDefinition<typeof readParams>`
-    // — no hand-annotation needed; the factory return type carries the schema.
+    // `params: ReadParams` is inferred from `AgentToolDefinition<typeof readParams>`.
+    // No hand-annotation needed; the factory return type carries the schema.
     async execute(_toolCallId, params) {
       const lines = await ctx.buffer.read(params.key, params.start, params.end);
       return {

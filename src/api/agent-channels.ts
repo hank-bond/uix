@@ -2,7 +2,7 @@
 //
 // The substrate-owned agent channels (prompt/history/event stream) and the
 // transcript item shapes they hold. This lives behind @uix/api because
-// feature code binds it — chat is an ordinary feature whose surface renders
+// feature code binds it: chat is an ordinary feature whose surface renders
 // the same agent connection any other feature could use. The backend assembles
 // the channel contribution via `withHandlers` in the composition root; frontends derive a
 // typed client via `createChannelClient`.
@@ -84,7 +84,7 @@ export type AgentEvent =
        * `partialResult` overwrites a tool row's live progress payload (Pi
        * tool updates are replacement snapshots, not increments). A full
        * `transcript_replace` still lands at completion, so partials are pure
-       * display traffic — dropping one loses nothing durable.
+       * display traffic; dropping one loses nothing durable.
        */
       type: "transcript_partial";
       id: string;
@@ -189,9 +189,9 @@ export type ModelFavoriteUpdate = Static<typeof ModelFavoriteUpdateSchema>;
 
 /**
  * Current agent status exposed to surfaces. `cwd` is the directory under
- * which tools execute. `model` is the live session model — absent until a
+ * which tools execute. `model` is the live session model: absent until a
  * session exists, and absent even then when Pi resolved no model (e.g. no
- * provider is authenticated). `defaultModel` is the workspace default —
+ * provider is authenticated). `defaultModel` is the workspace default:
  * absent until the user first selects one. Both model fields absent means
  * "no model chosen": the UI renders that state rather than inventing a
  * fallback.
@@ -342,10 +342,10 @@ const describeProviderAuthenticationPayload = (): { redacted: string } => ({
   redacted: "provider authentication payload",
 });
 
-// Agent channel contract — the single source of truth for substrate agent
+// Agent channel contract: the single source of truth for substrate agent
 // channels. `Type.Unsafe` is used for the complex union types (`AgentEvent`,
 // `TranscriptSnapshot`) whose full TypeBox encoding would be
-// disproportionate — the runtime types are already validated by the driver
+// disproportionate; the runtime types are already validated by the driver
 // that produces them.
 export const AgentEventSchema = Type.Unsafe<AgentEvent>(Type.Any());
 

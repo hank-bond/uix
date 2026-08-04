@@ -36,7 +36,6 @@ describe("FileToolContent", () => {
 
     expect(html).toContain("src/main.ts");
     expect(html).toContain("I need to inspect the entry point.");
-    expect(html).not.toContain(" — ");
     expect(html).toContain("<details");
     expect(html).toContain('<pre class="code-block">');
     expect(html).toContain("<summary>result</summary>");

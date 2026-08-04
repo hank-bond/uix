@@ -1,5 +1,5 @@
 ---
-summary: "Build spec for persistence on pi's session file: branch projection and feature-isolated restoration run on startup, replacement-session activation, and serialized feature reloads, with current state committed before replacement."
+summary: "Build spec for persistence on Pi's session file. Branch projection and feature-isolated restoration run on startup, replacement-session activation, and serialized feature reloads, with current state committed before replacement."
 status: active
 ---
 

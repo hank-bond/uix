@@ -2,7 +2,7 @@
 //
 // Surface modules are bundled with the blessed bare specifiers left as
 // virtual modules that read this global (src/shared/surface-shared-modules.ts).
-// Populating it here — imported first by the page entry — guarantees one
+// Populating it here, imported first by the page entry, guarantees one
 // React (hooks in surface components work), one typebox, one @uix/api.
 // Each entry carries `__esModule` and a `default` so esbuild's CJS interop
 // resolves default and named imports exactly.

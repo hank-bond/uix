@@ -3,7 +3,7 @@
 // Every crossing goes through this module and is recorded by it. `handle()`
 // is the inbound chokepoint (invoke endpoints), `send()` the outbound one
 // (pushes to a window). The wire log lives here too, module-private, so the
-// only way to produce a wire-log line is to actually cross the wire — the
+// only way to produce a wire-log line is to actually cross the wire; the
 // log can be neither dodged nor spoofed. Project policy, enforced for these
 // known calls by ESLint: no direct `ipcMain.handle` or `webContents.send`
 // outside this module.
@@ -18,8 +18,8 @@
 //    `npx pino-pretty < file`.
 //
 // The boundary is pure mechanism: it records whatever crosses and knows
-// nothing about any channel's payload shape. Per-channel policy — redacting a
-// sensitive payload, summarizing a huge response, demoting per-token noise —
+// nothing about any channel's payload shape. Per-channel policy (redacting a
+// sensitive payload, summarizing a huge response, demoting per-token noise)
 // lives with the contract or call site that knows the payload type.
 
 import { join } from "node:path";
@@ -43,7 +43,7 @@ export function initLogFile(stateRoot: string): void {
   // `sync` is a deliberate trade, not a default: blocking write per crossing,
   // in exchange for the tail surviving even hard kills (segfault, OOM,
   // SIGKILL). Going buffered (`sync: false, minLength: 4096`) is purely a
-  // perf knob — pino auto-flushes its buffer on any exit that runs handlers,
+  // perf knob; pino auto-flushes its buffer on any exit that runs handlers,
   // including uncaught exceptions, so buffering only loses the hard-kill
   // class. Streaming now crosses as compact transcript_partial events, so the
   // per-crossing payload is small; flip this only if armed-mode streaming
@@ -103,7 +103,7 @@ export interface SendOptions<Payload = unknown> {
   /**
    * The payload is an in-flight partial that repeats at streaming cadence
    * (per token / per progress tick). Consequence today: the terminal line
-   * logs at trace instead of debug, always — even small partials are noise
+   * logs at trace instead of debug, always; even small partials are noise
    * at that rate. Whatever else partial-ness implies later hangs off this
    * flag, not off new parameters.
    */

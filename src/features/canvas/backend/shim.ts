@@ -18,7 +18,7 @@ function shimScript(key: CanvasKey): string {
   var KEY = "${key}";
   var timer;
   var lastHtml = "";
-  // outerHTML serializes attributes, not live form state — reflect each
+  // outerHTML serializes attributes, not live form state; reflect each
   // control's current property onto the clone so a selection/typed value is
   // captured, not just the markup it was parsed from.
   function reflectFormState(live, copy) {

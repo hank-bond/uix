@@ -2,7 +2,7 @@
 //     the user's own wheel/trackpad scrolling) ---
 const cue = document.querySelector(".scroll-cue");
 if (cue && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
-  const DURATION = 550; // ms — tune to taste
+  const DURATION = 550; // ms; tune to taste
   const easeInOutCubic = (t) =>
     t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 

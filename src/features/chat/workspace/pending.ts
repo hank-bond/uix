@@ -1,4 +1,4 @@
-// Optimistic pending user rows — the renderer-local half of eventual
+// Optimistic pending user rows: the renderer-local half of eventual
 // consistency for the transcript. The composer appends a pending row
 // immediately (composer state, not transcript truth); main later emits the
 // authoritative born-keyed row, which confirms/replaces the pending one.

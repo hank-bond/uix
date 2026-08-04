@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import { deriveTranscriptItems } from "./transcript";
 
-// Assert the resumed transcript a session shows — item kind, order, and final
-// durable tool rows — not the entry plumbing it came from. Entries are
+// Assert the resumed transcript a session shows: item kind, order, and final
+// durable tool rows, not the entry plumbing it came from. Entries are
 // fabricated to the minimal shape the mapping reads.
 const entry = (
   type: string,

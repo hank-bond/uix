@@ -1,5 +1,5 @@
 ---
-summary: "Keyed-on-persist identity, one-pass branch projection, and feature-isolated restoration on startup, New Session, replacement-session activation, and serialized feature reload have landed; remaining work persists and joins low-frequency block state (D2)."
+summary: "Keyed-on-persist identity, one-pass branch projection, and feature-isolated restoration on startup, New Session, replacement-session activation, and serialized feature reload have landed. Remaining work persists and joins low-frequency block state (D2)."
 status: active
 ---
 

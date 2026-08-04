@@ -15,7 +15,7 @@ import {
   FeatureSettingValueEnvelopeSchema,
 } from "@uix/api/settings";
 
-/** Substrate channel names. Keep this list small — features register their own. */
+/** Substrate channel names. Keep this list small; features register their own. */
 export const Channels = {
   /** Renderer → main. invoke-style. Reloads host resources in place. */
   reload: "uix:reload",
@@ -61,7 +61,7 @@ export type PickerActionResult =
 
 /** One feature that failed to activate during a load pass. */
 export interface ReloadFailure {
-  /** The manifest ref as written — the human/agent-facing label. */
+  /** The manifest ref as written: the human/agent-facing label. */
   feature: string;
   /** Absolute entry-file path. */
   entry: string;
@@ -92,7 +92,7 @@ export const SurfaceEntrySchema = Type.Object({
 });
 export type SurfaceEntry = Static<typeof SurfaceEntrySchema>;
 
-// Substrate workspace channels under the reserved `uix` id — the surface
+// Substrate workspace channels under the reserved `uix` id: the surface
 // composition the renderer mounts. Same contract discipline as agentChannels.
 export const uixChannels = {
   feature: "uix",
@@ -101,7 +101,7 @@ export const uixChannels = {
       requestSchema: Type.Void(),
       responseSchema: Type.Object({
         surfaces: Type.Array(SurfaceEntrySchema),
-        /** Where the manifest is (or would be) — existence checked per request,
+        /** Where the manifest is (or would be): existence checked per request,
          * so a manifest created after boot flips this on the next fetch. */
         manifestPath: Type.String(),
         manifestFound: Type.Boolean(),

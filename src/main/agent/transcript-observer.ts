@@ -235,7 +235,7 @@ function createLiveTranscriptForwarder(
       case "tool_execution_update": {
         // Tool partials are tool-defined replacement snapshots (e.g. bash
         // ships its bounded output tail every ~100ms), so forward the payload
-        // alone — no point resending the row's args on every tick. The stored
+        // alone. No point resending the row's args on every tick. The stored
         // row stays as appended; the completion replace discards partials.
         const current = tools.get(event.toolCallId);
         if (!current) return;

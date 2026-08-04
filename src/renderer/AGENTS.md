@@ -1,11 +1,11 @@
 ---
-summary: "The renderer runs two shell pages — the workspace window and the start picker — over the preload channel transport."
+summary: "The renderer runs two shell pages, the workspace window and the start picker, over the preload channel transport."
 status: active
 ---
 
 # Renderer shell
 
-The renderer is the host's two Electron pages. The start picker page (`picker/`) runs before any workspace opens and selects or creates one; the workspace page boots the composed surface row over the preload transport. Both pages reach main only through the preload channel transport (`window.channels`), never directly through `ipcRenderer`.
+The renderer is the host's two Electron pages. The start picker page (`picker/`) runs before any workspace opens and selects or creates one. The workspace page boots the composed surface row over the preload transport. Both pages reach main only through the preload channel transport (`window.channels`), never directly through `ipcRenderer`.
 
 `main.tsx` and `picker/main.tsx` are the page entries; `index.html` and `picker.html` are their documents, and `styles.css` and `picker/picker.css` their chrome. `window.d.ts` declares the transport surface. The workspace subsystem under `workspace/` hosts the runtime surfaces and owns session, action, and keybinding state.
 

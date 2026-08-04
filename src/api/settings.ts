@@ -69,7 +69,7 @@ function toClosedSettingsSchema<Schema extends SettingsSchema>(
 }
 
 /**
- * Scope-bound settings view — the same shape whether the scope is a
+ * Scope-bound settings view, the same shape whether the scope is a
  * manifest feature entry or a substrate-owned workspace namespace.
  */
 export interface SettingsHandle {

@@ -176,7 +176,7 @@ export class CanvasDocumentBuffer {
     return diffAnchoredSnapshots(from.meta.anchors, to.meta.anchors);
   }
 
-  // No setCurrent — the content came *from* the store. Returns [] when already in
+  // No setCurrent: the content came *from* the store. Returns [] when already in
   // sync, so it is cheap to call on every read/edit. Canonicalizing before the
   // compare keeps a human's non-canonical HTML from registering as a spurious
   // diff.

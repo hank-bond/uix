@@ -1,5 +1,5 @@
 ---
-summary: "Establish code-proximate agent documentation in four units: placement and comment rules, generated source indexes, one representative source-boundary migration, then ongoing ownership-based migration without duplicate prose inventories."
+summary: "Establish code-proximate agent documentation in four units: placement and comment rules, generated source indexes, representative source-boundary migration, and ongoing ownership-based migration without duplicate prose inventories."
 status: active
 ---
 

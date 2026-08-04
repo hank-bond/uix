@@ -67,7 +67,7 @@ export function registerResourceProtocol(
         secure: true,
         supportFetchAPI: true,
         // Without this Chromium refuses CORS-mode requests *to* the scheme
-        // at the network layer — and module scripts (the surface pipeline)
+        // at the network layer; module scripts (the surface pipeline)
         // are always fetched in CORS mode. Actual grants stay per-response:
         // the surface routes echo non-uix-resource origins only.
         corsEnabled: true,

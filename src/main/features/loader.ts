@@ -34,7 +34,7 @@ const EmptyFeatureSettings = defineSettings({ schema: Type.Object({}) });
 const requireFromLoader = createRequire(__filename);
 
 /**
- * The alias table feature entry imports resolve through — exactly the
+ * The alias table feature entry imports resolve through: exactly the
  * blessed backend set. `@uix/api` is a prefix mapping onto the
  * implementation dir the composition root supplies (the API is
  * self-contained, so one directory serves it; when absent, features can
@@ -80,7 +80,7 @@ export interface FeatureSubstrate {
   registries: FeatureContributionRegistries;
   /**
    * On-disk dir of the `@uix/api` implementation feature imports resolve
-   * to (the repo's `src/api` in dev). Supplied by the composition root —
+   * to (the repo's `src/api` in dev). Supplied by the composition root;
    * it's environment knowledge, not loader logic. When absent, features
    * can only type-import the API.
    */
@@ -91,14 +91,14 @@ export interface FeatureSubstrate {
 export interface FeatureSources {
   /**
    * Absolute path to the workspace's `uix.workspace.json`. Omitted when
-   * the workspace has no manifest — no features load.
+   * the workspace has no manifest; no features load.
    */
   manifestPath?: string;
 }
 
 /**
  * Assembles the context bag a feature's `context`/`contribute` hooks receive.
- * One construction path for every feature — the substrate facets a feature
+ * One construction path for every feature; the substrate facets a feature
  * can touch are exactly what this returns.
  */
 export function assembleFeatureContext(
@@ -117,7 +117,7 @@ export function assembleFeatureContext(
 
 /** One activated feature instance produced by a successful activation. */
 export interface ActivatedFeatureInstance {
-  /** The definition's feature id — keys every facet contribution. */
+  /** The definition's feature id: keys every facet contribution. */
   id: string;
   /** The manifest ref as written. */
   displayName: string;
@@ -129,7 +129,7 @@ export interface ActivatedFeatureInstance {
 
 /**
  * A single entry whose activation threw. Separate type from
- * `ActivatedFeatureInstance` because the use cases diverge — activated
+ * `ActivatedFeatureInstance` because the use cases diverge: activated
  * instances contribute behavior; failed entries are inert, surfaced in logs and
  * (eventually) a status panel. Keeping them in different arrays
  * means callers don't have to narrow a discriminator and can't
@@ -158,7 +158,7 @@ const normalize = (thrown: unknown): Error =>
 
 /**
  * Narrows an entry's `feature` export to a FeatureDefinition or throws
- * with a message that names what's wrong — the throw lands in
+ * with a message that names what's wrong; the throw lands in
  * `failed[]` like any other activation error.
  */
 const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
@@ -203,7 +203,7 @@ const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
 };
 
 /**
- * Load an entry and return its `feature` export — the loader contract name.
+ * Load an entry and return its `feature` export: the loader contract name.
  * Every feature entry exports `export const feature = defineFeature({ ... })`;
  * a default-only module is a contract violation, not a supported form.
  * jiti's interop proxy exposes named exports for both ESM and transpiled
@@ -255,7 +255,7 @@ export const activateFeatures = async (
 
     // The per-feature bag is created early so every acquired lifetime
     // capability has an owner. We only enroll
-    // it in the parent bag after activation succeeds — a
+    // it in the parent bag after activation succeeds; a
     // failed feature's bag is disposed immediately and never
     // becomes part of app-shutdown teardown.
     const bag = new DisposableBag();
@@ -300,7 +300,7 @@ export const activateFeatures = async (
       flog.debug({ id: definition.id }, "activation_succeeded");
     } catch (thrown) {
       const error = normalize(thrown);
-      // Tear down anything the definition added before it threw —
+      // Tear down anything the definition added before it threw;
       // partial activation shouldn't leak
       // half-wired contributions.
       bag[Symbol.dispose]();
@@ -326,7 +326,7 @@ export const activateFeatures = async (
 };
 
 /**
- * Load the whole feature composition — the workspace manifest's entries —
+ * Load the whole feature composition, the workspace manifest's entries,
  * into the owned feature bag, replacing whatever that bag currently
  * contains. Safe for initial startup (empty clear) and for manual reload
  * (the active feature composition is disposed before replacement feature

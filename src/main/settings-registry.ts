@@ -6,7 +6,7 @@
 // namespaces (registered first on reload) collide naturally with feature ids.
 //
 // The registry never reads files, resolves manifest locations, or hydrates
-// defaults — `registerScope` takes a finished scope, and persistence exists here
+// defaults; `registerScope` takes a finished scope, and persistence exists here
 // only as each scope's injected write-back hook. The workspace facade owns
 // location choreography, while the schema logic stays in the pure
 // `hydrateSettings` pass.
@@ -121,7 +121,7 @@ export class SettingsRegistry implements Disposable {
   }
 
   /**
-   * Drops all scopes (reload). Listeners survive — subscriptions are owned
+   * Drops all scopes (reload). Listeners survive; subscriptions are owned
    * by their subscribers' lifetimes (feature bags), not by scope identity.
    */
   clearScopes(): void {

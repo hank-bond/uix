@@ -5,9 +5,9 @@ status: active
 
 # Chat blocks
 
-One transcript item renders as one block: `ChatBlock.tsx` dispatches by item kind to the message, tool, custom, and error variants, and every variant composes its content inside the shared `ChatBlockFrame.tsx` chrome (label, running track, and body).
+One transcript item renders as one block: `ChatBlock.tsx` dispatches by item kind to the message, tool, custom, and error variants. Every variant composes its content inside the shared `ChatBlockFrame.tsx` chrome (label, running track, and body).
 
-The `content/` subtree renders block bodies — markdown, highlighted source, and plain code — and the `tool/` subtree derives a presentation per tool name and renders it through tool-specific content components.
+The `content/` subtree renders block bodies: markdown, highlighted source, and plain code. The `tool/` subtree derives a presentation per tool name and renders it through tool-specific content components.
 
 ## Contents
 

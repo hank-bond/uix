@@ -1,5 +1,5 @@
 ---
-summary: "Split UIX into a host-neutral workspace runtime, browser client, server host, and Electron host in one monorepo; prove local browser operation first, then make the unbootstrapped server and batteries-included Electron product independently packageable."
+summary: "Split UIX into a host-neutral workspace runtime, browser client, server host, and Electron host in one monorepo. Prove local browser operation first, then make the unbootstrapped server and the batteries-included Electron product independently packageable."
 status: active
 ---
 

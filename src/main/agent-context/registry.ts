@@ -367,7 +367,7 @@ function vocabularySection(
     "section per update:",
     "",
     ...configs.map(
-      (config) => `- \`<${config.canonicalId}>\` — ${config.description}`,
+      (config) => `- \`<${config.canonicalId}>\`: ${config.description}`,
     ),
   ].join("\n");
 }

@@ -313,7 +313,7 @@ export class SurfaceModulePipeline {
 /**
  * Module scripts, CSS module scripts, and fonts are always fetched in CORS
  * mode, and the workspace page is a *different* origin than the substrate
- * (the dev server or file: page) — so these responses must grant it access
+ * (the dev server or file: page); so these responses must grant it access
  * by echoing its origin. Feature-origin content (a canvas iframe on a
  * `uix-resource://` host) gets no grant: that's the one cross-origin
  * consumer the substrate deliberately refuses.

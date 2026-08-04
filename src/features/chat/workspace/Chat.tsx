@@ -95,7 +95,7 @@ export function Chat({ client }: ChatProps): JSX.Element {
     setPending(true);
     // Optimistic echo: show the message instantly as an unconfirmed pending
     // row. Main emits the authoritative born-keyed row once Pi persists it,
-    // and the reducer swaps this row out (eventual consistency — display
+    // and the reducer swaps this row out (eventual consistency: display
     // first, confirm via the canonical record).
     setItems((prev) => [...prev, { id: pendingUserId(), kind: "user", text }]);
     try {
@@ -119,7 +119,7 @@ export function Chat({ client }: ChatProps): JSX.Element {
         {items.length === 0 ? (
           <div className="surface-panel__body--placeholder">
             {hydrated
-              ? "send a prompt — main echoes it back"
+              ? "send a prompt; main echoes it back"
               : "loading transcript…"}
           </div>
         ) : (
@@ -248,7 +248,7 @@ function appendItem(
 // rekey replace carries previousId (the pre-key transport handle); matching
 // the new id first keeps a re-delivered rekey idempotent. The driver only
 // replaces ids it already appended, so a net-new insert here means a replace
-// outran or lost its append — recover gracefully but warn, since that
+// outran or lost its append; recover gracefully but warn, since that
 // ordering invariant is load-bearing for durable transcript identity.
 function syncItem(
   items: TranscriptItem[],
@@ -277,7 +277,7 @@ function syncItem(
 // renderer is the accumulator), a tool's partialResult overwrites (Pi tool
 // updates are replacement snapshots). The append always precedes its
 // partials and a full replace lands at completion, so an unmatched partial
-// means ordering broke — warn and drop; nothing durable is lost.
+// means ordering broke. Warn and drop; nothing durable is lost.
 function applyPartial(
   items: TranscriptItem[],
   event: Extract<AgentEvent, { type: "transcript_partial" }>,

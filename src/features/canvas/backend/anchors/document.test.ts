@@ -71,7 +71,7 @@ describe("AnchoredDocument", () => {
         allocate: testAllocate(),
       });
 
-      // Replace B..C ("two\nthree") with "two\nTHREE" — "two" is unchanged
+      // Replace B..C ("two\nthree") with "two\nTHREE"; "two" is unchanged
       // inside the range, so B should be reused.
       doc.edit({
         start: { anchor: "B", text: "two" },
@@ -197,7 +197,7 @@ describe("AnchoredDocument", () => {
 
       const after = doc.write("a\nb");
 
-      // Same text, but a clobber never reuses anchors — the two versions are
+      // Same text, but a clobber never reuses anchors; the two versions are
       // anchor-disjoint, so they can coexist in one chat unambiguously.
       expect(after).toEqual([
         { anchor: "C", text: "a" },

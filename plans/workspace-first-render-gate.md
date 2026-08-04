@@ -1,5 +1,5 @@
 ---
-summary: "Show a substrate-owned loading overlay while the accepted initial feature composition restores and renders underneath it, then reveal the workspace after restoration and first surface presentation settle."
+summary: "Show a substrate-owned loading overlay while the accepted initial feature composition restores and renders underneath it. Reveal the workspace after restoration and first surface presentation settle."
 status: stub
 ---
 

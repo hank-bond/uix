@@ -1,5 +1,5 @@
 ---
-summary: "Give Canvas a reusable local web-asset library in eight reviewable units: feature-static resources, a same-origin public asset route, progressively disclosed AGENTS.md catalogs, transient DOM serialization controls, authoring guidance, a component authoring model, serve-time expansion, and versioned conflict-handling updates."
+summary: "Give Canvas a reusable local web-asset library in eight reviewable units. These cover feature-static resources, a same-origin asset route, AGENTS.md catalogs, DOM serialization controls, authoring guidance, a component model, serve-time expansion, and conflict-handling updates."
 status: active
 ---
 

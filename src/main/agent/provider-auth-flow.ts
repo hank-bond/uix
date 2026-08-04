@@ -56,7 +56,7 @@ interface CreateProviderAuthFlowCoordinatorOptions {
   onAvailabilityChange: () => void;
 }
 
-/** The coordinator's public surface — drives interactive provider auth flows. */
+/** The coordinator's public surface: drives interactive provider auth flows. */
 export interface ProviderAuthFlowCoordinator {
   begin(
     providerId: string,

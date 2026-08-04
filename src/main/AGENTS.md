@@ -5,7 +5,7 @@ status: active
 
 # Main process
 
-`index.ts` is the application composition root: concrete services do not enroll themselves, and cleanup-producing bindings join explicit application, workspace, window, feature, or agent lifetimes through `lifecycle.ts`.
+`index.ts` is the application composition root: concrete services do not enroll themselves. Cleanup-producing bindings join explicit application, workspace, window, feature, or agent lifetimes through `lifecycle.ts`.
 
 Workspace adoption precedes feature activation, which acquires live members from the direct facet registries. The agent runtime consumes that selected workspace and feature composition while retaining its separate Pi session lifecycle.
 

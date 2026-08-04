@@ -1,5 +1,5 @@
 ---
-summary: "Build workspace actions and the replaceable default command palette in seven reviewable units: action resolution, renderer registry integration, durable keybindings and conflicts, keyboard/Electron dispatch, ambient surfaces, the palette feature, and customization/docs verification."
+summary: "Build workspace actions and the replaceable default command palette in seven reviewable units. Units cover action resolution, renderer registry integration, durable keybindings and conflicts, keyboard/Electron dispatch, ambient surfaces, the palette feature, and customization/docs verification."
 status: active
 ---
 

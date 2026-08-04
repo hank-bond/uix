@@ -15,7 +15,7 @@
 // Why a "Bag" (and not just `using` everywhere):
 //   - `using` cleans up at the end of the enclosing block. Great when a
 //     resource's lifetime is exactly that block.
-//   - Our subscriptions outlive the function that creates them — they
+//   - Our subscriptions outlive the function that creates them; they
 //     live for the driver's lifetime, or the app's. For those, we need
 //     a container we explicitly dispose later. That's the Bag.
 
@@ -51,7 +51,7 @@ export class DisposableBag implements Disposable {
    * Add a Disposable to this bag. Returns the same Disposable so
    * you can chain (`const sub = bag.add(subscribe(...))`).
    *
-   * If the bag is already disposed, the item is disposed immediately —
+   * If the bag is already disposed, the item is disposed immediately;
    * this prevents "added after teardown" leaks if something races.
    */
   add<D extends Disposable>(item: D): D {
@@ -120,13 +120,13 @@ export function onAbort(signal: AbortSignal, listener: () => void): Disposable {
 
 /**
  * Listen for an `app` event. Typed against the small union of events
- * we actually use — extend `AppEvent` as we adopt more.
+ * we actually use; extend `AppEvent` as we adopt more.
  *
  * The cast on `app.on`/`app.off` is intentional. Electron types each
  * event with a specific listener signature (e.g. `activate` expects
  * `(event, hasVisibleWindows) => void`), so passing our uniform
  * `() => void` listener fails strict overload resolution even though
- * it's runtime-safe — Node's EventEmitter ignores extra args. The
+ * it's runtime-safe; Node's EventEmitter ignores extra args. The
  * cast widens to a single shape we can satisfy without forcing every
  * caller to spell the event-specific listener signature.
  */
@@ -204,7 +204,7 @@ export function subscribe<E>(
  * process) would either silently kill the process or print to
  * stderr with no structured attribution.
  *
- * We don't try to attribute errors to a specific extension here —
+ * We don't try to attribute errors to a specific extension here;
  * that would require parsing stack traces for entry-file URLs,
  * which is fragile (paths get transformed, third-party frames
  * dominate the top of the stack). Logs go out as

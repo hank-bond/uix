@@ -206,7 +206,7 @@ export interface WorkspaceClient {
   ) => () => void;
 }
 
-// The workspace client context lives here — not in page code — because
+// The workspace client context lives here, not in page code, because
 // surface modules share this exact module instance with the page (via the
 // shared-modules global), so the context identity matches and feature
 // components can call useWorkspaceClient directly.
@@ -442,7 +442,7 @@ export function createChannelClient<const C extends ChannelContract>(
 }
 
 /**
- * Opaque surface contribution — the workspace's surface list is
+ * Opaque surface contribution; the workspace's surface list is
  * heterogeneous, so the contract's type parameter is erased here. The typed
  * surface is created via {@link defineSurface}, which captures the generic at
  * definition time and pushes the unavoidable cast into the substrate.
@@ -463,7 +463,7 @@ export interface SurfaceDefinition<C extends ChannelContract> {
   readonly render: (client: ChannelClient<C>) => ReactNode;
 }
 
-/** A surface with no channel binding — pure presentation or local state. */
+/** A surface with no channel binding: pure presentation or local state. */
 export interface ContractlessSurfaceDefinition extends Omit<
   SurfaceDefinition<ChannelContract>,
   "contract" | "render"
@@ -473,10 +473,10 @@ export interface ContractlessSurfaceDefinition extends Omit<
 
 /**
  * Defines a surface. With a `contract`, `render`'s `client` parameter is
- * fully typed from it — features never cast; the client is minted by the
+ * fully typed from it. Features never cast; the client is minted by the
  * substrate mount under the contract's own channel id. A surface module must
- * export this result as `surface` (`export const surface = defineSurface(...)`)
- * — that is how the runtime loader finds it. The single unavoidable cast
+ * export this result as `surface` (`export const surface = defineSurface(...)`);
+ * That is how the runtime loader finds it. The single unavoidable cast
  * (erasing the generic for the heterogeneous surface list) lives here in the
  * substrate.
  */

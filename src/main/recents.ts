@@ -47,7 +47,7 @@ export function createRecentsStore(filePath: string): RecentsStore {
           typeof (e as RecentWorkspace).openedAt === "string",
       );
     } catch (err) {
-      // A corrupt recents file is cosmetic state — log and start over.
+      // A corrupt recents file is cosmetic state; log and start over.
       log.warn({ filePath, err: (err as Error).message }, "recents_corrupt");
       return [];
     }

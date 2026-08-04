@@ -3,10 +3,10 @@
 // The surface list is registry-driven: the substrate's `uix.surfaces`
 // channel lists what the active feature instances contributed, and the page
 // re-fetches on `surfaces_changed` (fired after every load pass, so
-// /reload updates the composition live). Every surface — chat and canvas
-// included — is dynamic-imported from its content-hash-busted
-// substrate-origin URL; a failing surface renders an error card — the
-// frontend twin of the loader's `failed[]` — without taking down the
+// /reload updates the composition live). Every surface, chat and canvas
+// included, is dynamic-imported from its content-hash-busted
+// substrate-origin URL; a failing surface renders an error card, the
+// frontend twin of the loader's `failed[]`, without taking down the
 // workspace. Surface definitions live with their features; channel
 // clients are created by the surface host, not by feature code.
 
@@ -98,7 +98,7 @@ export function SurfaceMount({
     [workspace, entry.featureId],
   );
 
-  // A surface's sheets apply only while it is mounted — unmount (or a
+  // A surface's sheets apply only while it is mounted; unmount (or a
   // reload that drops the surface) removes them, so styles can't leak
   // across composition changes. Adoption also wraps every sheet in the
   // surface's @scope, so containment is structural rather than an authoring
@@ -131,11 +131,11 @@ export function SurfaceMount({
  * Feature authors write plain selectors; the substrate owns containment.
  *
  * Name-global at-rules (@font-face, @keyframes, @property) are hoisted out
- * of the wrap: scoping cannot contain them — their names are document-global
- * by CSS's design — and inside @scope they would be ignored. Collisions
+ * of the wrap: scoping cannot contain them; their names are document-global
+ * by CSS's design, and inside @scope they would be ignored. Collisions
  * there remain a (documented) naming responsibility.
  *
- * The scope root is the surface panel element, which itself is in scope —
+ * The scope root is the surface panel element, which itself is in scope;
  * selectors that still spell the old `[data-uix-surface="…"]` prefix keep
  * matching, so pre-scoping feature CSS works unchanged.
  */
@@ -230,7 +230,7 @@ export function useRuntimeSurface(entry: SurfaceEntry): RuntimeSurfaceState {
 
 /**
  * Narrows a module's `surface` export to a SurfaceContribution or throws
- * with a message that names what's wrong — loaded code is validated, not
+ * with a message that names what's wrong; loaded code is validated, not
  * trusted, mirroring the backend loader's `validateFeatureDefinition`.
  */
 function validateSurfaceContribution(value: unknown): SurfaceContribution {
@@ -242,7 +242,7 @@ function validateSurfaceContribution(value: unknown): SurfaceContribution {
   const surface = value as Partial<SurfaceContribution>;
   if (typeof surface.name !== "string") {
     throw new Error(
-      "Surface has no name — export const surface = defineSurface({ name, ... }).",
+      "Surface has no name; export const surface = defineSurface({ name, ... }).",
     );
   }
   if (typeof surface.render !== "function") {

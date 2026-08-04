@@ -460,7 +460,7 @@ describe("ChannelRegistry", () => {
         set_model_favorite: {
           handler: () => ({ models: [] }),
         },
-        // Both model fields absent — the explicit "no model chosen" status.
+        // Both model fields absent: the explicit "no model chosen" status.
         agent_status: { handler: () => ({ cwd: "/workspace" }) },
         select_model: { handler: () => status },
         list_auth_providers: { handler: () => ({ providers: [] }) },

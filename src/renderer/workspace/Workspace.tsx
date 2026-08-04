@@ -4,7 +4,7 @@
 // provides a render function; the workspace composes them into a persisted
 // horizontal resize row. Channel clients are created by SurfaceMount, not by
 // feature code. An empty composition renders an explanatory card instead of a
-// blank window — which of the two empty states (no manifest vs. no surfaces)
+// blank window; which of the two empty states (no manifest vs. no surfaces)
 // it names, so the create-manifest-after-boot flow is visible instead of dark.
 
 import type { JSX } from "react";
@@ -54,7 +54,7 @@ export function Workspace(): JSX.Element {
 
 function WorkspaceContent(): JSX.Element {
   const composition = useSurfaces();
-  // Not yet fetched — render the bare shell, no empty-state flash.
+  // Not yet fetched; render the bare shell, no empty-state flash.
   if (!composition) return <div className="workspace" />;
   if (composition.surfaces.length === 0) {
     return (
@@ -132,7 +132,7 @@ function EmptyWorkspaceCard({
       </p>
       <p className="workspace-empty__detail">
         {composition.manifestFound
-          ? "The manifest loaded no surface contributions — add feature entries (or check the logs for failed features), then reload."
+          ? "The manifest loaded no surface contributions; add feature entries (or check the logs for failed features), then reload."
           : "Create the manifest listing feature entry files, then reload."}
       </p>
       <p className="workspace-empty__path">

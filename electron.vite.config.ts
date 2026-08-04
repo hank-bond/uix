@@ -12,7 +12,7 @@ import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 // runtime requires from node_modules instead of bundling them into
 // out/main/index.js. Necessary for packages that load their own
 // internal files via runtime paths (pino's worker_threads, native
-// modules, etc.) — bundling breaks those path lookups.
+// modules, etc.). Bundling breaks those path lookups.
 //
 // typebox is bundled into preload because sandboxed preload scripts cannot
 // resolve dependency external requires. The preload imports the substrate

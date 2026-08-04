@@ -2,16 +2,16 @@
 //
 // The document is a doubly-linked list of line nodes plus a Map<anchor, Node>
 // for O(1) anchor lookup. Edits patch the list in place and never touch
-// unchanged nodes — there is no positional index to keep in sync, because
+// unchanged nodes; there is no positional index to keep in sync, because
 // the anchored grammar addresses lines by anchor, not by line number.
 //
 // Range edits (`edit`) run Myers diff against the range only, so cost is
 // O(range + replacement). `reconcile(text)` runs Myers against the whole list
 // to preserve unchanged anchors and produce a diff, so cost is O(N + D).
-// `write(text)` is a clobber — it rebuilds from scratch with fresh anchors and
+// `write(text)` is a clobber; it rebuilds from scratch with fresh anchors and
 // no diff, so cost is O(new line count).
 //
-// `read(start, end)` slices by line position (the one positional operation —
+// `read(start, end)` slices by line position (the one positional operation:
 // the first read has no anchors yet). A linked list has no random seek, so it
 // walks to the window; using the tracked line count it enters from whichever
 // document end is nearer, making cost O(min(start, N - end) + window).
@@ -76,7 +76,7 @@ export function diffAnchoredSnapshots(
 
 export interface AnchorRangeEdit {
   // Boundaries are structured lines (anchor + the text the caller believes is
-  // there), not rendered strings — the §-gutter wire format is parsed at the
+  // there), not rendered strings; the §-gutter wire format is parsed at the
   // tool layer before it reaches the core. The text half is a verbatim guard:
   // `edit` rejects the call unless the live line behind the anchor still
   // matches, the same way an edit tool requires the old text to match before
@@ -162,14 +162,14 @@ export class AnchoredDocument {
     this.#loadSnapshot(input);
   }
 
-  // Pool allocation cursor — internal session state, not part of any
+  // Pool allocation cursor: internal session state, not part of any
   // agent-facing result. Exposed only so persistence can round-trip it back
   // through the constructor.
   get nextAnchorIndex(): number {
     return this.#nextAnchorIndex;
   }
 
-  // Total line count — the "of N" for paged head/tail reads.
+  // Total line count: the "of N" for paged head/tail reads.
   get lineCount(): number {
     return this.#lineCount;
   }
@@ -200,7 +200,7 @@ export class AnchoredDocument {
   }
 
   // Clobber: discard the whole document and rebuild from `text`. Anchors are
-  // never reused — allocation continues from the current index, so the new
+  // never reused; allocation continues from the current index, so the new
   // version shares no anchor with the version it replaced (the two can coexist
   // in one chat without an anchor ever naming two different lines). No diff: a
   // clobber doesn't claim to preserve anything, so there are no change hunks.
@@ -226,7 +226,7 @@ export class AnchoredDocument {
   // Reconcile the whole document against new `text`, diffing to preserve the
   // anchors of unchanged lines and return what changed. This is the human
   // writeback path (the pane flushes new content; the agent must see a stable
-  // anchored diff) — unlike `write`, it is not a clobber.
+  // anchored diff); unlike `write`, it is not a clobber.
   reconcile(text: string): readonly AnchoredChange[] {
     const oldNodes = this.#collectNodes();
     const { newNodes, changes } = this.#applyDiff(oldNodes, splitText(text));
@@ -294,7 +294,7 @@ export class AnchoredDocument {
     for (const step of diffLines(oldTexts, newTexts)) {
       if (step.type === "equal") {
         flushPending();
-        // Reuse the existing node — its anchor and text are unchanged.
+        // Reuse the existing node; its anchor and text are unchanged.
         newNodes.push(oldNodes[step.oldIndex]);
         continue;
       }

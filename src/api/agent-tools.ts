@@ -5,7 +5,7 @@
 // supply app-level vocabulary without weakening the ordinary namespace.
 //
 // A tool body is inherently a Pi artifact, so AgentToolDefinition is Pi's
-// ToolDefinition minus `name` — re-exported here so feature authors get the
+// ToolDefinition minus `name`. It is re-exported here so feature authors get the
 // real Pi typing from @uix/api without reaching into host internals.
 
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
@@ -17,8 +17,8 @@ import type { TSchema } from "typebox";
  * normalization. Making it `Omit` turns an author hand-writing `name` into a
  * compile error.
  *
- * Generic on the parameter schema so a reusable tool factory can narrow it —
- * `AgentToolDefinition<typeof myParams>` — which threads `Static<TParams>`
+ * Generic on the parameter schema so a reusable tool factory can narrow it to
+ * `AgentToolDefinition<typeof myParams>`, which threads `Static<TParams>`
  * contextually into `execute`, `renderCall`, and `prepareArguments` and
  * type-checks the `parameters` field against the specific schema. Defaults to
  * the widened `TSchema` so one-off inline tool literals can use the bare alias.
@@ -33,7 +33,7 @@ export type AgentToolDefinition<TParams extends TSchema = TSchema> = Omit<
 export interface AgentToolContribution {
   /** Local tool name: the facet derives `${featureId}__${name}` as the Pi tool name. */
   readonly name: string;
-  /** Tool body — everything except `name`, which the substrate derives. */
+  /** Tool body: everything except `name`, which the substrate derives. */
   readonly tool: AgentToolDefinition;
 }
 
@@ -44,6 +44,6 @@ export interface AgentToolContribution {
 export interface AgentToolOverrideContribution {
   /** Exact Pi tool name to register, such as `read`, `write`, or `command`. */
   readonly name: string;
-  /** Exact-name body — the substrate stamps the authored `name`. */
+  /** Exact-name body; the substrate stamps the authored `name`. */
   readonly tool: AgentToolDefinition;
 }

@@ -5,7 +5,7 @@ status: active
 
 # Tool blocks
 
-`presentation.ts` derives the shared tool facts — state, display name, and payload text — and `presentations.tsx` maps known tool names to label and content policies. The `content/` subtree holds the per-tool content components, and `tool-content.css` the shared tool block chrome.
+`presentation.ts` derives the shared tool facts: state, display name, and payload text. `presentations.tsx` maps known tool names to label and content policies. The `content/` subtree holds the per-tool content components, and `tool-content.css` the shared tool block chrome.
 
 ## Contents
 

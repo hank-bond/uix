@@ -1,5 +1,5 @@
 ---
-summary: "Stage durable session history so transition foundations unlock New Session first, then switching and titles, while robustness, diagnostics, recovery, and polish follow without blocking those vertical slices."
+summary: "Stage durable session history: transition foundations unlock New Session first, then switching and titles. Robustness, diagnostics, recovery, and polish follow without blocking those vertical slices."
 status: active
 ---
 

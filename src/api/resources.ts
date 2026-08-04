@@ -37,7 +37,7 @@ export interface ResourceRequestContext {
 export interface ResourceContribution<Query extends TSchema = TSchema> {
   /** Local resource name; the substrate derives the resource type as `${featureId}-${name}`. */
   name: string;
-  /** Normalized route from a `createResourceAddressHandle` call — pass `handle.route`. */
+  /** Normalized route from a `createResourceAddressHandle` call; pass `handle.route`. */
   route: NormalizedResourceRoute<Query>;
   handler: (ctx: ResourceRequestContext) => Response | Promise<Response>;
 }
@@ -51,7 +51,7 @@ export interface ResourceRouteDefinition<Query extends TSchema = TSchema> {
 }
 
 export interface ResourceAddressHandle<Query extends TSchema = TSchema> {
-  /** The normalized route — pass as the `route` field on a ResourceContribution. */
+  /** The normalized route; pass as the `route` field on a ResourceContribution. */
   route: NormalizedResourceRoute<Query>;
   /** Produce a transport URL for iframe src, fetch, etc. */
   toUrl(input: {

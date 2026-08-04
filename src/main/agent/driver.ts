@@ -124,7 +124,7 @@ export interface AgentDriver extends Disposable {
   getStatus(): AgentStatus;
   /**
    * Validate against Pi's available models, persist as the workspace
-   * default, and — when a live session exists — switch it via
+   * default, and, when a live session exists, switch it via
    * `session.setModel`, producing native Pi `model_change` state.
    */
   selectModel(ref: ModelRef): Promise<AgentStatus>;
@@ -158,7 +158,7 @@ export interface AgentDriverOptions {
   piProfileDir: string;
   /**
    * Workspace `agent` settings namespace; holds model defaults and favorites.
-   * Without a default, UIX passes no model and Pi's own resolution applies —
+   * Without a default, UIX passes no model and Pi's own resolution applies,
    * including resolving to no model at all when nothing is authenticated.
    */
   agentSettings?: SettingsHandleFrom<typeof agentWorkspaceSettings>;
@@ -772,7 +772,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       // No echo here: the renderer already shows its optimistic pending row,
       // and the authoritative keyed row is emitted by the onUserMessage
       // observer when Pi persists. A prompt that fails before persistence
-      // truthfully contributes no user row to the feed — the renderer's
+      // truthfully contributes no user row to the feed; the renderer's
       // unconfirmed row plus the error item below are the whole record.
       try {
         // Runtime opening is retryable; getRuntime() shares only the current
@@ -824,7 +824,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
             message: errorMessage(err),
           },
         });
-        // Renderer treats agent_end as "you can send again" — emit it on error
+        // Renderer treats agent_end as "you can send again"; emit it on error
         // so the composer unlocks.
         opts.onEvent({ type: "agent_end" });
       }

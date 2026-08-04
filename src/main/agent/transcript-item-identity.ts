@@ -12,11 +12,11 @@
 //  - assistant: Pi passes the *same* message object to `message_end` and
 //    `appendMessage`, so a WeakMap keyed by the object carries the
 //    continuation without retaining message content.
-//  - user: nothing to correlate — the instant echo is the *renderer's* own
+//  - user: nothing to correlate. The instant echo is the *renderer's* own
 //    optimistic pending row (composer state, not transcript truth); main
 //    emits the authoritative row born keyed straight from the observed
 //    append, deriving the text from the persisted message itself.
-//  - tool rows: born keyed — Pi persists the assistant message (with its
+//  - tool rows: born keyed; Pi persists the assistant message (with its
 //    toolCall blocks) before `tool_execution_start` fires, so the durable
 //    `<entryId>:tool:<toolCallId>` derivation is recorded here and read by
 //    the forwarder at row creation. No handle, no rekey.

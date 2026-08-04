@@ -84,7 +84,7 @@ const isDev = !app.isPackaged;
 const LocalWorkspaceId = "local";
 
 // Preflight declarations must land before app ready; today that's just the
-// substrate resource protocol (no feature is loaded this early — manifest
+// substrate resource protocol (no feature is loaded this early; manifest
 // features are runtime contributions by definition).
 registerFeaturePreflightContributions([]);
 
@@ -162,8 +162,8 @@ function logChatContent(event: AgentEvent): void {
 
 /**
  * Boot the substrate against a workspace and open its window. Everything
- * workspace-bound — state root, registries, agent driver, feature load,
- * reload handler — lives here; the shell above it only decides *which*
+ * workspace-bound (state root, registries, agent driver, feature load,
+ * reload handler) lives here; the shell above it only decides *which*
  * workspace to open.
  */
 async function openWorkspace(
@@ -274,7 +274,7 @@ async function openWorkspace(
   // composition the renderer mounts, plus the changed signal fired after
   // every load pass so the page re-fetches. The pipeline bundles each
   // registered surface entry into a servable module; its routes live on the
-  // substrate origin (uix-resource://uix.<ws>) — the only origin the page's
+  // substrate origin (uix-resource://uix.<ws>); the only origin the page's
   // CSP lets scripts and styles load from.
   const surfacePipeline = new SurfaceModulePipeline(LocalWorkspaceId);
   appBag.add(
@@ -342,7 +342,7 @@ async function openWorkspace(
       withHandlers(agentChannels, {
         prompt: {
           handler: (req) => {
-            // Fire and forget — the renderer subscribes to the event
+            // Fire and forget; the renderer subscribes to the event
             // stream, and the invoke resolves once the prompt has been
             // accepted.
             void driver.prompt(req.text);
@@ -421,11 +421,11 @@ async function openWorkspace(
     ]),
   );
 
-  // One load pass activates the whole composition — the manifest's entries,
-  // in manifest order — all under featuresBag, so reload re-runs everything.
+  // One load pass activates the whole composition, the manifest's entries,
+  // in manifest order, all under featuresBag, so reload re-runs everything.
   // Where feature value-imports of @uix/api resolve. In dev this is the
   // repo's source; a packaged app ships the API source with the feature
-  // templates (packaging arc) — until then the alias is simply absent there
+  // templates (packaging arc); until then the alias is simply absent there
   // and features can only type-import the API.
   const apiModuleDir = join(app.getAppPath(), "src/api");
   const substrate: FeatureSubstrate = {
@@ -449,7 +449,7 @@ async function openWorkspace(
   });
 
   // A bad manifest must not brick the app: log it loudly and boot with no
-  // features — the user can then fix the manifest and /reload. Reload
+  // features; the user can then fix the manifest and /reload. Reload
   // keeps strict semantics (a bad manifest rejects, tree intact).
   let initialActivation: ActivationResult;
   try {
@@ -577,7 +577,7 @@ function openPicker(
   });
 
   // Respond to the invoke first, then tear the picker down and boot the
-  // workspace — disposing the handler that is currently answering would
+  // workspace; disposing the handler that is currently answering would
   // race its own response.
   const transition = (target: string): void => {
     setImmediate(() => {
@@ -684,7 +684,7 @@ void app.whenReady().then(async () => {
   }
 
   // Process-level error handlers are the catch-all for anything
-  // that escapes the synchronous call stack — a feature's
+  // that escapes the synchronous call stack: a feature's
   // interval throwing, a stray promise rejection in host code.
   // They go in early so they're armed before any user code runs.
   appBag.add(installProcessHandlers(createLogger("main")));
@@ -696,7 +696,7 @@ void app.whenReady().then(async () => {
   );
 
   // Dispose the whole tree on shutdown. Registered raw (not via
-  // onApp) because the listener's job IS to dispose appBag — putting
+  // onApp) because the listener's job IS to dispose appBag; putting
   // it in the bag would make teardown circular. The handler is a
   // one-shot process-end event with no useful moment to remove it
   // anyway, so the lack of cleanup is fine.
@@ -711,7 +711,7 @@ void app.whenReady().then(async () => {
     join(userDataDir, "recent-workspaces.json"),
   );
 
-  // Which workspace? An explicit target (UIX_WORKSPACE — manifest path or
+  // Which workspace? An explicit target (UIX_WORKSPACE, manifest path or
   // workspace dir) opens directly; so does a cwd that already holds a
   // manifest (the repo dev flow). Otherwise the start picker decides.
   const envTarget = process.env["UIX_WORKSPACE"];

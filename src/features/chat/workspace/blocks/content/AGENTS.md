@@ -5,7 +5,7 @@ status: active
 
 # Block content
 
-`MarkdownContent.tsx` renders markdown through react-markdown with gfm support, mapping code to the highlighting pipeline: `HighlightedCode.tsx` renders source text with refractor syntax colors inside the plain `CodeBlock.tsx` container. `text.ts` provides the shared text extraction and truncation helpers.
+`MarkdownContent.tsx` renders markdown through react-markdown with gfm support, mapping code to the highlighting pipeline. `HighlightedCode.tsx` renders source text with refractor syntax colors inside the plain `CodeBlock.tsx` container. `text.ts` provides the shared text extraction and truncation helpers.
 
 ## Contents
 

@@ -16,7 +16,7 @@ export interface ChannelEventLogOptions<Event> {
 }
 
 /**
- * Schema-only request descriptor — the shared base between frontend and
+ * Schema-only request descriptor: the shared base between frontend and
  * backend. The frontend contract uses this directly; the backend
  * contribution extends it with a `handler` and optional `log`.
  */
@@ -30,7 +30,7 @@ export interface ChannelRequestSchema<
 }
 
 /**
- * Schema-only event descriptor — shared base. Identical shape on both sides.
+ * Schema-only event descriptor: shared base. Identical shape on both sides.
  */
 export interface ChannelEventSchema<Event extends TSchema = TSchema> {
   readonly event: Event;
@@ -58,7 +58,7 @@ export interface ChannelContribution {
 }
 
 /**
- * Frontend channel contract — schema-only view of a backend contribution.
+ * Frontend channel contract: schema-only view of a backend contribution.
  * Features export an object of this shape in `shared/`; both the backend
  * (via {@link withHandlers}) and the frontend (via `createChannelClient`)
  * consume the same object.
@@ -75,7 +75,7 @@ export interface ChannelContract {
 }
 
 /**
- * Per-request handler entry — maps each request name in the contract to its
+ * Per-request handler entry: maps each request name in the contract to its
  * backend `handler` function and optional `log` config. Used by
  * {@link withHandlers}; the mapped type enforces that every request declared
  * in the contract has a matching handler.
@@ -97,7 +97,7 @@ export type ChannelHandlers<C extends ChannelContract> = {
 /**
  * Merges a schema-only {@link ChannelContract} with backend handlers to
  * produce a {@link ChannelContribution}. Every request in the contract must
- * have a matching handler — if a request is added to the contract without a
+ * have a matching handler; if a request is added to the contract without a
  * handler, TypeScript errors at the call site.
  */
 export function withHandlers<const C extends ChannelContract>(
@@ -133,7 +133,7 @@ export function withHandlers<const C extends ChannelContract>(
 }
 
 /**
- * Typed backend event publisher — the dual of the frontend {@link EventClient}.
+ * Typed backend event publisher: the dual of the frontend {@link EventClient}.
  * Derived from a {@link ChannelContract}, each declared event becomes a typed
  * method whose argument is validated against the event schema at compile time.
  */
@@ -147,7 +147,7 @@ export type FeatureEventPublisher<C extends ChannelContract> = {
  * The channel capability injected into feature contexts (the channel
  * counterpart of `DocumentStoreFactory`). The host closes over the
  * feature id, so the only way a feature obtains publish capability is by
- * presenting a contract — there is no untyped publish surface.
+ * presenting a contract; there is no untyped publish surface.
  */
 export interface FeatureEventPublisherFactory {
   createPublisher<const C extends ChannelContract>(
