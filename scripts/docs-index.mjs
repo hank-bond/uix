@@ -104,7 +104,8 @@ function collect(layer) {
   if (!existsSync(dir)) return [];
   const entries = [];
   for (const name of readdirSync(dir)) {
-    if (!name.endsWith(".md") || name === "AGENTS.md") continue;
+    if (!name.endsWith(".md") || name === "AGENTS.md" || name === "README.md")
+      continue;
     const file = `${layer.dir}/${name}`;
     const fm = parseFrontmatter(readFileSync(join(dir, name), "utf8"), file);
     if (layer.dir !== "plans" && !fm.kind) {
@@ -143,7 +144,11 @@ function autoChildren(dir) {
     const stat = statSync(path);
     if (stat.isDirectory()) {
       if (existsSync(join(path, "AGENTS.md"))) out.push(name);
-    } else if (name.endsWith(".md") && name !== "AGENTS.md") {
+    } else if (
+      name.endsWith(".md") &&
+      name !== "AGENTS.md" &&
+      name !== "README.md"
+    ) {
       out.push(name);
     }
   }
@@ -237,7 +242,7 @@ export function collectSourceDirectory(repositoryRoot, directory) {
   for (const name of readdirSync(absoluteDirectory).sort((a, b) =>
     a.localeCompare(b),
   )) {
-    if (name === "AGENTS.md") continue;
+    if (name === "AGENTS.md" || name === "README.md") continue;
     const path = join(absoluteDirectory, name);
     const stat = statSync(path);
     if (stat.isDirectory()) {
@@ -341,6 +346,7 @@ function markdownFiles(dir) {
     "dist",
     "coverage",
     "CLAUDE.md",
+    "README.md",
   ]);
   const files = [];
   for (const name of readdirSync(dir)) {

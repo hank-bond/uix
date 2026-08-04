@@ -82,6 +82,10 @@ describe("source directory indexes", () => {
     );
     writeFileSync(join(boundary, "package.json"), "{}\n");
     writeFileSync(
+      join(boundary, "README.md"),
+      "# Public project documentation\n",
+    );
+    writeFileSync(
       join(boundary, "guide.md"),
       '---\nsummary: "Explains the local coordination rule."\nkind: explanation\nstatus: active\n---\n\n# Guide\n',
     );
@@ -94,6 +98,9 @@ describe("source directory indexes", () => {
     expect(() => assertSourceBoundary("boundary", entries)).not.toThrow();
     expect(entries.directories.map(({ label }) => label)).toEqual(["child/"]);
     expect(entries.documents.map(({ label }) => label)).toEqual(["guide.md"]);
+    expect(entries.documents.map(({ label }) => label)).not.toContain(
+      "README.md",
+    );
     expect(entries.files.map(({ label }) => label)).toEqual(["behavior.ts"]);
     expect(renderSourceIndex(entries)).not.toContain("behavior.test.ts");
 

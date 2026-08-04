@@ -1,16 +1,6 @@
----
-summary: "Top-level pointer page for UIX and its primary documentation entry points."
-read_when: "Read when you need the shortest route into the project docs."
-status: active
----
-
 # UIX
 
-A local Electron framework for composing human-agent surfaces over Pi.
-
-- Current architecture: [`AGENTS.md`](./AGENTS.md)
-- Archived project brief: [`project-brief.md`](./plans/archive/project-brief.md)
-- Archived v0 protocol spec: [`v0-canvas-protocol.md`](./plans/archive/v0-canvas-protocol.md)
+A framework for composing self-assembling applications powered by human-agent interactions.
 
 ## Status
 
