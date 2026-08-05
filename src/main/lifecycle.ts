@@ -1,5 +1,7 @@
 // Provides disposable helpers that clean up app, window, and component resources with their owners.
 //
+// The concrete lifetime scopes: the app bag owns process handlers, protocols, IPC, window listeners, the feature composition, workspace settings, and the agent driver. A child features bag clears on feature reload and disposes on shutdown. Each feature activation gets its own provisional bag that joins the features bag only after successful activation. The agent driver keeps an internal bag for Pi event subscriptions and live session cleanup.
+//
 // The rule: every attached callback produces a Disposable, and that
 // Disposable goes into a bag that's torn down together. This makes
 // "register" and "cleanup" structurally inseparable, so you can't

@@ -7,9 +7,7 @@ status: active
 
 This tree owns documentation whose scope crosses one source ownership boundary. It records UIX's shape, decisions, constraints, and broader workflows. Source-coupled guidance belongs beside its owning code under the model in [`contributing.md`](./contributing.md).
 
-> **Update when:** Every centralized `src/docs/` page has moved or been deleted. Remove the transitional route below.
-
-The existing centralized substrate reference remains in [`AGENTS.md`](../src/docs/AGENTS.md) during its ownership-based migration, while active build specs live in [`AGENTS.md`](../plans/AGENTS.md).
+Active build specs live in [`AGENTS.md`](../plans/AGENTS.md), and the user-facing implementation guides live in [`AGENTS.md`](../src/docs/AGENTS.md).
 
 ## Where to read
 

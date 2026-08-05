@@ -1,6 +1,6 @@
 // Runs one workspace reload at a time across feature activation, Pi resources, restored state, and renderer notification.
 //
-// Reload first commits turn state after restoration settles, or skips that commit when restoration is still pending. It stages and validates one manifest generation before promotion, then disposes the active composition and activates replacements. Reload requests serialize, and a successful reload gives disk precedence over pending debounced in-memory settings. Malformed manifests or workspace settings fail before promotion, so the active composition remains intact.
+// Reload first commits turn state after restoration settles, or skips that commit when restoration is still pending. It stages and validates one manifest generation before promotion, then disposes the active composition and activates replacements. Reload requests serialize, and a successful reload gives disk precedence over pending debounced in-memory settings. Malformed manifests or workspace settings fail before promotion, so the active composition remains intact. Reload uses typed IPC, not an agent channel, and reconciles Pi only after replacing manifest features and workspace settings. It recreates the model or authentication services tier when one exists and calls Pi's native session reload when a live session exists. It never creates Pi services or a session solely to reload them.
 
 interface WorkspaceReloadCoordinatorOptions<TFeatureActivation> {
   commitTurnState: () => Promise<boolean>;

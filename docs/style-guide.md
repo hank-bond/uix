@@ -44,7 +44,7 @@ Encode ownership and scope. Source-coupled guidance lives beside its owning code
 
 > **Update when:** Every centralized `src/docs/` page has moved or been deleted. Remove the migration exception below.
 
-The existing `src/docs/` tree remains during the migration in [`code-proximate-documentation.md`](../plans/code-proximate-documentation.md). Do not add a face-value implementation inventory there merely because the page is feature-facing.
+The `src/docs/` tree hosts user-implementation how-tos. Do not add a face-value implementation inventory there merely because the page is feature-facing: reference facts live in the contracts and generated indexes.
 
 Every doc follows its layer's conventions: frontmatter with a `summary` first, an H1 title close to the filename, then the layer's shape. Details live in [`contributing.md`](./contributing.md).
 
