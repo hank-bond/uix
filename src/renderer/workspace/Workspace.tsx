@@ -2,7 +2,7 @@
 //
 // Renders the composed surface list from useSurfaces(). Each surface
 // provides a render function. The workspace composes them into a persisted
-// horizontal resize row. Channel clients are created by SurfaceMount, not by
+// horizontal resize row. SurfaceMount creates channel clients, not
 // feature code. An empty composition renders an explanatory card instead of a
 // blank window. Which of the two empty states (no manifest vs. no surfaces)
 // it names, so the create-manifest-after-boot flow is visible instead of dark.

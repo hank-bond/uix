@@ -9,7 +9,7 @@
 //
 // What "Disposable" means here:
 //   - It's a TC39 standard interface: `{ [Symbol.dispose](): void }`.
-//   - Anything implementing that shape can be cleaned up by calling the
+//   - A caller cleans up anything implementing that shape via the
 //     method, or by using `using x = ...` (lexical-scope auto-dispose).
 //   - The TypeScript `Disposable` type comes from the `ESNext.Disposable`
 //     lib (added to both tsconfigs in this commit).

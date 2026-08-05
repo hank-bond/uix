@@ -4,7 +4,7 @@ summary: "User-implementation guides for building UIX applications, colocated wi
 
 # UIX implementation guides
 
-These guides walk an implementer through a concrete feature-authoring task, each step ending in a checkable result. They are written for builders and agents making their own UIX applications: the "what do I need to know to implement my app" layer. They sit inside `src/` so they stay colocated with the code they reference.
+These guides walk an implementer through a concrete feature-authoring task, each step ending in a checkable result. We wrote them for builders and agents making their own UIX applications: the "what do I need to know to implement my app" layer. They sit inside `src/` so they stay colocated with the code they reference.
 
 Reference facts live in the `@uix/api` contracts and source summaries. These pages add the worked sequence and the implementation logic the docs don't provide. Revisit a guide whenever the contribution it exercises changes.
 

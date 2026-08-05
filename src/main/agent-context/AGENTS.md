@@ -6,7 +6,7 @@ summary: "Agent context assembles feature-provided state into structured message
 
 Feature activation passes declarations from `src/api/agent-context.ts` through pure resolution before registry acceptance. Acceptance is the only transition that creates substrate-owned update or append buffers and returns their live capabilities. Materialized contributions retain ownership of their external state.
 
-The agent runtime controls when accepted contributions are assembled against branch history and committed before a run.
+The agent runtime controls when it assembles accepted contributions against branch history and commits them before a run.
 
 ## Contents
 

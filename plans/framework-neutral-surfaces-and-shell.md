@@ -25,7 +25,7 @@ These are the decisions this plan may rely on. Details not stated here remain op
 - **Framework bridges are user/app/feature code.** A React surface may create a React root, a Svelte surface may mount a Svelte component, and a raw-DOM surface may append nodes. UIX may document small copyable examples but does not commit to maintaining an adapter package for each framework.
 - **Framework neutrality is not framework indifference at the product layer.** An app scaffold may explicitly standardize on React/Mantine, provide its own providers/hooks/build setup, and steer LLMs toward that path. Those conventions do not become substrate contracts.
 - **Styles and code accompany the surface through web-native delivery.** A surface contribution provides its mountable ESM entry and associated styles/assets in a form the substrate can deliver and clean up. The exact artifact and style representation is not yet decided.
-- **Ordinary ESM identity should make sharing possible without requiring it.** Surfaces may use different frameworks or incompatible versions. Compatible dependencies should not be structurally forced into duplicate runtime instances when their build and URL graph can share them; the exact build and linking mechanism is deferred.
+- **Ordinary ESM identity should make sharing possible without requiring it.** Surfaces may use different frameworks or incompatible versions. The build graph should not force compatible dependencies into duplicate runtime instances when their build and URL graph can share them; the exact build and linking mechanism is deferred.
 - **The fixed UIX chrome does not justify a frontend framework requirement.** The workspace shell and pre-workspace picker can eventually use direct HTML/CSS/DOM because they have a small, substrate-owned vocabulary. This is not a recommendation that application features avoid frameworks.
 - **The picker and workspace-shell migrations are discrete.** The picker exists before workspace composition and can be rewritten independently. The workspace shell follows the neutral mount seam because it currently owns surface composition through React.
 - **Mixed-framework workspaces are valid, not necessarily optimal.** A coherent app will usually choose one stack for bundle efficiency, visual consistency, and shared conventions; UIX does not make that choice mandatory.
@@ -62,7 +62,7 @@ The exact call signature, capability shape, cleanup value, and style representat
 
 ### N0 — Inventory and decide the minimal boundary
 
-When this plan is promoted after alpha, inventory every place where React currently participates in the public surface API, browser-side state ownership, surface compilation/delivery, shared modules, first-party features, shell layout, picker, tests, scaffolding, and package dependencies. Classify each use as substrate integration, fixed shell presentation, or feature-owned rendering.
+When we promote this plan after alpha, inventory every place where React currently participates in the public surface API, browser-side state ownership, surface compilation/delivery, shared modules, first-party features, shell layout, picker, tests, scaffolding, and package dependencies. Classify each use as substrate integration, fixed shell presentation, or feature-owned rendering.
 
 Use small executable spikes to decide only the contracts needed by the next units: surface mount/lifetime/failure, style and asset delivery, and the ESM/build boundary. Compare module-sharing approaches against current reload isolation and the future HTTP host rather than choosing one from architectural taste. Distill the result into a replacement decision that explicitly supersedes the React-specific portions of [runtime surface pipeline](../docs/decisions/2026-07-02-runtime-surface-pipeline.md) and restates every surviving invariant.
 
@@ -80,7 +80,7 @@ Outcome: React and non-React surfaces can run side by side under the current she
 
 Migrate Chat and Canvas to feature-owned React roots and feature/app-owned hooks, providers, and renderer dependencies. Implement the ESM/style/build-delivery decision from N0 so the substrate no longer supplies a blessed React instance or hardcodes React as the only surface source format. Preserve the ability for compatible module URLs to share browser evaluation and for incompatible framework versions to coexist without conflation.
 
-This unit may be promoted into its own narrower build plan after N0 if compilation, dependency resolution, CSS/assets, and hosted delivery prove too large for one reviewable implementation arc. That promotion is preferable to hiding a second architecture project inside this unit.
+You may promote this unit into its own narrower build plan after N0 if compilation, dependency resolution, CSS/assets, and hosted delivery prove too large for one reviewable implementation arc. That promotion is preferable to hiding a second architecture project inside this unit.
 
 Outcome: React is an ordinary implementation dependency of React features, a trivial surface can use raw JS/TS without React, and UIX's public surface and delivery contracts do not require knowledge of a frontend framework.
 
@@ -98,7 +98,7 @@ Rewrite the small pre-workspace picker with direct HTML/CSS/DOM. It remains subs
 
 Once the workspace and picker are both neutral, remove remaining substrate React wiring where the actual package boundaries permit it. Publish concise raw-DOM and React authoring examples, update the architecture and shipped surface docs, and add conformance coverage for coexistence, failure, reload, style cleanup, and dependency identity as decided in N0. Documentation must continue to distinguish the neutral substrate from any opinionated React/Mantine app scaffold.
 
-Outcome: UIX can be understood, built, and used as a browser substrate without React, while React features and products remain a first-class ordinary composition.
+Outcome: developers can understand, build, and use UIX as a browser substrate without React, while React features and products remain a first-class ordinary composition.
 
 ## Questions N0 must answer
 
@@ -109,18 +109,18 @@ The questions are intentionally more exhaustive than the decisions above. They a
 - Does `mount` receive one context object, a target plus context, or narrower capability handles?
 - Is the mount target always an `HTMLElement`, or should the contract name a smaller DOM capability that could also cover a shadow-root child or future contained host?
 - Does the substrate create and own the target element, and may a feature replace, clear, detach, or attach a shadow root to it?
-- Is mount synchronous? If asynchronous mount is allowed, what is visible while it resolves and how is cancellation represented?
+- Is mount synchronous? If you allow asynchronous mount, what is visible while it resolves and how do you represent cancellation?
 - What may mount return: `Disposable`, a cleanup function, either, or nothing?
 - Can one surface definition have multiple mounted instances, and which identity distinguishes contribution, module, panel, and mount instance?
 - Are surface updates always unmount/remount on substrate reload, or does any definition-level update path exist?
-- Which facts belong in the backend `surfaces` facet, which live in the ESM module, and which are derived by the host?
+- Which facts belong in the backend `surfaces` facet, which live in the ESM module, and which the host derives?
 - How is the imported default export validated without encoding framework assumptions?
 - Must a mount target begin empty, and who clears residual DOM after failed or incomplete cleanup?
 
 ### Capabilities and state projection
 
 - Which capabilities must every surface receive, and which are optional or feature-bound: typed channel client, raw workspace client, settings, actions, session control, resources, diagnostics, host capabilities, or future agent links?
-- Should a surface receive the raw workspace client at all when narrower clients can be minted by the substrate?
+- Should a surface receive the raw workspace client at all when the substrate can mint narrower clients?
 - How does a contractless surface request additional public feature channels without gaining ambient access to host internals?
 - Are settings exposed as current `get`/`set`/`onChange` operations, as a feature-bound handle, or through another domain-specific shape?
 - Which session and action projections are legitimate substrate capabilities versus conveniences currently exposed because Chat needed them?
@@ -152,12 +152,12 @@ The questions are intentionally more exhaustive than the decisions above. They a
 - Does UIX continue structurally wrapping static styles in `@scope`, and where does that transformation happen for generated CSS?
 - How are `@font-face`, `@keyframes`, `@property`, and other document-global names handled?
 - How do relative `url()` assets resolve in local custom-protocol and hosted HTTP modes?
-- How are generated hashed CSS and asset filenames communicated to UIX?
+- How does the build communicate generated hashed CSS and asset filenames to UIX?
 - May a feature use runtime CSS injection or CSS-in-JS, and what cleanup, containment, CSP, and reload obligations then belong to its bridge?
 - How do portals and overlays interact with the surface style scope and mount target?
 - Does the neutral contract need to anticipate a future shadow surface, or can that remain a distinct later surface kind without changing trusted light-DOM mounting now?
 - Which existing CSP and origin guarantees apply to generated module chunks, CSS, fonts, workers, and assets?
-- Can styles or assets be shared across surfaces without making one feature's lifetime remove another feature’s resource?
+- Can surfaces share styles or assets without making one feature's lifetime remove another feature's resource?
 
 ### Framework compilation and build invocation
 
@@ -174,7 +174,7 @@ The questions are intentionally more exhaustive than the decisions above. They a
 - Must framework compilation preserve bare package imports, or may it emit shared and private chunks itself?
 - How are Svelte/Vue/Solid compiler requirements represented without UIX maintaining framework-specific compiler plugins?
 - How does a build failure prevent a stale prior artifact from loading while preserving failure isolation for unrelated features?
-- Can feature builds run concurrently, and what resource or output-directory collisions must be prevented?
+- Can feature builds run concurrently, and what resource or output-directory collisions must the build prevent?
 - How are development diagnostics mapped from generated output back to editable feature source?
 - Is edit → reload → build sufficient, or does any real alpha/post-alpha workflow justify watch mode or HMR?
 
@@ -189,7 +189,7 @@ The questions are intentionally more exhaustive than the decisions above. They a
 - What happens when compatible semver ranges nevertheless resolve to separate physical package copies?
 - How are intentionally incompatible React or other framework versions kept paired with the correct renderer bridge and component code?
 - Are workspace package-manager overrides sufficient for app-level dependency policy, or does UIX need diagnostics about duplicate large runtimes?
-- How are shared chunks named, content-hashed, retained, and evicted across reloads?
+- How does the build name, content-hash, retain, and evict shared chunks across reloads?
 - Does changing one surface invalidate only its entry and changed chunks, or rebuild/readdress the whole workspace graph?
 - How does browser module caching interact with manual substrate reload, failed reload, and rollback to the previous active feature composition?
 - How does the local `uix-resource://` route map onto the future HTTP asset graph without changing feature imports?
@@ -203,7 +203,7 @@ The questions are intentionally more exhaustive than the decisions above. They a
 - How much bridge code should the React example show before it accidentally becomes a quasi-supported adapter API?
 - Should UIX provide helper functions only for non-framework concerns such as disposal or typed subscription cleanup?
 - How do examples teach React, Svelte, Lit, or raw DOM consumers to adapt domain subscriptions without implying UIX owns a lowest-common-denominator reactive layer?
-- What conformance behavior can be tested against any mount implementation without importing its framework?
+- What conformance behavior can the test suite verify against any mount implementation without importing its framework?
 - Is one raw-DOM fixture plus first-party React enough, or does the build contract require a second compiled framework fixture to prove a distinct path?
 
 ### Workspace shell migration

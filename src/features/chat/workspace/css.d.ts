@@ -1,6 +1,6 @@
 // The CSS module import shape for TypeScript.
-// CSS module scripts (import ... with { type: "css" }) are executed natively
-// by the browser. This declaration teaches TypeScript their shape.
+// The browser executes CSS module scripts (import ... with { type: "css" })
+// natively. This declaration teaches TypeScript their shape.
 declare module "*.css" {
   const sheet: CSSStyleSheet;
   export default sheet;

@@ -3,13 +3,13 @@
 // Injected into served canvas HTML so a human can edit the pane and have edits
 // flow back to the store. The canvas frame is sandboxed off `window.uix` (see
 // preload), so the only channel out is postMessage to the host, which
-// forwards over IPC. The shim is added at serve time and never persisted: it
+// forwards over IPC. The server adds the shim at serve time and never persists it: the shim
 // removes its own <script> node before serializing, so it never leaks into
 // stored content.
 
 import type { CanvasKey } from "../shared/addressing";
 
-// Embedded raw into the script via a template. The key is validated so it
+// Embedded raw into the script via a template. The host validates the key so it
 // cannot contain quotes or break out of the string literal.
 function shimScript(key: CanvasKey): string {
   return `(function () {
@@ -19,8 +19,8 @@ function shimScript(key: CanvasKey): string {
   var timer;
   var lastHtml = "";
   // outerHTML serializes attributes, not live form state. Reflect each
-  // control's current property onto the clone so a selection/typed value is
-  // captured, not just the markup it was parsed from.
+  // control's current property onto the clone so the clone carries the live
+  // selection/typed value, not just the initial markup.
   function reflectFormState(live, copy) {
     var from = live.querySelectorAll("input, textarea, select option");
     var to = copy.querySelectorAll("input, textarea, select option");

@@ -355,7 +355,7 @@ describe("AgentContextRegistry", () => {
     if (!first) throw new Error("missing first state");
     expect(first.content).toContain('[{"move":"e4"},{"move":"e5"}]');
 
-    // Not persisted yet: the same pending events are retried.
+    // Not persisted yet: the flush retries the same pending events.
     expect((await flush(sm))?.content).toContain("e4");
 
     // Persisted: the confirmed batch drains, so there is nothing left to send.

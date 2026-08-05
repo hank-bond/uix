@@ -43,7 +43,7 @@ describe("scaffoldWorkspace", () => {
     expect(result.installError).toBeUndefined();
     expect(installedIn).toEqual([workspaceDir]);
 
-    // Copies are complete (nested files included) and node_modules is skipped.
+    // The copy includes nested files and skips node_modules.
     await expect(
       readFile(join(workspaceDir, "features", "pi-tools", "read.ts"), "utf8"),
     ).resolves.toContain("editable tool");

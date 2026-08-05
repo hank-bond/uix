@@ -76,8 +76,8 @@ export function diffAnchoredSnapshots(
 
 export interface AnchorRangeEdit {
   // Boundaries are structured lines (anchor + the text the caller believes is
-  // there), not rendered strings. The §-gutter wire format is parsed at the
-  // tool layer before it reaches the core. The text half is a verbatim guard:
+  // there), not rendered strings. The tool layer parses the §-gutter wire
+  // format before it reaches the core. The text half is a verbatim guard:
   // `edit` rejects the call unless the live line behind the anchor still
   // matches, the same way an edit tool requires the old text to match before
   // replacing it.
@@ -186,7 +186,7 @@ export class AnchoredDocument {
 
   // Read a half-open line range `[start, end)`, Python-slice style: omit both
   // for the whole document, omit `end` for `[start:]`, omit `start` for
-  // `[:end]`. Indices are clamped into range. An empty or inverted range
+  // `[:end]`. Clamps indices into range. An empty or inverted range
   // returns []. Seeks from whichever document end is nearer the window.
   read(start?: number, end?: number): readonly AnchoredLine[] {
     const count = this.#lineCount;

@@ -7,8 +7,8 @@
 // included, is dynamic-imported from its content-hash-busted
 // substrate-origin URL. A failing surface renders an error card, the
 // frontend twin of the loader's `failed[]`, without taking down the
-// workspace. Surface definitions live with their features. Channel
-// clients are created by the surface host, not by feature code.
+// workspace. Surface definitions live with their features. The surface
+// host creates channel clients, not feature code.
 
 import type { JSX } from "react";
 import { Component, type ReactNode, useEffect, useMemo, useState } from "react";
@@ -127,12 +127,12 @@ export function SurfaceMount({
 /**
  * Rebuild a surface's sheet with every rule wrapped in
  * `@scope ([data-uix-surface="<name>"])`, so feature CSS cannot style other
- * surfaces or the host chrome no matter how its selectors are written.
+ * surfaces or the host chrome no matter how the author writes its selectors.
  * Feature authors write plain selectors. The substrate owns containment.
  *
- * Name-global at-rules (@font-face, @keyframes, @property) are hoisted out
- * of the wrap: scoping cannot contain them. Their names are document-global
- * by CSS's design, and inside @scope they would be ignored. Collisions
+ * Name-global at-rules (@font-face, @keyframes, @property) escape the
+ * wrap: scoping cannot contain them. Their names are document-global by
+ * CSS's design, and CSS ignores them inside @scope. Collisions
  * there remain a (documented) naming responsibility.
  *
  * The scope root is the surface panel element, which itself is in scope;
@@ -154,7 +154,7 @@ function scopeToSurface(sheet: CSSStyleSheet, name: string): CSSStyleSheet {
     }
   }
   const out = new CSSStyleSheet();
-  // Surface names are validated id tokens (defineSurface), so the attribute
+  // defineSurface validates surface names as id tokens, so the attribute
   // value needs no escaping.
   out.replaceSync(
     `${global.join("\n")}\n@scope ([data-uix-surface="${name}"]) {\n${scoped.join("\n")}\n}`,
@@ -230,8 +230,8 @@ export function useRuntimeSurface(entry: SurfaceEntry): RuntimeSurfaceState {
 
 /**
  * Narrows a module's `surface` export to a SurfaceContribution or throws
- * with a message that names what's wrong. Loaded code is validated, not
- * trusted, mirroring the backend loader's `validateFeatureDefinition`.
+ * with a message that names what's wrong. It validates loaded code rather
+ * than trusting it, mirroring the backend loader's `validateFeatureDefinition`.
  */
 function validateSurfaceContribution(value: unknown): SurfaceContribution {
   if (typeof value !== "object" || value === null) {

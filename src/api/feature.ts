@@ -90,8 +90,8 @@ export interface FeatureDefinition<ContributedContext extends object = object> {
   settings?: SettingsDefinition;
   /**
    * Feature-local context hook. Runs first, before any other contribution,
-   * and is the only contribution whose execution order is guaranteed. Its
-   * return value is merged onto the substrate FeatureContext and handed to
+   * and the substrate guarantees its execution order. The substrate merges
+   * its return value onto the FeatureContext and hands it to
    * `contribute` and every facet factory.
    */
   context?: (ctx: FeatureContext) => ContributedContext;

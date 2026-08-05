@@ -1,6 +1,6 @@
 // Mirrors live Pi session events as renderer transcript updates with the same item shape as persisted history.
 //
-// Session managers are observed before Pi receives them so transcript rows can
+// The observer watches session managers before Pi receives them so transcript rows can
 // acquire their durable entry ids at persistence. The active session binding
 // then normalizes Pi's live event stream into the same TranscriptItem model
 // produced by history projection.

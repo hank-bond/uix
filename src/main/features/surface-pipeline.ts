@@ -112,8 +112,8 @@ export class SurfaceModulePipeline {
   /**
    * Bundles every registered surface and returns the list the `uix.surfaces`
    * channel serves. Rebuilds from scratch each call (called once per load
-   * pass per window). Previously built modules are dropped so a deleted
-   * surface can't be served stale.
+   * pass per window). The pipeline drops previously built modules, so it
+   * never serves a deleted surface stale.
    */
   async buildAll(
     surfaces: readonly ResolvedSurfaceContribution[],

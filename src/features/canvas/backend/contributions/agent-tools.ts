@@ -2,9 +2,9 @@
 //
 // The agent reads, clobbers, and range-edits canvases by key through these
 // tools, always in the anchored §-gutter wire format, and gets fresh anchors
-// back in every result so it never re-reads to learn current anchors. Content
-// is canonicalized at the core boundary and the local file store is hidden
-// behind the document-store seam (see ../../../../main/document-store.ts and
+// back in every result so it never re-reads to learn current anchors. The
+// document buffer canonicalizes content at the core boundary and hides
+// the local file store behind the document-store seam (see ../../../../main/document-store.ts and
 // ../document-buffer.ts).
 //
 // Every HTML document edited here is a canvas, so these tools are canvas-named;
@@ -90,7 +90,7 @@ function createReadTool(
       "Read a canvas as anchored lines (`<anchor>§<text>`). Each line is addressable by its anchor in canvas__anchor_edit. The key is not a filesystem path.",
     promptSnippet: "Read a canvas as anchored lines.",
     parameters: readParams,
-    // `params: ReadParams` is inferred from `AgentToolDefinition<typeof readParams>`.
+    // TypeScript infers `params: ReadParams` from `AgentToolDefinition<typeof readParams>`.
     // No hand-annotation needed. The factory return type carries the schema.
     async execute(_toolCallId, params) {
       const lines = await ctx.buffer.read(params.key, params.start, params.end);

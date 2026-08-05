@@ -62,7 +62,7 @@ export type ResolvedAgentContextContribution =
 
 /**
  * Derives the owner-scoped ids and registry-ready shape for one contribution.
- * Pure. No registry membership or mutable buffer state is created.
+ * Pure. It creates no registry membership or mutable buffer state.
  */
 export function resolveAgentContextContribution<T extends TSchema>(
   featureId: string,

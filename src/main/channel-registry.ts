@@ -139,9 +139,9 @@ export function registerChannelContributions(
 }
 
 /**
- * The `channels` capability handed to a feature's context. The feature id and
- * the registry are closed over here, so a publisher can only be minted for
- * the feature's own namespace and only by presenting a contract. There is no
+ * The `channels` capability handed to a feature's context. It closes over the
+ * feature id and the registry here, so the registry can only mint a publisher for
+ * the feature's own namespace, and only when the caller presents a contract. There is no
  * untyped publish surface and no way to emit onto canonical ids nobody
  * declared.
  */

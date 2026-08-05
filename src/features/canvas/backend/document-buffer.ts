@@ -75,8 +75,8 @@ export class CanvasDocumentBuffer {
   // to an untouched line. If the human touched the line being edited, the
   // boundary match-guard rejects it.
   //
-  // Replacement text is spliced first and the resulting whole document is then
-  // canonicalized. Canonicalizing the replacement as a standalone fragment is
+  // The buffer splices replacement text first, then canonicalizes the
+  // resulting whole document. Canonicalizing the replacement as a standalone fragment is
   // not equivalent for HTML: a replacement like
   // `<option>…</option>\n</select>` is valid in document context when replacing
   // a `</select>` line, but a fragment parser drops the unmatched closing tag.

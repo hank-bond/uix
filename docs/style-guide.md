@@ -5,13 +5,13 @@ kind: reference
 
 # Doc style guide
 
-How this repo writes and formats documentation. This guide was built from the repo's own practice, section by section.
+How this repo writes and formats documentation. We built this guide from the repo's own practice, section by section.
 
 The reference hierarchy: tree-specific authoring structure, the layers, frontmatter, retrieval units, and the AGENTS.md overview-plus-index, lives in [`contributing.md`](./contributing.md) and outranks this guide.
 
 These are guidelines, not rules. Depart deliberately when it serves readers, and be consistent when you depart.
 
-Prose follows the direction of Simplified Technical English (STE), not its contract. The goal is simple, consistent, unambiguous prose, not a controlled language for life-critical documents. Prettier enforces formatting. Vale enforces the mechanical prose rules as they are encoded.
+Prose follows the direction of Simplified Technical English (STE), not its contract. The goal is simple, consistent, unambiguous prose, not a controlled language for life-critical documents. Prettier enforces formatting. Vale enforces the mechanical prose rules we encode.
 
 Docs here are read by both humans and agents, and orientation docs are often preloaded into the agent's context. Concise, self-contained prose serves the corpus twice over.
 
@@ -27,7 +27,7 @@ Docs here are read by both humans and agents, and orientation docs are often pre
 
 **Plans are not docs:** planning artifacts live outside the docs tree, in the root-level `plans/`, and archive when done.
 
-**The context budget is the shaping principle:** only frontmatter summaries are cheap enough to preload. The tree is organized around what is cheap to load. Docs are not pinned into the agent's context.
+**The context budget is the shaping principle:** only frontmatter summaries are cheap enough to preload. We organize the tree around what is cheap to load. We do not pin docs into the agent's context.
 
 ### Capitalization
 
@@ -35,7 +35,7 @@ The product name is **Pi**, capitalized at any position in a sentence. That is t
 
 Headings are sentence case. Prose has no all-caps and no camel case. Those appear only in code.
 
-Normative keywords are lowercase and bold, per RFC 2119 (Request for Comments 2119). The full keyword set is adopted by reference: **must**, **must not**, **required**, **shall**, **shall not**, **should**, **should not**, **recommended**, **may**, **optional**. A one-line "normative keywords follow RFC 2119" plus the TLDR is enough, since agents already know the standard. Their meanings live in the `contributing.md` doc.
+Normative keywords are lowercase and bold, per RFC 2119 (Request for Comments 2119). We adopt the full keyword set by reference: **must**, **must not**, **required**, **shall**, **shall not**, **should**, **should not**, **recommended**, **may**, **optional**. A one-line "normative keywords follow RFC 2119" plus the TLDR is enough, since agents already know the standard. Their meanings live in the `contributing.md` doc.
 
 ### Document layout
 
@@ -79,7 +79,7 @@ Tables are for scannable comparison data: primitives, layers, lookups. Prefer li
 
 ### Prefer Markdown to HTML
 
-Standard Markdown everywhere. HTML appears only where HTML is the content being documented (spec artifacts, JSX in code samples).
+Standard Markdown everywhere. HTML appears only where HTML is the documented content (spec artifacts, JSX in code samples).
 
 ### Line wrapping
 
@@ -89,7 +89,7 @@ Do not hard-wrap prose. Write each paragraph and list item as a single line and 
 
 ### Voice and tone
 
-The following are banned.
+We ban the following.
 
 - Exclamation marks.
 - "Please", "simply", "it's easy", and "quickly" in procedures.
@@ -116,11 +116,11 @@ The register is split. Reference and descriptive prose is impersonal ("the subst
 
 ### Active voice
 
-The doer is the subject ("the substrate registers each facet under the feature id", not "each facet is registered"). Passive voice is fine to emphasize the object ("the file is saved"), to de-emphasize the actor, or when the actor does not matter. Name the actor when it affects the contract, which the strict profile in [`contributing.md`](./contributing.md) requires. The citation idiom "captured in [decision]" stays.
+The doer is the subject ("the substrate registers each facet under the feature id", not "each facet is registered"). Passive voice is fine to emphasize the object ("the file is saved"), to de-emphasize the actor, or when the actor does not matter. Name the actor when it affects the contract, which the strict profile in [`contributing.md`](./contributing.md) requires. Source comments follow the same rule; [`naming-and-comments.md`](./architecture/conventions/naming-and-comments.md) states it for code. The citation idiom "captured in [decision]" stays.
 
 ### Anthropomorphism
 
-Mental-state verbs, wants, decides, prefers, believes, are reserved for agents, which genuinely act and can be steered. Machinery gets behavior verbs: derives, registers, loads, resolves, functions. The test: does the verb imply a mind? If it does, it is out for non-agents.
+Reserve mental-state verbs, wants, decides, prefers, believes, for agents, which genuinely act and can be steered. Machinery gets behavior verbs: derives, registers, loads, resolves, functions. The test: does the verb imply a mind? If it does, it is out for non-agents.
 
 ### Sentences and paragraphs
 
@@ -148,7 +148,7 @@ Contractions split by register: none in reference, normative, or AGENTS docs ("i
 
 ### Numbers and dates
 
-Spell out zero through nine. Numerals for 10 and up, and always numerals for technical quantities (measurements, versions, dates, percentages, labels). Ordinals are spelled out ("first", not "1st"). Ranges use a hyphen with no spaces ("2012-2016"), enforced by Vale. Filenames and inline dates use `YYYY-MM-DD`.
+Spell out zero through nine. Numerals for 10 and up, and always numerals for technical quantities (measurements, versions, dates, percentages, labels). Ordinals are spelled out ("first", not "1st"). Ranges use a hyphen with no spaces ("2012-2016"). Vale enforces this. Filenames and inline dates use `YYYY-MM-DD`.
 
 ### Punctuation
 
@@ -170,9 +170,9 @@ A "**Note:**" is rare: one paragraph of information that is relevant but not nec
 
 ### Jargon and terms
 
-A new term is introduced in _italics_ on first use. Italics mark novelty without changing semantics. Bold is for lead-ins and directional emphasis, not term introduction. Do not use quotation marks for terms.
+Introduce a new term in _italics_ on first use. Italics mark novelty without changing semantics. Bold is for lead-ins and directional emphasis, not term introduction. Do not use quotation marks for terms.
 
-Code vocabulary is controlled by the lexicon in [`naming-and-comments.md`](./architecture/conventions/naming-and-comments.md). Vale enforces prose vocabulary as rules are built.
+The lexicon in [`naming-and-comments.md`](./architecture/conventions/naming-and-comments.md) controls code vocabulary. Vale enforces prose vocabulary as we build rules.
 
 ### Wording
 
@@ -187,4 +187,4 @@ Directional references in named form are house style: "the spikes above", "the e
 ## Deferred
 
 - The positive voice target and the LLM-ese avoidance list (Voice and tone).
-- A Procedures section, to be authored when the how-tos are built.
+- A Procedures section, to author when the how-tos are built.

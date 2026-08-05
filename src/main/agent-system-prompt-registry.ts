@@ -1,6 +1,6 @@
 // Assembles each feature's system-prompt section in workspace order for Pi.
 //
-// One Markdown blob per feature is retained in manifest order. The
+// The registry retains one Markdown blob per feature in manifest order. The
 // system-prompt assembler captures the current composition snapshot when Pi's
 // extension runtime starts or reloads. Registering a contribution never
 // touches Pi.

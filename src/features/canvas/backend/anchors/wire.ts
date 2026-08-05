@@ -1,6 +1,6 @@
 // anchor wire format.
 //
-// How anchored lines are rendered to, and parsed from, the agent. The document
+// Renders anchored lines to the agent and parses them back. The document
 // core deals only in structured `{ anchor, text }`. The §-gutter representation
 // is a protocol detail that lives here, at the agent boundary (the Pi tool
 // layer uses these to render results for the agent and to parse the lines the

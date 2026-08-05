@@ -167,8 +167,8 @@ export function Chat({ client }: ChatProps): JSX.Element {
   );
 }
 
-// Unknown cell ids are ignored so settings persisted before a cell existed,
-// or after one is retired, remain harmless.
+// The reader ignores unknown cell ids so settings persisted before a cell
+// existed, or after one is retired, remain harmless.
 function StatusBar({
   controls,
   order,
@@ -243,8 +243,8 @@ function appendItem(
   return [...items, item];
 }
 
-// Reconcile an item's presence in the list to match its visibility: a visible
-// item is replaced in place (kept current), an invisible one is removed. A
+// Reconcile an item's presence in the list to match its visibility: replace
+// a visible item in place (kept current), remove an invisible one. A
 // rekey replace carries previousId (the pre-key transport handle). Matching
 // the new id first keeps a re-delivered rekey idempotent. The driver only
 // replaces ids it already appended, so a net-new insert here means a replace

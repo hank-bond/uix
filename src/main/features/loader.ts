@@ -228,7 +228,7 @@ const loadFeatureDefinition = async (
  * entry lands in `failed[]` instead of aborting the pass.
  *
  * @param entries resolved manifest refs, in manifest order.
- * @param parentBag every per-feature bag is added here, so one
+ * @param parentBag the loader adds every per-feature bag here, so one
  *   dispose at app shutdown or reload clear tears down everything.
  * @param substrate the facet registries and context ingredients the
  *   definitions register into.
@@ -253,10 +253,10 @@ export const activateFeatures = async (
     const flog = log.child({ feature: displayName, entry });
     flog.debug({}, "activating");
 
-    // The per-feature bag is created early so every acquired lifetime
+    // The loader creates the per-feature bag early so every acquired lifetime
     // capability has an owner. We only enroll
     // it in the parent bag after activation succeeds. A
-    // failed feature's bag is disposed immediately and never
+    // loader disposes a failed feature's bag immediately, and it never
     // becomes part of app-shutdown teardown.
     const bag = new DisposableBag();
 
@@ -329,11 +329,11 @@ export const activateFeatures = async (
  * Load the whole feature composition, the workspace manifest's entries,
  * into the owned feature bag, replacing whatever that bag currently
  * contains. Safe for initial startup (empty clear) and for manual reload
- * (the active feature composition is disposed before replacement feature
+ * (the loader disposes the active feature composition before replacement feature
  * instances activate with fresh contexts, callbacks, registered contributions,
  * and bags).
  *
- * The manifest is read and validated before clearing, so a manifest
+ * The loader reads and validates the manifest before clearing, so a manifest
  * failure (unreadable, bad JSON, schema mismatch) rejects the pass and
  * leaves the active feature composition intact. Concurrent callers for one owned
  * feature bag share the same in-flight pass so its clear/activate never

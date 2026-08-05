@@ -100,8 +100,8 @@ export function useAgentControls(client: AgentChannelClient): {
     [client],
   );
 
-  // Subscribe before seeding so a status_changed that lands during the
-  // request cannot be lost.
+  // Subscribe before seeding so the client does not miss a status_changed
+  // that lands during the request.
   useEffect(() => client.events.status_changed(setStatus), [client]);
   useEffect(() => {
     let cancelled = false;

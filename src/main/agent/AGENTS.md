@@ -6,7 +6,7 @@ summary: "The agent runtime opens Pi sessions, handles models and provider sign-
 
 The driver owns each live Pi runtime and delegates focused work rather than letting helpers enroll themselves. Ordered installers attach UIX behavior when a runtime starts. Their order matters because Pi runs hooks in registration order.
 
-A selected Pi branch is the shared source for the persisted transcript and restored feature state. Historical projection and live observation must produce the same renderer transcript shape. Live rows begin with temporary IDs when necessary, then adopt Pi's durable entry IDs when their messages are persisted.
+A selected Pi branch is the shared source for the persisted transcript and restored feature state. Historical projection and live observation must produce the same renderer transcript shape. Live rows begin with temporary IDs when necessary, then adopt Pi's durable entry IDs when Pi persists their messages.
 
 Workspace settings record the selected session, default model, and favorites. Session-file readers provide history and summaries without opening a model runtime, while the driver creates full Pi services only when an operation needs them.
 
@@ -31,9 +31,9 @@ Provider discovery and interactive sign-in share Pi's authentication state. A co
 - **[settings.ts](./settings.ts)** Defines workspace settings for the default model and favorite models.
 - **[system-prompt.ts](./system-prompt.ts)** Assembles UIX and feature prompt sections and appends them to Pi's system prompt before each run.
 - **[tool-file-location.ts](./tool-file-location.ts)** Derives stable absolute and workspace-relative locations for transcript rows from read and write tool paths.
-- **[transcript-item-identity.ts](./transcript-item-identity.ts)** Rekeys temporary live transcript IDs to durable Pi entry IDs when messages are persisted.
+- **[transcript-item-identity.ts](./transcript-item-identity.ts)** Rekeys temporary live transcript IDs to durable Pi entry IDs when Pi persists messages.
 - **[transcript-observer.ts](./transcript-observer.ts)** Mirrors live Pi session events as renderer transcript updates with the same item shape as persisted history.
 - **[transcript.ts](./transcript.ts)** Derives the transcript items shown by the renderer from persisted Pi session entries.
-- **[turn-state-coordinator.ts](./turn-state-coordinator.ts)** Restores feature state from the selected branch before allowing new state to be committed.
+- **[turn-state-coordinator.ts](./turn-state-coordinator.ts)** Restores feature state from the selected branch before allowing the driver to commit new state.
 
 <!-- INDEX:END -->

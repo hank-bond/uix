@@ -72,7 +72,7 @@ describe("AnchoredDocument", () => {
       });
 
       // Replace B..C ("two\nthree") with "two\nTHREE"; "two" is unchanged
-      // inside the range, so B should be reused.
+      // inside the range, so the edit reuses B.
       doc.edit({
         start: { anchor: "B", text: "two" },
         end: { anchor: "C", text: "three" },

@@ -52,7 +52,7 @@ Add an ordered entry reference to `uix.workspace.json`. Manifest order is activa
 }
 ```
 
-`entry` resolves relative to `uix.workspace.json` unless it is absolute. Then reload. Entries are `.ts`/`.js` loaded from disk, so no Electron rebuild is needed:
+`entry` resolves relative to `uix.workspace.json` unless it is absolute. Then reload. The loader loads entries as `.ts`/`.js` from disk, so no Electron rebuild is needed:
 
 ```ts
 await window.uix.reload();
@@ -92,12 +92,12 @@ export const feature = defineFeature({
 });
 ```
 
-The [`Canvas` feature](../../src/features/canvas/backend/contributions/index.ts) is the real-world version of exactly this shape. A backend-only feature can omit `surfaces` without occupying workspace layout. Each facet is documented in its sibling how-to:
+The [`Canvas` feature](../../src/features/canvas/backend/contributions/index.ts) is the real-world version of exactly this shape. A backend-only feature can omit `surfaces` without occupying workspace layout. A sibling how-to documents each facet:
 
 - [`add-a-channel.md`](./add-a-channel.md), `channels` + `ctx.channels.createPublisher(...)`
 - [`add-a-resource.md`](./add-a-resource.md), `resources` via `createResourceAddressHandle(...)`
 - [`add-a-surface.md`](./add-a-surface.md), `surfaces` via `defineSurface(...)`
-- settings, turn state, agent context, and agent tools are covered below.
+- The sections below cover settings, turn state, agent context, and agent tools.
 
 ## Settings
 

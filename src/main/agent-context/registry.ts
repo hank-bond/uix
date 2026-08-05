@@ -16,7 +16,7 @@
 //     agent run, and the contribution owns any external state it reads or
 //     consumes.
 //
-// All flushed sections are coalesced into one display-hidden `uix.state` custom
+// The assembler coalesces all flushed sections into one display-hidden `uix.state` custom
 // message. Pi renders custom messages into provider user-role text and strips
 // customType, so the content itself carries a <uix-state> envelope and one
 // inner tag per canonical id. Human prompt text stays verbatim.
@@ -209,10 +209,10 @@ export function assembleAgentContextVocabularySection(
 
 /**
  * Assemble the display-hidden uix.state message from all live agent-context
- * contributions. Called by the driver before session.prompt(text) so the
- * entry is ordered before the user message in the session tree.
+ * contributions. The driver calls this before session.prompt(text) so it
+ * orders the entry before the user message in the session tree.
  *
- * Returns undefined when no sections would be emitted (nothing to flush).
+ * Returns undefined when it would emit no sections (nothing to flush).
  */
 export async function assembleAgentContextMessage(
   sessionManager: SessionManager,

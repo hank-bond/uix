@@ -168,7 +168,7 @@ function Notes({ client }: { client: ChannelClient<typeof notesChannels> }) {
 }
 ```
 
-Request returns resolve with the response type. Event subscriptions must be disposed (usually through React effect cleanup). See [`add-a-surface.md`](./add-a-surface.md) for more on surfaces and styles.
+Request returns resolve with the response type. Dispose event subscriptions (usually through React effect cleanup). See [`add-a-surface.md`](./add-a-surface.md) for more on surfaces and styles.
 
 ## Id derivation
 

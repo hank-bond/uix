@@ -1,8 +1,8 @@
 // Parses canvas keys and maps them to document resource ids and route values.
 //
-// Canvas documents are addressed by keys, not filesystem paths. Keys are
-// slash-namespaced lowercase slug segments. Transport URL construction is owned
-// by the substrate resource route codec. Canvas only maps its domain key to the
+// Keys address canvas documents, not filesystem paths: keys are
+// slash-namespaced lowercase slug segments. The substrate resource route codec
+// owns transport URL construction. Canvas only maps its domain key to the
 // route params for the canvas document resource.
 
 import { Type } from "typebox";

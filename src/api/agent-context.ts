@@ -50,7 +50,7 @@ export interface UpdateContribution<
   T extends TSchema,
 > extends BaseContribution {
   buffer: UpdateBuffer<T>;
-  /** Optional initial update applied when the contribution group is registered. */
+  /** Optional initial update the registry applies when registering the contribution group. */
   initialValue?: Static<T>;
   /** Optional formatter. The default is JSON.stringify(value) with value as details. */
   materialize?: (input: {

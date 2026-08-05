@@ -4,7 +4,7 @@ summary: "Improve Chat in seven review-gated units: block framing, Markdown and 
 
 # Chat rendering polish
 
-Improve the appearance and rendering of the Chat surface in small units. Each unit is planned in detail immediately before implementation, implemented independently, and reviewed before the next unit begins.
+Improve the appearance and rendering of the Chat surface in small units. Plan each unit in detail immediately before implementation, implement it independently, and review it before the next unit begins.
 
 This plan builds on the transcript projection and chat-block model described in [`conversation-render-primitives`](../docs/design/conversation-render-primitives.md) and the existing model-control path described in [`agent controls`](./archive/agent-controls.md).
 
@@ -60,7 +60,7 @@ Stop for review before C5.
 - Forward and stream model thinking content into that transcript projection.
 - Render active thinking through the agent-message renderer with `agent` / `(thinking)` in the left rail.
 - Change the completed label to `agent` / `(thought)`.
-- Automatically collapse completed thinking to a `thought for N seconds` summary while allowing it to be reopened.
+- Automatically collapse completed thinking to a `thought for N seconds` summary while letting the user reopen it.
 - Keep thinking duration ephemeral; replayed history need not retain it.
 
 Stop for review before C6.

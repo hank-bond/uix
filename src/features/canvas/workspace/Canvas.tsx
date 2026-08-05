@@ -2,7 +2,7 @@
 //
 // Renders agent-authored HTML from the document store in a sandboxed iframe.
 // Human edits flow back to the store via postMessage writeback.
-// The channel client is provided by the surface host via props.
+// The surface host provides the channel client via props.
 
 import type { JSX } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";

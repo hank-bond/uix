@@ -1,6 +1,6 @@
 // typed channel request and event contracts.
 //
-// Schema-only descriptors are shared between frontend and backend;
+// The frontend and backend share schema-only descriptors;
 // `withHandlers` pairs each request with its handler, and
 // `createFeatureEventPublisher` derives a typed publisher from a contract.
 
@@ -97,15 +97,15 @@ export type ChannelHandlers<C extends ChannelContract> = {
 /**
  * Merges a schema-only {@link ChannelContract} with backend handlers to
  * produce a {@link ChannelContribution}. Every request in the contract must
- * have a matching handler. If a request is added to the contract without a
+ * have a matching handler. If you add a request to the contract without a
  * handler, TypeScript errors at the call site.
  */
 export function withHandlers<const C extends ChannelContract>(
   contract: C,
   handlers: ChannelHandlers<C>,
 ): ChannelContribution {
-  // Per-name request/handler pairing is enforced at the call site by
-  // ChannelHandlers<C>. The walk below only needs the erased shape.
+  // ChannelHandlers<C> enforces per-name request/handler pairing at the
+  // call site. The walk below only needs the erased shape.
   const entries = handlers as Record<
     string,
     {
@@ -135,7 +135,7 @@ export function withHandlers<const C extends ChannelContract>(
 /**
  * Typed backend event publisher: the dual of the frontend {@link EventClient}.
  * Derived from a {@link ChannelContract}, each declared event becomes a typed
- * method whose argument is validated against the event schema at compile time.
+ * method whose argument the typechecker validates against the event schema at compile time.
  */
 export type FeatureEventPublisher<C extends ChannelContract> = {
   [K in keyof C["events"] & string]: (

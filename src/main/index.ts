@@ -84,7 +84,7 @@ const isDev = !app.isPackaged;
 const LocalWorkspaceId = "local";
 
 // Preflight declarations must land before app ready. Today that's just the
-// substrate resource protocol (no feature is loaded this early. Manifest
+// substrate resource protocol (the loader loads no feature this early. Manifest
 // features are runtime contributions by definition).
 registerFeaturePreflightContributions([]);
 
@@ -197,8 +197,8 @@ async function openWorkspace(
   const featuresBag = appBag.add(new DisposableBag());
 
   // The manifest is optional (a dir target without one loads no features).
-  // Existence is checked per pass so a manifest created after boot is
-  // picked up by /reload.
+  // The reload pass checks existence each time, so /reload picks up a
+  // manifest created after boot.
   const manifestPath = workspace.manifestPath;
 
   let mainWindow: BrowserWindow | null = null;
@@ -631,8 +631,8 @@ function openPicker(
         if (result.canceled || !dir) return { ok: false, canceled: true };
 
         // A folder that already holds a manifest is an existing workspace:
-        // adopt it rather than overwriting the user's composition. A fresh
-        // one is scaffolded with editable copies of the default features;
+        // adopt it rather than overwriting the user's composition. The scaffolder
+        // creates a fresh one with editable copies of the default features;
         // a failed dep install still opens (the broken feature lands in
         // `failed[]`), but a failed copy/write keeps the picker up.
         const manifestPath = join(dir, WorkspaceManifestFileName);

@@ -1,12 +1,12 @@
 // Persists a bounded newest-first list of workspace manifests that still exist.
 //
 // A tiny JSON list under the App's userData dir: which workspace manifests
-// were opened, newest first. The start picker reads it. Opening a workspace
-// records it. Entries whose manifest file no longer exists are pruned on
+// the app opened, newest first. The start picker reads it. Opening a workspace
+// records it. The module prunes entries whose manifest file no longer exists on
 // read, so deleted workspaces silently drop off the list.
 //
-// Deliberately synchronous and whole-file: the list is capped and read once
-// per picker display / written once per workspace open.
+// Deliberately synchronous and whole-file: the module caps the list, reads it once
+// per picker display, and writes it once per workspace open.
 
 import fs from "node:fs";
 import path from "node:path";

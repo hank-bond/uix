@@ -121,8 +121,8 @@ export class SettingsRegistry implements Disposable {
   }
 
   /**
-   * Drops all scopes (reload). Listeners survive. Subscriptions are owned
-   * by their subscribers' lifetimes (feature bags), not by scope identity.
+   * Drops all scopes (reload). Listeners survive. Subscriptions follow
+   * their subscribers' lifetimes (feature bags), not scope identity.
    */
   clearScopes(): void {
     this.#scopes.clear();
@@ -232,7 +232,7 @@ export class SettingsRegistry implements Disposable {
 
   forScope(scopeId: string): SettingsHandle {
     return {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- see SettingsHandle.get: T is inferred from call-site context.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- see SettingsHandle.get: TypeScript infers T from call-site context.
       get: <T = unknown>(key: string) =>
         this.get(scopeId, key) as T | undefined,
       set: (key, value) => {

@@ -1,7 +1,7 @@
 // Assembles UIX's ordered Pi setup hooks into the single in-process extension used by each runtime.
 //
-// UIX-core's agent installers ride a single in-process Pi extension. Each
-// installer is handed the live Pi handle and registers its own tools, hooks, or
+// UIX-core's agent installers ride a single in-process Pi extension. The runtime
+// hands each installer the live Pi handle, and it registers its own tools, hooks, or
 // session behavior. This is substrate wiring onto Pi's surface, not a packaged
 // extension. Installers are substrate-owned and may use host internals
 // directly.
@@ -19,9 +19,9 @@ import type {
 // static data.
 export type AgentInstaller = (pi: ExtensionAPI) => void | Promise<void>;
 
-// Compose the installers into one Pi ExtensionFactory. This is the single place
-// agent-surface hook order is decided: Pi dispatches every hook in the order
-// it was registered, with no priority field, so the order installers run here
+// Compose the installers into one Pi ExtensionFactory. This single place
+// decides the agent-surface hook order: Pi dispatches every hook in the order
+// the installer registered it, with no priority field, so the order installers run here
 // is the composition semantics (chained "input" transforms, system-prompt
 // edits, tool_call mutations). Order is legible because it is exactly the list
 // order.

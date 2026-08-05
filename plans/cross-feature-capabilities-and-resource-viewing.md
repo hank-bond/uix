@@ -1,5 +1,5 @@
 ---
-summary: "Establish publisher-qualified public protocols, optional typed provider/client routing, substrate-owned document resources, and framework-neutral resource-viewer registration in review-gated units. Remaining identity, distribution, selection, document, and transport details are settled before implementation."
+summary: "Establish publisher-qualified public protocols, optional typed provider/client routing, substrate-owned document resources, and framework-neutral resource-viewer registration in review-gated units. Settle remaining identity, distribution, selection, document, and transport details before implementation."
 ---
 
 # Cross-feature capabilities and resource viewing
@@ -24,7 +24,7 @@ Public protocol versions are immutable: an incompatible public shape receives a 
 
 ### Horizontal protocols are explicit package exports
 
-Feature-private schemas used vertically between one feature's backend and surfaces remain internal. Schemas intended for horizontal use across features live in explicit public protocol modules and are exported through the package's supported entry points.
+Feature-private schemas used vertically between one feature's backend and surfaces remain internal. Schemas intended for horizontal use across features live in explicit public protocol modules, and the package exports them through its supported entry points.
 
 A protocol may be a subpath export of its provider's package while it serves one feature family, or a small independent package once unrelated publishers consume it. Installing or importing a protocol package does not activate the provider feature; workspace manifest composition remains the activation authority.
 
@@ -44,7 +44,7 @@ A resource viewer registers a framework-neutral implementation identity, seriali
 
 The surface where an interaction originates owns its presentation. Chat may render a context menu for a resource link, and a file browser may render its own `Open With` menu by querying the same live viewer catalog. The workspace host does not globally capture and interpret every right click. Consumers see serializable viewer descriptors and invoke by id; they do not receive another surface's callback or import its code.
 
-Multiple viewers may intentionally accept one resource. This permits the same HTML document to be opened as source in an editor, rendered in Canvas, or opened in both. Exact selector fields, default selection, preferences, and multi-view behavior remain open.
+Multiple viewers may intentionally accept one resource. This lets a viewer open the same HTML document as source in an editor, render it in Canvas, or open it in both. Exact selector fields, default selection, preferences, and multi-view behavior remain open.
 
 ### Domain resource identity is not a browser fetch URL
 
@@ -98,7 +98,7 @@ These flows illustrate the agreed relationships, not final APIs.
 
 ## Provisional review units
 
-The ordering is provisional; each unit stops for review before implementation details or the next unit are chosen.
+The ordering is provisional; each unit stops for review before choosing implementation details or the next unit.
 
 ### P0: Protocol identity and authoring contract
 

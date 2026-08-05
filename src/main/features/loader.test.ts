@@ -59,7 +59,7 @@ function makeSubstrate(manifestPath?: string): {
       let disposed = false;
       return {
         settings: {
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- see SettingsHandle.get: T is inferred from call-site context.
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- see SettingsHandle.get: TypeScript infers T from call-site context.
           get: <T = unknown>(key: string) =>
             settingsScopes.get(featureId)?.values.get(key) as T | undefined,
           set: (key: string, value: unknown) => {

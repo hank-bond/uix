@@ -1,6 +1,6 @@
 // shared IPC contract.
 //
-// Substrate-owned channels are scoped under `uix:` so they don't collide with
+// The substrate scopes its channels under `uix:` so they don't collide with
 // feature channels or other transport messages. Renderer never imports
 // `electron`. It only sees the surface exposed by the preload via
 // contextBridge. These types describe that contract so both sides stay
@@ -31,7 +31,7 @@ export const Channels = {
 export interface RecentWorkspace {
   /** Absolute path to the workspace's uix.workspace.json. The identity. */
   manifestPath: string;
-  /** The manifest's `name` at the time it was opened. */
+  /** The manifest's `name` at open time. */
   name: string;
   /** ISO timestamp of the last open, newest first in the recents list. */
   openedAt: string;

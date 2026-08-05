@@ -68,7 +68,7 @@ The loader merges the whole-object default into persisted values and validates t
 
 - `defineSettings(...)` closes the object schema, so unknown persisted keys fail rather than being silently retained or deleted.
 - A property with no default must be optional in the schema if it may be absent.
-- `null` is an explicit persisted value and must be allowed by the schema.
+- The schema must allow `null` as an explicit persisted value.
 - `undefined` is not a durable setting value and `set()` rejects it.
 - Plain objects merge recursively, so newly added default fields materialize without clobbering existing fields.
 - Arrays, scalars, and `null` are atomic values.

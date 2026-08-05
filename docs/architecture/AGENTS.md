@@ -4,7 +4,7 @@ summary: "Living architecture records for implemented subsystem shape, code conv
 
 # Architecture
 
-Living docs for the current state of UIX: what is built, how subsystems are shaped, code conventions, and unresolved architecture questions. Read here when changing host internals or checking the architecture-of-record.
+Living docs for the current state of UIX: what exists, how subsystems fit together, code conventions, and unresolved architecture questions. Read here when changing host internals or checking the architecture-of-record.
 
 <!-- INDEX:START -->
 

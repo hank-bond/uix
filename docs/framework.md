@@ -50,9 +50,9 @@ The documentation has three meta-levels.
 - **How:** The rules for modifying the documentation. They live in [`contributing.md`](./contributing.md).
 - **Why:** The reasoning behind the documentation structure. This page.
 
-An agent needs the what to make code changes and the how to make structural documentation changes. It needs the why only when a how-change is proposed or the how has a gap.
+An agent needs the what to make code changes and the how to make structural documentation changes. It needs the why only when someone proposes a how-change or the how has a gap.
 
-Code-related knowledge is placed before it is classified by reader need. A contract owns its JSDoc, and an implementation site owns its why-comment. A file owns its responsibility header, while a source directory owns its boundary and coordination guidance. A local Markdown leaf can join several files under that owner. Repository documentation carries workflows, conventions, invariants, external context, and history that cross source ownership boundaries.
+Place code-related knowledge before classifying it by reader need. A contract owns its JSDoc, and an implementation site owns its why-comment. A file owns its responsibility header, while a source directory owns its boundary and coordination guidance. A local Markdown leaf can join several files under that owner. Repository documentation carries workflows, conventions, invariants, external context, and history that cross source ownership boundaries.
 
 Diátaxis applies after information earns a discrete document. It does not force source-coupled knowledge into Markdown or assign a kind to file summaries, comments, and routing indexes.
 

@@ -6,7 +6,7 @@ summary: "Give Canvas a reusable local web-asset library in eight reviewable uni
 
 Let Canvas documents compose reusable JavaScript, web components, CSS, HTML, and other browser assets by stable local path instead of regenerating or embedding those assets in every document. The collection belongs to the Canvas feature: the workspace-owned Canvas feature carries a conventional `public/` tree and serves it read-only on the same isolated origin as its documents.
 
-This keeps Canvas HTML small, saves inference tokens, and makes reusable pieces composable across many Canvas writes. A paired persistence control lets a document distinguish hydrated DOM that is meaningful saved state from derived output that should be recreated from persistent source when the document loads.
+This keeps Canvas HTML small, saves inference tokens, and makes reusable pieces composable across many Canvas writes. A paired persistence control lets a document distinguish hydrated DOM that is meaningful saved state from derived output the document recreates from persistent source on load.
 
 This plan builds on the case-1 hydrated-document model in [canvas-data-channel](../docs/design/canvas-data-channel.md). It does not turn assets into a workspace-wide concept or begin the broader application-hosting work discussed for future UIX apps.
 
@@ -16,7 +16,7 @@ This plan builds on the case-1 hydrated-document model in [canvas-data-channel](
 - [Pi self-extension ethos](../docs/decisions/2026-06-05-pi-self-extension-ethos.md) — Canvas stays raw, composable web content rather than gaining hardcoded renderer integrations.
 - [Features are the loadable unit](../docs/decisions/2026-07-01-features-are-the-loadable-unit.md) — Canvas owns the collection and its conventions; the substrate supplies only the generic resource-serving capability it needs.
 - [No agent-driven UI manipulation](../docs/decisions/2026-05-30-no-agent-ui-manipulation.md) — the agent edits Canvas documents and reusable source files rather than manipulating the live iframe through an agent-side UI API.
-- Humans win edit conflicts. A human writeback commits unconditionally; a conflicting agent change is rejected with an actionable diff and the agent redoes its work on the new base. Agent effort is free; humans are expensive.
+- Humans win edit conflicts. A human writeback commits unconditionally; the host rejects a conflicting agent change with an actionable diff and the agent redoes its work on the new base. Agent effort is free; humans are expensive.
 - The persisted Canvas document is the authored form (references, reflected props, slotted content); the serve layer expands it into the rendered view. The store is the diff surface; the serve layer is the paint surface.
 
 ## Build invariants
@@ -52,7 +52,7 @@ Acceptance:
 
 Add a conventional `public/` directory to the Canvas feature and expose it through a Canvas-owned `/assets/` route on the same origin as Canvas documents.
 
-Transport feasibility is confirmed: the scheme already serves module scripts in CORS mode (the surface pipeline), the assets route is same-origin to the frame (`uix-resource://canvas.<workspaceId>`), the frame sandbox allows scripts, and canvas responses carry no CSP. The substrate deliberately grants no CORS to feature-origin consumers, so collection assets must remain on the Canvas feature origin — this route is that by construction.
+Transport is feasible: the scheme already serves module scripts in CORS mode (the surface pipeline), the assets route is same-origin to the frame (`uix-resource://canvas.<workspaceId>`), the frame sandbox allows scripts, and canvas responses carry no CSP. The substrate deliberately grants no CORS to feature-origin consumers, so collection assets must remain on the Canvas feature origin — this route is that by construction.
 
 The initial organization is intentionally ordinary:
 
@@ -71,20 +71,20 @@ Canvas documents reference files with normal browser markup:
 <script type="module" src="/assets/components/chart-card.mjs"></script>
 ```
 
-User-created scripts live alongside the Canvas feature and can be edited directly. An npm, GitHub, or other remote source is copied into `vendor/` as a local browser asset; its source, version or commit, and license are recorded beside it. Nothing is fetched or updated automatically at runtime.
+User-created scripts live alongside the Canvas feature, and the user can edit them directly. Copy an npm, GitHub, or other remote source into `vendor/` as a local browser asset and record its source, version or commit, and license beside it. The runtime fetches or updates nothing automatically.
 
 The collection is not limited to JavaScript. CSS, HTML fragments, images, fonts, WASM, and other static browser resources can use the same route when needed.
 
 Acceptance:
 
 - A Canvas document can load a local module and stylesheet from `/assets/`.
-- Module scripts from `/assets/` are served with script-appropriate MIME types (`text/javascript`).
+- The server serves module scripts from `/assets/` with script-appropriate MIME types (`text/javascript`).
 - Documents reference collection assets by absolute `/assets/...` paths; relative paths are not supported.
-- Static assets are served cacheable with `?v=` content-hash busting while documents stay `no-store`.
+- The server serves static assets cacheable with `?v=` content-hash busting while documents stay `no-store`.
 - Modules can use normal relative imports within the collection.
 - Authored and vendored assets are both addressable by short stable paths.
 - The Canvas document stores references to reusable assets rather than copies of their implementations.
-- The convention travels with the Canvas feature when that feature is copied into a workspace.
+- The convention travels with the Canvas feature when you copy that feature into a workspace.
 
 ## C2: Progressive asset catalog
 
@@ -93,7 +93,7 @@ Give each catalog directory an `AGENTS.md` that follows the repository documenta
 Each directory describes itself with a summary and use trigger. Its parent index uses that compact description as the entry for the directory. Direct asset files are annotated manually with:
 
 - a summary of what the asset provides;
-- `use_when` guidance describing when it should be selected;
+- `use_when` guidance describing when to select it;
 - a short usage note when the path alone is insufficient.
 
 The index builder rolls child-directory summaries into their parent `AGENTS.md` while preserving authored prose and file annotations. A check mode keeps generated indexes current and catches missing catalog metadata or broken paths.
@@ -129,7 +129,7 @@ Acceptance:
 - Unmarked Canvas documents retain their current persistence behavior.
 - `none` omits a marked element from writeback.
 - `shell` preserves the mount element while omitting generated descendants.
-- The live DOM is unchanged by serialization.
+- Serialization leaves the live DOM unchanged.
 - Script-triggered `window.__uixWriteback()` uses the same persistence behavior as ordinary Canvas writeback.
 
 ## C4: Authoring guidance and end-to-end proof
@@ -157,7 +157,7 @@ Update the relevant resource and Canvas documentation, then run focused resource
 Acceptance:
 
 - The example Canvas contains references and persistent source/state rather than copied implementation or disposable generated output.
-- Derived output is recreated from the local asset after reload.
+- The runtime recreates derived output from the local asset after reload.
 - The Canvas authoring guidance makes the source-versus-derived-state choice explicit.
 - A newly scaffolded workspace receives the convention through its ordinary copied Canvas feature.
 - Shipped documentation clearly separates the generic static-resource capability from the Canvas-owned collection.
@@ -166,15 +166,15 @@ Acceptance:
 
 Components in the collection follow one authoring contract so documents stay thin, diffs stay meaningful, and agents and humans author the same component.
 
-- **Layers.** A component splits into library code (behavior and styles, referenced by documents and propagating to every instance when changed), structure (authored markup in the document), and data (props and attributes). Derived output (rendered diagrams, computed subtrees) is generated from persistent source and never persisted (C3).
+- **Layers.** A component splits into library code (behavior and styles, referenced by documents and propagating to every instance when changed), structure (authored markup in the document), and data (props and attributes). The render path generates derived output (rendered diagrams, computed subtrees) from persistent source and never persists it (C3).
 - **Golden documents.** The collection carries canonical instance documents in a `templates/` namespace; instantiating copies a golden document and edits its data. Improvements promote from an instance to its golden document (structure) or to the library (behavior and styles) as an explicit agent-mediated gesture. Instance-to-golden drift is visible.
-- **Agent authorship.** The agent authors an instance as a reference plus props plus slotted content. Component shape is enforced by the component, so the agent cannot diverge into arbitrary internal markup; new shapes are new files in the collection.
-- **Human authorship.** Human edits to interactive controls flow through the component: the control's event updates a reflected prop on the host, and writeback persists the host attribute. Controls rendered from props are excluded from serialization (shadow DOM, or C3 persist markers); authored elements persist directly. A shared controlled-value mixin implements the flow once.
-- **Discoverability.** The catalog (C2) documents each component with a summary, use trigger, and accepted shape; a machine-readable component manifest is generated from the same metadata.
+- **Agent authorship.** The agent authors an instance as a reference plus props plus slotted content. The component enforces its shape, so the agent cannot diverge into arbitrary internal markup; new shapes are new files in the collection.
+- **Human authorship.** Human edits to interactive controls flow through the component: the control's event updates a reflected prop on the host, and writeback persists the host attribute. Serialization excludes controls rendered from props (shadow DOM, or C3 persist markers); authored elements persist directly. A shared controlled-value mixin implements the flow once.
+- **Discoverability.** The catalog (C2) documents each component with a summary, use trigger, and accepted shape; the catalog generates a machine-readable component manifest from the same metadata.
 
 ### Authoring decision tree
 
-The coding agent applies this tree to every piece of content it authors, so placement is deterministic rather than a matter of taste. Ordering matters: the first two questions remove content from the instance document entirely before the edit-unit question applies; the edit-unit question pins the persistence form before the rendering model is chosen, so light-vs-shadow is mostly determined rather than chosen.
+The coding agent applies this tree to every piece of content it authors, so placement is deterministic rather than a matter of taste. Ordering matters: the first two questions remove content from the instance document entirely before the edit-unit question applies; the edit-unit question pins the persistence form before the author chooses the rendering model, so light-vs-shadow is mostly determined rather than chosen.
 
 **Q1 — Is it derived** (regenerated from source, not authored — mermaid SVG, diff viewport, computed previews)?
 
@@ -228,8 +228,8 @@ Acceptance:
 The serve layer expands a stored document into the complete view before the frame parses it — internals pre-rendered (declarative shadow DOM where components use shadow) — so the browser paints the final view in one pass. This is the Canvas-specific equivalent of server-side rendering, executed at serve time in the same layer that injects the writeback shim.
 
 - Expansion is a pure deterministic function of document content plus the current library, cached by document hash and library version.
-- The expanded markup is produced by the same render path the client adopts on hydration, so hydration upgrades behavior without restructuring (no second paint).
-- Derived content (C3 `none`/`shell`) is generated at serve time too, so it renders without flash but never persists or diffs.
+- The same render path the client adopts on hydration produces the expanded markup, so hydration upgrades behavior without restructuring (no second paint).
+- The server generates derived content (C3 `none`/`shell`) at serve time too, so it renders without flash but never persists or diffs.
 - In Electron the expansion is local and cheap. A future web mode serves the same expanded document on first load and deltas afterward (C7).
 
 Acceptance:
@@ -241,19 +241,19 @@ Acceptance:
 
 ## C7: Versioned updates and conflict handling (how to handle updates)
 
-Every canvas document carries a version; the store is authoritative, and the frame tracks the version it last applied plus a dirty flag for unflushed human edits. All writes declare the base they were made against.
+Every canvas document carries a version; the store is authoritative, and the frame tracks the version it last applied plus a dirty flag for unflushed human edits. All writes declare the base they build on.
 
 - **Human writeback** is a versioned full-document flush that commits unconditionally (humans win). It carries the base version it serialized from so the ledger stays accurate and the agent can be told when its base moved.
-- **Agent edits** are proposed as guarded anchored changes and merged onto current: hunks that apply cleanly land; hunks that collide with human edits are rejected with the human's version and the new base.
-- **Agent writes** are conditional atomic replaces: they land only if their base is still current; otherwise they are rejected with the human's diff and the new base, and the agent re-reads and redoes. Writes never merge. Pure rejection is the decided v1 policy — no merge fallback; a guarded-merge upgrade is deferred unless rejections chafe in practice.
+- **Agent edits** propose guarded anchored changes that merge onto current: hunks that apply cleanly land; the host rejects hunks that collide with human edits with the human's version and the new base.
+- **Agent writes** are conditional atomic replaces: they land only if their base is still current; otherwise the host rejects them with the human's diff and the new base, and the agent re-reads and redoes. Writes never merge. Pure rejection is the decided v1 policy — no merge fallback; a guarded-merge upgrade is deferred unless rejections chafe in practice.
 - **Frame convergence** applies agent changes in place: flush if dirty, diff from the frame's applied version to the target, send anchored patch operations to the shim, apply, ack. A failed application falls back to a full reload.
 - The agent's base comes from its turn-start snapshot rather than a tool-supplied number.
-- Retries are limited to one per conflict; repeated conflict surfaces to the human.
+- The host limits retries to one per conflict; repeated conflict surfaces to the human.
 
 Acceptance:
 
 - A human edit never silently disappears, including when an agent write landed in between.
-- An agent write against a stale base is rejected with the human's hunks and a new base the agent can redo against.
+- The host rejects an agent write against a stale base with the human's hunks and a new base the agent can redo against.
 - An agent edit disjoint from human changes applies onto current without losing either.
 - The frame converges to a newer version without a full reload when anchors apply; reload remains the fallback.
 - Turn-start snapshots are the source of truth for agent bases.

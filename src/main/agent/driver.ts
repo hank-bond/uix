@@ -4,10 +4,10 @@
 // session, services, feature state, transcript observation, and agent controls.
 //
 // Why dynamic `import()`: Pi is an ESM-only package and the main bundle
-// is CJS. A static `import` would be rewritten to `require()` by the
-// bundler and fail at runtime. Dynamic `import()` is preserved through
-// the build and runs as a real ESM load. The `import type` line beside
-// it is erased at compile time, so we still get full Pi types in the
+// is CJS. The bundler would rewrite a static `import` to `require()` and
+// fail at runtime. The bundler preserves dynamic `import()` through the
+// build so it runs as a real ESM load. Compilation erases the `import type`
+// line beside it, so we still get full Pi types in the
 // IDE/typechecker without any runtime cost.
 //
 // Lifetime management uses the conventions in src/main/lifecycle.ts:
@@ -309,7 +309,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   async function listModels(): Promise<ModelCatalog> {
     const modelRuntime = await getModelRuntime();
     // Pick up models.json edits and freshly configured auth since the
-    // runtime was created.
+    // runtime opened.
     await modelRuntime.refresh();
     const favorites = getFavoriteModels();
     return (await modelRuntime.getAvailable()).map((model) => ({
@@ -544,7 +544,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   }
 
   // Reloads the live runtime when one is in use. Re-reads the current state on
-  // each call so a runtime opened concurrently while awaiting is observed.
+  // each call so the reload observes a runtime that opened while it awaited.
   async function reloadActiveRuntime(): Promise<boolean> {
     if (runtime || inFlightRuntimeOpen) {
       const activeRuntime = runtime ?? (await getRuntime());
@@ -770,8 +770,8 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
 
     async prompt(text) {
       // No echo here: the renderer already shows its optimistic pending row,
-      // and the authoritative keyed row is emitted by the onUserMessage
-      // observer when Pi persists. A prompt that fails before persistence
+      // and the onUserMessage observer emits the authoritative keyed row when
+      // Pi persists. A prompt that fails before persistence
       // truthfully contributes no user row to the feed. The renderer's
       // unconfirmed row plus the error item below are the whole record.
       try {
@@ -779,9 +779,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         // in-flight operation and records authority separately on success.
         const session = (await getRuntime()).session;
 
-        // Submit-prep ordering: turn-state entries and the hidden uix.state
-        // message must be ordered BEFORE the user message in the session tree
-        // so branch navigation to the gap before a user message still has the
+        // Submit-prep ordering: order the turn-state entries and the hidden
+        // uix.state message BEFORE the user message in the session tree, so
+        // branch navigation to the gap before a user message still has the
         // state explaining that turn.  We write both before calling
         // session.prompt(text).
         if (turnStateCoordinator) {

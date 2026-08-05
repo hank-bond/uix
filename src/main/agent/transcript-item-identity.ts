@@ -1,4 +1,4 @@
-// Rekeys temporary live transcript IDs to durable Pi entry IDs when messages are persisted.
+// Rekeys temporary live transcript IDs to durable Pi entry IDs when Pi persists messages.
 //
 // Live transcript rows start under a temporary transport handle and adopt the
 // canonical Pi session entry ID when Pi persists the entry. Pi assigns that ID
@@ -17,9 +17,9 @@
 //    emits the authoritative row born keyed straight from the observed
 //    append, deriving the text from the persisted message itself.
 //  - tool rows: born keyed. Pi persists the assistant message (with its
-//    toolCall blocks) before `tool_execution_start` fires, so the durable
-//    `<entryId>:tool:<toolCallId>` derivation is recorded here and read by
-//    the forwarder at row creation. No handle, no rekey.
+//    toolCall blocks) before `tool_execution_start` fires, so this module
+//    records the durable `<entryId>:tool:<toolCallId>` derivation here, and
+//    the forwarder reads it at row creation. No handle, no rekey.
 //  - displayed custom messages: the forwarder holds the row and emits it
 //    keyed via a FIFO on `appendCustomMessageEntry` (pi never hands the
 //    manager the CustomMessage object, so object identity is unavailable).
@@ -43,7 +43,7 @@ export interface TranscriptItemIdentity {
    * emits the authoritative born-keyed user row from it.
    */
   onUserMessage(cb: (durableId: string, message: unknown) => void): void;
-  /** Key a live message row when this exact message object is persisted. */
+  /** Key a live message row when Pi persists this exact message object. */
   expectMessageKey(message: object, onKeyed: OnKeyed): void;
   /** Pair the next persisted custom message with a held displayed custom row. */
   expectCustomEntry(onKeyed: OnKeyed): void;

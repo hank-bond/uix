@@ -6,7 +6,7 @@ summary: "Split UIX into a host-neutral workspace runtime, browser client, serve
 
 ## Status and intent
 
-This is a low-resolution architecture and distribution plan, recorded while UIX is still around 0.5 alpha. It is intentionally independent of any API-stability or product-version milestone: completing the split does not imply that the public API is locked. It establishes the direction and dependency order, not the final server protocol, package names, deployment model, or security architecture. Promote each unit into a narrower design/decision/build slice when it approaches implementation.
+We recorded this low-resolution architecture and distribution plan while UIX is still around 0.5 alpha. It is intentionally independent of any API-stability or product-version milestone: completing the split does not imply that the public API is locked. It establishes the direction and dependency order, not the final server protocol, package names, deployment model, or security architecture. Promote each unit into a narrower design/decision/build slice when it approaches implementation.
 
 UIX must run as a local server with no Electron dependency: start it against an existing workspace, open the workspace in an ordinary browser, and retain the same feature, surface, channel, agent, persistence, and reload semantics as the current Electron application. Electron remains a supported packaged host over that same runtime rather than the definition of the runtime.
 
@@ -46,7 +46,7 @@ The likely monorepo boundaries are conceptually:
 - **Electron host** — app/window lifecycle, native dialogs, external URL opening, IPC, custom protocols, and desktop packaging;
 - **optional product compositions** — defaults and onboarding such as future Fruition, outside the substrate packages.
 
-These names and the physical package graph are deliberately unsettled until the existing import graph is inventoried. A monorepo split is required; publishing each internal package independently is not.
+We deliberately leave these names and the physical package graph unsettled until we inventory the existing import graph. A monorepo split is required; publishing each internal package independently is not.
 
 ## Load-bearing boundaries
 
@@ -56,7 +56,7 @@ These names and the physical package graph are deliberately unsettled until the 
 - **The renderer is browser code.** The workspace page and feature surfaces cannot require preload or Electron globals. A small bootstrap may select or construct the current host transport.
 - **Local server safety is designed, not deferred.** The first server may bind only to loopback and support one trusted local user, but origin checks, capability exposure, secret handling, bind-address defaults, and the line between local and remote threat models must be explicit before it ships.
 - **Remote hosting is survivable, not delivered here.** Reconnect semantics and transport boundaries must not preclude a remote host, but identity, tenancy, VM isolation, multi-user concurrency, remote content stores, and public deployment are later work.
-- **Composition is not distribution.** A bare UIX server opens the workspace manifest it is given and does not silently add features. Chat/canvas/dev skills can remain repository dogfood or templates during migration, but their presence must not be required by the runtime or server package.
+- **Composition is not distribution.** A bare UIX server opens the workspace manifest the caller gives it and does not silently add features. Chat/canvas/dev skills can remain repository dogfood or templates during migration, but the runtime or server package must not require their presence.
 - **Desktop affordances are injected capabilities.** Window management, native file selection, tray behavior, system-browser opening, updater integration, and app data locations belong to the Electron/product host. Runtime consumers either receive a capability or expose an honest host-neutral workflow.
 
 ## Units
@@ -67,7 +67,7 @@ Map everything currently composed in `src/main/index.ts` and classify it as runt
 
 From that inventory, write the smallest host contract needed to instantiate one workspace runtime. Decide ownership and lifetime vocabulary before moving files. Keep this unit behavior-preserving and avoid introducing a general plugin/adapter framework: define ports only for concrete effects the runtime already performs.
 
-Acceptance: every Electron dependency has an intended owner; the proposed runtime can be described without `Electron.App`, `BrowserWindow`, `ipcMain`, or `protocol`; unresolved cases are named rather than hidden in a generic escape hatch.
+Acceptance: every Electron dependency has an intended owner; the proposed runtime can be described without `Electron.App`, `BrowserWindow`, `ipcMain`, or `protocol`; the work names unresolved cases rather than hiding them in a generic escape hatch.
 
 ### E1: Extract the host-neutral runtime composition root
 
@@ -115,13 +115,13 @@ Make Electron consume the extracted runtime and shared web client exclusively th
 
 This unit creates the slot in which Fruition can later own branding, onboarding, chat/canvas/dev-skill defaults, installers, updates, tray behavior, and consumer-oriented account setup. It does not design or ship that product.
 
-Acceptance: the Electron artifact and headless server are independently buildable distributions over the same UIX runtime; removing batteries from the server has no effect on the runtime contract; and Electron-only code is confined to the Electron/product side of the package graph.
+Acceptance: the Electron artifact and headless server are independently buildable distributions over the same UIX runtime; removing batteries from the server has no effect on the runtime contract; and the work confines Electron-only code to the Electron/product side of the package graph.
 
 ### E7: Server shipping-readiness and parity gate
 
 Define the supported browser/OS matrix and a parity suite covering workspace activation, channel validation, event fan-out, feature reload, surface/resource loading, agent login callbacks, persistence, shutdown, error presentation, and secret redaction. Document intentional host differences. Add server operational documentation for bind addresses, data/workspace volumes, logs, upgrades, and recovery.
 
-Perform a focused threat review of the local server before calling it a supported distribution. Any option that permits non-loopback binding must be gated behind an explicit security model; “local mode with the bind address changed” is not a remote-hosting architecture.
+Perform a focused threat review of the local server before calling it a supported distribution. Gate any option that permits non-loopback binding behind an explicit security model; “local mode with the bind address changed” is not a remote-hosting architecture.
 
 Acceptance: Electron and local-server modes pass their shared semantic suite, documented differences are product/host differences rather than accidental drift, and the unbootstrapped server is supportable as a first-class UIX distribution without implying API stability beyond the project's declared maturity.
 
@@ -131,7 +131,7 @@ Acceptance: Electron and local-server modes pass their shared semantic suite, do
 - HTTP framework and live transport protocol.
 - Wire framing, protocol versioning, reconnect/resume, and backpressure details.
 - Whether the browser is opened automatically and how a future tray launcher participates.
-- Local authentication/bootstrap-token UX and the boundary at which non-loopback access is allowed.
+- Local authentication/bootstrap-token UX and the boundary at which the runtime allows non-loopback access.
 - Multiple simultaneous workspaces, processes, tabs, and clients.
 - Remote identity, tenancy, authorization, collaboration, VM/container isolation, and hosted persistence.
 - Whether Electron remains a generic UIX distribution once Fruition exists or Fruition becomes the only maintained Electron product.

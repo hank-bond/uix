@@ -32,7 +32,7 @@ export type WorkspaceManifestFeature = Static<
 
 /** A manifest feature reference resolved to an absolute entry path. */
 export interface ManifestFeatureRef {
-  /** The manifest entry index, used to bind settings before the feature id is known. */
+  /** The manifest entry index, used to bind settings before the loader knows the feature id. */
   index: number;
   /** The entry ref as written in the manifest: the human/agent-facing label. */
   ref: string;

@@ -160,7 +160,7 @@ describe("AgentToolRegistry", () => {
     toolsDisposable[Symbol.dispose]();
 
     expect([...installTools(registry).keys()]).toEqual([]);
-    // Re-registering the same name after dispose is allowed.
+    // The registry allows re-registering the same name after dispose.
     expect(() =>
       registerAgentToolContributions(registry, "canvas", [
         { name: "anchor_read", tool: body("canvas__anchor_read") },

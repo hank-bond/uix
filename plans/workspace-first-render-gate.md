@@ -19,4 +19,4 @@ The overlay leaves only after:
 
 A first presentation may itself be a feature-owned loading state. The substrate does not wait for arbitrary feature data, effects, images, or other open-ended asynchronous work.
 
-This is an initial workspace-opening experience. Detailed lifecycle, failure, timeout, accessibility, and Electron/browser host mechanics remain to be planned before implementation.
+This is an initial workspace-opening experience. Plan detailed lifecycle, failure, timeout, accessibility, and Electron/browser host mechanics before implementation.

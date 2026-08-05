@@ -308,7 +308,7 @@ In UIX, `resolve` means contextual or reference resolution, not conflict arbitra
 
 ## Naming
 
-- A `DisposableBag` that owns cleanup capabilities is named after the lifetime it tracks: `appBag`, `windowBag`, `sessionBag`.
+- A `DisposableBag` that owns cleanup capabilities takes its name from the lifetime it tracks: `appBag`, `windowBag`, `sessionBag`.
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
 - Name symbols for their stable domain role and operation, not their current caller, pipeline position, trigger, owner, or implementation strategy. A name should remain correct if the symbol moves, gains another caller, or changes implementation without changing its essential domain guarantees. Let the receiver provide context (`turnStateCoordinator.restoreCurrent(...)`). Do not repeat that context in every method.
 - Function names describe the observable domain operation. Include distinctions that identify materially different operations or results. Put lifecycle ordering, current usage, race policy, preconditions, and nuanced skipped outcomes in behavioral comments. Do not encode those volatile details into a symbol merely because one caller currently depends on them.
@@ -373,6 +373,8 @@ Every comment answers one of two questions. A line comment answers why the code 
 
 **Rule:** Outside the required source-file header, a comment explains why code exists or records a non-obvious caller or implementation constraint. It does not narrate syntax. Names carry the stable domain operation.
 
+**Voice:** Write comments in active voice. Make the actor the subject when the actor is knowable: "the store canonicalizes content before persisting it", not "content is canonicalized before being persisted". Passive voice stays for states and object emphasis: "the entry is committed", "the session is restored". JSDoc summaries are imperative and address the caller: "Resolve the selected branch projection.", not "The selected branch projection is resolved."
+
 Behavioral comments may carry preconditions, skipped outcomes, asynchronous ordering, and race policy. Do not encode those volatile details in a symbol tied to one lifecycle use.
 
 If an implementation comment only identifies an operation or domain value, the name remains wrong. Rename until the code reads on its own.
@@ -401,7 +403,7 @@ Colocated `*.test.*` and `*.spec.*` files are not indexed. Their production file
 
 JSON, binary assets, and static data are not indexed. A directory `AGENTS.md` or local attribution leaf describes non-code assets when their role is not evident.
 
-**Summary:** One sentence of at most 30 words states the file's purpose and why a reader would open it. The summary is the responsibility claim a reader uses to decide. Name the responsibility directly. Use a noun phrase when the file is the thing it defines: a contract, type surface, format, contribution set, entry point, or capability. Open with the operation's verb when the file performs an operation or holds stateful behavior. Decide by what a reader accomplishes. They obtain what the file declares, or follow and reuse what it does. A summary that enumerates parts signals multiple responsibilities. Put the parts in the elaboration instead. Prefer a concrete actor, action, and object over stacked modifiers or abstract nouns. A summary may use a longer plain sentence when that is easier to understand. Do not optimize for the fewest words. Keep specialized terms only when they preserve a distinction that plain language would lose.
+**Summary:** One sentence of at most 30 words states the file's purpose and why a reader would open it. The summary is the responsibility claim a reader uses to decide. Name the responsibility directly. Use a noun phrase when the file is the thing it defines: a contract, type surface, format, contribution set, entry point, or capability. Open with the operation's verb when the file performs an operation or holds stateful behavior. Decide by what a reader accomplishes. They obtain what the file declares, or follow and reuse what it does. A summary that enumerates parts signals multiple responsibilities. Put the parts in the elaboration instead. Prefer an active sentence: a concrete actor performing an action on an object, over stacked modifiers or abstract nouns. A summary may use a longer plain sentence when that is easier to understand. Do not optimize for the fewest words. Keep specialized terms only when they preserve a distinction that plain language would lose.
 
 Use the path and filename as existing context instead of repeating them. Distinguish sibling files without enumerating exports, callers, control flow, implementation mechanics, plans, or guessed search synonyms.
 
@@ -417,7 +419,7 @@ Complex or edge-case-heavy logic needs denser explanation because wrong assumpti
 
 Use lists instead of compressed prose. Put one tag on each line and indent wrapped tag text. Use single-line `/** ... */` form when it fits.
 
-Write summaries as imperative verb phrases, such as "Resolve the selected branch projection." Do not use the third-person "This method" form.
+Write summaries as imperative verb phrases, such as "Resolve the selected branch projection." Do not use the third-person "This method" form or a passive "The projection is resolved" form.
 
 Do not repeat the name or type in a summary. TypeScript already carries types, so omit them from `@param` and `@returns`.
 

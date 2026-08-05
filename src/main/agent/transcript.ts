@@ -218,8 +218,8 @@ function parseToolResult(message: unknown):
 }
 
 // Content is a string or a block array whose text blocks carry `{ type: "text",
-// text }`. Read defensively over the block shape so new Pi block kinds (tool
-// calls, images, thinking) are skipped rather than breaking transcript replay.
+// text }`. Read defensively over the block shape, skipping new Pi block kinds (tool
+// calls, images, thinking) rather than breaking transcript replay.
 function extractTextContent(content: unknown): string {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";

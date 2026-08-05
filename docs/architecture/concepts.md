@@ -39,7 +39,7 @@ Do not call an activated feature instance a feature generation. Use _generation_
 
 UIX uses two id grammars for different things.
 
-**Contribution ids** are derived by the facets, never hand-authored. A feature author gives a local `name`. The facet derives two ids:
+**The facets derive contribution ids**, never hand-authored. A feature author gives a local `name`. The facet derives two ids:
 
 - **`ContributionId`:** The registry dedup key. One uniform brand across all facets, constructed by `toContributionId(featureId, facet, name)` → `${featureId}.<facet>.<name>`. Examples: `canvas.channel.writeback`, `canvas.agent.anchor_read`, `canvas.agent-context.canvas-diff`, `canvas.turn-state.documents`.
 - **`…CanonicalId`:** The downstream-system address, such as a transport channel, Pi tool name, resource key, persisted section, or storage key. Each facet has one brand because downstream naming differs. The facet segment drops from the canonical id because the downstream system already implies the kind. Examples include `canvas.writeback`, `canvas__anchor_read`, and `canvas-doc`.
@@ -52,7 +52,7 @@ Each consumer owns its canonical-id helpers and resolved shapes. Shared channel 
 
 Envelope and customType ids stay substrate-owned and are not feature-scoped: `uix.state` (the display-hidden agent-context envelope), `uix.turn-state` (the persisted turn-state entry). Inner contributions use feature-scoped canonical ids: `<canvas.canvas-diff>` inside `<uix-state>`, or `canvas.documents` as a named cell inside a `uix.turn-state` entry.
 
-Event payload shapes are defined by the emitting substrate facet. If a pane-originated write causes a document event, `sourceId: "canvas.pane.writeback"` is provenance, but the payload is still the document facet's `DocumentWriteEvent` shape. A contribution in one facet may call another facet. `eventType`/channel tells you what happened, and `sourceId` tells you which contribution caused it.
+The emitting substrate facet defines event payload shapes. If a pane-originated write causes a document event, `sourceId: "canvas.pane.writeback"` is provenance, but the payload is still the document facet's `DocumentWriteEvent` shape. A contribution in one facet may call another facet. `eventType`/channel tells you what happened, and `sourceId` tells you which contribution caused it.
 
 _Resource ids_ name addressable things. `doc://canvas/main` names a managed Canvas document. A future `workspace://src/main.ts` id can name a file relative to the recorded working directory.
 
@@ -246,7 +246,7 @@ An _agent installer_ is the Pi-facing installer shape: it receives Pi's `Extensi
 - `pi.sendMessage(...)`
 - `pi.sendUserMessage(...)`
 
-Agent installers are composed inside UIX-core's single in-process Pi extension factory. They are internal substrate wiring, not feature contributions.
+UIX-core composes agent installers inside its single in-process Pi extension factory. They are internal substrate wiring, not feature contributions.
 
 ## Driver
 
@@ -346,7 +346,7 @@ Semantics:
 - Append each payload to pending values.
 - Materialize the pending list at agent-run prep.
 - Send when non-empty.
-- Clear a confirmed batch only after branch persistence proves that exact materialized body was written.
+- Clear a confirmed batch only after branch persistence proves it wrote that exact materialized body.
 
 ### Materialize
 

@@ -140,7 +140,7 @@ describe("SurfaceModulePipeline", () => {
   });
 
   it("rejects CSS that escapes the feature directory", async () => {
-    // `sheet` must be referenced: esbuild's TS loader elides imports whose
+    // Reference `sheet`: esbuild's TS loader elides imports whose
     // binding is never used, so an unused CSS import never reaches resolution.
     const reg = await writeFeature({
       "nested/surface.tsx": `import sheet from "../../outside.css" with { type: "css" };\nexport const surface = { name: "s", styles: [sheet], render: () => null };`,

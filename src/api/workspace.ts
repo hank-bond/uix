@@ -390,7 +390,7 @@ function settingSchema(schema: TSchema, key: string): TSchema {
   throw new Error(`Unknown setting: ${key}`);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- Value is inferred contextually at each call site from the setState argument. Inlining to unknown would force casts.
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- TypeScript infers Value contextually at each call site from the setState argument. Inlining to unknown would force casts.
 function parseFeatureSettingValue<Value>(
   schema: TSchema,
   value: unknown,
@@ -443,8 +443,8 @@ export function createChannelClient<const C extends ChannelContract>(
 
 /**
  * Opaque surface contribution. The workspace's surface list is
- * heterogeneous, so the contract's type parameter is erased here. The typed
- * surface is created via {@link defineSurface}, which captures the generic at
+ * heterogeneous, so this contract erases its type parameter here. The caller
+ * creates the typed surface via {@link defineSurface}, which captures the generic at
  * definition time and pushes the unavoidable cast into the substrate.
  */
 export interface SurfaceContribution {
@@ -473,8 +473,8 @@ export interface ContractlessSurfaceDefinition extends Omit<
 
 /**
  * Defines a surface. With a `contract`, `render`'s `client` parameter is
- * fully typed from it. Features never cast. The client is minted by the
- * substrate mount under the contract's own channel id. A surface module must
+ * fully typed from it. Features never cast. The substrate mount mints the
+ * client under the contract's own channel id. A surface module must
  * export this result as `surface` (`export const surface = defineSurface(...)`);
  * That is how the runtime loader finds it. The single unavoidable cast
  * (erasing the generic for the heterogeneous surface list) lives here in the

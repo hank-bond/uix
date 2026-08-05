@@ -1,6 +1,6 @@
 // Relays requests from the renderer to main and sends events back through one logged IPC boundary.
 //
-// Every crossing goes through this module and is recorded by it. `handle()`
+// This module records every crossing that passes through it. `handle()`
 // is the inbound chokepoint (invoke endpoints), `send()` the outbound one
 // (pushes to a window). The wire log lives here too, module-private, so the
 // only way to produce a wire-log line is to actually cross the wire. The
@@ -8,13 +8,13 @@
 // known calls by ESLint: no direct `ipcMain.handle` or `webContents.send`
 // outside this module.
 //
-// Each crossing is captured twice, in the `ipc` log space:
+// The module captures each crossing twice, in the `ipc` log space:
 //  - terminal (`ipc` component): the payload itself, rendered by the shared
 //    pino-pretty transport. Read with UIX_LOG_LEVEL=debug. Callers can demote
 //    chatty lines to trace so debug stays readable.
 //  - file: the full raw payload as NDJSON under `<stateRoot>/.uix/logs/`,
 //    one per-run file, armed only when the ipc space is audible at all. The
-//    path is printed at startup (`ipc_log_file`). Inspect with `jq` or
+//    logger prints the path at startup (`ipc_log_file`). Inspect with `jq` or
 //    `npx pino-pretty < file`.
 //
 // The boundary is pure mechanism: it records whatever crosses and knows
@@ -35,7 +35,7 @@ const log = createLogger("ipc");
 
 let fileLog: pino.Logger | undefined;
 
-/** Arm the raw-payload file capture. Call once the state root is resolved. */
+/** Arm the raw-payload file capture. Call once startup resolves the state root. */
 export function initLogFile(stateRoot: string): void {
   if (!log.isLevelEnabled("debug")) return;
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");

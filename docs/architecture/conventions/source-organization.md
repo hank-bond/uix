@@ -77,4 +77,4 @@ Do not create repository-wide shared areas for speculative reuse. A few addition
 
 **Rule:** Keep tests, fixtures, and other verification assets beside the source unit or ownership boundary they verify. Use a separate cross-system location only when the verification genuinely has no single source owner.
 
-UI component stylesheet ownership and cascade composition are defined separately in [`user-interface.md`](./user-interface.md). Export and runtime dependency rules are defined in [`module-boundaries.md`](./module-boundaries.md). The source-header summary and elaboration forms are defined in [`naming-and-comments.md`](./naming-and-comments.md).
+Separate leaves define UI component stylesheet ownership and cascade composition ([`user-interface.md`](./user-interface.md)), export and runtime dependency rules ([`module-boundaries.md`](./module-boundaries.md)), and the source-header summary and elaboration forms ([`naming-and-comments.md`](./naming-and-comments.md)).

@@ -61,7 +61,7 @@ Potentially sensitive answers, URLs, device codes, and flow snapshots use redact
 Acceptance:
 
 - Fake providers can drive both API-key and OAuth flows, including multiple sequential fields, selections, informational links, and authorization context retained beside manual input.
-- Only interactive Pi methods appear in the connection catalog, and only the currently pending flow/prompt can be answered.
+- Only interactive Pi methods appear in the connection catalog, and the user can answer only the currently pending flow/prompt.
 - Startup ownership rejects concurrent flows; cancellation/disposal aborts pending prompts and suppresses late provider callbacks.
 - Pi alone persists credentials and refreshes model availability.
 
@@ -72,7 +72,7 @@ Chat projects the provider catalog without recipes and renders every method thro
 Acceptance:
 
 - Multi-field cloud providers work without provider-specific Chat code.
-- Secret prompts use password inputs and are discarded from component state after advancement.
+- Secret prompts use password inputs, and the component discards them from state after advancement.
 - Browser, device-code, prompt, selection, progress, retry, cancellation, and success states are keyboard-operable and announced appropriately.
 - Success confirms in place and explicitly hands off to ordinary model selection.
 
