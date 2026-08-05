@@ -11,10 +11,10 @@ A UIX **feature** is the loadable unit that adds a coherent capability (a chat, 
 
 Files involved:
 
-- [`src/api/feature.ts`](../../../src/api/feature.ts), `FeatureDefinition`, `FeatureContext`, `FeatureContributions`
-- [`src/api/workspace.ts`](../../../src/api/workspace.ts), `defineSurface`
+- [`src/api/feature.ts`](../../src/api/feature.ts), `FeatureDefinition`, `FeatureContext`, `FeatureContributions`
+- [`src/api/workspace.ts`](../../src/api/workspace.ts), `defineSurface`
 
-A real feature combining every facet is [`src/features/canvas/`](../../../src/features/canvas/). Use it as the reference for a complete contribution set.
+A real feature combining every facet is [`src/features/canvas/`](../../src/features/canvas/). Use it as the reference for a complete contribution set.
 
 ## Author the entry
 
@@ -35,7 +35,7 @@ export const feature = defineFeature({
 
 `id` is the feature's identity. It owns contribution namespaces, channel ids, settings access, and logs. Workspace manifest entries do not repeat the id. If two entries export the same id, activation fails for the later one.
 
-`ctx` is the injected [`FeatureContext`](../../../src/api/feature.ts): `documents` (a document-store factory), `settings`, `channels` (an event-publisher factory), and `log`. Features access external state **only** through `ctx` and the typed `@uix/api` contracts, never by importing host internals.
+`ctx` is the injected [`FeatureContext`](../../src/api/feature.ts): `documents` (a document-store factory), `settings`, `channels` (an event-publisher factory), and `log`. Features access external state **only** through `ctx` and the typed `@uix/api` contracts, never by importing host internals.
 
 ## Declare it in the manifest
 
@@ -61,7 +61,7 @@ await window.uix.reload();
 
 ## The full contribution facade
 
-`contribute(ctx)` returns [`FeatureContributions`](../../../src/api/feature.ts), which can include resources, channels, agent tools, a system-prompt section, skills, turn state, agent context, and surfaces. Here is one feature contributing all of them:
+`contribute(ctx)` returns [`FeatureContributions`](../../src/api/feature.ts), which can include resources, channels, agent tools, a system-prompt section, skills, turn state, agent context, and surfaces. Here is one feature contributing all of them:
 
 ```ts
 // features/notes/index.ts
@@ -93,7 +93,7 @@ export const feature = defineFeature({
 });
 ```
 
-The [`Canvas` feature](../../../src/features/canvas/backend/contributions/index.ts) is the real-world version of exactly this shape. A backend-only feature can omit `surfaces` without occupying workspace layout. Each facet is documented in its sibling how-to:
+The [`Canvas` feature](../../src/features/canvas/backend/contributions/index.ts) is the real-world version of exactly this shape. A backend-only feature can omit `surfaces` without occupying workspace layout. Each facet is documented in its sibling how-to:
 
 - [`add-a-channel.md`](./add-a-channel.md), `channels` + `ctx.channels.createPublisher(...)`
 - [`add-a-resource.md`](./add-a-resource.md), `resources` via `createResourceAddressHandle(...)`
@@ -167,7 +167,7 @@ export const notesReadTool = (): AgentToolContribution => ({
 });
 ```
 
-UIX starts Pi with built-in tools inactive, so the feature composition defines the complete tool surface. The separate `agentToolOverrides` facet keeps intentional exact-name replacements (see [`src/api/agent-tools.ts`](../../../src/api/agent-tools.ts) and the [`workspace-tools` feature](../../../src/features/workspace-tools/) for an override example).
+UIX starts Pi with built-in tools inactive, so the feature composition defines the complete tool surface. The separate `agentToolOverrides` facet keeps intentional exact-name replacements (see [`src/api/agent-tools.ts`](../../src/api/agent-tools.ts) and the [`workspace-tools` feature](../../src/features/workspace-tools/) for an override example).
 
 ## System-prompt section and skills
 
@@ -242,4 +242,4 @@ A surface can omit `contract` when it needs only local state. See [`add-a-surfac
 
 ## What happens on load
 
-Activation hydrates provisional settings before running `context()` and `contribute()`, registers every returned facet, and joins the active composition only if all succeed. A failed feature rolls back its provisional bag without aborting siblings. Malformed manifests or workspace settings fail before promotion. See [`src/main/features/`](../../../src/main/features/) for the runtime.
+Activation hydrates provisional settings before running `context()` and `contribute()`, registers every returned facet, and joins the active composition only if all succeed. A failed feature rolls back its provisional bag without aborting siblings. Malformed manifests or workspace settings fail before promotion. See [`src/main/features/`](../../src/main/features/) for the runtime.

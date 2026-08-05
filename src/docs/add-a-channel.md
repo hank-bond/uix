@@ -11,11 +11,11 @@ A **channel** groups frontend-to-backend request operations with backend-publish
 
 Files involved:
 
-- [`src/api/channels.ts`](../../../src/api/channels.ts), `ChannelContract`, `withHandlers`, `FeatureEventPublisher`
-- [`src/api/channel-resolution.ts`](../../../src/api/channel-resolution.ts), canonical-id derivation
-- [`src/api/workspace.ts`](../../../src/api/workspace.ts), `ChannelClient`, `createChannelClient`, `defineSurface`
+- [`src/api/channels.ts`](../../src/api/channels.ts), `ChannelContract`, `withHandlers`, `FeatureEventPublisher`
+- [`src/api/channel-resolution.ts`](../../src/api/channel-resolution.ts), canonical-id derivation
+- [`src/api/workspace.ts`](../../src/api/workspace.ts), `ChannelClient`, `createChannelClient`, `defineSurface`
 
-The reference for a real channel pair is [`src/features/canvas/shared/channels.ts`](../../../src/features/canvas/shared/channels.ts) (contract) and [`src/features/canvas/backend/contributions/channels.ts`](../../../src/features/canvas/backend/contributions/channels.ts) (handlers + publisher).
+The reference for a real channel pair is [`src/features/canvas/shared/channels.ts`](../../src/features/canvas/shared/channels.ts) (contract) and [`src/features/canvas/backend/contributions/channels.ts`](../../src/features/canvas/backend/contributions/channels.ts) (handlers + publisher).
 
 ## Declare a contract in shared code
 
@@ -131,7 +131,7 @@ export const feature = defineFeature({
 });
 ```
 
-Publish calls validate at compile time from the event schema. The main transport also validates payloads when clients receive them. This mirrors how Canvas does it: see [`src/features/canvas/backend/context.ts`](../../../src/features/canvas/backend/context.ts) and [`src/features/canvas/backend/contributions/channels.ts`](../../../src/features/canvas/backend/contributions/channels.ts).
+Publish calls validate at compile time from the event schema. The main transport also validates payloads when clients receive them. This mirrors how Canvas does it: see [`src/features/canvas/backend/context.ts`](../../src/features/canvas/backend/context.ts) and [`src/features/canvas/backend/contributions/channels.ts`](../../src/features/canvas/backend/contributions/channels.ts).
 
 ## Consume the typed client from a surface
 
@@ -192,4 +192,4 @@ Every request, response, and event crossing appears in terminal logs (and option
 
 ## What happens on bind
 
-The channel registry validates unknown requests and handler responses at the transport boundary, while preserving contract-owned log descriptions. Canonical-id reservations remain recoverable across transport acquisition and disposal failures. Disposal removes the feature's routes without unregistering the application-wide transport. See [`src/main/channel-registry.ts`](../../../src/main/channel-registry.ts).
+The channel registry validates unknown requests and handler responses at the transport boundary, while preserving contract-owned log descriptions. Canonical-id reservations remain recoverable across transport acquisition and disposal failures. Disposal removes the feature's routes without unregistering the application-wide transport. See [`src/main/channel-registry.ts`](../../src/main/channel-registry.ts).

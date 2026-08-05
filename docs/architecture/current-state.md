@@ -6,7 +6,7 @@ status: active
 
 # Current state
 
-This document records the implemented system at HEAD. The root [`AGENTS.md`](../../AGENTS.md) states the project model. The user-implementation guides live under [`AGENTS.md`](../../src/docs/how-to/AGENTS.md).
+This document records the implemented system at HEAD. The root [`AGENTS.md`](../../AGENTS.md) states the project model. The user-implementation guides live under [`AGENTS.md`](../../src/docs/AGENTS.md).
 
 ## Application shell and workspaces
 

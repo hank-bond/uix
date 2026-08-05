@@ -11,10 +11,10 @@ An **action** is a human-invokable renderer workflow. Surfaces register action t
 
 Files involved:
 
-- [`src/api/actions.ts`](../../../src/api/actions.ts), contribution and catalog contracts
-- [`src/api/workspace.ts`](../../../src/api/workspace.ts), `useActionContribution`, `useActionCatalog`, `useInvokeAction`
+- [`src/api/actions.ts`](../../src/api/actions.ts), contribution and catalog contracts
+- [`src/api/workspace.ts`](../../src/api/workspace.ts), `useActionContribution`, `useActionCatalog`, `useInvokeAction`
 
-The reference for a real action set is [`src/features/chat/workspace/model-actions.ts`](../../../src/features/chat/workspace/model-actions.ts).
+The reference for a real action set is [`src/features/chat/workspace/model-actions.ts`](../../src/features/chat/workspace/model-actions.ts).
 
 ## Contribute an action tree
 

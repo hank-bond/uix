@@ -33,8 +33,7 @@ const layers = [
   { dir: "docs/architecture", kind: "container" },
   { dir: "docs/architecture/conventions", sort: "slug-asc" },
   { dir: "plans", sort: "slug-asc" },
-  { dir: "src/docs", kind: "container" },
-  { dir: "src/docs/how-to", sort: "slug-asc" },
+  { dir: "src/docs", sort: "slug-asc" },
   { dir: "website", sort: "slug-asc" },
 ];
 

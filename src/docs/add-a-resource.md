@@ -11,11 +11,11 @@ A **resource** contributes feature-owned browser content through the substrate `
 
 Files involved:
 
-- [`src/api/resources.ts`](../../../src/api/resources.ts), `createResourceAddressHandle`, `ResourceContribution`, `ResourceRequestContext`
-- [`src/api/resource-routes.ts`](../../../src/api/resource-routes.ts), route normalization and URL encode/decode
-- [`src/main/resource-registry.ts`](../../../src/main/resource-registry.ts), the transport registry
+- [`src/api/resources.ts`](../../src/api/resources.ts), `createResourceAddressHandle`, `ResourceContribution`, `ResourceRequestContext`
+- [`src/api/resource-routes.ts`](../../src/api/resource-routes.ts), route normalization and URL encode/decode
+- [`src/main/resource-registry.ts`](../../src/main/resource-registry.ts), the transport registry
 
-The reference for a real resource pair is [`src/features/canvas/backend/contributions/resources.ts`](../../../src/features/canvas/backend/contributions/resources.ts) (route and handler) with the keys it serves in [`src/features/canvas/shared/addressing.ts`](../../../src/features/canvas/shared/addressing.ts).
+The reference for a real resource pair is [`src/features/canvas/backend/contributions/resources.ts`](../../src/features/canvas/backend/contributions/resources.ts) (route and handler) with the keys it serves in [`src/features/canvas/shared/addressing.ts`](../../src/features/canvas/shared/addressing.ts).
 
 ## Declare an address in shared code
 
