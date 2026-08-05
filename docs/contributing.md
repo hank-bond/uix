@@ -81,19 +81,6 @@ Use this placement test:
 5. If knowledge coordinates several owners in one directory, improve its `AGENTS.md` or add one local retrieval unit.
 6. If the task or context crosses ownership boundaries, write a repository document.
 
-## The four document layers
-
-Each document layer has its own filename convention, summary template, and lifecycle. If the file is a point-in-time event, put the date in its filename. If it contains dated events, keep dates inside it.
-
-| Layer | Filename | Summary states | Mutability |
-| --- | --- | --- | --- |
-| `decisions/` | `YYYY-MM-DD-slug` | the conclusion | write-once (only `status` may change) |
-| `design/` | `problem-name` | the open question + axes | synthesis mutable, `## Log` append-only |
-| `architecture/` | `constraint-name` | a current cross-cutting invariant or hard-won context | living, always = HEAD |
-| `../plans/` | `deliverable` | the deliverable + units | active → landed or archived under `../plans/archive/` |
-
-The distillation pipeline runs left-to-right in time: _design note → decision → plan → architecture_. Each step becomes more distilled and stable. Only the design note preserves every rejected alternative. Later records carry the applicable conclusion or enduring constraint.
-
 ## Frontmatter
 
 The filename already carries the slug (and, for decisions, the date), so frontmatter adds only what position can't:
@@ -189,79 +176,9 @@ Use the historical and expressive profile for append-only design logs, archived 
 
 Preserve the original reasoning and voice when they are part of the record. Do not rewrite historical text only to apply a later language rule. Use current canonical terms when new text describes current architecture.
 
-## Convention rule cards
+## Conventions formats
 
-Give each convention rule a stable semantic identifier. Use a lowercase dotted identifier such as `naming.callable-role`. Do not use sequential numbers that change when rules move or you insert new rules.
-
-Use this structure:
-
-```markdown
-### naming.callable-role: Name callable types by role
-
-**Rule: must.** Name a callable type with a noun that states its callable role.
-
-**Approved example** ...
-
-**Nonconforming example** ...
-
-**Reason** ...
-
-**Exceptions** ...
-
-**Enforcement** ...
-```
-
-The **Rule** is normative. The other sections are informative unless they contain an explicit normative keyword.
-
-Include **Scope** after **Rule** when a rule applies to less than the containing document's stated scope. Include approved and nonconforming examples when a plausible boundary mistake exists. Include **Exceptions** only for accepted exceptions. Include **Enforcement** only when review, a repository check, a type-system constraint, or another concrete mechanism can verify the rule. Omit a section when it adds no information.
-
-Keep one independently enforceable requirement in each rule card. Split requirements that have different scopes, exceptions, or enforcement mechanisms. Keep closely related cards in one retrieval unit when readers normally apply them together.
-
-## Controlled lexicon entries
-
-The identifier grammar that code authors apply lives in [`naming-and-comments.md`](./architecture/conventions/naming-and-comments.md). This section governs changing that grammar and its controlled lexicon.
-
-Use an STE-style contrast table for controlled architectural vocabulary:
-
-| Term (part of speech) | Approved meaning / alternatives | Approved example | Nonconforming example |
-| --- | --- | --- | --- |
-| `Handler` (noun) | Callable that processes one occurrence. Use `Handle` for a consumer-held capability. | `ChannelRequestHandler` | `ChannelTransportHandle` |
-
-The approved meaning defines the term's permitted boundary. The alternatives identify the approved term for a meaning that this term does not cover. The nonconforming example shows a plausible use that violates the boundary. It is not an example of generally poor code.
-
-### Lexicon row requirements
-
-**Term:** Give the exact approved spelling and part of speech. Give each word form and each approved meaning its own row. Sort terms alphabetically within their class.
-
-**Approved meaning and alternatives:** Start with a positive boundary definition. State the property that distinguishes the term from its nearest alternatives, and name those alternatives explicitly. Do not define the term through a current implementation or file location. Do not name an undefined alternative. Admit it in the same change or link to its existing entry.
-
-**Approved example:** Use the smallest realistic example that demonstrates the distinguishing property. Prefer an existing UIX identifier or a planned replacement from an active migration. Show a call site when the identifier alone does not demonstrate the meaning. Do not add unrelated details.
-
-**Nonconforming example:** Show a plausible mistake that a competent author might make. Change only the semantic axis that the entry defines when practical. State the approved replacement when it is not obvious. Do not use a strawman, malformed syntax, generally poor code, or only the reverse spelling of the approved example.
-
-Before admitting a row, apply these quality tests:
-
-1. **Choice:** Can a reviewer choose between this term and its nearest alternative?
-2. **Role:** Does the term have one grammatical role?
-3. **Boundary:** Does the nonconforming example cross the exact boundary described?
-4. **Plausibility:** Could this mistake reasonably appear in UIX?
-5. **Replacement:** Is the compliant replacement evident?
-6. **Independence:** Does the definition survive an implementation change?
-7. **Completeness:** Are all named alternatives already defined?
-8. **Orthogonality:** For an operation/result pair, does the verb identify the transition independently from the noun's result role? Does the noun identify the result independently from the verb?
-9. **Leverage:** Does the term collapse a real recurring choice across contexts instead of restating a result type, downstream use, or local implementation detail?
-
-If a row cannot provide a strong nonconforming example, its boundary is not settled or the term does not yet need controlled-lexicon status.
-
-Maintain separate tables for these term classes:
-
-- **UIX-owned terms** have one approved meaning and grammatical role.
-- **Imported terms** retain the meaning and grammar of the named source API, such as Pi, Electron, React, or a browser standard.
-- **Retired terms** identify the approved replacement and remain only while they help review or automated checks prevent regression.
-
-Add a UIX-owned term when it first becomes exported, architectural, or recurrent. Add it in the same change that introduces that use. Do not add every local implementation word. If the term's boundary cannot be stated with an approved and a nonconforming example, continue the design work before admitting the term.
-
-Do not preserve a retired alias in code only because it remains in the lexicon. The retired entry supports migration and review. It does not provide compatibility.
+The conventions tree splits into rule cards, the lexicon, and guidance. The authoring spec lives in [`AGENTS.md`](./architecture/conventions/AGENTS.md), the tree's narrowest owner, because it matters only when modifying conventions files.
 
 ## Every AGENTS.md is overview + index
 
@@ -271,7 +188,7 @@ Documentation indexes derive entries from document frontmatter. Source indexes d
 
 The root [`AGENTS.md`](../AGENTS.md) orients the project and routes to directory indexes. Each lower index adds only the guidance owned at that level. Parent indexes expose child-directory summaries without recursively copying their file entries.
 
-The index sits between `<!-- INDEX:START -->` and `<!-- INDEX:END -->`. [`docs-index.mjs`](../scripts/docs-index.mjs) currently derives documentation entries from frontmatter. It covers `docs/decisions`, `docs/design`, `docs/architecture`, its convention cards, `plans`, `src/docs`, and `website`. Add or edit a document, then run these commands:
+The index sits between `<!-- INDEX:START -->` and `<!-- INDEX:END -->`. [`docs-index.mjs`](../scripts/docs-index.mjs) currently derives documentation entries from frontmatter. It covers `docs/decisions`, `docs/design`, `docs/architecture`, its conventions tree, `plans`, `src/docs`, and `website`. Add or edit a document, then run these commands:
 
 ```sh
 npm run docs:index     # regenerate the index blocks
@@ -282,21 +199,9 @@ The check requires frontmatter and one H1 in living documentation Markdown files
 
 Prose outside the markers is yours. The block between them is derived. **Never hand-edit it.** Do not add, reword, reorder, or delete entries inside the markers. The generator rebuilds the block from frontmatter, so `npm run docs:index` silently overwrites a manual edit, or `npm run docs:check` fails when it drifts. To change an entry, edit the doc's frontmatter `summary`/`read_when`/`status` (or rename the file) and regenerate. A small idea can live as a line in the overview prose. When it grows past a line, promote it to its own file and delete the prose line. The index then carries it, so it's never maintained in both places. Top-level docs in `docs/` (like this one) sit outside the indexed layers and are reached by prose links from `AGENTS.md`, not an index.
 
-## Design notes are living threads
+## Design notes
 
-A design note is **a current synthesis on top of an append-only dated log**:
-
-```markdown
-## Current synthesis <- rewritten freely; frontmatter tracks this
-
-## Log <- append-only; never rewritten
-
-### 2026-06-01: framing
-
-### 2026-07-…: revisited
-```
-
-Revisit a topic across sessions by appending a dated `## Log` entry and updating the synthesis. When it resolves, flip `status: resolved` and link the decisions and plans it spawned.
+The design-note authoring spec lives in [`AGENTS.md`](./design/AGENTS.md), the layer's narrowest owner, because it matters only when writing or revising design threads.
 
 ## Deferred framework work
 

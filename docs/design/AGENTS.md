@@ -6,7 +6,19 @@ summary: "Living design threads combine mutable synthesis with append-only logs 
 
 Living topic threads: the winding discussions where we weigh options, name tradeoffs, and decide what to do — and what _not_ to do — and why. This is the only layer that keeps the rejected paths and the narrative; everything else records conclusions.
 
-Each note is slugged by the **problem**, not the solution (so it survives pivots), and is structured as a **current synthesis on top of an append-only `## Log`**. Revisit across sessions by appending a dated log entry and updating the synthesis. When a thread resolves, set `status: resolved` and link the decisions and plans it produced.
+Each note is slugged by the **problem**, not the solution (so it survives pivots), and is structured as **a current synthesis on top of an append-only dated log**:
+
+```markdown
+## Current synthesis <- rewritten freely; frontmatter tracks this
+
+## Log <- append-only; never rewritten
+
+### 2026-06-01: framing
+
+### 2026-07-…: revisited
+```
+
+Revisit a topic across sessions by appending a dated `## Log` entry and updating the synthesis. When a thread resolves, set `status: resolved` and link the decisions and plans it produced.
 
 <!-- INDEX:START -->
 

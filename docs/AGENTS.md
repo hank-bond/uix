@@ -8,9 +8,20 @@ This tree owns documentation whose scope crosses one source ownership boundary. 
 
 Active build specs live in [`AGENTS.md`](../plans/AGENTS.md), and the user-facing implementation guides live in [`AGENTS.md`](../src/docs/AGENTS.md).
 
-## Where to read
+## The four document layers
 
-The records distill through _design note → decision → plan → architecture_. Each step is more settled than the last. Only the design note preserves rejected alternatives. Plans sit at the repository root because they track builds rather than document the system.
+Each document layer has its own filename convention, summary template, and lifecycle. If the file is a point-in-time event, put the date in its filename. If it contains dated events, keep dates inside it.
+
+| Layer | Filename | Summary states | Mutability |
+| --- | --- | --- | --- |
+| `decisions/` | `YYYY-MM-DD-slug` | the conclusion | write-once (only `status` may change) |
+| `design/` | `problem-name` | the open question + axes | synthesis mutable, `## Log` append-only |
+| `architecture/` | `constraint-name` | a current cross-cutting invariant or hard-won context | living, always = HEAD |
+| `../plans/` | `deliverable` | the deliverable + units | active → landed or archived under `../plans/archive/` |
+
+The records distill through _design note → decision → plan → architecture_. Each step is more settled than the last, and only the design note preserves rejected alternatives. Plans sit at the repository root because they track builds rather than document the system. Later records carry the applicable conclusion or enduring constraint.
+
+## Document kinds
 
 Each indexed document has a _kind_: reference, explanation, how-to, or tutorial. The kind describes the need that the document serves and remains independent from lifecycle status. Plans carry no kind. [`framework.md`](./framework.md) explains this shape, and [`contributing.md`](./contributing.md) defines the authoring practice.
 
