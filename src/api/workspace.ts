@@ -478,7 +478,10 @@ export interface ContractlessSurfaceDefinition extends Omit<
  * export this result as `surface` (`export const surface = defineSurface(...)`);
  * That is how the runtime loader finds it. The single unavoidable cast
  * (erasing the generic for the heterogeneous surface list) lives here in the
- * substrate.
+ * substrate. A mounted surface receives only workspace-scoped services: its
+ * channel client, a feature-bound settings client, an action registrar, and
+ * read-only session capabilities. It never receives Electron, main-process
+ * registries, or another feature's settings handle.
  */
 export function defineSurface<const C extends ChannelContract>(
   surface: SurfaceDefinition<C>,

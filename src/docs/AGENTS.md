@@ -25,10 +25,8 @@ Pages marked _(stub)_ are in progress. Each document also has a _kind_. Referenc
 - **[how-to/](./how-to/AGENTS.md)** _(active)._ Task-focused feature-authoring guides for implementing UIX applications, colocated with the framework and findable by the agents and builders who use it.
 - **[lifetimes](./lifetimes.md)** _(active, reference)._ DisposableBag owns cleanup for app lifetime, reloadable feature activations, window bindings, and the agent driver. Feature authors receive scoped capabilities rather than direct bag access.
 - **[models-and-authentication](./models-and-authentication.md)** _(active, reference)._ Pi owns model availability and provider authentication. UIX projects generic catalogs, workspace defaults, favorites, status, and one restorable login flow.
-- **[resources](./resources.md)** _(active, reference)._ Feature resources declare normalized routes and handlers while shared address handles create validated workspace-origin or feature-origin browser URLs.
 - **[sessions-and-transcripts](./sessions-and-transcripts.md)** _(active, reference)._ Selected Pi session graphs persist under each workspace, while UIX projects summaries, history, streaming items, and renderer session controls.
 - **[settings](./settings.md)** _(active, reference)._ Workspace manifests store schema-validated feature settings and substrate-owned agent, session, and keybinding namespaces with materialized defaults.
 - **[state](./state.md)** _(active, reference)._ UIX separates workspace settings, Pi session graphs, feature turn state, document versions, renderer projections, and the application-owned Pi profile.
-- **[surfaces](./surfaces.md)** _(active, reference)._ Feature surface modules export defineSurface results that the workspace bundles, mounts, channel-binds, style-scopes, and isolates behind error boundaries.
 
 <!-- INDEX:END -->

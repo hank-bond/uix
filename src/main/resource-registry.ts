@@ -1,6 +1,6 @@
 // Routes resource URLs to the active feature handlers through one validated protocol boundary.
 //
-// Resource declarations remain transport-neutral even though the default adapter uses Electron's custom protocol. A malformed URL recognized by a route yields 400, while a URL matching no registered route yields 404.
+// Resource declarations remain transport-neutral even though the default adapter uses Electron's custom protocol. A malformed URL recognized by a route yields 400, while a URL matching no registered route yields 404. The registry resolves owner-scoped ids and rejects duplicate claims. Handlers are reload-scoped contributions, and disposal removes their routes without unregistering the application-wide protocol.
 
 import { protocol } from "electron";
 

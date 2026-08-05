@@ -9,7 +9,7 @@ Feature-author contracts remain under `src/api/`. The workspace runtime supplies
 
 Feature activation coordinates `manifest.ts`, `loader.ts`, and `contributions.ts`: manifest order is authoritative. Feature ids `agent` and `uix` are reserved for the substrate's own contracts. `loader.ts` rejects a feature that claims one, so a feature cannot register under another owner's namespace. Each feature's settings and facet registrations remain provisional until its activation succeeds, and one failed feature rolls back without aborting siblings. Adding a facet therefore changes the public contribution contract, registry bundle, grouped registration, and activation rollback coverage together.
 
-Surface delivery coordinates `surfaces.ts` with `surface-pipeline.ts`. Preserve manifest and declaration order from registration through renderer composition. `scaffold.ts` is a separate authoring path that creates editable initial composition and does not participate in runtime activation.
+Surface delivery coordinates `surfaces.ts` with `surface-pipeline.ts`. Preserve manifest and declaration order from registration through renderer composition. Surface modules load from a reserved substrate origin only, so feature resource origins cannot serve surface JavaScript bundles. UIX provides no generic iframe surface mode: Canvas owns a contained iframe inside its trusted React surface. `scaffold.ts` is a separate authoring path that creates editable initial composition and does not participate in runtime activation.
 
 ## Contents
 
