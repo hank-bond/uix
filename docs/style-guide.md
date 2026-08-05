@@ -42,8 +42,6 @@ Normative keywords are lowercase and bold, per RFC 2119 (Request for Comments 21
 
 Encode ownership and scope. Source-coupled guidance lives beside its owning code. The `docs/` tree contains cross-boundary workflows, architecture, decisions, design threads, external context, and documentation practice. Root-level `plans/` tracks builds, and `website/` documents the marketing site. Decisions are write-once and dated, design threads place mutable synthesis over append-only logs, and architecture tracks HEAD.
 
-> **Update when:** Every centralized `src/docs/` page has moved or been deleted. Remove the migration exception below.
-
 The `src/docs/` tree hosts user-implementation how-tos. Do not add a face-value implementation inventory there merely because the page is feature-facing: reference facts live in the contracts and generated indexes.
 
 Every doc follows its layer's conventions: frontmatter with a `summary` first, an H1 title close to the filename, then the layer's shape. Details live in [`contributing.md`](./contributing.md).

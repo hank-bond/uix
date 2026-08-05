@@ -1,6 +1,6 @@
 ---
 summary: "The code-proximate migration has landed: every centralized src/docs/ page split into user-implementation how-tos or code-adjacent facts. How-to placement and examples remain future work."
-status: active
+status: landed
 ---
 
 # Code-proximate documentation

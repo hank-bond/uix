@@ -300,9 +300,4 @@ Revisit a topic across sessions by appending a dated `## Log` entry and updating
 
 ## Deferred framework work
 
-The landed [`code-proximate-documentation.md`](../plans/archive/code-proximate-documentation.md) plan covered source-index tooling and the ownership-based migration. These framework gaps remain:
-
-- **Compass test:** Define the classification procedure for new and moved documents: action or cognition, then acquisition or application.
-- **Migration rules:** Define triggers between kinds. Reference traffic can spawn a how-to, repeated comments can become conventions, and decisions can graduate to creed.
-- **Loop protocol:** Define the commit-time loop: capture, distill residue, regenerate indexes, scan backports, and verify.
-- **Budget tests:** Define the creed admission test and always-loaded root size discipline.
+Documentation framework gaps (the compass test, kind-migration rules, the commit-time loop protocol, and budget tests) are tracked in the [plans backlog](../plans/backlog.md).
