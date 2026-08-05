@@ -58,7 +58,7 @@ Diátaxis applies after information earns a discrete document. It does not force
 
 ### Lifecycle
 
-The lifecycle axis marks maturity over time: a design note distills into a decision, a decision into a plan, and a plan into architecture. Each step is more settled than the last. The `status` field records the position only when it differs from the default current state: exploring, resolved, accepted, landed, archived, stub, or superseded. Documents without a lifecycle — each `AGENTS.md`, evergreen reference and how-to docs — omit the field.
+The lifecycle axis marks maturity over time: a design note distills into a decision, a decision into a plan, and a plan into architecture. Each step is more settled than the last. The `status` field records the position only when it differs from the default current state: exploring, resolved, accepted, landed, archived, stub, or superseded. Documents without a lifecycle, such as each `AGENTS.md` and evergreen reference and how-to docs, omit the field.
 
 Lifecycle is orthogonal to kind: a document has both a need and a maturity.
 
