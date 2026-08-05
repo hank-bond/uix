@@ -116,7 +116,7 @@ The register is split. Reference and descriptive prose is impersonal ("the subst
 
 ### Active voice
 
-The doer is the subject ("the substrate registers each facet under the feature id", not "each facet is registered"). Passive voice is fine to emphasize the object ("the file is saved"), to de-emphasize the actor, or when the actor does not matter. Name the actor when it affects the contract, which the strict profile in [`contributing.md`](./contributing.md) requires. Source comments follow the same rule; [`naming-and-comments.md`](./architecture/conventions/naming-and-comments.md) states it for code. The citation idiom "captured in [decision]" stays.
+The doer is the subject ("the substrate registers each facet under the feature id", not "each facet is registered"). Passive voice is fine to emphasize the object ("the file is saved"), to de-emphasize the actor, or when the actor does not matter. Name the actor when it affects the contract, which the strict profile in [`contributing.md`](./contributing.md) requires. Source comments follow the same rule. [`comments.md`](./architecture/conventions/comments.md) states it for code. The citation idiom "captured in [decision]" stays.
 
 ### Anthropomorphism
 
@@ -172,7 +172,7 @@ A "**Note:**" is rare: one paragraph of information that is relevant but not nec
 
 Introduce a new term in _italics_ on first use. Italics mark novelty without changing semantics. Bold is for lead-ins and directional emphasis, not term introduction. Do not use quotation marks for terms.
 
-The lexicon in [`naming-and-comments.md`](./architecture/conventions/naming-and-comments.md) controls code vocabulary. Vale enforces prose vocabulary as we build rules.
+The lexicon in [`lexicon.md`](./architecture/conventions/lexicon.md) controls code vocabulary. Vale enforces prose vocabulary as we build rules.
 
 ### Wording
 

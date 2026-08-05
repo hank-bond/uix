@@ -6,11 +6,11 @@ read_when: "Read before creating or changing interactive UI, accessibility behav
 
 # User interface
 
+The [user-interface.a11y-equivalence](./rules/user-interface.a11y-equivalence.md) and [user-interface.component-styles](./rules/user-interface.component-styles.md) rules state the invariants. This file carries the application steps.
+
 ## Accessible UI
 
-**Rule:** Preserve equivalent meaning and operation across visual, keyboard, and accessibility-tree presentations. Prefer browser standards and semantic HTML. Use ARIA only to fill a semantic gap.
-
-Apply these rules in order:
+Apply these steps in order:
 
 1. **Use the native element:** Prefer `button`, `dialog`, `label`, `fieldset`/`legend`, headings, lists, and native state such as `disabled`. Use the browser's interaction behavior instead of rebuilding its keyboard, focus, or modal semantics.
 2. **Give every control an accessible name:** Visible text is the first choice. When a visual treatment conveys extra meaning, add visually hidden DOM text. Reserve `aria-label` for controls without an adequate textual name. When it is necessary, include any visible label text in the accessible name.
@@ -26,12 +26,6 @@ A visually hidden helper must clip content rather than use `display: none` or `v
 
 ## Component stylesheets
 
-**Rule:** A UI component's private stylesheet lives beside it with the same basename: `SessionPill.tsx` owns `SessionPill.css`. Private subcomponents in that module share the owner's sheet. A stylesheet with no single component owner uses a narrow lowercase-kebab name such as `picker-positioning.css` or `provider-controls.css`. Do not let shared sheets become miscellaneous overrides.
-
-CSS class names remain lowercase kebab or Block Element Modifier (BEM) names regardless of file ownership. Component-owned selectors carry their component domain, such as `.session-picker__option`. Shared selectors carry the feature or visual role, such as `.chat-button`. Filename casing communicates ownership, not a different CSS scope.
-
-Import and order CSS module scripts explicitly in the owning `surface.tsx` `styles` array. Do not hide them behind CSS imports or component side effects.
-
-The array defines cascade composition, with shared foundations before component sheets. The substrate wraps every adopted sheet in the same surface `@scope`.
+CSS class names remain lowercase kebab or BEM names regardless of file ownership. Component-owned selectors carry their component domain, such as `.session-picker__option`. Shared selectors carry the feature or visual role, such as `.chat-button`. Filename casing communicates ownership, not a different CSS scope.
 
 Name-global `@font-face`, `@keyframes`, and `@property` declarations remain document-global. Keep their feature-prefixed names.

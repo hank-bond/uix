@@ -6,17 +6,13 @@ read_when: "Read before attaching callbacks, listeners, IPC, protocols, timers, 
 
 # Lifetimes
 
-## Lifetime management in the main process
+The [lifetimes.paired-cleanup](./rules/lifetimes.paired-cleanup.md) rule requires every attachment to pair its cleanup. This file carries the main-process mechanics.
 
-**Rule:** Do not attach a listener without directly pairing cleanup. This rule covers `ipcMain.handle`, `app.on`, `BrowserWindow.on`, and similar APIs.
+## Lifetime management in the main process
 
 IPC crossings use `src/main/ipc.ts`: `handle()` for invoke endpoints and `send()` for window pushes. This path records every crossing in the wire log.
 
-Other attachments use helpers from `src/main/lifecycle.ts`. Put each returned `Disposable` into the bag matching the behavior's lifetime.
-
-**Why:** An unpaired listener, handler, subscription, or timer is the most common leak pattern in Electron and observable-style code. The helpers return a `Disposable`. The bag requires the caller to choose where that cleanup lives. Disposing the lifetime then tears down every owned capability in reverse acquisition order.
-
-**Pattern:**
+Other attachments use helpers from `src/main/lifecycle.ts`. Each returned `Disposable` goes into the bag matching the behavior's lifetime. Disposing the lifetime tears down every owned capability in reverse acquisition order.
 
 ```ts
 import * as ipc from "./ipc";
@@ -34,9 +30,7 @@ ipc.send(win, "uix:agentEvent", event); // push only; no cleanup capability
 bag[Symbol.dispose]();
 ```
 
-**Exceptions:** One-shot process-end events such as `will-quit` and `window-all-closed` can attach through the raw API because there is no useful earlier cleanup point. Comment the call to explain why.
-
-**Disposable values:** Anything with non-trivial cleanup should implement `Disposable` or use `disposable(() => ...)`. Do not discard a returned `Disposable`. Put it in a bag or `using` declaration.
+Disposable values with non-trivial cleanup implement `Disposable` or use `disposable(() => ...)`. Do not discard a returned `Disposable`. Put it in a bag or `using` declaration.
 
 ## When to add a lifecycle helper
 
