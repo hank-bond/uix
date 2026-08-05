@@ -1,6 +1,5 @@
 ---
 summary: "Agent context assembles feature-provided state into structured messages that Pi sends to the model before a run."
-status: active
 ---
 
 # Agent context

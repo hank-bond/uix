@@ -1,6 +1,5 @@
 ---
 summary: "The tool content components render each known tool's payload: canvas, command, and file tool rows, plus the default fallback."
-status: active
 ---
 
 # Tool content

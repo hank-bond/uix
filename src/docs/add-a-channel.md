@@ -1,7 +1,6 @@
 ---
 summary: "Add a typed channel: declare a schema-only contract, bind handlers, publish events, and consume the client from a surface."
 kind: how-to
-status: active
 read_when: "Read when adding a channel to a feature, or when asked to add a channel."
 ---
 

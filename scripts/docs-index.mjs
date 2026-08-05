@@ -49,9 +49,11 @@ const NOTE =
   "<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->";
 const SOURCE_NOTE =
   "<!-- Generated from production source-file summaries, local Markdown frontmatter, and child AGENTS.md summaries. Do not edit by hand; run `npm run docs:index`. -->";
+// Status is an optional override on the default "current" state: author it
+// only when a document's lifecycle position differs from active. Docs without
+// a lifecycle (AGENTS.md files, evergreen reference and how-to docs) omit it.
 const STATUSES = new Set([
   "accepted",
-  "active",
   "archived",
   "exploring",
   "landed",
@@ -91,11 +93,9 @@ function parseFrontmatter(text, file) {
     }
     fm[m[1]] = v;
   }
-  // summary and status are required; read_when is optional — it's authored only
-  // when the trigger to open a doc isn't already inferable from its summary.
-  for (const req of ["summary", "status"]) {
-    if (!fm[req]) throw new Error(`${file}: frontmatter missing "${req}"`);
-  }
+  // summary is required; read_when, kind, and status are optional overrides on
+  // defaults (no trigger, no kind, status = current/active).
+  if (!fm.summary) throw new Error(`${file}: frontmatter missing "summary"`);
   return fm;
 }
 
@@ -125,12 +125,13 @@ function renderIndex(entries) {
   if (entries.length === 0) return "_(none yet)_";
   return entries
     .map((e) => {
-      // read_when is optional; only docs with a non-obvious trigger carry one.
-      // kind is optional too — the need the doc serves (reference, explanation,
-      // how-to, tutorial), orthogonal to status; it renders when present.
+      // read_when and kind are optional; status is authored only when it differs
+      // from the default current state. The parenthetical renders when either a
+      // status or a kind is present.
       const trigger = e.read_when ? ` _${e.read_when}_` : "";
-      const kind = e.kind ? `, ${e.kind}` : "";
-      return `- **[${e.slug}](./${e.file})** _(${e.status}${kind})._ ${e.summary}${trigger}`;
+      const state = [e.status, e.kind].filter(Boolean).join(", ");
+      const position = state ? ` _(${state})._` : "";
+      return `- **[${e.slug}](./${e.file})**${position} ${e.summary}${trigger}`;
     })
     .join("\n");
 }
@@ -187,8 +188,9 @@ function renderContainer(entries) {
   return entries
     .map((e) => {
       const trigger = e.read_when ? ` _${e.read_when}_` : "";
-      const kind = e.kind ? `, ${e.kind}` : "";
-      return `- **[${e.label}](${e.link})** _(${e.status}${kind})._ ${e.summary}${trigger}`;
+      const state = [e.status, e.kind].filter(Boolean).join(", ");
+      const position = state ? ` _(${state})._` : "";
+      return `- **[${e.label}](${e.link})**${position} ${e.summary}${trigger}`;
     })
     .join("\n");
 }
@@ -366,7 +368,7 @@ function checkAllFrontmatter() {
   for (const path of markdownFiles(root)) {
     const file = relative(root, path);
     const frontmatter = parseFrontmatter(readFileSync(path, "utf8"), file);
-    if (!STATUSES.has(frontmatter.status)) {
+    if (frontmatter.status && !STATUSES.has(frontmatter.status)) {
       throw new Error(`${file}: unknown documentation status`);
     }
     if (frontmatter.kind && !KINDS.has(frontmatter.kind)) {

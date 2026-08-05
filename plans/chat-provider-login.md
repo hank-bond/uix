@@ -1,6 +1,5 @@
 ---
 summary: "Add chat-first provider connection UX over Pi's provider-owned ModelRuntime auth flows, followed by a no-model onboarding takeover and ordinary model-selection handoff."
-status: active
 ---
 
 # Chat provider login

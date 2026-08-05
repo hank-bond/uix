@@ -1,7 +1,6 @@
 ---
 summary: "Add a surface to a feature: author an entry with defineSurface, bind a channel contract, and mount it in the workspace."
 kind: how-to
-status: active
 read_when: "Read when adding a surface to a feature, or when asked to add a surface."
 ---
 

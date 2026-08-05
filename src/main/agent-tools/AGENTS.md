@@ -1,6 +1,5 @@
 ---
 summary: "Agent tools give each feature safe Pi tool names, reject duplicates, and install the accepted tools for each agent runtime."
-status: active
 ---
 
 # Agent tools

@@ -1,6 +1,5 @@
 ---
 summary: "The feature runtime loads the workspace's chosen features, isolates failed activations, builds their renderer surfaces, and scaffolds bare editable workspaces."
-status: active
 ---
 
 # Feature runtime

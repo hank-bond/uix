@@ -2,7 +2,6 @@
 name: canvas-authoring
 description: Builds and edits UIX Canvas documents as interactive, stateful HTML shared with the human. Use whenever creating or substantially changing a canvas with canvas__anchor_write or canvas__anchor_edit.
 summary: "Authoring guidance for interactive, stateful UIX Canvas HTML, including persisted DOM state and user-triggered Agent prompts."
-status: active
 ---
 
 # Canvas authoring

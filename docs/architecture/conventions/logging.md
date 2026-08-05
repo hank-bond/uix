@@ -2,7 +2,6 @@
 summary: "Main-process logging uses component-scoped structured pino loggers with stable event identifiers, fields, levels, and error conventions."
 kind: reference
 read_when: "Read before adding or changing main-process logs, event identifiers, log fields, levels, or error reporting."
-status: active
 ---
 
 # Logging

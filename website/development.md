@@ -2,7 +2,6 @@
 summary: "Preview the site by opening index.html over file:// (the scroll animation works there) and test reduced motion via DevTools rendering emulation. Run npm install once in the worktree so the pre-commit hook (Prettier + docs:index) works."
 kind: how-to
 read_when: "Read before previewing, testing, or committing changes to the site."
-status: active
 ---
 
 # Development

@@ -1,7 +1,6 @@
 ---
 summary: "UIX controls vocabulary by giving each word one role: keep single-meaning words, reserve domain terms, and retire overloaded words in favor of precise alternatives."
 kind: reference
-status: active
 read_when: "Read before introducing a recurring word, reviewing wording in comments or docs, or extending the controlled lexicon."
 ---
 

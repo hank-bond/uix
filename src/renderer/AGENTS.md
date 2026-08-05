@@ -1,6 +1,5 @@
 ---
 summary: "The renderer runs two shell pages, the workspace window and the start picker, over the preload channel transport."
-status: active
 ---
 
 # Renderer shell
@@ -17,8 +16,8 @@ The renderer is the host's two Electron pages. The start picker page (`picker/`)
 
 ### Directories
 
-- **[picker/](./picker/AGENTS.md)** _(active)._ The start picker page lists recent workspaces and creates new ones before any workspace window opens.
-- **[workspace/](./workspace/AGENTS.md)** _(active)._ The workspace subsystem hosts runtime surfaces and owns session, action, and keybinding state in the renderer.
+- **[picker/](./picker/AGENTS.md)** The start picker page lists recent workspaces and creates new ones before any workspace window opens.
+- **[workspace/](./workspace/AGENTS.md)** The workspace subsystem hosts runtime surfaces and owns session, action, and keybinding state in the renderer.
 
 ### Source files
 

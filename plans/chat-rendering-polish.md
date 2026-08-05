@@ -1,6 +1,5 @@
 ---
 summary: "Improve Chat in seven review-gated units: block framing, Markdown and syntax highlighting, file-tool rendering, a description-bearing command tool, streamed/collapsible thinking, thinking-effort control, performance, and documentation."
-status: active
 ---
 
 # Chat rendering polish

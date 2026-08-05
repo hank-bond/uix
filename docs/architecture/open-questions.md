@@ -1,7 +1,6 @@
 ---
 summary: "Parking lot for named but unresolved questions across the UIX substrate, documentation, and future apps."
 kind: reference
-status: active
 ---
 
 # Open questions

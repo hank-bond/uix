@@ -1,6 +1,5 @@
 ---
 summary: "The chat block tree renders transcript items by kind inside one shared frame, with content and tool subtrees."
-status: active
 ---
 
 # Chat blocks
@@ -17,8 +16,8 @@ The `content/` subtree renders block bodies: markdown, highlighted source, and p
 
 ### Directories
 
-- **[content/](./content/AGENTS.md)** _(active)._ The block content subtree renders markdown, highlighted source text, and plain code blocks.
-- **[tool/](./tool/AGENTS.md)** _(active)._ The tool block subtree derives per-tool chat presentations and renders them through tool-specific content components.
+- **[content/](./content/AGENTS.md)** The block content subtree renders markdown, highlighted source text, and plain code blocks.
+- **[tool/](./tool/AGENTS.md)** The tool block subtree derives per-tool chat presentations and renders them through tool-specific content components.
 
 ### Source files
 

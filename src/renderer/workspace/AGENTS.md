@@ -1,6 +1,5 @@
 ---
 summary: "The workspace subsystem hosts runtime surfaces and owns session, action, and keybinding state in the renderer."
-status: active
 ---
 
 # Workspace subsystem

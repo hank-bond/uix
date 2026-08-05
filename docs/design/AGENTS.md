@@ -1,6 +1,5 @@
 ---
 summary: "Living design threads combine mutable synthesis with append-only logs of options, tradeoffs, and rejected alternatives."
-status: active
 ---
 
 # Design notes

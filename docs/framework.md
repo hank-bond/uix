@@ -1,7 +1,6 @@
 ---
 summary: "UIX documentation separates reader need, agent memory, readership, meta-level, lifecycle, and evolution into independent organizing axes."
 kind: explanation
-status: active
 read_when: "Read before proposing a change to the documentation structure (the how), or when the how has a gap."
 ---
 
@@ -59,7 +58,7 @@ Diátaxis applies after information earns a discrete document. It does not force
 
 ### Lifecycle
 
-The lifecycle axis marks maturity over time: a design note distills into a decision, a decision into a plan, and a plan into architecture. Each step is more settled than the last. The `status` field records the position: exploring, resolved, accepted, active, superseded, or archived.
+The lifecycle axis marks maturity over time: a design note distills into a decision, a decision into a plan, and a plan into architecture. Each step is more settled than the last. The `status` field records the position only when it differs from the default current state: exploring, resolved, accepted, landed, archived, stub, or superseded. Documents without a lifecycle — each `AGENTS.md`, evergreen reference and how-to docs — omit the field.
 
 Lifecycle is orthogonal to kind: a document has both a need and a maturity.
 

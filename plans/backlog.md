@@ -1,6 +1,5 @@
 ---
 summary: "Compact seeds for planned UIX deliverables that need enough context to be actionable but aren't standalone specs yet."
-status: active
 ---
 
 # Backlog

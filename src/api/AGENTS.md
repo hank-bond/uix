@@ -1,6 +1,5 @@
 ---
 summary: "The `@uix/api` boundary holds the author contracts that features import and the substrate implements."
-status: active
 ---
 
 # Author contracts

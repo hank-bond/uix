@@ -1,7 +1,6 @@
 ---
 summary: "Add a feature to a workspace: author the entry with defineFeature, declare it in uix.workspace.json, and reload."
 kind: how-to
-status: active
 read_when: "Read when adding a feature to a workspace, or when asked to add a feature."
 ---
 

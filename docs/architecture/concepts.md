@@ -1,7 +1,6 @@
 ---
 summary: "Canonical UIX vocabulary for feature lifecycles, contributions, state roles, runtime coordination, and boundaries from Pi terminology."
 kind: reference
-status: active
 ---
 
 # Concept vocabulary

@@ -2,7 +2,6 @@
 summary: "UIX code expresses stable domain guarantees through canonical identifier grammar, indexable file summaries, caller-facing JSDoc, and risk-based why-comments."
 kind: reference
 read_when: "Read before introducing or renaming symbols, recurring vocabulary, projections, predicates, source-file summaries, or explanatory comments."
-status: active
 ---
 
 # Naming and comments

@@ -1,7 +1,6 @@
 ---
 summary: "Place code-related knowledge at its narrowest owner and author discrete documents through retrieval units, frontmatter, generated indexes, writing profiles, conventions, and living design threads."
 kind: how-to
-status: active
 ---
 
 # Contributing to the docs
@@ -103,14 +102,15 @@ The filename already carries the slug (and, for decisions, the date), so frontma
 ---
 summary: "What this document establishes: its thesis, not its topic."
 read_when: "Read before {ACTIVITY} when the trigger is not obvious from the summary." # optional
-status: accepted | exploring | resolved | active | landed | archived | stub | superseded
+status: accepted | exploring | resolved | landed | archived | stub | superseded # optional override
 ---
 ```
 
-One rule governs both fields: **don't duplicate what's already in the reader's context when they read the field.** The slug is in the link, the category is in the directory, and the summary sits next to `read_when` once the index is in scope. Restating any of those wastes the line.
+One rule governs the fields: **don't duplicate what's already in the reader's context when they read the field.** The slug is in the link, the category is in the directory, and the summary sits next to `read_when` once the index is in scope. Restating any of those wastes the line.
 
 - **`summary` (required):** The document's _recall surface_. An agent scans it to decide whether the document is relevant. It states the thesis rather than the topic. Summarize the body, but optimize for first-read understanding rather than maximum compression. Prefer concrete actors and actions over stacked modifiers or abstract nouns. Use enough plain language to make the sentence readable without opening the document, and keep specialized terms only when they preserve an important distinction. Make each summary findable by concept and distinct from siblings. Interchangeable sibling summaries indicate a boundary problem.
 - **`read_when` (optional):** The _external trigger_ that adds precision. Author it only when the summary does not reveal why to open the document:
+- **`status` (optional):** The lifecycle position when it differs from the default _current_ state. Omit it on documents without a lifecycle (each `AGENTS.md`, evergreen reference and how-to docs). Author it only on lifecycle layers: decisions (`accepted`, `superseded`, `archived`), design threads (`exploring`, `resolved`), and plans (`stub`, `landed`, `archived`).
 - A **cross-vocabulary** trigger: the task is phrased in words the thesis doesn't use.
 - A **preventive** one: read before starting down a path the doc constrains.
 - A **counterintuitive** trigger: The document rejects an obvious path. Omit a trigger that only repeats the subject because it adds no retrieval value.

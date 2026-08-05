@@ -1,7 +1,6 @@
 ---
 summary: "UIX documentation uses concise current-state prose, retrieval-oriented structure, consistent Markdown, and mechanically enforced vocabulary."
 kind: reference
-status: active
 ---
 
 # Doc style guide

@@ -1,6 +1,5 @@
 ---
 summary: "The start picker page lists recent workspaces and creates new ones before any workspace window opens."
-status: active
 ---
 
 # Start picker

@@ -1,7 +1,6 @@
 ---
 summary: "Design principles guide planning and review when shaping UIX features, state ownership, rollback, defaults, and public APIs."
 kind: reference
-status: active
 ---
 
 # Design principles

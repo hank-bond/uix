@@ -1,6 +1,5 @@
 ---
 summary: "The chat workspace renders the agent transcript, composer, and status bar over the agent channels, with model and provider controls."
-status: active
 ---
 
 # Chat workspace
@@ -19,7 +18,7 @@ The status bar composes the session and model pills. The model pill opens the mo
 
 ### Directories
 
-- **[blocks/](./blocks/AGENTS.md)** _(active)._ The chat block tree renders transcript items by kind inside one shared frame, with content and tool subtrees.
+- **[blocks/](./blocks/AGENTS.md)** The chat block tree renders transcript items by kind inside one shared frame, with content and tool subtrees.
 
 ### Source files
 

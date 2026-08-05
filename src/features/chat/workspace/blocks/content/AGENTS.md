@@ -1,6 +1,5 @@
 ---
 summary: "The block content subtree renders markdown, highlighted source text, and plain code blocks."
-status: active
 ---
 
 # Block content

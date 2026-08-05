@@ -1,7 +1,6 @@
 ---
 summary: "The inline SVG brandmark morphs persistent named parts on one timeline and stays crisp through whole-pixel transforms."
 kind: reference
-status: active
 ---
 
 # The brandmark

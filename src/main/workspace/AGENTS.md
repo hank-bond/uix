@@ -1,6 +1,5 @@
 ---
 summary: "Workspace runtime code finds the manifest, keeps workspace and feature settings in sync, and coordinates safe reloads of features and Pi resources."
-status: active
 ---
 
 # Workspace runtime

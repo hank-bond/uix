@@ -2,7 +2,6 @@
 summary: "User interfaces preserve equivalent visual, keyboard, and accessibility meaning while component styles retain explicit ownership and cascade order."
 kind: reference
 read_when: "Read before creating or changing interactive UI, accessibility behavior, component stylesheets, or surface CSS composition."
-status: active
 ---
 
 # User interface

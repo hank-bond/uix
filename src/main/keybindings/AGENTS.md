@@ -1,6 +1,5 @@
 ---
 summary: "Main-process keybindings assemble renderer defaults with persisted workspace overrides and publish the resulting bindings."
-status: active
 ---
 
 # Keybindings

@@ -1,6 +1,5 @@
 ---
 summary: "Make frontend frameworks a feature choice rather than a UIX requirement in five post-alpha stages. Settle the minimal DOM/ESM boundary, land and prove neutral surface mounting, and migrate framework ownership into features. Then replace the workspace shell, replace the independent picker, and finish the public contract."
-status: active
 ---
 
 # Framework-neutral surfaces and shell

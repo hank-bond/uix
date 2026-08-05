@@ -1,6 +1,5 @@
 ---
 summary: "Establish publisher-qualified public protocols, optional typed provider/client routing, substrate-owned document resources, and framework-neutral resource-viewer registration in review-gated units. Remaining identity, distribution, selection, document, and transport details are settled before implementation."
-status: active
 ---
 
 # Cross-feature capabilities and resource viewing

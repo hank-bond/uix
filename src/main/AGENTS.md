@@ -1,6 +1,5 @@
 ---
 summary: "The Electron main process starts the app, opens one workspace, connects its features to Pi, and owns their runtime lifetimes."
-status: active
 ---
 
 # Main process
@@ -19,12 +18,12 @@ IPC remains a transport boundary rather than a feature contract boundary. Shared
 
 ### Directories
 
-- **[agent/](./agent/AGENTS.md)** _(active)._ The agent runtime opens Pi sessions, handles models and provider sign-in, restores feature state, and keeps the renderer's transcript current.
-- **[agent-context/](./agent-context/AGENTS.md)** _(active)._ Agent context assembles feature-provided state into structured messages that Pi sends to the model before a run.
-- **[agent-tools/](./agent-tools/AGENTS.md)** _(active)._ Agent tools give each feature safe Pi tool names, reject duplicates, and install the accepted tools for each agent runtime.
-- **[features/](./features/AGENTS.md)** _(active)._ The feature runtime loads the workspace's chosen features, isolates failed activations, builds their renderer surfaces, and scaffolds bare editable workspaces.
-- **[keybindings/](./keybindings/AGENTS.md)** _(active)._ Main-process keybindings assemble renderer defaults with persisted workspace overrides and publish the resulting bindings.
-- **[workspace/](./workspace/AGENTS.md)** _(active)._ Workspace runtime code finds the manifest, keeps workspace and feature settings in sync, and coordinates safe reloads of features and Pi resources.
+- **[agent/](./agent/AGENTS.md)** The agent runtime opens Pi sessions, handles models and provider sign-in, restores feature state, and keeps the renderer's transcript current.
+- **[agent-context/](./agent-context/AGENTS.md)** Agent context assembles feature-provided state into structured messages that Pi sends to the model before a run.
+- **[agent-tools/](./agent-tools/AGENTS.md)** Agent tools give each feature safe Pi tool names, reject duplicates, and install the accepted tools for each agent runtime.
+- **[features/](./features/AGENTS.md)** The feature runtime loads the workspace's chosen features, isolates failed activations, builds their renderer surfaces, and scaffolds bare editable workspaces.
+- **[keybindings/](./keybindings/AGENTS.md)** Main-process keybindings assemble renderer defaults with persisted workspace overrides and publish the resulting bindings.
+- **[workspace/](./workspace/AGENTS.md)** Workspace runtime code finds the manifest, keeps workspace and feature settings in sync, and coordinates safe reloads of features and Pi resources.
 
 ### Source files
 

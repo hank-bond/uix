@@ -1,6 +1,5 @@
 ---
 summary: "Write-once dated UIX architecture decisions record settled conclusions and rationale for later plans, code, and reference documentation."
-status: active
 ---
 
 # Decisions

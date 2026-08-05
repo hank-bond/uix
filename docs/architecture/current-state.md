@@ -1,7 +1,6 @@
 ---
 summary: "Architecture record for the implemented UIX shell, feature runtime, workspace renderer, state services, agent integration, and first-party features."
 kind: reference
-status: active
 ---
 
 # Current state

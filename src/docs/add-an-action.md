@@ -1,7 +1,6 @@
 ---
 summary: "Add an action to a feature: register a nested action tree with useActionContribution and invoke it from a surface."
 kind: how-to
-status: active
 read_when: "Read when adding an action to a feature, or when asked to add an action."
 ---
 

@@ -1,7 +1,6 @@
 ---
 summary: "Add a resource to a feature: declare an address handle in shared code, contribute a handler, and create transport URLs and origins."
 kind: how-to
-status: active
 read_when: "Read when adding a resource to a feature, or when asked to add a resource."
 ---
 

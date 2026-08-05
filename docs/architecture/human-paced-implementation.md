@@ -2,7 +2,6 @@
 summary: "UIX implementation sessions align on design, build one small complete chunk, explain it, and wait for human approval before continuing."
 kind: how-to
 read_when: "Read before multi-step work whose design and implementation are evolving with a human."
-status: active
 ---
 
 # Human-paced implementation loop

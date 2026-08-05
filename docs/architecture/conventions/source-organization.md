@@ -2,7 +2,6 @@
 summary: "Source trees expose ownership and dependency direction through responsibility-named files, deliberate entrypoints, explicit composition, and nearest-owner sharing."
 kind: reference
 read_when: "Read before adding or moving source directories, introducing an index or barrel, extracting shared code, or reorganizing an implementation tree."
-status: active
 ---
 
 # Source organization

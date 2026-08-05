@@ -2,7 +2,6 @@
 summary: "styles.css is ordered tokens→reset→a11y→base→motion→keyframes, with the load-bearing rule that ALL motion lives inside the prefers-reduced-motion:no-preference block, so the static version is the base. Sizes and the dock's scroll timeline are tuned via :root knobs, and named scroll/view timelines are element-scoped."
 kind: reference
 read_when: "Read before adding or changing any animation, timeline, or :root sizing or timing variable in styles.css."
-status: active
 ---
 
 # CSS architecture and tuning

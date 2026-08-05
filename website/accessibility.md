@@ -1,7 +1,6 @@
 ---
 summary: "Reduced motion is a primary path with semantic structure, hidden decorative content, operable controls, and no translation, scaling, or parallax."
 kind: reference
-status: active
 ---
 
 # Accessibility stance

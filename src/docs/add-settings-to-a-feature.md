@@ -1,7 +1,6 @@
 ---
 summary: "Add settings to a feature: declare a shared schema and default, read and write through ctx.settings, and consume them from a surface."
 kind: how-to
-status: active
 read_when: "Read when adding settings to a feature, or when asked to add settings to a feature."
 ---
 

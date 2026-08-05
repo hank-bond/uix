@@ -1,6 +1,5 @@
 ---
 summary: "The agent runtime opens Pi sessions, handles models and provider sign-in, restores feature state, and keeps the renderer's transcript current."
-status: active
 ---
 
 # Agent runtime
