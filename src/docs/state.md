@@ -14,7 +14,7 @@ Feature-scoped durable preferences live on their feature entries in `uix.workspa
 
 The substrate owns top-level `agent`, `session`, and `keybindings` settings namespaces. Features cannot request handles to these workspace scopes.
 
-See [`settings.md`](./settings.md) for schemas, defaults, validation, and persistence.
+See [`how-to/add-settings-to-a-feature.md`](./how-to/add-settings-to-a-feature.md) for schemas, defaults, validation, and persistence.
 
 ## Pi profile and sessions
 

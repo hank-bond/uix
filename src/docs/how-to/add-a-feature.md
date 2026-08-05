@@ -93,7 +93,7 @@ export const feature = defineFeature({
 });
 ```
 
-The [`Canvas` feature](../../../src/features/canvas/backend/contributions/index.ts) is the real-world version of exactly this shape. Each facet is documented in its sibling how-to:
+The [`Canvas` feature](../../../src/features/canvas/backend/contributions/index.ts) is the real-world version of exactly this shape. A backend-only feature can omit `surfaces` without occupying workspace layout. Each facet is documented in its sibling how-to:
 
 - [`add-a-channel.md`](./add-a-channel.md), `channels` + `ctx.channels.createPublisher(...)`
 - [`add-a-resource.md`](./add-a-resource.md), `resources` via `createResourceAddressHandle(...)`
@@ -102,38 +102,7 @@ The [`Canvas` feature](../../../src/features/canvas/backend/contributions/index.
 
 ## Settings
 
-Declare a settings schema in shared code with `defineSettings(...)` so both backend and surface get the same types, defaults, and validation. `defineFeature` carries it into `ctx.settings`, deriving key-specific get/set/listen:
-
-```ts
-// features/notes/shared/settings.ts
-import { defineSettings } from "@uix/api/settings";
-import { Type } from "typebox";
-
-export const notesSettings = defineSettings({
-  schema: Type.Object({
-    maxNotes: Type.Number(),
-  }),
-  default: { maxNotes: 100 },
-});
-```
-
-```ts
-// features/notes/index.ts
-import { defineFeature } from "@uix/api/feature";
-import { notesSettings } from "./shared/settings";
-
-export const feature = defineFeature({
-  id: "notes",
-  settings: notesSettings,
-  contribute(ctx) {
-    const max = ctx.settings.get("maxNotes");
-    ctx.settings.onChange("maxNotes", (next) => /* ... */);
-    return {};
-  },
-});
-```
-
-Settings persist on the feature's manifest entry (not a top-level map). The substrate hydrates the whole-object default, validates the completed scope, and materializes missing values. Defaults are persisted, not a runtime fallback layer. See [`src/api/settings.ts`](../../../src/api/settings.ts) and [`add-a-channel.md`](./add-a-channel.md) for the surface-side `useFeatureSetting(...)` hook.
+Declare a settings schema in shared code so backend and surface get the same types, defaults, and validation. `defineFeature` carries it into `ctx.settings`, deriving key-specific get/set/listen. See [`add-settings-to-a-feature.md`](./add-settings-to-a-feature.md) for the full workflow.
 
 ## Channels
 

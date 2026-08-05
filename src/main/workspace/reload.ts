@@ -1,4 +1,6 @@
 // Runs one workspace reload at a time across feature activation, Pi resources, restored state, and renderer notification.
+//
+// Reload first commits turn state after restoration settles, or skips that commit when restoration is still pending. It stages and validates one manifest generation before promotion, then disposes the active composition and activates replacements. Reload requests serialize, and a successful reload gives disk precedence over pending debounced in-memory settings. Malformed manifests or workspace settings fail before promotion, so the active composition remains intact.
 
 interface WorkspaceReloadCoordinatorOptions<TFeatureActivation> {
   commitTurnState: () => Promise<boolean>;

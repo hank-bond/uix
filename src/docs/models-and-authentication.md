@@ -69,4 +69,4 @@ Authentication answers, URLs, codes, and flow snapshots use channel logging desc
 
 Chat renders every provider interaction through one generic panel. Closing the modal leaves the backend flow active, and reopening restores its snapshot.
 
-See [`how-to/add-a-channel.md`](./how-to/add-a-channel.md) for payload-description rules and [`settings.md`](./settings.md) for model defaults and favorites.
+See [`how-to/add-a-channel.md`](./how-to/add-a-channel.md) for payload-description rules and [`settings.ts`](../../src/main/agent/settings.ts) for model defaults and favorites.

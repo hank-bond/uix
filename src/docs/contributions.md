@@ -87,4 +87,4 @@ Feature authors do not receive the bag directly. The substrate registration path
 
 There is no command-palette contribution API today.
 
-See [`features.md`](./features.md) and [`lifetimes.md`](./lifetimes.md).
+See [`how-to/add-a-feature.md`](./how-to/add-a-feature.md) and [`lifetimes.md`](./lifetimes.md).

@@ -5,7 +5,7 @@ status: landed
 
 # Spec: workspace settings
 
-> **Landed.** The settings substrate ships and is documented in [`settings.md`](../../src/docs/settings.md). Future tracked document publication remains in [`backlog.md`](../backlog.md).
+> **Landed.** The settings substrate ships and is documented in [`add-settings-to-a-feature.md`](../../src/docs/how-to/add-settings-to-a-feature.md). Future tracked document publication remains in [`backlog.md`](../backlog.md).
 
 The immediate need is durable workspace/feature settings, not a public arbitrary file-watching primitive. StatusBar layout in [agent-controls](./agent-controls.md) needs cross-session feature-scoped settings that are visible and agent-editable as ordinary workspace data. If the agent or a human edits `uix.workspace.json` while UIX is running, the user runs `/reload` to pick it up.
 

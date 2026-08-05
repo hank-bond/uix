@@ -19,5 +19,7 @@ Reference facts live in the `@uix/api` contracts and source summaries. These pag
 - **[add-a-feature](./add-a-feature.md)** _(active, how-to)._ Add a feature to a workspace: author the entry with defineFeature, declare it in uix.workspace.json, and reload. _Read when adding a feature to a workspace, or when asked to add a feature._
 - **[add-a-resource](./add-a-resource.md)** _(active, how-to)._ Add a resource to a feature: declare an address handle in shared code, contribute a handler, and create transport URLs and origins. _Read when adding a resource to a feature, or when asked to add a resource._
 - **[add-a-surface](./add-a-surface.md)** _(active, how-to)._ Add a surface to a feature: author an entry with defineSurface, bind a channel contract, and mount it in the workspace. _Read when adding a surface to a feature, or when asked to add a surface._
+- **[add-an-action](./add-an-action.md)** _(active, how-to)._ Add an action to a feature: register a nested action tree with useActionContribution and invoke it from a surface. _Read when adding an action to a feature, or when asked to add an action._
+- **[add-settings-to-a-feature](./add-settings-to-a-feature.md)** _(active, how-to)._ Add settings to a feature: declare a shared schema and default, read and write through ctx.settings, and consume them from a surface. _Read when adding settings to a feature, or when asked to add settings to a feature._
 
 <!-- INDEX:END -->
