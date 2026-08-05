@@ -96,4 +96,4 @@ Every mounted surface receives these scoped services as needed:
 
 A surface does not receive Electron, main-process registries, another feature's settings handle, or arbitrary backend owners.
 
-See [`channels.md`](./channels.md), [`settings.md`](./settings.md), and [`actions.md`](./actions.md) for these services.
+See [`how-to/add-a-channel.md`](./how-to/add-a-channel.md), [`settings.md`](./settings.md), and [`actions.md`](./actions.md) for these services.

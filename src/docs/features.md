@@ -77,7 +77,7 @@ interface FeatureDefinition {
 
 UIX starts Pi without active built-in tools. The reference `workspace_tools` feature contributes reason-bearing `read`, `write`, and `command` tools plus passthrough `edit`.
 
-Bare workspace scaffolding instead copies editable passthrough `read`, `write`, `edit`, and `bash` source. See [`contributions.md`](./contributions.md), [`channels.md`](./channels.md), [`settings.md`](./settings.md), and [`lifetimes.md`](./lifetimes.md).
+Bare workspace scaffolding instead copies editable passthrough `read`, `write`, `edit`, and `bash` source. See [`contributions.md`](./contributions.md), [`how-to/add-a-channel.md`](./how-to/add-a-channel.md), [`settings.md`](./settings.md), and [`lifetimes.md`](./lifetimes.md).
 
 ## Reload
 

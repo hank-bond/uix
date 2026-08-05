@@ -370,6 +370,8 @@ Current projections apply the axes as follows:
 
 ## Comments
 
+Every comment answers one of two questions. A line comment answers why the code exists as written: which hidden constraint, external quirk, side effect, or optimization it mitigates. JSDoc answers how to integrate the code correctly: preconditions, lifetimes, ownership, ordering, errors, defaults, and direct examples a caller needs. A how-to carries the second question at workflow scale, joining several exports into one task, and links to JSDoc rather than restating it. A comment that answers neither question narrates what the code already shows.
+
 **Rule:** Outside the required source-file header, a comment explains why code exists or records a non-obvious caller or implementation constraint. It does not narrate syntax. Names carry the stable domain operation.
 
 Behavioral comments may carry preconditions, skipped outcomes, asynchronous ordering, and race policy. Do not encode those volatile details in a symbol tied to one lifecycle use.
@@ -392,7 +394,7 @@ Use the exact `Update when:` label, followed by one observable condition and the
 
 Before the condition occurs, the marker creates no pending work. Do not use it for speculative refactors, generic TODOs, preferences, plan stages, or ticket ids. Do not link a code marker to a plan. Its validity boundary must remain understandable after planning artifacts archive.
 
-**What earns a comment:** Add a warning or explanation that code cannot carry itself. Examples include load-bearing order, external format tolerance, and hidden ownership constraints. Each should prevent a plausible wrong assumption.
+**What earns a comment:** Add a warning or explanation that code cannot carry itself. Examples include load-bearing order, external format tolerance, hidden ownership constraints, and non-obvious side effects or optimizations. Each should prevent a plausible wrong assumption.
 
 **Source-file headers:** Every indexed authored production TypeScript and JavaScript file starts with one `//` summary sentence. Every indexed authored production CSS file starts with one single-line `/* */` summary. Every indexed authored production HTML file starts with one single-line `<!-- -->` summary. The summary is physically the first line, without exceptions. The header is the summary plus at most one `//` elaboration paragraph, whose length scales with the file's size.
 

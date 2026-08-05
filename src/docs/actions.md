@@ -75,4 +75,4 @@ The public workspace API does not yet expose whole-map binding replacement. Huma
 
 Substrate action `uix.session.new` defaults to `mod+n`. Chat contributes actions that open its model picker in specific scopes.
 
-See [`settings.md`](./settings.md) for durable keybindings and [`channels.md`](./channels.md) for backend action composition.
+See [`settings.md`](./settings.md) for durable keybindings and [`how-to/add-a-channel.md`](./how-to/add-a-channel.md) for backend action composition.

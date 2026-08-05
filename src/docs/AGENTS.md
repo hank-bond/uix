@@ -20,7 +20,6 @@ Pages marked _(stub)_ are in progress. Each document also has a _kind_. Referenc
 - **[actions](./actions.md)** _(active, reference)._ Feature surfaces register renderer action trees. The workspace derives catalogs, invokes ids, materializes defaults, and disables conflicted keybindings.
 - **[agent-context](./agent-context.md)** _(active, reference)._ Features supply stable prompt sections, Pi skills, branch-scoped turn state, and hidden model-visible agent context through separate contribution facets.
 - **[agent](./agent.md)** _(active, reference)._ UIX owns a lazy Pi runtime, exposes it through substrate channels, and installs manifest-composed agent facets without ambient built-in tools.
-- **[channels](./channels.md)** _(active, reference)._ Shared ChannelContract values derive validated backend handlers, feature-bound event publishers, and typed workspace request and event clients.
 - **[contributions](./contributions.md)** _(active, reference)._ FeatureDefinition.contribute returns feature-owned resource, channel, agent, state, context, and surface facets under reload-scoped lifetimes.
 - **[features](./features.md)** _(active, reference)._ Manifest-listed trusted TypeScript or JavaScript entries export settings-typed feature definitions that Jiti loads through reload-scoped @uix/api wiring.
 - **[how-to/](./how-to/AGENTS.md)** _(active)._ Task-focused feature-authoring guides for implementing UIX applications, colocated with the framework and findable by the agents and builders who use it.
