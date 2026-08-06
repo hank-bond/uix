@@ -4,7 +4,7 @@ summary: "Repository-level documentation holds cross-boundary architecture, work
 
 # Repository documentation
 
-This tree owns documentation whose scope crosses one source ownership boundary. It records UIX's shape, decisions, constraints, and broader workflows. Source-coupled guidance belongs beside its owning code under the model in [`document-authoring.md`](./contributing/document-authoring.md).
+This tree owns documentation whose scope crosses one source ownership boundary. It records UIX's shape, decisions, constraints, and broader workflows. Source-coupled guidance belongs beside its owning code under the placement practice in [`knowledge-placement.md`](./contributing/knowledge-placement.md).
 
 Active build specs live in [`AGENTS.md`](../plans/AGENTS.md), and the user-facing implementation guides live in [`AGENTS.md`](../src/docs/AGENTS.md).
 
@@ -23,14 +23,14 @@ The records distill through _design note → decision → plan → architecture_
 
 ## Document kinds
 
-Each indexed document has a _kind_: reference, explanation, how-to, or tutorial. The kind describes the need that the document serves and remains independent from lifecycle status. Plans carry no kind. [`documentation-model.md`](./contributing/documentation-model.md) explains this shape, and [`document-authoring.md`](./contributing/document-authoring.md) defines the authoring practice.
+Each indexed document has a _kind_: reference, explanation, how-to, or tutorial. The kind describes the need that the document serves and remains independent from lifecycle status. Plans carry no kind. [`documentation-model.md`](./contributing/documentation-model.md) explains this shape, and [`AGENTS.md`](./contributing/AGENTS.md) routes the authoring practice.
 
 <!-- INDEX:START -->
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
 - **[architecture/](./architecture/AGENTS.md)** Living architecture records for implemented subsystem shape, code conventions, design principles, and open questions at HEAD.
-- **[contributing/](./contributing/AGENTS.md)** Documentation contribution practice connects the repository's authoring rules, prose style, and structural model.
+- **[contributing/](./contributing/AGENTS.md)** Documentation contribution practice prioritizes conceptual clarity, human reviewability, durable ownership, explicit routing, and consistent prose.
 - **[decisions/](./decisions/AGENTS.md)** Write-once dated UIX architecture decisions record settled conclusions and rationale for later plans, code, and reference documentation.
 - **[design/](./design/AGENTS.md)** Living design threads combine mutable synthesis with append-only logs of options, tradeoffs, and rejected alternatives.
 

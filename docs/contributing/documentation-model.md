@@ -1,23 +1,23 @@
 ---
-summary: "UIX documentation separates reader need, agent memory, readership, meta-level, lifecycle, and evolution into independent organizing axes."
+summary: "UIX documentation separates reader need, agent memory, readership, meta-level, lifecycle, and evolution while treating conceptual clarity and human maintenance as boundary constraints."
 kind: explanation
-read_when: "Read before proposing a change to the documentation structure (the how), or when the how has a gap."
+read_when: "Read before proposing a change to the documentation structure or when the contribution practice has a gap."
 ---
 
 # Documentation model
 
-This page explains why UIX documentation is structured the way it is. The structure combines the Diátaxis need taxonomy with two requirements specific to UIX. It must serve agents that have no memory across sessions, and it must stay coherent as it evolves, through a formal loop. The same structure applies to the UIX wiki and to app wikis. The practice of authoring and maintaining the structure lives in [`document-authoring.md`](./document-authoring.md).
+This page explains why UIX documentation is structured the way it is. The structure combines the Diátaxis need taxonomy with requirements specific to UIX. Humans must be able to maintain a coherent body of knowledge. Agents must recover the relevant parts without memory across sessions. The same structure applies to the UIX wiki and to app wikis. [`AGENTS.md`](./AGENTS.md) routes the practice for authoring and maintaining it.
 
 ## The axes
 
-Six axes shape the documentation, and each answers a different question about a piece of content: a document occupies one position on each axis. Keep the axes separate. Treating a lifecycle position as a kind, or a delivery tier as a readership, causes organizational confusion.
+Six axes shape the documentation, and each answers a different question about a piece of content. A document occupies one position on each axis. Keep the axes separate. Treating a lifecycle position as a kind, or a delivery tier as a readership, causes organizational confusion.
 
 ### Need
 
 The need axis comes from Diátaxis and has two dimensions.
 
 - **Action or cognition:** Does the content tell the reader what to do, or inform what the reader knows?
-- **Acquisition or application:** Does the content serve the reader's study (acquiring skill), or the reader's work (applying skill)?
+- **Acquisition or application:** Does the content serve the reader's study, or the reader's work?
 
 The two dimensions produce four kinds.
 
@@ -26,56 +26,59 @@ The two dimensions produce four kinds.
 | **action**    | **tutorial:** a lesson         | **how-to:** a recipe |
 | **cognition** | **explanation:** understanding | **reference:** a map |
 
-Each indexed document carries a `kind` tag that names its quadrant, and classifying new content means applying the two questions. Do not blur quadrants: content that crosses a quadrant boundary serves neither need. Blur costs an agent more than a human, because an agent reads everything it receives at full token cost.
+Each indexed document carries a `kind` tag that names its quadrant. Content that crosses a quadrant boundary serves neither need clearly. Diátaxis classifies a discrete document after the repository has identified its durable owner and conceptual boundary.
 
 ### Memory
 
 Agents have no memory across sessions. A human may forget document details but still remember that a document exists. The documentation therefore uses three delivery tiers.
 
 - **Always loaded:** The root `AGENTS.md` orientation and top-level routing map, with an adjustable budget for nested ownership summaries.
-- **Routed indexes:** Lower `AGENTS.md` files, loaded only after a matching ownership route.
-- **On demand:** Source files and leaf documents fetched when their summary or trigger matches the task.
+- **Routed indexes:** Lower `AGENTS.md` files, loaded after a matching ownership route.
+- **On demand:** Source files and leaf documents fetched when their summaries or triggers match the task.
 
-Document frontmatter provides a `summary` recall surface and an optional `read_when` trigger. Source files provide one first-line responsibility summary. Generated indexes expose those summaries without copying complete descendants into every ancestor. Each traversal should fetch only the relevant path and leaves.
+Document frontmatter provides a summary recall surface and an optional external trigger. Source files provide one first-line responsibility summary. Generated indexes expose those summaries without copying complete descendants into every ancestor.
+
+These tiers optimize delivery, not document boundaries. A working agent may load a narrow retrieval set, while a review agent may load an entire documentation tree. Neither mode requires conceptually separate maintenance units to occupy one file.
 
 ### Readership
 
-Repository documentation primarily serves agents, while the user directs and reviews their work. Diátaxis classifies the reader's need rather than the reader's identity. Agents use every quadrant: tutorials for acquisition, how-tos for tasks, reference for lookup, and explanation when architectural judgment or external rationale affects implementation. Human-readable prose remains necessary because the user must understand and review the same constraints.
+Humans author, direct, and review the documentation, while agents retrieve and apply it. Human reviewability controls document boundaries because a human is the final arbiter of coherence. A document cannot remain reliable when its conceptual breadth exceeds what a reviewer can judge.
+
+Agents use every Diátaxis quadrant: tutorials for acquisition, how-tos for tasks, references for lookup, and explanations when architectural judgment or external rationale affects implementation. Plain, explicit prose serves both readers.
 
 ### Meta-level
 
 The documentation has three meta-levels.
 
 - **What:** The content of the documentation.
-- **How:** The rules for modifying the documentation. They live in [`document-authoring.md`](./document-authoring.md).
+- **How:** The contribution practice routed by [`AGENTS.md`](./AGENTS.md).
 - **Why:** The reasoning behind the documentation structure. This page.
 
-An agent needs the what to make code changes and the how to make structural documentation changes. It needs the why only when someone proposes a how-change or the how has a gap.
+An agent needs the what to make code changes and the how to modify documentation. It needs the why when someone proposes a structural change or the practice has a gap.
 
 Place code-related knowledge before classifying it by reader need. A contract owns its JSDoc, and an implementation site owns its why-comment. A file owns its responsibility header, while a source directory owns its boundary and coordination guidance. A local Markdown leaf can join several files under that owner. Repository documentation carries workflows, conventions, invariants, external context, and history that cross source ownership boundaries.
 
-Diátaxis applies after information earns a discrete document. It does not force source-coupled knowledge into Markdown or assign a kind to file summaries, comments, and routing indexes.
+A document is a conceptually coherent, human-reviewable maintenance unit. A task may assemble several documents into one retrieval or review set. Dependencies between units remain explicit, but retrieval cost does not decide their physical boundaries.
 
 ### Lifecycle
 
-The lifecycle axis marks maturity over time: a design note distills into a decision, a decision into a plan, and a plan into architecture. Each step is more settled than the last. The `status` field records the position only when it differs from the default current state: exploring, resolved, accepted, landed, archived, stub, or superseded. Documents without a lifecycle, such as each `AGENTS.md` and evergreen reference and how-to docs, omit the field.
+The lifecycle axis marks maturity over time: a design note distills into a decision, a decision into a plan, and a plan into architecture. Each step is more settled than the last. The `status` field records the position only when it differs from the default current state: exploring, resolved, accepted, landed, archived, stub, or superseded.
 
-Lifecycle is orthogonal to kind: a document has both a need and a maturity.
-
-Plans are the exception: they track the build rather than document it and carry no kind.
+Lifecycle is orthogonal to kind: a document has both a need and a maturity. Plans are the exception because they track the build rather than document it and carry no kind. Documents without a lifecycle, including `AGENTS.md` files and evergreen leaves, omit `status`.
 
 ### Evolution
 
-The documentation is living: a change to the code carries a documentation change that aligns future work. The evolution loop keeps the whole set coherent. It has five steps.
+The documentation is living: a change to the code carries a documentation change that aligns future work. The evolution loop keeps the whole set coherent.
 
-1. **Capture:** record the decision.
-2. **Distill:** place the normative residue where the agent acts on it.
-3. **Index:** regenerate the routing map in the same commit.
-4. **Project:** propagate the decision over space and time. Space means backporting to existing documentation and code. Time means guiding future work.
-5. **Verify:** confirm that the change complies and that nothing is stale.
+1. **Capture:** Record the decision.
+2. **Distill:** Place the normative residue where the agent acts on it.
+3. **Index:** Regenerate the routing map in the same commit.
+4. **Project:** Propagate the decision over space and time. Space means backporting to existing documentation and code. Time means guiding future work.
+5. **Verify:** Confirm that the change complies and that nothing is stale.
 
-A decision that is not propagated leaves the documentation inconsistent, because a memoryless agent reads both versions and blends them. Being wrong some of the time is worse than being wrong all the time.
+A decision that is not propagated leaves the documentation inconsistent because a memoryless agent reads both versions and blends them. Partial propagation is worse than one consistent account. A corpus-wide review can verify relationships that no single maintenance unit owns.
 
 ## Open sections
 
-- **Budget:** The admission test for what belongs in the always-loaded root. Placeholder to build together.
+- **Coordination routes:** Define a light form for edit-time dependencies between documents after real relationships emerge from the contribution split.
+- **Delivery budget:** Define admission and size discipline for the always-loaded root without using retrieval cost to shape leaf boundaries.
