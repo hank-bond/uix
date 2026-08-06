@@ -14,6 +14,7 @@
     "start": "electron-vite preview",
     "typecheck": "node_modules/tsc7/bin/tsc -p tsconfig.node.json --noEmit && node_modules/tsc7/bin/tsc -p tsconfig.web.json --noEmit",
     "lint": "eslint .",
+    "lint:cached": "eslint . --cache --cache-location node_modules/.cache/eslint/ --cache-strategy content",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

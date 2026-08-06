@@ -28,11 +28,12 @@ fi
 printf '%s\n' "$files" | xargs ./node_modules/.bin/prettier --write --ignore-unknown
 printf '%s\n' "$files" | xargs git add
 
-# Gate the commit on a clean lint when any JS/TS file is staged. The
-# type-aware rules need the full program anyway, so this is a repo-wide
-# lint of the working tree; a failure aborts the commit so un-linted
-# changes can't land. Mechanical failures (import order, formatting) are
-# fixed by running `npm run lint:fix` and re-staging.
+# Gate the commit on a clean lint when any JS/TS file is staged. Typed linting
+# still loads the full TypeScript program, while ESLint's content cache limits
+# rule work to changed files. `npm run lint` and `npm run check` remain the
+# uncached authoritative gates so type changes cannot hide failures in cached
+# dependents. Mechanical failures (import order, formatting) are fixed by
+# running `npm run lint:fix` and re-staging.
 if printf '%s\n' "$files" | grep -Eq '\.(ts|tsx|mts|cts|js|mjs|cjs)$'; then
-  npm run lint
+  npm run lint:cached
 fi
