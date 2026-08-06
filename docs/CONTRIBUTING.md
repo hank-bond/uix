@@ -147,7 +147,7 @@ Use **must**, **should**, and **may** only for normative requirements:
 - **should** marks the required default when a valid, stated reason can justify an exception.
 - **may** marks an explicitly permitted choice.
 
-Use ordinary lowercase words in informative prose. Keep the requirement separate from its rationale so a reader can identify what is mandatory without interpreting the explanation. They are typeset lowercase and bold, per the rule in [`style-guide.md`](./style-guide.md).
+Use ordinary lowercase words in informative prose. Keep the requirement separate from its rationale so a reader can identify what is mandatory without interpreting the explanation. They are typeset lowercase and bold, per the rule in [`doc-style-guide.md`](./doc-style-guide.md).
 
 Apply one of these writing profiles to each section. A document can use different profiles for different sections.
 
@@ -178,7 +178,11 @@ Preserve the original reasoning and voice when they are part of the record. Do n
 
 ## Conventions formats
 
-The conventions tree splits into rule cards, the lexicon, and guidance. The authoring spec lives in [`AGENTS.md`](./architecture/conventions/AGENTS.md), the tree's narrowest owner, because it matters only when modifying conventions files.
+The conventions tree splits into rule cards, the lexicon, and guidance. The authoring spec lives in [`contributing.md`](./architecture/conventions/contributing.md), the tree's narrowest owner, because it matters only when proposing changes to conventions files.
+
+## The contributing.md convention
+
+`contributing.md` is a reserved name for the authoring spec of one documentation level. The project-level instance is spelled `CONTRIBUTING.md`. Tree-level instances keep the lowercase spelling, as in `conventions/contributing.md`. Each instance carries the formats, admission tests, and structural checks for its level, and is read when proposing changes to that level's documents. Do not use the name for content documents.
 
 ## Every AGENTS.md is overview + index
 
