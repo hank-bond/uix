@@ -6,7 +6,7 @@ read_when: "Read before introducing mutable or asynchronous state, caches, state
 
 # State and capabilities
 
-The [state.single-authority](./rules/state.single-authority.md) and [state.capability-handles](./rules/state.capability-handles.md) rules state the invariants. This file carries the vocabulary and patterns.
+The [state.single-authority](./rules/state.single-authority.md) and [state.capability-handles](./rules/state.capability-handles.md) rules state the invariants. This file defines the vocabulary and patterns.
 
 ## State ownership and asynchronous coordination
 

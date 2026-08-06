@@ -9,7 +9,7 @@ This is the canonical vocabulary for UIX architecture discussions and code names
 
 ## Feature
 
-A _feature_ is UIX's loadable unit and the coherent capability it adds: Canvas, Chat, a chess board, a file browser, or a report renderer. A feature can be first-party in-tree or supplied by another manifest-referenced module.
+A _feature_ is UIX's loadable unit and the coherent capability it adds: Canvas, Chat, a chess board, a file browser, or a report renderer. A feature can be first-party in-tree or provided by another manifest-referenced module.
 
 A _feature entry_ is the concrete TypeScript or JavaScript module referenced by one ordered `uix.workspace.json` manifest entry. It exports `feature`, one `FeatureDefinition`. Activation of that definition produces one activated feature instance. UIX does not auto-discover feature entries.
 
@@ -89,9 +89,7 @@ Contribution
 → CatalogEntry or Projection
 ```
 
-The `Normalized` stage and a separate `RegisteredX` shape are optional. Registration returns a `Disposable` or a specific capability such as an updater.
-
-The returned capability is not the registry's live entity. `Registration` is retired because it previously named several incompatible lifecycle roles.
+The `Normalized` stage and a separate `RegisteredX` shape are optional. Registering returns a `Disposable` or a specific capability such as an updater.
 
 Registering answers: what one concrete item became live? Installing answers: how does a whole slice attach to the system?
 
@@ -99,7 +97,7 @@ A registered callback at a lifecycle point is a hook. For example, `pi.on("input
 
 ## Contribution
 
-A _contribution_ is a declarative capability or state value that a feature supplies to a UIX contribution point. The substrate owns it after registration.
+A _contribution_ is a declarative capability or state value that a feature provides to a UIX contribution point. The substrate owns it after registration.
 
 A contribution must be:
 

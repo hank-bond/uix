@@ -17,7 +17,7 @@ Build the action layer settled in [workspace-actions](../docs/design/workspace-a
 
 ## Build invariants
 
-- Authors supply nested local-name keys, never ids; the facet derives canonical `${featureId}.${keyPath}` identity, while display titles do not participate.
+- Authors provide nested local-name keys, never ids; the facet derives canonical `${featureId}.${keyPath}` identity, while display titles do not participate.
 - Public action catalog entries are serializable; callbacks stay private to the action registry.
 - Palette, menu, surface, recursive, and keyboard invocation share `invokeAction(id)`.
 - Actions are frontend effectors: every callback executes in the renderer, and backend work composes through typed channel requests rather than a backend action-handler facet.

@@ -21,13 +21,13 @@ Evaluate a candidate document or section on these axes:
 - **Change coupling:** Do the claims normally change for the same reason?
 - **Dependencies:** Which other documents must a reader consult to apply the claims correctly?
 
-Keep content together when separating it would divide one explanation, procedure, or invariant into fragments that cannot be judged independently. Split content when it contains separable concepts, carries unrelated change triggers, needs an enumerated frontmatter summary, or has become too broad for reliable human review.
+Keep content together when separating it would divide one explanation, procedure, or invariant into fragments that cannot be judged independently. Split content when it contains separable concepts, has unrelated change triggers, needs an enumerated frontmatter summary, or has become too broad for reliable human review.
 
 Document length is evidence, not an automatic threshold. A short document may own an independent concept, and a long document may remain coherent. Human difficulty maintaining a high-quality account is itself a sufficient split signal even when every resulting document belongs to the same retrieval set.
 
 ## Separate maintenance from retrieval
 
-Do not merge documents solely to save file reads or context-loading steps. Generated indexes and explicit links assemble related documents when an agent needs them. A dedicated review process may load a whole documentation tree regardless of its file boundaries.
+Do not merge documents solely to reduce file reads or context-loading steps. Generated indexes and explicit links assemble related documents when an agent needs them. A dedicated review process may load a whole documentation tree regardless of its file boundaries.
 
 When a split creates a load-bearing dependency, preserve one authoritative home for each claim and make the relationship explicit. The narrowest common `AGENTS.md` owns cross-document coordination that cannot be inferred from the documents' summaries and links.
 

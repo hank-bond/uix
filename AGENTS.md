@@ -5,7 +5,7 @@ read_when: "Read first when entering the repo or deciding whether a change belon
 
 # UIX
 
-UIX is a local Electron framework for building bidirectional human-agent surfaces on Pi. Pi supplies sessions, tools, prompts, skills, providers, extensions, and agent events. UIX supplies surfaces, channels, feature facets, and the bridge between agent activity and frontend state.
+UIX is a local Electron framework for building bidirectional human-agent surfaces on Pi. Pi provides sessions, tools, prompts, skills, providers, extensions, and agent events. UIX provides surfaces, channels, feature facets, and the bridge between agent activity and frontend state.
 
 The project provides wiring for many local agent-facing applications, not one fixed application. Examples include reports, dashboards, knowledge tools, design-system deliverables, and interactive canvases.
 
@@ -26,7 +26,7 @@ Follow these retrieval rules:
 
 - Open only documents whose summary or trigger matches the task.
 - Do not reload a document that is already in the context window.
-- Follow inline cross-links because decisions, plans, and sibling threads often carry constraints outside the index.
+- Follow inline cross-links because decisions, plans, and sibling threads often hold constraints outside the index.
 
 The project uses on-demand traversal. Broad summary preloading remains a possible later optimization.
 
@@ -76,7 +76,7 @@ Apply these rules before reaching for subsystem details:
 - **For the user, not the agent:** UIX adds capabilities for the human working with the agent. Agent intelligence belongs in Pi. See [`2026-05-30-uix-is-a-framework-not-an-app.md`](docs/decisions/2026-05-30-uix-is-a-framework-not-an-app.md).
 - **Mirror Pi's self-extension ethos:** Ship composable primitives and thin default chrome, not fixed product features. See [`2026-06-05-pi-self-extension-ethos.md`](docs/decisions/2026-06-05-pi-self-extension-ethos.md).
 - **Features do not import host internals:** Feature traffic uses the injected context and `@uix/api`. See [`2026-07-01-features-are-the-loadable-unit.md`](docs/decisions/2026-07-01-features-are-the-loadable-unit.md).
-- **The agent changes artifacts, not live views:** Agent tools change authoritative feature data. Channels carry validated events instead of exposing UI handles. See [`2026-05-30-no-agent-ui-manipulation.md`](docs/decisions/2026-05-30-no-agent-ui-manipulation.md).
+- **The agent changes artifacts, not live views:** Agent tools change authoritative feature data. Channels deliver validated events instead of exposing UI handles. See [`2026-05-30-no-agent-ui-manipulation.md`](docs/decisions/2026-05-30-no-agent-ui-manipulation.md).
 - **Hosting-compatible by default:** Address durable content by id behind owned stores. Do not expose local filesystem mechanics as feature contracts. See [`2026-05-31-hosting-compatible-by-default.md`](docs/decisions/2026-05-31-hosting-compatible-by-default.md).
 - **One logical channel API:** The Electron transport implements the contract today. Future iframe or hosted adapters must preserve the same request and event model.
 - **Documentation is on demand:** Route through the map below and load only the relevant leaves.

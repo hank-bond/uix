@@ -2,7 +2,7 @@
 //
 // Ordinary feature tools derive `${featureId}__${name}`. Explicit exact-name
 // contributions retain `name` so a feature can replace a Pi definition or
-// supply app-level vocabulary without weakening the ordinary namespace.
+// provide app-level vocabulary without weakening the ordinary namespace.
 //
 // A tool body is inherently a Pi artifact, so AgentToolDefinition is Pi's
 // ToolDefinition minus `name`. It is re-exported here so feature authors get the

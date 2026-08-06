@@ -12,7 +12,7 @@ The conventions tree holds the code conventions in three kinds: rule cards with 
 
 Everything in this tree that is not a rule or a lexicon entry is **guidance**. Guidance covers rationale, patterns, and preferences that a model applies with judgment. Guidance files sit in the conventions directory next to the `rules/` directory and `lexicon.md`.
 
-Guidance is organized, not parsed. Each guidance file uses `##` sections per subtopic with sentence-case noun headings. Each section opens with one plain claim sentence, then freehand prose explains it. Guidance carries no rule machinery: no rule cards, no identifier fields, and no bold normative keywords. Ordinary `should` in explanatory prose is fine. The bold keyword form marks normativity and belongs only in rules.
+Guidance is organized, not parsed. Each guidance file uses `##` sections per subtopic with sentence-case noun headings. Each section opens with one plain claim sentence, then freehand prose explains it. Guidance has no rule machinery: no rule cards, no identifier fields, and no bold normative keywords. Ordinary `should` in explanatory prose is fine. The bold keyword form marks normativity and belongs only in rules.
 
 A guidance claim that is really an invariant promotes to a rule card. The claim sentence becomes the Rule, and the surrounding prose splits into Reason and examples. A rule that is really a preference demotes the same way.
 
@@ -99,7 +99,7 @@ The H1 is the human title, sentence case and free of code. The identifier lives 
 
 The **Rule** is normative. The other sections are informative unless they contain an explicit normative keyword.
 
-Include **Scope** after **Rule** when a rule applies to less than the conventions tree's stated scope. Include approved and nonconforming examples when a plausible boundary mistake exists. Include **Exceptions** only for accepted exceptions. Include **Enforcement** only when review, a repository check, a type-system constraint, or another concrete mechanism can verify the rule. Omit a section when it adds no information.
+Include **Scope** after **Rule** when a rule applies to less than the conventions tree's stated scope. Include approved and nonconforming examples when a plausible boundary mistake exists. Include **Exceptions** only for accepted exceptions. Include **Enforcement** only when review, a repository check, a type-system constraint, or another concrete mechanism can check the rule. Omit a section when it adds no information.
 
 Keep one independently enforceable requirement in each rule card. Split requirements that have different scopes, exceptions, or enforcement mechanisms. Guidance files reference the cards that readers apply together.
 

@@ -6,7 +6,7 @@ read_when: "Read before exporting a symbol, designing a validation boundary, or 
 
 # Module boundaries
 
-The [module-boundaries.export-minimum](./rules/module-boundaries.export-minimum.md) and [module-boundaries.node-imports](./rules/module-boundaries.node-imports.md) rules state the export and import invariants. This file carries the patterns and scope notes.
+The [module-boundaries.export-minimum](./rules/module-boundaries.export-minimum.md) and [module-boundaries.node-imports](./rules/module-boundaries.node-imports.md) rules state the export and import invariants. This file explains the patterns and scope notes.
 
 ## Validation
 

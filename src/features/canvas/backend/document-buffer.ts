@@ -71,7 +71,7 @@ export class CanvasDocumentBuffer {
   }
 
   // Syncs to the store first: an edit computed against a stale cache would
-  // re-save the agent's whole view and silently revert a concurrent human edit
+  // recommit the agent's whole view and silently revert a concurrent human edit
   // to an untouched line. If the human touched the line being edited, the
   // boundary match-guard rejects it.
   //

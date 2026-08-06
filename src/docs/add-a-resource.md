@@ -71,7 +71,7 @@ export const feature = defineFeature({
 });
 ```
 
-`ResourceRequestContext` carries the original `Request`, parsed path parameters, and the parsed query value. The handler returns a standard `Response`. The registry resolves owner-scoped ids, rejects duplicate claims, and parses untrusted URLs before calling feature code, so your handler receives validated values.
+`ResourceRequestContext` holds the original `Request`, parsed path parameters, and the parsed query value. The handler returns a standard `Response`. The registry resolves owner-scoped ids, rejects duplicate claims, and parses untrusted URLs before calling feature code, so your handler receives validated values.
 
 ## Create URLs and origins
 

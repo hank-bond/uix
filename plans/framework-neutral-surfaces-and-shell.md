@@ -78,7 +78,7 @@ Outcome: React and non-React surfaces can run side by side under the current she
 
 ### N2 — Move framework and delivery ownership out of the substrate ABI
 
-Migrate Chat and Canvas to feature-owned React roots and feature/app-owned hooks, providers, and renderer dependencies. Implement the ESM/style/build-delivery decision from N0 so the substrate no longer supplies a blessed React instance or hardcodes React as the only surface source format. Preserve the ability for compatible module URLs to share browser evaluation and for incompatible framework versions to coexist without conflation.
+Migrate Chat and Canvas to feature-owned React roots and feature/app-owned hooks, providers, and renderer dependencies. Implement the ESM/style/build-delivery decision from N0 so the substrate no longer provides a blessed React instance or hardcodes React as the only surface source format. Preserve the ability for compatible module URLs to share browser evaluation and for incompatible framework versions to coexist without conflation.
 
 You may promote this unit into its own narrower build plan after N0 if compilation, dependency resolution, CSS/assets, and hosted delivery prove too large for one reviewable implementation arc. That promotion is preferable to hiding a second architecture project inside this unit.
 
@@ -88,7 +88,7 @@ Outcome: React is an ordinary implementation dependency of React features, a tri
 
 Move only the substrate state/lifetime ownership currently hidden in React providers and effect components into explicit framework-independent owners, reusing existing channel clients, controllers, registries, and binding functions. Then replace the workspace entry, surface panels, loading/error/empty presentation, and resizable layout with direct DOM and CSS.
 
-Do not generalize the shell's fixed rendering needs into a reusable UIX template/component system. The resizable layout is the main implementation risk and must preserve panel identity, saved ratios, minimum sizes, pointer and keyboard behavior, and accessible separator semantics.
+Do not generalize the shell's fixed rendering needs into a reusable UIX template/component system. The resizable layout is the main implementation risk and must preserve panel identity, persisted ratios, minimum sizes, pointer and keyboard behavior, and accessible separator semantics.
 
 Outcome: the workspace shell contains no frontend-framework dependency while framework-owned feature surfaces continue to mount through the same neutral boundary.
 
@@ -137,7 +137,7 @@ The questions are intentionally more exhaustive than the decisions above. They a
 - What happens when mount throws synchronously after partially acquiring resources?
 - How can a framework report a render error that occurs after `mount` returns?
 - Does a reported error replace the surface body, preserve the last good UI, append a diagnostic, or delegate presentation to the feature?
-- Who catches React render errors once the substrate no longer supplies a React error boundary?
+- Who catches React render errors once the substrate no longer provides a React error boundary?
 - How are cleanup failures reported without preventing sibling surfaces from disposing?
 - What happens to in-flight requests, event callbacks, build processes, and late async completions during feature reload?
 - Is cleanup required to be idempotent, and does the substrate protect against duplicate invocation regardless?
@@ -231,7 +231,7 @@ The questions are intentionally more exhaustive than the decisions above. They a
 
 ## Whole-plan acceptance
 
-- A raw-DOM surface and a React-owned surface mount together through one public contract with no React value supplied by UIX.
+- A raw-DOM surface and a React-owned surface mount together through one public contract with no React value provided by UIX.
 - Surface removal, failure, and reload deterministically release framework roots, subscriptions, actions, styles, and other mount-owned resources without affecting siblings.
 - Chat and Canvas retain behavior as ordinary React features whose renderer conventions and dependencies are not substrate APIs.
 - The selected ESM delivery model permits shared evaluation by URL where compatible and safe, while keeping incompatible versions separate.

@@ -27,7 +27,7 @@ export interface ToolFileLocation {
 
 /**
  * Durable transcript items rendered by conversation surfaces. Live events may
- * carry in-flight fields on the same item shape. History replay only returns
+ * include in-flight fields on the same item shape. History replay only returns
  * completed durable items.
  */
 export type TranscriptItem =
@@ -72,8 +72,7 @@ export type AgentEvent =
       /**
        * Set when rekeying changes the row's id: the pre-key transport handle
        * that first delivered the item. The renderer swaps the id in place
-       * (position preserved). See
-       * docs/decisions/2026-06-09-transcript-keyed-on-persist.md.
+       * (position preserved).
        */
       previousId?: string;
     }

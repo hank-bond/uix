@@ -12,17 +12,17 @@ How feature state reaches the agent without changing the human's stored words, a
 
 UIX calls the model-visible mechanism _agent context_. Features contribute sections through the `agentContext` facet, while the substrate owns namespacing, buffering, assembly, Pi installation, and persistence confirmation.
 
-Pi's `input` hook is not a state channel because transformed text becomes the persisted human message. UIX instead emits one `display: false` `uix.state` custom message from `before_agent_start`.
+Pi's `input` hook is not a state channel because transformed text becomes the persisted human message. UIX instead pushes one `display: false` `uix.state` message into the agent state before the user message.
 
 The message contains a `<uix-state>` envelope and one feature-qualified inner tag per materialized section. Pi removes `customType` from model context, so section identity remains in text. A generated system-prompt vocabulary explains active tags.
 
 Update buffers retain one latest validated value and send only when the materialized body differs from branch history. Append buffers retain ordered pending values and clear a confirmed batch only after persistence appears on the branch.
 
-A contribution without a UIX buffer supplies `materialize()`. This path reads feature-owned state during agent-run preparation. Canvas uses it to derive anchored diffs from current and prior `canvas.documents` turn-state snapshots.
+A contribution without a UIX buffer provides `materialize()`. This path reads feature-owned state during agent-run preparation. Canvas uses it to derive anchored diffs from current and prior `canvas.documents` turn-state snapshots.
 
-Turn state and agent context remain separate. Turn state persists model-invisible branch state; agent context derives changing model-visible information. Stable prompt sections and Pi skills carry non-changing semantics and task-specific guidance.
+Turn state and agent context remain separate. Turn state persists model-invisible branch state; agent context derives changing model-visible information. Stable prompt sections and Pi skills hold non-changing semantics and task-specific guidance.
 
-The implemented ordering places hidden context after the human message in the session because `before_agent_start` is Pi's supported seam. A future pre-prompt transaction may place state upstream, but that requires an explicit Pi-supported write path and branch semantics.
+The implemented ordering places hidden context before the human message in the session: the driver commits turn state and assembles the `uix.state` message before calling `session.prompt(text)`, so branch navigation to the gap before a user message still has the state explaining that turn.
 
 Agent-to-application structured output remains a tool contract. The tool validates and commits an authoritative artifact; a surface then renders that artifact. This preserves the rule that agents change data rather than live view handles.
 

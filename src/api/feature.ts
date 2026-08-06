@@ -121,7 +121,7 @@ type AuthoredFeatureDefinition<
 
 /**
  * Preserve an authored settings schema through the feature's injected context.
- * Runtime loading consumes the erased `FeatureDefinition`. This helper carries
+ * Runtime loading consumes the erased `FeatureDefinition`. This helper preserves
  * only source-level agreement between the definition and its callbacks.
  */
 export function defineFeature<

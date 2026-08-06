@@ -217,7 +217,7 @@ function parseToolResult(message: unknown):
   };
 }
 
-// Content is a string or a block array whose text blocks carry `{ type: "text",
+// Content is a string or a block array whose text blocks include `{ type: "text",
 // text }`. Read defensively over the block shape, skipping new Pi block kinds (tool
 // calls, images, thinking) rather than breaking transcript replay.
 function extractTextContent(content: unknown): string {

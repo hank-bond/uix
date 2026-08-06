@@ -30,7 +30,7 @@ The status bar composes the session and model pills. The model pill opens the mo
 - **[model-filter.ts](./model-filter.ts)** Picker filtering, extracted pure so it's testable without a DOM.
 - **[ModelPill.css](./ModelPill.css)** Model pill and model picker styles.
 - **[ModelPill.tsx](./ModelPill.tsx)** Renders the model status pill and model picker dialog over the agent controls.
-- **[pending.ts](./pending.ts)** Optimistic pending user rows: the renderer-local half of eventual
+- **[pending.ts](./pending.ts)** Optimistic pending user rows: the renderer-local half of eventual consistency for the transcript.
 - **[picker-positioning.css](./picker-positioning.css)** Picker positioning: trigger-left alignment, then shift and shrink within the surface.
 - **[provider-auth-presentation.ts](./provider-auth-presentation.ts)** Derives the provider rows for the login modal, grouping OpenAI methods.
 - **[provider-controls.css](./provider-controls.css)** Provider auth controls and chat button styles.

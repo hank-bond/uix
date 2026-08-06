@@ -6,7 +6,7 @@ read_when: "Read before adding or changing main-process logs, event identifiers,
 
 # Logging
 
-The [logging.component-logger](./rules/logging.component-logger.md) rule requires component-scoped pino loggers in main-process code. This file carries the shape and conventions that follow from it.
+The [logging.component-logger](./rules/logging.component-logger.md) rule requires component-scoped pino loggers in main-process code. This file explains the shape and conventions that follow from it.
 
 ## Shape
 

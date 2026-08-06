@@ -37,9 +37,9 @@ function NotesActions() {
 
 Object keys are local identity segments. The substrate binds the owning feature id and derives the canonical id (`notes.open` for the example above). Authors do not provide canonical ids.
 
-Group keys organize presentation paths. A group carries `title` and `children`, and a leaf carries `title`, optional `description`, `defaultBinding`, and `enabled`, plus a synchronous or asynchronous `run`.
+Group keys organize presentation paths. A group holds `title` and `children`, and a leaf holds `title`, optional `description`, `defaultBinding`, and `enabled`, plus a synchronous or asynchronous `run`.
 
-Registration follows the component lifetime. Updating the contribution replaces its resolved leaves, while unmounting removes them.
+Registering follows the component lifetime. Updating the contribution replaces its resolved leaves, while unmounting removes them.
 
 ## Invoke an action
 

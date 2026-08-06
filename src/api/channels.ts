@@ -51,7 +51,7 @@ export type ChannelEventContribution<Event extends TSchema = TSchema> =
   ChannelEventSchema<Event>;
 
 export interface ChannelContribution {
-  /** The owning channel id, carried from the contract for owner checks. */
+  /** The owning channel id, taken from the contract for owner checks. */
   readonly feature: string;
   readonly requests: Record<string, ChannelRequestContribution>;
   readonly events: Record<string, ChannelEventContribution>;
@@ -158,7 +158,7 @@ export interface FeatureEventPublisherFactory {
 /**
  * Binds a contract's declared events onto a raw name/payload publish function,
  * producing a typed {@link FeatureEventPublisher}. The publish function is the
- * feature-scoped seam the host supplies (it canonicalizes names). It stays
+ * feature-scoped seam the host provides (it canonicalizes names). It stays
  * a bare function type rather than a named abstraction.
  */
 export function createFeatureEventPublisher<const C extends ChannelContract>(

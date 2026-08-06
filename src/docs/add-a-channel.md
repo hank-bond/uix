@@ -59,7 +59,7 @@ export const notesChannelsContribution: ChannelContribution = withHandlers(
   {
     add: {
       async handler({ text }) {
-        await saveNote(text);
+        await persistNote(text);
       },
     },
   },
@@ -95,14 +95,14 @@ import { notesChannels } from "../shared/channels";
 
 export type NotesContext = FeatureContext & {
   events: FeatureEventPublisher<typeof notesChannels>;
-  saveNote: (text: string) => Promise<string>;
+  persistNote: (text: string) => Promise<string>;
 };
 
 export function createNotesContext(ctx: FeatureContext): NotesContext {
   return {
     ...ctx,
     events: ctx.channels.createPublisher(notesChannels),
-    saveNote,
+    persistNote,
   };
 }
 ```
@@ -119,7 +119,7 @@ export const feature = defineFeature({
         withHandlers(notesChannels, {
           add: {
             async handler({ text }) {
-              const id = await ctx.saveNote(text);
+              const id = await ctx.persistNote(text);
               ctx.events.added({ id });
             },
           },
@@ -130,7 +130,7 @@ export const feature = defineFeature({
 });
 ```
 
-Publish calls validate at compile time from the event schema. The main transport also validates payloads when clients receive them. This mirrors how Canvas does it: see [`src/features/canvas/backend/context.ts`](../../src/features/canvas/backend/context.ts) and [`src/features/canvas/backend/contributions/channels.ts`](../../src/features/canvas/backend/contributions/channels.ts).
+Publish calls validate at compile time from the event schema. The main transport validates request and response payloads at its boundary, and the client also validates event payloads when it receives them. This mirrors how Canvas does it: see [`src/features/canvas/backend/context.ts`](../../src/features/canvas/backend/context.ts) and [`src/features/canvas/backend/contributions/channels.ts`](../../src/features/canvas/backend/contributions/channels.ts).
 
 ## Consume the typed client from a surface
 
@@ -187,7 +187,7 @@ Schemas validate domain formats, not only primitive JSON shapes. A constrained w
 
 ## Sensitive logging
 
-Every request, response, and event crossing appears in terminal logs (and optionally raw NDJSON). A descriptor can carry `log` with `describeRequest`, `describeResponse`, or `describeEvent`. The returned description replaces that direction's payload in both log sinks. Contracts carrying credentials, authorization links, codes, or secrets must describe every sensitive direction.
+Every request, response, and event crossing appears in terminal logs (and optionally raw NDJSON). A descriptor can include `log` with `describeRequest`, `describeResponse`, or `describeEvent`. The returned description replaces that direction's payload in both log sinks. Contracts containing credentials, authorization links, codes, or secrets must describe every sensitive direction.
 
 ## What happens on bind
 

@@ -6,7 +6,7 @@ read_when: "Read before adding or moving source directories, introducing an inde
 
 # Source organization
 
-The [source-organization.directory-ownership](./rules/source-organization.directory-ownership.md) and [source-organization.file-responsibility](./rules/source-organization.file-responsibility.md) rules state the ownership invariants. This file carries the tests and patterns that apply them.
+The [source-organization.directory-ownership](./rules/source-organization.directory-ownership.md) and [source-organization.file-responsibility](./rules/source-organization.file-responsibility.md) rules state the ownership invariants. This file explains the tests and patterns that apply them.
 
 ## Directories express ownership
 

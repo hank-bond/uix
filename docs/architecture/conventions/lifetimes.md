@@ -6,7 +6,7 @@ read_when: "Read before attaching callbacks, listeners, IPC, protocols, timers, 
 
 # Lifetimes
 
-The [lifetimes.paired-cleanup](./rules/lifetimes.paired-cleanup.md) rule requires every attachment to pair its cleanup. This file carries the main-process mechanics.
+The [lifetimes.paired-cleanup](./rules/lifetimes.paired-cleanup.md) rule requires every attachment to pair its cleanup. This file explains the main-process mechanics.
 
 ## Lifetime management in the main process
 
@@ -20,7 +20,7 @@ import { DisposableBag, onApp, subscribe } from "./lifecycle";
 
 const bag = new DisposableBag();
 
-bag.add(ipc.handle("uix:prompt", (req) => { ... }));
+bag.add(ipc.handle("uix:reload", (req) => { ... }));
 bag.add(onApp("activate", () => { ... }));
 bag.add(subscribe(session, (event) => { ... }));
 

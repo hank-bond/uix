@@ -1,0 +1,12 @@
+# Retired UIX verbs: banned in all senses. The approved alternative depends on
+# the sense, so the rule points at the lexicon instead of substituting one word.
+# The verb `verify` is excluded: its retirement covers structural checks only,
+# and a token rule cannot encode that sense split.
+extends: existence
+message: "Retired UIX term. Check the approved sense or alternative in docs/architecture/conventions/lexicon.md."
+level: error
+ignorecase: true
+tokens:
+  - '\bsave(?:s|d|ing)?\b'
+  - '\bsupply(?:ies|ied|ing)?\b'
+  - '\bcarry(?:ies|ied|ing)?\b'

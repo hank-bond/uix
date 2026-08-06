@@ -1,20 +1,20 @@
 ---
-summary: "Comments answer why code exists or how to use it correctly: line comments carry reasons, JSDoc carries caller integration."
+summary: "Comments answer why code exists or how to use it correctly: line comments hold reasons, JSDoc explains caller integration."
 kind: reference
 read_when: "Read before writing source-file summaries or explanatory comments."
 ---
 
 # Comments
 
-Every comment answers one of two questions. A line comment answers why the code exists as written: which hidden constraint, external quirk, side effect, or optimization it mitigates. JSDoc answers how to integrate the code correctly: preconditions, lifetimes, ownership, ordering, errors, defaults, and direct examples a caller needs. A how-to carries the second question at workflow scale, joining several exports into one task, and links to JSDoc rather than restating it. A comment that answers neither question narrates what the code already shows.
+Every comment answers one of two questions. A line comment answers why the code exists as written: which hidden constraint, external quirk, side effect, or optimization it mitigates. JSDoc answers how to integrate the code correctly: preconditions, lifetimes, ownership, ordering, errors, defaults, and direct examples a caller needs. A how-to answers the second question at workflow scale, joining several exports into one task, and links to JSDoc rather than restating it. A comment that answers neither question narrates what the code already shows.
 
-Outside the required source-file header, a comment explains why code exists or records a non-obvious caller or implementation constraint. It does not narrate syntax. Names carry the stable domain operation.
+Outside the required source-file header, a comment explains why code exists or records a non-obvious caller or implementation constraint. It does not narrate syntax. Names state the stable domain operation.
 
 ## Voice
 
 Write comments in active voice. Make the actor the subject when the actor is knowable: "the store canonicalizes content before persisting it", not "content is canonicalized before being persisted". Passive voice stays for states and object emphasis: "the entry is committed", "the session is restored". JSDoc summaries are imperative and address the caller: "Resolve the selected branch projection.", not "The selected branch projection is resolved."
 
-Behavioral comments may carry preconditions, skipped outcomes, asynchronous ordering, and race policy. Do not encode those volatile details in a symbol tied to one lifecycle use.
+Behavioral comments may include preconditions, skipped outcomes, asynchronous ordering, and race policy. Do not encode those volatile details in a symbol tied to one lifecycle use.
 
 If an implementation comment only identifies an operation or domain value, the name remains wrong. Rename until the code reads on its own.
 
@@ -36,13 +36,13 @@ Before the condition occurs, the marker creates no pending work. Do not use it f
 
 ## What earns a comment
 
-Add a warning or explanation that code cannot carry itself. Examples include load-bearing order, external format tolerance, hidden ownership constraints, and non-obvious side effects or optimizations. Each should prevent a plausible wrong assumption.
+Add a warning or explanation where code cannot explain itself. Examples include load-bearing order, external format tolerance, hidden ownership constraints, and non-obvious side effects or optimizations. Each should prevent a plausible wrong assumption.
 
 ## Source-file headers
 
 Every indexed authored production TypeScript and JavaScript file starts with one `//` summary sentence. Every indexed authored production CSS file starts with one single-line `/* */` summary. Every indexed authored production HTML file starts with one single-line `<!-- -->` summary. The summary is physically the first line, without exceptions. The header is the summary plus at most one `//` elaboration paragraph, whose length scales with the file's size.
 
-Colocated `*.test.*` and `*.spec.*` files are not indexed. Their production file and shared basename provide the route, so tests need no summary. Add a test comment only when it preserves context the test structure cannot carry.
+Colocated `*.test.*` and `*.spec.*` files are not indexed. Their production file and shared basename provide the route, so tests need no summary. Add a test comment only when it preserves context the test structure cannot hold.
 
 JSON, binary assets, and static data are not indexed. A directory `AGENTS.md` or local attribution leaf describes non-code assets when their role is not evident.
 
@@ -62,7 +62,7 @@ Use lists instead of compressed prose. Put one tag on each line and indent wrapp
 
 Write summaries as imperative verb phrases, such as "Resolve the selected branch projection." Avoid the third-person "This method" form. Avoid the passive "The projection is resolved" form.
 
-Do not repeat the name or type in a summary. TypeScript already carries types, so omit them from `@param` and `@returns`.
+Do not repeat the name or type in a summary. TypeScript already provides types, so omit them from `@param` and `@returns`.
 
 Use `@param` and `@returns` only when they add information. Reserve `@example` for non-trivial complete code. Use `@link` when a related contract is necessary for correct use and the relationship is not evident from imports and types.
 
@@ -72,9 +72,9 @@ In TypeScript and JavaScript, reserve `/* */` for JSDoc and attribution headers.
 
 **API nuance lives in JSDoc:** Document defaults, ordering, special values, and edge cases that callers need. State how to use the API correctly, not how its body works.
 
-**Coverage and depth:** JSDoc coverage follows supported ownership boundaries, not the TypeScript `export` keyword alone. Every supported `@uix/api` contract carries caller-facing JSDoc. An internal export needs JSDoc when correct use or a conceptual relationship is not evident from its name and type.
+**Coverage and depth:** JSDoc coverage follows supported ownership boundaries, not the TypeScript `export` keyword alone. Every supported `@uix/api` contract has caller-facing JSDoc. An internal export needs JSDoc when correct use or a conceptual relationship is not evident from its name and type.
 
-Complex or edge-case-heavy logic needs denser explanation because wrong assumptions are expensive. Examples include platform quirks, cache semantics, and ordering. Keep UI components, tests, and simple code thin. A file can have no comments beyond its required header when names and types carry the complete story.
+Complex or edge-case-heavy logic needs denser explanation because wrong assumptions are expensive. Examples include platform quirks, cache semantics, and ordering. Keep UI components, tests, and simple code thin. A file can have no comments beyond its required header when names and types tell the complete story.
 
 ## Line comments
 
@@ -86,4 +86,4 @@ Delete comments such as "increment the counter" or "loop over the entries." The 
 
 **Silent catches are labeled:** A `catch` that swallows an error explains why the behavior is safe. Examples include a dead process or broken symlink. An unlabeled swallow reads as a bug.
 
-**Derived code carries attribution:** Code derived from an external source keeps a license or attribution header at the file top. This header is the accepted block-comment exception.
+**Derived code requires attribution:** Code derived from an external source keeps a license or attribution header at the file top. This header is the accepted block-comment exception.

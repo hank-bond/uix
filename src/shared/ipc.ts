@@ -137,7 +137,7 @@ export const uixChannels = {
   },
 } as const satisfies ChannelContract;
 
-/** Shape exposed on `window.uix` by the preload. */
+/** Shape exposed on `window.channels` by the preload. */
 export interface ChannelTransport {
   /** Generic request/response over IPC. Channel name is the transport address. */
   request(channel: string, payload: unknown): Promise<unknown>;

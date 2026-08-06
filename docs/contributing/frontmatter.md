@@ -6,7 +6,7 @@ read_when: "Read before adding or changing documentation frontmatter, summaries,
 
 # Frontmatter
 
-The filename carries the slug and, for decisions, the date. The directory carries the documentation layer. Frontmatter adds only the information that position cannot provide:
+The filename holds the slug and, for decisions, the date. The directory holds the documentation layer. Frontmatter adds only the information that position cannot provide:
 
 ```yaml
 ---
@@ -27,7 +27,7 @@ Make each summary distinct from its siblings and findable by concept. Interchang
 
 Summary length follows the number of independently addressable claims, not body length. A long single-thesis decision still gets one short summary. A multi-unit plan can enumerate its units. Spend words only on additional retrieval hooks.
 
-**`kind` (required on indexed documentation leaves except plans):** The Diátaxis reader need: `reference`, `explanation`, `how-to`, or `tutorial`. Plans carry no kind. File summaries, code comments, routing indexes, and each `AGENTS.md` also carry no kind.
+**`kind` (required on indexed documentation leaves except plans):** The Diátaxis reader need: `reference`, `explanation`, `how-to`, or `tutorial`. Plans have no kind. File summaries, code comments, routing indexes, and each `AGENTS.md` also have no kind.
 
 **`read_when` (optional):** An external task trigger that adds retrieval precision. Author it only when the summary does not reveal why to open the document. Useful triggers include:
 

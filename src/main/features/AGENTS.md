@@ -4,7 +4,7 @@ summary: "The feature runtime loads the workspace's chosen features, isolates fa
 
 # Feature runtime
 
-Feature-author contracts remain under `src/api/`. The workspace runtime supplies accepted manifest generations, and sibling facet registries own live contributed members.
+Feature-author contracts remain under `src/api/`. The workspace runtime provides accepted manifest generations, and sibling facet registries own live contributed members.
 
 A feature definition is the plain exported `FeatureDefinition`. Activation validates it and its settings, runs the hooks, and provisionally registers every contributed facet. A successful activation produces one activated feature instance that joins the active composition only after every facet registers. Do not call an activated feature instance a generation: generation names replaceable object graphs such as staged manifests or Pi runtimes. Entries load with jiti and `moduleCache: false`, so reload evaluates current source. Jiti is not a sandbox: features are trusted local code with main-process permissions, and backend capabilities reach them only through `ctx` and `@uix/api`.
 

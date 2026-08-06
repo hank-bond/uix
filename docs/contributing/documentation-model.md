@@ -26,7 +26,7 @@ The two dimensions produce four kinds.
 | **action**    | **tutorial:** a lesson         | **how-to:** a recipe |
 | **cognition** | **explanation:** understanding | **reference:** a map |
 
-Each indexed document carries a `kind` tag that names its quadrant. Content that crosses a quadrant boundary serves neither need clearly. Diátaxis classifies a discrete document after the repository has identified its durable owner and conceptual boundary.
+Each indexed document has a `kind` tag that names its quadrant. Content that crosses a quadrant boundary serves neither need clearly. Diátaxis classifies a discrete document after the repository has identified its durable owner and conceptual boundary.
 
 ### Memory
 
@@ -56,7 +56,7 @@ The documentation has three meta-levels.
 
 An agent needs the what to make code changes and the how to modify documentation. It needs the why when someone proposes a structural change or the practice has a gap.
 
-Place code-related knowledge before classifying it by reader need. A contract owns its JSDoc, and an implementation site owns its why-comment. A file owns its responsibility header, while a source directory owns its boundary and coordination guidance. A local Markdown leaf can join several files under that owner. Repository documentation carries workflows, conventions, invariants, external context, and history that cross source ownership boundaries.
+Place code-related knowledge before classifying it by reader need. A contract owns its JSDoc, and an implementation site owns its why-comment. A file owns its responsibility header, while a source directory owns its boundary and coordination guidance. A local Markdown leaf can join several files under that owner. Repository documentation holds workflows, conventions, invariants, external context, and history that cross source ownership boundaries.
 
 A document is a conceptually coherent, human-reviewable maintenance unit. A task may assemble several documents into one retrieval or review set. Dependencies between units remain explicit, but retrieval cost does not decide their physical boundaries.
 
@@ -64,11 +64,11 @@ A document is a conceptually coherent, human-reviewable maintenance unit. A task
 
 The lifecycle axis marks maturity over time: a design note distills into a decision, a decision into a plan, and a plan into architecture. Each step is more settled than the last. The `status` field records the position only when it differs from the default current state: exploring, resolved, accepted, landed, archived, stub, or superseded.
 
-Lifecycle is orthogonal to kind: a document has both a need and a maturity. Plans are the exception because they track the build rather than document it and carry no kind. Documents without a lifecycle, including `AGENTS.md` files and evergreen leaves, omit `status`.
+Lifecycle is orthogonal to kind: a document has both a need and a maturity. Plans are the exception because they track the build rather than document it and have no kind. Documents without a lifecycle, including `AGENTS.md` files and evergreen leaves, omit `status`.
 
 ### Evolution
 
-The documentation is living: a change to the code carries a documentation change that aligns future work. The evolution loop keeps the whole set coherent.
+The documentation is living: a change to the code brings a documentation change that aligns future work. The evolution loop keeps the whole set coherent.
 
 1. **Capture:** Record the decision.
 2. **Distill:** Place the normative residue where the agent acts on it.

@@ -93,6 +93,7 @@ interface OpenShellWindowOptions {
   onClosed?: () => void;
 }
 
+// Section: Shell window
 function openShellWindow(
   parentLifetime: DisposableBag,
   options: OpenShellWindowOptions,
@@ -140,6 +141,7 @@ function openShellWindow(
 // are trace. The IPC boundary already records every crossing at debug/trace,
 // so these info lines exist purely to keep the human-visible conversation
 // readable in the default log.
+// Section: Workspace
 function logChatContent(event: AgentEvent): void {
   if (event.type !== "transcript_append" && event.type !== "transcript_replace")
     return;
@@ -148,7 +150,7 @@ function logChatContent(event: AgentEvent): void {
     createLogger("chat").info({ text: item.text }, "user_message");
     return;
   }
-  // The completion replace logs once. The same-text rekey replace (carries
+  // The completion replace logs once. The same-text rekey replace (includes
   // previousId) and streaming partials do not.
   if (
     item.kind === "assistant" &&
@@ -563,6 +565,7 @@ async function openWorkspace(
  * page) offering recents and create-new. Its IPC handlers live in a child
  * bag disposed on transition, so the workspace boot starts clean.
  */
+// Section: Start picker
 function openPicker(
   appBag: DisposableBag,
   recents: RecentsStore,

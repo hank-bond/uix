@@ -1,6 +1,6 @@
 // Renders the chat surface: transcript blocks, composer, status bar, and provider login.
 //
-// One transcript item shape feeds the surface. Startup history supplies completed
+// One transcript item shape feeds the surface. Startup history provides completed
 // durable items. Live events append the same items, stream compact partials
 // into them, and replace them whole at completion.
 
@@ -245,7 +245,7 @@ function appendItem(
 
 // Reconcile an item's presence in the list to match its visibility: replace
 // a visible item in place (kept current), remove an invisible one. A
-// rekey replace carries previousId (the pre-key transport handle). Matching
+// rekey replace includes previousId (the pre-key transport handle). Matching
 // the new id first keeps a re-delivered rekey idempotent. The driver only
 // replaces ids it already appended, so a net-new insert here means a replace
 // outran or lost its append. Recover gracefully but warn, since that

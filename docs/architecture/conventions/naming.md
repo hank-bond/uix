@@ -6,7 +6,7 @@ read_when: "Read before introducing or renaming symbols, recurring vocabulary, p
 
 # Naming
 
-The naming rules in [`rules/`](./rules/) state the invariants. This file carries the patterns and tests that explain them.
+The naming rules in [`rules/`](./rules/) state the invariants. This file explains the patterns and tests that apply them.
 
 ## Symbol naming
 
@@ -18,7 +18,7 @@ The naming rules in [`rules/`](./rules/) state the invariants. This file carries
 - Domain vocabulary is noun-shaped. Operations pair those nouns with the established verbs in [`lexicon.md`](./lexicon.md). A domain noun keeps one grammatical role across types, values, and function results.
 - Parameters name each participant's domain role (`transport`, `contract`, `scope`, `owner`, `session`, `lifetime`, `bag`). Access restrictions live in scoped capability types and handles.
 - A domain catalog is `XCatalog`. One public item is `XCatalogEntry`. Reserve these names for the catalog concept in [`concepts.md`](../concepts.md). Do not use them for arbitrary lists or snapshots. Avoid `Descriptor` when the value is a catalog entry.
-- State-shape nouns carry these meanings:
+- State-shape nouns hold these meanings:
   - A **snapshot** is an immutable point-in-time value or independently identified artifact. `toSnapshot()` converts one live value to its snapshot representation. `createDocumentSnapshot()` creates a store-owned artifact. `getCatalogSnapshot()` retrieves an existing current snapshot.
   - A **projection** is a purpose-specific, read-only, lower-information view of authoritative state. It is rebuildable and never independently authoritative. A physically persisted projection has cache semantics. Use `deriveXProjection()` for a one-shot derivation.
   - A **baseline** is the reference value used for comparison by a later operation. It remains derived unless its owning domain commits it.

@@ -18,6 +18,7 @@
 
 import { type AnchorAllocation, getDefaultAnchorPool } from "./pool";
 
+// Section: Snapshot types and diffing
 export interface AnchoredLine {
   readonly anchor: string;
   readonly text: string;
@@ -88,8 +89,9 @@ export interface AnchorRangeEdit {
 
 export type AnchoredEdit = AnchorRangeEdit;
 
-// Internal linked-list node. Sentinels carry no anchor and never appear in
+// Internal linked-list node. Sentinels have no anchor and never appear in
 // the node map. They exist only to simplify splice logic at the list ends.
+// Section: AnchoredDocument
 class LineNode {
   prev!: LineNode;
   next!: LineNode;
@@ -433,6 +435,7 @@ export class AnchoredDocument {
   }
 }
 
+// Section: Text splitting and diff helpers
 export function splitText(text: string): string[] {
   if (text === "") return [];
   return text.split("\n");

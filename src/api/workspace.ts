@@ -48,6 +48,7 @@ import type {
   ActionInvocationResult,
 } from "./actions";
 
+// Section: Action contexts
 const ActionContributionRegistrarContext = createContext<
   ActionContributionRegistrar | undefined
 >(undefined);
@@ -62,6 +63,7 @@ const InvokeActionContext = createContext<
 >(undefined);
 type SessionSummaryProjection = Readonly<SessionSummary>;
 
+// Section: Workspace session
 export interface WorkspaceSessionHandle {
   readonly activeSession: SessionSummaryProjection | undefined;
   readonly recentSessions: readonly SessionSummaryProjection[] | undefined;
@@ -106,6 +108,7 @@ export function useWorkspaceSession(): WorkspaceSessionHandle {
   return session;
 }
 
+// Section: Action providers and hooks
 export interface WorkspaceActionsProviderProps {
   getCatalogSnapshot: () => ActionCatalog;
   subscribeToCatalog: (listener: () => void) => () => void;
@@ -197,6 +200,7 @@ export function useInvokeAction(): (
   return invoke;
 }
 
+// Section: Workspace client
 export interface WorkspaceClient {
   readonly workspaceId: string;
   readonly request: (channel: string, req: unknown) => Promise<unknown>;
@@ -238,6 +242,7 @@ export function useWorkspaceClient(): WorkspaceClient {
   return client;
 }
 
+// Section: Feature settings
 const FeatureSettingsContext = createContext<FeatureSettingsClient | undefined>(
   undefined,
 );
@@ -411,6 +416,7 @@ type EventClient<C extends ChannelContract> = {
   ) => () => void;
 };
 
+// Section: Channel client
 export interface ChannelClient<C extends ChannelContract> {
   requests: RequestClient<C>;
   events: EventClient<C>;
@@ -447,6 +453,7 @@ export function createChannelClient<const C extends ChannelContract>(
  * creates the typed surface via {@link defineSurface}, which captures the generic at
  * definition time and pushes the unavoidable cast into the substrate.
  */
+// Section: Surfaces
 export interface SurfaceContribution {
   readonly name: string;
   readonly contract?: ChannelContract;

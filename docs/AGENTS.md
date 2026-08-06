@@ -19,11 +19,11 @@ Each document layer has its own filename convention, summary template, and lifec
 | `architecture/` | `constraint-name` | a current cross-cutting invariant or hard-won context | living, always = HEAD |
 | `../plans/` | `deliverable` | the deliverable + units | active → landed or archived under `../plans/archive/` |
 
-The records distill through _design note → decision → plan → architecture_. Each step is more settled than the last, and only the design note preserves rejected alternatives. Plans sit at the repository root because they track builds rather than document the system. Later records carry the applicable conclusion or enduring constraint.
+The records distill through _design note → decision → plan → architecture_. Each step is more settled than the last, and only the design note preserves rejected alternatives. Plans sit at the repository root because they track builds rather than document the system. Later records hold the applicable conclusion or enduring constraint.
 
 ## Document kinds
 
-Each indexed document has a _kind_: reference, explanation, how-to, or tutorial. The kind describes the need that the document serves and remains independent from lifecycle status. Plans carry no kind. [`documentation-model.md`](./contributing/documentation-model.md) explains this shape, and [`AGENTS.md`](./contributing/AGENTS.md) routes the authoring practice.
+Each indexed document has a _kind_: reference, explanation, how-to, or tutorial. The kind describes the need that the document serves and remains independent from lifecycle status. Plans have no kind. [`documentation-model.md`](./contributing/documentation-model.md) explains this shape, and [`AGENTS.md`](./contributing/AGENTS.md) routes the authoring practice.
 
 <!-- INDEX:START -->
 

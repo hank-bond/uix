@@ -6,7 +6,7 @@ read_when: "Read before creating or changing interactive UI, accessibility behav
 
 # User interface
 
-The [user-interface.a11y-equivalence](./rules/user-interface.a11y-equivalence.md) and [user-interface.component-styles](./rules/user-interface.component-styles.md) rules state the invariants. This file carries the application steps.
+The [user-interface.a11y-equivalence](./rules/user-interface.a11y-equivalence.md) and [user-interface.component-styles](./rules/user-interface.component-styles.md) rules state the invariants. This file walks the application steps.
 
 ## Accessible UI
 
@@ -26,6 +26,6 @@ A visually hidden helper must clip content rather than use `display: none` or `v
 
 ## Component stylesheets
 
-CSS class names remain lowercase kebab or BEM names regardless of file ownership. Component-owned selectors carry their component domain, such as `.session-picker__option`. Shared selectors carry the feature or visual role, such as `.chat-button`. Filename casing communicates ownership, not a different CSS scope.
+CSS class names remain lowercase kebab or BEM names regardless of file ownership. Component-owned selectors name their component domain, such as `.session-picker__option`. Shared selectors name the feature or visual role, such as `.chat-button`. Filename casing communicates ownership, not a different CSS scope.
 
 Name-global `@font-face`, `@keyframes`, and `@property` declarations remain document-global. Keep their feature-prefixed names.

@@ -4,9 +4,9 @@ summary: "Give Canvas a reusable local web-asset library in eight reviewable uni
 
 # Canvas reusable assets and transient derived DOM
 
-Let Canvas documents compose reusable JavaScript, web components, CSS, HTML, and other browser assets by stable local path instead of regenerating or embedding those assets in every document. The collection belongs to the Canvas feature: the workspace-owned Canvas feature carries a conventional `public/` tree and serves it read-only on the same isolated origin as its documents.
+Let Canvas documents compose reusable JavaScript, web components, CSS, HTML, and other browser assets by stable local path instead of regenerating or embedding those assets in every document. The collection belongs to the Canvas feature: the workspace-owned Canvas feature has a conventional `public/` tree and serves it read-only on the same isolated origin as its documents.
 
-This keeps Canvas HTML small, saves inference tokens, and makes reusable pieces composable across many Canvas writes. A paired persistence control lets a document distinguish hydrated DOM that is meaningful saved state from derived output the document recreates from persistent source on load.
+This keeps Canvas HTML small, reduces inference tokens, and makes reusable pieces composable across many Canvas writes. A paired persistence control lets a document distinguish hydrated DOM that is meaningful persisted state from derived output the document recreates from persistent source on load.
 
 This plan builds on the case-1 hydrated-document model in [canvas-data-channel](../docs/design/canvas-data-channel.md). It does not turn assets into a workspace-wide concept or begin the broader application-hosting work discussed for future UIX apps.
 
@@ -14,7 +14,7 @@ This plan builds on the case-1 hydrated-document model in [canvas-data-channel](
 
 - [Canvas stage one](../docs/decisions/2026-05-31-canvas-stage-one.md) — Canvas HTML runs in a script-enabled iframe on a feature-isolated resource origin.
 - [Pi self-extension ethos](../docs/decisions/2026-06-05-pi-self-extension-ethos.md) — Canvas stays raw, composable web content rather than gaining hardcoded renderer integrations.
-- [Features are the loadable unit](../docs/decisions/2026-07-01-features-are-the-loadable-unit.md) — Canvas owns the collection and its conventions; the substrate supplies only the generic resource-serving capability it needs.
+- [Features are the loadable unit](../docs/decisions/2026-07-01-features-are-the-loadable-unit.md) — Canvas owns the collection and its conventions; the substrate provides only the generic resource-serving capability it needs.
 - [No agent-driven UI manipulation](../docs/decisions/2026-05-30-no-agent-ui-manipulation.md) — the agent edits Canvas documents and reusable source files rather than manipulating the live iframe through an agent-side UI API.
 - Humans win edit conflicts. A human writeback commits unconditionally; the host rejects a conflicting agent change with an actionable diff and the agent redoes its work on the new base. Agent effort is free; humans are expensive.
 - The persisted Canvas document is the authored form (references, reflected props, slotted content); the serve layer expands it into the rendered view. The store is the diff surface; the serve layer is the paint surface.
@@ -52,7 +52,7 @@ Acceptance:
 
 Add a conventional `public/` directory to the Canvas feature and expose it through a Canvas-owned `/assets/` route on the same origin as Canvas documents.
 
-Transport is feasible: the scheme already serves module scripts in CORS mode (the surface pipeline), the assets route is same-origin to the frame (`uix-resource://canvas.<workspaceId>`), the frame sandbox allows scripts, and canvas responses carry no CSP. The substrate deliberately grants no CORS to feature-origin consumers, so collection assets must remain on the Canvas feature origin — this route is that by construction.
+Transport is feasible: the scheme already serves module scripts in CORS mode (the surface pipeline), the assets route is same-origin to the frame (`uix-resource://canvas.<workspaceId>`), the frame sandbox allows scripts, and canvas responses include no CSP. The substrate deliberately grants no CORS to feature-origin consumers, so collection assets must remain on the Canvas feature origin — this route is that by construction.
 
 The initial organization is intentionally ordinary:
 
@@ -167,7 +167,7 @@ Acceptance:
 Components in the collection follow one authoring contract so documents stay thin, diffs stay meaningful, and agents and humans author the same component.
 
 - **Layers.** A component splits into library code (behavior and styles, referenced by documents and propagating to every instance when changed), structure (authored markup in the document), and data (props and attributes). The render path generates derived output (rendered diagrams, computed subtrees) from persistent source and never persists it (C3).
-- **Golden documents.** The collection carries canonical instance documents in a `templates/` namespace; instantiating copies a golden document and edits its data. Improvements promote from an instance to its golden document (structure) or to the library (behavior and styles) as an explicit agent-mediated gesture. Instance-to-golden drift is visible.
+- **Golden documents.** The collection holds canonical instance documents in a `templates/` namespace; instantiating copies a golden document and edits its data. Improvements promote from an instance to its golden document (structure) or to the library (behavior and styles) as an explicit agent-mediated gesture. Instance-to-golden drift is visible.
 - **Agent authorship.** The agent authors an instance as a reference plus props plus slotted content. The component enforces its shape, so the agent cannot diverge into arbitrary internal markup; new shapes are new files in the collection.
 - **Human authorship.** Human edits to interactive controls flow through the component: the control's event updates a reflected prop on the host, and writeback persists the host attribute. Serialization excludes controls rendered from props (shadow DOM, or C3 persist markers); authored elements persist directly. A shared controlled-value mixin implements the flow once.
 - **Discoverability.** The catalog (C2) documents each component with a summary, use trigger, and accepted shape; the catalog generates a machine-readable component manifest from the same metadata.
@@ -181,7 +181,7 @@ The coding agent applies this tree to every piece of content it authors, so plac
 - **Yes → Derived (L0).** Never in the document. Regenerated at serve time or on source change. Mark `persist=none`/`shell` (C3). Shadow viewport or plain element.
 - **No** → Q2.
 
-**Q2 — Is it tool-owned** (describes the app/template itself, meant to carry forward to every instance — hover copy, chrome text, empty states)?
+**Q2 — Is it tool-owned** (describes the app/template itself, meant to apply to every instance — hover copy, chrome text, empty states)?
 
 - **Yes → Template (L2).** Lives in the golden document or component. Injected at serve time (C6). Not in the instance document — unless overridden for this instance, in which case the override persists and shows in the diff.
 - **No** → Q3 (instance content — about the work).
@@ -241,13 +241,13 @@ Acceptance:
 
 ## C7: Versioned updates and conflict handling (how to handle updates)
 
-Every canvas document carries a version; the store is authoritative, and the frame tracks the version it last applied plus a dirty flag for unflushed human edits. All writes declare the base they build on.
+Every canvas document has a version; the store is authoritative, and the frame tracks the version it last applied plus a dirty flag for unflushed human edits. All writes declare the base they build on.
 
-- **Human writeback** is a versioned full-document flush that commits unconditionally (humans win). It carries the base version it serialized from so the ledger stays accurate and the agent can be told when its base moved.
+- **Human writeback** is a versioned full-document flush that commits unconditionally (humans win). It includes the base version it serialized from so the ledger stays accurate and the agent can be told when its base moved.
 - **Agent edits** propose guarded anchored changes that merge onto current: hunks that apply cleanly land; the host rejects hunks that collide with human edits with the human's version and the new base.
 - **Agent writes** are conditional atomic replaces: they land only if their base is still current; otherwise the host rejects them with the human's diff and the new base, and the agent re-reads and redoes. Writes never merge. Pure rejection is the decided v1 policy — no merge fallback; a guarded-merge upgrade is deferred unless rejections chafe in practice.
 - **Frame convergence** applies agent changes in place: flush if dirty, diff from the frame's applied version to the target, send anchored patch operations to the shim, apply, ack. A failed application falls back to a full reload.
-- The agent's base comes from its turn-start snapshot rather than a tool-supplied number.
+- The agent's base comes from its turn-start snapshot rather than a tool-provided number.
 - The host limits retries to one per conflict; repeated conflict surfaces to the human.
 
 Acceptance:

@@ -1,7 +1,7 @@
 // Injects the writeback shim into served canvas HTML so human edits flow back to the store.
 //
 // Injected into served canvas HTML so a human can edit the pane and have edits
-// flow back to the store. The canvas frame is sandboxed off `window.uix` (see
+// flow back to the store. The canvas frame is sandboxed off `window.channels` (see
 // preload), so the only channel out is postMessage to the host, which
 // forwards over IPC. The server adds the shim at serve time and never persists it: the shim
 // removes its own <script> node before serializing, so it never leaks into
@@ -19,7 +19,7 @@ function shimScript(key: CanvasKey): string {
   var timer;
   var lastHtml = "";
   // outerHTML serializes attributes, not live form state. Reflect each
-  // control's current property onto the clone so the clone carries the live
+  // control's current property onto the clone so the clone holds the live
   // selection/typed value, not just the initial markup.
   function reflectFormState(live, copy) {
     var from = live.querySelectorAll("input, textarea, select option");

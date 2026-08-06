@@ -1,0 +1,10 @@
+# Retired UIX lifecycle noun: `Registration` named several incompatible
+# lifecycle stages. Case-sensitive so the ordinary process noun ("registration
+# order") and identifiers such as `ActionRegistration` are not caught; only the
+# standalone capitalized stage-name misuse is banned.
+extends: existence
+message: "Retired UIX term. Use `ResolvedXContribution`, `RegisteredX`, or a capability role; check the lexicon (docs/architecture/conventions/lexicon.md)."
+level: error
+ignorecase: false
+tokens:
+  - '\bRegistration\b'

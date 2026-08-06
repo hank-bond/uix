@@ -7,12 +7,12 @@
 // 1. Declaration/init: a feature declares a route path, query schema, and
 //    origin policy (`workspace` or `feature`). UIX normalizes and validates that
 //    declaration before any request can hit it.
-// 2. Encode/render: workspace/runtime code supplies the resource address
+// 2. Encode/render: workspace/runtime code provides the resource address
 //    (workspace id + feature id + resource name) plus route values
 //    (path params + query). UIX validates those values and returns a branded
 //    `ResourceUrl` string for iframe `src`, script/style links, fetch, etc.
 // 3. Decode/request: Electron/hosted transport receives an untrusted URL string.
-//    UIX parses it into URL parts, verifies the transport scheme + origin host +
+//    UIX parses it into URL parts, validates the transport scheme, origin host, and
 //    resource address, matches the remaining path against the normalized route,
 //    validates query with TypeBox, then hands params/query to the contribution.
 //

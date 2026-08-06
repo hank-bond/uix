@@ -12,13 +12,13 @@
 //     persisted body on the branch.
 //   - append: owner calls append(payload). UIX queues values, flushes the
 //     pending list, and clears only after the branch confirms persistence.
-//   - no buffer: owner supplies materialize(). UIX calls it while preparing an
+//   - no buffer: owner provides materialize(). UIX calls it while preparing an
 //     agent run, and the contribution owns any external state it reads or
 //     consumes.
 //
 // The assembler coalesces all flushed sections into one display-hidden `uix.state` custom
 // message. Pi renders custom messages into provider user-role text and strips
-// customType, so the content itself carries a <uix-state> envelope and one
+// customType, so the content itself wraps a <uix-state> envelope and one
 // inner tag per canonical id. Human prompt text stays verbatim.
 
 import type {

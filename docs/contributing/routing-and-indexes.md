@@ -26,7 +26,7 @@ The root [`AGENTS.md`](../../AGENTS.md) orients the project and routes to direct
 
 ## Tree-level authoring specs
 
-`contributing.md` is reserved for the authoring spec of one nested documentation level. A tree-level instance, such as [`contributing.md`](../architecture/conventions/contributing.md), carries the formats, admission tests, and structural checks for that tree. The repository-wide practice lives in this contribution subtree. Do not use the reserved name for a content document.
+`contributing.md` is reserved for the authoring spec of one nested documentation level. A tree-level instance, such as [`contributing.md`](../architecture/conventions/contributing.md), holds the formats, admission tests, and structural checks for that tree. The repository-wide practice lives in this contribution subtree. Do not use the reserved name for a content document.
 
 Tree-specific authoring specs remain with the trees that they govern. They refine the repository-wide practice rather than duplicating it.
 

@@ -7,7 +7,7 @@ kind: reference
 
 **Rule: must.** Use an approved operation form for a UIX-owned function or method.
 
-**Approved example:** Use a verb phrase by default. For example, use `registerAction()`, `publishChannelEvent()`, and `runAction()`. Let a receiver supply established context when the shorter name stays unambiguous:
+**Approved example:** Use a verb phrase by default. For example, use `registerAction()`, `publishChannelEvent()`, and `runAction()`. Let a receiver provide established context when the shorter name stays unambiguous:
 
 ```ts
 actionRegistry.register();

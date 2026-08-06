@@ -7,7 +7,7 @@ kind: reference
 
 **Rule: must.** When an operation names a result or lifecycle transition, pair an approved transition verb with the result's domain role. Each term must add independent information.
 
-**Scope:** This rule does not require every operation to repeat its return type. A receiver, input, or established domain operation can already supply the noun, as in `registry.register(action)`.
+**Scope:** This rule does not require every operation to repeat its return type. A receiver, input, or established domain operation can already provide the noun, as in `registry.register(action)`.
 
 **Approved examples:** `deriveSelectedBranchProjection()`, `resolveAgentToolContribution()`, and `assembleAgentContextMessage()` pair a transition with its result role. Use `deriveToolChatBlockPresentation()`, where `derive` identifies pure policy computation and `Presentation` identifies the human-facing result.
 

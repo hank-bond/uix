@@ -1,6 +1,6 @@
 // Boots the workspace window and renders the workspace page over the preload transport.
 //
-// One BrowserWindow = one workspace. The workspace client wraps window.uix
+// One BrowserWindow = one workspace. The workspace client wraps window.channels
 // directly. No iframe, no bridge, no sandbox. Multi-workspace isolation is
 // at the BrowserWindow layer.
 

@@ -15,7 +15,7 @@ The guidance, lexicon, and rule-card formats and their structural checks live in
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
-- **[comments](./comments.md)** _(reference)._ Comments answer why code exists or how to use it correctly: line comments carry reasons, JSDoc carries caller integration. _Read before writing source-file summaries or explanatory comments._
+- **[comments](./comments.md)** _(reference)._ Comments answer why code exists or how to use it correctly: line comments hold reasons, JSDoc explains caller integration. _Read before writing source-file summaries or explanatory comments._
 - **[contributing](./contributing.md)** _(how-to)._ Authoring spec for the conventions tree: the guidance, lexicon, and rule-card formats, the admission and quality tests, and the structural checks. _Read before proposing changes to any conventions document._
 - **[lexicon](./lexicon.md)** _(reference)._ The controlled lexicon assigns every UIX word one meaning and grammatical role in uniform per-class tables, with the reserve and retire governance. _Read before introducing a recurring word, reviewing wording in comments or docs, or extending the controlled lexicon._
 - **[lifetimes](./lifetimes.md)** _(reference)._ Cleanup-requiring behavior uses lifecycle helpers and belongs to an explicit DisposableBag lifetime. _Read before attaching callbacks, listeners, IPC, protocols, timers, or any other behavior that requires cleanup._

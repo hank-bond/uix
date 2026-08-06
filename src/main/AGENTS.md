@@ -8,7 +8,7 @@ summary: "The Electron main process starts the app, opens one workspace, connect
 
 Workspace adoption precedes feature activation, which acquires live members from the direct facet registries. The agent runtime consumes that selected workspace and feature composition while retaining its separate Pi session lifecycle.
 
-IPC remains a transport boundary rather than a feature contract boundary. Shared author contracts live under `src/api`. The channel and resource registries bind resolved contributions to transports supplied by the main-process composition.
+IPC remains a transport boundary rather than a feature contract boundary. Shared author contracts live under `src/api`. The channel and resource registries bind resolved contributions to transports provided by the main-process composition.
 
 ## Contents
 

@@ -76,7 +76,8 @@ export function createTurnStateCoordinator(
 
   // Single source of the disposed guard. Fresh narrowing here so the re-check
   // after an await still sees `disposed` as a boolean: dispose() can run while
-  // a restore/commit is awaiting, which TS's carried narrowing ignores.
+  // a restore/commit is awaiting, and TypeScript does not preserve the
+  // narrowing across the await.
   function assertNotDisposed(): void {
     if (disposed) throw new Error("Turn-state coordinator is disposed");
   }

@@ -55,7 +55,7 @@ Add an ordered entry reference to `uix.workspace.json`. Manifest order is activa
 `entry` resolves relative to `uix.workspace.json` unless it is absolute. Then reload. The loader loads entries as `.ts`/`.js` from disk, so no Electron rebuild is needed:
 
 ```ts
-await window.uix.reload();
+await window.channels.reload();
 ```
 
 ## The full contribution facade
@@ -101,7 +101,7 @@ The [`Canvas` feature](../../src/features/canvas/backend/contributions/index.ts)
 
 ## Settings
 
-Declare a settings schema in shared code so backend and surface get the same types, defaults, and validation. `defineFeature` carries it into `ctx.settings`, deriving key-specific get/set/listen. See [`add-settings-to-a-feature.md`](./add-settings-to-a-feature.md) for the full workflow.
+Declare a settings schema in shared code so backend and surface get the same types, defaults, and validation. `defineFeature` threads it into `ctx.settings`, deriving key-specific get/set/listen. See [`add-settings-to-a-feature.md`](./add-settings-to-a-feature.md) for the full workflow.
 
 ## Channels
 
@@ -137,7 +137,7 @@ export const notesChannelsContribution: ChannelContribution = withHandlers(
   {
     add: {
       async handler({ text }) {
-        await saveNote(text);
+        await persistNote(text);
       },
     },
   },
@@ -204,7 +204,7 @@ export function notesTurnState(): TurnStateContributions {
 
 ## Agent context
 
-Agent context carries changing model-visible state without rewriting the human prompt. A `materialize` contribution returns the body (and optional `details`) the model sees, derived from live state or turn-state history:
+Agent context holds changing model-visible state without rewriting the human prompt. A `materialize` contribution returns the body (and optional `details`) the model sees, derived from live state or turn-state history:
 
 ```ts
 import type { AgentContextContribution } from "@uix/api/agent-context";

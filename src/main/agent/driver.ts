@@ -148,7 +148,7 @@ export interface AgentDriverOptions {
   turnState?: TurnStateRegistry;
   /** Stable feature-owned system-prompt sections. */
   agentSystemPrompt?: AgentSystemPromptRegistry;
-  /** Feature-supplied Pi skills discovered at session start/reload. */
+  /** Feature-provided Pi skills discovered at session start/reload. */
   agentSkills?: AgentSkillRegistry;
   /** Host→agent context registry, installed by the driver. */
   agentContext?: AgentContextRegistry;
@@ -166,7 +166,7 @@ export interface AgentDriverOptions {
   sessionSettings?: SettingsHandleFrom<typeof sessionWorkspaceSettings>;
   /** Fired whenever current agent status changes. */
   onStatusChange?: (status: AgentStatus) => void;
-  /** Opens only URLs supplied by the active Pi auth provider. */
+  /** Opens only URLs provided by the active Pi auth provider. */
   openExternal: (url: string) => void | Promise<void>;
   /** Fired for generic provider-auth state transitions. */
   onProviderAuthFlowSnapshot: (snapshot: ProviderAuthFlowSnapshot) => void;
@@ -238,6 +238,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     });
   });
 
+  // Section: Services and runtime
   async function createServices(
     cwd: string,
     agentDir: string,
@@ -298,6 +299,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     };
   }
 
+  // Section: Model and status projection
   function emitStatus(): void {
     opts.onStatusChange?.(getStatus());
   }
@@ -330,6 +332,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     } satisfies SelectedSessionSetting);
   }
 
+  // Section: Session lifecycle
   function getBootstrapManager(): Promise<SessionManager> {
     if (disposed) return Promise.reject(new Error("Agent driver is disposed"));
     if (bootstrapManager) return Promise.resolve(bootstrapManager);
@@ -462,7 +465,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         : await getServices();
       const modelRuntime = sessionServices.modelRuntime;
 
-      // The workspace default applies only when the selected branch carries no
+      // The workspace default applies only when the selected branch has no
       // native model change. Otherwise Pi restores branch-owned model state.
       let initialModel: ReturnType<ModelRuntime["getModel"]>;
       if (
@@ -554,6 +557,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     return false;
   }
 
+  // Section: Driver surface
   return {
     init() {
       // Fire the eager manager load and state restore. Swallow rejection here

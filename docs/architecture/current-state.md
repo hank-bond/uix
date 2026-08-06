@@ -63,7 +63,7 @@ The substrate registers `agent`, `session`, and `keybindings` workspace namespac
 
 Turn-state contributions define named schema-bound cells. The coordinator commits changed complete snapshots at run boundaries and restores selected-branch values on startup, session replacement, and reload.
 
-Agent-context contributions materialize hidden model-visible sections. One assembler combines active sections into a `uix.state` message and supplies a generated vocabulary section to the system prompt.
+Agent-context contributions materialize hidden model-visible sections. One assembler combines active sections into a `uix.state` message and provides a generated vocabulary section to the system prompt.
 
 UIX exposes no public arbitrary filesystem watcher. External manifest changes take effect through reload.
 
@@ -71,7 +71,7 @@ UIX exposes no public arbitrary filesystem watcher. External manifest changes ta
 
 The main process owns one Pi `SessionManager` and a lazy `AgentSessionRuntime`. History and session summaries remain available before a live agent session starts.
 
-UIX stores sessions under the workspace state root. One application-owned Pi profile under Electron `userData` supplies credentials, settings, models, and extension resources across workspaces.
+UIX stores sessions under the workspace state root. One application-owned Pi profile under Electron `userData` provides credentials, settings, models, and extension resources across workspaces.
 
 The driver creates Pi with built-in tools inactive. Manifest features therefore define the complete UIX-selected tool surface. Internal installers adapt live agent-facet registries into Pi.
 
@@ -103,5 +103,10 @@ The active plans track work that is not architecture yet:
 - [`session-history-and-switching.md`](../../plans/session-history-and-switching.md) retains defensive hardening and final verification.
 - [`durable-transcript-identity.md`](../../plans/durable-transcript-identity.md) retains durable low-frequency block state.
 - [`electron-server-split.md`](../../plans/electron-server-split.md) explores extracting host-neutral runtime boundaries.
+- [`canvas-reusable-assets.md`](../../plans/canvas-reusable-assets.md) gives Canvas a reusable local web-asset library in eight reviewable units.
+- [`cross-feature-capabilities-and-resource-viewing.md`](../../plans/cross-feature-capabilities-and-resource-viewing.md) establishes publisher-qualified public protocols, document resources, and resource viewers after identity and selection details settle.
+- [`framework-neutral-surfaces-and-shell.md`](../../plans/framework-neutral-surfaces-and-shell.md) moves frontend frameworks into feature ownership in post-alpha stages.
+- [`persistence-and-session-foundation.md`](../../plans/persistence-and-session-foundation.md) specifies the file-backed session and branch-restoration foundation. C0/C1 have landed and C2–C5 remain deferred.
+- [`workspace-first-render-gate.md`](../../plans/workspace-first-render-gate.md) shows a substrate-owned loading overlay until the initial composition restores and renders.
 
 The complete build map lives in [`AGENTS.md`](../../plans/AGENTS.md). Unresolved architecture questions live in [`open-questions.md`](./open-questions.md).

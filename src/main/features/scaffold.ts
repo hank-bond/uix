@@ -47,7 +47,7 @@ const npmInstall = (workspaceDir: string): Promise<void> =>
   });
 
 /**
- * npm package names can't carry spaces/uppercase/most punctuation. The
+ * npm package names can't contain spaces/uppercase/most punctuation. The
  * workspace-root package.json is never published, so any readable slug does.
  */
 const packageNameFor = (name: string): string => {

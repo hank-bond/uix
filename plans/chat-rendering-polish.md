@@ -31,7 +31,7 @@ Stop for review before C3.
 
 ## C3: File-tool rendering · **landed 2026-07-30**
 
-- Make each tool row carry its point-in-time execution cwd and each relevant filesystem row carry a `ToolFileLocation`: a lexical absolute path plus a cwd-relative-or-absolute display path.
+- Make each tool row include its point-in-time execution cwd and each relevant filesystem row include a `ToolFileLocation`: a lexical absolute path plus a cwd-relative-or-absolute display path.
 - Derive the same self-contained file locations during history projection by seeding from the session header cwd and folding persisted cwd state with tool calls.
 - Expose current cwd to surfaces through a status snapshot plus change events.
 - Add an explicit feature-level seam for exact-name tool overrides; ordinary feature tools remain namespaced, and competing exact-name claims fail the later feature's activation.

@@ -6,7 +6,7 @@ read_when: "Read before deciding where new guidance belongs, promoting prose int
 
 # Knowledge placement
 
-Code is the primary description of implemented structure and behavior. Names, types, imports, and control flow carry knowledge _of_ the code. Documentation carries knowledge _about_ the code: responsibility, correct usage, ownership, rationale, coordination, constraints, and external context.
+Code is the primary description of implemented structure and behavior. Names, types, imports, and control flow hold knowledge _of_ the code. Documentation holds knowledge _about_ the code: responsibility, correct usage, ownership, rationale, coordination, constraints, and external context.
 
 ## Choose the narrowest owner
 

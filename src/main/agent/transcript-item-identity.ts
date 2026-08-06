@@ -10,7 +10,7 @@
 //
 // Correlation per row kind:
 //  - assistant: Pi passes the *same* message object to `message_end` and
-//    `appendMessage`, so a WeakMap keyed by the object carries the
+//    `appendMessage`, so a WeakMap keyed by the object holds the
 //    continuation without retaining message content.
 //  - user: nothing to correlate. The instant echo is the *renderer's* own
 //    optimistic pending row (composer state, not transcript truth). Main

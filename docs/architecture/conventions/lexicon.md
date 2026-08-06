@@ -23,7 +23,7 @@ Decide a word's fate by asking four questions in order:
 3. **Best carrier.** Is this word the best word for our meaning? If yes, reserve it: the domain meaning owns the word and every other sense is nonconforming.
 4. **Cleaner alternative.** Does a single-meaning word cover our meaning? If yes, retire it: ban the word in all senses and use the alternative.
 
-Candidates surface two ways. **Overload:** one word with several meanings, found by reading (as in `save`). **Drift:** one concept with several words, found by profiling the corpus (as in `combine`, `join`, `merge`, `collect` for `assemble`).
+Candidates appear two ways. **Overload:** one word with several meanings, found by reading (as in `save`). **Drift:** one concept with several words, found by profiling the corpus (as in `combine`, `join`, `merge`, `collect` for `assemble`).
 
 Operating rules:
 
@@ -42,13 +42,13 @@ These nouns name callable roles and consumer-held capabilities. Each has one gra
 | --- | --- | --- | --- | --- |
 | `Appender` | noun | Consumer-held capability that appends values to an ordered pending collection. Use `Updater` when only the latest value remains current. | `AgentContextAppender` | `AgentContextUpdater` for an ordered pending list |
 | `Assembler` | noun | Component that assembles one runtime artifact from multiple registered or materialized parts. Use `Factory` for instance creation and `Projector` for derivation state. | `AgentContextAssembler` | `AgentContextBuilder` |
-| `Callback` | noun | Callable supplied for a continuation or customization point when no more specific role applies. Prefer the specific role when one exists. | `CompletionCallback` | `RequestCallback` for a request handler |
+| `Callback` | noun | Callable provided for a continuation or customization point when no more specific role applies. Prefer the specific role when one exists. | `CompletionCallback` | `RequestCallback` for a request handler |
 | `Coordinator` | noun | Substrate-owned, stateful component that sequences a multi-step lifecycle across independently owned participants and performs its side effects. Use `Installer` for setup-time runtime attachment, `Driver` for ownership of a runtime boundary, and `Assembler` for combining parts into one artifact. | `TurnStateCoordinator`, `WorkspaceReloadCoordinator` | `TurnStateCoordinator` for a callable whose only role is installing Pi hooks. Use `TurnStateInstaller` |
 | `Factory` | noun | Component or callable that creates domain instances from known inputs and transfers responsibility for them to an owner. Use `Assembler` to combine defined parts into one artifact. | `DocumentStoreFactory` | `AgentContextFactory` for combining registered contributions. Use `AgentContextAssembler` |
 | `Handle` | noun | Object that gives its holder a scoped capability. Use `Handler` for a callable that processes an occurrence. | `SettingsHandle` | `ChannelTransportHandle` for a registrar callable |
 | `Handler` | noun | Callable that a framework invokes to process one occurrence and possibly determine its result. Use `Listener` for passive observation. | `ChannelRequestHandler` | `StatusHandler` for a callable that only observes status changes |
 | `Installer` | noun | Setup-time callable or component that attaches a whole feature or facet slice to a runtime. Use `Registrar` for a callable that adds one item. | `AgentInstaller` | `SingleAgentToolInstaller` for a callable that registers one tool. Use `AgentToolRegistrar` |
-| `Listener` | noun | Callable that observes an occurrence without determining its result. Use `Handler` when the callable processes the occurrence or supplies its result. | `StatusListener` | `RequestListener` for a callable that must produce the request result |
+| `Listener` | noun | Callable that observes an occurrence without determining its result. Use `Handler` when the callable processes the occurrence or provides its result. | `StatusListener` | `RequestListener` for a callable that must produce the request result |
 | `Presentation` | noun | Purpose-specific human-facing material that forms an explicit intermediate boundary between display-policy derivation and UI composition or display execution. A presentation can be a derived projection. Use `Projection` when the result remains consumer-neutral domain data, an ordinary UI component when no intermediate boundary exists, and `Renderer` for the mechanism that executes web display. | `ToolChatBlockPresentation` | `ToolChatRenderer`, `MessageChatBlockPresentation` for a component with no intermediate presentation value |
 | `Projector` | noun | Stateful component whose private state exists only to incorporate source facts and derive a projection. Use a `deriveX` function for a one-shot transformation. | `TranscriptProjector` | `ModelCatalogProjector` that only maps one input array. Use `deriveModelCatalog()` |
 | `Publisher` | noun | Capability or callable that its holder invokes to publish an event. | `FeatureEventPublisher` | `ChannelTransportPublish` |
@@ -62,14 +62,14 @@ These adjectives and nouns name the stages a contribution passes through from au
 
 | Term | Part of speech | Approved meaning / alternatives | Approved example | Nonconforming example |
 | --- | --- | --- | --- | --- |
-| `Contribution` | noun | Declarative value supplied by an author to a contribution point. Use `Installer` for code that directly attaches a whole slice to a runtime. | `ActionContribution` | `AgentInstaller` named as a contribution |
+| `Contribution` | noun | Declarative value provided by an author to a contribution point. Use `Installer` for code that directly attaches a whole slice to a runtime. | `ActionContribution` | `AgentInstaller` named as a contribution |
 | `Normalized` | adjective | Converted into one canonical representation without binding live ownership, environment-dependent references, or derived identities. Use `Resolved` after those values become concrete. | `NormalizedResourceRoute` | `NormalizedActionContribution` after owner-derived ids are assigned |
 | `Registered` | adjective | A separate live record created by registry acceptance with registry-owned state beyond the resolved input. When acceptance stores the resolved value unchanged, keep its `Resolved` type and let membership express liveness. | `RegisteredAction`, `RegisteredAgentContextAppendContribution` | `RegisteredAgentContextMaterializedContribution` with no fields beyond its resolved input |
 | `Resolved` | adjective | Owner-derived identifiers, paths, references, or environment-dependent values are concrete and the value is ready to register. | `ResolvedActionContribution` | `ActionRegistration` for a registry-ready value |
 
 ## UIX-owned operation terms
 
-These verbs and prepositions carry approved operation meanings. Use each term only for its approved meaning. Do not introduce a synonym when an approved operation already fits.
+These verbs and prepositions hold approved operation meanings. Use each term only for its approved meaning. Do not introduce a synonym when an approved operation already fits.
 
 Use _normalize_ when the result depends only on the input value. Use _resolve_ when ownership, paths, references, or environment can change the result. For example, `normalizeShortcut()` is context-free. `resolveAgentToolContribution()` derives a concrete Pi tool name for each owning feature.
 

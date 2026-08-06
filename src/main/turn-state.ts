@@ -60,6 +60,7 @@ export interface ResolvedTurnStateCellContribution {
 }
 
 /** Own live, independently committed feature state cells in registration order. */
+// Section: Registry
 export class TurnStateRegistry {
   readonly #registeredCells: ResolvedTurnStateCellContribution[] = [];
 
@@ -137,6 +138,7 @@ export function isTurnStateRegistrySnapshotCurrent(
   );
 }
 
+// Section: Projection
 export interface TurnStateAsOfLeaf {
   readonly latestValuePerCell: ReadonlyMap<TurnStateCanonicalId, unknown>;
   readonly cwd: string | undefined;
@@ -260,6 +262,7 @@ export async function restoreTurnStateCellsAsOfLeaf(
 }
 
 /** Resolve and validate one feature's cell definitions without registering them. */
+// Section: Resolution and registration
 export function resolveTurnStateContributions(
   featureId: string,
   contributions: TurnStateContributions,
@@ -322,6 +325,7 @@ export function createTurnStateInstaller(
 }
 
 /** Commits live turn state at a durable session boundary. */
+// Section: Commit
 export async function commitCurrentTurnState(
   sessionManager: SessionManager,
   cwd: string,
@@ -386,6 +390,7 @@ async function commitTurnState(opts: CommitTurnStateOptions): Promise<void> {
 }
 
 /** Creates a history reader that can address only the owning feature's cells. */
+// Section: History reader
 export function createTurnStateHistoryReader(
   branch: readonly SessionEntry[],
   featureId: string,
@@ -479,6 +484,7 @@ function turnStates<TState>(
   return result;
 }
 
+// Section: Entry data helpers
 export function asTurnStateEntryData(
   entry: SessionEntry,
 ): TurnStateEntryData | undefined {

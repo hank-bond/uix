@@ -36,7 +36,7 @@ const requireFromLoader = createRequire(__filename);
 /**
  * The alias table feature entry imports resolve through: exactly the
  * blessed backend set. `@uix/api` is a prefix mapping onto the
- * implementation dir the composition root supplies (the API is
+ * implementation dir the composition root provides (the API is
  * self-contained, so one directory serves it. When absent, features can
  * only type-import it and a value import fails loudly into `failed[]`).
  * typebox entries are exact because its package has no `main` (exports
