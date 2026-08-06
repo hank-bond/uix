@@ -9,4 +9,4 @@ kind: reference
 
 **Scope:** This exception applies to terms from Pi, Electron, React, and browser APIs.
 
-**Enforcement:** Record each recurring exception in the [imported-terms section](../lexicon.md#imported-terms) of the lexicon.
+**Enforcement:** Record each recurring exception in the [imported-terms section](../lexicon/imported-terms.md#imported-terms) of the lexicon.

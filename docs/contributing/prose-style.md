@@ -113,7 +113,7 @@ A "**Note:**" is rare: one paragraph of relevant but unnecessary information whe
 
 Introduce a term in italics on first use. Italics mark novelty without changing semantics. Bold is for lead-ins and directional emphasis, not term introduction. Do not use quotation marks for terms.
 
-The [`lexicon.md`](../architecture/conventions/lexicon.md) file controls code vocabulary. Vale enforces prose vocabulary as rules are added.
+The [`lexicon`](../architecture/conventions/lexicon/AGENTS.md) controls code vocabulary. Vale enforces prose vocabulary as rules are added.
 
 ## Wording
 

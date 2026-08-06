@@ -7,7 +7,7 @@ kind: reference
 
 **Rule: must.** Name a Boolean variable, field, or function with an approved predicate term that states a truth claim.
 
-**Approved example:** Use `isAgentRunning`, `hasSelection`, `canSwitchSession`, `supportsManualInput`, `shouldRetry`, or `needsReload` according to the approved meanings in the [predicate-terms section](../lexicon.md#uix-owned-predicate-terms) of the lexicon.
+**Approved example:** Use `isAgentRunning`, `hasSelection`, `canSwitchSession`, `supportsManualInput`, `shouldRetry`, or `needsReload` according to the approved meanings in the [predicate-terms section](../lexicon/code-terms.md#uix-owned-predicate-terms) of the lexicon.
 
 **Nonconforming example:** Do not use a bare domain noun such as `agentRunning` or `selection` as a Boolean. Do not use `will` as a general prediction prefix. Use explicit operation state or another approved predicate instead.
 

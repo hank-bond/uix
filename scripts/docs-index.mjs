@@ -34,6 +34,7 @@ const layers = [
   { dir: "docs/architecture", kind: "container" },
   { dir: "docs/architecture/conventions", kind: "container" },
   { dir: "docs/architecture/conventions/rules", sort: "slug-asc" },
+  { dir: "docs/architecture/conventions/lexicon", sort: "slug-asc" },
   { dir: "plans", sort: "slug-asc" },
   { dir: "src/docs", sort: "slug-asc" },
   { dir: "website", sort: "slug-asc" },

@@ -18,9 +18,33 @@ A guidance claim that is really an invariant promotes to a rule card. The claim 
 
 ## Controlled lexicon
 
-The controlled lexicon lives in one file, [`lexicon.md`](./lexicon.md). It controls architectural vocabulary: the identifier grammar that code authors apply and the prose words that review enforces. This section governs changing the lexicon.
+The controlled lexicon lives in the [`lexicon/`](./lexicon/AGENTS.md) directory, split by reader task. It controls architectural vocabulary: the identifier grammar that code authors apply and the prose words that review enforces. This section governs changing the lexicon.
 
-The lexicon is organized as sections, one per term class. Each section is a short elaboration followed by one table, and every table shares one column format:
+Scope: active code, comments, and documentation. Historical records (decisions, design threads, archives) keep their wording. Universal concrete nouns (`file`, `path`, `location`, `key`, `value`) never enter the list because their meaning is obvious in context.
+
+Every entry follows the STE shape: one word, one part of speech, one meaning, one conforming example, one nonconforming example. Agents extend the tables in place with the same shape. A new word starts with one conforming and one nonconforming example.
+
+Each controlled word has one meaning and one part of speech. A defined noun cannot be used as a verb, and a defined verb cannot be used as a noun. All other uses are nonconforming.
+
+Decide a word's fate by asking four questions in order:
+
+1. **Overload.** Does the word have more than one common English sense? If not, keep it.
+2. **Collision.** Do the other senses plausibly occur in UIX prose? If not, register-confined senses (legal, nautical) never collide, so keep it.
+3. **Best carrier.** Is this word the best word for our meaning? If yes, reserve it: the domain meaning owns the word and every other sense is nonconforming.
+4. **Cleaner alternative.** Does a single-meaning word cover our meaning? If yes, retire it: ban the word in all senses and use the alternative.
+
+Candidates appear two ways. **Overload:** one word with several meanings, found by reading (as in `save`). **Drift:** one concept with several words, found by profiling the corpus (as in `combine`, `join`, `merge`, `collect` for `assemble`).
+
+Operating rules:
+
+- **No partial bans.** A word is reserved (our sense owns it) or retired (all senses are out). Banning one sense of a living word loses to the LLM distribution, which keeps producing the word in its other senses.
+- **Overloaded words resolve to one role.** A word with both noun and verb senses in everyday English gets one defined role. The other role is actively nonconforming. Do not leave the second role ungoverned.
+- **Decisions migrate their corpus.** When a word is reserved or retired, migrate existing nonconforming uses in the same change: identifiers, headers, comments, and active docs. Historical records keep their wording. Retiring a word that names an API operation includes a code rename.
+- **The single-meaning word beats the plain word.** This overrides the simplest-word-that-works rule in the prose style guide when the plain word is overloaded (`retain` over `keep`).
+- **Retirement requires a single-meaning alternative for every sense.** `save` retires because `persist`, `defer`, and `protect` each cover one sense cleanly.
+- **Vale enforces only the negative space:** retired words and always-wrong patterns. Semantic alignment is a review and LLM pass against this list.
+
+Each table lives in the file whose reader task it serves. Every table shares one column format:
 
 | Term | Part of speech | Approved meaning / alternatives | Approved example | Nonconforming example |
 | --- | --- | --- | --- | --- |
@@ -52,13 +76,13 @@ Before admitting a row, apply these quality tests:
 
 If a row cannot provide a strong nonconforming example, its boundary is not settled or the term does not yet need controlled-lexicon status.
 
-Maintain these sections, in this order:
+### Lexicon file layout
 
-- **UIX-owned role terms**, **UIX-owned lifecycle terms**, **UIX-owned operation terms**, and **UIX-owned predicate terms** hold code vocabulary that UIX owns. Each has one approved meaning and grammatical role.
-- **Imported terms** retain the meaning and grammar of the named source API, such as Pi, Electron, React, or a browser standard.
-- **Reserved terms** are domain nouns that own their word. Verb uses of the same spelling are nonconforming.
-- **Retired terms** identify the approved replacement and remain only while they help review or automated checks prevent regression.
-- **Locked meanings** state prose-usage boundaries for terms that also hold a UIX-owned row. The locked row keeps only the boundary and prose examples, and links the UIX-owned row, which keeps the meaning and code examples.
+Maintain these files and their sections, in this order:
+
+- [`code-terms.md`](./lexicon/code-terms.md) holds the **UIX-owned role terms**, **UIX-owned lifecycle terms**, **UIX-owned operation terms**, and **UIX-owned predicate terms** sections. These hold code vocabulary that UIX owns. Each has one approved meaning and grammatical role.
+- [`imported-terms.md`](./lexicon/imported-terms.md) holds the **Imported terms** section. These retain the meaning and grammar of the named source API, such as Pi, Electron, React, or a browser standard.
+- [`prose-terms.md`](./lexicon/prose-terms.md) holds the **Reserved terms**, **Retired terms**, and **Locked meanings** sections. Reserved terms are domain nouns that own their word. Retired terms identify the approved replacement and remain only while they help review or automated checks prevent regression. Locked meanings state prose-usage boundaries for terms that also hold a UIX-owned row. The locked row keeps only the boundary and prose examples, and links the UIX-owned row, which keeps the meaning and code examples.
 
 A term appears once within its section. A term that needs both a UIX-owned row and a locked row appears in both sections with different content.
 
@@ -109,6 +133,6 @@ The conventions formats stay structurally checkable. The checks cover shape, not
 
 - Rule filenames match the identifier grammar. Each rule file has one H1, one **Rule** lead-in with an RFC 2119 keyword, and only the known labels in their fixed order.
 - A lexicon term appears once within its section, the sections and part-of-speech values use the approved sets, and every table follows the shared columns.
-- Links into `rules/` and `lexicon.md` resolve to existing files.
+- Links into `rules/` and the lexicon files resolve to existing files.
 
 Everything else is authorial. The checks never enforce example quality, boundary judgment, or meaning.

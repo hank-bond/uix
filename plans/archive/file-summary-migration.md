@@ -9,7 +9,7 @@ Apply the reserved-word vocabulary and the summary-plus-elaboration header model
 
 Read these three governing docs before editing anything:
 
-- [`lexicon.md`](../../docs/architecture/conventions/lexicon.md) — the controlled vocabulary, its operating rules, and the STE table shape
+- [`lexicon.md`](../../docs/architecture/conventions/lexicon/AGENTS.md) — the controlled vocabulary, its operating rules, and the STE table shape
 - [`comments.md`](../../docs/architecture/conventions/comments.md) — the Source-file headers section (summary plus elaboration)
 - [`source-organization.md`](../../docs/architecture/conventions/source-organization.md) — the Files express responsibility section (one-responsibility boundary, expressibility and coupling tests, sibling separation)
 

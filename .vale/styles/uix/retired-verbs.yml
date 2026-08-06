@@ -3,7 +3,7 @@
 # The verb `verify` is excluded: its retirement covers structural checks only,
 # and a token rule cannot encode that sense split.
 extends: existence
-message: "Retired UIX term. Check the approved sense or alternative in docs/architecture/conventions/lexicon.md."
+message: "Retired UIX term. Check the approved sense or alternative in docs/architecture/conventions/lexicon/prose-terms.md."
 level: error
 ignorecase: true
 tokens:

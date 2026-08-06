@@ -3,7 +3,7 @@
 # order") and identifiers such as `ActionRegistration` are not caught; only the
 # standalone capitalized stage-name misuse is banned.
 extends: existence
-message: "Retired UIX term. Use `ResolvedXContribution`, `RegisteredX`, or a capability role; check the lexicon (docs/architecture/conventions/lexicon.md)."
+message: "Retired UIX term. Use `ResolvedXContribution`, `RegisteredX`, or a capability role; check the lexicon (docs/architecture/conventions/lexicon/prose-terms.md)."
 level: error
 ignorecase: false
 tokens:
