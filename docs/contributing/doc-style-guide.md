@@ -8,7 +8,7 @@ read_when: "Read before writing or reviewing documentation prose or Markdown, or
 
 How this repo writes and formats documentation. We built this guide from the repo's own practice, section by section.
 
-The reference hierarchy: tree-specific authoring structure, the layers, frontmatter, retrieval units, and the AGENTS.md overview-plus-index, lives in [`CONTRIBUTING.md`](./CONTRIBUTING.md) and outranks this guide.
+The reference hierarchy: tree-specific authoring structure, the layers, frontmatter, retrieval units, and the AGENTS.md overview-plus-index, lives in [`document-authoring.md`](./document-authoring.md) and outranks this guide.
 
 These are guidelines, not rules. Depart deliberately when it serves readers, and be consistent when you depart.
 
@@ -36,7 +36,7 @@ The product name is **Pi**, capitalized at any position in a sentence. That is t
 
 Headings are sentence case. Prose has no all-caps and no camel case. Those appear only in code.
 
-Normative keywords are lowercase and bold, per RFC 2119 (Request for Comments 2119). We adopt the full keyword set by reference: **must**, **must not**, **required**, **shall**, **shall not**, **should**, **should not**, **recommended**, **may**, **optional**. A one-line "normative keywords follow RFC 2119" plus the TLDR is enough, since agents already know the standard. Their meanings live in the `CONTRIBUTING.md` doc.
+Normative keywords are lowercase and bold, per RFC 2119 (Request for Comments 2119). We adopt the full keyword set by reference: **must**, **must not**, **required**, **shall**, **shall not**, **should**, **should not**, **recommended**, **may**, **optional**. A one-line "normative keywords follow RFC 2119" plus the TLDR is enough, since agents already know the standard. Their meanings live in the `document-authoring.md` file.
 
 ### Document layout
 
@@ -44,7 +44,7 @@ Encode ownership and scope. Source-coupled guidance lives beside its owning code
 
 The `src/docs/` tree hosts user-implementation how-tos. Do not add a face-value implementation inventory there merely because the page is feature-facing: reference facts live in the contracts and generated indexes.
 
-Every doc follows its layer's conventions: frontmatter with a `summary` first, an H1 title close to the filename, then the layer's shape. Details live in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+Every doc follows its layer's conventions: frontmatter with a `summary` first, an H1 title close to the filename, then the layer's shape. Details live in [`document-authoring.md`](./document-authoring.md).
 
 ### Headings
 
@@ -68,7 +68,7 @@ Code items in prose take a qualifying noun and are never inflected or possessed.
 
 ### Links
 
-Internal docs link by relative path, including `../` where needed. In prose, use the target filename in code font by default. For example, write "[`CONTRIBUTING.md`](./CONTRIBUTING.md)."
+Internal docs link by relative path, including `../` where needed. In prose, use the target filename in code font by default. For example, write "[`document-authoring.md`](./document-authoring.md)."
 
 Generated indexes and directory routes use descriptive slugs because repeated `AGENTS.md` labels would hide destinations. Never use "here", "link", or bare URLs. Avoid repeating a destination within one short section. Repeat it in a long reference only when readers need a local route. Generated indexes may repeat authored overview links.
 
@@ -103,7 +103,7 @@ Singular "they" covers a generic person.
 
 ### Prescriptive writing
 
-The repo's own framework governs: the writing profiles and the RFC 2119 keywords in [`CONTRIBUTING.md`](./CONTRIBUTING.md) decide how prescriptive a document is. Design threads exist to weigh alternatives, and ordinary "should" in explanatory prose is fine. Normative text uses the bold lowercase keywords.
+The repository's own practice governs: the writing profiles and the RFC 2119 keywords in [`document-authoring.md`](./document-authoring.md) decide how prescriptive a document is. Design threads exist to weigh alternatives, and ordinary "should" in explanatory prose is fine. Normative text uses the bold lowercase keywords.
 
 ### Timelessness and future features
 
@@ -117,7 +117,7 @@ The register is split. Reference and descriptive prose is impersonal ("the subst
 
 ### Active voice
 
-The doer is the subject ("the substrate registers each facet under the feature id", not "each facet is registered"). Passive voice is fine to emphasize the object ("the file is saved"), to de-emphasize the actor, or when the actor does not matter. Name the actor when it affects the contract, which the strict profile in [`CONTRIBUTING.md`](./CONTRIBUTING.md) requires. Source comments follow the same rule. [`comments.md`](./architecture/conventions/comments.md) states it for code. The citation idiom "captured in [decision]" stays.
+The doer is the subject ("the substrate registers each facet under the feature id", not "each facet is registered"). Passive voice is fine to emphasize the object ("the file is saved"), to de-emphasize the actor, or when the actor does not matter. Name the actor when it affects the contract, which the strict profile in [`document-authoring.md`](./document-authoring.md) requires. Source comments follow the same rule. [`comments.md`](../architecture/conventions/comments.md) states it for code. The citation idiom "captured in [decision]" stays.
 
 ### Anthropomorphism
 
@@ -173,7 +173,7 @@ A "**Note:**" is rare: one paragraph of information that is relevant but not nec
 
 Introduce a new term in _italics_ on first use. Italics mark novelty without changing semantics. Bold is for lead-ins and directional emphasis, not term introduction. Do not use quotation marks for terms.
 
-The lexicon in [`lexicon.md`](./architecture/conventions/lexicon.md) controls code vocabulary. Vale enforces prose vocabulary as we build rules.
+The lexicon in [`lexicon.md`](../architecture/conventions/lexicon.md) controls code vocabulary. Vale enforces prose vocabulary as we build rules.
 
 ### Wording
 

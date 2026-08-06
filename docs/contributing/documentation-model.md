@@ -4,9 +4,9 @@ kind: explanation
 read_when: "Read before proposing a change to the documentation structure (the how), or when the how has a gap."
 ---
 
-# Framework
+# Documentation model
 
-This page explains why UIX documentation is structured the way it is. The structure combines the Diátaxis need taxonomy with two requirements specific to UIX. It must serve agents that have no memory across sessions, and it must stay coherent as it evolves, through a formal loop. The same structure applies to the UIX wiki and to app wikis. The practice of authoring and maintaining the structure lives in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+This page explains why UIX documentation is structured the way it is. The structure combines the Diátaxis need taxonomy with two requirements specific to UIX. It must serve agents that have no memory across sessions, and it must stay coherent as it evolves, through a formal loop. The same structure applies to the UIX wiki and to app wikis. The practice of authoring and maintaining the structure lives in [`document-authoring.md`](./document-authoring.md).
 
 ## The axes
 
@@ -47,7 +47,7 @@ Repository documentation primarily serves agents, while the user directs and rev
 The documentation has three meta-levels.
 
 - **What:** The content of the documentation.
-- **How:** The rules for modifying the documentation. They live in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+- **How:** The rules for modifying the documentation. They live in [`document-authoring.md`](./document-authoring.md).
 - **Why:** The reasoning behind the documentation structure. This page.
 
 An agent needs the what to make code changes and the how to make structural documentation changes. It needs the why only when someone proposes a how-change or the how has a gap.

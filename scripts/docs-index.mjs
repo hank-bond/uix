@@ -28,6 +28,7 @@ const layers = [
     children: ["src/main", "src/docs", "docs", "plans", "website"],
   },
   { dir: "docs", kind: "container" },
+  { dir: "docs/contributing", kind: "container" },
   { dir: "docs/decisions", sort: "date-desc" },
   { dir: "docs/design", sort: "slug-asc" },
   { dir: "docs/architecture", kind: "container" },

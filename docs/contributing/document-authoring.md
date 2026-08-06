@@ -3,9 +3,9 @@ summary: "Place code-related knowledge at its narrowest owner and author discret
 kind: how-to
 ---
 
-# Contributing to the docs
+# Documentation authoring
 
-Use this reference to write and maintain repository documentation. [`AGENTS.md`](./AGENTS.md) maps the repository-level layers, and the root [`AGENTS.md`](../AGENTS.md) maps every documentation tree.
+Use this reference to write and maintain repository documentation. [`AGENTS.md`](./AGENTS.md) routes documentation contribution practice, [`AGENTS.md`](../AGENTS.md) maps the repository-level layers, and the root [`AGENTS.md`](../../AGENTS.md) maps every documentation tree.
 
 ## Place knowledge at its narrowest owner
 
@@ -52,7 +52,7 @@ Do not create a source directory or `AGENTS.md` for one production file plus its
 
 An `AGENTS.md` generated index lists direct production source files, local Markdown leaves, and immediate child `AGENTS.md` summaries. It excludes colocated tests. Handwritten guidance must not repeat or paraphrase those file or child summaries. The generated index is their sole directory-level description. Guidance starts where individual summaries stop: relationships, sequencing, shared invariants, composition, and dependency direction. A parent does not flatten the contents of a real child ownership boundary.
 
-A local Markdown leaf earns its place when several files under one source owner must be understood together. Put broader workflows and context in repository documentation. [`docs-index.mjs`](../scripts/docs-index.mjs) generates source indexes. Never hand-maintain them.
+A local Markdown leaf earns its place when several files under one source owner must be understood together. Put broader workflows and context in repository documentation. [`docs-index.mjs`](../../scripts/docs-index.mjs) generates source indexes. Never hand-maintain them.
 
 ## What earns a discrete document
 
@@ -178,11 +178,11 @@ Preserve the original reasoning and voice when they are part of the record. Do n
 
 ## Conventions formats
 
-The conventions tree splits into rule cards, the lexicon, and guidance. The authoring spec lives in [`contributing.md`](./architecture/conventions/contributing.md), the tree's narrowest owner, because it matters only when proposing changes to conventions files.
+The conventions tree splits into rule cards, the lexicon, and guidance. The authoring spec lives in [`contributing.md`](../architecture/conventions/contributing.md), the tree's narrowest owner, because it matters only when proposing changes to conventions files.
 
 ## The contributing.md convention
 
-`contributing.md` is a reserved name for the authoring spec of one documentation level. The project-level instance is spelled `CONTRIBUTING.md`. Tree-level instances keep the lowercase spelling, as in `conventions/contributing.md`. Each instance carries the formats, admission tests, and structural checks for its level, and is read when proposing changes to that level's documents. Do not use the name for content documents.
+`contributing.md` is a reserved name for the authoring spec of one nested documentation level. Tree-level instances keep the lowercase spelling, as in `conventions/contributing.md`. Each instance carries the formats, admission tests, and structural checks for its level, and is read when proposing changes to that level's documents. The repository-wide practice lives in this contribution subtree. Do not use the reserved name for content documents.
 
 ## Every AGENTS.md is overview + index
 
@@ -190,9 +190,9 @@ An `AGENTS.md` contains hand-written directory guidance followed by a generated 
 
 Documentation indexes derive entries from document frontmatter. Source indexes derive direct production-file entries from first-line source summaries, local Markdown entries from frontmatter, and immediate child-directory entries from nested `AGENTS.md` frontmatter. The tooling excludes `README.md` files from both indexing and validation because they serve public GitHub-facing documentation rather than agent retrieval. Agents find colocated test and spec files from the routed production file, which receive no index entries. The source-index tooling lands with its first migrated boundary. Do not create those listings by hand.
 
-The root [`AGENTS.md`](../AGENTS.md) orients the project and routes to directory indexes. Each lower index adds only the guidance owned at that level. Parent indexes expose child-directory summaries without recursively copying their file entries.
+The root [`AGENTS.md`](../../AGENTS.md) orients the project and routes to directory indexes. Each lower index adds only the guidance owned at that level. Parent indexes expose child-directory summaries without recursively copying their file entries.
 
-The index sits between `<!-- INDEX:START -->` and `<!-- INDEX:END -->`. [`docs-index.mjs`](../scripts/docs-index.mjs) currently derives documentation entries from frontmatter. It covers `docs/decisions`, `docs/design`, `docs/architecture`, its conventions tree, `plans`, `src/docs`, and `website`. Add or edit a document, then run these commands:
+The index sits between `<!-- INDEX:START -->` and `<!-- INDEX:END -->`. [`docs-index.mjs`](../../scripts/docs-index.mjs) currently derives documentation entries from frontmatter. It covers the documentation containers and layers under `docs`, plus `plans`, `src/docs`, and `website`. Add or edit a document, then run these commands:
 
 ```sh
 npm run docs:index     # regenerate the index blocks
@@ -201,12 +201,12 @@ npm run docs:check     # fail on stale indexes, malformed docs, or broken links
 
 The check requires frontmatter and one H1 in living documentation Markdown files, except `README.md`. It also validates relative links, lifecycle values, and `kind` tags on indexed documentation. Archived plans retain their historical body shape.
 
-Prose outside the markers is yours. The block between them is derived. **Never hand-edit it.** Do not add, reword, reorder, or delete entries inside the markers. The generator rebuilds the block from frontmatter, so `npm run docs:index` silently overwrites a manual edit, or `npm run docs:check` fails when it drifts. To change an entry, edit the doc's frontmatter `summary`/`read_when`/`status` (or rename the file) and regenerate. A small idea can live as a line in the overview prose. When it grows past a line, promote it to its own file and delete the prose line. The index then carries it, so it's never maintained in both places. Top-level docs in `docs/` (like this one) sit outside the indexed layers and are reached by prose links from `AGENTS.md`, not an index.
+Prose outside the markers is yours. The block between them is derived. **Never hand-edit it.** Do not add, reword, reorder, or delete entries inside the markers. The generator rebuilds the block from frontmatter, so `npm run docs:index` silently overwrites a manual edit, or `npm run docs:check` fails when it drifts. To change an entry, edit the doc's frontmatter `summary`/`read_when`/`status` (or rename the file) and regenerate. A small idea can live as a line in the overview prose. When it grows past a line, promote it to its own file and delete the prose line. The index then carries it, so it's never maintained in both places. Container indexes include immediate child directories and top-level documents.
 
 ## Design notes
 
-The design-note authoring spec lives in [`AGENTS.md`](./design/AGENTS.md), the layer's narrowest owner, because it matters only when writing or revising design threads.
+The design-note authoring spec lives in [`AGENTS.md`](../design/AGENTS.md), the layer's narrowest owner, because it matters only when writing or revising design threads.
 
 ## Deferred framework work
 
-The [plans backlog](../plans/backlog.md) tracks documentation framework gaps (the compass test, kind-migration rules, the commit-time loop protocol, and budget tests).
+The [plans backlog](../../plans/backlog.md) tracks documentation framework gaps (the compass test, kind-migration rules, the commit-time loop protocol, and budget tests).
