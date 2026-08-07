@@ -1,6 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { FeatureSettingsProvider } from "@uix/api/workspace";
+
+import { BlockPresentationSettingsProvider } from "../../BlockPresentationSettings";
 import { ToolChatBlock } from "../../ToolChatBlock";
 import type { ToolItem } from "../presentation";
 
@@ -21,9 +24,25 @@ function item(overrides: Partial<ToolItem> = {}): ToolItem {
   };
 }
 
+function renderCommandItem(value: ToolItem): string {
+  return renderToStaticMarkup(
+    <FeatureSettingsProvider
+      client={{
+        get: () => Promise.resolve(undefined),
+        set: () => Promise.resolve(),
+        onChange: () => () => {},
+      }}
+    >
+      <BlockPresentationSettingsProvider>
+        <ToolChatBlock item={value} />
+      </BlockPresentationSettingsProvider>
+    </FeatureSettingsProvider>,
+  );
+}
+
 describe("command tool chat rendering", () => {
   it("shows a clickable name-and-reason row and discloses command and output", () => {
-    const html = renderToStaticMarkup(<ToolChatBlock item={item()} />);
+    const html = renderCommandItem(item());
 
     expect(html).toContain('class="tool-call__name">command</span>');
     expect(html).toContain("I need to verify the changes.");
@@ -39,16 +58,14 @@ describe("command tool chat rendering", () => {
   });
 
   it("shows streamed output inside the disclosure", () => {
-    const html = renderToStaticMarkup(
-      <ToolChatBlock
-        item={item({
-          complete: false,
-          result: undefined,
-          partialResult: {
-            content: [{ type: "text", text: "Building…" }],
-          },
-        })}
-      />,
+    const html = renderCommandItem(
+      item({
+        complete: false,
+        result: undefined,
+        partialResult: {
+          content: [{ type: "text", text: "Building…" }],
+        },
+      }),
     );
 
     expect(html).toContain("Building…");
@@ -57,12 +74,10 @@ describe("command tool chat rendering", () => {
   });
 
   it("falls back to ordinary tool rendering without a compatible reason", () => {
-    const html = renderToStaticMarkup(
-      <ToolChatBlock
-        item={item({
-          args: { command: "npm test" },
-        })}
-      />,
+    const html = renderCommandItem(
+      item({
+        args: { command: "npm test" },
+      }),
     );
 
     expect(html).toContain("tool: ");

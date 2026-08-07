@@ -2,8 +2,11 @@
 
 import type { JSX } from "react";
 
+import { CommandBlockSettings } from "./CommandBlockSettings";
 import { DefaultToolContent } from "./DefaultToolContent";
+import { StructuredCommand } from "./StructuredCommand";
 import { ToolCallDisclosure } from "./ToolCallDisclosure";
+import { useBlockPresentationSettings } from "../../BlockPresentationSettings";
 import { CodeBlock } from "../../content/CodeBlock";
 import { HighlightedCode } from "../../content/HighlightedCode";
 import type { ToolItem, ToolState } from "../presentation";
@@ -21,6 +24,7 @@ export function CommandToolContent({
   item: ToolItem;
   state: ToolState;
 }): JSX.Element {
+  const { settings } = useBlockPresentationSettings();
   const presentation = tryParseCommandToolPresentation(item);
   if (!presentation) return <DefaultToolContent item={item} />;
   const output = toCommandOutput(item);
@@ -32,10 +36,14 @@ export function CommandToolContent({
         description={presentation.reason}
         state={state}
         part="command-tool"
+        actions={<CommandBlockSettings />}
       >
         <div className="command-tool-block__details">
           <CodeBlock className="command-tool-block__command">
-            <HighlightedCode text={presentation.command} language="bash" />
+            <StructuredCommand
+              command={presentation.command}
+              layout={settings.command.layout}
+            />
           </CodeBlock>
           {output !== undefined ? (
             <>

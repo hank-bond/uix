@@ -21,6 +21,7 @@ The `content/` subtree renders block bodies: markdown, highlighted source, and p
 
 ### Source files
 
+- **[BlockPresentationSettings.tsx](./BlockPresentationSettings.tsx)** Provides the chat feature's durable block-presentation preferences to transcript renderers.
 - **[ChatBlock.tsx](./ChatBlock.tsx)** Renders one transcript item as its kind-specific chat block.
 - **[ChatBlockFrame.css](./ChatBlockFrame.css)** Chat block frame chrome: message label, running track, and body.
 - **[ChatBlockFrame.tsx](./ChatBlockFrame.tsx)** Renders the shared chat block chrome: label, running track, and body frame.

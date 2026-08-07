@@ -22,6 +22,7 @@ import {
 } from "@uix/api/workspace";
 
 import { type AgentControls, useAgentControls } from "./agent-controls";
+import { BlockPresentationSettingsProvider } from "./blocks/BlockPresentationSettings";
 import { ChatBlock } from "./blocks/ChatBlock";
 import { ModelPill } from "./ModelPill";
 import { isPendingUserId, pendingUserId } from "./pending";
@@ -116,15 +117,17 @@ export function Chat({ client }: ChatProps): JSX.Element {
   return (
     <>
       <div className="chat__scroll" ref={scrollRef}>
-        {items.length === 0 ? (
-          <div className="surface-panel__body--placeholder">
-            {hydrated
-              ? "send a prompt; main echoes it back"
-              : "loading transcript…"}
-          </div>
-        ) : (
-          items.map((item) => <ChatBlock key={item.id} item={item} />)
-        )}
+        <BlockPresentationSettingsProvider>
+          {items.length === 0 ? (
+            <div className="surface-panel__body--placeholder">
+              {hydrated
+                ? "send a prompt; main echoes it back"
+                : "loading transcript…"}
+            </div>
+          ) : (
+            items.map((item) => <ChatBlock key={item.id} item={item} />)
+          )}
+        </BlockPresentationSettingsProvider>
       </div>
       <form
         className="composer"
