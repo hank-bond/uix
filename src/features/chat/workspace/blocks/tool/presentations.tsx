@@ -2,7 +2,10 @@
 
 import type { ReactNode } from "react";
 
-import { CanvasToolContent } from "./content/CanvasToolContent";
+import {
+  CanvasToolContent,
+  tryParseCanvasToolPresentation,
+} from "./content/CanvasToolContent";
 import {
   CommandToolContent,
   tryParseCommandToolPresentation,
@@ -26,88 +29,144 @@ interface ToolChatBlockPresentationPolicyProps {
 
 interface ToolChatBlockPresentationPolicy {
   displayName: string;
-  hideFrameLabel?: (props: ToolChatBlockPresentationPolicyProps) => boolean;
-  deriveContent: (props: ToolChatBlockPresentationPolicyProps) => ReactNode;
+  derivePresentation: (
+    props: ToolChatBlockPresentationPolicyProps,
+  ) => ToolChatBlockPresentation;
 }
 
+// Every known tool family parses a human reason (and where applicable a
+// target) from its args once, then renders through the shared disclosure
+// frame. Calls without a compatible parse fall back to the default payload
+// row with a frame label.
 const policyByToolName: ReadonlyMap<string, ToolChatBlockPresentationPolicy> =
   new Map([
     [
       "canvas__anchor_read",
-      {
+      disclosurePolicy({
         displayName: "Read Canvas",
-        deriveContent: ({ item }) => <CanvasToolContent item={item} />,
-      },
+        tryParse: tryParseCanvasToolPresentation,
+        render: ({ item, state, presentation }) => (
+          <CanvasToolContent
+            item={item}
+            state={state}
+            presentation={presentation}
+          />
+        ),
+      }),
     ],
     [
       "canvas__anchor_write",
-      {
+      disclosurePolicy({
         displayName: "Write Canvas",
-        deriveContent: ({ item }) => <CanvasToolContent item={item} />,
-      },
+        tryParse: tryParseCanvasToolPresentation,
+        render: ({ item, state, presentation }) => (
+          <CanvasToolContent
+            item={item}
+            state={state}
+            presentation={presentation}
+          />
+        ),
+      }),
     ],
     [
       "canvas__anchor_edit",
-      {
+      disclosurePolicy({
         displayName: "Edit Canvas",
-        deriveContent: ({ item }) => <CanvasToolContent item={item} />,
-      },
+        tryParse: tryParseCanvasToolPresentation,
+        render: ({ item, state, presentation }) => (
+          <CanvasToolContent
+            item={item}
+            state={state}
+            presentation={presentation}
+          />
+        ),
+      }),
     ],
     [
       "read",
-      {
+      disclosurePolicy({
         displayName: "read",
-        hideFrameLabel: ({ item }) =>
-          tryParseFileToolPresentation(item) !== undefined,
-        deriveContent: ({ item, state }) => (
-          <FileToolContent item={item} state={state} />
+        tryParse: tryParseFileToolPresentation,
+        render: ({ item, state, presentation }) => (
+          <FileToolContent
+            item={item}
+            state={state}
+            presentation={presentation}
+          />
         ),
-      },
+      }),
     ],
     [
       "write",
-      {
+      disclosurePolicy({
         displayName: "write",
-        hideFrameLabel: ({ item }) =>
-          tryParseFileToolPresentation(item) !== undefined,
-        deriveContent: ({ item, state }) => (
-          <FileToolContent item={item} state={state} />
+        tryParse: tryParseFileToolPresentation,
+        render: ({ item, state, presentation }) => (
+          <FileToolContent
+            item={item}
+            state={state}
+            presentation={presentation}
+          />
         ),
-      },
+      }),
     ],
     [
       "command",
-      {
+      disclosurePolicy({
         displayName: "command",
-        hideFrameLabel: ({ item }) =>
-          tryParseCommandToolPresentation(item) !== undefined,
-        deriveContent: ({ item, state }) => (
-          <CommandToolContent item={item} state={state} />
+        tryParse: tryParseCommandToolPresentation,
+        render: ({ item, state, presentation }) => (
+          <CommandToolContent
+            item={item}
+            state={state}
+            presentation={presentation}
+          />
         ),
-      },
+      }),
     ],
   ]);
+
+function disclosurePolicy<Presentation>(options: {
+  displayName: string;
+  tryParse: (item: ToolItem) => Presentation | undefined;
+  render: (
+    props: ToolChatBlockPresentationPolicyProps & {
+      presentation: Presentation;
+    },
+  ) => ReactNode;
+}): ToolChatBlockPresentationPolicy {
+  return {
+    displayName: options.displayName,
+    derivePresentation: ({ item, state }) => {
+      const presentation = options.tryParse(item);
+      return presentation === undefined
+        ? fallbackPresentation(item, options.displayName, state)
+        : { content: options.render({ item, state, presentation }) };
+    },
+  };
+}
+
+function fallbackPresentation(
+  item: ToolItem,
+  displayName: string,
+  state: ToolState,
+): ToolChatBlockPresentation {
+  return {
+    label: (
+      <>
+        tool: <span data-uix-part="tool-name">{displayName}</span>
+        {state === "error" ? " (error)" : ""}
+      </>
+    ),
+    content: <DefaultToolContent item={item} />,
+  };
+}
 
 export function deriveToolChatBlockPresentation(
   item: ToolItem,
   state: ToolState,
 ): ToolChatBlockPresentation {
   const policy = policyByToolName.get(item.toolName);
-  const displayName = policy?.displayName ?? toToolDisplayName(item.toolName);
-  const hideFrameLabel = policy?.hideFrameLabel?.({ item, state }) ?? false;
-  const label = hideFrameLabel ? undefined : (
-    <>
-      tool: <span data-uix-part="tool-name">{displayName}</span>
-      {state === "error" ? " (error)" : ""}
-    </>
-  );
-
-  return {
-    label,
-    content: policy ? (
-      policy.deriveContent({ item, state })
-    ) : (
-      <DefaultToolContent item={item} />
-    ),
-  };
+  if (policy) return policy.derivePresentation({ item, state });
+  return fallbackPresentation(item, toToolDisplayName(item.toolName), state);
 }

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { FeatureSettingsProvider } from "@uix/api/workspace";
 
+import { StructuredCommand } from "./StructuredCommand";
 import { BlockPresentationSettingsProvider } from "../../BlockPresentationSettings";
 import { ToolChatBlock } from "../../ToolChatBlock";
 import type { ToolItem } from "../presentation";
@@ -49,7 +50,7 @@ describe("command tool chat rendering", () => {
     expect(html).not.toContain("tool: ");
     expect(html).toContain('<details class="tool-call"');
     expect(html).toContain('<summary class="tool-call__summary">');
-    expect(html).not.toContain("command and output");
+    expect(html).not.toContain("structured-command");
     expect(html).toContain('data-language="bash"');
     expect(html.indexOf("npm")).toBeGreaterThan(html.indexOf("<details"));
     expect(html.indexOf("Tests passed")).toBeGreaterThan(
@@ -71,6 +72,20 @@ describe("command tool chat rendering", () => {
     expect(html).toContain("Building…");
     expect(html.indexOf("Building…")).toBeGreaterThan(html.indexOf("<details"));
     expect(html).toContain('aria-label="Tool running"');
+  });
+
+  it("renders structured command pieces when the layout setting is structured", () => {
+    const html = renderToStaticMarkup(
+      <StructuredCommand
+        command="npm test && npm run build"
+        layout="structured"
+      />,
+    );
+
+    expect(html).toContain('class="structured-command"');
+    expect(html).toContain("structured-command__piece--source");
+    expect(html).toContain("structured-command__piece--logical");
+    expect(html).toContain("run build");
   });
 
   it("falls back to ordinary tool rendering without a compatible reason", () => {

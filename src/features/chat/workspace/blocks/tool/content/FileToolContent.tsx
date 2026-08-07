@@ -2,7 +2,6 @@
 
 import type { JSX } from "react";
 
-import { DefaultToolContent } from "./DefaultToolContent";
 import { ToolCallDisclosure } from "./ToolCallDisclosure";
 import { CodeBlock } from "../../content/CodeBlock";
 import {
@@ -10,7 +9,12 @@ import {
   inferCodeLanguageFromPath,
 } from "../../content/HighlightedCode";
 import type { ToolItem, ToolState } from "../presentation";
-import { toToolTextContent } from "../presentation";
+import {
+  asRecord,
+  toNonEmptyString,
+  toString,
+  toToolTextContent,
+} from "../presentation";
 
 interface FileToolPresentation {
   path: string;
@@ -20,12 +24,12 @@ interface FileToolPresentation {
 export function FileToolContent({
   item,
   state,
+  presentation,
 }: {
   item: ToolItem;
   state: ToolState;
+  presentation: FileToolPresentation;
 }): JSX.Element {
-  const presentation = tryParseFileToolPresentation(item);
-  if (!presentation) return <DefaultToolContent item={item} />;
   const args = asRecord(item.args);
   const disclosure =
     item.toolName === "write"
@@ -68,19 +72,4 @@ export function tryParseFileToolPresentation(
   const reason = toNonEmptyString(args?.["reason"]);
   const path = item.file?.displayPath ?? toNonEmptyString(args?.["path"]);
   return reason && path ? { path, reason } : undefined;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
-}
-
-function toNonEmptyString(value: unknown): string | undefined {
-  const normalized = toString(value)?.trim();
-  return normalized || undefined;
-}
-
-function toString(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
 }

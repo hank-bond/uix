@@ -23,7 +23,7 @@ export function StructuredCommand({
   layout: CommandLayout;
 }): JSX.Element {
   const pieces =
-    layout === "structured" ? parseCommandPieces(command) : undefined;
+    layout === "structured" ? tryParseCommandPieces(command) : undefined;
   if (!pieces) return <HighlightedCode text={command} language="bash" />;
 
   return (
@@ -31,6 +31,8 @@ export function StructuredCommand({
       {pieces.map((piece, index) => (
         <span
           className={`structured-command__piece structured-command__piece--${piece.kind}`}
+          // The index prefix keeps repeated identical source pieces distinct
+          // (e.g. `a | a` produces two `"a "` pieces).
           key={`${String(index)}:${piece.text}`}
         >
           <HighlightedCode text={piece.text} language="bash" />
@@ -44,7 +46,7 @@ export function StructuredCommand({
  * Find only unquoted, unescaped, top-level pipelines and logical operators.
  * Returning undefined is intentional: uncertain shell syntax stays literal.
  */
-export function parseCommandPieces(
+export function tryParseCommandPieces(
   command: string,
 ): readonly CommandPiece[] | undefined {
   if (

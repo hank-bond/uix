@@ -7,7 +7,7 @@ import type { ToolState } from "../presentation";
 
 interface ToolCallDisclosureProps {
   toolName: string;
-  description: string;
+  description?: string;
   state: ToolState;
   target?: string;
   part: string;
@@ -35,9 +35,11 @@ export function ToolCallDisclosure({
           <span className="tool-call__header">
             <span className="tool-call__name">{toolName}</span>
             <span className="tool-call__summary-copy">
-              <span className="tool-call__description">{description}</span>
+              {description ? (
+                <span className="tool-call__description">{description}</span>
+              ) : null}
               {target ? (
-                <code className="tool-call__target" data-uix-part="file-path">
+                <code className="tool-call__target" data-uix-part="tool-target">
                   {target}
                 </code>
               ) : null}

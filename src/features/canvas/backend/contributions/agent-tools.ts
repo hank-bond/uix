@@ -31,8 +31,14 @@ const CanvasKeyToolParamSchema = {
   description: keyDescription,
 } as typeof CanvasKeySchema;
 
+const ReasonSchema = Type.String({
+  description:
+    "One concise sentence in layman's terms explaining why this operation is useful for the current task. This enables less-technical users to follow your thought process and understand why certain actions are being made.",
+});
+
 const readParams = Type.Object({
   key: CanvasKeyToolParamSchema,
+  reason: ReasonSchema,
   start: Type.Optional(
     Type.Integer({
       description:
@@ -49,6 +55,7 @@ const readParams = Type.Object({
 
 const writeParams = Type.Object({
   key: CanvasKeyToolParamSchema,
+  reason: ReasonSchema,
   html: Type.String({
     description:
       "Full authored HTML document. Write one block-level element per line so later edits can address fine-grained anchors.",
@@ -57,6 +64,7 @@ const writeParams = Type.Object({
 
 const editParams = Type.Object({
   key: CanvasKeyToolParamSchema,
+  reason: ReasonSchema,
   start_line: Type.String({
     description:
       "First line of the inclusive range to replace, as the full `<anchor>§<text>` line from a previous result. The live line must still match.",
@@ -87,12 +95,12 @@ function createReadTool(
   return {
     label: "read canvas",
     description:
-      "Read a canvas as anchored lines (`<anchor>§<text>`). Each line is addressable by its anchor in canvas__anchor_edit. The key is not a filesystem path.",
+      "Read a canvas as anchored lines (`<anchor>§<text>`). Each line is addressable by its anchor in canvas__anchor_edit. The key is not a filesystem path. Include a concise reason so the human can understand why the canvas is being read.",
     promptSnippet: "Read a canvas as anchored lines.",
     parameters: readParams,
     // TypeScript infers `params: ReadParams` from `AgentToolDefinition<typeof readParams>`.
     // No hand-annotation needed. The factory return type holds the schema.
-    async execute(_toolCallId, params) {
+    async execute(_toolCallId, { reason: _reason, ...params }) {
       const lines = await ctx.buffer.read(params.key, params.start, params.end);
       return {
         content: [
@@ -115,7 +123,7 @@ function createWriteTool(
   return {
     label: "write canvas",
     description:
-      "Replace a canvas with a full authored HTML body and get anchored lines back. Use this and canvas__anchor_edit, not filesystem tools, for canvases.",
+      "Replace a canvas with a full authored HTML body and get anchored lines back. Use this and canvas__anchor_edit, not filesystem tools, for canvases. Include a concise reason so the human can understand why the canvas is being written.",
     promptSnippet: "Replace a canvas with full authored HTML.",
     promptGuidelines: [
       "Use canvas__anchor_write/canvas__anchor_edit, not filesystem tools, when creating or updating canvases.",
@@ -124,7 +132,7 @@ function createWriteTool(
     ],
     parameters: writeParams,
     executionMode: "sequential",
-    async execute(_toolCallId, params) {
+    async execute(_toolCallId, { reason: _reason, ...params }) {
       const lines = await ctx.buffer.write(params.key, params.html);
       publishCanvasChanged(ctx, params.key);
       return {
@@ -141,11 +149,11 @@ function createEditTool(
   return {
     label: "edit canvas",
     description:
-      "Replace an inclusive anchor range in a canvas. Boundaries are full `<anchor>§<text>` lines from a previous result; the live lines must still match. Returns fresh anchors for the changed lines.",
+      "Replace an inclusive anchor range in a canvas. Boundaries are full `<anchor>§<text>` lines from a previous result; the live lines must still match. Returns fresh anchors for the changed lines. Include a concise reason so the human can understand why the canvas is being edited.",
     promptSnippet: "Replace an anchor range in a canvas.",
     parameters: editParams,
     executionMode: "sequential",
-    async execute(_toolCallId, params) {
+    async execute(_toolCallId, { reason: _reason, ...params }) {
       const changes = await ctx.buffer.edit(params.key, {
         start: parseAnchoredLine(params.start_line),
         end: parseAnchoredLine(params.end_line),

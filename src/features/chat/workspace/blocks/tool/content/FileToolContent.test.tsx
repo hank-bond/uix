@@ -1,7 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { FileToolContent } from "./FileToolContent";
+import {
+  FileToolContent,
+  tryParseFileToolPresentation,
+} from "./FileToolContent";
+import { ToolChatBlock } from "../../ToolChatBlock";
 import type { ToolItem } from "../presentation";
 
 function item(overrides: Partial<ToolItem> = {}): ToolItem {
@@ -21,18 +25,28 @@ function item(overrides: Partial<ToolItem> = {}): ToolItem {
   };
 }
 
+function renderFileContent(value: ToolItem): string {
+  const presentation = tryParseFileToolPresentation(value);
+  if (!presentation)
+    throw new Error("test item must parse a file presentation");
+  return renderToStaticMarkup(
+    <FileToolContent
+      item={value}
+      state="success"
+      presentation={presentation}
+    />,
+  );
+}
+
 describe("FileToolContent", () => {
   it("shows a derived path and reason while keeping file content disclosed", () => {
-    const html = renderToStaticMarkup(
-      <FileToolContent
-        state="success"
-        item={item({
-          file: {
-            absolutePath: "/workspace/src/main.ts",
-            displayPath: "src/main.ts",
-          },
-        })}
-      />,
+    const html = renderFileContent(
+      item({
+        file: {
+          absolutePath: "/workspace/src/main.ts",
+          displayPath: "src/main.ts",
+        },
+      }),
     );
 
     expect(html).toContain("src/main.ts");
@@ -49,17 +63,14 @@ describe("FileToolContent", () => {
   });
 
   it("leaves files with unknown extensions as literal plain text", () => {
-    const html = renderToStaticMarkup(
-      <FileToolContent
-        state="success"
-        item={item({
-          args: {
-            path: "notes.unknown",
-            reason: "I need to inspect the notes.",
-          },
-          result: { content: [{ type: "text", text: "<unsafe>" }] },
-        })}
-      />,
+    const html = renderFileContent(
+      item({
+        args: {
+          path: "notes.unknown",
+          reason: "I need to inspect the notes.",
+        },
+        result: { content: [{ type: "text", text: "<unsafe>" }] },
+      }),
     );
 
     expect(html).toContain("&lt;unsafe&gt;");
@@ -68,8 +79,7 @@ describe("FileToolContent", () => {
 
   it("falls back to ordinary tool rendering without a compatible reason", () => {
     const html = renderToStaticMarkup(
-      <FileToolContent
-        state="success"
+      <ToolChatBlock
         item={item({
           args: { path: "src/main.ts" },
         })}
@@ -82,21 +92,18 @@ describe("FileToolContent", () => {
   });
 
   it("puts write content behind the disclosure", () => {
-    const html = renderToStaticMarkup(
-      <FileToolContent
-        state="success"
-        item={item({
-          toolName: "write",
-          args: {
-            path: "src/main.ts",
-            content: "const value = 1;",
-            reason: "I need to create the entry point.",
-          },
-          result: {
-            content: [{ type: "text", text: "Successfully wrote 16 bytes" }],
-          },
-        })}
-      />,
+    const html = renderFileContent(
+      item({
+        toolName: "write",
+        args: {
+          path: "src/main.ts",
+          content: "const value = 1;",
+          reason: "I need to create the entry point.",
+        },
+        result: {
+          content: [{ type: "text", text: "Successfully wrote 16 bytes" }],
+        },
+      }),
     );
 
     expect(html).toContain('class="tool-call__section-label">content</span>');

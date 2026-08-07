@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { parseCommandPieces } from "./StructuredCommand";
+import { tryParseCommandPieces } from "./StructuredCommand";
 
 function texts(command: string): readonly string[] | undefined {
-  return parseCommandPieces(command)?.map((piece) => piece.text);
+  return tryParseCommandPieces(command)?.map((piece) => piece.text);
 }
 
-describe("parseCommandPieces", () => {
+describe("tryParseCommandPieces", () => {
   it("finds pipelines and logical groups while preserving the exact source", () => {
     const command = "one | two && alpha | beta || fallback";
-    const pieces = parseCommandPieces(command);
+    const pieces = tryParseCommandPieces(command);
 
     expect(pieces).toEqual([
       { text: "one ", kind: "source" },
@@ -40,8 +40,10 @@ describe("parseCommandPieces", () => {
   });
 
   it("keeps uncertain or already multiline shell source literal", () => {
-    expect(parseCommandPieces("echo `left | right` && done")).toBeUndefined();
-    expect(parseCommandPieces("left |\nright")).toBeUndefined();
-    expect(parseCommandPieces("left && 'unterminated")).toBeUndefined();
+    expect(
+      tryParseCommandPieces("echo `left | right` && done"),
+    ).toBeUndefined();
+    expect(tryParseCommandPieces("left |\nright")).toBeUndefined();
+    expect(tryParseCommandPieces("left && 'unterminated")).toBeUndefined();
   });
 });

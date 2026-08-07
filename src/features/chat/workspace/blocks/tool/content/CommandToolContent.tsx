@@ -3,14 +3,13 @@
 import type { JSX } from "react";
 
 import { CommandBlockSettings } from "./CommandBlockSettings";
-import { DefaultToolContent } from "./DefaultToolContent";
 import { StructuredCommand } from "./StructuredCommand";
 import { ToolCallDisclosure } from "./ToolCallDisclosure";
 import { useBlockPresentationSettings } from "../../BlockPresentationSettings";
 import { CodeBlock } from "../../content/CodeBlock";
 import { HighlightedCode } from "../../content/HighlightedCode";
 import type { ToolItem, ToolState } from "../presentation";
-import { toToolTextContent } from "../presentation";
+import { asRecord, toString, toToolTextContent } from "../presentation";
 
 interface CommandToolPresentation {
   command: string;
@@ -20,13 +19,13 @@ interface CommandToolPresentation {
 export function CommandToolContent({
   item,
   state,
+  presentation,
 }: {
   item: ToolItem;
   state: ToolState;
+  presentation: CommandToolPresentation;
 }): JSX.Element {
   const { settings } = useBlockPresentationSettings();
-  const presentation = tryParseCommandToolPresentation(item);
-  if (!presentation) return <DefaultToolContent item={item} />;
   const output = toCommandOutput(item);
 
   return (
@@ -85,14 +84,4 @@ function toCommandOutput(item: ToolItem): string | undefined {
     return text || undefined;
   }
   return toToolTextContent(item);
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
-}
-
-function toString(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
 }

@@ -15,7 +15,8 @@ Each component renders one tool family's row inside the shared tool block chrome
 ### Source files
 
 - **[CanvasToolContent.css](./CanvasToolContent.css)** Canvas tool payload and show-more toggle styles.
-- **[CanvasToolContent.tsx](./CanvasToolContent.tsx)** Renders canvas tool payload text with a show-more toggle.
+- **[CanvasToolContent.tsx](./CanvasToolContent.tsx)** Renders canvas tool calls: reason and key summary with anchored payload disclosure.
+- **[CommandBlockSettings.css](./CommandBlockSettings.css)** Command block settings popover and trigger styles.
 - **[CommandBlockSettings.tsx](./CommandBlockSettings.tsx)** Opens the command-block presentation settings from a hover-revealed row action.
 - **[CommandToolContent.css](./CommandToolContent.css)** Command tool expanded-detail layout.
 - **[CommandToolContent.tsx](./CommandToolContent.tsx)** Renders command tool output: highlighted command and result disclosure.

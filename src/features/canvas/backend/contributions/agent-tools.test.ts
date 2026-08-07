@@ -249,7 +249,7 @@ describe("canvas agent tool contributions", () => {
     if (!write) throw new Error("missing canvas__anchor_write tool");
     await write.execute(
       "t1",
-      { key: "main", html: "<p>hello</p>" },
+      { key: "main", html: "<p>hello</p>", reason: "Testing the write path." },
       undefined,
       undefined,
       {} as never,
@@ -274,7 +274,7 @@ describe("canvas agent tool contributions", () => {
     if (!write) throw new Error("missing canvas__anchor_write tool");
     await write.execute(
       "t1",
-      { key: "main", html: "<p>hello</p>" },
+      { key: "main", html: "<p>hello</p>", reason: "Testing the write path." },
       undefined,
       undefined,
       {} as never,
@@ -325,7 +325,7 @@ describe("canvas agent tool contributions", () => {
     if (!write) throw new Error("missing canvas__anchor_write tool");
     await write.execute(
       "t1",
-      { key: "main", html: "<p>agent</p>" },
+      { key: "main", html: "<p>agent</p>", reason: "Testing the write path." },
       undefined,
       undefined,
       {} as never,
