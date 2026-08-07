@@ -3,9 +3,10 @@
 import type { JSX } from "react";
 
 import { DefaultToolContent } from "./DefaultToolContent";
+import { ToolCallDisclosure } from "./ToolCallDisclosure";
 import { CodeBlock } from "../../content/CodeBlock";
 import { HighlightedCode } from "../../content/HighlightedCode";
-import type { ToolItem } from "../presentation";
+import type { ToolItem, ToolState } from "../presentation";
 import { toToolTextContent } from "../presentation";
 
 interface CommandToolPresentation {
@@ -13,33 +14,39 @@ interface CommandToolPresentation {
   reason: string;
 }
 
-export function CommandToolContent({ item }: { item: ToolItem }): JSX.Element {
+export function CommandToolContent({
+  item,
+  state,
+}: {
+  item: ToolItem;
+  state: ToolState;
+}): JSX.Element {
   const presentation = tryParseCommandToolPresentation(item);
   if (!presentation) return <DefaultToolContent item={item} />;
   const output = toCommandOutput(item);
 
   return (
-    <div className="tool-block command-tool-block" data-uix-part="command-tool">
-      <details
-        className="tool-block__details"
-        data-uix-part="command-disclosure"
+    <div className="tool-block command-tool-block">
+      <ToolCallDisclosure
+        toolName="command"
+        description={presentation.reason}
+        state={state}
+        part="command-tool"
       >
-        <summary>command and output</summary>
         <div className="command-tool-block__details">
-          <span className="command-tool-block__section-label">command</span>
-          <CodeBlock>
+          <CodeBlock className="command-tool-block__command">
             <HighlightedCode text={presentation.command} language="bash" />
           </CodeBlock>
           {output !== undefined ? (
             <>
-              <span className="command-tool-block__section-label">output</span>
+              <span className="tool-call__section-label">output</span>
               <CodeBlock>
                 <HighlightedCode text={output} />
               </CodeBlock>
             </>
           ) : null}
         </div>
-      </details>
+      </ToolCallDisclosure>
     </div>
   );
 }

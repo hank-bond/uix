@@ -22,14 +22,15 @@ function item(overrides: Partial<ToolItem> = {}): ToolItem {
 }
 
 describe("command tool chat rendering", () => {
-  it("shows only the reason in the collapsed row and discloses command and output", () => {
+  it("shows a clickable name-and-reason row and discloses command and output", () => {
     const html = renderToStaticMarkup(<ToolChatBlock item={item()} />);
 
-    expect(html).toContain("command: ");
+    expect(html).toContain('class="tool-call__name">command</span>');
     expect(html).toContain("I need to verify the changes.");
     expect(html).not.toContain("tool: ");
-    expect(html).toContain('<details class="tool-block__details"');
-    expect(html).toContain("<summary>command and output</summary>");
+    expect(html).toContain('<details class="tool-call"');
+    expect(html).toContain('<summary class="tool-call__summary">');
+    expect(html).not.toContain("command and output");
     expect(html).toContain('data-language="bash"');
     expect(html.indexOf("npm")).toBeGreaterThan(html.indexOf("<details"));
     expect(html.indexOf("Tests passed")).toBeGreaterThan(

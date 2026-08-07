@@ -20,6 +20,6 @@ summary: "The tool block subtree derives per-tool chat presentations and renders
 
 - **[presentation.ts](./presentation.ts)** Derives tool block state, display names, and payload text for chat tool rendering.
 - **[presentations.tsx](./presentations.tsx)** Derives per-tool chat block presentations: labels and content for known tool names.
-- **[tool-content.css](./tool-content.css)** Shared tool block chrome: payload, details, and disclosure.
+- **[tool-content.css](./tool-content.css)** Shared tool block chrome: summary rows, expanded details, and payloads.
 
 <!-- INDEX:END -->

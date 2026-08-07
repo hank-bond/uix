@@ -10,9 +10,9 @@
   background: transparent;
   border: 0;
   padding: 0;
-  color: var(--fg-faint);
+  color: var(--fg-dim);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: var(--chat-text-meta);
   cursor: pointer;
 }
 

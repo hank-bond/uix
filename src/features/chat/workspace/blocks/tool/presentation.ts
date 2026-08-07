@@ -10,7 +10,7 @@ export type ToolItem = Extract<TranscriptItem, { kind: "tool" }>;
 export type ToolState = "running" | "success" | "error";
 
 export interface ToolChatBlockPresentation {
-  label: ReactNode;
+  label?: ReactNode;
   content: ReactNode;
 }
 

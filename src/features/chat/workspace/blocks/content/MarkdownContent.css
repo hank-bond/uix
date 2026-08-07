@@ -35,21 +35,21 @@
 }
 
 .markdown-content h1 {
-  font-size: 1.4rem;
+  font-size: var(--chat-text-heading-lg);
 }
 
 .markdown-content h2 {
-  font-size: 1.22rem;
+  font-size: var(--chat-text-heading-md);
 }
 
 .markdown-content h3 {
-  font-size: 1.08rem;
+  font-size: var(--chat-text-heading-sm);
 }
 
 .markdown-content h4,
 .markdown-content h5,
 .markdown-content h6 {
-  font-size: 1rem;
+  font-size: var(--chat-text-body);
 }
 
 .markdown-content ul,
@@ -111,7 +111,7 @@
   font-family:
     var(--code-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", monospace;
-  font-size: 0.84em;
+  font-size: var(--chat-text-code);
 }
 
 .markdown-content :not(pre) > code {

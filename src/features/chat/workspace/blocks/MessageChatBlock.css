@@ -2,7 +2,7 @@
 
 .msg--user,
 .msg--assistant {
-  padding: 0.55rem;
+  padding: var(--chat-message-padding);
   border-radius: 0.4rem;
 }
 

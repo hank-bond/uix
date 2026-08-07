@@ -1,16 +1,14 @@
-/* Command tool disclosure styles. */
+/* Command tool expanded-detail layout. */
 
 .command-tool-block__details {
   display: grid;
   gap: 0.45rem;
   min-width: 0;
-  padding-top: 0.4rem;
 }
 
-.command-tool-block__section-label {
-  color: var(--fg-faint);
-  font-size: 0.72rem;
-  line-height: 1;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+pre.command-tool-block__command,
+pre.command-tool-block__command code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }

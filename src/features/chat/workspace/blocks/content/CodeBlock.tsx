@@ -3,6 +3,13 @@
 import type { ReactNode } from "react";
 import type { JSX } from "react";
 
-export function CodeBlock({ children }: { children: ReactNode }): JSX.Element {
-  return <pre className="code-block">{children}</pre>;
+export function CodeBlock({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}): JSX.Element {
+  const classes = ["code-block", className].filter(Boolean).join(" ");
+  return <pre className={classes}>{children}</pre>;
 }

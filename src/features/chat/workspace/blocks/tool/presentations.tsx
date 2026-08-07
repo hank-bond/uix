@@ -8,7 +8,10 @@ import {
   tryParseCommandToolPresentation,
 } from "./content/CommandToolContent";
 import { DefaultToolContent } from "./content/DefaultToolContent";
-import { FileToolContent } from "./content/FileToolContent";
+import {
+  FileToolContent,
+  tryParseFileToolPresentation,
+} from "./content/FileToolContent";
 import type {
   ToolChatBlockPresentation,
   ToolItem,
@@ -18,11 +21,12 @@ import { toToolDisplayName } from "./presentation";
 
 interface ToolChatBlockPresentationPolicyProps {
   item: ToolItem;
+  state: ToolState;
 }
 
 interface ToolChatBlockPresentationPolicy {
   displayName: string;
-  deriveLabel?: (props: ToolChatBlockPresentationPolicyProps) => ReactNode;
+  hideFrameLabel?: (props: ToolChatBlockPresentationPolicyProps) => boolean;
   deriveContent: (props: ToolChatBlockPresentationPolicyProps) => ReactNode;
 }
 
@@ -53,30 +57,33 @@ const policyByToolName: ReadonlyMap<string, ToolChatBlockPresentationPolicy> =
       "read",
       {
         displayName: "read",
-        deriveContent: ({ item }) => <FileToolContent item={item} />,
+        hideFrameLabel: ({ item }) =>
+          tryParseFileToolPresentation(item) !== undefined,
+        deriveContent: ({ item, state }) => (
+          <FileToolContent item={item} state={state} />
+        ),
       },
     ],
     [
       "write",
       {
         displayName: "write",
-        deriveContent: ({ item }) => <FileToolContent item={item} />,
+        hideFrameLabel: ({ item }) =>
+          tryParseFileToolPresentation(item) !== undefined,
+        deriveContent: ({ item, state }) => (
+          <FileToolContent item={item} state={state} />
+        ),
       },
     ],
     [
       "command",
       {
         displayName: "command",
-        deriveLabel: ({ item }) => {
-          const presentation = tryParseCommandToolPresentation(item);
-          return presentation ? (
-            <>
-              command:{" "}
-              <span data-uix-part="tool-reason">{presentation.reason}</span>
-            </>
-          ) : undefined;
-        },
-        deriveContent: ({ item }) => <CommandToolContent item={item} />,
+        hideFrameLabel: ({ item }) =>
+          tryParseCommandToolPresentation(item) !== undefined,
+        deriveContent: ({ item, state }) => (
+          <CommandToolContent item={item} state={state} />
+        ),
       },
     ],
   ]);
@@ -87,21 +94,18 @@ export function deriveToolChatBlockPresentation(
 ): ToolChatBlockPresentation {
   const policy = policyByToolName.get(item.toolName);
   const displayName = policy?.displayName ?? toToolDisplayName(item.toolName);
-  const label = policy?.deriveLabel?.({ item }) ?? (
+  const hideFrameLabel = policy?.hideFrameLabel?.({ item, state }) ?? false;
+  const label = hideFrameLabel ? undefined : (
     <>
       tool: <span data-uix-part="tool-name">{displayName}</span>
+      {state === "error" ? " (error)" : ""}
     </>
   );
 
   return {
-    label: (
-      <>
-        {label}
-        {state === "error" ? " (error)" : ""}
-      </>
-    ),
+    label,
     content: policy ? (
-      policy.deriveContent({ item })
+      policy.deriveContent({ item, state })
     ) : (
       <DefaultToolContent item={item} />
     ),

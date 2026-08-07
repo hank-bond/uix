@@ -18,7 +18,7 @@ pre.code-block {
   font-family:
     var(--code-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", monospace;
-  font-size: 0.8rem;
+  font-size: var(--chat-text-code);
   line-height: 1.5;
 }
 

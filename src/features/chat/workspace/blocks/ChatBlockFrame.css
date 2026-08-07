@@ -3,7 +3,7 @@
 .msg {
   display: grid;
   gap: 0.35rem;
-  font-size: 0.9rem;
+  font-size: var(--chat-text-body);
   line-height: 1.45;
   min-width: 0;
   max-width: 100%;
@@ -11,8 +11,8 @@
 
 .msg__label {
   position: relative;
-  color: var(--fg-faint);
-  font-size: 0.78rem;
+  color: var(--fg-dim);
+  font-size: var(--chat-text-meta);
   font-weight: 600;
 }
 

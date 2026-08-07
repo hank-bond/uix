@@ -1,10 +1,9 @@
-/* Shared tool block chrome: payload, details, and disclosure. */
+/* Shared tool block chrome: summary rows, expanded details, and payloads. */
 
 .tool-block {
   display: grid;
-  gap: 0.45rem;
   min-width: 0;
-  font-size: 0.86rem;
+  font-size: var(--chat-text-body);
 }
 
 .tool-block__payload,
@@ -16,7 +15,7 @@
   font-family:
     var(--code-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", monospace;
-  font-size: 0.8rem;
+  font-size: var(--chat-text-code);
   line-height: 1.45;
 }
 
@@ -27,6 +26,135 @@
 
 .tool-block__details summary {
   cursor: pointer;
-  color: var(--fg-faint);
-  font-size: 0.78rem;
+  color: var(--fg-dim);
+  font-size: var(--chat-text-meta);
+}
+
+.tool-call {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.tool-call > summary {
+  list-style: none;
+}
+
+.tool-call > summary::-webkit-details-marker {
+  display: none;
+}
+
+.tool-call__summary {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.125rem minmax(0, 1fr);
+  gap: 0.4rem;
+  align-items: start;
+  min-width: 0;
+  padding: 0.4rem;
+  border-radius: 0.3rem;
+  color: var(--fg-dim);
+  cursor: pointer;
+}
+
+.tool-call__summary:hover {
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+}
+
+.tool-call__summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.tool-call__chevron {
+  box-sizing: border-box;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-block-start: 0.3rem;
+  margin-inline-start: 0.15rem;
+  border-block-start: 2px solid currentColor;
+  border-inline-end: 2px solid currentColor;
+  color: var(--fg-dim);
+  transform: rotate(45deg);
+  transform-origin: center;
+  transition:
+    color 120ms ease,
+    transform 120ms ease;
+}
+
+.tool-call[open] .tool-call__chevron {
+  transform: rotate(135deg);
+}
+
+.tool-call__summary:hover .tool-call__chevron {
+  color: var(--fg);
+}
+
+.tool-call__header {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.tool-call__name {
+  color: var(--fg-dim);
+  font-weight: 600;
+}
+
+.tool-call__summary-copy {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.tool-call__description {
+  color: var(--fg-dim);
+  overflow-wrap: anywhere;
+}
+
+.tool-call__target {
+  min-width: 0;
+  color: var(--fg-dim);
+  overflow-wrap: anywhere;
+  font-family:
+    var(--code-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
+  font-size: var(--chat-text-code);
+}
+
+.tool-call__state {
+  color: var(--error);
+  font-size: var(--chat-text-meta);
+  font-weight: 600;
+}
+
+.tool-call__content {
+  display: grid;
+  min-width: 0;
+  padding: 0.4rem 0 0.15rem var(--chat-message-padding);
+}
+
+.tool-call__section-label {
+  color: var(--fg-dim);
+  font-size: var(--chat-text-meta);
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tool-call__pending {
+  color: var(--fg-dim);
+  font-size: var(--chat-text-meta);
+}
+
+.msg--tool-error .tool-call__name,
+.msg--tool-error .tool-call__description,
+.msg--tool-error .tool-call__chevron {
+  color: var(--error);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-call__chevron {
+    transition: none;
+  }
 }

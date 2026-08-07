@@ -1,22 +1,7 @@
-/* File tool summary and disclosure styles. */
+/* File tool expanded-detail layout. */
 
-.file-tool-block__summary {
+.file-tool-block__details {
   display: grid;
-  gap: 0.15rem;
+  gap: 0.45rem;
   min-width: 0;
-  color: var(--fg-dim);
-}
-
-.file-tool-block__summary code {
-  min-width: 0;
-  color: var(--fg);
-  overflow-wrap: anywhere;
-  font-family:
-    var(--code-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", monospace;
-  font-size: 0.8rem;
-}
-
-.file-tool-block__summary [data-uix-part="tool-reason"] {
-  color: var(--fg-dim);
 }

@@ -25,6 +25,7 @@ describe("FileToolContent", () => {
   it("shows a derived path and reason while keeping file content disclosed", () => {
     const html = renderToStaticMarkup(
       <FileToolContent
+        state="success"
         item={item({
           file: {
             absolutePath: "/workspace/src/main.ts",
@@ -38,7 +39,8 @@ describe("FileToolContent", () => {
     expect(html).toContain("I need to inspect the entry point.");
     expect(html).toContain("<details");
     expect(html).toContain('<pre class="code-block">');
-    expect(html).toContain("<summary>result</summary>");
+    expect(html).toContain('<summary class="tool-call__summary">');
+    expect(html).toContain('class="tool-call__section-label">result</span>');
     expect(html).toContain('data-language="typescript"');
     expect(html).toContain('class="token keyword"');
     expect(html.indexOf('class="token keyword">export</span>')).toBeGreaterThan(
@@ -49,6 +51,7 @@ describe("FileToolContent", () => {
   it("leaves files with unknown extensions as literal plain text", () => {
     const html = renderToStaticMarkup(
       <FileToolContent
+        state="success"
         item={item({
           args: {
             path: "notes.unknown",
@@ -66,6 +69,7 @@ describe("FileToolContent", () => {
   it("falls back to ordinary tool rendering without a compatible reason", () => {
     const html = renderToStaticMarkup(
       <FileToolContent
+        state="success"
         item={item({
           args: { path: "src/main.ts" },
         })}
@@ -80,6 +84,7 @@ describe("FileToolContent", () => {
   it("puts write content behind the disclosure", () => {
     const html = renderToStaticMarkup(
       <FileToolContent
+        state="success"
         item={item({
           toolName: "write",
           args: {
@@ -94,7 +99,7 @@ describe("FileToolContent", () => {
       />,
     );
 
-    expect(html).toContain("<summary>content</summary>");
+    expect(html).toContain('class="tool-call__section-label">content</span>');
     expect(html.indexOf('class="token keyword">const</span>')).toBeGreaterThan(
       html.indexOf("<details"),
     );
