@@ -23,7 +23,8 @@
     "vocabulary:check": "vale AGENTS.md README.md docs plans src website",
     "test": "vitest run",
     "prepare": "git config core.hooksPath .githooks || true",
-    "check": "npm run typecheck && npm run lint && npm run test && npm run format:check && npm run docs:check && npm run vocabulary:check"
+    "check": "npm run typecheck && npm run lint:cached && npm run test && npm run format:check && npm run docs:check && npm run vocabulary:check",
+    "check:notest": "npm run typecheck && npm run lint:cached && npm run format:check && npm run docs:check && npm run vocabulary:check"
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "^0.82.0",
