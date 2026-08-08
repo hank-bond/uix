@@ -1,5 +1,5 @@
 ---
-summary: "Source AGENTS.md files route among multiple production owners; single-file units stay at their parent boundary, and colocated tests remain implicit."
+summary: "Source AGENTS.md files route among multiple production owners. Single-file units stay at their parent boundary, and colocated tests remain implicit."
 kind: explanation
 status: accepted
 read_when: "Read before deciding whether a source directory needs an AGENTS.md, whether tests are routing destinations, or whether directory guidance can restate single-file behavior."
@@ -11,6 +11,6 @@ A source directory earns an `AGENTS.md` when it groups multiple production files
 
 A production file and its colocated tests do not form a multi-file ownership boundary. They stay together in the parent directory, the production file appears in the parent's generated index, and the test is found by its shared basename. Source indexes therefore exclude `*.test.*` and `*.spec.*` files.
 
-This decision refines the source-index scope established by [`2026-08-02-code-proximate-documentation.md`](./2026-08-02-code-proximate-documentation.md). Its narrowest-owner placement remains unchanged; production ownership, rather than every authored source artifact, defines the routing tree.
+This decision refines the source-index scope established by [`2026-08-02-code-proximate-documentation.md`](./2026-08-02-code-proximate-documentation.md). Its narrowest-owner placement remains unchanged. Production ownership, rather than every authored source artifact, defines the routing tree.
 
-**Rejected:** One `AGENTS.md` per source directory regardless of production-file count; treating tests as independent routing destinations; using directory guidance to restate behavior owned by one implementation file; and preserving single-file directories only for visual symmetry.
+**Rejected:** One `AGENTS.md` per source directory regardless of production-file count. Treating tests as independent routing destinations. Using directory guidance to restate behavior owned by one implementation file. And preserving single-file directories only for visual symmetry.

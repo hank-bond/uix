@@ -1,5 +1,5 @@
 ---
-summary: "The agent mutates artifacts through ordinary file-edit tools, never bespoke UI or RPC tools; channels carry validated events, not an agent-side UI API."
+summary: "The agent mutates artifacts through ordinary file-edit tools, never bespoke UI or RPC tools. Channels carry validated events, not an agent-side UI API."
 kind: explanation
 read_when: "Read before giving the agent any tool that manipulates the UI or panes directly."
 status: accepted
@@ -9,8 +9,8 @@ status: accepted
 
 Rejected paths kept on record:
 
-- **"Agent generates JSX" for reports.** Rejected for structured blocks in files — markdown + fenced custom blocks, parsed and rendered by an extension. The agent uses existing file-edit tools, not bespoke UI tools.
-- **"Custom RPC tool surface for the agent to manipulate the UI."** Same rejection. Channels carry validated events; agent-side, file edits remain the canonical way to mutate persistent artifacts.
-- **"Report as the conversation, structured."** Rejected for _conversation pane is the conversation; reports are artifacts_ — two panes, not a merged one.
+- **"Agent generates JSX" for reports.** Rejected for structured blocks in files: markdown + fenced custom blocks, parsed and rendered by an extension. The agent uses existing file-edit tools, not bespoke UI tools.
+- **"Custom RPC tool surface for the agent to manipulate the UI."** Same rejection. Channels carry validated events. Agent-side, file edits remain the canonical way to mutate persistent artifacts.
+- **"Report as the conversation, structured."** Rejected for _conversation pane is the conversation. Reports are artifacts_: two panes, not a merged one.
 
-The thread is one principle: the agent's persistent output is **files**, and the UI is a renderer/editor over those files — not a thing the agent pokes directly.
+The thread is one principle: the agent's persistent output is **files**. The UI is a renderer/editor over those files, not a thing the agent pokes directly.

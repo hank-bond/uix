@@ -8,9 +8,9 @@ status: accepted
 
 The earlier framing was TypeBox at the agent/channel boundary, Zod everywhere else (forms, IPC, on-disk). Rejected:
 
-- **Two schema libraries** means every author asks "which one here?" — the accidental complexity the design principles resist.
-- **Zod's wins** (nicer ergonomics, friendlier default errors, richer transforms) are real but small; a tiny error-formatting wrapper once removes most of the gap.
-- **Form-layer validation** — the strongest Zod case — lives in extensions, not the substrate. Extensions pick their own validator for internal state.
+- **Two schema libraries** means every author asks "which one here?": the accidental complexity the design principles resist.
+- **Zod's wins** (nicer ergonomics, friendlier default errors, richer transforms) are real but small. A tiny error-formatting wrapper once removes most of the gap.
+- **Form-layer validation**, the strongest Zod case, lives in extensions, not the substrate. Extensions pick their own validator for internal state.
 - **`TypeCompiler`** gives AOT-compiled validators that beat Zod on hot paths, and channel-message validation is a hot path.
 
-Substrate surfaces (channels, IPC, contribution manifests, pi tool schemas, on-disk schemas the substrate defines) are TypeBox. `$schema`-tagged configs stay human-editable. An extension wanting Zod for its internal state is fine.
+Substrate surfaces (channels, IPC, contribution manifests, Pi tool schemas, on-disk schemas the substrate defines) are TypeBox. `$schema`-tagged configs stay human-editable. An extension wanting Zod for its internal state is fine.

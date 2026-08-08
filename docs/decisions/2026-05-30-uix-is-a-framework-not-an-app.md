@@ -1,18 +1,18 @@
 ---
-summary: "UIX is a reusable framework for building human-agent apps, not a single app — the framing test behind feature decisions."
+summary: "UIX is a reusable framework for building human-agent apps, not a single app: the framing test behind feature decisions."
 kind: explanation
 status: accepted
 ---
 
 # UIX is a framework, not an app
 
-> "I am basically just creating a UI to hook [pi] into like a human in a Gundam. Normally the harness is tools you give to the agent, but I mostly want **tools you give to the human to work with the agent**."
+> "I am basically just creating a UI to hook [Pi] into like a human in a Gundam. Normally the harness is tools you give to the agent, but I mostly want **tools you give to the human to work with the agent**."
 
-This frame is the single most important design constraint. UIX adds **user capabilities**: displays the human sees, controls the human's hands operate, and memory aids so the human doesn't have to hold everything in their head. Every feature passes the test: _does this help the user see, decide, or act?_ If it's "make the agent smarter," it belongs in pi, not UIX.
+This frame is the single most important design constraint. UIX adds **user capabilities**: displays the human sees, controls the human's hands operate, and memory aids. Those memory aids mean the human doesn't have to hold everything in their head. Every feature passes the test: _does this help the user see, decide, or act?_ If it's "make the agent smarter," it belongs in Pi, not UIX.
 
 ## Substrate, not app
 
-Early framing treated UIX as a single coding-agent IDE (conversation pane, tree pane, structured reports, reflection queue, side-quest gesture). All still wanted — but as _applications built on UIX_. The split happened when a second app surfaced (a knowledge-base/wiki manager) sharing nearly all the same primitives — panes, channels, file watchers, agent session, lifetime-scoped extensions — with none of the same UI.
+Early framing treated UIX as a single coding-agent IDE (conversation pane, tree pane, structured reports, reflection queue, side-quest gesture). All still wanted, but as _applications built on UIX_. The split happened when a second app surfaced (a knowledge-base/wiki manager) sharing nearly all the same primitives, panes, channels, file watchers, and agent session. It shared none of the same UI.
 
 The motivating problems still drive substrate decisions because they're _why_ the substrate has to support these shapes:
 
@@ -29,6 +29,6 @@ These same shapes serve the wiki app, a design-system deliverables app, and the 
 - One or two exports per module. Resist barrel files and god-objects.
 - Schemas are sources of truth. Don't hand-write parallel TS types.
 - Functions over classes.
-- Events over polling. Pi gives events; files have watchers; state emits.
+- Events over polling. Pi gives events. Files have watchers. State emits.
 - Append-only where possible (reports, sessions, custom entries).
-- Lifetime bags enforce pairing by construction; registration without a bag is a bug. See [architecture/lifetimes](../architecture/conventions/lifetimes.md).
+- Lifetime bags enforce pairing by construction. Registration without a bag is a bug. See [architecture/lifetimes](../architecture/conventions/lifetimes.md).

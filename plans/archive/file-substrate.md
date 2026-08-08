@@ -9,9 +9,9 @@ status: landed
 
 The immediate need is durable workspace/feature settings, not a public arbitrary file-watching primitive. StatusBar layout in [agent-controls](./agent-controls.md) needs cross-session feature-scoped settings that are visible and agent-editable as ordinary workspace data. If the agent or a human edits `uix.workspace.json` while UIX is running, the user runs `/reload` to pick it up.
 
-This plan replaces the earlier `ctx.files.watch/write` F0 with a smaller settings service. File watching remains valuable, but the better future primitive is tracked document publication: documents loaded into the document store can be published to visible paths and only those tracked paths are watched/imported. That design is now a backlog seed, not part of this settings slice.
+This plan replaces the earlier `ctx.files.watch/write` F0 with a smaller settings service. File watching remains valuable, but the better future primitive is tracked document publication. Documents loaded into the document store can be published to visible paths, and only those tracked paths are watched/imported. That design is now a backlog seed, not part of this settings slice.
 
-No users yet beyond the author, so breaking changes to interfaces/manifest shape are free — favor the right design over back-compat.
+No users yet beyond the author, so breaking changes to interfaces/manifest shape are free: favor the right design over back-compat.
 
 ## Vocabulary
 
@@ -38,7 +38,7 @@ Move workspace feature entries to objects:
 }
 ```
 
-The manifest entry does not repeat the feature id. The loaded `FeatureDefinition.id` is the only feature identity; settings are colocated with the manifest entry being activated, and there is no top-level `settings[featureId]` map in this version.
+The manifest entry does not repeat the feature id. The loaded `FeatureDefinition.id` is the only feature identity. Settings are colocated with the manifest entry being activated, and there is no top-level `settings[featureId]` map in this version.
 
 ## W1: Feature-declared setting schemas
 
@@ -70,7 +70,7 @@ export default {
 };
 ```
 
-Hydration uses each setting's explicit `default`, not TypeBox field defaults. Missing values hydrate from the default; plain objects merge recursively so new fields get added without overwriting existing fields; arrays, scalars, and `null` are atomic. `null` is an explicit value and must be allowed by the schema. Unknown persisted setting keys and invalid persisted values fail that feature loudly rather than being silently deleted or replaced.
+Hydration uses each setting's explicit `default`, not TypeBox field defaults. Missing values hydrate from the default. Plain objects merge recursively so new fields get added without overwriting existing fields. Arrays, scalars, and `null` are atomic. `null` is an explicit value and must be allowed by the schema. Unknown persisted setting keys and invalid persisted values fail that feature loudly rather than being silently deleted or replaced.
 
 ## W2: Feature-scoped settings API
 
@@ -86,19 +86,19 @@ interface FeatureSettingsStore {
 
 Semantics:
 
-- keys must be declared by that feature's `settings`;
-- values are validated against the declared TypeBox schema;
-- memory is authoritative while running;
-- `set()` updates memory and fires `onChange` synchronously;
-- disk flush is debounced and atomic;
-- `/reload` re-reads settings from disk;
+- keys must be declared by that feature's `settings`.
+- values are validated against the declared TypeBox schema.
+- memory is authoritative while running.
+- `set()` updates memory and fires `onChange` synchronously.
+- disk flush is debounced and atomic.
+- `/reload` re-reads settings from disk.
 - no live filesystem watcher in v1.
 
-The first consumer is StatusBar layout in [agent-controls](./agent-controls.md) A1. Model/thinking selection is not workspace settings: pi already records model/thinking changes as branch-aware session entries, so agent controls should derive those through the agent/session status path.
+The first consumer is StatusBar layout in [agent-controls](./agent-controls.md) A1. Model/thinking selection is not workspace settings. Pi already records model/thinking changes as branch-aware session entries, so agent controls should derive those through the agent/session status path.
 
 ## Boundary / future
 
 - **Surface access**: surfaces do not read the manifest directly. The substrate provides a feature-bound settings channel/client (`get`/`set`/`subscribe`) to mounted surfaces, with typed React helpers driven by the feature's shared `FeatureSettings`.
-- **Tracked documents, not arbitrary watchers**: future Monaco/source/document features should use document-store tracked publication. A document can be published to a visible path; external/bash edits import new document versions and notify surfaces. This is the backlog item, not W0-W2.
-- **Live external config edits**: if `/reload` is too coarse for settings, add a manifest-specific watcher inside the settings service; do not expose arbitrary `ctx.files.watch` to features for this.
+- **Tracked documents, not arbitrary watchers**: future Monaco/source/document features should use document-store tracked publication. A document can be published to a visible path. External/bash edits import new document versions and notify surfaces. This is the backlog item, not W0-W2.
+- **Live external config edits**: if `/reload` is too coarse for settings, add a manifest-specific watcher inside the settings service. Do not expose arbitrary `ctx.files.watch` to features for this.
 - Not here: process-isolation fs enforcement, Deno/worker feature host, generic settings UI surface, source buffer service.

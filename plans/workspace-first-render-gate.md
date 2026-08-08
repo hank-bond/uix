@@ -13,8 +13,8 @@ Feature activation and the auth-free selected-session manager may begin in paral
 
 The overlay leaves only after:
 
-- feature activation has settled, including isolated feature failures;
-- selected-branch turn-state restoration has settled; and
+- feature activation has settled, including isolated feature failures.
+- selected-branch turn-state restoration has settled. And
 - every initial surface has committed either its first presentation or its error presentation.
 
 A first presentation may itself be a feature-owned loading state. The substrate does not wait for arbitrary feature data, effects, images, or other open-ended asynchronous work.

@@ -10,15 +10,15 @@ This plan records the high-level shape agreed so far for cross-feature interoper
 
 ### Protocols are shared interfaces, not provider implementations
 
-A public protocol is owner-neutral vocabulary shared at authoring time. Its module defines a qualified protocol id and version, request/response schemas for semantic operations, event schemas where applicable, and TypeScript types derived from those schemas. A provider registers executable implementations against the protocol; a consumer imports the protocol and asks the substrate for an optional typed client. The substrate owns provider availability, validation, and routing. Consumers never import provider implementations.
+A public protocol is owner-neutral vocabulary shared at authoring time. Its module defines a qualified protocol id and version, request/response schemas for semantic operations, event schemas where applicable, and TypeScript types derived from those schemas. A provider registers executable implementations against the protocol. A consumer imports the protocol and asks the substrate for an optional typed client. The substrate owns provider availability, validation, and routing. Consumers never import provider implementations.
 
-Runtime schema discovery may support generic consumers, but it cannot give authored TypeScript compile-time types. A statically typed consumer imports the public protocol module; a dynamically discovered consumer treats values as `unknown` and validates them at runtime.
+Runtime schema discovery may support generic consumers, but it cannot give authored TypeScript compile-time types. A statically typed consumer imports the public protocol module. A dynamically discovered consumer treats values as `unknown` and validates them at runtime.
 
 Capability protocols build on the existing schema-validation and channel transport machinery rather than creating a second wire system. Backend-to-backend calls may use an in-process route and frontend calls may cross the workspace transport, but both present the same protocol-derived client semantics.
 
 ### Public protocol identity is separate from friendly feature naming
 
-Human-facing feature names such as `Calendar` need not be unique. Non-UIX public protocol ids are publisher-qualified; UIX reserves the `uix` authority for protocols it defines. Multiple providers may intentionally implement one shared protocol. Two incompatible contracts are different protocols or different versions; conflicting schemas claiming the same protocol id and version fail loudly rather than resolving by load order.
+Human-facing feature names such as `Calendar` need not be unique. Non-UIX public protocol ids are publisher-qualified. UIX reserves the `uix` authority for protocols it defines. Multiple providers may intentionally implement one shared protocol. Two incompatible contracts are different protocols or different versions. Conflicting schemas claiming the same protocol id and version fail loudly rather than resolving by load order.
 
 Public protocol versions are immutable: an incompatible public shape receives a new version. Interoperability between incompatible protocols requires an explicit adapter rather than structural guessing. The exact qualified-id syntax, the authority mechanism, and the relationship to the current plain `FeatureDefinition.id` remain open.
 
@@ -26,35 +26,35 @@ Public protocol versions are immutable: an incompatible public shape receives a 
 
 Feature-private schemas used vertically between one feature's backend and surfaces remain internal. Schemas intended for horizontal use across features live in explicit public protocol modules, and the package exports them through its supported entry points.
 
-A protocol may be a subpath export of its provider's package while it serves one feature family, or a small independent package once unrelated publishers consume it. Installing or importing a protocol package does not activate the provider feature; workspace manifest composition remains the activation authority.
+A protocol may be a subpath export of its provider's package while it serves one feature family. It becomes a small independent package once unrelated publishers consume it. Installing or importing a protocol package does not activate the provider feature. Workspace manifest composition remains the activation authority.
 
 Protocol dependencies use ordinary package mechanics at authoring time: registry packages, Git dependencies pinned to a revision, local dependencies, or workspace packages. Separate installed copies must interoperate by qualified id, version, and validated contract rather than JavaScript object identity. Automatic acquisition of remote feature source from manifest references is not part of the current decision.
 
 ### Documents are general shared resources
 
-The substrate may own a general document resource without understanding its semantics. A canonical, host-neutral resource identity names current content and its revisions; any number of surfaces or features may subscribe to changes to that same identity. Writers commit through the document owner, and subscribers react to document update events rather than messaging one another.
+The substrate may own a general document resource without understanding its semantics. A canonical, host-neutral resource identity names current content and its revisions. Any number of surfaces or features may subscribe to changes to that same identity. Writers commit through the document owner, and subscribers react to document update events rather than messaging one another.
 
-Opening a resource and synchronizing its content are separate concerns. Resource-viewer routing chooses presentations; all opened presentations remain reactive because they independently bind to the same document resource.
+Opening a resource and synchronizing its content are separate concerns. Resource-viewer routing chooses presentations. All opened presentations remain reactive because they independently bind to the same document resource.
 
 A representation media type describes bytes or text such as HTML or JSON. A protocol or document kind describes semantic meaning such as a versioned calendar event shape. A URI scheme identifies the resource authority, and a viewer role distinguishes presentations such as source editing and rendered HTML. MIME type alone is not a capability identity.
 
 ### Resource viewers are live renderer capabilities
 
-A resource viewer registers a framework-neutral implementation identity, serializable matching metadata, and a private opener callback. The substrate owns registration lifetime, the live catalog, resource-to-viewer matching, invocation routing, and unavailable-provider handling. It exposes plain TypeScript/JavaScript APIs; framework-specific hooks are adapters over that core.
+A resource viewer registers a framework-neutral implementation identity, serializable matching metadata, and a private opener callback. The substrate owns registration lifetime, the live catalog, resource-to-viewer matching, invocation routing, and unavailable-provider handling. It exposes plain TypeScript/JavaScript APIs. Framework-specific hooks are adapters over that core.
 
-The surface where an interaction originates owns its presentation. Chat may render a context menu for a resource link, and a file browser may render its own `Open With` menu by querying the same live viewer catalog. The workspace host does not globally capture and interpret every right click. Consumers see serializable viewer descriptors and invoke by id; they do not receive another surface's callback or import its code.
+The surface where an interaction originates owns its presentation. Chat may render a context menu for a resource link. A file browser may render its own `Open With` menu by querying the same live viewer catalog. The workspace host does not globally capture and interpret every right click. Consumers see serializable viewer descriptors and invoke by id. They do not receive another surface's callback or import its code.
 
 Multiple viewers may intentionally accept one resource. This lets a viewer open the same HTML document as source in an editor, render it in Canvas, or open it in both. Exact selector fields, default selection, preferences, and multi-view behavior remain open.
 
 ### Domain resource identity is not a browser fetch URL
 
-Canonical resource identities must survive Electron and a hosted client. Electron's `uix-resource://...` URLs are browser delivery URLs for modules, assets, or rendered content; they are not durable document identities. A hosted runtime may deliver the same resource through HTTP or WebSocket-backed APIs. A viewer that needs a browser-fetchable URL asks the host for an opaque transport URL rather than constructing or persisting one.
+Canonical resource identities must survive Electron and a hosted client. Electron's `uix-resource://...` URLs are browser delivery URLs for modules, assets, or rendered content. They are not durable document identities. A hosted runtime may deliver the same resource through HTTP or WebSocket-backed APIs. A viewer that needs a browser-fetchable URL asks the host for an opaque transport URL rather than constructing or persisting one.
 
 Literal machine-local `file://` URLs therefore do not form the canonical hosted-compatible identity. The exact workspace-resource coordinate, including how it relates to mutable agent cwd and files outside a workspace, remains open.
 
 ### Agent exposure remains feature-owned
 
-Shared document updates and capability availability do not automatically enter Agent context. Each feature contributes the tools, stable protocol guidance, and changing context projection that make its domain useful to the Agent. Agent operations mutate domain resources or invoke domain semantics; they do not manipulate resource viewers or surface presentation.
+Shared document updates and capability availability do not automatically enter Agent context. Each feature contributes the tools, stable protocol guidance, and changing context projection that make its domain useful to the Agent. Agent operations mutate domain resources or invoke domain semantics. They do not manipulate resource viewers or surface presentation.
 
 ## Conceptual flows
 
@@ -83,22 +83,22 @@ These flows illustrate the agreed relationships, not final APIs.
 ## Decisions still required
 
 1. **Qualified identity:** settle publisher authority syntax, protocol-id syntax, version syntax, reserved namespaces, workspace-local publishers, and migration of the current feature-id model.
-2. **Protocol declaration:** settle the protocol descriptor shape, supported operation/event forms, payload portability, schema normalization or fingerprinting, duplicate-definition checks, package-version versus protocol-version policy, simultaneous-version behavior, cancellation or streaming semantics, and what compatibility means within a version.
+2. **Protocol declaration:** settle the protocol descriptor shape, supported operation/event forms, payload portability, schema normalization or fingerprinting, and duplicate-definition checks. Also settle package-version versus protocol-version policy, simultaneous-version behavior, cancellation or streaming semantics, and what compatibility means within a version.
 3. **Public/private boundary:** settle package export conventions and whether UIX needs tooling that verifies public protocol modules remain independent of provider implementation code.
 4. **Distribution:** settle the recommended package layout, lock/pinning policy, Git-package conventions, and any later manifest source-acquisition mechanism.
 5. **Capability runtime:** settle provider registration, optional client acquisition, one-versus-many provider cardinality, resource/provider binding, availability observation, failure semantics, and reload disposal.
 6. **Transport projection:** settle how one capability registration produces in-process and remote routes without duplicating the existing channel registry or exposing provider callbacks across process boundaries.
 7. **Document contract:** settle content representation, metadata, revisions, write preconditions, source provenance, update events, subscription scope, creation/deletion lifecycle, persistence, and conflict behavior.
 8. **Resource coordinates:** settle canonical workspace, managed-document, calendar, and external-resource identities, including mutable cwd and hosted interpretation.
-9. **Viewer matching:** settle selectors over scheme, media type, semantic protocol/kind, role, and resource-specific checks; settle default choice, explicit `Open With`, opening in multiple viewers, and persisted preferences.
-10. **Viewer lifetime and instances:** settle whether viewer registration follows mounted surface lifetime or another feature lifetime, how hidden/unmounted surfaces become available, and how surface/view instance identity participates in opening and focus.
+9. **Viewer matching:** settle selectors over scheme, media type, semantic protocol/kind, role, and resource-specific checks. Settle default choice, explicit `Open With`, opening in multiple viewers, and persisted preferences.
+10. **Viewer lifetime and instances:** settle whether viewer registration follows mounted surface lifetime or another feature lifetime. Also settle how hidden/unmounted surfaces become available. Settle how surface/view instance identity participates in opening and focus.
 11. **Framework-neutral frontend API:** settle the plain workspace API and the boundaries of React or other framework adapters.
-12. **Agent projection:** settle the minimum conventions for a capability provider to describe its semantic operations and changing resources to the Agent without automatically exposing all shared state.
+12. **Agent projection:** settle the minimum conventions for a capability provider to describe its semantic operations and changing resources to the Agent. It must not automatically expose all shared state.
 13. **Permissions and trust:** settle whether capability invocation or resource access needs policy beyond the workspace's existing trust in manifest-loaded features.
 
 ## Provisional review units
 
-The ordering is provisional; each unit stops for review before choosing implementation details or the next unit.
+The ordering is provisional. Each unit stops for review before choosing implementation details or the next unit.
 
 ### P0: Protocol identity and authoring contract
 
@@ -122,8 +122,8 @@ Prove that canonical resource identity and capability/viewer APIs do not expose 
 
 ### P5: First product vertical
 
-The chosen first vertical is a Chat file link opened in a source editor, per the direct-import MVP in [cross-feature interoperability](../docs/design/cross-feature-interoperability.md): Chat owns the link presentation and calls an editor channel contract directly (the retained tightly-coupled alternative) rather than waiting for the viewer catalog. The catalog (P3) remains the target when multiple viewers per resource or replaceable features require it; P0–P4 still settle the seams for that target. The vertical's files are git-backed session worktrees, so their document identity is the session-worktree layer rather than the doc store — see [session worktrees and turn checkpoints](../docs/decisions/2026-08-08-session-worktrees-and-turn-checkpoints.md).
+The chosen first vertical is a Chat file link opened in a source editor, per the direct-import MVP in [cross-feature interoperability](../docs/design/cross-feature-interoperability.md). Chat owns the link presentation and calls an editor channel contract directly (the retained tightly-coupled alternative). It does this rather than waiting for the viewer catalog. The catalog (P3) remains the target when multiple viewers per resource or replaceable features require it. P0–P4 still settle the seams for that target. The vertical's files are git-backed session worktrees. Their document identity is the session-worktree layer rather than the doc store. See [session worktrees and turn checkpoints](../docs/decisions/2026-08-08-session-worktrees-and-turn-checkpoints.md).
 
 ## Explicitly outside the current agreement
 
-This plan does not yet choose Monaco integration, file-browser structure, filesystem watching, automatic package fetching, layout/show-hide behavior, viewer UI styling, document snapshot/versioning implementation, generic Agent editing tools, or a standard UIX Calendar protocol. Those require separate discussion before they become requirements or build units.
+This plan does not yet choose Monaco integration, file-browser structure, filesystem watching, automatic package fetching, layout/show-hide behavior, viewer UI styling, or document snapshot/versioning implementation. It also does not choose generic Agent editing tools or a standard UIX Calendar protocol. Those require separate discussion before they become requirements or build units.
