@@ -10,8 +10,8 @@ Durable settings live on the feature's manifest entry in `uix.workspace.json`. F
 
 Files involved:
 
-- [`src/api/settings.ts`](../../src/api/settings.ts), `defineSettings`
-- [`src/api/workspace.ts`](../../src/api/workspace.ts), `useFeatureSetting`
+- [`packages/api/src/settings.ts`](../../packages/api/src/settings.ts), `defineSettings`
+- [`packages/api/src/workspace.ts`](../../packages/api/src/workspace.ts), `useFeatureSetting`
 - [`src/main/workspace/settings.ts`](../../src/main/workspace/settings.ts), the persistence substrate
 
 ## Declare a settings definition in shared code

@@ -80,7 +80,7 @@ export interface FeatureSubstrate {
   registries: FeatureContributionRegistries;
   /**
    * On-disk dir of the `@uix/api` implementation feature imports resolve
-   * to (the repo's `src/api` in dev). Supplied by the composition root;
+   * to (the repo's `packages/api/src` in dev). Supplied by the composition root;
    * it's environment knowledge, not loader logic. When absent, features
    * can only type-import the API.
    */

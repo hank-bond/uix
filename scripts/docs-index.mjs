@@ -40,7 +40,7 @@ const layers = [
   { dir: "website", sort: "slug-asc" },
 ];
 
-const SOURCE_ROOTS = ["src", "scripts", "templates"];
+const SOURCE_ROOTS = ["src", "scripts", "templates", "packages"];
 const SOURCE_EXCLUDED_DIRECTORIES = new Set(["src/docs"]);
 
 const START = "<!-- INDEX:START -->";
