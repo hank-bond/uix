@@ -46,9 +46,9 @@ UIX uses two id grammars for different things.
 
 Validated helpers construct both nominal brands. Internal registry sets and resolved contribution shapes retain those brands. External string boundaries cast inline.
 
-Author-facing `@uix/api` contributions contain local names instead of derived ids. `src/api/contribution-id.ts` owns the cross-facet grammar.
+Author-facing `@uix/api` contributions contain local names instead of derived ids. `packages/api/src/contribution-id.ts` owns the cross-facet grammar.
 
-Each consumer owns its canonical-id helpers and resolved shapes. Shared channel and resource resolution lives in `src/api/`. Main-only facets keep resolution in `src/main/`.
+Each consumer owns its canonical-id helpers and resolved shapes. Shared channel and resource resolution lives in `packages/api/src/`. Main-only facets keep resolution in `src/main/`.
 
 Envelope and customType ids stay substrate-owned and are not feature-scoped: `uix.state` (the display-hidden agent-context envelope), `uix.turn-state` (the persisted turn-state entry). Inner contributions use feature-scoped canonical ids: `<canvas.canvas-diff>` inside `<uix-state>`, or `canvas.documents` as a named cell inside a `uix.turn-state` entry.
 

@@ -10,8 +10,8 @@ A UIX **feature** is the loadable unit that adds a coherent capability (a chat, 
 
 Files involved:
 
-- [`src/api/feature.ts`](../../src/api/feature.ts), `FeatureDefinition`, `FeatureContext`, `FeatureContributions`
-- [`src/api/workspace.ts`](../../src/api/workspace.ts), `defineSurface`
+- [`packages/api/src/feature.ts`](../../packages/api/src/feature.ts), `FeatureDefinition`, `FeatureContext`, `FeatureContributions`
+- [`packages/api/src/workspace.ts`](../../packages/api/src/workspace.ts), `defineSurface`
 
 A real feature combining every facet is [`src/features/canvas/`](../../src/features/canvas/). Use it as the reference for a complete contribution set.
 
@@ -34,7 +34,7 @@ export const feature = defineFeature({
 
 `id` is the feature's identity. It owns contribution namespaces, channel ids, settings access, and logs. Workspace manifest entries do not repeat the id. If two entries export the same id, activation fails for the later one.
 
-`ctx` is the injected [`FeatureContext`](../../src/api/feature.ts): `documents` (a document-store factory), `settings`, `channels` (an event-publisher factory), and `log`. Features access external state **only** through `ctx` and the typed `@uix/api` contracts, never by importing host internals.
+`ctx` is the injected [`FeatureContext`](../../packages/api/src/feature.ts): `documents` (a document-store factory), `settings`, `channels` (an event-publisher factory), and `log`. Features access external state **only** through `ctx` and the typed `@uix/api` contracts, never by importing host internals.
 
 ## Declare it in the manifest
 
@@ -60,7 +60,7 @@ await window.channels.reload();
 
 ## The full contribution facade
 
-`contribute(ctx)` returns [`FeatureContributions`](../../src/api/feature.ts), which can include resources, channels, agent tools, a system-prompt section, skills, turn state, agent context, and surfaces. Here is one feature contributing all of them:
+`contribute(ctx)` returns [`FeatureContributions`](../../packages/api/src/feature.ts), which can include resources, channels, agent tools, a system-prompt section, skills, turn state, agent context, and surfaces. Here is one feature contributing all of them:
 
 ```ts
 // features/notes/index.ts
@@ -166,7 +166,7 @@ export const notesReadTool = (): AgentToolContribution => ({
 });
 ```
 
-UIX starts Pi with built-in tools inactive, so the feature composition defines the complete tool surface. The separate `agentToolOverrides` facet keeps intentional exact-name replacements (see [`src/api/agent-tools.ts`](../../src/api/agent-tools.ts) and the [`workspace-tools` feature](../../src/features/workspace-tools/) for an override example).
+UIX starts Pi with built-in tools inactive, so the feature composition defines the complete tool surface. The separate `agentToolOverrides` facet keeps intentional exact-name replacements (see [`packages/api/src/agent-tools.ts`](../../packages/api/src/agent-tools.ts) and the [`workspace-tools` feature](../../src/features/workspace-tools/) for an override example).
 
 ## System-prompt section and skills
 

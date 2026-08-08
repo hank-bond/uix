@@ -448,7 +448,7 @@ async function openWorkspace(
   // repo's source. A packaged app ships the API source with the feature
   // templates (packaging arc). Until then the alias is simply absent there
   // and features can only type-import the API.
-  const apiModuleDir = join(app.getAppPath(), "src/api");
+  const apiModuleDir = join(app.getAppPath(), "packages/api/src");
   const substrate: FeatureSubstrate = {
     documents,
     settings: workspaceSettings,

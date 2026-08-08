@@ -19,7 +19,7 @@ import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 // channel contracts (via #shared/ipc → @uix/api/agent), which value-import
 // typebox.
 const alias = {
-  "@uix/api": resolve(__dirname, "src/api"),
+  "@uix/api": resolve(__dirname, "packages/api/src"),
   "#backend": resolve(__dirname, "src/main"),
   "#features": resolve(__dirname, "src/features"),
   "#shared": resolve(__dirname, "src/shared"),

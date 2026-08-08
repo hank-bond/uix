@@ -10,9 +10,9 @@ A **channel** groups frontend-to-backend request operations with backend-publish
 
 Files involved:
 
-- [`src/api/channels.ts`](../../src/api/channels.ts), `ChannelContract`, `withHandlers`, `FeatureEventPublisher`
-- [`src/api/channel-resolution.ts`](../../src/api/channel-resolution.ts), canonical-id derivation
-- [`src/api/workspace.ts`](../../src/api/workspace.ts), `ChannelClient`, `createChannelClient`, `defineSurface`
+- [`packages/api/src/channels.ts`](../../packages/api/src/channels.ts), `ChannelContract`, `withHandlers`, `FeatureEventPublisher`
+- [`packages/api/src/channel-resolution.ts`](../../packages/api/src/channel-resolution.ts), canonical-id derivation
+- [`packages/api/src/workspace.ts`](../../packages/api/src/workspace.ts), `ChannelClient`, `createChannelClient`, `defineSurface`
 
 The reference for a real channel pair is [`src/features/canvas/shared/channels.ts`](../../src/features/canvas/shared/channels.ts) (contract) and [`src/features/canvas/backend/contributions/channels.ts`](../../src/features/canvas/backend/contributions/channels.ts) (handlers + publisher).
 

@@ -14,6 +14,16 @@ The monorepo should make the product boundary visible. The UIX server is the unb
 
 This plan builds on [hosting-compatible by default](../docs/decisions/2026-05-31-hosting-compatible-by-default.md), [features are the loadable unit](../docs/decisions/2026-07-01-features-are-the-loadable-unit.md), [workspace manifest, not discovery](../docs/decisions/2026-07-02-workspace-manifest-not-discovery.md), [runtime surface pipeline](../docs/decisions/2026-07-02-runtime-surface-pipeline.md), and the current [workspace composition synthesis](../docs/design/workspace-feature-composition.md). The implementation should follow the [human-paced loop](../docs/architecture/human-paced-implementation.md): each unit below is a direction, not permission to land the whole split in one pass.
 
+## Distribution direction (2026-08-08)
+
+Refinement of the product shape while tier-1 work is still pre-E0. Three tiers consume one runtime:
+
+- **Core UIX (tier 1)** is the runtime, server host, web client, and a `uix serve` CLI. It is **Electron-free**. Engineers run the server against a workspace and open the printed URL in a browser. The status-bar launcher is a native macOS menu-bar supervisor. It spawns and supervises the server binary and opens workspaces in tabs. It is convenience, not a product. Any rich UI beyond the native menu is itself a UIX app in the browser. Servers (CLI- or launcher-started) announce themselves through a well-known registry, so discovery does not depend on who spawned them.
+- **Fruition (tier 2)** is a separate batteries-included composition over the same runtime. It is an Electron host with defaults, skills, and guardrails. It starts as an in-repo product composition before it earns its own repo.
+- **Hosted Fruition (tier 3)** is the same server host run per-user in a VM, subdomain-isolated. Identity, tenancy, OAuth, and a feature marketplace are platform-layer work, explicitly not built for a long time. Tier-1 seams must survive it.
+
+Distribution mechanics: the server ships as a Node SEA binary with Pi versioned at build time. Model currency flows through Pi's remote catalog (pi.dev overlay, ~4h refresh, verified in Pi 0.82). Distribution cadence is therefore decoupled from model releases. Rebuild automation on Pi releases is the intended update path. User-overridable Pi is deferred unless a need appears. Everything above the substrate (browser client, Fruition window, hosted product, launcher UI) is a UIX app.
+
 ## Target shape
 
 ```text
@@ -130,7 +140,7 @@ Acceptance: Electron and local-server modes pass their shared semantic suite. Do
 - Exact monorepo tool and final package names.
 - HTTP framework and live transport protocol.
 - Wire framing, protocol versioning, reconnect/resume, and backpressure details.
-- Whether the browser is opened automatically and how a future tray launcher participates.
+- Whether the browser is opened automatically and how a future tray launcher participates. _(Direction resolved 2026-08-08: native menu-bar supervisor plus SEA binary, see Distribution direction.)_
 - Local authentication/bootstrap-token UX and the boundary at which the runtime allows non-loopback access.
 - Multiple simultaneous workspaces, processes, tabs, and clients.
 - Remote identity, tenancy, authorization, collaboration, VM/container isolation, and hosted persistence.
