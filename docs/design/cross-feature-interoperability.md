@@ -45,6 +45,10 @@ The plan deliberately leaves unresolved the exact identity syntax and authority,
 
 ## Log
 
+### 2026-08-08 — file-link to editor vertical takes the direct-import path for the MVP
+
+The first product vertical (a Chat file link opened in a source editor) uses direct provider-owned channel-contract imports — the retained "import a provider-owned channel contract directly" alternative — rather than the viewer catalog (plan P3). The catalog stays deferred until multiple viewers per resource or replaceable features require it. The vertical's file backing store also settled on git worktrees rather than the document store, so file documents live in the session-worktree layer while managed documents stay `doc://`-addressed: see [session worktrees and turn checkpoints](../decisions/2026-08-08-session-worktrees-and-turn-checkpoints.md).
+
 ### 2026-07-28 — shared protocols, document resources, and resource viewers separated
 
 The Monaco/file-link question exposed three integrations that initially looked like one cross-feature channel. Reactive views converge on one substrate-owned document resource; semantic feature calls use publisher-qualified public protocols with provider implementations and typed optional clients; presentation uses a live framework-neutral resource-viewer catalog. Electron resource URLs remain host delivery details. The VS Code parallels sharpened the shape: URI/document identity and change feeds for shared truth, selectors and `Open With` for presentations, and separately distributed protocol types for semantic extension APIs. The discussion also established that protocol packages, not duplicated schemas or dynamic discovery, are the authored TypeScript boundary, and that friendly feature names remain non-unique.

@@ -1,14 +1,14 @@
 ---
-summary: "Exploring managed-document history and optional workspace checkpoints across version backends, retention, preview, non-destructive rollback, Git state, and cwd transitions."
+summary: "Managed documents version behind DocumentStore; workspace files version on git through session worktrees and per-turn checkpoint refs, with checkpoint-on-leave restores, turn-state binding, and close-out reclaim."
 kind: explanation
-status: exploring
+status: resolved
 ---
 
 # Pane and file versioning
 
 ## Current synthesis
 
-### Implemented baseline
+### Managed documents (implemented)
 
 The implemented document substrate stores mutable current bytes and immutable JSON versions behind `DocumentStore`. Canvas turn state points from each resource id to a version id, so Pi's branch graph selects document state without duplicating document bytes.
 
@@ -16,73 +16,50 @@ Canvas versions include anchored metadata. Restoration therefore recovers conten
 
 A buffer remains a live feature-owned projection over a store. Versioning belongs behind the store interface; surfaces and agent tools should not depend on local version-file paths.
 
+### Workspace files (decided 2026-08-08)
+
+Workspace files version on git, per [session worktrees and turn checkpoints](../decisions/2026-08-08-session-worktrees-and-turn-checkpoints.md): sessions are git worktrees of the workspace repo (auto-initialized when absent), per-turn checkpoints commit to app-owned `refs/uix/snapshots/<session>` refs — never the work branch — and undo restores working-tree content from checkpoints. The branch moves only through explicit git operations; merging a session to main is a normal git merge plus a review surface. The conversation graph and the checkpoint graph fork in lockstep, bound by turn-state pointers. Every state-replacing transition first checkpoints the leaving state (checkpoint-on-leave); only working-tree content can dangle.
+
+The earlier scratch-index checkpoint proposal is superseded for git workspaces: UIX-owned session worktrees get git's normal index, so checkpoint commits use ordinary plumbing without touching the user's index or working tree. A shadow repo plus import/export discipline was rejected as the default — Superset's worktree-per-agent pattern plus auto-init is simpler — and remains only a possible opt-in for pristine or hosted repos.
+
 ### Two authorities, not one rollback promise
 
-UIX owns managed document history, while the user's Git working tree remains externally owned. These stores may share checkpoint coordination, but they do not share write authority, retention, restore safety, or garbage collection.
-
-Managed documents can guarantee atomic restoration of content and feature metadata because every write crosses their store. Workspace files also have external writers, ignored paths, staging state, and working-directory coordinates. A combined action must not imply atomic reversal unless a coordinator can state and enforce that guarantee.
-
-### Managed-document history proposal
-
-Git remains a candidate backend, not a settled decision. The original proposal used a UIX-owned bare repository and plumbing operations such as `hash-object`, `mktree`, `commit-tree`, and `update-ref`. Git objects would provide content addressing, deduplication, parentage, and packing without exposing repository paths to callers.
-
-Conversation branches should not be mirrored as Git branches. A turn-state cell can point from each resource id to an immutable version. Parent links between versions provide emergent branching when an edit follows a restored ancestor. Pi's graph remains the only user-visible branch structure.
-
-A document version must identify content and feature-owned metadata together. For Canvas, anchor map and allocation index belong to the same version as the bytes. Restoring only one half would produce stale historical anchors or a false edit guard.
-
-Mutable current state remains separate from immutable versions. Human and Agent writes update the working document, while run-boundary state records which immutable version became branch-visible. Intermediate versions may exist without becoming conversation checkpoints.
-
-If Git is used, retention cannot rely on process-local reachability. The design must decide whether session references, a derived ref namespace, or explicit checkpoint refs keep versions alive. Automatic Git garbage collection must not silently invalidate durable session pointers.
-
-### Optional workspace-checkpoint proposal
-
-Workspace checkpoints must not use `git stash push` because it mutates the working tree. `git stash create` is also insufficient by itself: it omits untracked files and leaves an unreferenced object.
-
-The retained proposal uses a scratch index. Set `GIT_INDEX_FILE` to a temporary index, add the working tree, write a tree, create a parented commit, and update a UIX-owned ref. This can capture tracked and untracked non-ignored files without touching the user's real index or working tree.
-
-Checkpoint cadence should be coarse. Capture a pre-run baseline after human edits and capture again before applying an older checkpoint. Interruptions can fold into the next baseline rather than creating a snapshot for every partial event.
-
-Restore remains non-destructive by construction: capture the state being left, then apply the target. A user can recover the pre-restore working tree even when it contained uncommitted edits.
-
-Automatic snapshots and named checkpoints may have different retention. A label can pin a durable ref, while unlabeled run snapshots may follow a bounded retention policy. Labels are application metadata rather than Git object names, so they can change without rewriting history.
+UIX owns managed document history and the workspace-file checkpoint layer, while the user's git working tree remains externally owned (and is often the same directory — the file layer's repo is the user's repo when one exists). Managed documents can guarantee atomic restoration of content and feature metadata because every write crosses their store. Workspace files have external writers, ignored paths, staging state, and cwd coordinates; rollback there is the git checkpoint layer, not a promise to revert the user's repo. A combined action must not imply atomic reversal unless a coordinator can state and enforce that guarantee.
 
 ### Shared turn-state contract
 
-Heavy state belongs behind stable refs, not inside session JSONL. Each turn-state cell owns its schema, snapshot, and restore behavior. The coordinator validates and persists opaque cell values without understanding document or Git internals.
+Heavy state belongs behind stable refs, not inside session JSONL. Each turn-state cell owns its schema, snapshot, and restore behavior. Run boundaries are durable synchronization points: before a user run each participating authority captures stable state, then the session records the refs; after an agent run, changed managed documents or a fresh checkpoint establish the baseline the agent most recently observed.
 
-Run boundaries are durable synchronization points. Before a user run, each participating authority captures stable state, then the session records the refs. After an Agent run, changed managed documents can establish the baseline that the Agent most recently observed.
-
-Workspace resources need cwd-aware coordinates, while managed document ids remain cwd-independent. A future `workspace://` identity should record a path relative to the turn's working-directory coordinate. A `doc://` identity continues to resolve through its content store in any worktree.
-
-A working-directory transition should capture state before leaving and materialize only the selected node's relevant workspace refs into the destination. Historical turns keep their original cwd as part of their coordinate system.
+Workspace resources need cwd-aware coordinates while managed document ids remain cwd-independent; a working-directory transition captures state before leaving and materializes only the selected node's relevant refs. Historical turns keep their original cwd as part of their coordinate system.
 
 ### Preview and rollback
 
-Preview must not silently become restore. Selecting an old conversation node can display historical managed documents or workspace state without changing current authority. A later action explicitly chooses what to carry forward.
+Preview must not silently become restore. Selecting an old conversation node can display historical managed documents or workspace state without changing current authority; a later explicit action chooses what to carry forward.
 
 The retained action split is:
 
 - **Conversation only:** Branch from the selected Pi node without applying previewed document or workspace state.
 - **Managed documents only:** Copy selected versions into new current versions while staying at the current conversation head.
-- **Workspace files:** Capture the current tree, then apply the selected workspace checkpoint.
+- **Workspace files:** Restore the session worktree from a checkpoint.
 - **Explicit combination:** Coordinate conversation, documents, and files while reporting any authority that cannot participate.
 
 Every action appends new state. No rollback action mutates historical session entries or version objects.
 
+### Other authorities
+
+DoltLite or another relational store is a separate authority for application data with its own branch-per-conversation, gitignored from the file layer, bound by the same turn-state pointer model. A future execution VM adds environment state as a fourth authority (installed packages, /tmp, background processes) — see [agent isolation and the execution boundary](./agent-isolation-and-execution-boundary.md). Git LFS is deferred until heavy in-workspace binaries make preview materialization costly; respecting a user's existing LFS config is a correctness obligation regardless.
+
 ### Hosting constraint
 
-Any backend must preserve stable ids, immutable versions, and a change feed without making local paths authoritative. A bare Git repository can satisfy that constraint locally or on a volume, but hosted object storage can implement the same store contract. The choice remains behind the document and checkpoint interfaces.
+Any backend must preserve stable ids, immutable versions, and a change feed without making local paths authoritative. Git satisfies that constraint locally; hosted object storage can implement the same store contract. The choice remains behind the document and checkpoint interfaces.
 
 ## Open questions
 
-- Does managed document history need Git semantics, or are immutable store versions with explicit parent metadata sufficient?
 - Should one managed-document version cover multiple resources atomically, or should each resource retain an independent parent graph?
-- What keeps session-referenced versions reachable, and what retention applies after branches become unreachable?
-- How should preview expose historical documents without mutating current buffers or triggering ordinary change effects?
-- Can scratch-index checkpoints preserve submodules, sparse checkouts, file modes, and platform-specific paths without surprising behavior?
-- Which automatic snapshots receive refs, and when may unlabeled snapshots be pruned?
+- Which automatic snapshots receive refs, and when may unlabeled snapshots be pruned? Session close-out bounds this, but per-file retention bounds are unsettled.
 - How do restore conflicts interact with external writers or another UIX process?
 - What cwd and worktree metadata must accompany a workspace checkpoint?
+- When does heavy in-workspace binary volume justify LFS for the checkpoint store, and how does preview materialization behave before then?
 
 ## Spawns
 
@@ -93,6 +70,10 @@ Any backend must preserve stable ids, immutable versions, and a change feed with
 - Active implementation context: [`persistence-and-session-foundation.md`](../../plans/persistence-and-session-foundation.md).
 
 ## Log
+
+### 2026-08-08 — workspace files decide on git worktrees and per-turn checkpoint refs
+
+The workspace-file half resolved: git is the substrate, sessions are worktrees of the workspace repo (auto-initialized when absent), per-turn checkpoints commit to app-owned `refs/uix/snapshots/<session>` refs that never touch the work branch, undo restores working-tree content, and merge to main is git plus a review surface. This supersedes the scratch-index checkpoint proposal and the shadow-repo plus import/export design for git workspaces, and it generalizes the turn-state pointer model from `docId → versionId` to `conversation node → checkpoint ref`. Checkpoint-on-leave makes every state-replacing transition capture the leaving state first. Superset's worktree-per-agent pattern validated the approach. See [session worktrees and turn checkpoints](../decisions/2026-08-08-session-worktrees-and-turn-checkpoints.md), [anchored base tools](../decisions/2026-08-08-anchored-base-tools.md), [host file-watcher primitive](../decisions/2026-08-08-host-file-watcher-primitive.md), and the [build plan](../../plans/session-worktrees-and-turn-checkpoints.md).
 
 ### 2026-06-21 — central coordinator lands; contribution-keyed opaque state; channel-vs-store split
 

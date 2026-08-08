@@ -122,7 +122,7 @@ Prove that canonical resource identity and capability/viewer APIs do not expose 
 
 ### P5: First product vertical
 
-Choose a concrete vertical only after P0-P4 clarify the seams. Candidate proofs include a Chat resource link opened by source and rendered viewers or a semantic protocol consumed by a second feature; this plan does not select one yet.
+The chosen first vertical is a Chat file link opened in a source editor, per the direct-import MVP in [cross-feature interoperability](../docs/design/cross-feature-interoperability.md): Chat owns the link presentation and calls an editor channel contract directly (the retained tightly-coupled alternative) rather than waiting for the viewer catalog. The catalog (P3) remains the target when multiple viewers per resource or replaceable features require it; P0–P4 still settle the seams for that target. The vertical's files are git-backed session worktrees, so their document identity is the session-worktree layer rather than the doc store — see [session worktrees and turn checkpoints](../docs/decisions/2026-08-08-session-worktrees-and-turn-checkpoints.md).
 
 ## Explicitly outside the current agreement
 

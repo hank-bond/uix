@@ -16,6 +16,8 @@ UIX needs one vocabulary for operations that cross a durable state or external-s
 
 The _rollback stack_ is the coordinated set of UIX-managed authorities: Pi session and turn state, managed documents, managed workspace files, and future managed application data. An authority actually participates when its implementation captures stable state and records the corresponding ref through the central checkpoint/turn-state lifecycle. This is an implementation fact, not a contributed permission or menu of claimed capabilities.
 
+The workspace-file authority is now git checkpoints per [session worktrees and turn checkpoints](../decisions/2026-08-08-session-worktrees-and-turn-checkpoints.md): per-turn checkpoint commits on app-owned `refs/uix/...` refs, with restore limited to the agent's footprint — never a whole-workspace promise — and **checkpoint-on-leave**: every state-replacing transition (rollback, session switch, fork, materializing preview) first captures the leaving state on the current chain, skipping when clean. Only working-tree content can dangle; commits and refs are durable by construction. Undo restores content; it never silently rewrites history, and history surgery is explicit and recoverable because the checkpoint refs retain the pre-surgery state.
+
 Rollback guarantees stop at that boundary. A workflow may perform an effect and then commit its result through a managed mutation; UIX can restore the mutation but cannot reverse the preceding effect. Compensation is not rollback. Tools, protocols, and diagnostics should eventually make this distinction clear to the Agent and human rather than relying on prose or inference.
 
 Views react to committed truth. A successful managed mutation advances its authority and then invalidates the relevant resource or query projections; surfaces do not synchronize by messaging one another. Workspace checkpoints coordinate stable refs from participating authorities without claiming a distributed transaction, and promotion advances one coherent accepted state only after its candidate refs validate.
@@ -36,6 +38,10 @@ UIX owns this lifecycle and a good managed default, not an application data mode
 - [Feature source admission](./feature-source-admission.md) owns compiler and schema rails for agent-authored feature code.
 
 ## Log
+
+### 2026-08-08 — checkpoint refs become the workspace-file authority
+
+The workspace-file authority resolved onto git checkpoints: per-turn commits on app-owned `refs/uix/snapshots/<session>` refs, never the work branch; undo restores working-tree content and is itself checkpointed; checkpoint-on-leave makes every state-replacing transition capture the leaving state first. Restore is non-destructive by construction, and even explicit history surgery is recoverable because the checkpoint refs retain the pre-surgery state. Undo scope is the agent's footprint, not whole-workspace restore. See [session worktrees and turn checkpoints](../decisions/2026-08-08-session-worktrees-and-turn-checkpoints.md).
 
 ### 2026-07-29 — Convex comparison establishes the operation boundary
 
