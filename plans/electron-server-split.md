@@ -108,9 +108,11 @@ Acceptance: every Electron dependency has an intended owner. The proposed runtim
 
 Move workspace-scoped construction out of the Electron entry into a callable runtime with an explicit lifetime and dependencies. It should own feature loading, facet registries, agent/session behavior, settings, stores, reload, and the transport-neutral halves of channels/resources. The Electron entry should instantiate this runtime through adapters while preserving current behavior.
 
+E1 lands the runtime in `packages/runtime`. The E0 inventory made the boundary non-speculative, so the extraction goes straight to a package. E5 then covers the remaining packages rather than relocating the runtime twice. E1 moves the runtime construction only. The Electron shell (windows, menu, picker, recents) stays in place until E6 recasts it as a packaged host.
+
 Separate app-global state from workspace state as part of the extraction. Do not solve concurrent workspaces unless the extraction makes it unavoidable. Also do not bake `BrowserWindow` or Electron app singleton types into the new runtime boundary.
 
-Acceptance: Electron dogfood behaves as before, runtime tests instantiate the workspace backend without importing or booting Electron, and disposing the runtime releases all workspace-scoped registrations.
+Acceptance: Electron dogfood behaves as before. Runtime tests instantiate the workspace backend without importing or booting Electron. Disposing the runtime releases all workspace-scoped registrations. The agent driver is the host-neutrality test. It must extract without leaking an Electron import. It is the messiest piece and the integration hub, holding in-process Pi installers, session files, and provider auth flows.
 
 ### E2: Make channels independently hostable
 
@@ -118,7 +120,9 @@ Turn the existing channel seam into an explicit backend transport binding and br
 
 Choose the local server live transport only in this unit. WebSocket is the expected candidate, but the decision should compare it against streaming/fetch alternatives using the actual channel operations rather than treating it as predetermined.
 
-Acceptance: the same channel conformance suite runs against the Electron adapter and an in-memory or server adapter. A browser transport can execute at least the substrate workspace catalog plus one feature request/event path.
+The client seam is concrete on both sides. The preload today provides `window.channels` as the Electron transport. The server page must construct a live-bus client against the same logical channel API.
+
+Acceptance: the same channel conformance suite runs against the Electron adapter and an in-memory or server adapter. A browser transport can execute at least the substrate workspace catalog plus one feature request/event path. The client-side twin runs the same conformance suite against each host adapter.
 
 ### E3: Make resources and surfaces independently hostable
 
@@ -138,7 +142,7 @@ Acceptance: on macOS and a Linux/container-like environment, a user can point th
 
 ### E5: Establish monorepo package and build boundaries
 
-After the runtime and both hosts reveal their real imports, move them into explicit workspace packages/apps. Give each target an independent build and test entry. Avoid a speculative up-front directory migration. Use the proven dependency direction to prevent the runtime or server from depending on Electron or batteries.
+After the client, server, and Electron hosts reveal their real imports, move them into explicit workspace packages/apps. Give each target an independent build and test entry. The runtime already landed at `packages/runtime` in E1, so avoid a speculative migration for the remaining packages until their imports are proven. Use the proven dependency direction to prevent the runtime or server from depending on Electron or batteries.
 
 Decide which artifacts are bundled versus external and how `@uix/api` self-resolution works for feature loading. Also decide how readable feature source is addressed in development and packaged products, and whether internal packages remain private. Keep one lockfile and coordinated repository checks unless release needs prove otherwise.
 
