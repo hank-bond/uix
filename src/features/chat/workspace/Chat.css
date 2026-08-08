@@ -16,6 +16,9 @@
 }
 
 :scope {
+  /* Query container for responsive tool-block layout (tool-content.css). */
+  container-type: inline-size;
+  container-name: chat-surface;
   --code-font: "chat-Iosevka";
   --chat-text-meta: 0.75rem;
   --chat-text-code: 0.8125rem;

@@ -1,12 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import {
-  FileToolContent,
-  tryParseFileToolPresentation,
-} from "./FileToolContent";
+import { FeatureSettingsProvider } from "@uix/api/workspace";
+
+import { BlockPresentationSettingsProvider } from "../../BlockPresentationSettings";
 import { ToolChatBlock } from "../../ToolChatBlock";
 import type { ToolItem } from "../presentation";
+import { ToolLabelProvider } from "../tool-catalog";
 
 function item(overrides: Partial<ToolItem> = {}): ToolItem {
   return {
@@ -25,22 +25,34 @@ function item(overrides: Partial<ToolItem> = {}): ToolItem {
   };
 }
 
-function renderFileContent(value: ToolItem): string {
-  const presentation = tryParseFileToolPresentation(value);
-  if (!presentation)
-    throw new Error("test item must parse a file presentation");
+function renderFileItem(value: ToolItem): string {
   return renderToStaticMarkup(
-    <FileToolContent
-      item={value}
-      state="success"
-      presentation={presentation}
-    />,
+    <FeatureSettingsProvider
+      client={{
+        get: () => Promise.resolve(undefined),
+        set: () => Promise.resolve(),
+        onChange: () => () => {},
+      }}
+    >
+      <ToolLabelProvider
+        labelByToolName={
+          new Map([
+            ["read", "read"],
+            ["write", "write"],
+          ])
+        }
+      >
+        <BlockPresentationSettingsProvider>
+          <ToolChatBlock item={value} />
+        </BlockPresentationSettingsProvider>
+      </ToolLabelProvider>
+    </FeatureSettingsProvider>,
   );
 }
 
-describe("FileToolContent", () => {
-  it("shows a derived path and reason while keeping file content disclosed", () => {
-    const html = renderFileContent(
+describe("file tool chat rendering", () => {
+  it("shows the path param and reason while keeping file content disclosed", () => {
+    const html = renderFileItem(
       item({
         file: {
           absolutePath: "/workspace/src/main.ts",
@@ -51,7 +63,7 @@ describe("FileToolContent", () => {
 
     expect(html).toContain("src/main.ts");
     expect(html).toContain("I need to inspect the entry point.");
-    expect(html).toContain("<details");
+    expect(html).toContain('<details class="tool-call"');
     expect(html).toContain('<pre class="code-block">');
     expect(html).toContain('<summary class="tool-call__summary">');
     expect(html).toContain('class="tool-call__section-label">result</span>');
@@ -63,7 +75,7 @@ describe("FileToolContent", () => {
   });
 
   it("leaves files with unknown extensions as literal plain text", () => {
-    const html = renderFileContent(
+    const html = renderFileItem(
       item({
         args: {
           path: "notes.unknown",
@@ -77,22 +89,8 @@ describe("FileToolContent", () => {
     expect(html).not.toContain('class="token ');
   });
 
-  it("falls back to ordinary tool rendering without a compatible reason", () => {
-    const html = renderToStaticMarkup(
-      <ToolChatBlock
-        item={item({
-          args: { path: "src/main.ts" },
-        })}
-      />,
-    );
-
-    expect(html).toContain('data-uix-part="tool-payload"');
-    expect(html).toContain('data-uix-part="tool-details"');
-    expect(html).not.toContain('data-uix-part="file-tool"');
-  });
-
-  it("puts write content behind the disclosure", () => {
-    const html = renderFileContent(
+  it("surfaces write content only behind the disclosure", () => {
+    const html = renderFileItem(
       item({
         toolName: "write",
         args: {
@@ -107,6 +105,8 @@ describe("FileToolContent", () => {
     );
 
     expect(html).toContain('class="tool-call__section-label">content</span>');
+    expect(html).toContain("src/main.ts");
+    // Content sits behind the disclosure, not in the summary row.
     expect(html.indexOf('class="token keyword">const</span>')).toBeGreaterThan(
       html.indexOf("<details"),
     );

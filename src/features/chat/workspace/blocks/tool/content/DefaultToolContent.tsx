@@ -1,4 +1,4 @@
-// Renders the default tool block: payload text with optional args disclosure.
+// Renders the default tool expanded content: payload text with optional args disclosure.
 
 import type { JSX } from "react";
 
@@ -11,7 +11,7 @@ export function DefaultToolContent({ item }: { item: ToolItem }): JSX.Element {
   const args = item.complete ? truncateText(item.args) : undefined;
 
   return (
-    <div className="tool-block" data-uix-part="tool">
+    <>
       {payload ? (
         <pre className="tool-block__payload" data-uix-part="tool-payload">
           {payload}
@@ -23,6 +23,6 @@ export function DefaultToolContent({ item }: { item: ToolItem }): JSX.Element {
           <pre>{args}</pre>
         </details>
       ) : null}
-    </div>
+    </>
   );
 }

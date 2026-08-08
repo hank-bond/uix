@@ -390,6 +390,17 @@ async function openWorkspace(
         agent_status: {
           handler: () => driver.getStatus(),
         },
+        tool_catalog: {
+          handler: () => ({
+            tools: agentTools.list().map(({ tool }) => ({
+              name: tool.name,
+              label: tool.label,
+            })),
+          }),
+          log: {
+            describeResponse: ({ tools }) => ({ toolCount: tools.length }),
+          },
+        },
         select_model: {
           handler: (ref) => driver.selectModel(ref),
         },

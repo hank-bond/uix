@@ -1,11 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import {
-  CanvasToolContent,
-  tryParseCanvasToolPresentation,
-} from "./CanvasToolContent";
-import { ToolChatBlock } from "../../ToolChatBlock";
+import { CanvasToolContent } from "./CanvasToolContent";
 import type { ToolItem } from "../presentation";
 
 function item(overrides: Partial<ToolItem> = {}): ToolItem {
@@ -33,44 +29,41 @@ function item(overrides: Partial<ToolItem> = {}): ToolItem {
 }
 
 function renderCanvasContent(value: ToolItem): string {
-  const presentation = tryParseCanvasToolPresentation(value);
-  if (!presentation) {
-    throw new Error("test item must parse a canvas presentation");
-  }
-  return renderToStaticMarkup(
-    <CanvasToolContent
-      item={value}
-      state="success"
-      presentation={presentation}
-    />,
-  );
+  return renderToStaticMarkup(<CanvasToolContent item={value} />);
 }
 
 describe("CanvasToolContent", () => {
-  it("shows a display name, reason, and key with the payload disclosed", () => {
+  it("renders the anchored payload preview with gutters stripped", () => {
     const html = renderCanvasContent(item());
 
-    expect(html).toContain('class="tool-call__name">Read Canvas</span>');
-    expect(html).toContain("I need to see the current canvas.");
-    expect(html).toContain('data-uix-part="tool-target"');
-    expect(html).toContain("main");
-    expect(html).toContain('<details class="tool-call"');
     expect(html).toContain('data-uix-part="canvas-tool-payload"');
-    expect(html).not.toContain("tool: ");
-    expect(html).not.toContain("a1§");
+    expect(html).toContain('data-uix-part="tool-payload"');
     expect(html).toContain("&lt;main&gt;&lt;/main&gt;");
+    expect(html).toContain("&lt;p&gt;hello&lt;/p&gt;");
+    expect(html).not.toContain("a1§");
+    expect(html).not.toContain("a2§");
   });
 
-  it("falls back to ordinary tool rendering without a canvas key", () => {
-    const html = renderToStaticMarkup(
-      <ToolChatBlock
-        item={item({
-          args: { reason: "I need to see the current canvas." },
-        })}
-      />,
+  it("offers a show-more toggle when the payload exceeds five lines", () => {
+    const lines = Array.from(
+      { length: 8 },
+      (_, index) => `a${String(index + 1)}§line ${String(index + 1)}`,
+    ).join("\n");
+    const html = renderCanvasContent(
+      item({
+        result: { content: [{ type: "text", text: lines }] },
+      }),
     );
 
-    expect(html).toContain('data-uix-part="tool-payload"');
-    expect(html).not.toContain('data-uix-part="canvas-tool"');
+    expect(html).toContain("show 3 more line");
+    expect(html).not.toContain("line 7");
+    expect(html).toContain("line 5");
+  });
+
+  it("renders nothing when there is no payload", () => {
+    const html = renderCanvasContent(item({ result: undefined }));
+
+    expect(html).not.toContain('data-uix-part="tool-payload"');
+    expect(html).not.toContain("canvas-tool-toggle");
   });
 });

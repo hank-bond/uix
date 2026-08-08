@@ -1,172 +1,124 @@
-// Derives per-tool chat block presentations: labels and content for known tool names.
+// Dispatches per-tool expanded content and derives the generic collapsed summary.
+//
+// The collapsed summary is one renderer for every tool: the catalog label,
+// the `reason`/`description` arg styled as the primary field, and the
+// remaining args surfaced as `key: value` params (filtered by the per-tool
+// `toolParams` visibility settings). Per-tool knowledge is limited to the
+// expanded content: which arg keys it consumes as content, and how it renders.
 
 import type { ReactNode } from "react";
 
-import {
-  CanvasToolContent,
-  tryParseCanvasToolPresentation,
-} from "./content/CanvasToolContent";
-import {
-  CommandToolContent,
-  tryParseCommandToolPresentation,
-} from "./content/CommandToolContent";
+import { CanvasToolContent } from "./content/CanvasToolContent";
+import { CommandToolContent } from "./content/CommandToolContent";
 import { DefaultToolContent } from "./content/DefaultToolContent";
+import { FileToolContent } from "./content/FileToolContent";
+import type { ToolCallSummary, ToolItem, ToolState } from "./presentation";
+import { toToolDescription, toToolParams } from "./presentation";
 import {
-  FileToolContent,
-  tryParseFileToolPresentation,
-} from "./content/FileToolContent";
-import type {
-  ToolChatBlockPresentation,
-  ToolItem,
-  ToolState,
-} from "./presentation";
-import { toToolDisplayName } from "./presentation";
+  type BlockPresentationSettings,
+  toolParamVisibility,
+} from "../../../shared/settings";
 
-interface ToolChatBlockPresentationPolicyProps {
-  item: ToolItem;
-  state: ToolState;
+interface ToolContentPolicy {
+  /** Arg keys consumed as expanded content, never surfaced as params. */
+  contentArgs: readonly string[];
+  part: string;
+  render: (props: { item: ToolItem; state: ToolState }) => ReactNode;
 }
 
-interface ToolChatBlockPresentationPolicy {
-  displayName: string;
-  derivePresentation: (
-    props: ToolChatBlockPresentationPolicyProps,
-  ) => ToolChatBlockPresentation;
+export interface ToolChatBlockPresentation {
+  summary: ToolCallSummary;
+  part: string;
+  content: ReactNode;
 }
 
-// Every known tool family parses a human reason (and where applicable a
-// target) from its args once, then renders through the shared disclosure
-// frame. Calls without a compatible parse fall back to the default payload
-// row with a frame label.
-const policyByToolName: ReadonlyMap<string, ToolChatBlockPresentationPolicy> =
-  new Map([
+// Every known tool family renders its expanded content through the shared
+// disclosure frame (owned by ToolChatBlock). Only the content is custom.
+const contentPolicyByToolName: ReadonlyMap<string, ToolContentPolicy> = new Map(
+  [
     [
       "canvas__anchor_read",
-      disclosurePolicy({
-        displayName: "Read Canvas",
-        tryParse: tryParseCanvasToolPresentation,
-        render: ({ item, state, presentation }) => (
-          <CanvasToolContent
-            item={item}
-            state={state}
-            presentation={presentation}
-          />
-        ),
-      }),
+      {
+        contentArgs: ["payload"],
+        part: "canvas-tool",
+        render: ({ item }) => <CanvasToolContent item={item} />,
+      },
     ],
     [
       "canvas__anchor_write",
-      disclosurePolicy({
-        displayName: "Write Canvas",
-        tryParse: tryParseCanvasToolPresentation,
-        render: ({ item, state, presentation }) => (
-          <CanvasToolContent
-            item={item}
-            state={state}
-            presentation={presentation}
-          />
-        ),
-      }),
+      {
+        contentArgs: ["payload"],
+        part: "canvas-tool",
+        render: ({ item }) => <CanvasToolContent item={item} />,
+      },
     ],
     [
       "canvas__anchor_edit",
-      disclosurePolicy({
-        displayName: "Edit Canvas",
-        tryParse: tryParseCanvasToolPresentation,
-        render: ({ item, state, presentation }) => (
-          <CanvasToolContent
-            item={item}
-            state={state}
-            presentation={presentation}
-          />
-        ),
-      }),
+      {
+        contentArgs: ["payload"],
+        part: "canvas-tool",
+        render: ({ item }) => <CanvasToolContent item={item} />,
+      },
     ],
     [
       "read",
-      disclosurePolicy({
-        displayName: "read",
-        tryParse: tryParseFileToolPresentation,
-        render: ({ item, state, presentation }) => (
-          <FileToolContent
-            item={item}
-            state={state}
-            presentation={presentation}
-          />
-        ),
-      }),
+      {
+        contentArgs: [],
+        part: "file-tool",
+        render: ({ item }) => <FileToolContent item={item} />,
+      },
     ],
     [
       "write",
-      disclosurePolicy({
-        displayName: "write",
-        tryParse: tryParseFileToolPresentation,
-        render: ({ item, state, presentation }) => (
-          <FileToolContent
-            item={item}
-            state={state}
-            presentation={presentation}
-          />
-        ),
-      }),
+      {
+        contentArgs: ["content"],
+        part: "file-tool",
+        render: ({ item }) => <FileToolContent item={item} />,
+      },
     ],
     [
       "command",
-      disclosurePolicy({
-        displayName: "command",
-        tryParse: tryParseCommandToolPresentation,
-        render: ({ item, state, presentation }) => (
-          <CommandToolContent
-            item={item}
-            state={state}
-            presentation={presentation}
-          />
-        ),
-      }),
+      {
+        contentArgs: [],
+        part: "command-tool",
+        render: ({ item }) => <CommandToolContent item={item} />,
+      },
     ],
-  ]);
-
-function disclosurePolicy<Presentation>(options: {
-  displayName: string;
-  tryParse: (item: ToolItem) => Presentation | undefined;
-  render: (
-    props: ToolChatBlockPresentationPolicyProps & {
-      presentation: Presentation;
-    },
-  ) => ReactNode;
-}): ToolChatBlockPresentationPolicy {
-  return {
-    displayName: options.displayName,
-    derivePresentation: ({ item, state }) => {
-      const presentation = options.tryParse(item);
-      return presentation === undefined
-        ? fallbackPresentation(item, options.displayName, state)
-        : { content: options.render({ item, state, presentation }) };
-    },
-  };
-}
-
-function fallbackPresentation(
-  item: ToolItem,
-  displayName: string,
-  state: ToolState,
-): ToolChatBlockPresentation {
-  return {
-    label: (
-      <>
-        tool: <span data-uix-part="tool-name">{displayName}</span>
-        {state === "error" ? " (error)" : ""}
-      </>
-    ),
-    content: <DefaultToolContent item={item} />,
-  };
-}
+  ],
+);
 
 export function deriveToolChatBlockPresentation(
   item: ToolItem,
   state: ToolState,
+  label: string,
+  settings: BlockPresentationSettings,
 ): ToolChatBlockPresentation {
-  const policy = policyByToolName.get(item.toolName);
-  if (policy) return policy.derivePresentation({ item, state });
-  return fallbackPresentation(item, toToolDisplayName(item.toolName), state);
+  const policy = contentPolicyByToolName.get(item.toolName);
+  const params = toToolParams(item.args, policy?.contentArgs);
+  const visibility = toolParamVisibility(settings, item.toolName);
+  const collapsedKeys = visibility?.collapsed;
+  const collapsedParams =
+    collapsedKeys === undefined
+      ? params
+      : params.filter((param) => collapsedKeys.includes(param.key));
+  const collapsedKeysSet = new Set(collapsedParams.map((param) => param.key));
+  const expandedParams = params.filter(
+    (param) => !collapsedKeysSet.has(param.key),
+  );
+
+  return {
+    summary: {
+      label,
+      description: toToolDescription(item.args),
+      surfaceableParams: params,
+      collapsedParams,
+      expandedParams,
+    },
+    part: policy?.part ?? "tool",
+    content: policy ? (
+      policy.render({ item, state })
+    ) : (
+      <DefaultToolContent item={item} />
+    ),
+  };
 }

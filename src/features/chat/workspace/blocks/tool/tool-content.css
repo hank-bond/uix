@@ -116,18 +116,58 @@
 }
 
 .tool-call__header {
+  /* Wide rows: name | (params over description) | error state. */
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr) max-content;
-  gap: 0.45rem;
+  gap: 0.1rem 0.45rem;
   min-width: 0;
 }
 
 .tool-call__name {
+  grid-column: 1;
+  grid-row: 1;
   color: var(--fg-dim);
   font-weight: 600;
 }
 
+.tool-call__params {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.45rem;
+  min-width: 0;
+}
+
+.tool-call__param {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.tool-call__param-key {
+  color: var(--fg-faint);
+  font-size: var(--chat-text-meta);
+}
+
+.tool-call__param-key::after {
+  content: ":";
+}
+
+.tool-call__param-value {
+  min-width: 0;
+  color: var(--fg-dim);
+  overflow-wrap: anywhere;
+  font-family:
+    var(--code-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
+  font-size: var(--chat-text-code);
+}
+
 .tool-call__summary-copy {
+  grid-column: 2;
+  grid-row: 2;
   display: grid;
   gap: 0.1rem;
   min-width: 0;
@@ -138,20 +178,30 @@
   overflow-wrap: anywhere;
 }
 
-.tool-call__target {
-  min-width: 0;
-  color: var(--fg-dim);
-  overflow-wrap: anywhere;
-  font-family:
-    var(--code-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", monospace;
-  font-size: var(--chat-text-code);
-}
-
 .tool-call__state {
+  grid-column: 3;
+  grid-row: 1;
   color: var(--error);
   font-size: var(--chat-text-meta);
   font-weight: 600;
+}
+
+/* No params shown: the reason takes the name's row beside the label. */
+.tool-call__header:not(:has(.tool-call__params)) .tool-call__summary-copy {
+  grid-row: 1;
+}
+
+/* Params hidden from the summary shift here as `key: value` rows. */
+.tool-call__params-list {
+  display: grid;
+  gap: 0.15rem;
+  margin-block-end: 0.35rem;
+  min-width: 0;
+}
+
+.tool-call__params-list .tool-call__param {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
 }
 
 .tool-call__content {
@@ -177,6 +227,34 @@
 .msg--tool-error .tool-call__description,
 .msg--tool-error .tool-call__chevron {
   color: var(--error);
+}
+
+/* Narrow chat column: stack the summary so the label (and its params) keep
+ * the first line and the reason wraps below at full width. */
+@container chat-surface (max-width: 480px) {
+  .tool-call__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.1rem 0.45rem;
+  }
+
+  .tool-call__params {
+    order: 1;
+  }
+
+  .tool-call__state {
+    order: 2;
+  }
+
+  .tool-call__summary-copy {
+    flex: 1 1 auto;
+  }
+
+  .tool-call__header:has(.tool-call__params) .tool-call__summary-copy {
+    flex-basis: 100%;
+    order: 3;
+  }
 }
 
 @media (hover: none) {

@@ -1,72 +1,40 @@
-// Renders command tool output: highlighted command and result disclosure.
+// Renders command tool expanded content: highlighted command and result disclosure.
 
 import type { JSX } from "react";
 
-import { CommandBlockSettings } from "./CommandBlockSettings";
 import { StructuredCommand } from "./StructuredCommand";
-import { ToolCallDisclosure } from "./ToolCallDisclosure";
 import { useBlockPresentationSettings } from "../../BlockPresentationSettings";
 import { CodeBlock } from "../../content/CodeBlock";
 import { HighlightedCode } from "../../content/HighlightedCode";
-import type { ToolItem, ToolState } from "../presentation";
+import type { ToolItem } from "../presentation";
 import { asRecord, toString, toToolTextContent } from "../presentation";
 
-interface CommandToolPresentation {
-  command: string;
-  reason: string;
-}
-
-export function CommandToolContent({
-  item,
-  state,
-  presentation,
-}: {
-  item: ToolItem;
-  state: ToolState;
-  presentation: CommandToolPresentation;
-}): JSX.Element {
+export function CommandToolContent({ item }: { item: ToolItem }): JSX.Element {
   const { settings } = useBlockPresentationSettings();
+  const args = asRecord(item.args);
+  const command = toString(args?.["command"]);
   const output = toCommandOutput(item);
 
   return (
-    <div className="tool-block command-tool-block">
-      <ToolCallDisclosure
-        toolName="command"
-        description={presentation.reason}
-        state={state}
-        part="command-tool"
-        actions={<CommandBlockSettings />}
-      >
-        <div className="command-tool-block__details">
-          <CodeBlock className="command-tool-block__command">
-            <StructuredCommand
-              command={presentation.command}
-              layout={settings.command.layout}
-            />
+    <div className="command-tool-block__details">
+      {command ? (
+        <CodeBlock className="command-tool-block__command">
+          <StructuredCommand
+            command={command}
+            layout={settings.command.layout}
+          />
+        </CodeBlock>
+      ) : null}
+      {output !== undefined ? (
+        <>
+          <span className="tool-call__section-label">output</span>
+          <CodeBlock>
+            <HighlightedCode text={output} />
           </CodeBlock>
-          {output !== undefined ? (
-            <>
-              <span className="tool-call__section-label">output</span>
-              <CodeBlock>
-                <HighlightedCode text={output} />
-              </CodeBlock>
-            </>
-          ) : null}
-        </div>
-      </ToolCallDisclosure>
+        </>
+      ) : null}
     </div>
   );
-}
-
-export function tryParseCommandToolPresentation(
-  item: ToolItem,
-): CommandToolPresentation | undefined {
-  if (item.toolName !== "command") return undefined;
-  const args = asRecord(item.args);
-  const command = toString(args?.["command"]);
-  const reason = toString(args?.["reason"])?.trim();
-  if (!command?.trim() || !reason) return undefined;
-  return { command, reason };
 }
 
 function toCommandOutput(item: ToolItem): string | undefined {

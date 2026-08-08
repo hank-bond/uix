@@ -1,14 +1,13 @@
-// Renders file tool reads and writes: path summary with content or result disclosure.
+// Renders file tool expanded content: written content or read result disclosure.
 
 import type { JSX } from "react";
 
-import { ToolCallDisclosure } from "./ToolCallDisclosure";
 import { CodeBlock } from "../../content/CodeBlock";
 import {
   HighlightedCode,
   inferCodeLanguageFromPath,
 } from "../../content/HighlightedCode";
-import type { ToolItem, ToolState } from "../presentation";
+import type { ToolItem } from "../presentation";
 import {
   asRecord,
   toNonEmptyString,
@@ -16,21 +15,9 @@ import {
   toToolTextContent,
 } from "../presentation";
 
-interface FileToolPresentation {
-  path: string;
-  reason: string;
-}
-
-export function FileToolContent({
-  item,
-  state,
-  presentation,
-}: {
-  item: ToolItem;
-  state: ToolState;
-  presentation: FileToolPresentation;
-}): JSX.Element {
+export function FileToolContent({ item }: { item: ToolItem }): JSX.Element {
   const args = asRecord(item.args);
+  const path = item.file?.displayPath ?? toNonEmptyString(args?.["path"]);
   const disclosure =
     item.toolName === "write"
       ? toString(args?.["content"])
@@ -38,38 +25,21 @@ export function FileToolContent({
         ? toToolTextContent(item)
         : undefined;
   const language = inferCodeLanguageFromPath(
-    item.file?.absolutePath ?? presentation.path,
+    item.file?.absolutePath ?? path ?? "",
   );
 
   return (
-    <div className="tool-block file-tool-block">
-      <ToolCallDisclosure
-        toolName={item.toolName}
-        description={presentation.reason}
-        target={presentation.path}
-        state={state}
-        part="file-tool"
-      >
-        {disclosure !== undefined ? (
-          <div className="file-tool-block__details">
-            <span className="tool-call__section-label">
-              {item.toolName === "write" ? "content" : "result"}
-            </span>
-            <CodeBlock>
-              <HighlightedCode text={disclosure} language={language} />
-            </CodeBlock>
-          </div>
-        ) : undefined}
-      </ToolCallDisclosure>
+    <div className="file-tool-block__details">
+      {disclosure !== undefined ? (
+        <>
+          <span className="tool-call__section-label">
+            {item.toolName === "write" ? "content" : "result"}
+          </span>
+          <CodeBlock>
+            <HighlightedCode text={disclosure} language={language} />
+          </CodeBlock>
+        </>
+      ) : undefined}
     </div>
   );
-}
-
-export function tryParseFileToolPresentation(
-  item: ToolItem,
-): FileToolPresentation | undefined {
-  const args = asRecord(item.args);
-  const reason = toNonEmptyString(args?.["reason"]);
-  const path = item.file?.displayPath ?? toNonEmptyString(args?.["path"]);
-  return reason && path ? { path, reason } : undefined;
 }

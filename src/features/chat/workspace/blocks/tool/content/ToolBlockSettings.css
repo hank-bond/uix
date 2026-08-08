@@ -1,10 +1,10 @@
-/* Command block settings popover and trigger styles. */
+/* Tool block settings popover and trigger styles. */
 
-.command-block-settings {
+.tool-block-settings {
   position: relative;
 }
 
-.command-block-settings__trigger {
+.tool-block-settings__trigger {
   display: grid;
   place-items: center;
   width: 1.5rem;
@@ -20,19 +20,19 @@
   cursor: pointer;
 }
 
-.command-block-settings__trigger:hover,
-.command-block-settings__trigger:focus-visible,
-.command-block-settings__trigger[aria-expanded="true"] {
+.tool-block-settings__trigger:hover,
+.tool-block-settings__trigger:focus-visible,
+.tool-block-settings__trigger[aria-expanded="true"] {
   background: color-mix(in srgb, var(--fg) 8%, transparent);
   color: var(--fg);
 }
 
-.command-block-settings__trigger:focus-visible {
+.tool-block-settings__trigger:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
 
-.command-block-settings__popover {
+.tool-block-settings__popover {
   position: absolute;
   z-index: 3;
   inset-block-start: calc(100% + 0.3rem);
@@ -51,24 +51,37 @@
   line-height: 1.35;
 }
 
-.command-block-settings__scope {
+.tool-block-settings__scope {
   color: var(--fg-dim);
   font-size: var(--chat-text-meta);
 }
 
-.command-block-settings__option {
+.tool-block-settings__params {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.tool-block-settings__option {
   display: flex;
   gap: 0.45rem;
   align-items: center;
   cursor: pointer;
 }
 
-.command-block-settings__option input {
+.tool-block-settings__option input {
   margin: 0;
   accent-color: var(--accent);
 }
 
-.command-block-settings__error {
+.tool-block-settings__option code {
+  font-family:
+    var(--code-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
+  font-size: var(--chat-text-code);
+}
+
+.tool-block-settings__error {
   max-width: 14rem;
   color: var(--error);
   font-size: var(--chat-text-meta);

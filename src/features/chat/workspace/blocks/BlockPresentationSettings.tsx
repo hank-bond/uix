@@ -23,6 +23,8 @@ interface BlockPresentationSettingsValue {
   loading: boolean;
   error: Error | undefined;
   setCommandLayout: (layout: CommandLayout) => Promise<void>;
+  /** Persist which arg keys a tool shows in its collapsed summary. */
+  setToolParams: (toolName: string, collapsed: string[]) => Promise<void>;
 }
 
 const BlockPresentationSettingsContext =
@@ -47,14 +49,27 @@ export function BlockPresentationSettingsProvider({
     },
     [setting, settings],
   );
+  const setToolParams = useCallback(
+    async (toolName: string, collapsed: string[]) => {
+      await setting.set({
+        ...settings,
+        toolParams: {
+          ...settings.toolParams,
+          [toolName]: { collapsed },
+        },
+      });
+    },
+    [setting, settings],
+  );
   const value = useMemo<BlockPresentationSettingsValue>(
     () => ({
       settings,
       loading: setting.loading,
       error: setting.error,
       setCommandLayout,
+      setToolParams,
     }),
-    [settings, setting.loading, setting.error, setCommandLayout],
+    [settings, setting.loading, setting.error, setCommandLayout, setToolParams],
   );
 
   return (

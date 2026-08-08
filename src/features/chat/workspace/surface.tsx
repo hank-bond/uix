@@ -9,9 +9,9 @@ import highlightedCodeSheet from "./blocks/content/HighlightedCode.css" with { t
 import markdownContentSheet from "./blocks/content/MarkdownContent.css" with { type: "css" };
 import messageChatBlockSheet from "./blocks/MessageChatBlock.css" with { type: "css" };
 import canvasToolContentSheet from "./blocks/tool/content/CanvasToolContent.css" with { type: "css" };
-import commandBlockSettingsSheet from "./blocks/tool/content/CommandBlockSettings.css" with { type: "css" };
 import commandToolContentSheet from "./blocks/tool/content/CommandToolContent.css" with { type: "css" };
 import fileToolContentSheet from "./blocks/tool/content/FileToolContent.css" with { type: "css" };
+import toolBlockSettingsSheet from "./blocks/tool/content/ToolBlockSettings.css" with { type: "css" };
 import toolContentSheet from "./blocks/tool/tool-content.css" with { type: "css" };
 import { Chat } from "./Chat";
 import chatSheet from "./Chat.css" with { type: "css" };
@@ -35,7 +35,7 @@ export const surface = defineSurface({
     markdownContentSheet,
     canvasToolContentSheet,
     commandToolContentSheet,
-    commandBlockSettingsSheet,
+    toolBlockSettingsSheet,
     fileToolContentSheet,
     modelPillSheet,
     pickerPositioningSheet,

@@ -7,6 +7,7 @@ import { StructuredCommand } from "./StructuredCommand";
 import { BlockPresentationSettingsProvider } from "../../BlockPresentationSettings";
 import { ToolChatBlock } from "../../ToolChatBlock";
 import type { ToolItem } from "../presentation";
+import { ToolLabelProvider } from "../tool-catalog";
 
 function item(overrides: Partial<ToolItem> = {}): ToolItem {
   return {
@@ -34,19 +35,23 @@ function renderCommandItem(value: ToolItem): string {
         onChange: () => () => {},
       }}
     >
-      <BlockPresentationSettingsProvider>
-        <ToolChatBlock item={value} />
-      </BlockPresentationSettingsProvider>
+      <ToolLabelProvider labelByToolName={new Map()}>
+        <BlockPresentationSettingsProvider>
+          <ToolChatBlock item={value} />
+        </BlockPresentationSettingsProvider>
+      </ToolLabelProvider>
     </FeatureSettingsProvider>,
   );
 }
 
 describe("command tool chat rendering", () => {
-  it("shows a clickable name-and-reason row and discloses command and output", () => {
+  it("shows a clickable label-and-reason row and discloses command and output", () => {
     const html = renderCommandItem(item());
 
     expect(html).toContain('class="tool-call__name">command</span>');
     expect(html).toContain("I need to verify the changes.");
+    expect(html).toContain('class="tool-call__param-key">command</span>');
+    expect(html).toContain("npm test");
     expect(html).not.toContain("tool: ");
     expect(html).toContain('<details class="tool-call"');
     expect(html).toContain('<summary class="tool-call__summary">');
@@ -88,15 +93,17 @@ describe("command tool chat rendering", () => {
     expect(html).toContain("run build");
   });
 
-  it("falls back to ordinary tool rendering without a compatible reason", () => {
+  it("falls back to default content for unknown tools", () => {
     const html = renderCommandItem(
       item({
-        args: { command: "npm test" },
+        toolName: "custom_tool",
+        args: { query: "hello", reason: "I need to search." },
       }),
     );
 
-    expect(html).toContain("tool: ");
     expect(html).toContain('data-uix-part="tool-payload"');
+    expect(html).toContain('data-uix-part="tool-details"');
     expect(html).not.toContain('data-uix-part="command-tool"');
+    expect(html).toContain('class="tool-call__param-key">query</span>');
   });
 });

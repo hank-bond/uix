@@ -206,6 +206,22 @@ const ModelCatalogResponseSchema = Type.Object({
   models: ModelCatalogSchema,
 });
 
+/** One installed tool's stable display identity, resolved from its definition. */
+export const ToolCatalogEntrySchema = Type.Object({
+  name: Type.String(),
+  label: Type.String(),
+});
+export type ToolCatalogEntry = Static<typeof ToolCatalogEntrySchema>;
+export type ToolCatalog = readonly ToolCatalogEntry[];
+
+export const ToolCatalogSchema = Type.Unsafe<ToolCatalog>(
+  Type.Array(ToolCatalogEntrySchema),
+);
+
+const ToolCatalogResponseSchema = Type.Object({
+  tools: ToolCatalogSchema,
+});
+
 export const ProviderAuthTypeSchema = Type.Union([
   Type.Literal("api_key"),
   Type.Literal("oauth"),
@@ -391,6 +407,11 @@ export const agentChannels = {
     agent_status: {
       requestSchema: Type.Void(),
       responseSchema: AgentStatusSchema,
+    },
+    /** Static name → label map for the workspace's installed tool set. */
+    tool_catalog: {
+      requestSchema: Type.Void(),
+      responseSchema: ToolCatalogResponseSchema,
     },
     /**
      * Validated against Pi's available models. Persists the workspace

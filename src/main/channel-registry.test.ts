@@ -401,6 +401,7 @@ describe("ChannelRegistry", () => {
     registerChannelContributions(registry, "agent", [
       withHandlers(agentChannels, {
         prompt: { handler: () => undefined },
+        tool_catalog: { handler: () => ({ tools: [] }) },
         session_history: {
           handler: () => ({
             session: {

@@ -24,6 +24,7 @@ import {
 import { type AgentControls, useAgentControls } from "./agent-controls";
 import { BlockPresentationSettingsProvider } from "./blocks/BlockPresentationSettings";
 import { ChatBlock } from "./blocks/ChatBlock";
+import { ToolCatalogProvider } from "./blocks/tool/tool-catalog";
 import { ModelPill } from "./ModelPill";
 import { isPendingUserId, pendingUserId } from "./pending";
 import { ProviderLoginModal } from "./ProviderLoginModal";
@@ -115,7 +116,7 @@ export function Chat({ client }: ChatProps): JSX.Element {
   };
 
   return (
-    <>
+    <ToolCatalogProvider client={client}>
       <div className="chat__scroll" ref={scrollRef}>
         <BlockPresentationSettingsProvider>
           {items.length === 0 ? (
@@ -166,7 +167,7 @@ export function Chat({ client }: ChatProps): JSX.Element {
         error={statusBar.error}
       />
       <ProviderLoginModal controls={controls} />
-    </>
+    </ToolCatalogProvider>
   );
 }
 
