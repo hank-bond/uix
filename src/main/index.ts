@@ -15,7 +15,14 @@ import fs from "node:fs";
 import { basename, join } from "node:path";
 import process from "node:process";
 
-import { app, BrowserWindow, dialog, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  Menu,
+  type MenuItemConstructorOptions,
+  shell,
+} from "electron";
 
 import { agentChannels, type AgentEvent } from "@uix/api/agent-channels";
 import { withHandlers } from "@uix/api/channels";
@@ -210,6 +217,7 @@ async function openWorkspace(
       mainWindow = null;
     },
   });
+  applyWorkspaceMenu(mainWindow);
 
   // Facet registries. Features contribute data into these. Substrate installers
   // adapt the registries to Pi when the agent session opens.
@@ -510,51 +518,101 @@ async function openWorkspace(
     },
   });
 
-  appBag.add(
-    ipc.handle<unknown, ReloadResult>(Channels.reload, async () => {
-      const reloadLog = createLogger("main");
-      reloadLog.debug({}, "reload_started");
+  /**
+   * Replaces the workspace's active feature composition and Pi resource tier:
+   * commit turn state, re-activate features, reload Pi resources, restore
+   * turn state, then publish surfaces_changed for the renderer. Shared by the
+   * `uix:reload` channel and the workspace window menu.
+   */
+  async function runWorkspaceReload(): Promise<ReloadResult> {
+    const reloadLog = createLogger("main");
+    reloadLog.debug({}, "reload_started");
 
-      try {
-        const { featureActivation, piResourcesReloaded, turnStateCommitted } =
-          await reloadCoordinator.reload();
-        if (!turnStateCommitted) {
-          reloadLog.warn(
-            {},
-            "reload_turn_state_commit_skipped_restoration_pending",
-          );
-        }
-        const failures = featureActivation.failed.map((f) => ({
-          feature: f.displayName,
-          entry: f.entry,
-          error: f.error.message,
-        }));
-        reloadLog.debug(
-          {
-            featuresActivated: featureActivation.activated.length,
-            featuresFailed: featureActivation.failed.length,
-            failures,
-            piResourcesReloaded,
-            turnStateCommitted,
-          },
-          "reload_completed",
+    try {
+      const { featureActivation, piResourcesReloaded, turnStateCommitted } =
+        await reloadCoordinator.reload();
+      if (!turnStateCommitted) {
+        reloadLog.warn(
+          {},
+          "reload_turn_state_commit_skipped_restoration_pending",
         );
-        return {
+      }
+      const failures = featureActivation.failed.map((f) => ({
+        feature: f.displayName,
+        entry: f.entry,
+        error: f.error.message,
+      }));
+      reloadLog.debug(
+        {
           featuresActivated: featureActivation.activated.length,
           featuresFailed: featureActivation.failed.length,
           failures,
           piResourcesReloaded,
-        };
-      } catch (thrown) {
-        const error =
-          thrown instanceof Error ? thrown : new Error(String(thrown));
-        reloadLog.error(
-          { err: error.message, stack: error.stack },
-          "reload_failed",
-        );
-        throw error;
-      }
-    }),
+          turnStateCommitted,
+        },
+        "reload_completed",
+      );
+      return {
+        featuresActivated: featureActivation.activated.length,
+        featuresFailed: featureActivation.failed.length,
+        failures,
+        piResourcesReloaded,
+      };
+    } catch (thrown) {
+      const error =
+        thrown instanceof Error ? thrown : new Error(String(thrown));
+      reloadLog.error(
+        { err: error.message, stack: error.stack },
+        "reload_failed",
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Electron-host chrome: the workspace window menu binds CmdOrCtrl+R to the
+   * workspace reload. The default menu's reload role would page-reload the
+   * renderer instead, which skips feature and Pi resource replacement. The
+   * workspace reload re-reads manifests and rebuilds surface modules from disk
+   * every pass, so it needs no cache-busting sibling and leaves no page-reload
+   * escape hatch. Host-specific by design so the future Electron/web host
+   * split can hoist or replace it. The picker window keeps the default menu
+   * (CmdOrCtrl+R is a page reload there, useful in dev).
+   */
+  function applyWorkspaceMenu(win: BrowserWindow): void {
+    const template: MenuItemConstructorOptions[] = [
+      ...(process.platform === "darwin" ? [{ role: "appMenu" as const }] : []),
+      { role: "fileMenu" },
+      { role: "editMenu" },
+      {
+        label: "View",
+        submenu: [
+          {
+            label: "Reload Workspace",
+            accelerator: "CmdOrCtrl+R",
+            click: () => {
+              void runWorkspaceReload();
+            },
+          },
+          { type: "separator" },
+          { role: "toggleDevTools" },
+          { type: "separator" },
+          { role: "resetZoom" },
+          { role: "zoomIn" },
+          { role: "zoomOut" },
+          { type: "separator" },
+          { role: "togglefullscreen" },
+        ],
+      },
+      { role: "windowMenu" },
+    ];
+    win.setMenu(Menu.buildFromTemplate(template));
+  }
+
+  appBag.add(
+    ipc.handle<unknown, ReloadResult>(Channels.reload, () =>
+      runWorkspaceReload(),
+    ),
   );
 
   appBag.add(
@@ -566,6 +624,7 @@ async function openWorkspace(
             mainWindow = null;
           },
         });
+        applyWorkspaceMenu(mainWindow);
       }
     }),
   );
