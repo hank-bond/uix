@@ -27,9 +27,10 @@ import { join } from "node:path";
 import { type BrowserWindow, ipcMain } from "electron";
 import pino from "pino";
 
+import type { ChannelRequestLogOptions } from "@uix/api/channels";
+import { createLogger, disposable } from "@uix/runtime";
+
 import { recordWireCrossing } from "./ipc-wire-log";
-import { disposable } from "./lifecycle";
-import { createLogger } from "./log";
 
 const log = createLogger("ipc");
 
@@ -56,22 +57,15 @@ export function initLogFile(stateRoot: string): void {
   log.info({ path }, "ipc_log_file");
 }
 
-/** Per-handler wire-log policy. The boundary itself is payload-agnostic. */
-export interface HandleLogOptions<Req, Res> {
-  /** Substitute recorded in place of the raw request. */
-  describeRequest?: (req: Req) => unknown;
-  /** Substitute recorded in place of the raw response. */
-  describeResponse?: (res: Res) => unknown;
-}
-
 /**
  * Register an `ipcMain.handle` invoke endpoint. Returns a Disposable
- * that removes the handler when disposed.
+ * that removes the handler when disposed. Per-handler wire-log policy
+ * rides `logOpts`, and the boundary itself stays payload-agnostic.
  */
 export function handle<Req, Res>(
   channel: string,
   fn: (req: Req) => Res | Promise<Res>,
-  logOpts?: HandleLogOptions<Req, Res>,
+  logOpts?: ChannelRequestLogOptions<Req, Res>,
 ): Disposable {
   ipcMain.handle(channel, async (_event, req: Req) => {
     recordWireCrossing({ terminal: log, file: fileLog }, `in:${channel}`, req, {

@@ -1,6 +1,6 @@
 // Registers all of one feature's capabilities together and rolls them all back if any registration fails.
 
-import type { FeatureContributions, FeatureDefinition } from "@uix/api/feature";
+import type { FeatureContributions } from "@uix/api/feature";
 
 import type { SurfaceRegistry } from "./surfaces";
 import { registerSurfaceContributions } from "./surfaces";
@@ -18,14 +18,8 @@ import {
 import type { ChannelRegistry } from "../channel-registry";
 import { registerChannelContributions } from "../channel-registry";
 import { DisposableBag } from "../lifecycle";
-import type {
-  ResourceRegistry,
-  ResourceSchemeRegistrar,
-} from "../resource-registry";
-import {
-  registerResourceContributions,
-  registerResourceProtocol,
-} from "../resource-registry";
+import type { ResourceRegistry } from "../resource-registry";
+import { registerResourceContributions } from "../resource-registry";
 import type { TurnStateRegistry } from "../turn-state";
 import { registerTurnStateContributions } from "../turn-state";
 
@@ -220,12 +214,4 @@ export function registerFeatureContributions(
     bag[Symbol.dispose]();
     throw err;
   }
-}
-
-/** Register process-wide feature protocols before Electron becomes ready. */
-export function registerFeaturePreflightContributions(
-  _features: readonly FeatureDefinition[],
-  registerResourceSchemes?: ResourceSchemeRegistrar,
-): void {
-  registerResourceProtocol(registerResourceSchemes);
 }

@@ -11,7 +11,7 @@ A **surface** is a feature-owned React entry module the workspace mounts in the 
 Files involved:
 
 - [`packages/api/src/workspace.ts`](../../packages/api/src/workspace.ts), `defineSurface`, `SurfaceContribution`
-- [`src/main/features/surface-pipeline.ts`](../../src/main/features/surface-pipeline.ts), bundling and serving
+- [`packages/runtime/src/features/surface-pipeline.ts`](../../packages/runtime/src/features/surface-pipeline.ts), bundling and serving
 - [`src/renderer/workspace/layout.tsx`](../../src/renderer/workspace/layout.tsx), mounting, style scoping, error boundaries
 
 The reference for a real surface is [`src/features/chat/workspace/surface.tsx`](../../src/features/chat/workspace/surface.tsx).

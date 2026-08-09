@@ -241,4 +241,4 @@ A surface can omit `contract` when it needs only local state. See [`add-a-surfac
 
 ## What happens on load
 
-Activation hydrates provisional settings before running `context()` and `contribute()`, registers every returned facet, and joins the active composition only if all succeed. A failed feature rolls back its provisional bag without aborting siblings. Malformed manifests or workspace settings fail before promotion. See [`src/main/features/`](../../src/main/features/) for the runtime.
+Activation hydrates provisional settings before running `context()` and `contribute()`, registers every returned facet, and joins the active composition only if all succeed. A failed feature rolls back its provisional bag without aborting siblings. Malformed manifests or workspace settings fail before promotion. See [`packages/runtime/src/features/`](../../packages/runtime/src/features/) for the runtime.

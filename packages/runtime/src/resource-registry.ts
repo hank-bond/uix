@@ -1,8 +1,11 @@
-// Routes resource URLs to the active feature handlers through one validated protocol boundary.
+// Routes resource URLs to the active feature handlers through one validated dispatch boundary.
 //
-// Resource declarations remain transport-neutral even though the default adapter uses Electron's custom protocol. A malformed URL recognized by a route yields 400, while a URL matching no registered route yields 404. The registry resolves owner-scoped ids and rejects duplicate claims. Handlers are reload-scoped contributions, and disposal removes their routes without unregistering the application-wide protocol.
-
-import { protocol } from "electron";
+// Resource declarations are transport-neutral. The registry resolves
+// owner-scoped ids, rejects duplicate claims, and dispatches decoded URLs to
+// registered handlers. The host supplies the delivery transport (Electron's
+// custom protocol today, HTTP later). A malformed URL recognized by a route
+// yields 400, while a URL matching no registered route yields 404. Handlers
+// are reload-scoped contributions, and disposal removes their routes.
 
 import {
   type ContributionId,
@@ -34,10 +37,6 @@ interface ResolvedResourceContribution {
   ) => Response | Promise<Response>;
 }
 
-export type ResourceSchemeRegistrar = (
-  schemes: Electron.CustomScheme[],
-) => void;
-
 export type ResourceTransportRegistrar = (
   scheme: typeof ResourceProtocolScheme,
   handler: (request: Request) => Response | Promise<Response>,
@@ -45,38 +44,11 @@ export type ResourceTransportRegistrar = (
 
 export interface ResourceRegistryOptions {
   workspaceId: string;
-  transportRegistrar?: ResourceTransportRegistrar;
+  /** Host-selected delivery: Electron custom protocol today, HTTP later. */
+  transportRegistrar: ResourceTransportRegistrar;
 }
 
-/**
- * Register the privileged substrate resource scheme before Electron is ready.
- *
- * Scheme-level CORS support permits CORS-mode requests to reach handlers. Each
- * response remains responsible for granting an origin.
- */
-export function registerResourceProtocol(
-  registrar: ResourceSchemeRegistrar = (schemes) => {
-    protocol.registerSchemesAsPrivileged(schemes);
-  },
-): void {
-  registrar([
-    {
-      scheme: ResourceProtocolScheme,
-      privileges: {
-        standard: true,
-        secure: true,
-        supportFetchAPI: true,
-        // Without this Chromium refuses CORS-mode requests *to* the scheme
-        // at the network layer. Module scripts (the surface pipeline)
-        // are always fetched in CORS mode. Actual grants stay per-response:
-        // the surface routes echo non-uix-resource origins only.
-        corsEnabled: true,
-      },
-    },
-  ]);
-}
-
-/** Own live feature routes and the application-wide transport handler. */
+/** Own live feature routes and the host transport binding. */
 export class ResourceRegistry implements Disposable {
   readonly #workspaceId: string;
   readonly #transportDisposable: Disposable;
@@ -89,9 +61,7 @@ export class ResourceRegistry implements Disposable {
 
   constructor(opts: ResourceRegistryOptions) {
     this.#workspaceId = opts.workspaceId;
-    const transportRegistrar =
-      opts.transportRegistrar ?? registerResourceTransportHandler;
-    this.#transportDisposable = transportRegistrar(
+    this.#transportDisposable = opts.transportRegistrar(
       ResourceProtocolScheme,
       (request) => this.#dispatch(request),
     );
@@ -186,16 +156,6 @@ function resolveResourceContribution(
     route: contribution.route,
     handler: contribution.handler,
   };
-}
-
-function registerResourceTransportHandler(
-  scheme: typeof ResourceProtocolScheme,
-  handler: (request: Request) => Response | Promise<Response>,
-): Disposable {
-  protocol.handle(scheme, handler);
-  return disposable(() => {
-    protocol.unhandle(scheme);
-  });
 }
 
 function toRequestContext(

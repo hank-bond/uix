@@ -106,7 +106,7 @@ function makeSubstrate(manifestPath?: string): {
     channels,
     registries: { agentTools, channels, surfaces },
     // The repo's API package source: what the composition root supplies in dev.
-    apiModuleDir: join(__dirname, "../../../packages/api/src"),
+    apiModuleDir: join(__dirname, "../../../../packages/api/src"),
   };
   return {
     substrate,

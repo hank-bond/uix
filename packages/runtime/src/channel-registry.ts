@@ -13,17 +13,17 @@ import {
 import type {
   ChannelContribution,
   ChannelEventLogOptions,
+  ChannelRequestLogOptions,
   FeatureEventPublisherFactory,
 } from "@uix/api/channels";
 import { createFeatureEventPublisher } from "@uix/api/channels";
 
-import type { HandleLogOptions } from "./ipc";
 import { disposable, DisposableBag } from "./lifecycle";
 
 export type ChannelTransportRegistrar = (
   canonicalId: ChannelCanonicalId,
   handler: (req: unknown) => Promise<unknown>,
-  logOpts?: HandleLogOptions<unknown, unknown>,
+  logOpts?: ChannelRequestLogOptions<unknown, unknown>,
 ) => Disposable;
 
 export type ChannelTransportPublisher = (
@@ -81,7 +81,7 @@ export class ChannelRegistry {
           return Value.Parse(resolvedContribution.responseSchema, res);
         },
         resolvedContribution.log as
-          | HandleLogOptions<unknown, unknown>
+          | ChannelRequestLogOptions<unknown, unknown>
           | undefined,
       );
     } catch (err) {

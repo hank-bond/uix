@@ -379,7 +379,7 @@ export default tseslint.config(
   // Main-process logs use one mechanically checkable shape. IPC wire logs are
   // excepted below because their message identifies a dynamic channel crossing.
   {
-    files: ["src/main/**/*.ts"],
+    files: ["src/main/**/*.ts", "packages/runtime/**/*.ts"],
     plugins: { uix: uixLintPlugin },
     rules: {
       "uix/structured-log-call": "error",
@@ -396,6 +396,18 @@ export default tseslint.config(
   // other restrictions active so one helper layer cannot absorb another's role.
   {
     files: ["src/main/lifecycle.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ipcMainRestriction,
+        webContentsSendRestriction,
+      ],
+    },
+  },
+  // The host-neutral runtime lifecycle owns the same process/app event
+  // vocabulary as its Electron twin, now at its package home.
+  {
+    files: ["packages/runtime/src/lifecycle.ts"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -435,7 +447,14 @@ export default tseslint.config(
           ],
           patterns: [
             {
-              group: ["#backend", "#backend/*", "**/main/**"],
+              group: [
+                "#backend",
+                "#backend/*",
+                "#backend/**",
+                "@uix/runtime",
+                "@uix/runtime/**",
+                "**/main/**",
+              ],
               message:
                 "Features must use @uix/api and injected context instead of importing host internals.",
             },

@@ -6,10 +6,7 @@ import {
   normalizeResourceRoute,
 } from "@uix/api/resource-routes";
 
-import {
-  registerFeatureContributions,
-  registerFeaturePreflightContributions,
-} from "./contributions";
+import { registerFeatureContributions } from "./contributions";
 import { SurfaceRegistry } from "./surfaces";
 import { AgentContextRegistry } from "../agent-context/registry";
 import { AgentSkillRegistry } from "../agent-skill-registry";
@@ -367,37 +364,5 @@ describe("registerFeatureContributions", () => {
     ).toThrow(
       "Feature canvas contributes surfaces but was activated without an entry directory",
     );
-  });
-});
-
-describe("registerFeaturePreflightContributions", () => {
-  it("registers the pre-ready resource protocol", () => {
-    const registered: Electron.CustomScheme[][] = [];
-
-    registerFeaturePreflightContributions(
-      [
-        {
-          id: "canvas",
-          contribute: () => ({}),
-        },
-      ],
-      (schemes) => {
-        registered.push(schemes);
-      },
-    );
-
-    expect(registered).toEqual([
-      [
-        {
-          scheme: "uix-resource",
-          privileges: {
-            standard: true,
-            secure: true,
-            supportFetchAPI: true,
-            corsEnabled: true,
-          },
-        },
-      ],
-    ]);
   });
 });

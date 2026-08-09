@@ -11,9 +11,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { createLogger } from "@uix/runtime";
 import type { RecentWorkspace } from "#shared/ipc";
-
-import { createLogger } from "./log";
 
 const log = createLogger("recents");
 

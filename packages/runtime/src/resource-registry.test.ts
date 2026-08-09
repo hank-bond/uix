@@ -8,7 +8,6 @@ import {
 
 import {
   registerResourceContributions,
-  registerResourceProtocol,
   ResourceRegistry,
 } from "./resource-registry";
 
@@ -55,28 +54,6 @@ function createTestRegistry(transport = fakeTransport()): {
   });
   return { registry, transport };
 }
-
-describe("registerResourceProtocol", () => {
-  it("registers the substrate resource protocol", () => {
-    const registered: Electron.CustomScheme[][] = [];
-
-    registerResourceProtocol((schemes) => registered.push(schemes));
-
-    expect(registered).toEqual([
-      [
-        {
-          scheme: ResourceProtocolScheme,
-          privileges: {
-            standard: true,
-            secure: true,
-            supportFetchAPI: true,
-            corsEnabled: true,
-          },
-        },
-      ],
-    ]);
-  });
-});
 
 describe("ResourceRegistry", () => {
   it("dispatches resource requests through parsed route context", async () => {

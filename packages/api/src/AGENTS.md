@@ -4,7 +4,7 @@ summary: "The `@uix/api` boundary holds the author contracts that features impor
 
 # Author contracts
 
-The api boundary is one group: every production file here is a contract a feature author imports or a definition the substrate implements. Contracts stay schema- and type-only where possible so the same shapes serve both processes. Behavior lives in `src/main` and `src/renderer` behind these seams.
+The api boundary is one group: every production file here is a contract a feature author imports or a definition the substrate implements. Contracts stay schema- and type-only where possible so the same shapes serve both processes. Behavior lives in `packages/runtime` and `src/renderer` behind these seams.
 
 The files divide by facet. Feature and channel definitions (`feature.ts`, `channels.ts`, `channel-resolution.ts`) establish what a feature declares and how channels derive validated clients. Resources and documents (`resources.ts`, `resource-routes.ts`, `documents.ts`) address durable content. The agent facets (`agent-tools.ts`, `agent-context.ts`, `agent-skills.ts`, `agent-system-prompt.ts`, `agent-channels.ts`, `turn-state.ts`) define what features contribute to each agent runtime slice. Actions, keybindings, and settings (`actions.ts`, `shortcuts.ts`, `settings.ts`) describe the interactive surface contracts, while `workspace.ts` binds the workspace client, sessions, and surfaces to feature components. `contribution-id.ts` provides the shared id grammar, `log.ts` the feature logger, and `index.ts` the public facade.
 

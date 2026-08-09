@@ -12,7 +12,7 @@ Files involved:
 
 - [`packages/api/src/settings.ts`](../../packages/api/src/settings.ts), `defineSettings`
 - [`packages/api/src/workspace.ts`](../../packages/api/src/workspace.ts), `useFeatureSetting`
-- [`src/main/workspace/settings.ts`](../../src/main/workspace/settings.ts), the persistence substrate
+- [`packages/runtime/src/workspace/settings.ts`](../../packages/runtime/src/workspace/settings.ts), the persistence substrate
 
 ## Declare a settings definition in shared code
 

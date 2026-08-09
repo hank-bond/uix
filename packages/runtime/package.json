@@ -1,0 +1,21 @@
+{
+  "name": "@uix/runtime",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Host-neutral UIX workspace runtime: features, registries, agent driver, stores, settings, and reload over host-supplied transport ports. Source-only local package, consumed by jiti, esbuild, and vite directly.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "types": "./src/index.ts",
+  "files": [
+    "src"
+  ]
+}

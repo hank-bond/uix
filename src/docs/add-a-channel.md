@@ -191,4 +191,4 @@ Every request, response, and event crossing appears in terminal logs (and option
 
 ## What happens on bind
 
-The channel registry validates unknown requests and handler responses at the transport boundary, while preserving contract-owned log descriptions. Canonical-id reservations remain recoverable across transport acquisition and disposal failures. Disposal removes the feature's routes without unregistering the application-wide transport. See [`src/main/channel-registry.ts`](../../src/main/channel-registry.ts).
+The channel registry validates unknown requests and handler responses at the transport boundary, while preserving contract-owned log descriptions. Canonical-id reservations remain recoverable across transport acquisition and disposal failures. Disposal removes the feature's routes without unregistering the application-wide transport. See [`packages/runtime/src/channel-registry.ts`](../../packages/runtime/src/channel-registry.ts).

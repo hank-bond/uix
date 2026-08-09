@@ -5,7 +5,7 @@ kind: reference
 
 # Log through component loggers
 
-**Rule: must.** Use `createLogger(component)` from `src/main/log.ts`. Do not call `console.log`, `console.warn`, or `console.error` directly in main-process code.
+**Rule: must.** Use `createLogger(component)` from `packages/runtime/src/log.ts`. Do not call `console.log`, `console.warn`, or `console.error` directly in main-process code.
 
 **Approved example:**
 

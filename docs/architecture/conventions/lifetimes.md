@@ -12,11 +12,12 @@ The [lifetimes.paired-cleanup](./rules/lifetimes.paired-cleanup.md) rule require
 
 IPC crossings use `src/main/ipc.ts`: `handle()` for invoke endpoints and `send()` for window pushes. This path records every crossing in the wire log.
 
-Other attachments use helpers from `src/main/lifecycle.ts`. Each returned `Disposable` goes into the bag matching the behavior's lifetime. Disposing the lifetime tears down every owned capability in reverse acquisition order.
+Other attachments use helpers from `src/main/lifecycle.ts` for Electron objects. Neutral primitives (`DisposableBag`, `disposable`, `subscribe`) come from `@uix/runtime`. Each returned `Disposable` goes into the bag matching the behavior's lifetime. Disposing the lifetime tears down every owned capability in reverse acquisition order.
 
 ```ts
 import * as ipc from "./ipc";
-import { DisposableBag, onApp, subscribe } from "./lifecycle";
+import { DisposableBag, subscribe } from "@uix/runtime";
+import { onApp } from "./lifecycle";
 
 const bag = new DisposableBag();
 
@@ -34,4 +35,4 @@ Disposable values with non-trivial cleanup implement `Disposable` or use `dispos
 
 ## When to add a lifecycle helper
 
-When cleanup-requiring code would call a raw attachment API, add a small helper to `src/main/lifecycle.ts`. The helper attaches the behavior and returns a `Disposable`.
+When cleanup-requiring code would call a raw attachment API, add a small helper to `src/main/lifecycle.ts` (Electron) or `packages/runtime/src/lifecycle.ts` (neutral). The helper attaches the behavior and returns a `Disposable`.

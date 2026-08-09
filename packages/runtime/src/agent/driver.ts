@@ -10,7 +10,7 @@
 // line beside it, so we still get full Pi types in the
 // IDE/typechecker without any runtime cost.
 //
-// Lifetime management uses the conventions in src/main/lifecycle.ts:
+// Lifetime management uses the conventions in packages/runtime/src/lifecycle.ts:
 // every returned cleanup capability goes into the driver's DisposableBag,
 // and disposing the driver tears everything down at
 // once.

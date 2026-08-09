@@ -1,10 +1,12 @@
-// Starts the Electron app, opens a workspace, and owns the lifetimes of its windows, features, and agent sessions.
+// Starts the Electron app, opens a workspace, and owns the host shell around the @uix/runtime workspace runtime.
 //
-// Owns App lifecycle: the shell boots, then either opens a workspace
+// Host owns App lifecycle: the shell boots, then either opens a workspace
 // directly (explicit UIX_WORKSPACE target, or a cwd that holds a manifest)
-// or shows the start picker, which provides the workspace to open. One
-// open workspace per App instance (v1). Everything workspace-bound lives
-// in openWorkspace().
+// or shows the start picker, which provides the workspace to open. One open
+// workspace per App instance (v1). The workspace-bound substrate lives in the
+// runtime created by `createWorkspaceRuntime`. This file wires the Electron
+// adapters (IPC transport, resource protocol, openExternal, profile/api dirs)
+// and the host chrome (windows, menu, picker, recents).
 //
 // All cleanup-requiring bindings (IPC handlers, app events, window events)
 // flow through the helpers in src/main/ipc.ts and src/main/lifecycle.ts and
@@ -24,59 +26,25 @@ import {
   shell,
 } from "electron";
 
-import { agentChannels, type AgentEvent } from "@uix/api/agent-channels";
-import { withHandlers } from "@uix/api/channels";
-
-import { createAgentDriver } from "./agent/driver";
-import { sessionWorkspaceSettings } from "./agent/session-settings";
-import { agentWorkspaceSettings } from "./agent/settings";
-import { AgentContextRegistry } from "./agent-context/registry";
-import { AgentSkillRegistry } from "./agent-skill-registry";
-import { AgentSystemPromptRegistry } from "./agent-system-prompt-registry";
 import {
-  AgentToolRegistry,
-  createAgentToolInstaller,
-} from "./agent-tools/registry";
-import {
-  ChannelRegistry,
-  createFeatureEventPublisherFactory,
-  registerChannelContributions,
-} from "./channel-registry";
-import { createLocalDocumentStoreFactory } from "./document-store";
-import { bindExternalWebLinks } from "./external-links";
-import { registerFeaturePreflightContributions } from "./features/contributions";
-import {
-  type ActivationResult,
-  type FeatureSources,
-  type FeatureSubstrate,
-  loadFeatures,
-} from "./features/loader";
-import { WorkspaceManifestFileName } from "./features/manifest";
-import { scaffoldWorkspace } from "./features/scaffold";
-import { SurfaceModulePipeline } from "./features/surface-pipeline";
-import { SurfaceRegistry } from "./features/surfaces";
-import * as ipc from "./ipc";
-import { createKeybindingRequestHandlers } from "./keybindings/requests";
-import { keybindingsWorkspaceSettings } from "./keybindings/settings";
-import {
-  disposable,
+  createLogger,
+  createWorkspaceRuntime,
   DisposableBag,
   installProcessHandlers,
-  onApp,
-  onWindow,
-} from "./lifecycle";
-import { createLogger } from "./log";
+  resolveWorkspace,
+  scaffoldWorkspace,
+  type Workspace,
+  WorkspaceManifestFileName,
+} from "@uix/runtime";
+
+import { bindExternalWebLinks } from "./external-links";
+import * as ipc from "./ipc";
+import { onApp, onWindow } from "./lifecycle";
 import { createRecentsStore, type RecentsStore } from "./recents";
 import {
-  registerResourceContributions,
-  ResourceRegistry,
-} from "./resource-registry";
-import { SettingsRegistry } from "./settings-registry";
-import { TurnStateRegistry } from "./turn-state";
-import { WorkspaceManifestStore } from "./workspace/manifest-store";
-import { createWorkspaceReloadCoordinator } from "./workspace/reload";
-import { resolveWorkspace, type Workspace } from "./workspace/roots";
-import { createWorkspaceSettings } from "./workspace/settings";
+  registerResourceProtocol,
+  registerResourceTransportHandler,
+} from "./resource-transport";
 import {
   Channels,
   type PickerActionResult,
@@ -84,16 +52,13 @@ import {
   type PickerOpenRequest,
   type PickerState,
   type ReloadResult,
-  uixChannels,
 } from "../shared/ipc";
 
-const isDev = !app.isPackaged;
-const LocalWorkspaceId = "local";
+// Preflight declarations must land before app ready: the privileged substrate
+// resource scheme. Manifest features are runtime contributions and load later.
+registerResourceProtocol();
 
-// Preflight declarations must land before app ready. Today that's just the
-// substrate resource protocol (the loader loads no feature this early. Manifest
-// features are runtime contributions by definition).
-registerFeaturePreflightContributions([]);
+const isDev = !app.isPackaged;
 
 interface OpenShellWindowOptions {
   page: "index" | "picker";
@@ -144,36 +109,53 @@ function openShellWindow(
   return win;
 }
 
-// Level policy: what the chat displays is info. Plumbing is debug. Partials
-// are trace. The IPC boundary already records every crossing at debug/trace,
-// so these info lines exist purely to keep the human-visible conversation
-// readable in the default log.
-// Section: Workspace
-function logChatContent(event: AgentEvent): void {
-  if (event.type !== "transcript_append" && event.type !== "transcript_replace")
-    return;
-  const item = event.item;
-  if (item.kind === "user") {
-    createLogger("chat").info({ text: item.text }, "user_message");
-    return;
-  }
-  // The completion replace logs once. The same-text rekey replace (includes
-  // previousId) and streaming partials do not.
-  if (
-    item.kind === "assistant" &&
-    item.complete &&
-    event.type === "transcript_replace" &&
-    event.previousId === undefined
-  ) {
-    createLogger("chat").info({ text: item.text }, "assistant_message");
-  }
+/**
+ * Electron-host chrome: the workspace window menu binds CmdOrCtrl+R to the
+ * workspace reload. The default menu's reload role would page-reload the
+ * renderer instead, which skips feature and Pi resource replacement. The
+ * workspace reload re-reads manifests and rebuilds surface modules from disk
+ * every pass, so it needs no cache-busting sibling and leaves no page-reload
+ * escape hatch. Host-specific by design so the future Electron/web host
+ * split can hoist or replace it. The picker window keeps the default menu
+ * (CmdOrCtrl+R is a page reload there, useful in dev).
+ */
+function applyWorkspaceMenu(
+  win: BrowserWindow,
+  onReload: () => Promise<unknown>,
+): void {
+  const template: MenuItemConstructorOptions[] = [
+    ...(process.platform === "darwin" ? [{ role: "appMenu" as const }] : []),
+    { role: "fileMenu" },
+    { role: "editMenu" },
+    {
+      label: "View",
+      submenu: [
+        {
+          label: "Reload Workspace",
+          accelerator: "CmdOrCtrl+R",
+          click: () => {
+            void onReload();
+          },
+        },
+        { type: "separator" },
+        { role: "toggleDevTools" },
+        { type: "separator" },
+        { role: "resetZoom" },
+        { role: "zoomIn" },
+        { role: "zoomOut" },
+        { type: "separator" },
+        { role: "togglefullscreen" },
+      ],
+    },
+    { role: "windowMenu" },
+  ];
+  win.setMenu(Menu.buildFromTemplate(template));
 }
 
 /**
- * Boot the substrate against a workspace and open its window. Everything
- * workspace-bound (state root, registries, agent driver, feature load,
- * reload handler) lives here. The shell above it only decides *which*
- * workspace to open.
+ * Boot the substrate runtime against a workspace and open its window. The
+ * runtime owns everything workspace-bound. This function wires the Electron
+ * adapters and host chrome around it.
  */
 async function openWorkspace(
   appBag: DisposableBag,
@@ -185,30 +167,31 @@ async function openWorkspace(
   // logged as `ipc_log_file` when armed.
   ipc.initLogFile(workspace.stateRoot);
 
-  const documents = createLocalDocumentStoreFactory(workspace.stateRoot);
-  const workspaceManifest = appBag.add(
-    new WorkspaceManifestStore(workspace.manifestPath),
-  );
-  const settingsRegistry = appBag.add(new SettingsRegistry());
-  const workspaceSettings = createWorkspaceSettings(
-    workspaceManifest,
-    settingsRegistry,
-    [
-      agentWorkspaceSettings,
-      sessionWorkspaceSettings,
-      keybindingsWorkspaceSettings,
-    ],
-  );
-
-  // The feature composition lives under its own child scope so reload can
-  // tear down the active feature composition without touching app-lifetime
-  // process handlers, the window, the agent driver, or IPC handler bindings.
-  const featuresBag = appBag.add(new DisposableBag());
-
-  // The manifest is optional (a dir target without one loads no features).
-  // The reload pass checks existence each time, so /reload picks up a
-  // manifest created after boot.
-  const manifestPath = workspace.manifestPath;
+  const runtime = createWorkspaceRuntime(workspace, {
+    transport: {
+      registerHandler: (canonicalId, handler, logOpts) =>
+        ipc.handle(canonicalId, handler, logOpts),
+      publish: (canonicalId, payload, logOpts) => {
+        for (const win of BrowserWindow.getAllWindows()) {
+          ipc.send(win, canonicalId, payload, {
+            describePayload: logOpts?.describeEvent,
+          });
+        }
+      },
+    },
+    resourceTransport: registerResourceTransportHandler,
+    capabilities: {
+      openExternal: (url) => {
+        void shell.openExternal(url);
+      },
+      piProfileDir,
+      // Where feature value-imports of @uix/api resolve. In dev this is the
+      // repo's package source. A packaged app ships the API source with the
+      // feature templates (packaging arc).
+      apiModuleDir: join(app.getAppPath(), "packages/api/src"),
+    },
+  });
+  appBag.add(runtime);
 
   let mainWindow: BrowserWindow | null = null;
   mainWindow = openShellWindow(appBag, {
@@ -217,402 +200,21 @@ async function openWorkspace(
       mainWindow = null;
     },
   });
-  applyWorkspaceMenu(mainWindow);
+  applyWorkspaceMenu(mainWindow, () => runtime.reload());
 
-  // Facet registries. Features contribute data into these. Substrate installers
-  // adapt the registries to Pi when the agent session opens.
-  const resources = appBag.add(
-    new ResourceRegistry({ workspaceId: LocalWorkspaceId }),
-  );
-  const channels = new ChannelRegistry({
-    transportRegistrar(canonicalId, handler, logOpts) {
-      return ipc.handle(canonicalId, handler, logOpts);
-    },
-    publish(channel, payload, logOpts) {
-      for (const win of BrowserWindow.getAllWindows()) {
-        ipc.send(win, channel, payload, {
-          describePayload: logOpts?.describeEvent,
-        });
-      }
-    },
-  });
-  const turnState = new TurnStateRegistry();
-  const agentTools = new AgentToolRegistry();
-  const agentSystemPrompt = new AgentSystemPromptRegistry();
-  const agentSkills = new AgentSkillRegistry();
-  const agentContext = new AgentContextRegistry();
-  const surfaces = new SurfaceRegistry();
-
-  // Agent publisher: created early so the driver can emit events through the
-  // channel transport. The registry's publish transport already broadcasts to
-  // all windows.
-  const agentPublisher = createFeatureEventPublisherFactory(
-    "agent",
-    channels,
-  ).createPublisher(agentChannels);
-
-  const driver = createAgentDriver({
-    onEvent: (event) => {
-      logChatContent(event);
-      agentPublisher.event(event);
-    },
-    workspace,
-    piProfileDir,
-    turnState,
-    agentSystemPrompt,
-    agentSkills,
-    agentContext,
-    agentInstallers: [createAgentToolInstaller(agentTools)],
-    // Lazy handles: workspace scopes register during the settings reload
-    // inside loadFeatures(), before any driver method can read them.
-    agentSettings: workspaceSettings.forNamespace(agentWorkspaceSettings),
-    sessionSettings: workspaceSettings.forNamespace(sessionWorkspaceSettings),
-    onStatusChange: (status) => {
-      agentPublisher.status_changed(status);
-    },
-    openExternal: (url) => shell.openExternal(url),
-    onProviderAuthFlowSnapshot: (snapshot) => {
-      agentPublisher.provider_auth_flow_changed(snapshot);
-    },
-    onModelAvailabilityChange: () => {
-      agentPublisher.model_availability_changed();
-    },
-  });
-  appBag.add(driver);
-
-  // Substrate workspace channels under the reserved `uix` id: the surface
-  // composition the renderer mounts, plus the changed signal fired after
-  // every load pass so the page re-fetches. The pipeline bundles each
-  // registered surface entry into a servable module. Its routes live on the
-  // substrate origin (uix-resource://uix.<ws>). The only origin the page's
-  // CSP lets scripts and styles load from.
-  const surfacePipeline = new SurfaceModulePipeline(LocalWorkspaceId);
-  appBag.add(
-    registerResourceContributions(
-      resources,
-      "uix",
-      surfacePipeline.createResourceContributions(),
-    ),
-  );
-  const uixPublisher = createFeatureEventPublisherFactory(
-    "uix",
-    channels,
-  ).createPublisher(uixChannels);
-  const keybindingSettings = workspaceSettings.forNamespace(
-    keybindingsWorkspaceSettings,
-  );
-  const keybindingRequestHandlers = createKeybindingRequestHandlers({
-    getBindingsSnapshot: () => keybindingSettings.getSnapshot(),
-    replaceBindings: (candidate) => keybindingSettings.replace(candidate),
-    publishBindingsChanged: (bindings) => {
-      uixPublisher.keybindings_changed(bindings);
-    },
-  });
-  appBag.add(
-    disposable(
-      settingsRegistry.onAnyChange((scopeId, key, value) => {
-        uixPublisher.setting_changed({ featureId: scopeId, key, value });
-      }),
-    ),
-  );
-  appBag.add(
-    registerChannelContributions(channels, "uix", [
-      withHandlers(uixChannels, {
-        surfaces: {
-          handler: async () => ({
-            surfaces: await surfacePipeline.buildAll(surfaces.list()),
-            manifestPath,
-            manifestFound: fs.existsSync(manifestPath),
-          }),
-        },
-        get_setting: {
-          handler: (req) => settingsRegistry.get(req.featureId, req.key),
-        },
-        set_setting: {
-          handler: (req) => {
-            settingsRegistry.set(req.featureId, req.key, req.value);
-          },
-        },
-        reconcile_keybindings: {
-          handler: (defaults) =>
-            keybindingRequestHandlers.reconcileDefaults(defaults),
-        },
-        replace_keybindings: {
-          handler: (candidate) =>
-            keybindingRequestHandlers.replaceBindings(candidate),
-        },
-      }),
-    ]),
-  );
-
-  // Register substrate agent channels before feature contributions so the
-  // prompt/history handlers can close over the driver.
-  appBag.add(
-    registerChannelContributions(channels, "agent", [
-      withHandlers(agentChannels, {
-        prompt: {
-          handler: (req) => {
-            // Fire and forget. The renderer subscribes to the event
-            // stream, and the invoke resolves once the prompt has been
-            // accepted.
-            void driver.prompt(req.text);
-          },
-        },
-        session_history: {
-          handler: ({ sessionId }) => driver.sessionHistory(sessionId),
-          log: {
-            // A snapshot is the entire persisted transcript, already on disk;
-            // record only its durable identity and size at the crossing.
-            describeResponse: ({ session, transcript }) => ({
-              sessionId: session.sessionId,
-              items: transcript.items.length,
-            }),
-          },
-        },
-        list_session_summaries: {
-          handler: ({ limit }) => driver.listSessionSummaries(limit),
-          log: {
-            describeResponse: (sessions) => ({
-              sessionIds: sessions.map((session) => session.sessionId),
-            }),
-          },
-        },
-        new_session: {
-          handler: () => driver.newSession(),
-        },
-        switch_session: {
-          handler: ({ sessionId }) => driver.switchSession(sessionId),
-        },
-        set_session_title: {
-          handler: ({ sessionId, title }) =>
-            driver.setSessionTitle(sessionId, title),
-        },
-        list_models: {
-          handler: async () => ({ models: await driver.listModels() }),
-        },
-        set_model_favorite: {
-          handler: async (update) => ({
-            models: await driver.setModelFavorite(update),
-          }),
-        },
-        agent_status: {
-          handler: () => driver.getStatus(),
-        },
-        tool_catalog: {
-          handler: () => ({
-            tools: agentTools.list().map(({ tool }) => ({
-              name: tool.name,
-              label: tool.label,
-            })),
-          }),
-          log: {
-            describeResponse: ({ tools }) => ({ toolCount: tools.length }),
-          },
-        },
-        select_model: {
-          handler: (ref) => driver.selectModel(ref),
-        },
-        list_auth_providers: {
-          handler: async () => ({
-            providers: await driver.listAuthProviders(),
-          }),
-        },
-        current_provider_auth_flow: {
-          handler: () => driver.getCurrentProviderAuthFlow() ?? null,
-        },
-        begin_provider_auth_flow: {
-          handler: ({ providerId, authType }) =>
-            driver.beginProviderAuthFlow(providerId, authType),
-        },
-        answer_provider_auth_flow: {
-          handler: ({ flowId, promptId, value }) => {
-            driver.answerProviderAuthFlow(flowId, promptId, value);
-          },
-        },
-        open_provider_auth_link: {
-          handler: ({ flowId, linkId }) =>
-            driver.openProviderAuthLink(flowId, linkId),
-        },
-        cancel_provider_auth_flow: {
-          handler: ({ flowId }) => {
-            driver.cancelProviderAuthFlow(flowId);
-          },
-        },
-      }),
-    ]),
-  );
-
-  // One load pass activates the whole composition, the manifest's entries,
-  // in manifest order, all under featuresBag, so reload re-runs everything.
-  // Where feature value-imports of @uix/api resolve. In dev this is the
-  // repo's source. A packaged app ships the API source with the feature
-  // templates (packaging arc). Until then the alias is simply absent there
-  // and features can only type-import the API.
-  const apiModuleDir = join(app.getAppPath(), "packages/api/src");
-  const substrate: FeatureSubstrate = {
-    documents,
-    settings: workspaceSettings,
-    channels,
-    ...(fs.existsSync(apiModuleDir) && { apiModuleDir }),
-    registries: {
-      resources,
-      channels,
-      agentTools,
-      agentSystemPrompt,
-      agentSkills,
-      turnState,
-      agentContext,
-      surfaces,
-    },
-  };
-  const currentSources = (): FeatureSources => ({
-    ...(fs.existsSync(manifestPath) && { manifestPath }),
-  });
-
-  // A bad manifest must not brick the app: log it loudly and boot with no
-  // features. The user can then fix the manifest and /reload. Reload
-  // keeps strict semantics (a bad manifest rejects, tree intact).
-  let initialActivation: ActivationResult;
-  try {
-    initialActivation = await loadFeatures(
-      currentSources(),
-      featuresBag,
-      substrate,
-    );
-  } catch (thrown) {
-    const error = thrown instanceof Error ? thrown : new Error(String(thrown));
-    createLogger("features").error({ err: error.message }, "manifest_failed");
-    initialActivation = { activated: [], failed: [] };
-  }
-  createLogger("features").debug(
-    {
-      activated: initialActivation.activated.length,
-      failed: initialActivation.failed.length,
-    },
-    "activation_complete",
-  );
-  uixPublisher.surfaces_changed({});
+  const activation = await runtime.init();
 
   // Record the recent by manifest name (best-effort: a workspace without a
   // manifest isn't listable, and a bad manifest was already logged above).
-  if (fs.existsSync(manifestPath)) {
+  if (fs.existsSync(workspace.manifestPath)) {
     recents.record({
-      manifestPath,
-      name: initialActivation.workspaceName ?? basename(workspace.stateRoot),
+      manifestPath: workspace.manifestPath,
+      name: activation.workspaceName ?? basename(workspace.stateRoot),
     });
   }
 
-  // Restoration must start after initial feature activation: the accepted
-  // turn-state cell registry determines which selected-branch state is
-  // retained and restored. The auth-bearing live agent stays lazy until the
-  // first prompt.
-  driver.init();
-
-  const reloadCoordinator = createWorkspaceReloadCoordinator({
-    commitTurnState: () => driver.commitFeatureTurnState(),
-    loadFeatures: () => loadFeatures(currentSources(), featuresBag, substrate),
-    reloadPiResources: () => driver.reloadPiResources(),
-    restoreTurnState: () => driver.restoreFeatureTurnState(),
-    publishSurfacesChanged: () => {
-      uixPublisher.surfaces_changed({});
-    },
-  });
-
-  /**
-   * Replaces the workspace's active feature composition and Pi resource tier:
-   * commit turn state, re-activate features, reload Pi resources, restore
-   * turn state, then publish surfaces_changed for the renderer. Shared by the
-   * `uix:reload` channel and the workspace window menu.
-   */
-  async function runWorkspaceReload(): Promise<ReloadResult> {
-    const reloadLog = createLogger("main");
-    reloadLog.debug({}, "reload_started");
-
-    try {
-      const { featureActivation, piResourcesReloaded, turnStateCommitted } =
-        await reloadCoordinator.reload();
-      if (!turnStateCommitted) {
-        reloadLog.warn(
-          {},
-          "reload_turn_state_commit_skipped_restoration_pending",
-        );
-      }
-      const failures = featureActivation.failed.map((f) => ({
-        feature: f.displayName,
-        entry: f.entry,
-        error: f.error.message,
-      }));
-      reloadLog.debug(
-        {
-          featuresActivated: featureActivation.activated.length,
-          featuresFailed: featureActivation.failed.length,
-          failures,
-          piResourcesReloaded,
-          turnStateCommitted,
-        },
-        "reload_completed",
-      );
-      return {
-        featuresActivated: featureActivation.activated.length,
-        featuresFailed: featureActivation.failed.length,
-        failures,
-        piResourcesReloaded,
-      };
-    } catch (thrown) {
-      const error =
-        thrown instanceof Error ? thrown : new Error(String(thrown));
-      reloadLog.error(
-        { err: error.message, stack: error.stack },
-        "reload_failed",
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Electron-host chrome: the workspace window menu binds CmdOrCtrl+R to the
-   * workspace reload. The default menu's reload role would page-reload the
-   * renderer instead, which skips feature and Pi resource replacement. The
-   * workspace reload re-reads manifests and rebuilds surface modules from disk
-   * every pass, so it needs no cache-busting sibling and leaves no page-reload
-   * escape hatch. Host-specific by design so the future Electron/web host
-   * split can hoist or replace it. The picker window keeps the default menu
-   * (CmdOrCtrl+R is a page reload there, useful in dev).
-   */
-  function applyWorkspaceMenu(win: BrowserWindow): void {
-    const template: MenuItemConstructorOptions[] = [
-      ...(process.platform === "darwin" ? [{ role: "appMenu" as const }] : []),
-      { role: "fileMenu" },
-      { role: "editMenu" },
-      {
-        label: "View",
-        submenu: [
-          {
-            label: "Reload Workspace",
-            accelerator: "CmdOrCtrl+R",
-            click: () => {
-              void runWorkspaceReload();
-            },
-          },
-          { type: "separator" },
-          { role: "toggleDevTools" },
-          { type: "separator" },
-          { role: "resetZoom" },
-          { role: "zoomIn" },
-          { role: "zoomOut" },
-          { type: "separator" },
-          { role: "togglefullscreen" },
-        ],
-      },
-      { role: "windowMenu" },
-    ];
-    win.setMenu(Menu.buildFromTemplate(template));
-  }
-
   appBag.add(
-    ipc.handle<unknown, ReloadResult>(Channels.reload, () =>
-      runWorkspaceReload(),
-    ),
+    ipc.handle<unknown, ReloadResult>(Channels.reload, () => runtime.reload()),
   );
 
   appBag.add(
@@ -624,7 +226,7 @@ async function openWorkspace(
             mainWindow = null;
           },
         });
-        applyWorkspaceMenu(mainWindow);
+        applyWorkspaceMenu(mainWindow, () => runtime.reload());
       }
     }),
   );
