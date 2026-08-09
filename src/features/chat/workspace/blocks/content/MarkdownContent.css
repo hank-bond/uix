@@ -77,7 +77,7 @@
   text-underline-offset: 0.15em;
 }
 
-.markdown-content [data-uix-part="markdown-image"] {
+.markdown-content [data-block-part="markdown-image"] {
   color: var(--fg-dim);
   font-style: italic;
 }

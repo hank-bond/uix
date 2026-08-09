@@ -13,7 +13,7 @@ describe("canvas frame messages", () => {
     expect(
       parseCanvasFrameMessage(
         {
-          type: "uix:canvas-prompt",
+          type: "canvas:prompt",
           key: "main",
           html: "<html><body>choice b</body></html>",
           prompt: "  Respond to my choices  ",
@@ -32,7 +32,7 @@ describe("canvas frame messages", () => {
     expect(
       parseCanvasFrameMessage(
         {
-          type: "uix:canvas-prompt",
+          type: "canvas:prompt",
           key: "other",
           html: "<html></html>",
           prompt: "respond",
@@ -43,7 +43,7 @@ describe("canvas frame messages", () => {
     expect(
       parseCanvasFrameMessage(
         {
-          type: "uix:canvas-prompt",
+          type: "canvas:prompt",
           key: "main",
           html: "<html></html>",
           prompt: "   ",
@@ -54,7 +54,7 @@ describe("canvas frame messages", () => {
     expect(
       parseCanvasFrameMessage(
         {
-          type: "uix:canvas-prompt",
+          type: "canvas:prompt",
           key: "main",
           html: "",
           prompt: "respond",

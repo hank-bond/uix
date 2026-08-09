@@ -17,7 +17,7 @@ afterEach(async () => {
 
 describe("listRecentSessionFiles", () => {
   it("selects JSONL files newest-first before applying the limit", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "uix-session-files-"));
+    const dir = await mkdtemp(join(tmpdir(), "session-files-"));
     dirs.push(dir);
     const oldest = join(dir, "oldest.jsonl");
     const middle = join(dir, "middle.jsonl");
@@ -41,7 +41,7 @@ describe("listRecentSessionFiles", () => {
   });
 
   it("returns no files when the session directory does not exist", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "uix-session-files-"));
+    const dir = await mkdtemp(join(tmpdir(), "session-files-"));
     dirs.push(dir);
     await expect(
       listRecentSessionFiles(join(dir, "missing"), 10),
@@ -51,7 +51,7 @@ describe("listRecentSessionFiles", () => {
 
 describe("resolveSessionFileById", () => {
   it("returns no file when the session directory does not exist", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "uix-session-files-"));
+    const dir = await mkdtemp(join(tmpdir(), "session-files-"));
     dirs.push(dir);
     await expect(
       resolveSessionFileById(join(dir, "missing"), "session-1"),
@@ -59,7 +59,7 @@ describe("resolveSessionFileById", () => {
   });
 
   it("resolves only the exact durable id suffix", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "uix-session-files-"));
+    const dir = await mkdtemp(join(tmpdir(), "session-files-"));
     dirs.push(dir);
     const target = join(dir, "2026-07-19_session-1.jsonl");
     await Promise.all([

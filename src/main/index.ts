@@ -84,7 +84,7 @@ import {
   type PickerOpenRequest,
   type PickerState,
   type ReloadResult,
-  uixChannels,
+  substrateChannels,
 } from "../shared/ipc";
 
 const isDev = !app.isPackaged;
@@ -297,7 +297,7 @@ async function openWorkspace(
   const uixPublisher = createFeatureEventPublisherFactory(
     "uix",
     channels,
-  ).createPublisher(uixChannels);
+  ).createPublisher(substrateChannels);
   const keybindingSettings = workspaceSettings.forNamespace(
     keybindingsWorkspaceSettings,
   );
@@ -317,7 +317,7 @@ async function openWorkspace(
   );
   appBag.add(
     registerChannelContributions(channels, "uix", [
-      withHandlers(uixChannels, {
+      withHandlers(substrateChannels, {
         surfaces: {
           handler: async () => ({
             surfaces: await surfacePipeline.buildAll(surfaces.list()),

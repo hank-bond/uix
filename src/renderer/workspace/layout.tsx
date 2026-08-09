@@ -21,7 +21,7 @@ import {
   type SurfaceContribution,
   useWorkspaceClient,
 } from "@uix/api/workspace";
-import { type SurfaceEntry, uixChannels } from "#shared/ipc";
+import { substrateChannels, type SurfaceEntry } from "#shared/ipc";
 
 import { useActionRegistry } from "./action-context";
 
@@ -39,7 +39,7 @@ export interface SurfaceComposition {
 export function useSurfaces(): SurfaceComposition | undefined {
   const workspace = useWorkspaceClient();
   const client = useMemo(
-    () => createChannelClient(workspace, uixChannels),
+    () => createChannelClient(workspace, substrateChannels),
     [workspace],
   );
   const [composition, setComposition] = useState<

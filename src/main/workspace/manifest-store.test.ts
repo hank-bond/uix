@@ -9,7 +9,7 @@ import { WorkspaceManifestStore } from "./manifest-store";
 const roots: string[] = [];
 
 async function createManifest(content: unknown): Promise<string> {
-  const root = await mkdtemp(path.join(tmpdir(), "uix-manifest-store-test-"));
+  const root = await mkdtemp(path.join(tmpdir(), "manifest-store-test-"));
   roots.push(root);
   const manifestPath = path.join(root, "uix.workspace.json");
   await writeFile(manifestPath, `${JSON.stringify(content, null, 2)}\n`);

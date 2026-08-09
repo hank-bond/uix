@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { createLocalDocumentStore } from "./document-store";
 
 async function tempRoot(): Promise<string> {
-  return mkdtemp(join(tmpdir(), "uix-doc-store-"));
+  return mkdtemp(join(tmpdir(), "doc-store-"));
 }
 
 describe("createLocalDocumentStore", () => {

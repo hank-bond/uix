@@ -16,7 +16,7 @@ UIX serializes the hydrated document after human interaction. State represented 
 - explicitly authored `contenteditable` regions;
 - attributes, text, and elements changed in the DOM by document scripts.
 
-The shim observes `input`, `change`, `click`, and `drop`. If a script changes meaningful state outside one of those events, call `window.__uixWriteback()` after updating the DOM.
+The shim observes `input`, `change`, `click`, and `drop`. If a script changes meaningful state outside one of those events, call `window.__canvasWriteback()` after updating the DOM.
 
 Keep transient effects out of the persisted DOM. Prefer CSS animations over adding temporary elements that might be serialized during writeback.
 
@@ -27,7 +27,7 @@ A user-operated element can start an Agent turn directly from the canvas:
 ```html
 <button
   type="button"
-  data-uix-prompt="Review my current selections and respond on the canvas"
+  data-canvas-prompt="Review my current selections and respond on the canvas"
 >
   Ask the Agent
 </button>

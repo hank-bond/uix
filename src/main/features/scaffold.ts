@@ -55,7 +55,7 @@ const packageNameFor = (name: string): string => {
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^[-._]+|[-._]+$/g, "");
-  return slug || "uix-workspace";
+  return slug || "workspace";
 };
 
 /**

@@ -25,11 +25,11 @@ export function parseCanvasFrameMessage(
   const html = value["html"];
   if (typeof html !== "string" || html === "") return undefined;
 
-  if (value["type"] === "uix:canvas-writeback") {
+  if (value["type"] === "canvas:writeback") {
     return { type: "writeback", key: canvasKey, html };
   }
 
-  if (value["type"] === "uix:canvas-prompt") {
+  if (value["type"] === "canvas:prompt") {
     const prompt = value["prompt"];
     if (typeof prompt !== "string" || prompt.trim() === "") return undefined;
     return { type: "prompt", key: canvasKey, html, prompt: prompt.trim() };

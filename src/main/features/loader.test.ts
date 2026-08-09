@@ -127,7 +127,7 @@ async function writeWorkspace(
   files: Record<string, string>,
   refs?: string[],
 ): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "uix-loader-test-"));
+  const dir = await mkdtemp(join(tmpdir(), "loader-test-"));
   for (const [file, source] of Object.entries(files)) {
     await writeFile(join(dir, file), source);
   }
@@ -401,7 +401,7 @@ export const feature = {
   });
 
   it("resolves absolute refs outside the workspace dir", async () => {
-    const sharedDir = await mkdtemp(join(tmpdir(), "uix-shared-feature-"));
+    const sharedDir = await mkdtemp(join(tmpdir(), "shared-feature-"));
     const sharedEntry = join(sharedDir, "shared.ts");
     await writeFile(sharedEntry, toolFeature("shared"));
     const manifestPath = await writeWorkspace({}, [sharedEntry]);

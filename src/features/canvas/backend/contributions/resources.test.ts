@@ -77,10 +77,10 @@ describe("createCanvasResourceContributions", () => {
       "text/html; charset=utf-8",
     );
     expect(html).toContain("<p>Hello</p>");
-    expect(html).toContain("uix:canvas-writeback");
-    expect(html).toContain("uix:canvas-prompt");
+    expect(html).toContain("canvas:writeback");
+    expect(html).toContain("canvas:prompt");
     expect(html).toContain("event.isTrusted");
-    expect(html).toContain("[data-uix-prompt]");
+    expect(html).toContain("[data-canvas-prompt]");
   });
 
   it("returns a small 404 page when the canvas is missing", async () => {

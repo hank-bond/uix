@@ -38,7 +38,7 @@ const components: Components = {
   img({ alt, title }) {
     const label = alt?.trim();
     return (
-      <span data-uix-part="markdown-image" title={title}>
+      <span data-block-part="markdown-image" title={title}>
         {label ? `[image: ${label}]` : "[image]"}
       </span>
     );

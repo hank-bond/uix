@@ -66,7 +66,7 @@ describe("source directory indexes", () => {
   });
 
   it("collects production source files, local documentation, and indexed child directories", () => {
-    const repositoryRoot = mkdtempSync(join(tmpdir(), "uix-source-index-"));
+    const repositoryRoot = mkdtempSync(join(tmpdir(), "source-index-"));
     temporaryDirectories.push(repositoryRoot);
     const boundary = join(repositoryRoot, "boundary");
     const child = join(boundary, "child");

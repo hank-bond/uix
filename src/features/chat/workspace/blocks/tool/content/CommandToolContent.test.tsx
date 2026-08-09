@@ -101,9 +101,9 @@ describe("command tool chat rendering", () => {
       }),
     );
 
-    expect(html).toContain('data-uix-part="tool-payload"');
-    expect(html).toContain('data-uix-part="tool-details"');
-    expect(html).not.toContain('data-uix-part="command-tool"');
+    expect(html).toContain('data-block-part="tool-payload"');
+    expect(html).toContain('data-block-part="tool-details"');
+    expect(html).not.toContain('data-block-part="command-tool"');
     expect(html).toContain('class="tool-call__param-key">query</span>');
   });
 });

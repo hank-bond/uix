@@ -31,19 +31,19 @@ export function ChatBlockFrame({
     <article
       className={`msg msg--${className}`}
       aria-label={toAccessibleLabel(kind)}
-      data-uix-chat-block={kind}
-      data-uix-state={state}
-      data-uix-tool-name={toolName}
-      data-uix-custom-type={customType}
-      data-uix-unconfirmed={isUnconfirmed ? "" : undefined}
+      data-chat-block={kind}
+      data-block-state={state}
+      data-tool-name={toolName}
+      data-custom-type={customType}
+      data-unconfirmed={isUnconfirmed ? "" : undefined}
     >
       {label ? (
-        <div className="msg__label" data-uix-part="label">
+        <div className="msg__label" data-block-part="label">
           {label}
           {state === "running" ? (
             <progress
               className="msg__running-track"
-              data-uix-part="tool-status"
+              data-block-part="tool-status"
               aria-label="Tool running"
             />
           ) : null}
@@ -54,7 +54,7 @@ export function ChatBlockFrame({
           {state === "success" ? "Tool finished" : "Tool failed"}
         </span>
       ) : null}
-      <div className="msg__text" data-uix-part="content">
+      <div className="msg__text" data-block-part="content">
         {body}
       </div>
     </article>

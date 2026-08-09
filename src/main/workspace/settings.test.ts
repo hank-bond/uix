@@ -61,7 +61,7 @@ function statusSettings(defaultValue = StatusBarDefault): SettingsDefinition {
 }
 
 async function tempManifest(content: unknown): Promise<string> {
-  const root = await mkdtemp(path.join(tmpdir(), "uix-settings-test-"));
+  const root = await mkdtemp(path.join(tmpdir(), "settings-test-"));
   roots.push(root);
   const manifestPath = path.join(root, "uix.workspace.json");
   await writeFile(

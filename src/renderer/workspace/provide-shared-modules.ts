@@ -14,10 +14,10 @@ import * as reactDomClient from "react-dom/client";
 import * as typebox from "typebox";
 import * as typeboxValue from "typebox/value";
 
-import * as uixAgent from "@uix/api/agent-channels";
-import * as uixResources from "@uix/api/resources";
-import * as uixSettings from "@uix/api/settings";
-import * as uixWorkspace from "@uix/api/workspace";
+import * as agentChannelsApi from "@uix/api/agent-channels";
+import * as resourcesApi from "@uix/api/resources";
+import * as settingsApi from "@uix/api/settings";
+import * as workspaceApi from "@uix/api/workspace";
 import {
   SurfaceSharedGlobal,
   type SurfaceSharedModule,
@@ -35,10 +35,10 @@ const shared: Record<SurfaceSharedModule, Record<string, unknown>> = {
   "react-dom/client": toShared(reactDomClient),
   typebox: toShared(typebox),
   "typebox/value": toShared(typeboxValue),
-  "@uix/api/workspace": toShared(uixWorkspace),
-  "@uix/api/settings": toShared(uixSettings),
-  "@uix/api/agent-channels": toShared(uixAgent),
-  "@uix/api/resources": toShared(uixResources),
+  "@uix/api/workspace": toShared(workspaceApi),
+  "@uix/api/settings": toShared(settingsApi),
+  "@uix/api/agent-channels": toShared(agentChannelsApi),
+  "@uix/api/resources": toShared(resourcesApi),
 };
 
 (globalThis as Record<string, unknown>)[SurfaceSharedGlobal] = shared;

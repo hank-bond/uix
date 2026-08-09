@@ -53,7 +53,7 @@ function shimScript(key: CanvasKey): string {
     if (html === lastHtml) return;
     lastHtml = html;
     parent.postMessage(
-      { type: "uix:canvas-writeback", key: KEY, html: html },
+      { type: "canvas:writeback", key: KEY, html: html },
       "*"
     );
   }
@@ -62,7 +62,7 @@ function shimScript(key: CanvasKey): string {
     timer = setTimeout(flush, 400);
   }
   // A canvas can declare a user-operated agent action with
-  // data-uix-prompt="...". Capture the trusted click now, then serialize on
+  // data-canvas-prompt="...". Capture the trusted click now, then serialize on
   // the next task so the document includes synchronous click-handler changes.
   // Scripted click()/dispatchEvent() events have isTrusted=false and cannot
   // start an agent run.
@@ -70,9 +70,9 @@ function shimScript(key: CanvasKey): string {
     schedule();
     var target = event.target;
     if (!event.isTrusted || !target || !target.closest) return;
-    var trigger = target.closest("[data-uix-prompt]");
+    var trigger = target.closest("[data-canvas-prompt]");
     if (!trigger) return;
-    var prompt = (trigger.getAttribute("data-uix-prompt") || "").trim();
+    var prompt = (trigger.getAttribute("data-canvas-prompt") || "").trim();
     if (!prompt) return;
     event.preventDefault();
     setTimeout(function () {
@@ -81,7 +81,7 @@ function shimScript(key: CanvasKey): string {
       lastHtml = html;
       parent.postMessage(
         {
-          type: "uix:canvas-prompt",
+          type: "canvas:prompt",
           key: KEY,
           html: html,
           prompt: prompt
@@ -91,7 +91,7 @@ function shimScript(key: CanvasKey): string {
     }, 0);
   }
   function init() {
-    window.__uixWriteback = schedule;
+    window.__canvasWriteback = schedule;
     document.addEventListener("input", schedule, true);
     document.addEventListener("change", schedule, true);
     document.addEventListener("click", onClick, true);

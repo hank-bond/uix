@@ -375,7 +375,7 @@ function deferred(): { promise: Promise<void>; resolve: () => void } {
 async function createSessionTarget(
   sessionId: string,
 ): Promise<{ root: string; sessionFile: string; workspace: Workspace }> {
-  const root = await mkdtemp(join(tmpdir(), "uix-driver-switch-"));
+  const root = await mkdtemp(join(tmpdir(), "driver-switch-"));
   const sessionDir = join(root, ".uix", "sessions");
   const sessionFile = join(
     sessionDir,
@@ -417,7 +417,7 @@ function createDriver(
       }
     },
     workspace,
-    piProfileDir: "/tmp/uix-pi-profile",
+    piProfileDir: "/tmp/pi-profile",
     ...(settings && { agentSettings: settings }),
     ...(turnState && { turnState }),
     ...(sessionSettings && { sessionSettings }),
@@ -503,7 +503,7 @@ describe("driver model service (pre-session)", () => {
     expect(sdk.state.session).toBeUndefined();
     expect(sdk.state.servicesLoads).toBe(1);
     expect(sdk.state.servicesOptions).toEqual([
-      { cwd: "/tmp/ws", agentDir: "/tmp/uix-pi-profile" },
+      { cwd: "/tmp/ws", agentDir: "/tmp/pi-profile" },
     ]);
   });
 
@@ -610,8 +610,8 @@ describe("driver model service (pre-session)", () => {
     await expect(driver.reloadPiResources()).resolves.toBe(true);
     expect(sdk.state.servicesLoads).toBe(2);
     expect(sdk.state.servicesOptions).toEqual([
-      { cwd: "/tmp/ws", agentDir: "/tmp/uix-pi-profile" },
-      { cwd: "/tmp/ws", agentDir: "/tmp/uix-pi-profile" },
+      { cwd: "/tmp/ws", agentDir: "/tmp/pi-profile" },
+      { cwd: "/tmp/ws", agentDir: "/tmp/pi-profile" },
     ]);
     expect(sdk.state.session).toBeUndefined();
   });
@@ -660,7 +660,7 @@ describe("driver model service (pre-session)", () => {
 
 describe("driver selected-session activation", () => {
   it("opens the persisted selection without opening Pi services", async () => {
-    const root = await mkdtemp(join(tmpdir(), "uix-driver-session-"));
+    const root = await mkdtemp(join(tmpdir(), "driver-session-"));
     try {
       const sessionDir = join(root, ".uix", "sessions");
       const selectedFile = join(
@@ -697,7 +697,7 @@ describe("driver selected-session activation", () => {
   });
 
   it("falls back to the newest session when the persisted selection is stale", async () => {
-    const root = await mkdtemp(join(tmpdir(), "uix-driver-session-"));
+    const root = await mkdtemp(join(tmpdir(), "driver-session-"));
     try {
       const sessionSettings = fakeSessionSettings();
       sessionSettings.set("selected", {
@@ -1185,7 +1185,7 @@ describe("driver session titles", () => {
   });
 
   it("rejects an unknown graph without appending metadata", async () => {
-    const root = await mkdtemp(join(tmpdir(), "uix-driver-title-"));
+    const root = await mkdtemp(join(tmpdir(), "driver-title-"));
     try {
       const { driver } = createDriver(undefined, undefined, undefined, {
         stateRoot: root,
@@ -1282,7 +1282,7 @@ describe("driver session switching", () => {
   });
 
   it("rejects an unknown target before committing current state", async () => {
-    const root = await mkdtemp(join(tmpdir(), "uix-driver-switch-"));
+    const root = await mkdtemp(join(tmpdir(), "driver-switch-"));
     try {
       const turnState = new TurnStateRegistry();
       const createSnapshot = vi.fn(() => "current");
@@ -1412,12 +1412,12 @@ describe("driver model service (session open)", () => {
     expect(sdk.state.lastCreateOptions?.["model"]).toEqual(openai);
     expect(sdk.state.servicesLoads).toBe(1);
     expect(sdk.state.servicesOptions).toEqual([
-      { cwd: "/tmp/ws", agentDir: "/tmp/uix-pi-profile" },
+      { cwd: "/tmp/ws", agentDir: "/tmp/pi-profile" },
     ]);
     expect(sdk.state.runtimeCreates).toBe(1);
     expect(sdk.state.runtimeOptions).toMatchObject({
       cwd: "/tmp/ws",
-      agentDir: "/tmp/uix-pi-profile",
+      agentDir: "/tmp/pi-profile",
       sessionManager: sdk.manager,
     });
     expect(driver.getStatus()).toEqual({
@@ -1490,7 +1490,7 @@ describe("driver model service (live session)", () => {
     expect(session.reload).toHaveBeenCalledOnce();
     expect(sdk.state.servicesLoads).toBe(1);
     expect(sdk.state.servicesOptions).toEqual([
-      { cwd: "/tmp/ws", agentDir: "/tmp/uix-pi-profile" },
+      { cwd: "/tmp/ws", agentDir: "/tmp/pi-profile" },
     ]);
   });
 
