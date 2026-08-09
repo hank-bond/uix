@@ -208,7 +208,7 @@ Keep ordinary component-local state in React. Use a controller when multiple con
 
 ## Sessions, attachments, and agent instances
 
-A _session_ is a durable conversation tree. An _agent instance_ is one live agent execution attached to a session at a branch viewpoint. Its _agent instance state_ is the working state at that viewpoint, including the turn-state projection, agent context, Pi installation, and feature buffers for the branch.
+A _session_ is a durable conversation tree. An _agent instance_ is one live agent execution attached to a session at a branch viewpoint. Its _agent instance state_ is the working state at that viewpoint, including the turn-state projection, agent context, Pi installation, and feature buffers for the branch. The _selected session graph_ is the durable graph chosen by the workspace. Main persists its identity in `session.selected`. Omitted-id history reads, commits, reload, and creating the runtime resolve against it. A _non-selected session_ is another durable graph read explicitly without changing that choice.
 
 A connection's _attachment_ is its owned, retargetable handle on one agent instance. The connection attaches to the instance, booting it first when none is live. An instance stays retained while attachments hold it and tears down at a safe boundary when the last one leaves.
 

@@ -37,7 +37,7 @@ The writing profiles decide how prescriptive a section is. Design threads exist 
 
 ## Timelessness and future features
 
-Use present tense for what exists. Do not use "currently," "now," "new," "recently," or "as of this writing" as document-time anchors. Present tense already implies them. "Will" is only for genuinely future behavior. "Currently" remains valid when it describes live runtime state rather than document time.
+Use present tense for what exists. Do not use "currently," "now," "new," "recently," or "as of this writing" as document-time anchors. Present tense already implies them. "Will" is only for genuinely future behavior. "Currently" remains valid when it describes live state rather than document time.
 
 Living reference and source-local guidance describe current state only. Decisions and design logs are date-anchored by design. A not-yet-built capability belongs in `plans/`, not in a documentation stub.
 
