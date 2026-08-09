@@ -1,12 +1,14 @@
 ---
-summary: "Stage durable session history: transition foundations unlock New Session first, then switching and titles. Robustness, diagnostics, recovery, and polish follow without blocking those vertical slices."
+summary: "New Session, global session switching, titles, and branch restoration landed under the selected-session model. Remaining diagnostics and hardening pause until the host/runtime split rebases selection onto per-attachment agent instances."
 ---
 
 # Session history, titles, and switching
 
 ## Status
 
-This plan records the settled target behavior and orders delivery by usable value. The core path reaches New Session and then session switching before defensive hardening and UX polish. Each unit receives its file-level implementation detail only when promoted for review. Later robustness work must not hold earlier vertical slices hostage.
+S0-S4 landed under the implemented selected-session model. The host/runtime split now replaces that global selection with per-attachment targets and concurrent agent instances. Terms such as _selected_, _active_, and `session.selected` below describe the landed implementation and its historical build units, not the target contract.
+
+Pause S5-S6 until H4-H5 of [`electron-server-split.md`](./electron-server-split.md) settle the agent-instance vocabulary, branch-scoped feature state, and the fallback-session contract. Rebase the still-valid diagnostic and hardening work onto those scopes rather than extending the global controller.
 
 ## Settled model
 

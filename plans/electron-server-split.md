@@ -1,152 +1,225 @@
 ---
-summary: "Split UIX into a host-neutral workspace runtime, browser client, server host, and Electron host in one monorepo. Prove local browser operation first, then make the unbootstrapped server and the batteries-included Electron product independently packageable."
+summary: "Build explicit Electron and server hosts around a shared browser client, host-side workspace supervisor, and exactly-one-workspace runtime instances. Prove concurrent workspace and agent-instance isolation before migrating hosts, then add launcher, live transport, HTTP resources, and distribution readiness."
 ---
 
-# Electron/server split
+# Electron and server hosts
 
 ## Status and intent
 
-We recorded this low-resolution architecture and distribution plan while UIX is still around 0.5 alpha. It is intentionally independent of any API-stability or product-version milestone: completing the split does not imply that the public API is locked. It establishes the direction and dependency order, not the final server protocol, package names, deployment model, or security architecture. Promote each unit into a narrower design/decision/build slice when it approaches implementation.
+This plan replaces the earlier transport-first Electron/server split. The discarded spike proved that Electron-independent runtime code and a WebSocket adapter are possible. It also let Electron's global handler and broadcast model shape the transport boundary before host, workspace, attachment, and client ownership were clear. The rebuilt path treats that work as evidence rather than an implementation base.
 
-UIX must run as a local server with no Electron dependency. Start it against an existing workspace, and open the workspace in an ordinary browser. It retains the same feature, surface, channel, agent, persistence, and reload semantics as the current Electron application. Electron remains a supported packaged host over that same runtime rather than the definition of the runtime.
+The highest-risk questions land first as executable architecture:
 
-The monorepo should make the product boundary visible. The UIX server is the unbootstrapped substrate for an audience already using agents to build its own apps. It should not implicitly install chat, canvas, future developer skills, or another default experience. A future batteries-included Electron product, currently envisioned as **Fruition**, is a distinct composition and brand. It targets people who may only know consumer web ChatGPT and have no agent-development or vibe-coding background. Fruition is a north star that tests the boundary. Its onboarding, defaults, templates, and product UX must be able to live above UIX. Building or migrating Fruition is not a deliverable of this plan.
+1. Can two real workspace runtimes with duplicate feature, channel, and resource ids coexist and dispose independently in one process?
+2. Can one workspace runtime host concurrent real Pi agents on separate sessions with single-flight boot, retention, retargeting, and safe teardown?
+3. Can one attachment and scoped dispatch boundary support in-memory tests, Electron IPC, WebSocket connections, and later process proxies without feature contracts learning transport fields?
 
-This plan builds on [hosting-compatible by default](../docs/decisions/2026-05-31-hosting-compatible-by-default.md), [features are the loadable unit](../docs/decisions/2026-07-01-features-are-the-loadable-unit.md), [workspace manifest, not discovery](../docs/decisions/2026-07-02-workspace-manifest-not-discovery.md), [runtime surface pipeline](../docs/decisions/2026-07-02-runtime-surface-pipeline.md), and the current [workspace composition synthesis](../docs/design/workspace-feature-composition.md). The implementation should follow the [human-paced loop](../docs/architecture/human-paced-implementation.md): each unit below is a direction, not permission to land the whole split in one pass.
+Broad source movement and host implementation follow only after those gates pass. A failed gate pauses the plan and reopens the design rather than adding compatibility around a wrong boundary.
 
-## Target shape
+The plan implements the synthesis in [`host-workspace-runtime-boundaries.md`](../docs/design/host-workspace-runtime-boundaries.md), [`agent-session-routing.md`](../docs/design/agent-session-routing.md), [`agent-instance-state.md`](../docs/design/agent-instance-state.md), [`product-and-distribution.md`](../docs/design/product-and-distribution.md), and [`workspace-feature-composition.md`](../docs/design/workspace-feature-composition.md). It retains the decisions that features are the loadable unit, manifests are the composition authority, surface delivery is runtime-built, and designs remain hosting-compatible. Implementation follows the [`human-paced-implementation.md`](../docs/architecture/human-paced-implementation.md) loop: complete one review unit, explain it, and wait for approval.
+
+## Target topology
 
 ```text
-                         ┌────────────────────────────┐
-                         │ host-neutral UIX runtime   │
-                         │ workspace, features, agent │
-                         │ registries, state, reload  │
-                         └─────────────┬──────────────┘
-                                       │ host ports
-                    ┌──────────────────┴──────────────────┐
-                    │                                     │
-          ┌─────────▼─────────┐                 ┌─────────▼─────────┐
-          │ UIX server host   │                 │ Electron host     │
-          │ HTTP + live bus   │                 │ IPC + protocols   │
-          └─────────┬─────────┘                 └─────────┬─────────┘
-                    │                                     │
-          ┌─────────▼─────────────────────────────────────▼─────────┐
-          │ shared browser-compatible workspace client and surfaces │
-          └──────────────────────────────────────────────────────────┘
+Host process
+├── launcher and workspace catalog
+├── supervisor
+│   ├── WorkspaceHandle → WorkspaceRuntime A
+│   │   └── agent instance manager
+│   └── WorkspaceHandle → WorkspaceRuntime B
+│       └── local or proxy handle
+└── platform and transport adapters
 ```
 
-The runtime owns UIX semantics. Hosts own process lifecycle and transport mechanisms. The browser-compatible client consumes one logical channel/resource API through a host-selected adapter. Electron-specific capabilities are optional host capabilities, not ambient assumptions in features or the runtime.
+The repository exposes this ownership from the beginning:
 
-The likely monorepo boundaries are conceptually:
+```text
+packages/
+  api/                 feature-author contracts
+  runtime/             exactly one workspace's substrate semantics
+  client/              launcher and workspace browser clients
+  host/                shared host contracts and coordination, if the units prove this package
 
-- **API/contracts**: public feature contracts and transport-neutral shared types.
-- **runtime**: workspace activation, registries, agent driver, stores, settings, reload, and other host-neutral backend behavior.
-- **web client**: the workspace renderer and browser-side client abstractions.
-- **server host**: HTTP/resource delivery, live channel transport, CLI/process lifecycle, and browser entry.
-- **Electron host**: app/window lifecycle, native dialogs, external URL opening, IPC, custom protocols, and desktop packaging.
-- **optional product compositions**: defaults and onboarding such as future Fruition, outside the substrate packages.
+hosts/
+  electron/            Electron composition root and adapters
+  server/              server composition root and adapters
 
-We deliberately leave these names and the physical package graph unsettled until we inventory the existing import graph. A monorepo split is required. Publishing each internal package independently is not.
+apps/
+  features/            reusable app-layer feature implementations
+  workspaces/          explicit reference and product compositions
+```
+
+The exact shared host package name remains reviewable in the first unit. The ownership boundary does not. Shared workspace supervision and launcher code stays outside every `WorkspaceRuntime`. Concrete Electron and server code remains colocated under separate host roots.
 
 ## Load-bearing boundaries
 
-- **One runtime, not parallel implementations.** Electron and the server must instantiate the same workspace runtime. A server-shaped rewrite beside the existing Electron composition root would create two UIX semantics and is not an acceptable intermediate destination.
-- **One logical channel API, host-selected transports.** Electron IPC and the server live transport implement the same request/event behavior, validation, error semantics, subscription lifetime, and sensitive-log policies. Transport framing is not a feature concern.
-- **One logical resource router, host-selected encodings.** Resource and surface contributions resolve through a host-neutral dispatcher. Electron custom-protocol URLs and server HTTP URLs are encodings of the same route/origin policy, not separate registries.
-- **The renderer is browser code.** The workspace page and feature surfaces cannot require preload or Electron globals. A small bootstrap may select or construct the current host transport.
-- **Local server safety is designed, not deferred.** The first server may bind only to loopback and support one trusted local user. Origin checks, capability exposure, secret handling, bind-address defaults, and the line between local and remote threat models must be explicit before it ships.
-- **Remote hosting is survivable, not delivered here.** Reconnect semantics and transport boundaries must not preclude a remote host. Identity, tenancy, VM isolation, multi-user concurrency, remote content stores, and public deployment are later work.
-- **Composition is not distribution.** A bare UIX server opens the workspace manifest the caller gives it and does not silently add features. Chat/canvas/dev skills can remain repository dogfood or templates during migration, but the runtime or server package must not require their presence.
-- **Desktop affordances are injected capabilities.** Window management, native file selection, tray behavior, system-browser opening, updater integration, and app data locations belong to the Electron/product host. Runtime consumers either receive a capability or expose an honest host-neutral workflow.
+- **One runtime instance owns one workspace.** A host can create several instances in one process or route workspace handles to isolated processes.
+- **The supervisor owns workspace policy.** Workspace ids, runtime boot coalescing, workspace retention, process placement, and runtime teardown do not belong to a workspace runtime.
+- **The runtime owns agent instances.** One primary instance per session is the first policy. Single-flight boot, attachment retention, retargeting, event scope, and safe turn-boundary teardown live inside the workspace runtime.
+- **Hosts route, runtimes dispatch.** A host resolves workspace and physical connection context. A runtime validates canonical channel requests and emits explicitly scoped events. Feature payloads contain no transport or tenancy fields.
+- **No global broadcast semantics.** Workspace, session, and agent-instance events reach only matching attachments. A transport can optimize subscription mechanics without redefining delivery scope.
+- **One wire-log boundary.** Every channel crossing records through one chokepoint with per-contract redaction. The log can be neither dodged nor spoofed, and crossing lines stay identical across hosts.
+- **The launcher precedes all runtimes.** A host can serve workspace catalogs with zero active workspaces. Launcher HTTP, CLI JSON, Electron, and native clients consume one machine-readable projection.
+- **The browser client is host-neutral.** Shared launcher and workspace clients receive constructed adapters. They do not inspect Electron globals or select transports.
+- **Resources have one logical dispatcher.** Electron protocols and server HTTP encode workspace-qualified routes over the same runtime-owned resource semantics.
+- **Apps are explicit compositions.** Hosts do not silently install app features. Shared and workspace-local features remain explicit manifest references.
+- **Lifetimes compose.** Host, supervisor, workspace runtime, active feature composition, attachment, and agent instance each have an explicit owner and disposal boundary.
 
-## Units
+## Review units
 
-### E0: Inventory and name the host contract
+### H0: Discard the spike and establish the baseline
 
-Map everything currently composed in `src/main/index.ts` and classify it as runtime semantics, Electron host behavior, renderer bootstrap, or an unresolved capability. Trace direct and transitive Electron dependencies. Include IPC registration, custom protocols, `BrowserWindow`, dialogs, `shell.openExternal`, app lifecycle, `userData`, packaged resource paths, logging, recents, picker/scaffolding, keyboard dispatch, and development-server assumptions.
+Begin implementation from the mainline behavior plus approved design, naming, and documentation changes. Do not migrate the unlanded transport-first runtime and WebSocket implementation forward. Preserve it only as a test and design reference. Re-adopt an independently useful change, such as the local `@uix/api` package, only when it fits the target dependency graph without upward imports.
 
-From that inventory, write the smallest host contract needed to instantiate one workspace runtime. Decide ownership and lifetime vocabulary before moving files. Keep this unit behavior-preserving and avoid introducing a general plugin/adapter framework: define ports only for concrete effects the runtime already performs.
+Record the baseline Electron behavior and checks that later units must preserve. Remove or defer any unlanded decision whose conclusion depended on global broadcast or the old broadcast transport. Decide the fate of the two naming and lexicon commits that are not on main. Replay them after H1 establishes the target roots, or re-verify the vocabulary rules under main's configuration. A WebSocket choice may be recorded again after the scoped dispatch boundary proves it.
 
-Acceptance: every Electron dependency has an intended owner. The proposed runtime can be described without `Electron.App`, `BrowserWindow`, `ipcMain`, or `protocol`. The work names unresolved cases rather than hiding them in a generic escape hatch.
+**Review gate:** The branch contains the approved design and this plan, and it passes the repository checks. No partial server transport or host-neutral runtime extraction predates the new boundary.
 
-### E1: Extract the host-neutral runtime composition root
+### H1: Establish ownership roots and dependency enforcement
 
-Move workspace-scoped construction out of the Electron entry into a callable runtime with an explicit lifetime and dependencies. It should own feature loading, facet registries, agent/session behavior, settings, stores, reload, and the transport-neutral halves of channels/resources. The Electron entry should instantiate this runtime through adapters while preserving current behavior.
+Create the target package, host, and app roots with their package metadata, TypeScript boundaries, and import rules. Decide whether shared host contracts and the workspace supervisor earn `packages/host` or another explicit package. Decide where launcher/catalog schemas live without adding host operations to the feature-author API.
 
-Separate app-global state from workspace state as part of the extraction. Do not solve concurrent workspaces unless the extraction makes it unavoidable. Also do not bake `BrowserWindow` or Electron app singleton types into the new runtime boundary.
+Keep this unit behavior-light. Do not migrate the full Electron application, features, or runtime yet. The purpose is to make illegal dependency directions visible before code moves:
 
-Acceptance: Electron dogfood behaves as before, runtime tests instantiate the workspace backend without importing or booting Electron, and disposing the runtime releases all workspace-scoped registrations.
+- Runtime and client cannot import concrete hosts.
+- Feature implementations can import author contracts but not runtime or host internals.
+- Concrete hosts may compose runtime, client, and shared host code.
+- App workspaces may reference shared or local features explicitly.
 
-### E2: Make channels independently hostable
+**Review gate:** The repository checks enforce the intended graph, and each ownership root has a clear entry responsibility. No placeholder abstraction claims behavior that later units have not proved.
 
-Turn the existing channel seam into an explicit backend transport binding and browser transport client. Preserve contract-derived validation, canonical ids, request/response errors, event publication, disposal, and sensitive log descriptions. Add the minimum connection/session concept needed for a browser client. Specify what happens on disconnect and reconnect before relying on long-lived subscriptions.
+### H2: Prove the host/runtime boundary in memory
 
-Choose the local server live transport only in this unit. WebSocket is the expected candidate, but the decision should compare it against streaming/fetch alternatives using the actual channel operations rather than treating it as predetermined.
+Build the smallest executable contracts for workspace supervision, workspace handles, attachments, canonical request dispatch, and scoped event delivery. Candidate names remain reviewable, but the model must express:
 
-Acceptance: the same channel conformance suite runs against the Electron adapter and an in-memory or server adapter. A browser transport can execute at least the substrate workspace catalog plus one feature request/event path.
+- A supervisor acquiring a workspace handle through a single-flight boot promise.
+- A handle creating an attachment for an initial session target.
+- An attachment dispatching requests and retargeting its session.
+- Workspace, session, and agent-instance event scopes.
+- Workspace and attachment retention with deterministic disposal.
+- A local handle and a future proxy handle behind the same host-facing shape.
 
-### E3: Make resources and surfaces independently hostable
+Use fake runtimes and agents. Avoid Electron, WebSocket, HTTP, Pi, and feature loading. The scenarios should prove two workspaces with identical canonical ids, several attachments on one session, independent retargeting, scoped event delivery, failed-target rollback, and disposal isolation.
 
-Separate resource dispatch from Electron protocol registration. Bind the same normalized resource routes, origin policies, response metadata, surface-module pipeline, assets, CSS modules, cache hashes, and failure behavior to HTTP. Define the browser page origin and URL-generation context without leaking Electron schemes into feature code.
+**Review gate:** The in-memory scenarios read as the architecture described in the design notes. No contract assumes one global selected session, one workspace per process, transport-wide broadcast, or in-process runtime placement.
 
-This unit must revisit CSP, CORS, iframe origins, generated/foreign surface containment, workspace/feature origin partitioning, path traversal defenses, cache semantics, and development versus production asset resolution. The HTTP layout should remain compatible with a future remote host, but subdomains, TLS termination, and multi-tenant routing are not required for the local proof.
+### H3: Prove concurrent real workspace runtimes
 
-Acceptance: an ordinary supported browser can load the workspace shell and dynamically load manifest-contributed surfaces. It fetches their assets/resources and preserves the existing isolation policy without Electron custom protocols.
+Move enough backend substrate into `packages/runtime` to implement a real `WorkspaceHandle` for exactly one workspace. Replace host handler registration with runtime-owned canonical dispatch. Keep channel and resource registries local to the runtime instance, and pass host-stamped attachment context into dispatch outside feature payloads. The discarded plan's E0 inventory already classified the Electron surface into runtime semantics and host behavior. Reuse it as the starting analysis.
 
-### E4: Ship a local, unbootstrapped UIX server workflow
+Instantiate two real workspaces in one process with overlapping feature, channel, resource, and settings ids. Exercise feature activation, settings, document storage, surface registration, reload, and disposal. Process-global services must be host-owned or explicitly shared. Mutable workspace state cannot remain in module singletons.
 
-Add a server executable/CLI that opens an explicit existing workspace, binds safely to loopback by default, reports its URL, and shuts down cleanly. Decide the initial browser-launch behavior, port selection, app-data/profile location, logging, signals, stale-process handling, and actionable startup failures. There is no start picker or create-workspace onboarding requirement: a missing or invalid workspace is a CLI error.
+Do not migrate Electron yet. Use in-memory host and resource adapters so failures reveal runtime isolation rather than platform behavior.
 
-The server distribution must not scaffold or enable chat, canvas, or dev skills implicitly. Repository development may keep its current dogfood workspace, but tests must include a minimal workspace whose feature list does not depend on the batteries-included set.
+**Review gate:** Both workspaces run concurrently, reload independently, and retain duplicate local ids. Disposing either runtime removes only its state and routes. If the current lifetime bags do not form a complete workspace boundary, stop and revise the runtime composition before continuing.
 
-Acceptance: on macOS and a Linux/container-like environment, a user can point the server at a workspace. They open the printed local URL in a regular browser, use its contributed surfaces and agent channels, reload features, and persist/reopen state. The process does not install or load Electron.
+### H4: Prove real agent instances
 
-### E5: Establish monorepo package and build boundaries
+Replace the selected-session singleton inside one workspace runtime with the agent instance manager. The first target policy resolves each session to one primary agent instance, while the identity shape leaves room for later branch-bound or ephemeral agents.
 
-After the runtime and both hosts reveal their real imports, move them into explicit workspace packages/apps. Give each target an independent build and test entry. Avoid a speculative up-front directory migration. Use the proven dependency direction to prevent the runtime or server from depending on Electron or batteries.
+Split workspace-scoped feature ownership from branch-viewpoint working state. The workspace runtime retains the accepted feature composition, settings, stores, and contribution definitions. Each agent instance owns its state at its session-branch viewpoint: the turn-state projection, agent context, Pi installation, and feature buffers that depend on that branch. Existing contribution APIs may need an instance-instantiation or context-aware callback boundary. Prove that boundary with real stateful features rather than sharing singleton closures across sessions.
 
-Decide which artifacts are bundled versus external and how `@uix/api` self-resolution works for feature loading. Also decide how readable feature source is addressed in development and packaged products, and whether internal packages remain private. Keep one lockfile and coordinated repository checks unless release needs prove otherwise.
+Implement and test:
 
-Acceptance: dependency checks make the intended direction enforceable. The server can build/install without Electron. Electron can build by depending on runtime/client packages. And shared conformance tests run once per host adapter.
+- Concurrent cold attachments awaiting one single-flight boot promise.
+- Warm attachment to an existing instance.
+- Two live agents on distinct sessions in one workspace runtime.
+- Acquire-before-release attachment retargeting.
+- Failed target acquisition preserving the accepted old instance.
+- One active turn per primary instance, with a clear busy rejection for competing prompts.
+- Immediate teardown of a zero-attachment idle instance.
+- Teardown of a zero-attachment running instance after its safe turn boundary.
+- A new attachment canceling pending teardown.
+- Agent-instance events reaching every attachment on that instance.
+- Two sessions retaining independent restored Canvas documents, anchors, turn state, and agent context.
+- One attachment leaving a shared instance without committing, restoring, or disrupting peers.
+- Final state commit and safe teardown only when the agent instance tears down.
+- Workspace feature reload committing and reconciling every agent instance without cross-session state exchange.
 
-### E6: Recast Electron as a packaged host/product slot
+Use real Pi integration rather than proving only a generic pool. A configurable warm-retention period, always-on instances, host-authored retention, multiple agents on one session, and branch coordination remain later policies.
 
-Make Electron consume the extracted runtime and shared web client exclusively through the established host seams. Retain the native window/picker behavior needed by the current application. Then decide which remaining defaults belong to a generic UIX desktop host versus the future Fruition composition. Complete the existing packaged-binary work for readable feature/template resources only for the product that elects to ship those templates.
+**Review gate:** Real Pi sessions and stateful features satisfy the lifecycle above without process-global collisions, cross-session event leakage, or shared branch-state mutation. If Pi or feature state cannot support concurrent in-process instances, stop and revisit the state model or process placement. Neither host should depend on the shape first.
 
-This unit creates the slot in which Fruition can later own branding, onboarding, chat/canvas/dev-skill defaults, installers, updates, tray behavior, and consumer-oriented account setup. It does not design or ship that product.
+### H5: Extract the shared launcher and workspace clients
 
-Acceptance: the Electron artifact and headless server are independently buildable distributions over the same UIX runtime. Removing batteries from the server has no effect on the runtime contract. And the work confines Electron-only code to the Electron/product side of the package graph.
+Move browser-compatible launcher and workspace UI into `packages/client`. Each entry receives a constructed client adapter from a host-owned client bootstrap. Remove ambient Electron detection from shared code. The page-shared module mechanism (the React, TypeBox, and `@uix/api` instances that bundled surfaces resolve against) moves with the workspace client.
 
-### E7: Server shipping-readiness and parity gate
+Give the workspace client canonical workspace-session navigation and a transport connection epoch. The URL names each attachment's target. The workspace-only route resolves the fallback session and never implies one globally active session. Snapshot-backed state owners use one reusable recovery pattern rather than optional feature-by-feature reconnect callbacks. Inventory every event stream and classify it as a durable snapshot signal, an ordered live delta, or an explicitly lossy notification. Define pending mutation loss as an indeterminate outcome rather than a confirmed failure, and do not retry mutations automatically.
 
-Define the supported browser/OS matrix and a parity suite. The suite covers workspace activation, channel validation, event fan-out, feature reload, surface/resource loading, agent login callbacks, persistence, shutdown, error presentation, and secret redaction. Document intentional host differences. Add server operational documentation for bind addresses, data/workspace volumes, logs, upgrades, and recovery.
+The launcher client consumes a host-level catalog projection and can navigate to canonical workspace-session URLs. It does not require an active workspace runtime.
 
-Perform a focused threat review of the local server before calling it a supported distribution. Gate any option that permits non-loopback binding behind an explicit security model. "Local mode with the bind address changed" is not a remote-hosting architecture.
+**Review gate:** Both clients build in a browser-only environment over fake adapters. Session retarget updates history only after success, and direct URLs restore the same target. Reconnect tests recover all snapshot-backed state without accidentally remounting the whole client.
 
-Acceptance: Electron and local-server modes pass their shared semantic suite. Documented differences are product/host differences rather than accidental drift. The unbootstrapped server is supportable as a first-class UIX distribution without implying API stability beyond the project's declared maturity.
+### H6: Rehome app features and workspace compositions
+
+Move reusable Chat, Canvas, workspace tools, and other app-layer features under `apps/features`. Move the repository dogfood manifest and any workspace-specific source under `apps/workspaces/default`. Preserve direct manifest selection and source readability. Do not introduce global feature discovery.
+
+Update scaffolding and development references so core runtime and hosts can build without importing the reference application. A bare test workspace must activate without Chat, Canvas, or developer tools.
+
+**Review gate:** The default workspace behaves as before through explicit manifest references, while runtime, client, and host package graphs have no dependency on app features.
+
+### H7: Reconstitute Electron as a discrete host
+
+Move Electron main, preload, launcher client bootstrap, native chrome, IPC, protocol, recents, dialogs, and packaging assumptions under `hosts/electron`. The Electron host composes the shared supervisor, runtime, launcher client, and workspace client through concrete adapters.
+
+Bind each workspace window to one attachment rather than broadcasting through `BrowserWindow.getAllWindows()`. IPC requests carry host-stamped attachment context, and runtime events route only to matching windows. Bind Electron resource URLs through workspace-qualified routes. Keep process handlers, raw IPC, protocol registration, and window lifecycle inside the Electron host.
+
+Preserve existing dogfood behavior and add a concurrent-workspace proof with two windows. The launcher client uses the shared launcher presentation where its capabilities overlap and retains Electron-specific folder selection as an honest host capability.
+
+**Review gate:** Electron passes existing behavior checks, and two workspace windows remain isolated despite duplicate feature ids. Session switching moves only the requesting attachment. No Electron import exists in runtime, client, app feature, or shared host-neutral code.
+
+### H8: Build the server host, launcher, and live channel transport
+
+Create the server composition root under `hosts/server`. It starts with zero active workspace runtimes and owns a supervisor. It exposes the launcher catalog, serves canonical routes, and creates one attachment per live connection.
+
+Choose and implement the live transport against the proven attachment boundary. WebSocket remains the expected local choice because the channel surface is bidirectional. The unit must decide against actual operations and scoped delivery rather than inherit the discarded broadcast spike. The transport comparison analysis from the discarded spike remains available as reference in repository history.
+
+The wire protocol uses discriminated request, response, error, and event frames with required correlation fields. Every crossing records through the shared wire-log chokepoint with per-contract redaction, so server lines match Electron lines. The host resolves workspace and initial session from the connection URL. Session switching retargets the existing attachment. Events carry runtime scope and the host delivers them only to matching connections. Pending requests reject as indeterminate after a connection loss. Bounded outbound queues drop slow clients into the snapshot recovery path.
+
+Run one conformance suite against in-memory, Electron, and real server adapters. Include two connections on one session, independent sessions in one workspace, concurrent workspaces, retargeting, malformed frames, request errors, redacted logging, scoped fan-out, disconnect, and reconnect.
+
+**Review gate:** A laptop-style and phone-style client attached to one workspace-session share one live agent and transcript stream. Retargeting either client leaves the other unchanged. No server transport mechanism appears in runtime or feature contracts.
+
+### H9: Add HTTP resource delivery and browser parity
+
+Bind the runtime-owned resource dispatcher to server HTTP. Serve the launcher shell, workspace shell, built surface modules, styles, feature resources, and contained content through workspace-qualified routes. Preserve logical resource identity while allowing Electron custom-protocol and HTTP encodings to differ.
+
+Review Content Security Policy, Cross-Origin Resource Sharing, iframe origins, generated-content containment, path traversal, cache hashes, development asset resolution, and production layout. Direct requests to canonical workspace-session URLs must serve the workspace client, while invalid workspace or session ids return actionable host errors.
+
+Complete browser parity tests for activation, reload, surfaces, Canvas writeback, settings, keybindings, session switching, provider authentication callbacks, persistence, and reconnect recovery.
+
+**Review gate:** An ordinary supported browser can open the launcher and navigate to a workspace-session URL. It can use the reference composition and reload that URL directly. The browser retains the same runtime semantics as Electron.
+
+### H10: Add operational and distribution readiness
+
+Expose the launcher/catalog projection through versioned HTTP and stable CLI JSON. Add server address advertisement for a native launcher. Decide startup URL reporting, loopback bind defaults, port selection, browser opening, logs, signals, stale advertisements, profile locations, and actionable startup failures.
+
+Perform the local-server threat review before allowing non-loopback binding. Define intentional Electron/server differences and run the shared parity matrix on macOS and a Linux or container-like environment. Then complete independent host builds and the Node single executable application packaging pass. Packaging must not pull Electron or app features into the core server artifact.
+
+**Review gate:** The Electron and server hosts build independently over the same runtime and clients. CLI and HTTP launcher projections agree, and server discovery recovers from stale advertisements. The local safety model is documented. The core server distribution contains no Electron or batteries-included app composition.
 
 ## Decisions deliberately deferred
 
-- Exact monorepo tool and final package names.
-- HTTP framework and live transport protocol.
-- Wire framing, protocol versioning, reconnect/resume, and backpressure details.
-- Whether the browser is opened automatically and how a future tray launcher participates.
-- Local authentication/bootstrap-token UX and the boundary at which the runtime allows non-loopback access.
-- Multiple simultaneous workspaces, processes, tabs, and clients.
-- Remote identity, tenancy, authorization, collaboration, VM/container isolation, and hosted persistence.
-- Whether Electron remains a generic UIX distribution once Fruition exists or Fruition becomes the only maintained Electron product.
-- Fruition branding, onboarding, feature set, subscription/provider UX, updater, installer, and release lifecycle.
-- Independent publication/versioning or future repository extraction of product packages.
+- Configurable post-turn warm retention and always-on agent instance policies.
+- Host-authored background agent retention and cron orchestration.
+- Multiple branch-bound agents on one durable session tree.
+- Ephemeral call-and-response agents.
+- The isolated workspace-handle process protocol and worker implementation.
+- Remote identity, tenancy, authorization, collaboration, and hosted persistence.
+- Non-loopback server operation before a separate security model.
+- Fruition onboarding, defaults, subscription UX, installers, updates, and final repository timing.
+- Independent publication and versioning of internal packages unless distribution requires it.
+- A feature marketplace or hostile-feature sandbox.
 
 ## Not in this plan
 
-- Replacing Electron with Tauri or another desktop shell.
-- Building the Fruition product or designing its consumer experience.
-- Migrating all current first-party features out of this repository before the runtime boundary requires it.
-- A public remote-hosted UIX service.
-- Hostile-feature sandboxing or arbitrary multi-tenant feature execution.
-- Making UIX a marketplace or adding implicit feature discovery/bootstrap behavior.
+- Preserving the discarded broadcast transport or global broadcast behavior for compatibility.
+- Maintaining parallel old and new runtime or renderer paths.
+- Replacing Electron with another desktop shell.
+- Building the native launcher UI.
+- Building Fruition or hosted Fruition.
+- Adding implicit feature discovery or compiled-in default features.
 
-## Planning checkpoints
+## Completion gate
 
-Before E1, distill E0's runtime/host ownership into a design update and decision if it changes the current meaning of App, workspace, Host, or main. Before E2/E3, write transport/resource decisions from executable spikes. Before E4 ships, record the local server threat model and operational contract. Before E5, use the observed import graph, not this document's illustrative package list: to settle the physical monorepo layout. Before E6, decide the generic-UIX-desktop versus Fruition ownership line with product context available at that time.
+The split completes when Electron and server are discrete hosts over one workspace-runtime implementation and one shared browser client. A supervisor can run concurrent isolated workspace instances. Connections share and retarget primary agent instances correctly. Launcher clients address canonical workspace-session URLs, and both hosts pass the shared semantic suite. Shipping the server does not imply public API stability beyond UIX's declared maturity.

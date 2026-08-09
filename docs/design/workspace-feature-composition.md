@@ -1,5 +1,5 @@
 ---
-summary: "Exploring composition beyond the single-page, single-agent runtime: contained surfaces, layout slots, feature-agent links, shared state, and concurrent workspaces."
+summary: "Exploring surface, layout, and feature-agent composition inside one-workspace runtimes while hosts supervise concurrent workspaces and agent instances preserve a later multi-agent path."
 kind: explanation
 read_when: "Read before designing surface contributions or layout, feature-agent linking, multi-agent sharing of feature state, reintroducing any Host/iframe boundary, or deciding whether chat/canvas should be treated as substrate."
 status: exploring
@@ -17,7 +17,7 @@ The workspace page mounts manifest-contributed surface modules in composition or
 
 Canvas authored HTML remains inside a feature-owned iframe. UIX has no general iframe surface kind or `postMessage` channel transport. Those primitives should wait for a foreign or generated surface that needs them.
 
-The implemented runtime owns one selected Pi session graph and installs all active agent facets into it. Feature-to-agent links, multiple agents, shared feature state, and concurrent workspaces remain design axes rather than current manifest concepts.
+The implemented backend owns one selected Pi session graph and installs all active agent facets into it. The target workspace runtime instead owns one workspace and an agent instance manager whose first policy provides one primary agent instance per session. Feature-to-agent links, multiple agents on one session tree, and shared feature state remain design axes. Concurrent workspaces belong to host supervision rather than workspace composition. [`host-workspace-runtime-boundaries.md`](./host-workspace-runtime-boundaries.md) owns that boundary, and [`agent-session-routing.md`](./agent-session-routing.md) owns attachments and agent instances.
 
 The current public surface ABI returns a React node, and the compiler supplies a shared React instance. Those are implementation constraints rather than part of the layout or lifetime contract.
 
@@ -50,13 +50,12 @@ Link and unlink events may need durable Agent-visible records because they chang
 - What durable record represents adding or removing a feature-to-agent link?
 - Which state belongs to a feature runtime, and which state belongs to one future Agent link?
 - What locking or optimistic-concurrency contract permits multiple Agents to share one feature?
-- When should workspace scoping permit multiple concurrent workspace windows in one application instance?
 - Which React-independent surface capabilities and lifetime contract should the post-alpha migration settle?
 
 ## Near-term direction
 
 1. Keep the framework-neutral surface migration out of the alpha critical path; promote its review-gated plan explicitly.
-2. Continue treating resources and channels as workspace facets and Agent facets as contributions to the current single Agent. A future link manager can split Agent facets per link.
+2. Continue treating resources and channels as workspace facets. Install Agent facets into the selected primary agent instance through the workspace runtime, while preserving an explicit future link boundary for several agent instances.
 3. Wait for the first foreign, generated, or executable surface before adding general iframe transport.
 
 ## Log
@@ -136,3 +135,9 @@ Feature sharing does not imply one self-contained framework runtime per surface.
 ### 2026-07-26 — planning clarification: outcome before mechanism
 
 Reviewing the deferred plan separated the conclusions actually reached from mechanisms proposed during the discussion. The settled outcome is a framework-neutral DOM/ESM surface boundary, user-owned framework bridges, no UIX reactivity, eventual direct-DOM shell chrome, and the ability for ordinary ESM URL identity to share compatible code without requiring one framework. We did not yet decide that UIX runs build commands, that a feature compiler preserves bare imports, that the workspace performs one multi-entry esbuild pass, that styles are exposed specifically as `CSSStyleSheet[]`, that every surface receives the same capability object, or that renderer ownership collapses into one `WorkspaceRuntime`. Those are post-alpha investigation questions, not architecture hidden in the plan.
+
+### 2026-08-09: concurrent workspaces move above workspace composition
+
+Separated concurrent workspace orchestration from workspace feature composition. Each `WorkspaceRuntime` owns exactly one manifest-selected feature composition and one agent-mount manager. A host-level workspace supervisor coalesces runtime boots and chooses whether workspace endpoints share a process or use isolated processes. This keeps duplicate feature and channel ids valid across runtimes and makes each runtime bag the complete workspace teardown boundary.
+
+Replaced the selected-session singleton as the target model with one primary agent mount per session. This first policy supports shared multi-device views while preserving distinct session, mount, and future feature-agent-link identities. Multi-agent branch coordination remains open rather than being implied by concurrent workspace support.

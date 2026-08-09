@@ -8,6 +8,8 @@ Rich conversation blocks need stable identity before they can safely own state o
 
 This follows the transcript normalization work in [conversation-render-primitives](../docs/design/conversation-render-primitives.md): main already normalizes Pi live events and persisted session entries into UIX `TranscriptItem`s. This plan makes those item ids usable as state/action keys.
 
+> **Update when:** H4 of [`electron-server-split.md`](./electron-server-split.md) settles the agent-instance vocabulary and state-instantiation contract. Recast D3's selected-branch projection as the projection owned by one attachment target, while retaining keyed-on-persist identity and one-pass branch derivation.
+
 ## Invariants
 
 - Renderer sees one opaque `item.id` per row and sends actions back with that id.

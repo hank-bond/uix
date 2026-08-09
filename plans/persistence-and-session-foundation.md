@@ -6,6 +6,8 @@ summary: "Build spec for persistence on Pi's session file. Branch projection and
 
 Persistence is the phase that ties the conversation tree, canvas versions, and anchor state together. Frame and rationale: [session-file-as-state-substrate](../docs/decisions/2026-06-06-session-file-as-state-substrate.md) (Pi's session file is the substrate). Versioning mechanics behind the document-store seam: [pane-and-file-versioning](../docs/design/pane-and-file-versioning.md). The conversation-render work this unblocks: [conversation-render-primitives](../docs/design/conversation-render-primitives.md).
 
+> **Update when:** H4 of [`electron-server-split.md`](./electron-server-split.md) settles the agent-instance vocabulary and state-instantiation contract. Rebase the selected-branch and restore language below so each agent instance owns its branch-viewpoint feature state rather than mutating one workspace-global projection.
+
 **Do first, then context-clear:** **C0 + C1** are the foundation to lay before resuming conversation-render improvements. C0 changes the shape the renderer consumes (replayed complete entries, not just live deltas). C1 puts that work on the final substrate, the Pi `ExtensionAPI` (`sendMessage`/`registerMessageRenderer`/message-transforms), so host-authored blocks can be real session entries from day one. **C2–C5 are deferred** but specified below so nothing is lost.
 
 ## Spike answers (resolved 2026-06-06)

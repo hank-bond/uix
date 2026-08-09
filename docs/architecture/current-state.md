@@ -55,7 +55,7 @@ Main persists portable keybindings under `settings.keybindings`. The renderer re
 
 `WorkspaceManifestStore` stages, promotes, and atomically flushes manifest generations. Disk remains authoritative across reload. Debounced writes reject stale generation locations.
 
-`SettingsRegistry` owns live complete scopes. Feature definitions declare one TypeBox object or record schema plus an optional whole-object default. Defaults materialize into persisted state instead of remaining runtime overlays.
+`SettingsRegistry` owns live complete scopes. Feature definitions declare one TypeBox object or record schema plus an optional whole-object default. Defaults materialize into persisted state instead of remaining live overlays.
 
 The substrate registers `agent`, `session`, and `keybindings` workspace namespaces. Features receive only their bound `ctx.settings` handle. Surfaces receive a feature-bound settings client.
 
@@ -102,7 +102,7 @@ The active plans track work that is not architecture yet:
 - [`workspace-actions-and-command-palette.md`](../../plans/workspace-actions-and-command-palette.md) continues reload shortcuts, ambient surfaces, palette UI, and customization.
 - [`session-history-and-switching.md`](../../plans/session-history-and-switching.md) retains defensive hardening and final verification.
 - [`durable-transcript-identity.md`](../../plans/durable-transcript-identity.md) retains durable low-frequency block state.
-- [`electron-server-split.md`](../../plans/electron-server-split.md) explores extracting host-neutral runtime boundaries.
+- [`electron-server-split.md`](../../plans/electron-server-split.md) splits UIX into hosts, a workspace supervisor, one-workspace runtimes, and a shared browser client.
 - [`canvas-reusable-assets.md`](../../plans/canvas-reusable-assets.md) gives Canvas a reusable local web-asset library in eight reviewable units.
 - [`cross-feature-capabilities-and-resource-viewing.md`](../../plans/cross-feature-capabilities-and-resource-viewing.md) establishes publisher-qualified public protocols, document resources, and resource viewers after identity and selection details settle.
 - [`framework-neutral-surfaces-and-shell.md`](../../plans/framework-neutral-surfaces-and-shell.md) moves frontend frameworks into feature ownership in post-alpha stages.

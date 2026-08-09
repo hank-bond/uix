@@ -7,6 +7,16 @@ kind: reference
 
 This is the canonical vocabulary for UIX architecture discussions and code names. Use it to avoid overloading Pi terms and to distinguish feature loading, package distribution, and internal substrate wiring.
 
+## Host, supervisor, and workspace runtime
+
+A _host_ owns the process and platform integration: lifecycle, transports, native capabilities, and workspace supervision. Electron and the local server are hosts. A _client bootstrap_ is a host's page entry that constructs the transport client and mounts the shared client.
+
+The _supervisor_ is the host-internal component that supervises and routes requests to workspace runtimes. It maps workspace ids to workspace handles, coalesces runtime boots, and decides process placement. A _workspace handle_ is the host-facing handle to one workspace runtime, in local or proxy form.
+
+A workspace runtime's _dependencies_ are the concrete effects it requires from the host, injected at construction. A runtime declares them, and the host provides them. An _adapter_ is a translator across communication capabilities.
+
+The _launcher_ is the shared pre-workspace client that selects or creates workspaces over host capability endpoints. A _native launcher_ is an external client, such as the macOS menu-bar app, that consumes the same host endpoints. A host can serve the launcher with zero active workspace runtimes.
+
 ## Feature
 
 A _feature_ is UIX's loadable unit and the coherent capability it adds: Canvas, Chat, a chess board, a file browser, or a report renderer. A feature can be first-party in-tree or provided by another manifest-referenced module.
@@ -25,7 +35,7 @@ Use **feature** for the UIX capability, loadable definition, and activation boun
 
 ## Feature lifecycle
 
-A _feature definition_ is the plain `FeatureDefinition` exported by one manifest entry module. It declares the feature id and the hooks that produce its contributions. It is not itself live runtime state.
+A _feature definition_ is the plain `FeatureDefinition` exported by one manifest entry module. It declares the feature id and the hooks that produce its contributions. It is not itself live state.
 
 _Feature activation_ validates a definition and settings, constructs context, and runs both hooks. It registers each facet under a provisional lifetime bag. Only complete success enrolls that bag.
 
@@ -46,9 +56,9 @@ UIX uses two id grammars for different things.
 
 Validated helpers construct both nominal brands. Internal registry sets and resolved contribution shapes retain those brands. External string boundaries cast inline.
 
-Author-facing `@uix/api` contributions contain local names instead of derived ids. `src/api/contribution-id.ts` owns the cross-facet grammar.
+Author-facing `@uix/api` contributions contain local names instead of derived ids. `packages/api/src/contribution-id.ts` owns the cross-facet grammar.
 
-Each consumer owns its canonical-id helpers and resolved shapes. Shared channel and resource resolution lives in `src/api/`. Main-only facets keep resolution in `src/main/`.
+Each consumer owns its canonical-id helpers and resolved shapes. Shared channel and resource resolution lives in `packages/api/src/`. Main-only facets keep resolution in `src/main/`.
 
 Envelope and customType ids stay substrate-owned and are not feature-scoped: `uix.state` (the display-hidden agent-context envelope), `uix.turn-state` (the persisted turn-state entry). Inner contributions use feature-scoped canonical ids: `<canvas.canvas-diff>` inside `<uix-state>`, or `canvas.documents` as a named cell inside a `uix.turn-state` entry.
 
@@ -196,13 +206,15 @@ Keep ordinary component-local state in React. Use a controller when multiple con
 
 `WorkspaceSessionController` coordinates session projections, agent activity, mutations, and stale-result versions. Main and Pi remain authoritative for durable session graphs.
 
-## Session selection and activity
+## Sessions, attachments, and agent instances
 
-The _selected session graph_ is the durable graph chosen by the workspace. Main persists its identity in `session.selected`. Omitted-id history reads, commits, reload, and runtime creation resolve against it. A _non-selected session_ is another durable graph read explicitly without changing that choice.
+A _session_ is a durable conversation tree. An _agent instance_ is one live agent execution attached to a session at a branch viewpoint. Its _agent instance state_ is the working state at that viewpoint, including the turn-state projection, agent context, Pi installation, and feature buffers for the branch.
 
-The _active `AgentSession`_ is Pi's ephemeral runtime attached to the selected graph. The renderer's _active session projection_ contains the accepted summary and transcript.
+A connection's _attachment_ is its owned, retargetable handle on one agent instance. The connection attaches to the instance, booting it first when none is live. An instance stays retained while attachments hold it and tears down at a safe boundary when the last one leaves.
 
-Use _selected_ for durable backend choice and _active_ for a runtime or renderer projection. Call an explicit read target _non-selected_, not _non-active_.
+The canonical URL names one attachment's target. A workspace may retain a _fallback session_ for the workspace-only route and launcher convenience. That value is not a global active session.
+
+Use _fallback_ for the workspace-level session choice, _target_ for one attachment's live session, and _active_ for a runtime or renderer projection. Call an explicit read target _non-selected_, not _non-active_.
 
 ## Facet
 
@@ -259,7 +271,7 @@ Drivers own bags. Installers register things. Registries track live contribution
 
 ## Hook
 
-A _hook_ is a runtime callback registered at a named lifecycle point.
+A _hook_ is a callback registered at a named lifecycle point.
 
 Examples:
 
@@ -271,7 +283,7 @@ Installers register hooks. Hooks run later when the lifecycle event occurs.
 
 ## Coordinator
 
-A _coordinator_ is a substrate-owned, stateful component that sequences a multi-step lifecycle across independently owned participants and performs the side effects for that lifecycle. Participants can be registered contributions, runtime generations, stores, or external callbacks. The coordinator owns their workflow, not their underlying authority.
+A _coordinator_ is a substrate-owned, stateful component that sequences a multi-step lifecycle across independently owned participants and performs the side effects for that lifecycle. Participants can be registered contributions, generations, stores, or external callbacks. The coordinator owns their workflow, not their underlying authority.
 
 The turn-state coordinator works across registered state cells:
 
@@ -286,7 +298,7 @@ A coordinator owns timing, in-flight workflow state, and cross-participant mecha
 
 ## Assembler
 
-An _assembler_ is a substrate-owned pattern for turning many registered contributions into one runtime artifact or hook result.
+An _assembler_ is a substrate-owned pattern for turning many registered contributions into one artifact or hook result.
 
 The current example is the agent-context assembler:
 
