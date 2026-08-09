@@ -105,7 +105,7 @@ Use fake runtimes and agents. Avoid Electron, WebSocket, HTTP, Pi, and feature l
 
 ### H3: Prove concurrent real workspace runtimes
 
-Move enough backend substrate into `packages/runtime` to implement a real `WorkspaceHandle` for exactly one workspace. Replace host handler registration with runtime-owned canonical dispatch. Keep channel and resource registries local to the runtime instance, and pass host-stamped attachment context into dispatch outside feature payloads. The discarded plan's E0 inventory already classified the Electron surface into runtime semantics and host behavior. Reuse it as the starting analysis.
+Move enough backend substrate into `packages/runtime` to implement a real `WorkspaceHandle` for exactly one workspace. Replace host handler registration with runtime-owned canonical dispatch. Keep channel and resource registries local to the runtime instance, and pass host-stamped attachment context into dispatch outside feature payloads. The E0 inventory in the appendix (from the discarded plan) already classified the Electron surface into runtime semantics and host behavior. Reuse it as the starting analysis.
 
 Instantiate two real workspaces in one process with overlapping feature, channel, resource, and settings ids. Exercise feature activation, settings, document storage, surface registration, reload, and disposal. Process-global services must be host-owned or explicitly shared. Mutable workspace state cannot remain in module singletons.
 
@@ -223,3 +223,30 @@ Perform the local-server threat review before allowing non-loopback binding. Def
 ## Completion gate
 
 The split completes when Electron and server are discrete hosts over one workspace-runtime implementation and one shared browser client. A supervisor can run concurrent isolated workspace instances. Connections share and retarget primary agent instances correctly. Launcher clients address canonical workspace-session URLs, and both hosts pass the shared semantic suite. Shipping the server does not imply public API stability beyond UIX's declared maturity.
+
+## Appendix: E0 host-contract inventory
+
+This inventory comes from the discarded transport-first plan (recorded 2026-08-08, see `spike/electron-server-split` in repository history). H3 reuses it as the starting analysis for what moves into `packages/runtime` and what stays host-owned. Unit references are remapped from the old plan's E-units to this plan's H-units. The inventory is historical evidence: it classifies the Electron surface as it existed at that commit, not the current tree.
+
+The Electron surface is six production files. `src/main/index.ts` owns app lifecycle, windows, menu, picker, dialogs, recents, and packaged paths. `src/main/ipc.ts` is the channel transport over `ipcMain`/`webContents`. `src/main/resource-registry.ts` is the `uix-resource` custom protocol. `src/main/lifecycle.ts` provides app/window event helpers. `src/main/external-links.ts` routes window navigation to `shell.openExternal`. `src/preload/index.ts` is the renderer transport client. Everything else in `src/main` is host-neutral fs/path/Pi work.
+
+`openWorkspace()` is already almost entirely runtime. It builds the document store, manifest store, settings, and feature loader. It owns all eight facet registries, the agent driver, the surface pipeline, and the reload coordinator. The `uix`/`agent` channel handlers are runtime too. The host pieces inside it are the window, the menu, the channel transport closures, `openExternal`, `userData` paths, and the templates path.
+
+The smallest host contract is five ports. Each is a concrete effect the runtime already performs:
+
+1. **Channel transport**: `registerHandler(id, handler, logOpts)` plus `publish(channel, payload, logOpts)`. Electron binds IPC today. The server binds a live bus later (H8).
+2. **Resource serving**: serve normalized routes on the reserved substrate origin. Electron uses the custom protocol. The server uses HTTP (H9).
+3. **Capabilities**: `openExternal(url)`, the Pi profile dir, the templates dir, and the page source (dev URL or packaged files).
+4. **Workspace target**: the host picks the workspace. The runtime owns everything workspace-scoped, which is already the `appBag`/`openWorkspace` boundary.
+5. **Process lifecycle**: the host starts and stops the process. The runtime owns the workspace-scoped bag and disposes on close.
+
+Ownership calls and unresolved cases:
+
+- Recents and the start picker stay host chrome. The server CLI (H10) takes an explicit target and has no picker.
+- The menu reload binding is host chrome. The reload coordinator is runtime. The server needs a page-side or CLI reload trigger.
+- `ELECTRON_RENDERER_URL` and `app.isPackaged` are Electron dev assumptions. The server dev story differs (H9).
+- Packaged resource paths (preload, renderer html, icon, templates) are Electron packaging specifics. The server has its own layout (H10).
+- `apiModuleDir` resolves from `app.getAppPath()`. The server resolves `@uix/api` from its own install (H10 self-resolution).
+- `installProcessHandlers` is Node-neutral and stays shared.
+
+Acceptance status: every Electron import has an owner above. The runtime is describable without `Electron.App`, `BrowserWindow`, `ipcMain`, or `protocol`. H3 extracts `openWorkspace` into a runtime constructor taking these ports.
