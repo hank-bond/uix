@@ -26,7 +26,7 @@ Distribution mechanics: the server ships as a Node SEA binary with Pi versioned 
 
 ## Agent/session model (2026-08-08)
 
-Recorded for later, not built now. The host maps connections to agents. Each agent is mounted on a workspace-session pair. One active agent per session at a time.
+Recorded for later, not built now. The host maps connections to agents. Each agent is mounted on a workspace-session pair. One active agent per session at a time. Full reasoning and tradeoffs live in [agent-session-routing](../docs/design/agent-session-routing.md).
 
 - Session binding is per connection, re-targeted in place without reload. Workspace binding is per connection URL. A workspace switch rebuilds the client composition.
 - Agents are shared and refcounted, keyed by workspace-session. The first request boots the agent through a coalesced promise. Later requests attach to the same instance. Zero connections starts a TTL grace period, then the agent tears down at a turn boundary. TTL is user-tunable. Some agents stay always-on.
