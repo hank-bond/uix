@@ -89,7 +89,7 @@ The `src/docs/` tree hosts the user-implementation how-tos. The `docs/` tree con
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
-- **[src/main/](./src/main/AGENTS.md)** The Electron main process starts the app, opens one workspace, connects its features to Pi, and owns their runtime lifetimes.
+- **[src/main/](./src/main/AGENTS.md)** The Electron host starts the app, opens one workspace, wires transport adapters around the @uix/runtime, and owns the shell chrome.
 - **[src/docs/](./src/docs/AGENTS.md)** User-implementation guides for building UIX applications, colocated with the framework and findable by the agents and builders who use it.
 - **[docs/](./docs/AGENTS.md)** Repository-level documentation holds cross-boundary architecture, workflows, external context, decisions, design threads, and documentation practice.
 - **[plans/](./plans/AGENTS.md)** Active build specs, reviewable delivery units, and a backlog of smaller implementation seeds.

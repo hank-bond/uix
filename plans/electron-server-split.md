@@ -24,6 +24,15 @@ Refinement of the product shape while tier-1 work is still pre-E0. Three tiers c
 
 Distribution mechanics: the server ships as a Node SEA binary with Pi versioned at build time. Model currency flows through Pi's remote catalog (pi.dev overlay, ~4h refresh, verified in Pi 0.82). Distribution cadence is therefore decoupled from model releases. Rebuild automation on Pi releases is the intended update path. User-overridable Pi is deferred unless a need appears. Everything above the substrate (browser client, Fruition window, hosted product, launcher UI) is a UIX app.
 
+## Agent/session model (2026-08-08)
+
+Recorded for later, not built now. The host maps connections to agents. Each agent is mounted on a workspace-session pair. One active agent per session at a time.
+
+- Session binding is per connection, re-targeted in place without reload. Workspace binding is per connection URL. A workspace switch rebuilds the client composition.
+- Agents are shared and refcounted, keyed by workspace-session. The first request boots the agent through a coalesced promise. Later requests attach to the same instance. Zero connections starts a TTL grace period, then the agent tears down at a turn boundary. TTL is user-tunable. Some agents stay always-on.
+- The host must be able to author messages to an agent. Cron-style injection and background processing are the driving cases.
+- Future unlocks, documented not designed: a ref head on requests, multiple coordinating agents sharing one session history, and ephemeral call-and-response agents. The ref head would let two agents work different branches of one session. Multi-agent semantics stay out of focus until a use case proves them.
+
 ## Target shape
 
 ```text
