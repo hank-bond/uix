@@ -25,7 +25,7 @@ Use **feature** for the UIX capability, loadable definition, and activation boun
 
 ## Feature lifecycle
 
-A _feature definition_ is the plain `FeatureDefinition` exported by one manifest entry module. It declares the feature id and the hooks that produce its contributions. It is not itself live runtime state.
+A _feature definition_ is the plain `FeatureDefinition` exported by one manifest entry module. It declares the feature id and the hooks that produce its contributions. It is not itself live state.
 
 _Feature activation_ validates a definition and settings, constructs context, and runs both hooks. It registers each facet under a provisional lifetime bag. Only complete success enrolls that bag.
 
@@ -198,7 +198,7 @@ Keep ordinary component-local state in React. Use a controller when multiple con
 
 ## Session selection and activity
 
-The _selected session graph_ is the durable graph chosen by the workspace. Main persists its identity in `session.selected`. Omitted-id history reads, commits, reload, and runtime creation resolve against it. A _non-selected session_ is another durable graph read explicitly without changing that choice.
+The _selected session graph_ is the durable graph chosen by the workspace. Main persists its identity in `session.selected`. Omitted-id history reads, commits, reload, and creating the runtime resolve against it. A _non-selected session_ is another durable graph read explicitly without changing that choice.
 
 The _active `AgentSession`_ is Pi's ephemeral runtime attached to the selected graph. The renderer's _active session projection_ contains the accepted summary and transcript.
 
@@ -259,7 +259,7 @@ Drivers own bags. Installers register things. Registries track live contribution
 
 ## Hook
 
-A _hook_ is a runtime callback registered at a named lifecycle point.
+A _hook_ is a callback registered at a named lifecycle point.
 
 Examples:
 
@@ -271,7 +271,7 @@ Installers register hooks. Hooks run later when the lifecycle event occurs.
 
 ## Coordinator
 
-A _coordinator_ is a substrate-owned, stateful component that sequences a multi-step lifecycle across independently owned participants and performs the side effects for that lifecycle. Participants can be registered contributions, runtime generations, stores, or external callbacks. The coordinator owns their workflow, not their underlying authority.
+A _coordinator_ is a substrate-owned, stateful component that sequences a multi-step lifecycle across independently owned participants and performs the side effects for that lifecycle. Participants can be registered contributions, generations, stores, or external callbacks. The coordinator owns their workflow, not their underlying authority.
 
 The turn-state coordinator works across registered state cells:
 
@@ -286,7 +286,7 @@ A coordinator owns timing, in-flight workflow state, and cross-participant mecha
 
 ## Assembler
 
-An _assembler_ is a substrate-owned pattern for turning many registered contributions into one runtime artifact or hook result.
+An _assembler_ is a substrate-owned pattern for turning many registered contributions into one artifact or hook result.
 
 The current example is the agent-context assembler:
 

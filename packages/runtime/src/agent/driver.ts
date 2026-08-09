@@ -5,7 +5,7 @@
 //
 // Why dynamic `import()`: Pi is an ESM-only package and the main bundle
 // is CJS. The bundler would rewrite a static `import` to `require()` and
-// fail at runtime. The bundler preserves dynamic `import()` through the
+// fail at execution time. The bundler preserves dynamic `import()` through the
 // build so it runs as a real ESM load. Compilation erases the `import type`
 // line beside it, so we still get full Pi types in the
 // IDE/typechecker without any runtime cost.

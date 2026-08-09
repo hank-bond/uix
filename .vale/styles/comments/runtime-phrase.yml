@@ -1,0 +1,6 @@
+extends: existence
+message: "Use 'at execution time', not 'at runtime'."
+level: error
+ignorecase: true
+tokens:
+  - '\bat runtime\b'

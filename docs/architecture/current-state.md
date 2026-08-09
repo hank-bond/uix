@@ -55,7 +55,7 @@ Main persists portable keybindings under `settings.keybindings`. The renderer re
 
 `WorkspaceManifestStore` stages, promotes, and atomically flushes manifest generations. Disk remains authoritative across reload. Debounced writes reject stale generation locations.
 
-`SettingsRegistry` owns live complete scopes. Feature definitions declare one TypeBox object or record schema plus an optional whole-object default. Defaults materialize into persisted state instead of remaining runtime overlays.
+`SettingsRegistry` owns live complete scopes. Feature definitions declare one TypeBox object or record schema plus an optional whole-object default. Defaults materialize into persisted state instead of remaining live overlays.
 
 The substrate registers `agent`, `session`, and `keybindings` workspace namespaces. Features receive only their bound `ctx.settings` handle. Surfaces receive a feature-bound settings client.
 
