@@ -10,7 +10,7 @@ async function setup(): Promise<{
   store: RecentsStore;
   manifest: (name: string) => Promise<string>;
 }> {
-  const dir = await mkdtemp(join(tmpdir(), "uix-recents-test-"));
+  const dir = await mkdtemp(join(tmpdir(), "recents-test-"));
   const manifest = async (name: string): Promise<string> => {
     const p = join(dir, `${name}.uix.workspace.json`);
     await writeFile(p, "{}");

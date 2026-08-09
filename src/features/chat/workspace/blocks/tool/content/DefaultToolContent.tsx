@@ -13,12 +13,12 @@ export function DefaultToolContent({ item }: { item: ToolItem }): JSX.Element {
   return (
     <>
       {payload ? (
-        <pre className="tool-block__payload" data-uix-part="tool-payload">
+        <pre className="tool-block__payload" data-block-part="tool-payload">
           {payload}
         </pre>
       ) : null}
       {args ? (
-        <details className="tool-block__details" data-uix-part="tool-details">
+        <details className="tool-block__details" data-block-part="tool-details">
           <summary>arguments</summary>
           <pre>{args}</pre>
         </details>

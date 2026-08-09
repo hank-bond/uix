@@ -14,7 +14,7 @@ import fs from "node:fs";
 
 import { agentChannels, type AgentEvent } from "@uix/api/agent-channels";
 import { withHandlers } from "@uix/api/channels";
-import { type ReloadResult, uixChannels } from "#shared/ipc";
+import { type ReloadResult, substrateChannels } from "#shared/ipc";
 
 import { createAgentDriver } from "./agent/driver";
 import { sessionWorkspaceSettings } from "./agent/session-settings";
@@ -234,10 +234,10 @@ export function createWorkspaceRuntime(
       surfacePipeline.createResourceContributions(),
     ),
   );
-  const uixPublisher = createFeatureEventPublisherFactory(
+  const substratePublisher = createFeatureEventPublisherFactory(
     "uix",
     channels,
-  ).createPublisher(uixChannels);
+  ).createPublisher(substrateChannels);
   const keybindingSettings = workspaceSettings.forNamespace(
     keybindingsWorkspaceSettings,
   );
@@ -245,19 +245,19 @@ export function createWorkspaceRuntime(
     getBindingsSnapshot: () => keybindingSettings.getSnapshot(),
     replaceBindings: (candidate) => keybindingSettings.replace(candidate),
     publishBindingsChanged: (bindings) => {
-      uixPublisher.keybindings_changed(bindings);
+      substratePublisher.keybindings_changed(bindings);
     },
   });
   bag.add(
     disposable(
       settingsRegistry.onAnyChange((scopeId, key, value) => {
-        uixPublisher.setting_changed({ featureId: scopeId, key, value });
+        substratePublisher.setting_changed({ featureId: scopeId, key, value });
       }),
     ),
   );
   bag.add(
     registerChannelContributions(channels, "uix", [
-      withHandlers(uixChannels, {
+      withHandlers(substrateChannels, {
         surfaces: {
           handler: async () => ({
             surfaces: await surfacePipeline.buildAll(surfaces.list()),
@@ -413,7 +413,7 @@ export function createWorkspaceRuntime(
     reloadPiResources: () => driver.reloadPiResources(),
     restoreTurnState: () => driver.restoreFeatureTurnState(),
     publishSurfacesChanged: () => {
-      uixPublisher.surfaces_changed({});
+      substratePublisher.surfaces_changed({});
     },
   });
 
@@ -490,7 +490,7 @@ export function createWorkspaceRuntime(
         },
         "activation_complete",
       );
-      uixPublisher.surfaces_changed({});
+      substratePublisher.surfaces_changed({});
 
       // Restoration must start after initial feature activation: the accepted
       // turn-state cell registry determines which selected-branch state is

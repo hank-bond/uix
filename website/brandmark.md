@@ -16,4 +16,4 @@ Interpolate transforms of these parts, never pixel grids. Keyframe percentages c
 
 `morph-stem`, `morph-x`, and `morph-center` share one timeline. Keep their stops aligned. Pixel art remains crisp only on whole-pixel transforms; half-pixels blur.
 
-The favicon `uix-logo-white.svg` is a separate file from this inlined, morphing version.
+The favicon `logo-white.svg` is a separate file from this inlined, morphing version.

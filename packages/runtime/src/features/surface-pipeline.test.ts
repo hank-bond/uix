@@ -13,7 +13,7 @@ async function writeFeature(
   files: Record<string, string>,
   entry = "surface.tsx",
 ): Promise<ResolvedSurfaceContribution> {
-  const root = await mkdtemp(join(tmpdir(), "uix-surface-test-"));
+  const root = await mkdtemp(join(tmpdir(), "surface-test-"));
   for (const [file, source] of Object.entries(files)) {
     await mkdir(dirname(join(root, file)), { recursive: true });
     await writeFile(join(root, file), source);
@@ -80,13 +80,9 @@ describe("SurfaceModulePipeline", () => {
     );
     const code = await (await response).text();
     expect(code).toContain("bundled in");
-    expect(code).toContain(`globalThis.__uixSharedModules["react"]`);
-    expect(code).toContain(
-      `globalThis.__uixSharedModules["@uix/api/workspace"]`,
-    );
-    expect(code).toContain(
-      `globalThis.__uixSharedModules["@uix/api/settings"]`,
-    );
+    expect(code).toContain(`globalThis.__sharedModules["react"]`);
+    expect(code).toContain(`globalThis.__sharedModules["@uix/api/workspace"]`);
+    expect(code).toContain(`globalThis.__sharedModules["@uix/api/settings"]`);
     // CSS stays a native module script: external, hash-busted, attribute kept.
     expect(code).toMatch(
       /import .* from "uix-resource:\/\/uix\.local\/surface-files\/shiny\/styles\.css\?v=[0-9a-f]{12}" with \{ type: "css" \}/,

@@ -115,7 +115,7 @@ describe("deriveToolChatBlockPresentation", () => {
     expect(summary.collapsedParams).toEqual([{ key: "query", value: "hello" }]);
     expect(part).toBe("tool");
     expect(renderToStaticMarkup(content)).toContain(
-      'data-uix-part="tool-payload"',
+      'data-block-part="tool-payload"',
     );
   });
 
@@ -137,7 +137,7 @@ describe("deriveToolChatBlockPresentation", () => {
       />,
     );
 
-    expect(html).toContain('data-uix-part="tool-params"');
+    expect(html).toContain('data-block-part="tool-params"');
     expect(html).toContain('class="tool-call__param-key">key</span>');
     expect(html).toContain("main");
     expect(html).not.toContain("waiting for result");

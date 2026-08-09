@@ -9,7 +9,7 @@ import { scaffoldWorkspace } from "./scaffold";
 
 /** A fake bare-workspace template with one dependency-bearing tool feature. */
 async function makeTemplates(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), "uix-scaffold-templates-"));
+  const dir = await mkdtemp(join(tmpdir(), "scaffold-templates-"));
   const featureDir = join(dir, "features", "pi-tools");
   await mkdir(join(featureDir, "node_modules", "junk"), { recursive: true });
   await writeFile(join(featureDir, "index.ts"), "export const feature = {};\n");
@@ -27,7 +27,7 @@ async function makeTemplates(): Promise<string> {
 describe("scaffoldWorkspace", () => {
   it("copies templates, writes manifest refs and a workspaces package.json, and installs", async () => {
     const templatesDir = await makeTemplates();
-    const workspaceDir = await mkdtemp(join(tmpdir(), "uix-scaffold-ws-"));
+    const workspaceDir = await mkdtemp(join(tmpdir(), "scaffold-ws-"));
     const installedIn: string[] = [];
 
     const result = await scaffoldWorkspace({
@@ -80,7 +80,7 @@ describe("scaffoldWorkspace", () => {
 
   it("returns the install error instead of throwing; files are already in place", async () => {
     const templatesDir = await makeTemplates();
-    const workspaceDir = await mkdtemp(join(tmpdir(), "uix-scaffold-ws-"));
+    const workspaceDir = await mkdtemp(join(tmpdir(), "scaffold-ws-"));
 
     const result = await scaffoldWorkspace({
       templatesDir,
@@ -96,8 +96,8 @@ describe("scaffoldWorkspace", () => {
   });
 
   it("throws when a template dir is missing (picker surfaces it, no manifest written)", async () => {
-    const templatesDir = await mkdtemp(join(tmpdir(), "uix-scaffold-empty-"));
-    const workspaceDir = await mkdtemp(join(tmpdir(), "uix-scaffold-ws-"));
+    const templatesDir = await mkdtemp(join(tmpdir(), "scaffold-empty-"));
+    const workspaceDir = await mkdtemp(join(tmpdir(), "scaffold-ws-"));
 
     await expect(
       scaffoldWorkspace({

@@ -9,18 +9,18 @@ import {
   createChannelClient,
   useWorkspaceClient,
 } from "@uix/api/workspace";
-import { uixChannels } from "#shared/ipc";
+import { substrateChannels } from "#shared/ipc";
 
 import { useActionRegistry } from "./action-context";
 import type { ActionRegistry } from "./action-registry";
 
-type UixChannelClient = ChannelClient<typeof uixChannels>;
+type SubstrateChannelClient = ChannelClient<typeof substrateChannels>;
 
 export function KeybindingSync(): JSX.Element | null {
   const workspace = useWorkspaceClient();
   const registry = useActionRegistry();
   const client = useMemo(
-    () => createChannelClient(workspace, uixChannels),
+    () => createChannelClient(workspace, substrateChannels),
     [workspace],
   );
 
@@ -36,7 +36,7 @@ export function KeybindingSync(): JSX.Element | null {
 
 export function bindKeybindingSync(
   registry: ActionRegistry,
-  client: UixChannelClient,
+  client: SubstrateChannelClient,
 ): Disposable {
   let active = true;
   let reconciliationQueued = false;

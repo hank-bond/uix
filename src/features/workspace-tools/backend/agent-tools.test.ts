@@ -68,7 +68,7 @@ describe("file tool overrides", () => {
   });
 
   it("delegates execution to Pi under the execution cwd", async () => {
-    const cwd = await mkdtemp(join(tmpdir(), "uix-workspace-tools-"));
+    const cwd = await mkdtemp(join(tmpdir(), "workspace-tools-"));
     await writeFile(join(cwd, "input.txt"), "hello\n", "utf8");
     const ctx = {
       cwd,

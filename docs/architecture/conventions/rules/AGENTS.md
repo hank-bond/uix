@@ -26,6 +26,7 @@ The card format and its structural checks live in [`../contributing.md`](../cont
 - **[naming.imported-term](./naming.imported-term.md)** _(reference)._ An imported term can retain the meaning and grammar of its source API when UIX directly represents the external concept.
 - **[naming.operation](./naming.operation.md)** _(reference)._ Name a UIX-owned function or method with an approved operation form, a verb phrase by default.
 - **[naming.operation-result](./naming.operation-result.md)** _(reference)._ Pair a transition verb with the result's domain role when an operation names a result or lifecycle transition.
+- **[naming.project-prefix](./naming.project-prefix.md)** _(reference)._ Do not prefix a project-owned name with the project name.
 - **[naming.property-access](./naming.property-access.md)** _(reference)._ Expose a stable property as a readonly property and name a method with the operation that produces or retrieves its result.
 - **[naming.qualifier](./naming.qualifier.md)** _(reference)._ Omit a prepositional qualifier that only repeats the receiver or parameter role.
 - **[naming.react-component](./naming.react-component.md)** _(reference)._ Name a React component with a PascalCase noun phrase.

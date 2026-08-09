@@ -28,6 +28,16 @@ The naming rules in [`rules/`](./rules/) state the invariants. This file explain
 - Use `Buffer` for live, feature-specific working projections over a store. Buffers may cache regenerable state, normalize writes, and reconcile feature/editor semantics, but durable authority stays in the backing store.
 - Use `Registry` for central in-memory maps of contributed things plus their routing (`ChannelRegistry`, `SettingsRegistry`). Registries do not persist.
 
+## Owned-name prefixes
+
+Project-owned names do not use the project name as a prefix. The repository, package, or owning feature is already the namespace. Each prefix is one more mention a project rename must chase down.
+
+The project name is reserved for names that live in a namespace shared with contributed or external components. There, the prefix is the discrete namespace separating system-owned names from theirs ([naming.project-prefix](./rules/naming.project-prefix.md)).
+
+Vale styles use plain names (`grammar`, `lexicon`, `comments`). Internal symbols use plain names (`substrateChannels`). Feature-authored markers in content use the feature's name (`data-canvas-prompt`, `canvas:writeback`).
+
+Substrate IPC channel names, the resource origin, the surface-root marker, the agent-context envelope, and the workspace manifest keep the reserved prefix. They must be recognizable inside streams or catalogs the system does not fully own.
+
 ## Projection naming
 
 Describe a projection through the axes that can change its result. Not every projection uses every axis. Names, parameters, and result fields must let callers predict the view.

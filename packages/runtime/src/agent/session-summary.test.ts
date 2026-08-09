@@ -42,7 +42,7 @@ function userMessage(text: string): {
 
 describe("readRecentSessionSummaries", () => {
   it("returns the bounded recent projection in mtime order", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "uix-session-summary-"));
+    const dir = await mkdtemp(join(tmpdir(), "session-summary-"));
     dirs.push(dir);
     const newestPath = join(dir, "newest.jsonl");
     const middlePath = join(dir, "middle.jsonl");
@@ -94,7 +94,7 @@ describe("readRecentSessionSummaries", () => {
 
 describe("readSessionFileSummary", () => {
   it("reads the header, first user message, and latest explicit title", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "uix-session-summary-"));
+    const dir = await mkdtemp(join(tmpdir(), "session-summary-"));
     dirs.push(dir);
     const path = join(dir, "session.jsonl");
     await writeFile(
@@ -148,7 +148,7 @@ describe("readSessionFileSummary", () => {
   });
 
   it("lets the latest session-info entry clear the name", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "uix-session-summary-"));
+    const dir = await mkdtemp(join(tmpdir(), "session-summary-"));
     dirs.push(dir);
     const path = join(dir, "session.jsonl");
     await writeFile(
@@ -185,7 +185,7 @@ describe("readSessionFileSummary", () => {
   });
 
   it("skips a file without a valid session header", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "uix-session-summary-"));
+    const dir = await mkdtemp(join(tmpdir(), "session-summary-"));
     dirs.push(dir);
     const path = join(dir, "session.jsonl");
     await writeFile(path, '{"type":"message"}\n');

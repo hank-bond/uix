@@ -92,9 +92,9 @@ export const SurfaceEntrySchema = Type.Object({
 });
 export type SurfaceEntry = Static<typeof SurfaceEntrySchema>;
 
-// Substrate workspace channels under the reserved `uix` id: the surface
+// Substrate page channels under the reserved `uix` id: the surface
 // composition the renderer mounts. Same contract discipline as agentChannels.
-export const uixChannels = {
+export const substrateChannels = {
   feature: "uix",
   requests: {
     surfaces: {

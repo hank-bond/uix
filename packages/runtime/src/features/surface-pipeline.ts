@@ -80,16 +80,16 @@ const escapeForRegExp = (value: string): string =>
  * identity.
  */
 const sharedModulesPlugin: Plugin = {
-  name: "uix-shared-modules",
+  name: "shared-modules",
   setup(builder) {
     const filter = new RegExp(
       `^(${SurfaceSharedModules.map(escapeForRegExp).join("|")})$`,
     );
     builder.onResolve({ filter }, (args) => ({
       path: args.path,
-      namespace: "uix-shared",
+      namespace: "shared",
     }));
-    builder.onLoad({ filter: /.*/, namespace: "uix-shared" }, (args) => ({
+    builder.onLoad({ filter: /.*/, namespace: "shared" }, (args) => ({
       contents: `module.exports = globalThis.${SurfaceSharedGlobal}[${JSON.stringify(args.path)}];`,
       loader: "js",
     }));
@@ -267,7 +267,7 @@ export class SurfaceModulePipeline {
   #cssPlugin(featureId: string, featureRoot: string): Plugin {
     const workspaceId = this.#workspaceId;
     return {
-      name: "uix-surface-css",
+      name: "surface-css",
       setup: (builder) => {
         builder.onResolve({ filter: /\.css$/ }, async (args) => {
           if (args.with["type"] !== "css") {

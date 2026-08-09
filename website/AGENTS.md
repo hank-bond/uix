@@ -14,7 +14,7 @@ GitHub Pages serves the public UIX landing page at **uix.sh**. It is a _zero-bui
 | `index.html` | Markup. One page: sticky bar, hero (the brandmark), mock app. |
 | `styles.css` | All styling + the scroll-driven animation. Sectioned. Read its header comment. |
 | `mock.js` | Toggles the mock theme and slows the arrow's click-scroll. It never changes user-driven scrolling. |
-| `uix-logo-white.svg` | Favicon. The page inlines the brandmark in `index.html`. |
+| `logo-white.svg` | Favicon. The page inlines the brandmark in `index.html`. |
 | `CNAME` | `uix.sh` for Pages. |
 
 [`pages.yml`](../.github/workflows/pages.yml) publishes `website/` to Pages after a push to the `website` branch. The workflow also publishes these public documentation files.

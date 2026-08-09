@@ -1,6 +1,6 @@
 # Uppercase the product name Pi in prose. The name stays lowercase inside
 # identifiers and file slugs (pi-extension, 2026-06-05-pi-self-extension-ethos),
-# so the guard mirrors the uix rule and skips [./-] continuations.
+# so the guard mirrors the capitalization rule and skips [./-] continuations.
 extends: existence
 message: "Capitalize Pi when naming the product."
 level: error

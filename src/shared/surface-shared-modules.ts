@@ -23,4 +23,4 @@ export const SurfaceSharedModules = [
 export type SurfaceSharedModule = (typeof SurfaceSharedModules)[number];
 
 /** The well-known global the page hangs the shared module instances on. */
-export const SurfaceSharedGlobal = "__uixSharedModules";
+export const SurfaceSharedGlobal = "__sharedModules";
