@@ -1,5 +1,5 @@
 ---
-summary: "Product and distribution: UIX provides workspace runtime, client, and host infrastructure; core UIX serves engineers, Fruition packages an Electron host with an app composition, and a hosted product later uses isolated server-hosted runtimes."
+summary: "Product and distribution: UIX provides workspace runtime, client, and host infrastructure; core UIX serves engineers, Fruition packages an Electron host with an app composition, and a hosted product later runs one host instance per user in a VM."
 kind: explanation
 ---
 
@@ -15,7 +15,7 @@ Three tiers use the same substrate implementation:
 
 - **Core UIX:** The runtime, browser client, server host, CLI, and launcher contracts. It is Electron-free and does not silently install chat, canvas, developer skills, or another app composition.
 - **Fruition:** A batteries-included app that combines the Electron host with opinionated workspaces, features, defaults, skills, onboarding, and guardrails. It starts as an in-repository composition and earns its own repository later.
-- **Hosted Fruition:** The server host plus a Fruition composition, with workspace runtimes isolated according to platform policy. Identity, tenancy, OAuth, and a feature marketplace remain platform-layer work.
+- **Hosted Fruition:** One host instance per user in a VM, running the server host plus a Fruition composition. Identity, tenancy, OAuth, and a feature marketplace remain platform-layer work.
 
 The local server can supervise zero or more workspace runtimes in one process. A native launcher starts the server, discovers its advertised address, queries its machine-readable workspace catalog, and opens canonical workspace-session URLs. It is convenience infrastructure rather than an app composition. The web launcher and the native launcher are clients of the same catalog service.
 
@@ -27,7 +27,7 @@ The monorepo separates reusable substrate packages, hosts, and app source. `pack
 
 **Runtime, not framework.** Pi users want to compose rather than adopt. UIX runs an explicit workspace and activates its chosen features. Tradeoff: a runtime is a harder story to tell than a framework, so repository and website vocabulary must carry the distinction.
 
-**Runtime instances are workspace-scoped.** One host can supervise several runtime instances in one process or isolate them across processes. Tradeoff: the host needs a workspace supervisor, but no workspace runtime gains sibling-workspace policy or global mutable state.
+**Runtime instances are workspace-scoped.** One host supervises several runtime instances in one process, and each runtime's lifetime bag isolates its workspace. Process isolation is not a goal; a hosted deployment isolates users by VM. Tradeoff: the host needs a workspace supervisor, but no workspace runtime gains sibling-workspace policy or global mutable state.
 
 **Hosts are infrastructure, apps are compositions.** Electron and server are host implementations. Fruition and repository demos combine a host with selected workspaces and features. Tradeoff: distribution wiring becomes explicit rather than hiding defaults inside a host.
 
@@ -43,7 +43,7 @@ The monorepo separates reusable substrate packages, hosts, and app source. `pack
 
 **Fruition is a composition, not a fork.** It uses the same host and runtime boundaries as core UIX. Its guardrails use ordinary substrate facets such as skills, system-prompt sections, tools, settings, and surfaces. Tradeoff: product needs must either fit those primitives or justify improving the shared substrate rather than diverging.
 
-**Hosted and marketplace work remains deferred.** The server host and workspace isolation boundary preserve a path to one or more runtime processes per user. Stranger-code trust, identity, tenancy, and marketplaces stay outside the local runtime design. Tradeoff: core UIX does not claim that changing a bind address creates a hosted architecture.
+**Hosted and marketplace work remains deferred.** A hosted deployment runs one host instance per user in a VM, so it needs no process-isolation protocol beyond the local architecture. Stranger-code trust, identity, tenancy, and marketplaces stay outside the local runtime design. Tradeoff: core UIX does not claim that changing a bind address creates a hosted architecture.
 
 ## Log
 
@@ -57,7 +57,9 @@ Open questions: Fruition's repo timing (leaning in-repo composition until it is 
 
 ### 2026-08-09: hosts, workspace runtimes, and app compositions
 
-Separated host infrastructure from app composition. Electron and server are discrete hosts. Each active workspace receives one runtime instance, while a host-level supervisor can keep several runtimes in one process or route them to isolated processes. A global multi-workspace runtime was rejected because workspace placement and retirement are host policy.
+Separated host infrastructure from app composition. Electron and server are discrete hosts. Each active workspace receives one runtime instance, while a host-level supervisor keeps several runtimes in one process behind lifetime-bag isolation. A global multi-workspace runtime was rejected because workspace retention and retirement are host policy.
+
+Settled the hosted model as VM-per-user isolation. Local usage has no trust boundary between workspaces, and a hosted deployment gives each user a VM running one host instance, which is the local architecture unchanged. Process-isolated workspace runtimes and any cross-process runtime protocol are no longer part of the design.
 
 Moved launcher semantics above workspace runtimes. The web picker, CLI JSON, Electron picker, and native macOS supervisor consume one catalog projection through different adapters. A host can serve the launcher with zero active workspaces and lazily create runtimes from canonical workspace-session URLs.
 

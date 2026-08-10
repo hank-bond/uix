@@ -12,7 +12,7 @@ The highest-risk questions land first as executable architecture:
 
 1. Can two real workspace runtimes with duplicate feature, channel, and resource ids coexist and dispose independently in one process?
 2. Can one workspace runtime host concurrent real Pi agents on separate sessions with single-flight boot, retention, retargeting, and safe teardown?
-3. Can one attachment and scoped dispatch boundary support in-memory tests, Electron IPC, WebSocket connections, and later process proxies without feature contracts learning transport fields?
+3. Can one attachment and scoped dispatch boundary support in-memory tests, Electron IPC, and WebSocket connections without feature contracts learning transport fields?
 
 Broad source movement and host implementation follow only after those gates pass. A failed gate pauses the plan and reopens the design rather than adding compatibility around a wrong boundary.
 
@@ -27,7 +27,7 @@ Host process
 │   ├── WorkspaceHandle → WorkspaceRuntime A
 │   │   └── agent instance manager
 │   └── WorkspaceHandle → WorkspaceRuntime B
-│       └── local or proxy handle
+│       └── agent instance manager
 └── platform and transport adapters
 ```
 
@@ -53,8 +53,8 @@ The exact shared host package name remains reviewable in the first unit. The own
 
 ## Load-bearing boundaries
 
-- **One runtime instance owns one workspace.** A host can create several instances in one process or route workspace handles to isolated processes.
-- **The supervisor owns workspace policy.** Workspace ids, runtime boot coalescing, workspace retention, process placement, and runtime teardown do not belong to a workspace runtime.
+- **One runtime instance owns one workspace.** A host creates several instances in one process, and each lifetime bag isolates its workspace.
+- **The supervisor owns workspace policy.** Workspace ids, runtime boot coalescing, workspace retention, and runtime teardown do not belong to a workspace runtime.
 - **The runtime owns agent instances.** One primary instance per session is the first policy. Single-flight boot, attachment retention, retargeting, event scope, and safe turn-boundary teardown live inside the workspace runtime.
 - **Hosts route, runtimes dispatch.** A host resolves workspace and physical connection context. A runtime validates canonical channel requests and emits explicitly scoped events. Feature payloads contain no transport or tenancy fields.
 - **No global broadcast semantics.** Workspace, session, and agent-instance events reach only matching attachments. A transport can optimize subscription mechanics without redefining delivery scope.
@@ -97,11 +97,11 @@ Build the smallest executable contracts for workspace supervision, workspace han
 - An attachment dispatching requests and retargeting its session.
 - Workspace, session, and agent-instance event scopes.
 - Workspace and attachment retention with deterministic disposal.
-- A local handle and a future proxy handle behind the same host-facing shape.
+- A host-facing `WorkspaceHandle` interface whose only implementation is the local handle.
 
 Use fake runtimes and agents. Avoid Electron, WebSocket, HTTP, Pi, and feature loading. The scenarios should prove two workspaces with identical canonical ids, several attachments on one session, independent retargeting, scoped event delivery, failed-target rollback, and disposal isolation.
 
-**Review gate:** The in-memory scenarios read as the architecture described in the design notes. No contract assumes one global selected session, one workspace per process, transport-wide broadcast, or in-process runtime placement.
+**Review gate:** The in-memory scenarios read as the architecture described in the design notes. No contract assumes one global selected session or transport-wide broadcast, and runtime isolation is in-process through lifetime bags.
 
 ### H3: Prove concurrent real workspace runtimes
 
@@ -138,7 +138,7 @@ Implement and test:
 
 Use real Pi integration rather than proving only a generic pool. A configurable warm-retention period, always-on instances, host-authored retention, multiple agents on one session, and branch coordination remain later policies.
 
-**Review gate:** Real Pi sessions and stateful features satisfy the lifecycle above without process-global collisions, cross-session event leakage, or shared branch-state mutation. If Pi or feature state cannot support concurrent in-process instances, stop and revisit the state model or process placement. Neither host should depend on the shape first.
+**Review gate:** Real Pi sessions and stateful features satisfy the lifecycle above without process-global collisions, cross-session event leakage, or shared branch-state mutation. If Pi or feature state cannot support concurrent in-process instances, stop and revisit the state model. Neither host should depend on the shape first.
 
 ### H5: Extract the shared launcher and workspace clients
 
@@ -204,7 +204,6 @@ Perform the local-server threat review before allowing non-loopback binding. Def
 - Host-authored background agent retention and cron orchestration.
 - Multiple branch-bound agents on one durable session tree.
 - Ephemeral call-and-response agents.
-- The isolated workspace-handle process protocol and worker implementation.
 - Remote identity, tenancy, authorization, collaboration, and hosted persistence.
 - Non-loopback server operation before a separate security model.
 - Fruition onboarding, defaults, subscription UX, installers, updates, and final repository timing.
@@ -218,6 +217,7 @@ Perform the local-server threat review before allowing non-loopback binding. Def
 - Replacing Electron with another desktop shell.
 - Building the native launcher UI.
 - Building Fruition or hosted Fruition.
+- Process-isolated workspace runtimes. Local isolation is in-process lifetime bags, and a hosted deployment isolates users by VM.
 - Adding implicit feature discovery or compiled-in default features.
 
 ## Completion gate

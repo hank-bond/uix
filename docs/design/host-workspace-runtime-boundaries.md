@@ -8,7 +8,7 @@ status: exploring
 
 ## Current synthesis
 
-A _host_ owns process and platform integration. A _workspace runtime_ owns the substrate semantics for exactly one workspace. A _supervisor_ sits inside the host and maps workspace ids to workspace handles. A local handle wraps an in-process runtime; a proxy handle routes to a runtime in another process. The supervisor can keep several runtimes in one process or isolate each one without changing the host-facing model.
+A _host_ owns process and platform integration. A _workspace runtime_ owns the substrate semantics for exactly one workspace. A _supervisor_ sits inside the host and maps workspace ids to workspace handles. A workspace handle wraps one in-process runtime. The supervisor keeps several runtimes in one process, and each runtime's lifetime bag preserves teardown isolation. Process isolation is not a goal: a hosted deployment isolates users by VM, and local usage has no trust boundary between workspaces.
 
 ```text
 Host process
@@ -25,7 +25,7 @@ The supervisor coalesces concurrent runtime boots and owns workspace-level reten
 
 The host resolves a connection's workspace id before it reaches a runtime. The selected workspace runtime creates an attachment that resolves the session and agent instance. This creates two parallel lifetime levels: the supervisor maps a workspace id to a coalesced runtime boot, and one workspace runtime maps an agent target to a single-flight instance boot. [`agent-session-routing.md`](./agent-session-routing.md) owns attachment retargeting and agent-instance teardown.
 
-Hosts own physical connections, URL routing, origin and authentication policy, native capabilities, process lifecycle, and the choice between local and proxy handles. Runtime request dispatch receives host-stamped attachment context outside feature payloads. Runtime events name a workspace, session, or agent-instance delivery scope, and the host delivers them to matching connections. Feature channel contracts do not contain transport, tenancy, or connection-routing fields.
+Hosts own physical connections, URL routing, origin and authentication policy, native capabilities, and process lifecycle. Runtime request dispatch receives host-stamped attachment context outside feature payloads. Runtime events name a workspace, session, or agent-instance delivery scope, and the host delivers them to matching connections. Feature channel contracts do not contain transport, tenancy, or connection-routing fields.
 
 The runtime declares its dependencies, and the host provides them. Channel transport, resource delivery, `openExternal`, the Pi profile directory, and the API module directory are dependencies from the runtime's perspective. An adapter is the translator that binds one communication or platform capability to another.
 
@@ -88,7 +88,6 @@ The dependency direction is one-way: runtime, client, and feature implementation
 ## Open questions
 
 - What workspace-level retention and teardown policy should the first supervisor use after the last connection leaves?
-- Which protocol should a proxy handle use when a host places a runtime in another process?
 - Which workspace registration operations belong in the first server launcher rather than the later native launcher?
 - Does the first server process expose one configured workspace catalog or aggregate several configured roots?
 
@@ -105,6 +104,10 @@ Placed the launcher above all workspace runtimes. The server can serve `/` with 
 Separated hosts from apps in the repository model. Hosts provide infrastructure. Apps combine a host with explicit feature and workspace compositions. Reusable app features can live under `apps/features`, and workspace-specific features can live beside each manifest without introducing auto-discovery.
 
 Settled the injected-effects vocabulary as `dependencies`, the runtime handle as `WorkspaceHandle`, and the external macOS client as the `native launcher` consuming host capability endpoints. The server advertises its address and the native launcher discovers it.
+
+### 2026-08-09: process isolation dropped; the runtime is in-process by construction
+
+Removed the proxy handle and process isolation from the host model. Local usage has no trust boundary between workspaces, so lifetime-bag isolation inside one process is the whole isolation story. A hosted deployment isolates users by VM, which needs no cross-process runtime protocol. The workspace boot factory remains the composition seam, and the runtime contract stays runtime-shaped.
 
 ### 2026-08-09: H1 creates the ownership roots and package graph
 
