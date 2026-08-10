@@ -1,0 +1,21 @@
+{
+  "name": "@uix/client",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Launcher and workspace browser clients: host-neutral UI entries that receive constructed adapters and never detect concrete hosts. Source-only local package until H5 fills it.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "types": "./src/index.ts",
+  "files": [
+    "src"
+  ]
+}

@@ -15,6 +15,10 @@
     "paths": {
       "@uix/api": ["./packages/api/src/index.ts"],
       "@uix/api/*": ["./packages/api/src/*.ts"],
+      "@uix/runtime": ["./packages/runtime/src/index.ts"],
+      "@uix/runtime/*": ["./packages/runtime/src/*.ts"],
+      "@uix/host": ["./packages/host/src/index.ts"],
+      "@uix/host/*": ["./packages/host/src/*.ts"],
       "#backend/*": ["./src/main/*"],
       "#features/*": ["./src/features/*"],
       "#shared/*": ["./src/shared/*"]
@@ -22,6 +26,11 @@
   },
   "include": [
     "packages/api/src/**/*.ts",
+    "packages/runtime/src/**/*.ts",
+    "packages/host/src/**/*.ts",
+    "hosts/electron/**/*.ts",
+    "hosts/server/**/*.ts",
+    "apps/features/**/backend/**/*.ts",
     "src/main/**/*.ts",
     "src/features/*/index.ts",
     "src/features/**/backend/**/*.ts",

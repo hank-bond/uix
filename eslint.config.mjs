@@ -209,6 +209,69 @@ const uixLintPlugin = {
   },
 };
 
+// Ownership-root dependency graph (plans/electron-server-split.md H1). One-way
+// edges: substrate packages and feature implementations depend only on @uix/api
+// author contracts; concrete hosts compose the shared packages but never each
+// other or app features. Each block re-declares the bare-node-builtin paths so
+// replacing the global no-restricted-imports rule for these files does not lose
+// the node: prefix enforcement.
+const ownershipBoundaryForbidden = {
+  "packages/runtime/**/*.{ts,tsx}": [
+    "@uix/client",
+    "@uix/host*",
+    "**/hosts/**",
+    "**/apps/**",
+  ],
+  "packages/client/**/*.{ts,tsx}": [
+    "@uix/runtime",
+    "@uix/host*",
+    "**/hosts/**",
+    "**/apps/**",
+  ],
+  "packages/host/**/*.{ts,tsx}": [
+    "@uix/client",
+    "@uix/host-electron",
+    "@uix/host-server",
+    "**/hosts/**",
+    "**/apps/**",
+  ],
+  "apps/**/*.{ts,tsx}": [
+    "@uix/runtime",
+    "@uix/client",
+    "@uix/host*",
+    "**/hosts/**",
+    "**/apps/**",
+  ],
+  "hosts/electron/**/*.{ts,tsx}": [
+    "@uix/host-server*",
+    "**/hosts/server/**",
+    "**/apps/**",
+  ],
+  "hosts/server/**/*.{ts,tsx}": [
+    "@uix/host-electron*",
+    "**/hosts/electron/**",
+    "**/apps/**",
+  ],
+};
+
+export const ownershipBoundaryRules = Object.entries(
+  ownershipBoundaryForbidden,
+).map(([glob, forbidden]) => ({
+  files: [glob],
+  rules: {
+    "no-restricted-imports": [
+      "error",
+      {
+        paths: bareNodeBuiltinImports,
+        patterns: forbidden.map((pattern) => ({
+          group: [pattern],
+          message: `Ownership-root boundary: this root must not import ${pattern}. See plans/electron-server-split.md H1.`,
+        })),
+      },
+    ],
+  },
+}));
+
 export default tseslint.config(
   {
     ignores: [
@@ -549,6 +612,9 @@ export default tseslint.config(
       "simple-import-sort/exports": "error",
     },
   },
+
+  // Ownership-root dependency graph — see plans/electron-server-split.md H1.
+  ...ownershipBoundaryRules,
 
   // Prettier last — disables stylistic rules that would fight the
   // formatter.

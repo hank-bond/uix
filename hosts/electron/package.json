@@ -1,0 +1,7 @@
+{
+  "name": "@uix/host-electron",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Electron composition root and adapters: native chrome, IPC, protocol, windows, and client bootstraps over the shared supervisor, runtime, and clients. Empty until H7 reconstitutes the Electron host.",
+  "type": "module"
+}

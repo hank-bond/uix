@@ -25,7 +25,16 @@ const layers = [
   {
     dir: ".",
     kind: "container",
-    children: ["src/main", "src/docs", "docs", "plans", "website"],
+    children: [
+      "src/main",
+      "src/docs",
+      "docs",
+      "plans",
+      "website",
+      "packages",
+      "hosts",
+      "apps",
+    ],
   },
   { dir: "docs", kind: "container" },
   { dir: "docs/contributing", kind: "container" },
@@ -38,10 +47,22 @@ const layers = [
   { dir: "plans", sort: "slug-asc" },
   { dir: "src/docs", sort: "slug-asc" },
   { dir: "website", sort: "slug-asc" },
+  { dir: "hosts", kind: "container" },
+  { dir: "apps", kind: "container" },
 ];
 
 const SOURCE_ROOTS = ["src", "scripts", "templates", "packages"];
-const SOURCE_EXCLUDED_DIRECTORIES = new Set(["src/docs"]);
+// Directories under a source root that carry a hand-authored AGENTS.md without a
+// generated source index. src/docs is a documentation layer. The package roots
+// are empty ownership roots until later plan units fill them: remove a
+// packages/* entry when that package earns at least two production source owners.
+const SOURCE_EXCLUDED_DIRECTORIES = new Set([
+  "src/docs",
+  "packages/api",
+  "packages/runtime",
+  "packages/client",
+  "packages/host",
+]);
 
 const START = "<!-- INDEX:START -->";
 const END = "<!-- INDEX:END -->";
@@ -312,10 +333,15 @@ function collectSourceIndexDirectories(repositoryRoot) {
   const directories = [];
 
   function visit(directory) {
-    if (SOURCE_EXCLUDED_DIRECTORIES.has(directory)) return;
     const absoluteDirectory = join(repositoryRoot, directory);
     if (!existsSync(absoluteDirectory)) return;
-    if (existsSync(join(absoluteDirectory, "AGENTS.md"))) {
+    // Excluded directories are not source-indexed themselves, but their children
+    // still are: src/docs is a doc layer, and the empty package roots keep
+    // hand-authored AGENTS.md until they earn production source.
+    if (
+      !SOURCE_EXCLUDED_DIRECTORIES.has(directory) &&
+      existsSync(join(absoluteDirectory, "AGENTS.md"))
+    ) {
       directories.push(directory);
     }
     for (const name of readdirSync(absoluteDirectory)) {

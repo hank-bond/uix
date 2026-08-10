@@ -85,6 +85,8 @@ Apply these rules before reaching for subsystem details:
 
 The `src/docs/` tree hosts the user-implementation how-tos. The `docs/` tree contains cross-boundary architecture, workflows, external context, decisions, design threads, and documentation practice. Root-level `plans/` tracks builds. The `website/` directory contains the public uix.sh marketing site.
 
+The repository separates ownership roots: reusable substrate packages under [`packages/`](packages/AGENTS.md), concrete host composition roots under [`hosts/`](hosts/AGENTS.md), and explicit app compositions under [`apps/`](apps/AGENTS.md). The dependency direction is one-way. Substrate packages and feature implementations depend only on the `@uix/api` author contracts. Concrete hosts compose the shared supervisor, runtime, and clients. `packages/runtime`, `packages/client`, and `packages/host` are empty ownership roots that later plan units fill. The [`electron-server-split`](plans/electron-server-split.md) plan drives them.
+
 <!-- INDEX:START -->
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
@@ -94,6 +96,9 @@ The `src/docs/` tree hosts the user-implementation how-tos. The `docs/` tree con
 - **[docs/](./docs/AGENTS.md)** Repository-level documentation holds cross-boundary architecture, workflows, external context, decisions, design threads, and documentation practice.
 - **[plans/](./plans/AGENTS.md)** Active build specs, reviewable delivery units, and a backlog of smaller implementation seeds.
 - **[website/](./website/AGENTS.md)** The zero-build uix.sh landing page uses static HTML, CSS, and JavaScript with a reduced-motion-safe brandmark morph. _Read when editing the landing page, brandmark animation, styles, or favicon._
+- **[packages/](./packages/AGENTS.md)** Reusable substrate packages. api holds the feature-author contracts. runtime, client, and host are empty ownership roots that later plan units fill behind one-way dependency rules. _Deciding whether code belongs in a reusable package, a concrete host, or an app composition._
+- **[hosts/](./hosts/AGENTS.md)** Concrete host composition roots. Each host owns process and platform integration and composes the shared supervisor, runtime, and browser clients behind its own adapters. _Deciding whether code is host-owned (process, platform, transport) or belongs in a shared substrate package._
+- **[apps/](./apps/AGENTS.md)** Explicit app compositions. Reusable app-layer features and reference workspace manifests are never globally discovered. Every manifest selects its entries explicitly. _Deciding whether code is an app feature or belongs in the substrate, or composing a workspace._
 
 <!-- INDEX:END -->
 

@@ -67,6 +67,7 @@ packages/
   api/                 feature-author contracts
   runtime/             one-workspace substrate and agent instances
   client/              launcher and workspace browser clients
+  host/                shared supervision and launcher/catalog contracts
 
 hosts/
   electron/            Electron main, preload, native chrome, and bootstraps
@@ -82,11 +83,10 @@ apps/
 
 An app is a distributable host plus an explicit workspace and feature composition. A host is infrastructure and does not become an app merely because it can display the launcher or workspace client. Entries under `apps/features` are reusable source catalogs, not globally discovered features. Every workspace manifest continues to select its feature entries explicitly.
 
-The dependency direction is one-way: runtime, client, and feature implementations depend on author contracts; hosts compose runtime and client; workspace manifests select shared or local feature entries. Runtime and client packages never import either host, and feature implementations never import runtime or host internals.
+The dependency direction is one-way: runtime, client, and feature implementations depend on author contracts; hosts compose runtime and client; workspace manifests select shared or local feature entries. Runtime and client packages never import either host, and feature implementations never import runtime or host internals. Shared host coordination lives in `packages/host`: the workspace supervisor, workspace and attachment handles, and the machine-readable launcher/catalog projection schemas. The feature-author API never carries host operations, and the launcher/catalog schemas never live inside a workspace runtime because the launcher exists above every runtime.
 
 ## Open questions
 
-- Which package owns the machine-readable launcher and catalog schemas without adding host operations to the feature-author API?
 - What workspace-level retention and teardown policy should the first supervisor use after the last connection leaves?
 - Which protocol should a proxy handle use when a host places a runtime in another process?
 - Which workspace registration operations belong in the first server launcher rather than the later native launcher?
@@ -105,3 +105,7 @@ Placed the launcher above all workspace runtimes. The server can serve `/` with 
 Separated hosts from apps in the repository model. Hosts provide infrastructure. Apps combine a host with explicit feature and workspace compositions. Reusable app features can live under `apps/features`, and workspace-specific features can live beside each manifest without introducing auto-discovery.
 
 Settled the injected-effects vocabulary as `dependencies`, the runtime handle as `WorkspaceHandle`, and the external macOS client as the `native launcher` consuming host capability endpoints. The server advertises its address and the native launcher discovers it.
+
+### 2026-08-09: H1 creates the ownership roots and package graph
+
+Established the target ownership roots with package metadata and enforced the dependency graph before code moves. `packages/runtime`, `packages/client`, and `packages/host` exist as empty source-only packages; `hosts/electron` and `hosts/server` exist as empty composition roots; `apps/features` and `apps/workspaces` exist as explicit composition catalogs. Shared host coordination earns `packages/host` — the workspace supervisor, workspace handles, and the machine-readable launcher/catalog projection schemas — keeping host operations out of the feature-author API and out of every workspace runtime. ESLint now enforces the one-way import graph per ownership root, with a vitest suite proving each boundary fires.

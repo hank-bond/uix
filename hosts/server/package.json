@@ -1,0 +1,7 @@
+{
+  "name": "@uix/host-server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Server composition root and adapters: HTTP, live transport, process lifecycle, and client bootstraps over the shared supervisor, runtime, and clients. Empty until H8 builds the server host.",
+  "type": "module"
+}
