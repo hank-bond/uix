@@ -53,9 +53,10 @@ const layers = [
 
 const SOURCE_ROOTS = ["src", "scripts", "templates", "packages"];
 // Directories under a source root that carry a hand-authored AGENTS.md without a
-// generated source index. src/docs is a documentation layer. The package roots
-// are empty ownership roots until later plan units fill them: remove a
-// packages/* entry when that package earns at least two production source owners.
+// generated source index at that level. src/docs is a documentation layer. The
+// package roots keep a routing AGENTS.md whose src/ subdirectory carries the
+// source index (see packages/api), so these entries stay excluded: the visitor
+// still descends and indexes packages/*/src/AGENTS.md.
 const SOURCE_EXCLUDED_DIRECTORIES = new Set([
   "src/docs",
   "packages/api",
