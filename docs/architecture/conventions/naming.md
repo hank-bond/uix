@@ -10,7 +10,7 @@ The naming rules in [`rules/`](./rules/) state the invariants. This file explain
 
 ## Symbol naming
 
-- A `DisposableBag` that owns cleanup capabilities takes its name from the lifetime it tracks: `appBag`, `windowBag`, `sessionBag`.
+- A `DisposableBag` that owns cleanup capabilities takes its name from the lifetime it tracks: `hostBag`, `windowBag`, `sessionBag`.
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
 - Name symbols for their stable domain role and operation, not their current caller, pipeline position, trigger, owner, or implementation strategy. A name should remain correct if the symbol moves, gains another caller, or changes implementation without changing its essential domain guarantees. Let the receiver provide context (`turnStateCoordinator.restoreCurrent(...)`). Do not repeat that context in every method.
 - Function names describe the observable domain operation. Include distinctions that identify materially different operations or results. Put lifecycle ordering, current usage, race policy, preconditions, and nuanced skipped outcomes in behavioral comments. Do not encode those volatile details into a symbol merely because one caller currently depends on them.

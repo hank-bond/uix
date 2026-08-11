@@ -1,6 +1,6 @@
 // Boots the start picker page that selects a workspace over the preload transport.
 //
-// App shell chrome, not workspace code: this page runs before any workspace
+// Host shell chrome, not workspace code: this page runs before any workspace
 // is open, talks straight over the preload transport (no WorkspaceClient),
 // and the workspace window replaces it once a choice is made.
 

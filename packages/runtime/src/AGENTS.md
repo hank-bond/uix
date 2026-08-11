@@ -1,11 +1,11 @@
 ---
 summary: "The `@uix/runtime` source map: the exactly-one-workspace contract surface (ids, canonical dispatch envelope, scoped events, the runtime interface) plus the real substrate composition behind it."
-read_when: "Implementing the workspace runtime (H3+), or changing the boundary the host composes."
+read_when: "Implementing the workspace runtime, or changing the boundary the host composes."
 ---
 
 # Workspace runtime source map
 
-This package owns the runtime-facing contract and its implementation. H2 defined the smallest executable shape and proved it against fakes. H3 moved the real substrate out of `src/main` behind it. The runtime constructor (`runtime.ts`) composes documents, manifest store, workspace settings, the facet registries, the selected-session agent driver, the surface pipeline, and the reload coordinator. The host imports this package and provides the runtime's dependencies as adapters. Nothing here imports a concrete host, and the envelope carries no transport or tenancy fields.
+This package owns the runtime-facing contract and its implementation. An in-memory proof defined the smallest executable shape. The real substrate then moved out of `src/main` behind it. The runtime constructor (`runtime.ts`) composes documents, manifest store, workspace settings, the facet registries, the selected-session agent driver, the surface pipeline, and the reload coordinator. The host imports this package and provides the runtime's dependencies as adapters. Nothing here imports a concrete host, and the envelope carries no transport or tenancy fields.
 
 ## Contents
 
@@ -25,21 +25,21 @@ This package owns the runtime-facing contract and its implementation. H2 defined
 - **[agent-skill-registry.ts](./agent-skill-registry.ts)** Assembles feature-provided Pi skill paths and provides them when Pi discovers runtime resources.
 - **[agent-system-prompt-registry.ts](./agent-system-prompt-registry.ts)** Assembles each feature's system-prompt section in workspace order for Pi.
 - **[channel-registry.ts](./channel-registry.ts)** Holds the workspace's canonical channel table and routes requests and events with validation at the boundary.
-- **[dispatch.ts](./dispatch.ts)** canonical channel request/response envelope and host-stamped attachment
+- **[dispatch.ts](./dispatch.ts)** The canonical channel request/response envelope and host-stamped attachment context.
 - **[document-store.ts](./document-store.ts)** Persists each document's current content and immutable snapshots under stable namespace and document IDs.
-- **[events.ts](./events.ts)** explicitly scoped runtime events: workspace, session, or agent-instance
-- **[index.ts](./index.ts)** the @uix/runtime public facade re-exporting the workspace-runtime contract
+- **[events.ts](./events.ts)** Explicitly scoped runtime events: workspace, session, or agent-instance delivery.
+- **[index.ts](./index.ts)** The @uix/runtime public facade re-exporting the workspace-runtime contract and its factory.
 - **[lifecycle.ts](./lifecycle.ts)** Provides disposable helpers that clean up component resources with their owners.
 - **[log.ts](./log.ts)** Creates main-process loggers that label messages by component and choose readable or JSON output for the environment.
 - **[manifest-store.ts](./manifest-store.ts)** Reads workspace manifests into staged copies and atomically writes the accepted copy back to disk.
 - **[reload.ts](./reload.ts)** Runs one workspace reload at a time across feature activation, Pi resources, restored state, and renderer notification.
 - **[resource-registry.ts](./resource-registry.ts)** Routes resource URLs to the active feature handlers through one validated boundary.
 - **[roots.ts](./roots.ts)** Finds stable paths for workspace state, the agent working directory, and the manifest from one startup target.
-- **[runtime.ts](./runtime.ts)** the workspace runtime composition: one real exactly-one-workspace runtime
+- **[runtime.ts](./runtime.ts)** Composes the workspace substrate into one exactly-one-workspace runtime over host-provided dependencies.
 - **[settings-namespace.ts](./settings-namespace.ts)** Defines a named, schema-checked group of workspace settings.
 - **[settings-registry.ts](./settings-registry.ts)** Retains validated settings for each live scope, notifies listeners, and delegates persistence to the workspace layer.
 - **[turn-state.ts](./turn-state.ts)** Commits and restores each feature's private branch state in Pi sessions without showing it to the model.
 - **[workspace-settings.ts](./workspace-settings.ts)** Validates a staged manifest's settings, makes them live together, and connects them to their persisted locations.
-- **[workspace.ts](./workspace.ts)** the workspace-runtime contract: ids, session targets, and the
+- **[workspace.ts](./workspace.ts)** The workspace-runtime contract: ids, session targets, and the exactly-one-workspace runtime surface a host composes.
 
 <!-- INDEX:END -->

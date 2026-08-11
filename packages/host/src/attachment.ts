@@ -1,6 +1,7 @@
-// the connection's owned, retargetable attachment handle and its local
-// implementation. The connection dispatches canonical requests, retargets
-// sessions, and receives only the events the workspace router matches to it.
+// The connection's owned, retargetable attachment handle and its implementation.
+//
+// The connection dispatches canonical requests, retargets sessions, and
+// receives only the events the workspace router matches to it.
 
 import type {
   AgentInstanceId,
@@ -15,18 +16,12 @@ import type {
 } from "@uix/runtime";
 import type { AttachmentContext } from "@uix/runtime";
 
-export interface Attachment {
-  readonly attachmentId: AttachmentId;
-  readonly workspaceId: WorkspaceId;
-  readonly sessionId: SessionId;
-  readonly instanceId: AgentInstanceId;
-  dispatch(request: CanonicalRequest): Promise<CanonicalResponse>;
-  retarget(target: SessionTarget): Promise<void>;
-  onEvent(listener: (event: RuntimeEvent) => void): Disposable;
-  dispose(): Promise<void>;
-}
-
-export class LocalAttachment implements Attachment {
+/**
+ * The host-facing attachment: one connection's owned, retargetable binding.
+ * It dispatches canonical requests, retargets sessions, and receives only the
+ * events the workspace router matches to it.
+ */
+export class Attachment {
   readonly #inner: RuntimeAttachment;
   readonly #listeners = new Set<(event: RuntimeEvent) => void>();
   #disposed = false;

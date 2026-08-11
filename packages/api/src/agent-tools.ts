@@ -1,4 +1,4 @@
-// agent tool contribution types.
+// Agent tool contribution types.
 //
 // Ordinary feature tools derive `${featureId}__${name}`. Explicit exact-name
 // contributions retain `name` so a feature can replace a Pi definition or

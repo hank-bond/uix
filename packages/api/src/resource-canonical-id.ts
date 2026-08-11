@@ -1,4 +1,4 @@
-// resource canonical id brand and constructor.
+// Resource canonical id brand and constructor.
 //
 // A resource canonical id is the feature-scoped resource type key used by the
 // resource registry. The resource facet derives it from feature id + local

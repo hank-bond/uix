@@ -1,4 +1,4 @@
-// canvas surface contribution.
+// Canvas surface contribution.
 
 import { defineSurface } from "@uix/api/workspace";
 

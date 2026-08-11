@@ -1,4 +1,4 @@
-// chat feature entry.
+// Chat feature entry.
 //
 // Chat is a renderer-only feature: it contributes one surface over the
 // substrate-owned agent channels (prompt/history/event) and nothing else.

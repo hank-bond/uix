@@ -14,6 +14,7 @@ The card format and its structural checks live in [`../contributing.md`](../cont
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
+- **[documentation.plan-reference](./documentation.plan-reference.md)** _(reference)._ Do not reference plans, plan units, or the timing of future work in code, comments, or non-plan documentation.
 - **[lifetimes.paired-cleanup](./lifetimes.paired-cleanup.md)** _(reference)._ Do not attach a listener, handler, subscription, or timer without directly pairing its cleanup.
 - **[logging.component-logger](./logging.component-logger.md)** _(reference)._ Main-process logging uses component-scoped structured pino loggers, never console calls.
 - **[module-boundaries.export-minimum](./module-boundaries.export-minimum.md)** _(reference)._ Do not export a symbol until another module needs to import that symbol by name.

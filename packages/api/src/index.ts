@@ -1,4 +1,4 @@
-// the `@uix/api` public facade re-exporting shared feature-author contracts.
+// The `@uix/api` public facade re-exporting shared feature-author contracts.
 //
 // The package entry behind the `@uix/api` import. Features that need only the
 // shared contract subset import it through this facade, while feature and

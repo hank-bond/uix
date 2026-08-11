@@ -1,4 +1,4 @@
-// feature workspace client and surface contracts.
+// Feature workspace client and surface contracts.
 //
 // The renderer-facing author surface: the workspace client and session handle
 // bind feature components to the selected session, the providers and hooks

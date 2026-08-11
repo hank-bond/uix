@@ -1,4 +1,4 @@
-// action contribution and catalog contracts.
+// Action contribution and catalog contracts.
 //
 // Features declare nested leaf and group actions. The substrate resolves the
 // accepted contributions into a catalog of entries that hold bindings,

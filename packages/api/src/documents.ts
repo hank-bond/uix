@@ -1,4 +1,4 @@
-// document store contract.
+// Document store contract.
 //
 // Type-only definition of the document-store seam. Features declare their
 // dependency on DocumentStoreFactory through FeatureContext.documents. The

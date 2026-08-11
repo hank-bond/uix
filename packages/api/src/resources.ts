@@ -1,4 +1,4 @@
-// resource address capability and contribution type.
+// Resource address capability and contribution type.
 //
 // ResourceContribution is the type feature authors declare in their
 // FeatureContributions.resources array. The substrate registers and dispatches

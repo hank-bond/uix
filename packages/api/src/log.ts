@@ -1,4 +1,4 @@
-// feature logger contract.
+// Feature logger contract.
 //
 // The minimal structured-logging surface features receive via
 // FeatureContext.log. One call shape: `log.info({ ...fields }, "event_name")`.

@@ -93,11 +93,11 @@ The dependency direction is one-way: runtime, client, and feature implementation
 
 ## Log
 
-### 2026-08-09: H3 extracts the workspace substrate into the runtime package
+### 2026-08-09: The workspace substrate moves into the runtime package
 
-Moved the Electron-free backend substrate out of `src/main` into `packages/runtime`: documents, manifest store, workspace settings, settings registry, channel registry, resource registry, turn state, the agent tool/prompt/skill/context registries, feature loading, the surface registry and pipeline, the selected-session agent driver, keybindings, and the reload coordinator. `createWorkspaceRuntime` now composes the whole substrate behind the H2 `WorkspaceRuntime` contract over host-provided ports: the channel transport, the resource transport, `openExternal`, the Pi profile directory, and the API module directory. The channel registry holds the canonical table that both the host transport binding and the attachment dispatch path route through, and `dispatch(context, request)` receives host-stamped attachment context outside feature payloads.
+Moved the Electron-free backend substrate out of `src/main` into `packages/runtime`: documents, manifest store, workspace settings, settings registry, channel registry, resource registry, turn state, the agent tool/prompt/skill/context registries, feature loading, the surface registry and pipeline, the selected-session agent driver, keybindings, and the reload coordinator. `createWorkspaceRuntime` now composes the whole substrate behind the `WorkspaceRuntime` contract over host-provided ports: the channel transport, the resource transport, `openExternal`, the Pi profile directory, and the API module directory. The channel registry holds the canonical table that both the host transport binding and the attachment dispatch path route through, and `dispatch(context, request)` receives host-stamped attachment context outside feature payloads.
 
-The Electron app remains a concrete host in `src/main`: `openWorkspace` constructs one runtime over Electron ports and keeps windows, the menu, the picker, recents, and the reload IPC channel. No Electron import exists in the runtime package, and `hosts/electron` remains empty until H7 reconstitutes the host. The H3 isolation suite proves two concurrent workspaces with duplicate feature, channel, resource, and settings ids, exercising activation, settings, documents, dispatch, resources, surfaces, independent reload, scoped events, and disposal isolation.
+The Electron app remains a concrete host in `src/main`: `openWorkspace` constructs one runtime over Electron ports and keeps windows, the menu, the picker, recents, and the reload IPC channel. No Electron import exists in the runtime package, and `hosts/electron` remains an empty root. The runtime isolation suite proves two concurrent workspaces with duplicate feature, channel, resource, and settings ids, exercising activation, settings, documents, dispatch, resources, surfaces, independent reload, scoped events, and disposal isolation.
 
 ### 2026-08-09: hosts supervise one-workspace runtimes
 
@@ -115,6 +115,6 @@ Settled the injected-effects vocabulary as `dependencies`, the runtime handle as
 
 Removed the proxy handle and process isolation from the host model. Local usage has no trust boundary between workspaces, so lifetime-bag isolation inside one process is the whole isolation story. A hosted deployment isolates users by VM, which needs no cross-process runtime protocol. The workspace boot factory remains the composition seam, and the runtime contract stays runtime-shaped.
 
-### 2026-08-09: H1 creates the ownership roots and package graph
+### 2026-08-09: Ownership roots and the package graph land
 
 Established the target ownership roots with package metadata and enforced the dependency graph before code moves. `packages/runtime`, `packages/client`, and `packages/host` exist as empty source-only packages; `hosts/electron` and `hosts/server` exist as empty composition roots; `apps/features` and `apps/workspaces` exist as explicit composition catalogs. Shared host coordination earns `packages/host` — the workspace supervisor, workspace handles, and the machine-readable launcher/catalog projection schemas — keeping host operations out of the feature-author API and out of every workspace runtime. ESLint now enforces the one-way import graph per ownership root, with a vitest suite proving each boundary fires.

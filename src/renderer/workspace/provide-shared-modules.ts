@@ -1,7 +1,7 @@
 // Provides page-shared module instances for runtime surfaces.
 //
 // esbuild bundles surface modules while leaving the blessed bare specifiers
-// as virtual modules that read this global (src/shared/surface-shared-modules.ts).
+// as virtual modules that read this global (@uix/api/surface-shared-modules).
 // Populating it here, imported first by the page entry, guarantees one
 // React (hooks in surface components work), one typebox, one @uix/api.
 // Each entry includes `__esModule` and a `default` so esbuild's CJS interop
@@ -17,11 +17,11 @@ import * as typeboxValue from "typebox/value";
 import * as agentChannelsApi from "@uix/api/agent-channels";
 import * as resourcesApi from "@uix/api/resources";
 import * as settingsApi from "@uix/api/settings";
-import * as workspaceApi from "@uix/api/workspace";
 import {
   SurfaceSharedGlobal,
   type SurfaceSharedModule,
-} from "#shared/surface-shared-modules";
+} from "@uix/api/surface-shared-modules";
+import * as workspaceApi from "@uix/api/workspace";
 
 function toShared(ns: object): Record<string, unknown> {
   const entries = ns as Record<string, unknown>;

@@ -1,15 +1,13 @@
-// host-level workspace supervision: id → single-flight boot → WorkspaceHandle,
-// with acquire/release retention and deterministic teardown at zero refs.
+// Host-level workspace supervision: id → single-flight boot → WorkspaceHandle, with retention and teardown at zero refs.
 //
 // The supervisor owns workspace policy: boot coalescing, retention, and
-// process placement. It never touches feature payloads or agent internals, and
-// it never assumes a runtime lives in its process. A local handle and a future
-// proxy handle stay behind the same WorkspaceHandle interface.
+// process placement. It never touches feature payloads or agent internals.
+// A WorkspaceHandle wraps one in-process runtime. Each runtime's lifetime
+// bag preserves teardown isolation.
 
 import type { WorkspaceId, WorkspaceRuntime } from "@uix/runtime";
 
-import type { WorkspaceHandle } from "./workspace-handle";
-import { LocalWorkspaceHandle } from "./workspace-handle";
+import { WorkspaceHandle } from "./workspace-handle";
 
 export interface SupervisorOptions {
   /** Boot a runtime for a workspace id. The host owns the boot policy. */
@@ -48,9 +46,7 @@ export class Supervisor {
 
     const runtimePromise = this.#options.boot(workspaceId);
     const entry: SupervisorEntry = {
-      handle: runtimePromise.then(
-        (runtime) => new LocalWorkspaceHandle(runtime),
-      ),
+      handle: runtimePromise.then((runtime) => new WorkspaceHandle(runtime)),
       boot: runtimePromise.then(
         () => undefined,
         () => undefined,

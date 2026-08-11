@@ -1,4 +1,4 @@
-// the settings scope contract.
+// The settings scope contract.
 //
 // `defineSettings` closes a definition's schema so unknown persisted keys fail
 // validation. Handles expose scoped get, set, and change subscription.

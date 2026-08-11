@@ -1,4 +1,4 @@
-// agent channel contract.
+// Agent channel contract.
 //
 // The substrate-owned agent channels (prompt/history/event stream) and the
 // transcript item shapes they hold. This lives behind @uix/api because

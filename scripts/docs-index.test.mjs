@@ -38,13 +38,33 @@ describe("parseSourceSummary", () => {
   it("rejects a summary below the first line", () => {
     expect(() =>
       parseSourceSummary("second-line.ts", "\n// Describes the second line.\n"),
-    ).toThrow("second-line.ts: missing one-line source summary");
+    ).toThrow("second-line.ts: missing source summary");
   });
 
   it("rejects a supported source file without a summary", () => {
     expect(() =>
       parseSourceSummary("missing.ts", "export const value = 1;\n"),
-    ).toThrow("missing.ts: missing one-line source summary");
+    ).toThrow("missing.ts: missing source summary");
+  });
+
+  it("joins a wrapped slash summary across continuation lines", () => {
+    expect(
+      parseSourceSummary(
+        "wrapped.ts",
+        "// Coordinates repository checks and the\n// docs index from frontmatter.\n",
+      ),
+    ).toBe(
+      "Coordinates repository checks and the docs index from frontmatter.",
+    );
+  });
+
+  it("stops the summary at a blank separator line", () => {
+    expect(
+      parseSourceSummary(
+        "two-part.ts",
+        "// Coordinates repository checks.\n//\n// Elaboration follows.\n",
+      ),
+    ).toBe("Coordinates repository checks.");
   });
 
   it("ignores unsupported file formats", () => {

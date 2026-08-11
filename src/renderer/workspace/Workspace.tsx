@@ -16,8 +16,8 @@ import {
   useDefaultLayout,
 } from "react-resizable-panels";
 
+import type { SurfaceEntry } from "@uix/api/substrate-channels";
 import { FeatureActionsProvider } from "@uix/api/workspace";
-import type { SurfaceEntry } from "#shared/ipc";
 
 import { ActionRegistryProvider } from "./action-context";
 import { ActionKeyboardDispatcher } from "./action-keyboard-dispatcher";

@@ -27,9 +27,10 @@ import { join } from "node:path";
 import { type BrowserWindow, ipcMain } from "electron";
 import pino from "pino";
 
+import { createLogger } from "@uix/runtime/log";
+
 import { recordWireCrossing } from "./ipc-wire-log";
 import { disposable } from "./lifecycle";
-import { createLogger } from "./log";
 
 const log = createLogger("ipc");
 

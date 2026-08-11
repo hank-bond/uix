@@ -1,4 +1,4 @@
-// agent-context contribution type.
+// Agent-context contribution type.
 //
 // A agent-context contribution declares one model-visible state section: its
 // name, vocabulary line, optional UIX-managed buffer, and optional materializer.

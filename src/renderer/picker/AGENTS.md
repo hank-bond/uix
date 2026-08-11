@@ -4,7 +4,7 @@ summary: "The start picker page lists recent workspaces and creates new ones bef
 
 # Start picker
 
-The picker is the app's pre-workspace page: it reads recents and drives create-new over the picker channels until main tears the window down. `main.tsx` boots the page, and `Picker.tsx` renders the recents-plus-create-new flow over the preload transport.
+The picker is the host's pre-workspace page: it reads recents and drives create-new over the picker channels until main tears the window down. `main.tsx` boots the page, and `Picker.tsx` renders the recents-plus-create-new flow over the preload transport.
 
 ## Contents
 

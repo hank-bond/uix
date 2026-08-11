@@ -1,4 +1,4 @@
-// H2 in-memory proof of the host/runtime boundary: a fake runtime and fake
+// In-memory proof of the host/runtime boundary: a fake runtime and fake
 // agent manager exercise the supervisor, workspace handle, attachment, and
 // scoped-event contracts described in docs/design/agent-session-routing.md.
 // No Electron, WebSocket, HTTP, Pi, or feature loading. The scenarios prove
@@ -21,7 +21,11 @@ import type {
   SessionTarget,
   WorkspaceId,
 } from "@uix/runtime";
-import type { WorkspaceRuntime } from "@uix/runtime";
+import type {
+  ActivationResult,
+  ReloadResult,
+  WorkspaceRuntime,
+} from "@uix/runtime";
 import {
   toAgentInstanceId,
   toAttachmentId,
@@ -179,6 +183,23 @@ class FakeRuntime implements WorkspaceRuntime {
   emit(scope: EventScope, id: string, payload: unknown): void {
     const event: RuntimeEvent = { id, scope, payload };
     for (const listener of this.#listeners) listener(event);
+  }
+
+  load(): Promise<ActivationResult> {
+    return Promise.resolve({ activated: [], failed: [] });
+  }
+
+  reload(): Promise<ReloadResult> {
+    return Promise.resolve({
+      featuresActivated: 0,
+      featuresFailed: 0,
+      failures: [],
+      piResourcesReloaded: false,
+    });
+  }
+
+  [Symbol.dispose](): void {
+    void this.dispose();
   }
 
   async createAttachment(target: SessionTarget): Promise<RuntimeAttachment> {

@@ -11,7 +11,7 @@ This is the canonical vocabulary for UIX architecture discussions and code names
 
 A _host_ owns the process and platform integration: lifecycle, transports, native capabilities, and workspace supervision. Electron and the local server are hosts. A _client bootstrap_ is a host's page entry that constructs the transport client and mounts the shared client.
 
-The _supervisor_ is the host-internal component that supervises and routes requests to workspace runtimes. It maps workspace ids to workspace handles, coalesces runtime boots, and decides process placement. A _workspace handle_ is the host-facing handle to one workspace runtime, in local or proxy form.
+The _supervisor_ is the host-internal component that supervises and routes requests to workspace runtimes. It maps workspace ids to workspace handles, coalesces runtime boots, and decides process placement. A _workspace handle_ is the host-facing handle to one in-process workspace runtime.
 
 A workspace runtime's _dependencies_ are the concrete effects it requires from the host, injected at construction. A runtime declares them, and the host provides them. An _adapter_ is a translator across communication capabilities.
 
@@ -71,8 +71,6 @@ Facet organization does not appear in resource paths. A surface, agent tool, sna
 A resource declaration's `origin` policy partitions the browser origin. `origin: "feature"` puts the feature id in the URL host so Chromium isolates the resource from the workspace. `origin: "workspace"` keeps the workspace origin and places feature identity in the path. `toOrigin()` returns that exact origin for `postMessage` security checks. The `uix-resource` scheme is a transport/permission class, not a semantic document type, so browser fetch origins stay separate from domain ids such as `doc://canvas/main`.
 
 Use `uix.*` only for substrate-owned dotted ids (envelopes/customTypes). First-party default features are still features, so their contribution ids use feature namespaces such as `canvas.*` and `chat.*`.
-
-The build spec for this model is [`contribution-id-derivation.md`](../../plans/archive/contribution-id-derivation.md).
 
 ## Contribution point
 

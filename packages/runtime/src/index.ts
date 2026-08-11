@@ -1,4 +1,4 @@
-// the @uix/runtime public facade re-exporting the workspace-runtime contract.
+// The @uix/runtime public facade re-exporting the workspace-runtime contract and its factory.
 
 export type {
   AttachmentContext,
@@ -7,6 +7,13 @@ export type {
   RequestError,
 } from "./dispatch";
 export type { EventScope, RuntimeEvent } from "./events";
+export type { ActivationResult } from "./features/loader";
+export {
+  createWorkspaceRuntime,
+  type WorkspaceChannelTransportDependencies,
+  type WorkspaceRuntimeDependencies,
+  type WorkspaceRuntimeOptions,
+} from "./runtime";
 export type {
   AgentInstanceId,
   AttachmentId,
@@ -22,3 +29,4 @@ export {
   toSessionId,
   toWorkspaceId,
 } from "./workspace";
+export type { ReloadResult } from "@uix/api/substrate-channels";

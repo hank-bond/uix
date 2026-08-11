@@ -1,7 +1,7 @@
 // Persists a bounded newest-first list of workspace manifests that still exist.
 //
-// A tiny JSON list under the App's userData dir: which workspace manifests
-// the app opened, newest first. The start picker reads it. Opening a workspace
+// A tiny JSON list under the host's userData dir: which workspace manifests
+// the host opened, newest first. The start picker reads it. Opening a workspace
 // records it. The module prunes entries whose manifest file no longer exists on
 // read, so deleted workspaces silently drop off the list.
 //
@@ -11,9 +11,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { createLogger } from "@uix/runtime/log";
 import type { RecentWorkspace } from "#shared/ipc";
-
-import { createLogger } from "./log";
 
 const log = createLogger("recents");
 

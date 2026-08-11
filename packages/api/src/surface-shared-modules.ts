@@ -1,4 +1,4 @@
-// surface runtime shared-module contract.
+// Surface runtime shared-module contract.
 //
 // esbuild bundles surface modules with their feature-local code inlined,
 // but the blessed shared set below must resolve to the *page's* live

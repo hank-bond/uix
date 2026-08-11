@@ -1,4 +1,4 @@
-// typed channel contributions.
+// Typed channel contributions.
 //
 // This is a narrow substrate facet for request/response channels and backend →
 // workspace event publishing. Features declare request handlers and event

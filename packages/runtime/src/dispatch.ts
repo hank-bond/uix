@@ -1,7 +1,8 @@
-// canonical channel request/response envelope and host-stamped attachment
-// context. Hosts route, runtimes dispatch. The envelope carries no transport
-// or tenancy fields, and the wire protocol in H8 adds correlation at the
-// transport boundary without changing this contract.
+// The canonical channel request/response envelope and host-stamped attachment context.
+//
+// Hosts route, runtimes dispatch. The envelope carries no transport or
+// tenancy fields. A wire protocol adds correlation at the transport
+// boundary without changing this contract.
 
 import type { ChannelCanonicalId } from "@uix/api/channel-resolution";
 

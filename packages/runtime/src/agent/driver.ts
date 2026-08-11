@@ -154,7 +154,7 @@ export interface AgentDriverOptions {
   agentContext?: AgentContextRegistry;
   /** State root (pins the session dir) + agent cwd. */
   workspace: Workspace;
-  /** App-owned Pi profile shared across UIX workspaces. */
+  /** Host-owned Pi profile shared across workspaces. */
   piProfileDir: string;
   /**
    * Workspace `agent` settings namespace. Holds model defaults and favorites.

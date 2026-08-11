@@ -26,6 +26,8 @@ Do not narrate future intentions. They are unverifiable and become stale silentl
 
 Do not link code comments to dated decisions, design threads, or plans. Their rationale changes independently, which turns each citation into a revalidation cost. A link to a living convention is the exception. The target tracks a stable rule instead of a point-in-time decision.
 
+This includes plan units and stage labels. No code or comment names a plan, a plan unit, or the timing of future work. No code or comment notes that it awaits a later change or holds a temporary state. Those notes belong in the plan document that schedules the work. Code describes HEAD. The plan explains what changes. See [documentation.plan-reference](./rules/documentation.plan-reference.md).
+
 ## Update triggers
 
 An update-trigger comment records an artifact that is complete and correct under present conditions. One known condition will invalidate its current form. The comment does not record unfinished work or a desired future improvement.
@@ -40,7 +42,7 @@ Add a warning or explanation where code cannot explain itself. Examples include 
 
 ## Source-file headers
 
-Every indexed authored production TypeScript and JavaScript file starts with one `//` summary sentence. Every indexed authored production CSS file starts with one single-line `/* */` summary. Every indexed authored production HTML file starts with one single-line `<!-- -->` summary. The summary is physically the first line, without exceptions. The header is the summary plus at most one `//` elaboration paragraph, whose length scales with the file's size.
+Every indexed authored production TypeScript and JavaScript file starts with one `//` summary sentence. Every indexed authored production CSS file starts with one single-line `/* */` summary. Every indexed authored production HTML file starts with one single-line `<!-- -->` summary. The summary starts on the first line and forms the first comment paragraph. A long summary may wrap onto continuation lines, and the generated index joins the paragraph into one line. The summary is sentence case: the first word starts with a capital letter. A summary that leads with a code identifier keeps the identifier's casing. The header is the summary plus at most one `//` elaboration paragraph, whose length scales with the file's size.
 
 Colocated `*.test.*` and `*.spec.*` files are not indexed. Their production file and shared basename provide the route, so tests need no summary. Add a test comment only when it preserves context the test structure cannot hold.
 

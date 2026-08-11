@@ -2,7 +2,7 @@
   "name": "@uix/host",
   "version": "0.0.0",
   "private": true,
-  "description": "Shared host contracts and coordination: the workspace supervisor, workspace handles, and launcher/catalog projection schemas that concrete hosts compose. Source-only local package until H2 fills it.",
+  "description": "Shared host contracts and coordination: the workspace supervisor, workspace handles, and the launcher/catalog projection schemas that concrete hosts compose. Source-only local package; an in-memory suite proved the supervisor, handle, and attachment contracts.",
   "type": "module",
   "exports": {
     ".": {

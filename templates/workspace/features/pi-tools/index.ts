@@ -1,3 +1,5 @@
+// The bare workspace feature: editable passthrough overrides for Pi's core tools.
+
 import { defineFeature } from "@uix/api/feature";
 
 import { bashTool } from "./bash";

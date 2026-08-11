@@ -1,8 +1,7 @@
 // Proves the ownership-root import graph enforced by eslint.config.mjs actually
-// fires. The roots are empty in H1, so no production file can exercise the
-// rules yet; this suite pins each boundary against synthetic fixtures so the
-// enforcement cannot silently rot before the plan units move code into the
-// roots. See plans/electron-server-split.md H1.
+// fires. The rules target roots that may still be empty, so no production file
+// can exercise them yet; this suite pins each boundary against synthetic
+// fixtures so the enforcement cannot silently rot before the roots gain source.
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

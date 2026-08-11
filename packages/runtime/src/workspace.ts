@@ -1,10 +1,9 @@
-// the workspace-runtime contract: ids, session targets, and the
-// exactly-one-workspace runtime surface the host supervisor composes.
+// The workspace-runtime contract: ids, session targets, and the exactly-one-workspace runtime surface a host composes.
 //
-// H2 defines the smallest executable shape against fake runtimes. H3
-// implements it for real and ports the substrate out of src/main. A host
-// never assumes one workspace per process or one globally selected session;
-// session choice lives on each attachment.
+// A host never assumes one workspace per process or one globally selected
+// session. Session choice lives on each attachment.
+
+import type { ReloadResult } from "@uix/api/substrate-channels";
 
 import type {
   AttachmentContext,
@@ -12,6 +11,7 @@ import type {
   CanonicalResponse,
 } from "./dispatch";
 import type { RuntimeEvent } from "./events";
+import type { ActivationResult } from "./features/loader";
 
 const WorkspaceIdBrand: unique symbol = Symbol("WorkspaceId");
 const SessionIdBrand: unique symbol = Symbol("SessionId");
@@ -76,8 +76,14 @@ export interface WorkspaceRuntime {
   onEvent(listener: (event: RuntimeEvent) => void): Disposable;
   /** Create an attachment bound to a session target, booting its primary agent instance single-flight. */
   createAttachment(target: SessionTarget): Promise<RuntimeAttachment>;
+  /** Activate the initial feature composition. A bad manifest logs and boots with no features. */
+  load(): Promise<ActivationResult>;
+  /** Replace the active feature composition and Pi resource tier, then notify the renderer. */
+  reload(): Promise<ReloadResult>;
   /** Dispose the runtime: tear down agent instances and release routes. Idempotent. */
   dispose(): Promise<void>;
+  /** Sync bag shim for host composition: fires the async dispose without awaiting it. */
+  [Symbol.dispose](): void;
 }
 
 /** The runtime-owned half of an attachment: the binding that resolves the session and agent instance. */

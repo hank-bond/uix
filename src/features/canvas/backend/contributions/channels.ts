@@ -1,4 +1,4 @@
-// canvas channel contributions.
+// Canvas channel contributions.
 
 import type { ChannelContribution } from "@uix/api/channels";
 import { withHandlers } from "@uix/api/channels";

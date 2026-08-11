@@ -1,4 +1,4 @@
-// canvas private state contributions.
+// Canvas private state contributions.
 //
 // The documents cell stores immutable version refs for the canvases that make
 // up the current branch state. The buffer owns resolving those refs back into

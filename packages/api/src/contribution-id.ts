@@ -1,4 +1,4 @@
-// shared contribution-id brand and constructor.
+// Shared contribution-id brand and constructor.
 //
 // Every facet derives its registry dedup id from the same dotted grammar so
 // the contributionId is uniform across the substrate:

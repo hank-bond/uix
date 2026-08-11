@@ -1,4 +1,4 @@
-// turn-state contribution types.
+// Turn-state contribution types.
 //
 // A feature divides its durable branch state into independently changing named
 // cells. Each cell declares one schema for snapshot creation and restoration,

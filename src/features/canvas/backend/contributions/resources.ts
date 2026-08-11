@@ -1,4 +1,4 @@
-// canvas resource contributions.
+// Canvas resource contributions.
 
 import type { ResourceContribution } from "@uix/api/resources";
 

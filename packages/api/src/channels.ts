@@ -1,4 +1,4 @@
-// typed channel request and event contracts.
+// Typed channel request and event contracts.
 //
 // The frontend and backend share schema-only descriptors;
 // `withHandlers` pairs each request with its handler, and

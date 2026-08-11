@@ -1,4 +1,4 @@
-// feature contribution contract.
+// Feature contribution contract.
 //
 // FeatureDefinition is the shape a manifest-selected feature entry exports:
 // an id, an optional context hook, and a contribute function that returns the

@@ -229,7 +229,7 @@ const loadFeatureDefinition = async (
  *
  * @param entries resolved manifest refs, in manifest order.
  * @param parentBag the loader adds every per-feature bag here, so one
- *   dispose at app shutdown or reload clear tears down everything.
+ *   dispose at host shutdown or reload clear tears down everything.
  * @param substrate the facet registries and context ingredients the
  *   definitions register into.
  */
@@ -257,7 +257,7 @@ export const activateFeatures = async (
     // capability has an owner. We only enroll
     // it in the parent bag after activation succeeds. A
     // loader disposes a failed feature's bag immediately, and it never
-    // becomes part of app-shutdown teardown.
+    // becomes part of host-shutdown teardown.
     const bag = new DisposableBag();
 
     try {

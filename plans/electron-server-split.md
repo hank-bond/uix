@@ -104,7 +104,7 @@ Build the smallest executable contracts for workspace supervision, workspace han
 - An attachment dispatching requests and retargeting its session.
 - Workspace, session, and agent-instance event scopes.
 - Workspace and attachment retention with deterministic disposal.
-- A host-facing `WorkspaceHandle` interface whose only implementation is the local handle.
+- A host-facing `WorkspaceHandle` type with one implementation.
 
 Use fake runtimes and agents. Avoid Electron, WebSocket, HTTP, Pi, and feature loading. The scenarios should prove two workspaces with identical canonical ids, several attachments on one session, independent retargeting, scoped event delivery, failed-target rollback, and disposal isolation.
 
@@ -144,6 +144,7 @@ Implement and test:
 - One attachment leaving a shared instance without committing, restoring, or disrupting peers.
 - Final state commit and safe teardown only when the agent instance tears down.
 - Workspace feature reload committing and reconciling every agent instance without cross-session state exchange.
+- Audit module-level mutable state for cross-instance leaks. The ephemeral live-item id sequence in the transcript projection becomes instance-scoped or explicitly shared, never a process-global counter that concurrent instances mutate.
 
 Use real Pi integration rather than proving only a generic pool. A configurable warm-retention period, always-on instances, host-authored retention, multiple agents on one session, and branch coordination remain later policies.
 
@@ -171,7 +172,9 @@ Update scaffolding and development references so core runtime and hosts can buil
 
 Move Electron main, preload, launcher client bootstrap, native chrome, IPC, protocol, recents, dialogs, and packaging assumptions under `hosts/electron`. The Electron host composes the shared supervisor, runtime, launcher client, and workspace client through concrete adapters.
 
-Bind each workspace window to one attachment rather than broadcasting through `BrowserWindow.getAllWindows()`. IPC requests carry host-stamped attachment context, and runtime events route only to matching windows. Bind Electron resource URLs through workspace-qualified routes. Keep process handlers, raw IPC, protocol registration, and window lifecycle inside the Electron host.
+Bind each workspace window to one attachment rather than broadcasting through `BrowserWindow.getAllWindows()`. IPC requests carry host-stamped attachment context, and runtime events route only to matching windows.
+
+Bind Electron resource URLs through workspace-qualified routes. Today each runtime binds `protocol.handle` on the substrate scheme directly, so a second runtime would silently replace the first's handler. The host owns one registration and routes workspace-qualified URLs into each runtime's dispatcher. Make host shutdown await workspace runtime disposal. The current sync bag shim fires async teardown without awaiting. Keep process handlers, raw IPC, protocol registration, and window lifecycle inside the Electron host.
 
 Preserve existing dogfood behavior and add a concurrent-workspace proof with two windows. The launcher client uses the shared launcher presentation where its capabilities overlap and retains Electron-specific folder selection as an honest host capability.
 

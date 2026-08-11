@@ -1,3 +1,5 @@
+// Provides the workspace write tool, rebinding Pi's baseline to the workspace cwd.
+
 import { createWriteToolDefinition } from "@earendil-works/pi-coding-agent";
 
 import type {

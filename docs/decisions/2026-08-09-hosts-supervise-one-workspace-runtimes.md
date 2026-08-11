@@ -1,10 +1,12 @@
 ---
 summary: "The host owns process and platform integration, exposes a launcher, and supervises zero or more workspace runtimes through local or proxy workspace handles. Each WorkspaceRuntime owns exactly one workspace and its agent instances. An app is a host plus an explicit composition."
 kind: explanation
-status: accepted
+status: superseded
 ---
 
 # Hosts supervise one-workspace runtimes
+
+> **Superseded in part by [host-workspace-runtime-boundaries](../design/host-workspace-runtime-boundaries.md).** The proxy handle and process isolation are removed from the host model. The runtime is in-process by construction, so the host-facing shape has one implementation. The host, supervisor, workspace-runtime, dependencies, launcher, and app conclusions stand.
 
 ## Context
 

@@ -1,4 +1,4 @@
-// canvas feature-local context.
+// Canvas feature-local context.
 //
 // Runs first among canvas contributions and is the only one whose order is
 // guaranteed. Builds the shared object graph (document store, buffer, the

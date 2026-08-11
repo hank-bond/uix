@@ -1,8 +1,8 @@
 import { describe, expect, it, type Mock, vi } from "vitest";
 
 import type { KeybindingMap } from "@uix/api/actions";
+import type { substrateChannels } from "@uix/api/substrate-channels";
 import type { ChannelClient } from "@uix/api/workspace";
-import type { substrateChannels } from "#shared/ipc";
 
 import { ActionRegistry } from "./action-registry";
 import { bindKeybindingSync } from "./keybinding-sync";

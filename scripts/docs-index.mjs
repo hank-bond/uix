@@ -237,25 +237,37 @@ export function parseSourceSummary(name, text, file = name) {
   const style = sourceSummaryStyle(name);
   if (!style) return undefined;
 
-  const line = text
-    .replace(/^\uFEFF/, "")
-    .split(/\r?\n/, 1)[0]
-    .trim();
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
 
   let summary;
   if (style === "slash") {
-    const match = line.match(/^\/\/\s+(.+)$/);
-    summary = match?.[1].trim();
+    // The summary starts on the first line and forms the first comment
+    // paragraph. A long summary may wrap onto continuation lines, so join
+    // every `//` line until a blank separator ends the paragraph.
+    const first = lines[0]?.trim() ?? "";
+    if (!first.startsWith("//")) {
+      throw new Error(`${file}: missing source summary`);
+    }
+    const texts = [];
+    for (const raw of lines) {
+      const content = raw.trim();
+      if (!content.startsWith("//")) break;
+      const value = content.slice(2).trim();
+      if (value === "") break;
+      texts.push(value);
+    }
+    summary = texts.join(" ");
   } else if (style === "css") {
+    const line = lines[0]?.trim() ?? "";
     const match = line.match(/^\/\*\s*(.+?)\s*\*\/$/);
     if (!line.startsWith("/**")) summary = match?.[1].trim();
   } else {
-    const match = line.match(/^<!--\s*(.+?)\s*-->$/);
+    const match = lines[0]?.trim().match(/^<!--\s*(.+?)\s*-->$/);
     summary = match?.[1].trim();
   }
 
   if (!summary) {
-    throw new Error(`${file}: missing one-line source summary`);
+    throw new Error(`${file}: missing source summary`);
   }
   return summary;
 }

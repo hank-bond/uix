@@ -14,6 +14,10 @@ import type { JSX } from "react";
 import { Component, type ReactNode, useEffect, useMemo, useState } from "react";
 
 import {
+  substrateChannels,
+  type SurfaceEntry,
+} from "@uix/api/substrate-channels";
+import {
   createChannelClient,
   createFeatureSettingsClient,
   FeatureActionsProvider,
@@ -21,7 +25,6 @@ import {
   type SurfaceContribution,
   useWorkspaceClient,
 } from "@uix/api/workspace";
-import { substrateChannels, type SurfaceEntry } from "#shared/ipc";
 
 import { useActionRegistry } from "./action-context";
 

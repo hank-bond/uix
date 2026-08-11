@@ -5,15 +5,15 @@ import { createFeatureEventPublisher } from "@uix/api/channels";
 import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
 import type { FeatureContext } from "@uix/api/feature";
 import type { TurnStateCellDefinition } from "@uix/api/turn-state";
-
-import { createCanvasTurnStateContributions } from "./turn-state";
 import {
   createTurnStateProjector,
   registerTurnStateContributions,
   restoreTurnStateCellsAsOfLeaf,
   toTurnStateRegistrySnapshot,
   TurnStateRegistry,
-} from "../../../../main/turn-state";
+} from "@uix/runtime/turn-state";
+
+import { createCanvasTurnStateContributions } from "./turn-state";
 import { canvasChannels } from "../../shared/channels";
 import type { CanvasContext } from "../context";
 import { CanvasDocumentBuffer } from "../document-buffer";

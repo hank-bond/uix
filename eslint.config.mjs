@@ -61,7 +61,7 @@ const processEventRestriction = {
   selector:
     "CallExpression[callee.object.name='process'][callee.property.name=/^(on|off|once|addListener|removeListener|prependListener|prependOnceListener)$/]",
   message:
-    "Use installProcessHandlers() from src/main/lifecycle.ts instead of process.on directly. See docs/architecture/conventions/lifetimes.md.",
+    "Use installProcessHandlers() from the shared lifecycle module instead of process.on directly. See docs/architecture/conventions/lifetimes.md.",
 };
 const publicMemberModifierRestriction = {
   selector:
@@ -206,11 +206,97 @@ const uixLintPlugin = {
         };
       },
     },
+    "source-summary": {
+      meta: {
+        type: "problem",
+        docs: {
+          description:
+            "Require a one-sentence summary on the first line and a blank comment line before elaboration.",
+        },
+        schema: [],
+        messages: {
+          missing:
+            "Production source files start with a one-line summary comment. See docs/architecture/conventions/comments.md.",
+          firstLine: "The source summary must be physically the first line.",
+          sentence:
+            "The summary must be one sentence ending with a period, question mark, or exclamation point.",
+          sentenceCase:
+            "Start the summary with a capital letter (sentence case). A summary that leads with a code identifier keeps its casing.",
+          separator:
+            "Separate the summary from elaboration with a blank // comment line. See docs/architecture/conventions/comments.md.",
+        },
+      },
+      create(context) {
+        return {
+          "Program:exit"(node) {
+            const sourceCode = context.sourceCode;
+            const firstToken = sourceCode.getFirstToken(node);
+            if (!firstToken) return;
+            const leading = sourceCode.getCommentsBefore(firstToken);
+            if (leading.length === 0) {
+              context.report({ node, messageId: "missing" });
+              return;
+            }
+            const first = leading[0];
+            if (first.loc.start.line !== 1) {
+              context.report({ node: first, messageId: "firstLine" });
+              return;
+            }
+            if (first.type !== "Line") {
+              // Block-comment headers are a single summary sentence.
+              if (/^[a-z]/.test(first.value.trim())) {
+                context.report({ node: first, messageId: "sentenceCase" });
+              } else if (!/[.!?]$/.test(first.value.trim())) {
+                context.report({ node: first, messageId: "sentence" });
+              }
+              return;
+            }
+            // Collect the summary paragraph: consecutive line comments until
+            // a blank // separator line. A long summary may wrap.
+            const summaryComments = [first];
+            let i = 0;
+            while (i + 1 < leading.length) {
+              const next = leading[i + 1];
+              const previous = leading[i];
+              if (
+                next.type !== "Line" ||
+                next.loc.start.line !== previous.loc.end.line + 1
+              ) {
+                break;
+              }
+              if (next.value.trim() === "") break;
+              summaryComments.push(next);
+              i += 1;
+            }
+            const summary = summaryComments
+              .map((comment) => comment.value.trim())
+              .join(" ");
+            if (/^[a-z]/.test(summary)) {
+              context.report({ node: first, messageId: "sentenceCase" });
+              return;
+            }
+            if (!/[.!?]$/.test(summary)) {
+              context.report({ node: first, messageId: "sentence" });
+              return;
+            }
+            // Elaboration, when present, follows a blank // separator line.
+            if (i + 1 < leading.length) {
+              const next = leading[i + 1];
+              const last = summaryComments[summaryComments.length - 1];
+              if (next.loc.start.line !== last.loc.end.line + 1) return;
+              if (next.type !== "Line" || next.value.trim() !== "") {
+                context.report({ node: next, messageId: "separator" });
+              }
+            }
+          },
+        };
+      },
+    },
   },
 };
 
-// Ownership-root dependency graph (plans/electron-server-split.md H1). One-way
-// edges: substrate packages and feature implementations depend only on @uix/api
+// Ownership-root dependency graph. One-way edges:
+// substrate packages and feature implementations depend only on @uix/api
 // author contracts; concrete hosts compose the shared packages but never each
 // other or app features. Each block re-declares the bare-node-builtin paths so
 // replacing the global no-restricted-imports rule for these files does not lose
@@ -265,7 +351,7 @@ export const ownershipBoundaryRules = Object.entries(
         paths: bareNodeBuiltinImports,
         patterns: forbidden.map((pattern) => ({
           group: [pattern],
-          message: `Ownership-root boundary: this root must not import ${pattern}. See plans/electron-server-split.md H1.`,
+          message: `Ownership-root boundary: this root must not import ${pattern}.`,
         })),
       },
     ],
@@ -441,8 +527,11 @@ export default tseslint.config(
 
   // Main-process logs use one mechanically checkable shape. IPC wire logs are
   // excepted below because their message identifies a dynamic channel crossing.
+  // The scope covers the Electron host and every substrate package that runs
+  // in a main process; hosts/ roots are registered before they hold source so
+  // the rule cannot silently rot when later host code lands there.
   {
-    files: ["src/main/**/*.ts"],
+    files: ["src/main/**/*.ts", "packages/runtime/**/*.ts", "hosts/**/*.ts"],
     plugins: { uix: uixLintPlugin },
     rules: {
       "uix/structured-log-call": "error",
@@ -458,7 +547,7 @@ export default tseslint.config(
   // Boundary modules may call only the raw APIs they encapsulate. Keep the
   // other restrictions active so one helper layer cannot absorb another's role.
   {
-    files: ["src/main/lifecycle.ts"],
+    files: ["src/main/lifecycle.ts", "packages/runtime/src/lifecycle.ts"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -545,6 +634,29 @@ export default tseslint.config(
     },
   },
 
+  // Source-file headers: every indexed production source file starts with a
+  // one-sentence summary on the first line, with a blank // separator before
+  // any elaboration paragraph. See docs/architecture/conventions/comments.md.
+  {
+    files: [
+      "src/**/*.{ts,tsx}",
+      "packages/**/*.{ts,tsx}",
+      "hosts/**/*.{ts,tsx}",
+      "apps/**/*.{ts,tsx}",
+      "scripts/**/*.{js,mjs,ts}",
+      "templates/**/*.{ts,tsx}",
+    ],
+    ignores: [
+      "**/*.test.{ts,tsx,js,mjs}",
+      "**/*.spec.{ts,tsx,js,mjs}",
+      "**/*.d.ts",
+    ],
+    plugins: { uix: uixLintPlugin },
+    rules: {
+      "uix/source-summary": "error",
+    },
+  },
+
   // Hooks can live in .ts as well as .tsx, so apply both correctness rules to
   // all source modules rather than only renderer components.
   {
@@ -613,7 +725,7 @@ export default tseslint.config(
     },
   },
 
-  // Ownership-root dependency graph — see plans/electron-server-split.md H1.
+  // Ownership-root dependency graph.
   ...ownershipBoundaryRules,
 
   // Prettier last — disables stylistic rules that would fight the

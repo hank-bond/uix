@@ -1,7 +1,7 @@
-// the host-facing WorkspaceHandle shape plus the local handle that routes
-// scoped runtime events to matching attachments. A future proxy handle
-// implements the same interface. Nothing here assumes one workspace per
-// process or a globally selected session.
+// The host-facing WorkspaceHandle: wraps one in-process runtime and routes scoped events to matching attachments.
+//
+// Nothing here assumes one workspace per process or a globally selected
+// session. Session choice lives on each attachment.
 
 import type {
   RuntimeEvent,
@@ -11,18 +11,16 @@ import type {
 } from "@uix/runtime";
 import type { EventScope } from "@uix/runtime";
 
-import type { Attachment } from "./attachment";
-import { LocalAttachment } from "./attachment";
+import { Attachment } from "./attachment";
 
-export interface WorkspaceHandle {
-  readonly workspaceId: WorkspaceId;
-  createAttachment(target: SessionTarget): Promise<Attachment>;
-  dispose(): Promise<void>;
-}
-
-export class LocalWorkspaceHandle implements WorkspaceHandle {
+/**
+ * The host-facing workspace handle: wraps one in-process runtime and routes
+ * scoped events to matching attachments. A supervisor holds several handles
+ * in one process.
+ */
+export class WorkspaceHandle {
   readonly #runtime: WorkspaceRuntime;
-  readonly #attachments = new Set<LocalAttachment>();
+  readonly #attachments = new Set<Attachment>();
   #subscription: Disposable | undefined;
   #disposed = false;
 
@@ -40,7 +38,7 @@ export class LocalWorkspaceHandle implements WorkspaceHandle {
   async createAttachment(target: SessionTarget): Promise<Attachment> {
     if (this.#disposed) throw new Error("Workspace handle is disposed");
     const inner = await this.#runtime.createAttachment(target);
-    const attachment = new LocalAttachment(inner);
+    const attachment = new Attachment(inner);
     this.#attachments.add(attachment);
     return attachment;
   }

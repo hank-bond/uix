@@ -2,7 +2,7 @@
   "name": "@uix/runtime",
   "version": "0.0.0",
   "private": true,
-  "description": "Exactly one workspace's substrate semantics: the accepted feature composition, registries, stores, and agent instances behind one WorkspaceHandle. Source-only local package until H3 fills it.",
+  "description": "Exactly one workspace's substrate semantics: the accepted feature composition, registries, stores, surface delivery, reload coordination, and agent instances behind one WorkspaceRuntime. Source-only local package.",
   "type": "module",
   "exports": {
     ".": {

@@ -4,12 +4,12 @@ import type { JSX } from "react";
 import { useEffect, useMemo } from "react";
 
 import type { KeybindingMap } from "@uix/api/actions";
+import { substrateChannels } from "@uix/api/substrate-channels";
 import {
   type ChannelClient,
   createChannelClient,
   useWorkspaceClient,
 } from "@uix/api/workspace";
-import { substrateChannels } from "#shared/ipc";
 
 import { useActionRegistry } from "./action-context";
 import type { ActionRegistry } from "./action-registry";

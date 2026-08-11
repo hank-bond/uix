@@ -10,24 +10,24 @@ import { describe, expect, it } from "vitest";
 import { createFeatureEventPublisher } from "@uix/api/channels";
 import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
 import type { FeatureContext } from "@uix/api/feature";
-import { createSystemPromptAssembler } from "#backend/agent/system-prompt";
+import { createSystemPromptAssembler } from "@uix/runtime/agent/system-prompt";
 import {
   AgentContextRegistry,
   assembleAgentContextMessage,
   assembleAgentContextVocabularySection,
   registerAgentContextContributions,
-} from "#backend/agent-context/registry";
+} from "@uix/runtime/agent-context/registry";
 import {
   AgentToolRegistry,
   createAgentToolInstaller,
   registerAgentToolContributions,
-} from "#backend/agent-tools/registry";
+} from "@uix/runtime/agent-tools/registry";
 import {
   commitCurrentTurnState,
   createTurnStateInstaller,
   registerTurnStateContributions,
   TurnStateRegistry,
-} from "#backend/turn-state";
+} from "@uix/runtime/turn-state";
 
 import { createCanvasAgentContextContributions } from "./agent-context";
 import { createCanvasAgentToolContributions } from "./agent-tools";

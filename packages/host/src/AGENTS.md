@@ -5,7 +5,7 @@ read_when: "Writing shared host supervision code, or proving the host/runtime bo
 
 # Shared host coordination
 
-This package holds the host-neutral coordination both concrete hosts compose. A supervisor maps workspace ids to single-flight boots. Workspace handles own one runtime each. Attachments bind connections to session targets and receive only the events the workspace router matches to them. The in-memory H2 suite exercises every contract with fake runtimes and agents. Concrete Electron and server code never enters this package.
+This package holds the host-neutral coordination both concrete hosts compose. A supervisor maps workspace ids to single-flight boots. Workspace handles own one runtime each. Attachments bind connections to session targets and receive only the events the workspace router matches to them. An in-memory suite exercises every contract with fake runtimes and agents. Concrete Electron and server code never enters this package.
 
 ## Contents
 
@@ -15,9 +15,9 @@ This package holds the host-neutral coordination both concrete hosts compose. A 
 
 ### Source files
 
-- **[attachment.ts](./attachment.ts)** the connection's owned, retargetable attachment handle and its local
-- **[index.ts](./index.ts)** the @uix/host public facade re-exporting shared host coordination contracts.
-- **[supervisor.ts](./supervisor.ts)** host-level workspace supervision: id → single-flight boot → WorkspaceHandle,
-- **[workspace-handle.ts](./workspace-handle.ts)** the host-facing WorkspaceHandle shape plus the local handle that routes
+- **[attachment.ts](./attachment.ts)** The connection's owned, retargetable attachment handle and its implementation.
+- **[index.ts](./index.ts)** The @uix/host public facade re-exporting shared host coordination contracts.
+- **[supervisor.ts](./supervisor.ts)** Host-level workspace supervision: id → single-flight boot → WorkspaceHandle, with retention and teardown at zero refs.
+- **[workspace-handle.ts](./workspace-handle.ts)** The host-facing WorkspaceHandle: wraps one in-process runtime and routes scoped events to matching attachments.
 
 <!-- INDEX:END -->

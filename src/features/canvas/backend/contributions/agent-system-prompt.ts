@@ -1,4 +1,5 @@
 // Stable canvas authoring contract appended to the Agent's system prompt.
+//
 // Detailed techniques and examples live in the canvas-authoring skill. These
 // few facts stay present because the agent must know the interaction protocol
 // before it can decide to load anything else.
