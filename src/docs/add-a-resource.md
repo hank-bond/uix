@@ -12,7 +12,7 @@ Files involved:
 
 - [`packages/api/src/resources.ts`](../../packages/api/src/resources.ts), `createResourceAddressHandle`, `ResourceContribution`, `ResourceRequestContext`
 - [`packages/api/src/resource-routes.ts`](../../packages/api/src/resource-routes.ts), route normalization and URL encode/decode
-- [`src/main/resource-registry.ts`](../../src/main/resource-registry.ts), the transport registry
+- [`packages/runtime/src/resource-registry.ts`](../../packages/runtime/src/resource-registry.ts), the transport registry
 
 The reference for a real resource pair is [`src/features/canvas/backend/contributions/resources.ts`](../../src/features/canvas/backend/contributions/resources.ts) (route and handler) with the keys it serves in [`src/features/canvas/shared/addressing.ts`](../../src/features/canvas/shared/addressing.ts).
 

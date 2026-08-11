@@ -29,10 +29,13 @@ The files divide by facet. Feature and channel definitions (`feature.ts`, `chann
 - **[feature.ts](./feature.ts)** feature contribution contract.
 - **[index.ts](./index.ts)** the `@uix/api` public facade re-exporting shared feature-author contracts.
 - **[log.ts](./log.ts)** feature logger contract.
+- **[resource-canonical-id.ts](./resource-canonical-id.ts)** resource canonical id brand and constructor.
 - **[resource-routes.ts](./resource-routes.ts)** Normalizes resource routes and encodes and decodes their transport URLs.
 - **[resources.ts](./resources.ts)** resource address capability and contribution type.
 - **[settings.ts](./settings.ts)** the settings scope contract.
 - **[shortcuts.ts](./shortcuts.ts)** Parses, normalizes, and resolves shortcuts for the platform.
+- **[substrate-channels.ts](./substrate-channels.ts)** the substrate's own channel contract and surface-composition types.
+- **[surface-shared-modules.ts](./surface-shared-modules.ts)** surface runtime shared-module contract.
 - **[turn-state.ts](./turn-state.ts)** turn-state contribution types.
 - **[workspace.ts](./workspace.ts)** feature workspace client and surface contracts.
 

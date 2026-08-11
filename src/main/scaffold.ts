@@ -11,7 +11,7 @@ import { cp, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 
-import { WorkspaceManifestFileName } from "./manifest";
+import { WorkspaceManifestFileName } from "@uix/runtime/features/manifest";
 
 /** Template feature dirs copied into every new workspace, in composition order. */
 const DefaultFeatures = ["pi-tools"] as const;

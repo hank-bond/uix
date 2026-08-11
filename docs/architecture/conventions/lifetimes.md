@@ -12,7 +12,7 @@ The [lifetimes.paired-cleanup](./rules/lifetimes.paired-cleanup.md) rule require
 
 IPC crossings use `src/main/ipc.ts`: `handle()` for invoke endpoints and `send()` for window pushes. This path records every crossing in the wire log.
 
-Other attachments use helpers from `src/main/lifecycle.ts`. Each returned `Disposable` goes into the bag matching the behavior's lifetime. Disposing the lifetime tears down every owned capability in reverse acquisition order.
+Other attachments use the lifetime helpers: the Electron app/window bindings in `src/main/lifecycle.ts`, and the host-neutral helpers (`DisposableBag`, `disposable`, `subscribe`, `installProcessHandlers`) in `@uix/runtime/lifecycle`. Each returned `Disposable` goes into the bag matching the behavior's lifetime. Disposing the lifetime tears down every owned capability in reverse acquisition order.
 
 ```ts
 import * as ipc from "./ipc";
@@ -34,4 +34,4 @@ Disposable values with non-trivial cleanup implement `Disposable` or use `dispos
 
 ## When to add a lifecycle helper
 
-When cleanup-requiring code would call a raw attachment API, add a small helper to `src/main/lifecycle.ts`. The helper attaches the behavior and returns a `Disposable`.
+When cleanup-requiring code would call a raw attachment API, add a small helper beside the other lifetime helpers. The helper attaches the behavior and returns a `Disposable`.

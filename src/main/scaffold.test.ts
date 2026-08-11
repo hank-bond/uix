@@ -4,7 +4,8 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { WorkspaceManifestFileName } from "./manifest";
+import { WorkspaceManifestFileName } from "@uix/runtime/features/manifest";
+
 import { scaffoldWorkspace } from "./scaffold";
 
 /** A fake bare-workspace template with one dependency-bearing tool feature. */

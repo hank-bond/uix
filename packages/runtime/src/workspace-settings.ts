@@ -9,19 +9,19 @@ import type {
   SettingsValues,
 } from "@uix/api/settings";
 
+import type { ParsedWorkspaceManifest } from "./features/manifest";
+import { DisposableBag } from "./lifecycle";
 import type { WorkspaceManifestStore } from "./manifest-store";
 import type {
   AnyWorkspaceSettingsNamespace,
   WorkspaceSettingsNamespace,
 } from "./settings-namespace";
-import type { ParsedWorkspaceManifest } from "../features/manifest";
-import { DisposableBag } from "../lifecycle";
-import type { SettingsRegistry } from "../settings-registry";
+import type { SettingsRegistry } from "./settings-registry";
 import {
   hydrateSettings,
   type SettingsScope,
   type SettingsScopeHandle,
-} from "../settings-registry";
+} from "./settings-registry";
 
 export type WorkspaceSettingsReload = ParsedWorkspaceManifest;
 

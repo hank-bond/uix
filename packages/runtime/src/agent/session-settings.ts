@@ -4,7 +4,7 @@ import { type Static, Type } from "typebox";
 
 import { SessionIdSchema } from "@uix/api/agent-channels";
 
-import { defineWorkspaceSettingsNamespace } from "../workspace/settings-namespace";
+import { defineWorkspaceSettingsNamespace } from "../settings-namespace";
 
 const SelectedSessionSettingSchema = Type.Object({
   sessionId: SessionIdSchema,

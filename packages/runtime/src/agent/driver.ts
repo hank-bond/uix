@@ -71,8 +71,8 @@ import {
 } from "../agent-system-prompt-registry";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
+import type { Workspace } from "../roots";
 import type { TurnStateRegistry } from "../turn-state";
-import type { Workspace } from "../workspace/roots";
 
 const MaxSessionTitleCodePoints = 4096;
 const log = createLogger("agent");

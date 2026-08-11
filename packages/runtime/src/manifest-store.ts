@@ -14,8 +14,8 @@ import process from "node:process";
 import {
   type ParsedWorkspaceManifest,
   parseWorkspaceManifest,
-} from "../features/manifest";
-import { createLogger } from "../log";
+} from "./features/manifest";
+import { createLogger } from "./log";
 
 const log = createLogger("workspace-manifest");
 

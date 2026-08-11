@@ -12,7 +12,7 @@ import { SurfaceRegistry } from "./surfaces";
 import { AgentToolRegistry } from "../agent-tools/registry";
 import { ChannelRegistry } from "../channel-registry";
 import { DisposableBag } from "../lifecycle";
-import { WorkspaceManifestStore } from "../workspace/manifest-store";
+import { WorkspaceManifestStore } from "../manifest-store";
 
 const documents: DocumentStoreFactory = {
   createStore: () => {
@@ -106,7 +106,7 @@ function makeSubstrate(manifestPath?: string): {
     channels,
     registries: { agentTools, channels, surfaces },
     // The repo's API package source: what the composition root supplies in dev.
-    apiModuleDir: join(__dirname, "../../../packages/api/src"),
+    apiModuleDir: join(__dirname, "../../../api/src"),
   };
   return {
     substrate,

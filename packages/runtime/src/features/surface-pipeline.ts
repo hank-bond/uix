@@ -20,11 +20,11 @@ import {
   ResourceProtocolScheme,
 } from "@uix/api/resource-routes";
 import type { ResourceContribution } from "@uix/api/resources";
-import type { SurfaceEntry } from "#shared/ipc";
+import type { SurfaceEntry } from "@uix/api/substrate-channels";
 import {
   SurfaceSharedGlobal,
   SurfaceSharedModules,
-} from "#shared/surface-shared-modules";
+} from "@uix/api/surface-shared-modules";
 
 import type { ResolvedSurfaceContribution } from "./surfaces";
 import { createLogger } from "../log";

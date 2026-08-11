@@ -93,6 +93,12 @@ The dependency direction is one-way: runtime, client, and feature implementation
 
 ## Log
 
+### 2026-08-09: H3 extracts the workspace substrate into the runtime package
+
+Moved the Electron-free backend substrate out of `src/main` into `packages/runtime`: documents, manifest store, workspace settings, settings registry, channel registry, resource registry, turn state, the agent tool/prompt/skill/context registries, feature loading, the surface registry and pipeline, the selected-session agent driver, keybindings, and the reload coordinator. `createWorkspaceRuntime` now composes the whole substrate behind the H2 `WorkspaceRuntime` contract over host-provided ports: the channel transport, the resource transport, `openExternal`, the Pi profile directory, and the API module directory. The channel registry holds the canonical table that both the host transport binding and the attachment dispatch path route through, and `dispatch(context, request)` receives host-stamped attachment context outside feature payloads.
+
+The Electron app remains a concrete host in `src/main`: `openWorkspace` constructs one runtime over Electron ports and keeps windows, the menu, the picker, recents, and the reload IPC channel. No Electron import exists in the runtime package, and `hosts/electron` remains empty until H7 reconstitutes the host. The H3 isolation suite proves two concurrent workspaces with duplicate feature, channel, resource, and settings ids, exercising activation, settings, documents, dispatch, resources, surfaces, independent reload, scoped events, and disposal isolation.
+
 ### 2026-08-09: hosts supervise one-workspace runtimes
 
 Reframed the Electron and server split around hosts rather than treating server transport as a later adapter beside Electron-owned source. Electron and server become discrete composition roots immediately. The shared browser workspace moves out of Electron ownership, and each host supplies a client bootstrap. Delaying this structure was rejected because it lets transport mechanisms choose runtime contracts before host and client responsibilities are clear.

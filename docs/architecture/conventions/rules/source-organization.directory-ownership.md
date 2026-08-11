@@ -7,7 +7,7 @@ kind: reference
 
 **Rule: must.** A directory groups source owned by one coherent domain or implementation unit. A directory does not automatically define a module, namespace, or public API. Introduce a directory when one concept groups multiple production files or child ownership boundaries.
 
-**Approved example:** `src/main/agent/` grouping the driver, installers, and transcript projection that one subsystem owns.
+**Approved example:** `packages/runtime/src/agent/` grouping the driver, installers, and transcript projection that one subsystem owns.
 
 **Nonconforming example:** A directory containing one production file and only its tests. Also an empty or single-file directory layer that merely makes unrelated parts of the tree look alike.
 

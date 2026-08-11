@@ -25,7 +25,7 @@ import { createFeatureEventPublisherFactory } from "../channel-registry";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
 import { bindSettingsHandle } from "../settings-registry";
-import type { WorkspaceSettings } from "../workspace/settings";
+import type { WorkspaceSettings } from "../workspace-settings";
 
 const log = createLogger("features");
 

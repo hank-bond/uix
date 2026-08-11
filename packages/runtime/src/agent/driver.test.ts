@@ -19,11 +19,11 @@ import type {
 import { type AgentDriver, createAgentDriver } from "./driver";
 import { sessionWorkspaceSettings } from "./session-settings";
 import { agentWorkspaceSettings } from "./settings";
+import type { Workspace } from "../roots";
 import {
   registerTurnStateContributions,
   TurnStateRegistry,
 } from "../turn-state";
-import type { Workspace } from "../workspace/roots";
 
 interface FakeModel {
   provider: string;

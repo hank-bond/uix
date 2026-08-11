@@ -7,7 +7,7 @@
 import path from "node:path";
 import process from "node:process";
 
-import { WorkspaceManifestFileName } from "../features/manifest";
+import { WorkspaceManifestFileName } from "./features/manifest";
 
 export interface Workspace {
   stateRoot: string;
