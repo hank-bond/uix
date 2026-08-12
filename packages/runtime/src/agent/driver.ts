@@ -53,7 +53,7 @@ import {
 } from "./session-summary";
 import type { agentWorkspaceSettings } from "./settings";
 import { createSystemPromptAssembler } from "./system-prompt";
-import { createEphemeralTranscriptItemId } from "./transcript";
+import { createEphemeralTranscriptItemIdSequence } from "./transcript";
 import { createTranscriptObserver } from "./transcript-observer";
 import { createTurnStateCoordinator } from "./turn-state-coordinator";
 import {
@@ -176,8 +176,15 @@ export interface AgentDriverOptions {
 
 export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   const driverBag = new DisposableBag();
+  // This sequence belongs to the current live agent core. Keeping it here,
+  // rather than at module scope, prevents concurrent instances from sharing
+  // mutable transcript identity state.
+  const ephemeralTranscriptIds = createEphemeralTranscriptItemIdSequence();
   const transcriptObserver = driverBag.add(
-    createTranscriptObserver({ emit: opts.onEvent }),
+    createTranscriptObserver({
+      emit: opts.onEvent,
+      ephemeralIds: ephemeralTranscriptIds,
+    }),
   );
 
   // The bootstrap manager stays cheap and auth-free so startup history does
@@ -823,7 +830,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         opts.onEvent({
           type: "transcript_append",
           item: {
-            id: createEphemeralTranscriptItemId("error"),
+            id: ephemeralTranscriptIds.next("error"),
             kind: "error",
             message: errorMessage(err),
           },

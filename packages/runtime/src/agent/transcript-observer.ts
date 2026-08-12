@@ -15,7 +15,7 @@ import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
 
 import { deriveToolFileLocation } from "./tool-file-location";
 import {
-  createEphemeralTranscriptItemId,
+  type EphemeralTranscriptItemIdSequence,
   extractTranscriptText,
   getMessageRole,
   parseCustomTranscriptItem,
@@ -29,6 +29,7 @@ import { DisposableBag, subscribe } from "../lifecycle";
 
 interface TranscriptObserverOptions {
   emit: (event: AgentEvent) => void;
+  ephemeralIds: EphemeralTranscriptItemIdSequence;
 }
 
 interface TranscriptObserver extends Disposable {
@@ -92,6 +93,7 @@ export function createTranscriptObserver(
           createLiveTranscriptForwarder(
             opts.emit,
             identity,
+            opts.ephemeralIds,
             session.sessionManager.getCwd(),
           ),
         ),
@@ -113,6 +115,7 @@ export function createTranscriptObserver(
 function createLiveTranscriptForwarder(
   emit: (event: AgentEvent) => void,
   identity: TranscriptItemIdentity,
+  ephemeralIds: EphemeralTranscriptItemIdSequence,
   cwd: string,
 ) {
   let assistant: Extract<TranscriptItem, { kind: "assistant" }> | undefined;
@@ -129,7 +132,7 @@ function createLiveTranscriptForwarder(
   function ensureAssistant(): Extract<TranscriptItem, { kind: "assistant" }> {
     if (assistant) return assistant;
     assistant = {
-      id: createEphemeralTranscriptItemId("assistant"),
+      id: ephemeralIds.next("assistant"),
       kind: "assistant",
       text: "",
       complete: false,
@@ -216,9 +219,7 @@ function createLiveTranscriptForwarder(
         const args = toIpcValue(event.args);
         const file = deriveToolFileLocation(event.toolName, args, cwd);
         const item = {
-          id:
-            identity.toolRowId(event.toolCallId) ??
-            createEphemeralTranscriptItemId("tool"),
+          id: identity.toolRowId(event.toolCallId) ?? ephemeralIds.next("tool"),
           kind: "tool" as const,
           toolCallId: event.toolCallId,
           toolName: event.toolName,
@@ -253,8 +254,7 @@ function createLiveTranscriptForwarder(
           existing ??
           ({
             id:
-              identity.toolRowId(event.toolCallId) ??
-              createEphemeralTranscriptItemId("tool"),
+              identity.toolRowId(event.toolCallId) ?? ephemeralIds.next("tool"),
             kind: "tool" as const,
             toolCallId: event.toolCallId,
             toolName: event.toolName,

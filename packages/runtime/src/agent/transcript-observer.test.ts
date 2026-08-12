@@ -7,6 +7,7 @@ import { describe, expect, it, type Mock, vi } from "vitest";
 
 import type { AgentEvent } from "@uix/api/agent-channels";
 
+import { createEphemeralTranscriptItemIdSequence } from "./transcript";
 import { createTranscriptObserver } from "./transcript-observer";
 
 function createManager(cwd = "/workspace"): SessionManager {
@@ -50,6 +51,7 @@ function createHarness(): {
   const events: AgentEvent[] = [];
   const observer = createTranscriptObserver({
     emit: (event) => events.push(event),
+    ephemeralIds: createEphemeralTranscriptItemIdSequence(),
   });
   return { observer, events };
 }

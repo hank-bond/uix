@@ -20,13 +20,19 @@ export function toolItemId(entryId: string, toolCallId: string): string {
   return `${entryId}:tool:${toolCallId}`;
 }
 
-let nextEphemeralItemId = 1;
+export interface EphemeralTranscriptItemIdSequence {
+  /** Mint the next id owned by this live agent instance. */
+  next(kind: TranscriptItem["kind"]): string;
+}
 
-/** Mints a process-local id for a transcript item without durable identity. */
-export function createEphemeralTranscriptItemId(
-  kind: TranscriptItem["kind"],
-): string {
-  return `live:${kind}:${String(nextEphemeralItemId++)}`;
+/** Creates an instance-local sequence for transcript items without durable identity. */
+export function createEphemeralTranscriptItemIdSequence(): EphemeralTranscriptItemIdSequence {
+  let nextId = 1;
+  return {
+    next(kind) {
+      return `live:${kind}:${String(nextId++)}`;
+    },
+  };
 }
 
 interface TranscriptProjector {

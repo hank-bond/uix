@@ -1,7 +1,10 @@
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
 
-import { deriveTranscriptItems } from "./transcript";
+import {
+  createEphemeralTranscriptItemIdSequence,
+  deriveTranscriptItems,
+} from "./transcript";
 
 // Assert the resumed transcript a session shows: item kind, order, and final
 // durable tool rows, not the entry plumbing it came from. Entries are
@@ -19,6 +22,18 @@ const entry = (
     ...(message ? { message } : {}),
     ...extra,
   }) as SessionEntry;
+
+describe("ephemeral transcript item identity", () => {
+  it("keeps each live agent instance's sequence independent", () => {
+    const first = createEphemeralTranscriptItemIdSequence();
+    const second = createEphemeralTranscriptItemIdSequence();
+
+    expect(first.next("assistant")).toBe("live:assistant:1");
+    expect(first.next("tool")).toBe("live:tool:2");
+    expect(second.next("error")).toBe("live:error:1");
+    expect(second.next("assistant")).toBe("live:assistant:2");
+  });
+});
 
 describe("deriveTranscriptItems", () => {
   it("keeps user and assistant text in order", () => {
