@@ -27,6 +27,7 @@ Provider discovery and interactive sign-in share Pi's authentication state. A co
 - **[instance-state.ts](./instance-state.ts)** Owns the mutable collaborators and projections scoped to one live agent instance.
 - **[provider-auth-flow.ts](./provider-auth-flow.ts)** Runs one interactive provider sign-in at a time and exposes its prompts, links, progress, and result to the renderer.
 - **[session-files.ts](./session-files.ts)** Finds recent Pi session files and resolves a session ID to its JSONL file.
+- **[session-manager.ts](./session-manager.ts)** Opens one explicit durable session into its own Pi manager.
 - **[session-settings.ts](./session-settings.ts)** Defines the workspace setting for the selected Pi session.
 - **[session-summary.ts](./session-summary.ts)** Reads session titles, first user-message previews, and timestamps without opening each Pi session.
 - **[settings.ts](./settings.ts)** Defines workspace settings for the default model and favorite models.

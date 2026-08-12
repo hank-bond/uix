@@ -46,6 +46,7 @@ import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { createAgentInstanceState } from "./instance-state";
 import { createProviderAuthFlowCoordinator } from "./provider-auth-flow";
 import { resolveSessionFileById } from "./session-files";
+import { openExistingSessionManager } from "./session-manager";
 import type { sessionWorkspaceSettings } from "./session-settings";
 import { type SelectedSessionSetting } from "./session-settings";
 import {
@@ -380,14 +381,13 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     // cwd-derived default, so the session file stays with the canvases and does
     // not move when the agent later relocates to a worktree.
     const selected = opts.sessionSettings?.get("selected");
-    const selectedFile = selected
-      ? await resolveSessionFileById(sessionDir, selected.sessionId)
-      : undefined;
-
     let manager: SessionManager | undefined;
-    if (selectedFile) {
+    if (selected) {
       try {
-        manager = sdk.SessionManager.open(selectedFile, sessionDir);
+        manager = await openExistingSessionManager(
+          sessionDir,
+          selected.sessionId,
+        );
       } catch {
         // A stale or unreadable selected file falls through to the normal
         // newest-session recovery path.
@@ -616,7 +616,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       // ensures Pi records the native model_change rather than turning a chat
       // picker action into a workspace-default mutation.
       const activeRuntime = await getRuntime();
-      // Pi emits model_select before this resolves; the instance installer
+      // Pi emits model_select before this resolves. The instance installer
       // mirrors that event into currentModel and publishes the status change.
       await activeRuntime.session.setModel(model);
       return getStatus();
