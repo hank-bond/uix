@@ -12,6 +12,9 @@ interface Harness {
   runtime: AgentSessionRuntime;
   runtimeDispose: ReturnType<typeof vi.fn<() => Promise<void>>>;
   sessionReload: ReturnType<typeof vi.fn<() => Promise<void>>>;
+  sessionSubscribe: ReturnType<typeof vi.fn>;
+  setStreaming(streaming: boolean): void;
+  emit(event: { type: string }): void;
   createRuntime: ReturnType<
     typeof vi.fn<AgentInstanceOptions["createRuntime"]>
   >;
@@ -22,8 +25,22 @@ function createHarness(): Harness {
   const manager = {} as SessionManager;
   const runtimeDispose = vi.fn<() => Promise<void>>(() => Promise.resolve());
   const sessionReload = vi.fn<() => Promise<void>>(() => Promise.resolve());
+  let streaming = false;
+  let listener: ((event: { type: string }) => void) | undefined;
+  const sessionSubscribe = vi.fn((next: (event: { type: string }) => void) => {
+    listener = next;
+    return (): void => {
+      listener = undefined;
+    };
+  });
   const runtime = {
-    session: { reload: sessionReload },
+    session: {
+      get isStreaming() {
+        return streaming;
+      },
+      reload: sessionReload,
+      subscribe: sessionSubscribe,
+    },
     dispose: runtimeDispose,
   } as unknown as AgentSessionRuntime;
   const createRuntime = vi.fn<AgentInstanceOptions["createRuntime"]>(() =>
@@ -34,6 +51,13 @@ function createHarness(): Harness {
     runtime,
     runtimeDispose,
     sessionReload,
+    sessionSubscribe,
+    setStreaming(value) {
+      streaming = value;
+    },
+    emit(event) {
+      listener?.(event);
+    },
     createRuntime,
     target: { sessionId: toSessionId("session-1") },
   };
@@ -172,6 +196,65 @@ describe("AgentInstance", () => {
     await expect(boot).rejects.toThrow("disposed");
     await disposal;
     expect(harness.runtimeDispose).toHaveBeenCalledOnce();
+  });
+
+  it("disposes an idle instance at its safe boundary immediately", async () => {
+    const harness = createHarness();
+    const instance = createAgentInstance({
+      target: harness.target,
+      manager: harness.manager,
+      createRuntime: harness.createRuntime,
+      state: { emit: () => undefined, cwd: "/workspace" },
+    });
+    await instance.getRuntime();
+
+    await expect(
+      instance.disposeAtSafeTurnBoundary(new AbortController().signal),
+    ).resolves.toBe(true);
+    expect(harness.sessionSubscribe).not.toHaveBeenCalled();
+    expect(harness.runtimeDispose).toHaveBeenCalledOnce();
+  });
+
+  it("waits for agent_end before disposing a running instance", async () => {
+    const harness = createHarness();
+    harness.setStreaming(true);
+    const instance = createAgentInstance({
+      target: harness.target,
+      manager: harness.manager,
+      createRuntime: harness.createRuntime,
+      state: { emit: () => undefined, cwd: "/workspace" },
+    });
+    await instance.getRuntime();
+
+    const safeDisposal = instance.disposeAtSafeTurnBoundary(
+      new AbortController().signal,
+    );
+    expect(harness.runtimeDispose).not.toHaveBeenCalled();
+    harness.setStreaming(false);
+    harness.emit({ type: "agent_end" });
+
+    await expect(safeDisposal).resolves.toBe(true);
+    expect(harness.runtimeDispose).toHaveBeenCalledOnce();
+  });
+
+  it("cancels pending safe disposal when aborted", async () => {
+    const harness = createHarness();
+    harness.setStreaming(true);
+    const instance = createAgentInstance({
+      target: harness.target,
+      manager: harness.manager,
+      createRuntime: harness.createRuntime,
+      state: { emit: () => undefined, cwd: "/workspace" },
+    });
+    await instance.getRuntime();
+    const controller = new AbortController();
+
+    const safeDisposal = instance.disposeAtSafeTurnBoundary(controller.signal);
+    controller.abort();
+
+    await expect(safeDisposal).resolves.toBe(false);
+    expect(harness.runtimeDispose).not.toHaveBeenCalled();
+    await expect(instance.getRuntime()).resolves.toBe(harness.runtime);
   });
 
   it("disposes its state and booted runtime idempotently", async () => {

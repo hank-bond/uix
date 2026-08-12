@@ -20,6 +20,8 @@ export interface AgentInstance {
   getRuntime(): Promise<AgentSessionRuntime>;
   /** Reload an active or already-booting runtime without starting an unused one. */
   reloadRuntimeIfActive(): Promise<boolean>;
+  /** Dispose now when idle, or after the active turn. Abort cancels teardown. */
+  disposeAtSafeTurnBoundary(signal: AbortSignal): Promise<boolean>;
   dispose(): Promise<void>;
 }
 
@@ -66,6 +68,24 @@ export function createAgentInstance(opts: AgentInstanceOptions): AgentInstance {
     return boot;
   }
 
+  function dispose(): Promise<void> {
+    if (disposal) return disposal;
+    disposed = true;
+    state[Symbol.dispose]();
+    const bootedRuntime = runtime;
+    const pendingBoot = inFlightRuntimeBoot;
+    runtime = undefined;
+    disposal = bootedRuntime
+      ? bootedRuntime.dispose()
+      : pendingBoot
+        ? pendingBoot.then(
+            () => undefined,
+            () => undefined,
+          )
+        : Promise.resolve();
+    return disposal;
+  }
+
   return {
     target: opts.target,
     manager: opts.manager,
@@ -78,22 +98,55 @@ export function createAgentInstance(opts: AgentInstanceOptions): AgentInstance {
       await activeRuntime.session.reload();
       return true;
     },
-    dispose() {
-      if (disposal) return disposal;
-      disposed = true;
-      state[Symbol.dispose]();
-      const bootedRuntime = runtime;
-      const pendingBoot = inFlightRuntimeBoot;
-      runtime = undefined;
-      disposal = bootedRuntime
-        ? bootedRuntime.dispose()
-        : pendingBoot
-          ? pendingBoot.then(
-              () => undefined,
-              () => undefined,
-            )
-          : Promise.resolve();
-      return disposal;
+    async disposeAtSafeTurnBoundary(signal) {
+      if (disposed) {
+        await disposal;
+        return true;
+      }
+      let activeRuntime = runtime;
+      if (!activeRuntime && inFlightRuntimeBoot) {
+        try {
+          activeRuntime = await inFlightRuntimeBoot;
+        } catch {
+          if (signal.aborted) return false;
+          await dispose();
+          return true;
+        }
+      }
+      if (signal.aborted) return false;
+      if (activeRuntime?.session.isStreaming) {
+        const reachedBoundary = await waitForAgentEnd(activeRuntime, signal);
+        if (!reachedBoundary) return false;
+      }
+      await dispose();
+      return true;
     },
+    dispose,
   };
+}
+
+function waitForAgentEnd(
+  runtime: AgentSessionRuntime,
+  signal: AbortSignal,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false;
+    let unsubscribe = (): void => undefined;
+    const finish = (reachedBoundary: boolean): void => {
+      if (settled) return;
+      settled = true;
+      unsubscribe();
+      signal.removeEventListener("abort", onAbort);
+      resolve(reachedBoundary);
+    };
+    const onAbort = (): void => {
+      finish(false);
+    };
+    unsubscribe = runtime.session.subscribe((event) => {
+      if (event.type === "agent_end") finish(true);
+    });
+    signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) finish(false);
+    else if (!runtime.session.isStreaming) finish(true);
+  });
 }

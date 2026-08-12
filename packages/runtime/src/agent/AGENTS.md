@@ -24,7 +24,7 @@ Provider discovery and interactive sign-in share Pi's authentication state. A co
 - **[branch-projection.ts](./branch-projection.ts)** Derives current transcript and restorable feature state from one selected Pi branch.
 - **[driver.ts](./driver.ts)** Runs the selected Pi session and coordinates prompts, models, sign-in, transcripts, and feature state for the renderer.
 - **[installers.ts](./installers.ts)** Assembles UIX's ordered Pi setup hooks into the single in-process extension used by each runtime.
-- **[instance-manager.ts](./instance-manager.ts)** Owns session-keyed agent instance identity and single-flight boot within one workspace runtime.
+- **[instance-manager.ts](./instance-manager.ts)** Owns session-keyed agent instance identity, retention, and safe teardown within one workspace runtime.
 - **[instance-state.ts](./instance-state.ts)** Owns the mutable collaborators and projections scoped to one live agent instance.
 - **[instance.ts](./instance.ts)** Owns one live Pi execution and its mutable state at one immutable session-branch viewpoint.
 - **[provider-auth-flow.ts](./provider-auth-flow.ts)** Runs one interactive provider sign-in at a time and exposes its prompts, links, progress, and result to the renderer.
