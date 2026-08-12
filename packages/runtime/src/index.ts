@@ -17,6 +17,7 @@ export {
 export type {
   AgentInstanceId,
   AttachmentId,
+  BranchId,
   RuntimeAttachment,
   SessionId,
   SessionTarget,
@@ -26,6 +27,7 @@ export type {
 export {
   toAgentInstanceId,
   toAttachmentId,
+  toBranchId,
   toSessionId,
   toWorkspaceId,
 } from "./workspace";

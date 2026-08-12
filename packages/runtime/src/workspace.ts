@@ -15,6 +15,7 @@ import type { ActivationResult } from "./features/loader";
 
 const WorkspaceIdBrand: unique symbol = Symbol("WorkspaceId");
 const SessionIdBrand: unique symbol = Symbol("SessionId");
+const BranchIdBrand: unique symbol = Symbol("BranchId");
 const AgentInstanceIdBrand: unique symbol = Symbol("AgentInstanceId");
 const AttachmentIdBrand: unique symbol = Symbol("AttachmentId");
 
@@ -23,6 +24,9 @@ export type WorkspaceId = string & { readonly [WorkspaceIdBrand]: true };
 
 /** Durable session id within one workspace's session tree. */
 export type SessionId = string & { readonly [SessionIdBrand]: true };
+
+/** Durable id of the first Pi entry belonging to one branch. */
+export type BranchId = string & { readonly [BranchIdBrand]: true };
 
 /** One live agent execution at a session-branch viewpoint. */
 export type AgentInstanceId = string & {
@@ -50,6 +54,11 @@ export function toSessionId(id: string): SessionId {
   return id as SessionId;
 }
 
+export function toBranchId(id: string): BranchId {
+  assertIdToken("branch id", id);
+  return id as BranchId;
+}
+
 export function toAgentInstanceId(id: string): AgentInstanceId {
   assertIdToken("agent instance id", id);
   return id as AgentInstanceId;
@@ -60,9 +69,11 @@ export function toAttachmentId(id: string): AttachmentId {
   return id as AttachmentId;
 }
 
-/** Initial resolution target: one durable session, resolved to its primary agent instance by the runtime. */
+/** One durable session and optional born-branch viewpoint to resolve. */
 export interface SessionTarget {
   readonly sessionId: SessionId;
+  /** Id of the branch's first entry. Undefined while the branch is unborn. */
+  readonly branchId?: BranchId;
 }
 
 /**
