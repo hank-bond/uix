@@ -10,6 +10,7 @@ summary: "Build explicit Electron and server hosts around a shared browser clien
 - **H1** ownership roots and dependency enforcement landed.
 - **H2** in-memory host/runtime boundary proof landed.
 - **H3** real workspace runtime landed. The openWorkspace substrate moved into `packages/runtime`. `createWorkspaceRuntime` composes it over host ports, and the Electron app consumes it without host migration. The H3 isolation suite proves two concurrent workspaces with duplicate feature, channel, resource, and settings ids.
+- **H4.0** derisk spike landed: two real Pi runtimes coexist in one process, and two live agents append disjoint branches to one session file. See the H4 section.
 
 ## Status and intent
 
@@ -124,11 +125,62 @@ Do not migrate Electron yet. Use in-memory host and resource adapters so failure
 
 ### H4: Prove real agent instances
 
-Replace the selected-session singleton inside one workspace runtime with the agent instance manager. The first target policy resolves each session to one primary agent instance, while the identity shape leaves room for later branch-bound or ephemeral agents.
+Restructured into sub-units after the H4.0 derisk findings. The gate question (whether Pi and feature state can support concurrent in-process instances) has a preliminary **Pi passes** answer. The state-model risk is UIX-owned: the per-instance refactor, the instance manager, and the feature instance boundary.
 
-Split workspace-scoped feature ownership from branch-viewpoint working state. The workspace runtime retains the accepted feature composition, settings, stores, and contribution definitions. Each agent instance owns its state at its session-branch viewpoint: the turn-state projection, agent context, Pi installation, and feature buffers that depend on that branch. Existing contribution APIs may need an instance-instantiation or context-aware callback boundary. Prove that boundary with real stateful features rather than sharing singleton closures across sessions.
+#### H4.0: Derisk spike: Pi concurrency and shared-file branch writes
 
-Implement and test:
+_Status: landed._ Two spike suites prove the load-bearing assumptions with real Pi:
+
+- `packages/runtime/src/agent/pi-concurrency-spike.test.ts`: two real `AgentSessionRuntime`s share one process with distinct services and modelRuntime. UIX extension hooks bind per runtime: a `model_select` mirror on one runtime never fires for the other. The suite covers concurrent model-store refresh on the shared profile, dispose isolation, and independent real turns. Env-gated: skips without the userspace profile (`UIX_PI_AGENT_DIR`), prompts only with `UIX_SPIKE_PROMPT=1`.
+- `packages/runtime/src/agent/same-session-branches.test.ts`: two managers, and two real live agents, append disjoint branches to one session file concurrently without corruption. A fresh open sees the full tree, and each writer's stale view sees only its own branch. The append-level test runs always (no profile, no tokens).
+
+Findings that shape the design:
+
+- Appends are single-line O_APPEND writes, atomic per row. No file lock is needed in-process.
+- Compaction is a pure append that writes a `compaction` entry. Old rows stay in the file, and only context projection skips them. It never rewrites the file.
+- The only full-file rewrites are open-time: empty-file header init, session schema version migration, and new-file creation. Migration runs at most once per session file ever and is first-writer-safe. It is a boot rule, not a join rule.
+- Multi-process is a non-goal. No cross-process writer topology exists, so the lock story is closed.
+
+#### H4.1: Per-instance agent core (behavior-preserving refactor)
+
+Extract the driver's instance-scoped state into a per-session core. Each core owns one `SessionManager` and `AgentSessionRuntime` per session, with no `switchSession` or selected-session singleton. It also owns a per-instance transcript binding, a per-instance turn-state coordinator, and a per-instance `currentModel`. Workspace-level services (provider auth, model catalog, workspace settings) stay shared.
+
+Settled identity and ownership model:
+
+- `SessionTarget` = `{ sessionId, branchId? }`. `branchId` is the id of the branch's first row, undefined until the branch is born (new or empty session). No minted token or marker row.
+- Instance key = `(sessionId, branchId)`. Today the primary branch is the only branch, so behavior is unchanged.
+- One manager per agent (decided over a shared per-session manager). Stale views are the model, and they make concurrent turns on one session possible. Attach and reconnect position the manager at the branch chain end, never the file's current leaf.
+- Module-level mutable state audit: the ephemeral live-item id sequence in the transcript projection becomes instance-scoped, never a process-global counter that concurrent instances mutate.
+
+Also lands: `selectModel` stops writing the workspace default. The chat picker becomes "use for this session" via native `model_change`, and a discrete settings path for a static default is deferred. The workspace default remains a fallback applied only when the branch has no `model_change`. That is already the implemented semantics. The default is `deepseek/deepseek-v4-flash` in the reference manifest.
+
+**Review gate:** Existing driver tests stay green. New tests prove two instance cores don't share the ephemeral counter, the turn-state coordinator, or `currentModel`. The current single-session Electron behavior is unchanged.
+
+#### H4.2: Instance manager lifecycle
+
+The manager composes per-instance cores. It owns attach, single-flight boot, warm attach, retention refcount, and acquire-before-release retarget. Teardown policies cover idle immediate, running at a safe turn boundary, and cancel-on-attach. It enforces one active turn per instance with busy rejection, and failed acquisition preserves the old instance.
+
+Branch ownership: the instance map keyed by `(sessionId, branchId)` **is** the ownership registry. Attach coalesces onto an owned live branch (multi-device), boots and registers otherwise, and unregisters at teardown. Unborn branches hold a provisional entry keyed by `(session, origin)` until the first append births the branch id. No two live agents share one branch. The registry is a semantic guarantee, and the file-level failure mode is a benign fork, not corruption.
+
+**Review gate:** The lifecycle scenario list below (minus the canvas items) passes against the mocked SDK with two sessions in one runtime.
+
+#### H4.3: Feature instance boundary
+
+Split workspace-scoped feature ownership from branch-viewpoint working state: turn-state cells and agent-context buffers become per-branch. The canvas document buffer is the proving feature. Existing contribution APIs may need an instance-instantiation or context-aware callback boundary. Prove that boundary with real stateful features rather than sharing singleton closures across sessions.
+
+**Review gate:** The canvas independence items below.
+
+#### H4.4: Scoped events and reload reconciliation
+
+Agent-instance events reach only attachments on that instance. Session events reach session viewers. Workspace feature reload commits and reconciles every agent instance without cross-session state exchange.
+
+**Review gate:** Scope isolation and reload reconciliation tests against fake hosts (H3 style).
+
+#### H4.5: Real-Pi gate and model semantics
+
+Graduate the H4.0 spikes into the plan's review gate, and land the "last one used" model semantics (per-instance `currentModel` projection, workspace default as fallback).
+
+The lifecycle contract across H4.1–H4.5, implemented and tested:
 
 - Concurrent cold attachments awaiting one single-flight boot promise.
 - Warm attachment to an existing instance.
@@ -144,9 +196,8 @@ Implement and test:
 - One attachment leaving a shared instance without committing, restoring, or disrupting peers.
 - Final state commit and safe teardown only when the agent instance tears down.
 - Workspace feature reload committing and reconciling every agent instance without cross-session state exchange.
-- Audit module-level mutable state for cross-instance leaks. The ephemeral live-item id sequence in the transcript projection becomes instance-scoped or explicitly shared, never a process-global counter that concurrent instances mutate.
 
-Use real Pi integration rather than proving only a generic pool. A configurable warm-retention period, always-on instances, host-authored retention, multiple agents on one session, and branch coordination remain later policies.
+Retained as later policies: configurable warm-retention period, always-on instances, host-authored retention, multiple agents on one session, branch coordination, fork and branch-switch UI, static-default model setting.
 
 **Review gate:** Real Pi sessions and stateful features satisfy the lifecycle above without process-global collisions, cross-session event leakage, or shared branch-state mutation. If Pi or feature state cannot support concurrent in-process instances, stop and revisit the state model. Neither host should depend on the shape first.
 
