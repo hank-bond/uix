@@ -24,9 +24,9 @@ export interface AgentInstance {
 }
 
 export interface AgentInstanceOptions {
+  /** The accepted immutable target and its independently opened manager. */
   readonly target: SessionTarget;
-  /** Opens the independent manager for this primary session target. */
-  readonly openManager: (target: SessionTarget) => Promise<SessionManager>;
+  readonly manager: SessionManager;
   readonly createRuntime: (
     manager: SessionManager,
     state: AgentInstanceState,
@@ -34,75 +34,66 @@ export interface AgentInstanceOptions {
   readonly state: AgentInstanceStateOptions;
 }
 
-/** Boots one manager and its independently disposable, lazy agent instance. */
-export async function createAgentInstance(
-  opts: AgentInstanceOptions,
-): Promise<AgentInstance> {
+/** Creates an independently disposable instance with lazy Pi runtime boot. */
+export function createAgentInstance(opts: AgentInstanceOptions): AgentInstance {
   const state = createAgentInstanceState(opts.state);
   let runtime: AgentSessionRuntime | undefined;
   let inFlightRuntimeBoot: Promise<AgentSessionRuntime> | undefined;
   let disposal: Promise<void> | undefined;
   let disposed = false;
 
-  try {
-    const manager = await opts.openManager(opts.target);
-
-    function getRuntime(): Promise<AgentSessionRuntime> {
-      if (disposed) {
-        return Promise.reject(new Error("Agent instance is disposed"));
-      }
-      if (runtime) return Promise.resolve(runtime);
-      if (inFlightRuntimeBoot) return inFlightRuntimeBoot;
-
-      const boot = opts
-        .createRuntime(manager, state)
-        .then(async (bootedRuntime) => {
-          if (disposed) {
-            await bootedRuntime.dispose();
-            throw new Error("Agent instance is disposed");
-          }
-          runtime = bootedRuntime;
-          return bootedRuntime;
-        })
-        .finally(() => {
-          if (inFlightRuntimeBoot === boot) inFlightRuntimeBoot = undefined;
-        });
-      inFlightRuntimeBoot = boot;
-      return boot;
+  function getRuntime(): Promise<AgentSessionRuntime> {
+    if (disposed) {
+      return Promise.reject(new Error("Agent instance is disposed"));
     }
+    if (runtime) return Promise.resolve(runtime);
+    if (inFlightRuntimeBoot) return inFlightRuntimeBoot;
 
-    return {
-      target: opts.target,
-      manager,
-      state,
-      getRuntime,
-      async reloadRuntimeIfActive() {
-        if (disposed) throw new Error("Agent instance is disposed");
-        const activeRuntime = runtime ?? (await inFlightRuntimeBoot);
-        if (!activeRuntime) return false;
-        await activeRuntime.session.reload();
-        return true;
-      },
-      dispose() {
-        if (disposal) return disposal;
-        disposed = true;
-        state[Symbol.dispose]();
-        const bootedRuntime = runtime;
-        const pendingBoot = inFlightRuntimeBoot;
-        runtime = undefined;
-        disposal = bootedRuntime
-          ? bootedRuntime.dispose()
-          : pendingBoot
-            ? pendingBoot.then(
-                () => undefined,
-                () => undefined,
-              )
-            : Promise.resolve();
-        return disposal;
-      },
-    };
-  } catch (error) {
-    state[Symbol.dispose]();
-    throw error;
+    const boot = opts
+      .createRuntime(opts.manager, state)
+      .then(async (bootedRuntime) => {
+        if (disposed) {
+          await bootedRuntime.dispose();
+          throw new Error("Agent instance is disposed");
+        }
+        runtime = bootedRuntime;
+        return bootedRuntime;
+      })
+      .finally(() => {
+        if (inFlightRuntimeBoot === boot) inFlightRuntimeBoot = undefined;
+      });
+    inFlightRuntimeBoot = boot;
+    return boot;
   }
+
+  return {
+    target: opts.target,
+    manager: opts.manager,
+    state,
+    getRuntime,
+    async reloadRuntimeIfActive() {
+      if (disposed) throw new Error("Agent instance is disposed");
+      const activeRuntime = runtime ?? (await inFlightRuntimeBoot);
+      if (!activeRuntime) return false;
+      await activeRuntime.session.reload();
+      return true;
+    },
+    dispose() {
+      if (disposal) return disposal;
+      disposed = true;
+      state[Symbol.dispose]();
+      const bootedRuntime = runtime;
+      const pendingBoot = inFlightRuntimeBoot;
+      runtime = undefined;
+      disposal = bootedRuntime
+        ? bootedRuntime.dispose()
+        : pendingBoot
+          ? pendingBoot.then(
+              () => undefined,
+              () => undefined,
+            )
+          : Promise.resolve();
+      return disposal;
+    },
+  };
 }

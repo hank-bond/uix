@@ -5,7 +5,6 @@ import type {
 import { describe, expect, it, vi } from "vitest";
 
 import { type AgentInstanceOptions, createAgentInstance } from "./instance";
-import type { AgentInstanceState } from "./instance-state";
 import { toSessionId } from "../workspace";
 
 interface Harness {
@@ -13,7 +12,6 @@ interface Harness {
   runtime: AgentSessionRuntime;
   runtimeDispose: ReturnType<typeof vi.fn<() => Promise<void>>>;
   sessionReload: ReturnType<typeof vi.fn<() => Promise<void>>>;
-  openManager: ReturnType<typeof vi.fn<AgentInstanceOptions["openManager"]>>;
   createRuntime: ReturnType<
     typeof vi.fn<AgentInstanceOptions["createRuntime"]>
   >;
@@ -28,9 +26,6 @@ function createHarness(): Harness {
     session: { reload: sessionReload },
     dispose: runtimeDispose,
   } as unknown as AgentSessionRuntime;
-  const openManager = vi.fn<AgentInstanceOptions["openManager"]>(() =>
-    Promise.resolve(manager),
-  );
   const createRuntime = vi.fn<AgentInstanceOptions["createRuntime"]>(() =>
     Promise.resolve(runtime),
   );
@@ -39,7 +34,6 @@ function createHarness(): Harness {
     runtime,
     runtimeDispose,
     sessionReload,
-    openManager,
     createRuntime,
     target: { sessionId: toSessionId("session-1") },
   };
@@ -48,14 +42,13 @@ function createHarness(): Harness {
 describe("AgentInstance", () => {
   it("opens its manager without booting Pi until first use", async () => {
     const harness = createHarness();
-    const instance = await createAgentInstance({
+    const instance = createAgentInstance({
       target: harness.target,
-      openManager: harness.openManager,
+      manager: harness.manager,
       createRuntime: harness.createRuntime,
       state: { emit: () => undefined, cwd: "/workspace" },
     });
 
-    expect(harness.openManager).toHaveBeenCalledWith(harness.target);
     expect(harness.createRuntime).not.toHaveBeenCalled();
     expect(instance.target).toBe(harness.target);
     expect(instance.manager).toBe(harness.manager);
@@ -74,9 +67,9 @@ describe("AgentInstance", () => {
       resolveRuntime = resolve;
     });
     harness.createRuntime.mockReturnValue(runtimeGate);
-    const instance = await createAgentInstance({
+    const instance = createAgentInstance({
       target: harness.target,
-      openManager: harness.openManager,
+      manager: harness.manager,
       createRuntime: harness.createRuntime,
       state: { emit: () => undefined, cwd: "/workspace" },
     });
@@ -95,9 +88,9 @@ describe("AgentInstance", () => {
     harness.createRuntime
       .mockRejectedValueOnce(new Error("runtime failed"))
       .mockResolvedValueOnce(harness.runtime);
-    const instance = await createAgentInstance({
+    const instance = createAgentInstance({
       target: harness.target,
-      openManager: harness.openManager,
+      manager: harness.manager,
       createRuntime: harness.createRuntime,
       state: { emit: () => undefined, cwd: "/workspace" },
     });
@@ -109,9 +102,9 @@ describe("AgentInstance", () => {
 
   it("does not boot an unused runtime merely to reload it", async () => {
     const harness = createHarness();
-    const instance = await createAgentInstance({
+    const instance = createAgentInstance({
       target: harness.target,
-      openManager: harness.openManager,
+      manager: harness.manager,
       createRuntime: harness.createRuntime,
       state: { emit: () => undefined, cwd: "/workspace" },
     });
@@ -123,9 +116,9 @@ describe("AgentInstance", () => {
 
   it("reloads an active runtime", async () => {
     const harness = createHarness();
-    const instance = await createAgentInstance({
+    const instance = createAgentInstance({
       target: harness.target,
-      openManager: harness.openManager,
+      manager: harness.manager,
       createRuntime: harness.createRuntime,
       state: { emit: () => undefined, cwd: "/workspace" },
     });
@@ -142,9 +135,9 @@ describe("AgentInstance", () => {
       resolveRuntime = resolve;
     });
     harness.createRuntime.mockReturnValue(runtimeGate);
-    const instance = await createAgentInstance({
+    const instance = createAgentInstance({
       target: harness.target,
-      openManager: harness.openManager,
+      manager: harness.manager,
       createRuntime: harness.createRuntime,
       state: { emit: () => undefined, cwd: "/workspace" },
     });
@@ -165,9 +158,9 @@ describe("AgentInstance", () => {
       resolveRuntime = resolve;
     });
     harness.createRuntime.mockReturnValue(runtimeGate);
-    const instance = await createAgentInstance({
+    const instance = createAgentInstance({
       target: harness.target,
-      openManager: harness.openManager,
+      manager: harness.manager,
       createRuntime: harness.createRuntime,
       state: { emit: () => undefined, cwd: "/workspace" },
     });
@@ -183,9 +176,9 @@ describe("AgentInstance", () => {
 
   it("disposes its state and booted runtime idempotently", async () => {
     const harness = createHarness();
-    const instance = await createAgentInstance({
+    const instance = createAgentInstance({
       target: harness.target,
-      openManager: harness.openManager,
+      manager: harness.manager,
       createRuntime: harness.createRuntime,
       state: { emit: () => undefined, cwd: "/workspace" },
     });
@@ -197,26 +190,5 @@ describe("AgentInstance", () => {
     expect(() => {
       instance.state.setCurrentModel(undefined);
     }).toThrow("disposed");
-  });
-
-  it("disposes instance state when manager boot fails", async () => {
-    const harness = createHarness();
-    let capturedState: AgentInstanceState | undefined;
-    harness.openManager.mockRejectedValue(new Error("manager failed"));
-    harness.createRuntime.mockImplementation((_manager, state) => {
-      capturedState = state;
-      return Promise.resolve(harness.runtime);
-    });
-
-    await expect(
-      createAgentInstance({
-        target: harness.target,
-        openManager: harness.openManager,
-        createRuntime: harness.createRuntime,
-        state: { emit: () => undefined, cwd: "/workspace" },
-      }),
-    ).rejects.toThrow("manager failed");
-    expect(capturedState).toBeUndefined();
-    expect(harness.runtimeDispose).not.toHaveBeenCalled();
   });
 });
