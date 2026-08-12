@@ -3,6 +3,7 @@
 import type { SessionManager } from "@earendil-works/pi-coding-agent";
 
 import { resolveSessionFileById } from "./session-files";
+import { type SessionTarget, toSessionId } from "../workspace";
 
 /**
  * Open an independent manager for one existing session id. Returns undefined
@@ -19,4 +20,46 @@ export async function openExistingSessionManager(
   // preserved by the bundler and Node caches the module after its first load.
   const sdk = await import("@earendil-works/pi-coding-agent");
   return sdk.SessionManager.open(sessionFile, sessionDir);
+}
+
+export interface OpenedPrimarySession {
+  readonly target: SessionTarget;
+  readonly manager: SessionManager;
+}
+
+interface OpenWorkspaceFallbackSessionOptions {
+  readonly cwd: string;
+  readonly sessionDir: string;
+  readonly preferredSessionId?: string;
+}
+
+/** Open the workspace fallback session, recovering through recent then new. */
+export async function openWorkspaceFallbackSession(
+  opts: OpenWorkspaceFallbackSessionOptions,
+): Promise<OpenedPrimarySession> {
+  let manager: SessionManager | undefined;
+  if (opts.preferredSessionId) {
+    try {
+      manager = await openExistingSessionManager(
+        opts.sessionDir,
+        opts.preferredSessionId,
+      );
+    } catch {
+      // An unreadable preferred file follows the same fallback as a stale id.
+    }
+  }
+
+  if (!manager) {
+    const sdk = await import("@earendil-works/pi-coding-agent");
+    try {
+      manager = sdk.SessionManager.continueRecent(opts.cwd, opts.sessionDir);
+    } catch {
+      manager = sdk.SessionManager.create(opts.cwd, opts.sessionDir);
+    }
+  }
+
+  return {
+    target: { sessionId: toSessionId(manager.getSessionId()) },
+    manager,
+  };
 }

@@ -46,7 +46,7 @@ import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { createAgentInstanceState } from "./instance-state";
 import { createProviderAuthFlowCoordinator } from "./provider-auth-flow";
 import { resolveSessionFileById } from "./session-files";
-import { openExistingSessionManager } from "./session-manager";
+import { openWorkspaceFallbackSession } from "./session-manager";
 import type { sessionWorkspaceSettings } from "./session-settings";
 import { type SelectedSessionSetting } from "./session-settings";
 import {
@@ -375,34 +375,16 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   }
 
   async function openManager(): Promise<SessionManager> {
-    const sdk = await import("@earendil-works/pi-coding-agent");
-    const { agentCwd } = opts.workspace;
     // Pin the session dir under .uix on the stable state root, not Pi's
     // cwd-derived default, so the session file stays with the canvases and does
     // not move when the agent later relocates to a worktree.
-    const selected = opts.sessionSettings?.get("selected");
-    let manager: SessionManager | undefined;
-    if (selected) {
-      try {
-        manager = await openExistingSessionManager(
-          sessionDir,
-          selected.sessionId,
-        );
-      } catch {
-        // A stale or unreadable selected file falls through to the normal
-        // newest-session recovery path.
-      }
-    }
-    if (!manager) {
-      try {
-        manager = sdk.SessionManager.continueRecent(agentCwd, sessionDir);
-      } catch {
-        manager = sdk.SessionManager.create(agentCwd, sessionDir);
-      }
-    }
-
-    commitSessionSelection(await readSessionSummary(manager));
-    return manager;
+    const opened = await openWorkspaceFallbackSession({
+      cwd: opts.workspace.agentCwd,
+      sessionDir,
+      preferredSessionId: opts.sessionSettings?.get("selected")?.sessionId,
+    });
+    commitSessionSelection(await readSessionSummary(opened.manager));
+    return opened.manager;
   }
 
   async function bindActiveSession(session: AgentSession): Promise<void> {
