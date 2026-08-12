@@ -11,6 +11,7 @@ summary: "Build explicit Electron and server hosts around a shared browser clien
 - **H2** in-memory host/runtime boundary proof landed.
 - **H3** real workspace runtime landed. The openWorkspace substrate moved into `packages/runtime`. `createWorkspaceRuntime` composes it over host ports, and the Electron app consumes it without host migration. The H3 isolation suite proves two concurrent workspaces with duplicate feature, channel, resource, and settings ids.
 - **H4.0** derisk spike landed: two real Pi runtimes coexist in one process, and two live agents append disjoint branches to one session file. See the H4 section.
+- **H4.1** in progress. Per-instance transcript identity, mutable state, branch-local model selection, explicit manager opening, forward `SessionTarget` identity, and the internal `AgentInstance` owner have landed. H4 still ships one primary branch per session. The deferred multi-branch architecture is recorded below.
 
 ## Status and intent
 
@@ -141,49 +142,50 @@ Findings that shape the design:
 - The only full-file rewrites are open-time: empty-file header init, session schema version migration, and new-file creation. Migration runs at most once per session file ever and is first-writer-safe. It is a boot rule, not a join rule.
 - Multi-process is a non-goal. No cross-process writer topology exists, so the lock story is closed.
 
-#### H4.1: Per-instance agent core (behavior-preserving refactor)
+#### H4.1: Per-instance agent owner (behavior-preserving refactor)
 
-Extract the driver's instance-scoped state into a per-session core. Each core owns one `SessionManager` and `AgentSessionRuntime` per session, with no `switchSession` or selected-session singleton. It also owns a per-instance transcript binding, a per-instance turn-state coordinator, and a per-instance `currentModel`. Workspace-level services (provider auth, model catalog, workspace settings) stay shared.
+Extract the driver's instance-scoped state into an `AgentInstance`. Each instance owns one independent `SessionManager`, one `AgentSessionRuntime`, one transcript binding, one turn-state coordinator, one ephemeral transcript-id sequence, and one `currentModel`. It has one immutable primary session target and no `switchSession` method. Workspace-level services such as provider auth, the model catalog, workspace settings, and session-file discovery stay shared.
 
-Settled identity and ownership model:
+H4 deliberately supports **one primary branch per session**. `SessionTarget = { sessionId, branchId? }` reserves the eventual durable branch identity. `branchId` is the first row born on a branch. H4 accepts only the primary target with `branchId` omitted. It does not walk branch trees, expose fork selection, or silently ignore a supplied branch id. A branch-bearing target is unsupported until the deferred session coordinator exists.
 
-- `SessionTarget` = `{ sessionId, branchId? }`. `branchId` is the id of the branch's first row, undefined until the branch is born (new or empty session). No minted token or marker row.
-- Instance key = `(sessionId, branchId)`. Today the primary branch is the only branch, so behavior is unchanged.
-- One manager per agent (decided over a shared per-session manager). Stale views are the model, and they make concurrent turns on one session possible. Attach and reconnect position the manager at the branch chain end, never the file's current leaf.
-- Module-level mutable state audit: the ephemeral live-item id sequence in the transcript projection becomes instance-scoped, never a process-global counter that concurrent instances mutate.
+Module-level mutable state must not leak across instances. In particular, the ephemeral live-item id sequence is instance-scoped. `selectModel` stops writing the workspace default. The chat picker records native Pi `model_change` state on the primary branch. The static workspace default remains a fallback for a branch with no model history. A separate settings path for changing that default is deferred. The reference manifest default remains `deepseek/deepseek-v4-flash`.
 
-Also lands: `selectModel` stops writing the workspace default. The chat picker becomes "use for this session" via native `model_change`, and a discrete settings path for a static default is deferred. The workspace default remains a fallback applied only when the branch has no `model_change`. That is already the implemented semantics. The default is `deepseek/deepseek-v4-flash` in the reference manifest.
-
-**Review gate:** Existing driver tests stay green. New tests prove two instance cores don't share the ephemeral counter, the turn-state coordinator, or `currentModel`. The current single-session Electron behavior is unchanged.
+**Review gate:** Existing driver tests stay green. New tests prove two instances do not share the ephemeral sequence, turn-state coordinator, transcript binding, or `currentModel`. The current single-session Electron behavior is unchanged, and no H4 path claims multi-branch behavior.
 
 #### H4.2: Instance manager lifecycle
 
-The manager composes per-instance cores. It owns attach, single-flight boot, warm attach, retention refcount, and acquire-before-release retarget. Teardown policies cover idle immediate, running at a safe turn boundary, and cancel-on-attach. It enforces one active turn per instance with busy rejection, and failed acquisition preserves the old instance.
+The manager composes `AgentInstance` objects under the first shipping policy of one primary instance per session. It owns attach, single-flight boot, warm attach, retention refcount, and acquire-before-release retarget. Teardown policies cover idle immediate, running at a safe turn boundary, and cancel-on-attach. It enforces one active turn per primary instance with busy rejection, and failed acquisition preserves the old instance.
 
-Branch ownership: the instance map keyed by `(sessionId, branchId)` **is** the ownership registry. Attach coalesces onto an owned live branch (multi-device), boots and registers otherwise, and unregisters at teardown. Unborn branches hold a provisional entry keyed by `(session, origin)` until the first append births the branch id. No two live agents share one branch. The registry is a semantic guarantee, and the file-level failure mode is a benign fork, not corruption.
+The live ownership map is keyed by session id in H4. Several attachments to the same session retain and share one instance, which is the multi-device behavior the first server needs. Internal instance identity or a generation token may guard stale lifecycle work, but it has no application-level meaning. Applications address the durable session, not the ephemeral execution.
 
-**Review gate:** The lifecycle scenario list below (minus the canvas items) passes against the mocked SDK with two sessions in one runtime.
+**Review gate:** The lifecycle scenario list below, minus Canvas and future branch items, passes against the mocked SDK with two sessions in one runtime.
 
 #### H4.3: Feature instance boundary
 
-Split workspace-scoped feature ownership from branch-viewpoint working state: turn-state cells and agent-context buffers become per-branch. The canvas document buffer is the proving feature. Existing contribution APIs may need an instance-instantiation or context-aware callback boundary. Prove that boundary with real stateful features rather than sharing singleton closures across sessions.
+Split workspace-scoped feature ownership from primary-session working state: turn-state cells and agent-context buffers become per instance. The Canvas document buffer is the proving feature. Existing contribution APIs may need an instance-instantiation or context-aware callback boundary. Prove that boundary with real stateful features rather than sharing singleton closures across sessions.
 
-**Review gate:** The canvas independence items below.
+This unit establishes the branch-viewpoint ownership grain without implementing several branches in one session. Each shipping instance still owns the only primary viewpoint for its session.
 
-#### H4.4: Scoped events and reload reconciliation
+**Review gate:** Two sessions retain independent Canvas documents, anchors, turn state, and agent context.
 
-Agent-instance events reach only attachments on that instance. Session events reach session viewers. Workspace feature reload commits and reconciles every agent instance without cross-session state exchange.
+#### H4.4: Session-scoped events and reload reconciliation
 
-**Review gate:** Scope isolation and reload reconciliation tests against fake hosts (H3 style).
+Application routing uses workspace and session scope. An attachment's accepted URL and host authorization establish its workspace and session subscription. The host stamps that context. Payload fields cannot widen it. Agent activity for the primary branch reaches every authorized attachment viewing that session. Internal instance ids, if any, do not enter feature payloads, canonical URLs, or application selection.
+
+Preserve the current single-branch Chat behavior in H4, including its live transcript updates. The future all-branch feed described below is a session-scoped durable completed-entry stream, not a reason to implement branch topology or broadcast every token delta now.
+
+Workspace feature reload commits and reconciles every live instance without cross-session state exchange.
+
+**Review gate:** Session scope isolation and reload reconciliation pass against fake hosts in the H3 style. A client cannot spoof another workspace or session through a feature payload.
 
 #### H4.5: Real-Pi gate and model semantics
 
-Graduate the H4.0 spikes into the plan's review gate, and land the "last one used" model semantics (per-instance `currentModel` projection, workspace default as fallback).
+Graduate the H4.0 spikes into the plan's review gate, and land per-instance `currentModel` projection with the workspace default as fallback.
 
 The lifecycle contract across H4.1–H4.5, implemented and tested:
 
 - Concurrent cold attachments awaiting one single-flight boot promise.
-- Warm attachment to an existing instance.
+- Warm attachment to an existing primary instance.
 - Two live agents on distinct sessions in one workspace runtime.
 - Acquire-before-release attachment retargeting.
 - Failed target acquisition preserving the accepted old instance.
@@ -191,15 +193,45 @@ The lifecycle contract across H4.1–H4.5, implemented and tested:
 - Immediate teardown of a zero-attachment idle instance.
 - Teardown of a zero-attachment running instance after its safe turn boundary.
 - A new attachment canceling pending teardown.
-- Agent-instance events reaching every attachment on that instance.
+- Session-scoped agent events reaching every authorized attachment on that session.
 - Two sessions retaining independent restored Canvas documents, anchors, turn state, and agent context.
 - One attachment leaving a shared instance without committing, restoring, or disrupting peers.
 - Final state commit and safe teardown only when the agent instance tears down.
 - Workspace feature reload committing and reconciling every agent instance without cross-session state exchange.
 
-Retained as later policies: configurable warm-retention period, always-on instances, host-authored retention, multiple agents on one session, branch coordination, fork and branch-switch UI, static-default model setting.
+Retained as later policies: configurable warm retention, always-on instances, host-authored retention, static-default model setting, and the multi-branch architecture below.
 
-**Review gate:** Real Pi sessions and stateful features satisfy the lifecycle above without process-global collisions, cross-session event leakage, or shared branch-state mutation. If Pi or feature state cannot support concurrent in-process instances, stop and revisit the state model. Neither host should depend on the shape first.
+**Review gate:** Real Pi sessions and stateful features satisfy the lifecycle above without process-global collisions, cross-session event leakage, or shared primary-session state mutation. If Pi or feature state cannot support concurrent in-process instances, stop and revisit the state model. Neither host should depend on the shape first.
+
+#### Deferred: multi-branch session coordination
+
+This is an architectural constraint on H4, not an H4 deliverable. Do not partially implement it through local branch-end walks or by treating the file's last row as every manager's target.
+
+A later branch/multi-agent unit introduces one session coordinator per active durable session:
+
+```text
+Session coordinator
+├── shared graph index and branch catalog
+│   ├── entry id → durable entry and branch id
+│   └── branch id → mutable current head id
+├── session-scoped completed-entry publisher
+└── exclusive branch leases
+    ├── branch A → AgentInstance A → private SessionManager A
+    └── branch B → AgentInstance B → private SessionManager B
+```
+
+The settled future responsibilities are:
+
+- **Stable identity and mutable position:** `branchId` is the first durable row on a branch and keys the exclusive lease. `headId` advances on every append and positions a newly booted manager. The application never uses a mutable head as branch identity.
+- **One manager per agent:** every branch-bound `AgentInstance` owns an independent Pi `SessionManager` because its leaf pointer is mutable. The coordinator supplies the resolved head. Instances do not discover branch ends independently.
+- **One graph derivation on cold open:** scan the session entries once to derive complete topology, `entryId → branchId`, and `branchId → headId`. A persisted head index may later accelerate this. It remains rebuildable cache, and the append-only session file stays authoritative.
+- **Incremental graph updates:** instrument each private manager's durable append boundary. After Pi appends and returns an entry id, UIX reads and ingests the entry. It then advances that branch's head and publishes a session-scoped completed-entry event.
+- **Session visibility, agent isolation:** authorized viewers of a session receive its graph snapshot and completed durable entries for every branch. Agents retain only their private branch context. Cross-branch agent communication or synthesis requires a future explicit mechanism and is not implied by graph visibility.
+- **Application routing by branch, not instance:** future clients may hold handles to several branches and prompt their exclusive agents independently. Internal instance ids or generations may reject stale work, but have no URL, UI, or event-routing meaning.
+- **Host-stamped subscriptions:** the accepted connection URL and authorization establish the session subscription. Runtime envelopes qualify completed entries with session and branch identity outside feature-authored payloads. A client cannot spoof another session by placing routing fields in a request.
+- **Unborn branch:** a provisional internal lease rekeys once when its first durable append supplies the branch id. No marker row or minted durable token is added solely for UIX.
+
+The first branch UI consumes the coordinator's branch catalog. It renders human-facing previews, fork points, timestamps, or user labels. Raw branch ids remain machine identity. Token deltas may later use an explicit live-branch subscription. The all-branch session feed needs only completed durable entries.
 
 ### H5: Extract the shared launcher and workspace clients
 
