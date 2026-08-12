@@ -27,7 +27,7 @@ export interface AgentInstanceState extends Disposable {
   setCurrentModel(model: ModelRef | undefined): void;
 }
 
-interface AgentInstanceStateOptions {
+export interface AgentInstanceStateOptions {
   readonly emit: (event: AgentEvent) => void;
   readonly turnState?: TurnStateRegistry;
   readonly cwd: string;
