@@ -18,6 +18,8 @@ export interface AgentInstance {
   readonly state: AgentInstanceState;
   /** Boot the Pi runtime on first use. Concurrent callers share one attempt. */
   getRuntime(): Promise<AgentSessionRuntime>;
+  /** Reload an active or already-booting runtime without starting an unused one. */
+  reloadRuntimeIfActive(): Promise<boolean>;
   dispose(): Promise<void>;
 }
 
@@ -74,6 +76,13 @@ export async function createAgentInstance(
       manager,
       state,
       getRuntime,
+      async reloadRuntimeIfActive() {
+        if (disposed) throw new Error("Agent instance is disposed");
+        const activeRuntime = runtime ?? (await inFlightRuntimeBoot);
+        if (!activeRuntime) return false;
+        await activeRuntime.session.reload();
+        return true;
+      },
       dispose() {
         if (disposal) return disposal;
         disposed = true;
