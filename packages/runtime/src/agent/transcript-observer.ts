@@ -32,7 +32,7 @@ interface TranscriptObserverOptions {
   ephemeralIds: EphemeralTranscriptItemIdSequence;
 }
 
-interface TranscriptObserver extends Disposable {
+export interface TranscriptObserver extends Disposable {
   /** Observe persistence before Pi receives this manager. Idempotent by manager. */
   instrumentSessionManager(manager: SessionManager): void;
   /** Replace the active Pi event-stream binding. */

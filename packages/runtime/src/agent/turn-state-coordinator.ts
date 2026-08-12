@@ -20,7 +20,7 @@ interface TurnStateCoordinatorOptions {
   readonly cwd: string;
 }
 
-interface TurnStateCoordinator extends Disposable {
+export interface TurnStateCoordinator extends Disposable {
   readonly agentInstaller: AgentInstaller;
   toRegistrySnapshot(): TurnStateRegistrySnapshot;
   isRestorationSettled(sessionManager: SessionManager): boolean;

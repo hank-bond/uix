@@ -43,6 +43,7 @@ import type { SettingsHandleFrom } from "@uix/api/settings";
 import { deriveProviderAuthCatalog } from "./auth-providers";
 import { deriveSelectedBranchProjection } from "./branch-projection";
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
+import { createAgentInstanceState } from "./instance-state";
 import { createProviderAuthFlowCoordinator } from "./provider-auth-flow";
 import { resolveSessionFileById } from "./session-files";
 import type { sessionWorkspaceSettings } from "./session-settings";
@@ -53,9 +54,6 @@ import {
 } from "./session-summary";
 import type { agentWorkspaceSettings } from "./settings";
 import { createSystemPromptAssembler } from "./system-prompt";
-import { createEphemeralTranscriptItemIdSequence } from "./transcript";
-import { createTranscriptObserver } from "./transcript-observer";
-import { createTurnStateCoordinator } from "./turn-state-coordinator";
 import {
   type AgentContextRegistry,
   assembleAgentContextMessage,
@@ -176,16 +174,16 @@ export interface AgentDriverOptions {
 
 export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   const driverBag = new DisposableBag();
-  // This sequence belongs to the current live agent core. Keeping it here,
-  // rather than at module scope, prevents concurrent instances from sharing
-  // mutable transcript identity state.
-  const ephemeralTranscriptIds = createEphemeralTranscriptItemIdSequence();
-  const transcriptObserver = driverBag.add(
-    createTranscriptObserver({
+  const instanceState = driverBag.add(
+    createAgentInstanceState({
       emit: opts.onEvent,
-      ephemeralIds: ephemeralTranscriptIds,
+      turnState: opts.turnState,
+      cwd: opts.workspace.agentCwd,
+      onCurrentModelChange: emitStatus,
     }),
   );
+  const { ephemeralTranscriptIds, transcriptObserver, turnStateCoordinator } =
+    instanceState;
 
   // The bootstrap manager stays cheap and auth-free so startup history does
   // not create a model registry or load extensions. The runtime remains lazy
@@ -202,21 +200,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
   let preRuntimeServices: AgentSessionServices | undefined;
   let inFlightServicesCreate: Promise<AgentSessionServices> | undefined;
 
-  // Synchronous projection emitted to renderer consumers. Pi's model-select
-  // hook and active-session binding keep it aligned with runtime.session.
-  let currentModel: ModelRef | undefined;
   let disposed = false;
 
   const sessionDir = join(opts.workspace.stateRoot, ".uix", "sessions");
-  const turnStateCoordinator = opts.turnState
-    ? driverBag.add(
-        createTurnStateCoordinator({
-          registry: opts.turnState,
-          cwd: opts.workspace.agentCwd,
-        }),
-      )
-    : undefined;
-
   const agentInstallers = [...(opts.agentInstallers ?? [])];
   if (turnStateCoordinator) {
     agentInstallers.push(turnStateCoordinator.agentInstaller);
@@ -238,12 +224,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       ]),
     );
   }
-  agentInstallers.push((pi) => {
-    pi.on("model_select", (event) => {
-      currentModel = { provider: event.model.provider, id: event.model.id };
-      emitStatus();
-    });
-  });
+  agentInstallers.push(instanceState.modelInstaller);
 
   // Section: Services and runtime
   async function createServices(
@@ -301,7 +282,9 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     const defaultModel = opts.agentSettings?.get("defaultModel");
     return {
       cwd: opts.workspace.agentCwd,
-      ...(currentModel && { model: currentModel }),
+      ...(instanceState.getCurrentModel() && {
+        model: instanceState.getCurrentModel(),
+      }),
       ...(defaultModel && { defaultModel }),
     };
   }
@@ -444,9 +427,11 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       throw error;
     }
 
-    currentModel = session.model
-      ? { provider: session.model.provider, id: session.model.id }
-      : undefined;
+    instanceState.setCurrentModel(
+      session.model
+        ? { provider: session.model.provider, id: session.model.id }
+        : undefined,
+    );
     emitStatus();
   }
 
@@ -517,7 +502,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
     }
     openedRuntime.setBeforeSessionInvalidate(() => {
       transcriptObserver.unbindSession();
-      currentModel = undefined;
+      instanceState.setCurrentModel(undefined);
       turnStateCoordinator?.clearRestoration();
     });
     openedRuntime.setRebindSession(async (session) => {
@@ -636,7 +621,10 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
         // defaults, reclamps thinking. The model_select installer mirrors
         // currentModel. The extra assignment below is a same-payload no-op.
         await runtime.session.setModel(model);
-        currentModel = { provider: ref.provider, id: ref.id };
+        instanceState.setCurrentModel({
+          provider: ref.provider,
+          id: ref.id,
+        });
       }
       emitStatus();
       return getStatus();
@@ -853,7 +841,6 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       inFlightBootstrapTurnStateRestore = undefined;
       inFlightServicesCreate = undefined;
       preRuntimeServices = undefined;
-      currentModel = undefined;
       if (activeRuntime) {
         void activeRuntime.dispose().catch((err: unknown) => {
           log.warn(
