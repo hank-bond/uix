@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { type AgentInstanceOptions, createAgentInstance } from "./instance";
 import type { AgentInstanceState } from "./instance-state";
-import { toBranchId, toSessionId } from "../workspace";
+import { toSessionId } from "../workspace";
 
 interface Harness {
   manager: SessionManager;
@@ -16,10 +16,7 @@ interface Harness {
   createRuntime: ReturnType<
     typeof vi.fn<AgentInstanceOptions["createRuntime"]>
   >;
-  target: {
-    sessionId: ReturnType<typeof toSessionId>;
-    branchId: ReturnType<typeof toBranchId>;
-  };
+  target: { sessionId: ReturnType<typeof toSessionId> };
 }
 
 function createHarness(): Harness {
@@ -34,22 +31,18 @@ function createHarness(): Harness {
   const createRuntime = vi.fn<AgentInstanceOptions["createRuntime"]>(() =>
     Promise.resolve(runtime),
   );
-  const target = {
-    sessionId: toSessionId("session-1"),
-    branchId: toBranchId("entry-1"),
-  };
   return {
     manager,
     runtime,
     runtimeDispose,
     openManager,
     createRuntime,
-    target,
+    target: { sessionId: toSessionId("session-1") },
   };
 }
 
 describe("AgentInstance", () => {
-  it("owns one manager, runtime, and mutable state for a fixed target", async () => {
+  it("opens its manager without booting Pi until first use", async () => {
     const harness = createHarness();
     const instance = await createAgentInstance({
       target: harness.target,
@@ -59,19 +52,93 @@ describe("AgentInstance", () => {
     });
 
     expect(harness.openManager).toHaveBeenCalledWith(harness.target);
+    expect(harness.createRuntime).not.toHaveBeenCalled();
+    expect(instance.target).toBe(harness.target);
+    expect(instance.manager).toBe(harness.manager);
+
+    await expect(instance.getRuntime()).resolves.toBe(harness.runtime);
     expect(harness.createRuntime).toHaveBeenCalledWith(
       harness.manager,
       instance.state,
     );
-    expect(instance.target).toBe(harness.target);
-    expect(instance.manager).toBe(harness.manager);
-    expect(instance.runtime).toBe(harness.runtime);
-    expect(instance.state.ephemeralTranscriptIds.next("assistant")).toBe(
-      "live:assistant:1",
-    );
+  });
+
+  it("shares one runtime boot across concurrent callers", async () => {
+    const harness = createHarness();
+    let resolveRuntime!: (runtime: AgentSessionRuntime) => void;
+    const runtimeGate = new Promise<AgentSessionRuntime>((resolve) => {
+      resolveRuntime = resolve;
+    });
+    harness.createRuntime.mockReturnValue(runtimeGate);
+    const instance = await createAgentInstance({
+      target: harness.target,
+      openManager: harness.openManager,
+      createRuntime: harness.createRuntime,
+      state: { emit: () => undefined, cwd: "/workspace" },
+    });
+
+    const first = instance.getRuntime();
+    const second = instance.getRuntime();
+    expect(second).toBe(first);
+    expect(harness.createRuntime).toHaveBeenCalledOnce();
+
+    resolveRuntime(harness.runtime);
+    await expect(first).resolves.toBe(harness.runtime);
+  });
+
+  it("retries runtime boot after a failed attempt", async () => {
+    const harness = createHarness();
+    harness.createRuntime
+      .mockRejectedValueOnce(new Error("runtime failed"))
+      .mockResolvedValueOnce(harness.runtime);
+    const instance = await createAgentInstance({
+      target: harness.target,
+      openManager: harness.openManager,
+      createRuntime: harness.createRuntime,
+      state: { emit: () => undefined, cwd: "/workspace" },
+    });
+
+    await expect(instance.getRuntime()).rejects.toThrow("runtime failed");
+    await expect(instance.getRuntime()).resolves.toBe(harness.runtime);
+    expect(harness.createRuntime).toHaveBeenCalledTimes(2);
+  });
+
+  it("awaits and disposes a runtime that finishes booting during disposal", async () => {
+    const harness = createHarness();
+    let resolveRuntime!: (runtime: AgentSessionRuntime) => void;
+    const runtimeGate = new Promise<AgentSessionRuntime>((resolve) => {
+      resolveRuntime = resolve;
+    });
+    harness.createRuntime.mockReturnValue(runtimeGate);
+    const instance = await createAgentInstance({
+      target: harness.target,
+      openManager: harness.openManager,
+      createRuntime: harness.createRuntime,
+      state: { emit: () => undefined, cwd: "/workspace" },
+    });
+
+    const boot = instance.getRuntime();
+    const disposal = instance.dispose();
+    resolveRuntime(harness.runtime);
+
+    await expect(boot).rejects.toThrow("disposed");
+    await disposal;
+    expect(harness.runtimeDispose).toHaveBeenCalledOnce();
+  });
+
+  it("disposes its state and booted runtime idempotently", async () => {
+    const harness = createHarness();
+    const instance = await createAgentInstance({
+      target: harness.target,
+      openManager: harness.openManager,
+      createRuntime: harness.createRuntime,
+      state: { emit: () => undefined, cwd: "/workspace" },
+    });
+    await instance.getRuntime();
 
     await Promise.all([instance.dispose(), instance.dispose()]);
     expect(harness.runtimeDispose).toHaveBeenCalledOnce();
+    await expect(instance.getRuntime()).rejects.toThrow("disposed");
     expect(() => {
       instance.state.setCurrentModel(undefined);
     }).toThrow("disposed");
@@ -95,26 +162,6 @@ describe("AgentInstance", () => {
       }),
     ).rejects.toThrow("manager failed");
     expect(capturedState).toBeUndefined();
-    expect(harness.runtimeDispose).not.toHaveBeenCalled();
-  });
-
-  it("disposes instance state when runtime boot fails", async () => {
-    const harness = createHarness();
-    let capturedState: AgentInstanceState | undefined;
-    harness.createRuntime.mockImplementation((_manager, state) => {
-      capturedState = state;
-      return Promise.reject(new Error("runtime failed"));
-    });
-
-    await expect(
-      createAgentInstance({
-        target: harness.target,
-        openManager: harness.openManager,
-        createRuntime: harness.createRuntime,
-        state: { emit: () => undefined, cwd: "/workspace" },
-      }),
-    ).rejects.toThrow("runtime failed");
-    expect(() => capturedState?.setCurrentModel(undefined)).toThrow("disposed");
     expect(harness.runtimeDispose).not.toHaveBeenCalled();
   });
 });
