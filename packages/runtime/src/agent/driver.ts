@@ -121,9 +121,8 @@ export interface AgentDriver extends Disposable {
   /** Current execution cwd plus live/default model state. */
   getStatus(): AgentStatus;
   /**
-   * Validate against Pi's available models, persist as the workspace
-   * default, and, when a live session exists, switch it via
-   * `session.setModel`, producing native Pi `model_change` state.
+   * Validate against Pi's available models and switch this session through
+   * `session.setModel`, producing native branch-owned `model_change` state.
    */
   selectModel(ref: ModelRef): Promise<AgentStatus>;
   listAuthProviders(): Promise<ProviderAuthCatalog>;
@@ -612,21 +611,14 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
       if (!model || !modelRuntime.hasConfiguredAuth(ref.provider)) {
         throw new Error(`Model is not available: ${ref.provider}/${ref.id}`);
       }
-      opts.agentSettings?.set("defaultModel", {
-        provider: ref.provider,
-        id: ref.id,
-      });
-      if (runtime) {
-        // Native Pi state: appends a model_change entry, persists Pi's own
-        // defaults, reclamps thinking. The model_select installer mirrors
-        // currentModel. The extra assignment below is a same-payload no-op.
-        await runtime.session.setModel(model);
-        instanceState.setCurrentModel({
-          provider: ref.provider,
-          id: ref.id,
-        });
-      }
-      emitStatus();
+
+      // Model choice belongs to this branch. Opening the runtime when needed
+      // ensures Pi records the native model_change rather than turning a chat
+      // picker action into a workspace-default mutation.
+      const activeRuntime = await getRuntime();
+      // Pi emits model_select before this resolves; the instance installer
+      // mirrors that event into currentModel and publishes the status change.
+      await activeRuntime.session.setModel(model);
       return getStatus();
     },
 

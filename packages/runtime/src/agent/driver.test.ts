@@ -631,17 +631,19 @@ describe("driver model service (pre-session)", () => {
     expect(driver.getStatus()).toEqual({ cwd: "/tmp/ws", defaultModel: ref });
   });
 
-  it("selectModel before a session writes the default only and notifies", async () => {
+  it("selectModel opens the session and records branch-owned model state", async () => {
     const settings = fakeAgentSettings();
     const { driver, statuses } = createDriver(settings);
-    const ref = { provider: "anthropic", id: "claude-sonnet-4-5" };
+    const ref = { provider: "openai", id: "gpt-5" };
 
     const status = await driver.selectModel(ref);
 
-    expect(status).toEqual({ cwd: "/tmp/ws", defaultModel: ref });
-    expect(settings.values.get("defaultModel")).toEqual(ref);
-    expect(statuses).toEqual([{ cwd: "/tmp/ws", defaultModel: ref }]);
-    expect(sdk.state.session).toBeUndefined();
+    const session = sdk.state.session as { setModel: ReturnType<typeof vi.fn> };
+    expect(session.setModel).toHaveBeenCalledWith(openai);
+    expect(status).toEqual({ cwd: "/tmp/ws", model: ref });
+    expect(settings.values.has("defaultModel")).toBe(false);
+    expect(statuses.at(-1)).toEqual({ cwd: "/tmp/ws", model: ref });
+    expect(sdk.state.runtimeCreates).toBe(1);
   });
 
   it("selectModel rejects unavailable models without touching settings", async () => {
@@ -1494,8 +1496,12 @@ describe("driver model service (live session)", () => {
     ]);
   });
 
-  it("selectModel switches the live session via setModel", async () => {
-    const settings = fakeAgentSettings();
+  it("selectModel switches the live session without changing its workspace default", async () => {
+    const workspaceDefault = {
+      provider: "anthropic",
+      id: "claude-sonnet-4-5",
+    };
+    const settings = fakeAgentSettings(workspaceDefault);
     const { driver } = createDriver(settings);
     await driver.prompt("hi");
 
@@ -1504,11 +1510,11 @@ describe("driver model service (live session)", () => {
 
     const session = sdk.state.session as { setModel: ReturnType<typeof vi.fn> };
     expect(session.setModel).toHaveBeenCalledWith(openai);
-    expect(settings.values.get("defaultModel")).toEqual(ref);
+    expect(settings.values.get("defaultModel")).toEqual(workspaceDefault);
     expect(status).toEqual({
       cwd: "/tmp/ws",
       model: ref,
-      defaultModel: ref,
+      defaultModel: workspaceDefault,
     });
   });
 
