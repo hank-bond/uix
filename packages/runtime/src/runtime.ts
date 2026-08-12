@@ -534,6 +534,7 @@ class WorkspaceRuntime
   async createAttachment(target: SessionTarget): Promise<RuntimeAttachment> {
     if (this.#disposed)
       return Promise.reject(new Error("Workspace runtime is disposed"));
+    assertSupportedSessionTarget(target);
     this.#nextAttachment += 1;
     const attachment = new WorkspaceRuntimeAttachment(
       this,
@@ -562,6 +563,7 @@ class WorkspaceRuntime
 
   /** Current singleton semantics: retarget switches the workspace's selected session. */
   async retargetTo(target: SessionTarget): Promise<void> {
+    assertSupportedSessionTarget(target);
     await this.#driver.switchSession(target.sessionId);
   }
 
@@ -675,6 +677,12 @@ class WorkspaceRuntimeAttachment implements RuntimeAttachment {
     this.#disposed = true;
     this.#host.dropAttachment(this);
     return Promise.resolve();
+  }
+}
+
+function assertSupportedSessionTarget(target: SessionTarget): void {
+  if (target.branchId) {
+    throw new Error("Branch session targets are not supported");
   }
 }
 

@@ -31,6 +31,7 @@ import type {
 } from "@uix/runtime";
 import {
   createWorkspaceRuntime,
+  toBranchId,
   toSessionId,
   toWorkspaceId,
 } from "@uix/runtime";
@@ -269,6 +270,19 @@ describe("workspace runtime isolation", () => {
     const attachB = await runtimeB.createAttachment({
       sessionId: toSessionId("s1"),
     });
+    await expect(
+      runtimeA.createAttachment({
+        sessionId: toSessionId("s1"),
+        branchId: toBranchId("branch-1"),
+      }),
+    ).rejects.toThrow("Branch session targets are not supported");
+    await expect(
+      attachA.retarget({
+        sessionId: toSessionId("s1"),
+        branchId: toBranchId("branch-1"),
+      }),
+    ).rejects.toThrow("Branch session targets are not supported");
+    expect(attachA.sessionId).toBe(toSessionId("s1"));
     const ctxA = contextOf(attachA);
     const ctxB = contextOf(attachB);
 
