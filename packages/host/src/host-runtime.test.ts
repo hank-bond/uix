@@ -9,7 +9,6 @@ import { describe, expect, it } from "vitest";
 
 import { toChannelCanonicalId } from "@uix/api/channel-resolution";
 import type {
-  AgentInstanceId,
   AttachmentContext,
   AttachmentId,
   CanonicalRequest,
@@ -26,12 +25,7 @@ import type {
   ReloadResult,
   WorkspaceRuntime,
 } from "@uix/runtime";
-import {
-  toAgentInstanceId,
-  toAttachmentId,
-  toSessionId,
-  toWorkspaceId,
-} from "@uix/runtime";
+import { toAttachmentId, toSessionId, toWorkspaceId } from "@uix/runtime";
 
 import type { Attachment } from "./attachment";
 import { Supervisor } from "./supervisor";
@@ -40,32 +34,26 @@ type Handler = (payload: unknown, context: AttachmentContext) => unknown;
 
 /** One primary agent instance per session, with reference counting. */
 class FakeAgentManager {
-  readonly #instances = new Map<
-    SessionId,
-    { instanceId: AgentInstanceId; refs: number }
-  >();
+  readonly #instances = new Map<SessionId, { refs: number }>();
   readonly #failNextBoot = new Set<SessionId>();
-  #next = 0;
   bootCount = 0;
 
   failNext(sessionId: SessionId): void {
     this.#failNextBoot.add(sessionId);
   }
 
-  boot(sessionId: SessionId): Promise<AgentInstanceId> {
+  boot(sessionId: SessionId): Promise<void> {
     const existing = this.#instances.get(sessionId);
     if (existing) {
       existing.refs += 1;
-      return Promise.resolve(existing.instanceId);
+      return Promise.resolve();
     }
     if (this.#failNextBoot.delete(sessionId)) {
       return Promise.reject(new Error(`Boot failed for session ${sessionId}`));
     }
     this.bootCount += 1;
-    this.#next += 1;
-    const instanceId = toAgentInstanceId(`instance-${String(this.#next)}`);
-    this.#instances.set(sessionId, { instanceId, refs: 1 });
-    return Promise.resolve(instanceId);
+    this.#instances.set(sessionId, { refs: 1 });
+    return Promise.resolve();
   }
 
   release(sessionId: SessionId): void {
@@ -88,19 +76,16 @@ class FakeRuntimeAttachment implements RuntimeAttachment {
   readonly attachmentId: AttachmentId;
   readonly workspaceId: WorkspaceId;
   sessionId: SessionId;
-  instanceId: AgentInstanceId;
   disposed = false;
 
   constructor(
     readonly runtime: FakeRuntime,
     attachmentId: AttachmentId,
     sessionId: SessionId,
-    instanceId: AgentInstanceId,
   ) {
     this.attachmentId = attachmentId;
     this.workspaceId = runtime.workspaceId;
     this.sessionId = sessionId;
-    this.instanceId = instanceId;
   }
 
   dispatch(request: CanonicalRequest): Promise<CanonicalResponse> {
@@ -141,10 +126,9 @@ class FakeRuntimeAttachment implements RuntimeAttachment {
   }
 
   async retarget(target: SessionTarget): Promise<void> {
-    const next = await this.runtime.agents.boot(target.sessionId);
+    await this.runtime.agents.boot(target.sessionId);
     this.runtime.agents.release(this.sessionId);
     this.sessionId = target.sessionId;
-    this.instanceId = next;
   }
 
   dispose(): Promise<void> {
@@ -205,13 +189,12 @@ class FakeRuntime implements WorkspaceRuntime {
 
   async createAttachment(target?: SessionTarget): Promise<RuntimeAttachment> {
     const acceptedTarget = target ?? { sessionId: s1 };
-    const instanceId = await this.agents.boot(acceptedTarget.sessionId);
+    await this.agents.boot(acceptedTarget.sessionId);
     this.#nextAttachment += 1;
     return new FakeRuntimeAttachment(
       this,
       toAttachmentId(`attachment-${String(this.#nextAttachment)}`),
       acceptedTarget.sessionId,
-      instanceId,
     );
   }
 
@@ -329,8 +312,9 @@ describe("attachments", () => {
     const b = await handle.createAttachment({ sessionId: s1 });
     const c = await handle.createAttachment({ sessionId: s1 });
 
-    expect(a.instanceId).toBe(b.instanceId);
-    expect(b.instanceId).toBe(c.instanceId);
+    expect(a.sessionId).toBe(s1);
+    expect(b.sessionId).toBe(s1);
+    expect(c.sessionId).toBe(s1);
     expect(runtime.agents.bootCount).toBe(1);
     expect(runtime.agents.liveInstances).toBe(1);
 
@@ -344,14 +328,10 @@ describe("attachments", () => {
 
     const a = await handle.createAttachment({ sessionId: s1 });
     const b = await handle.createAttachment({ sessionId: s1 });
-    const instanceS1 = a.instanceId;
-
     await a.retarget({ sessionId: s2 });
 
     expect(a.sessionId).toBe(s2);
-    expect(a.instanceId).not.toBe(instanceS1);
     expect(b.sessionId).toBe(s1);
-    expect(b.instanceId).toBe(instanceS1);
     expect(runtime.agents.bootCount).toBe(2);
 
     await supervisor.dispose();
@@ -364,12 +344,10 @@ describe("attachments", () => {
 
     const a = await handle.createAttachment({ sessionId: s1 });
     const oldSession = a.sessionId;
-    const oldInstance = a.instanceId;
     runtime.agents.failNext(s2);
 
     await expect(a.retarget({ sessionId: s2 })).rejects.toThrow("Boot failed");
     expect(a.sessionId).toBe(oldSession);
-    expect(a.instanceId).toBe(oldInstance);
     expect(runtime.agents.refsFor(s1)).toBe(1);
 
     await supervisor.dispose();
@@ -399,7 +377,7 @@ describe("attachments", () => {
 });
 
 describe("scoped event delivery", () => {
-  it("delivers workspace, session, and agent-instance events only to matching attachments", async () => {
+  it("delivers workspace and session events only to matching attachments", async () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const handle = await supervisor.acquire(ws1);
@@ -407,9 +385,6 @@ describe("scoped event delivery", () => {
     const a = await handle.createAttachment({ sessionId: s1 });
     const b = await handle.createAttachment({ sessionId: s1 });
     const c = await handle.createAttachment({ sessionId: s2 });
-    const instanceS1 = a.instanceId;
-    const instanceS2 = c.instanceId;
-
     const received = new Map<string, string[]>();
     track(a, received);
     track(b, received);
@@ -418,31 +393,18 @@ describe("scoped event delivery", () => {
     runtime.emit({ kind: "workspace" }, "ev-workspace", {});
     runtime.emit({ kind: "session", sessionId: s1 }, "ev-session-1", {});
     runtime.emit({ kind: "session", sessionId: s2 }, "ev-session-2", {});
-    runtime.emit(
-      { kind: "agent-instance", instanceId: instanceS1 },
-      "ev-instance-1",
-      {},
-    );
-    runtime.emit(
-      { kind: "agent-instance", instanceId: instanceS2 },
-      "ev-instance-2",
-      {},
-    );
 
     expect(received.get(a.attachmentId)).toEqual([
       "ev-workspace",
       "ev-session-1",
-      "ev-instance-1",
     ]);
     expect(received.get(b.attachmentId)).toEqual([
       "ev-workspace",
       "ev-session-1",
-      "ev-instance-1",
     ]);
     expect(received.get(c.attachmentId)).toEqual([
       "ev-workspace",
       "ev-session-2",
-      "ev-instance-2",
     ]);
 
     await supervisor.dispose();

@@ -25,7 +25,7 @@ The supervisor coalesces concurrent runtime boots and owns workspace-level reten
 
 The host resolves a connection's workspace id before it reaches a runtime. The selected workspace runtime creates an attachment that resolves the session and agent instance. This creates two parallel lifetime levels: the supervisor maps a workspace id to a coalesced runtime boot, and one workspace runtime maps an agent target to a single-flight instance boot. [`agent-session-routing.md`](./agent-session-routing.md) owns attachment retargeting and agent-instance teardown.
 
-Hosts own physical connections, URL routing, origin and authentication policy, native capabilities, and process lifecycle. Runtime request dispatch receives host-stamped attachment context outside feature payloads. Runtime events name a workspace, session, or agent-instance delivery scope, and the host delivers them to matching connections. Feature channel contracts do not contain transport, tenancy, or connection-routing fields.
+Hosts own physical connections, URL routing, origin and authentication policy, native capabilities, and process lifecycle. Runtime request dispatch receives host-stamped attachment context outside feature payloads. Runtime events name a workspace or durable-session delivery scope, and the host delivers them to matching connections. Feature channel contracts do not contain transport, tenancy, or connection-routing fields.
 
 The runtime declares its dependencies, and the host provides them. Channel transport, resource delivery, `openExternal`, the Pi profile directory, and the API module directory are dependencies from the runtime's perspective. An adapter is the translator that binds one communication or platform capability to another.
 

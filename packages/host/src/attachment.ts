@@ -4,7 +4,6 @@
 // receives only the events the workspace router matches to it.
 
 import type {
-  AgentInstanceId,
   AttachmentId,
   CanonicalRequest,
   CanonicalResponse,
@@ -39,10 +38,6 @@ export class Attachment {
 
   get sessionId(): SessionId {
     return this.#inner.sessionId;
-  }
-
-  get instanceId(): AgentInstanceId {
-    return this.#inner.instanceId;
   }
 
   async dispatch(request: CanonicalRequest): Promise<CanonicalResponse> {

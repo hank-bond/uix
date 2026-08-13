@@ -22,13 +22,12 @@ The canonical session URL is authoritative for one attachment. A workspace can r
 
 The first teardown policy keeps the lifecycle explicit and small. An agent instance stays retained while at least one attachment holds it. When the last attachment leaves, an idle instance tears down immediately; a running instance finishes its turn and tears down at the safe boundary. A later retention policy can add a warm-retention period, user tuning, or always-on instances without changing attachment semantics. A new attach before teardown cancels the pending teardown. A primary agent instance accepts one active turn; a competing prompt can initially reject as busy rather than introducing a hidden queue.
 
-Runtime events carry one of three delivery scopes:
+Runtime events carry two delivery scopes:
 
 - Workspace events reach every attachment in the workspace.
 - Session events reach attachments viewing that durable session.
-- Agent-instance events reach attachments bound to that live execution and branch viewpoint.
 
-This distinction matters before UIX supports several agents on one session. Two branch-bound agents may share a durable session tree without sharing one transcript projection or event stream. Ephemeral call-and-response agents have another lifecycle. The first implementation does not define those semantics, but agent-instance identity and delivery scope leave room for them.
+H4 does not expose an ephemeral agent-instance id or event scope. Session and future branch identity cover application routing, while the manager uses object identity for lifecycle races. Ephemeral call-and-response agents may introduce explicit instance identity later when their routing or stale-work rejection establishes a concrete requirement.
 
 Agent instance state follows the live execution viewpoint rather than the whole workspace. The workspace runtime owns one accepted feature composition, workspace settings, stores, and contribution definitions. Each agent instance owns its state at its session-branch viewpoint: the turn-state projection, agent context, Pi installation, and branch-dependent feature buffers. Connections on one primary instance share that state, while instances on different sessions cannot overwrite each other's restored state. [`agent-instance-state.md`](./agent-instance-state.md) records the vocabulary settlement.
 
@@ -50,8 +49,6 @@ Distilled into [`2026-08-09-attachments-target-agent-instances.md`](../decisions
 
 **Safe-boundary teardown.** Zero attachments stop retaining an idle agent, but a live turn finishes and persists before teardown. Final branch-scoped feature state commits at teardown rather than whenever one attachment leaves. A retention policy buys warmth rather than correctness and can follow without changing ownership. Tradeoff: a disconnected turn can continue with no observing client.
 
-**Agent-instance scope before multi-agent behavior.** The model distinguishes session identity from live agent identity without designing branch coordination, shared authorship, or ephemeral execution. Tradeoff: one apparently unused scope exists before the first multi-agent feature needs it.
-
 **Host-authored work through explicit retention.** Background work attaches to the same runtime-owned instance manager as client work. Tradeoff: the transcript model must eventually distinguish message authors without coupling authorship to connections.
 
 ## Log
@@ -66,4 +63,8 @@ Separated durable sessions, live agent instances, and connection attachments. Th
 
 Moved attach, retarget, single-flight boot, and agent teardown into each workspace runtime's agent instance manager. The host resolves the workspace and owns the physical connection, while the runtime owns which shared agent the attachment reaches. Session switches acquire the target before releasing the old instance and update the URL only after success.
 
-Settled the lifecycle vocabulary. An attachment is a connection's owned, retargetable handle. Boot is the discrete provisioning step, separate from attach; bind remains creation-time wiring only. An instance stays retained while attachments hold it and tears down at a safe boundary. Added workspace, session, and agent-instance event scopes so multi-device delivery does not hardcode transport broadcast or collapse future branch-specific streams.
+Settled the lifecycle vocabulary. An attachment is a connection's owned, retargetable handle. Boot is the discrete provisioning step, separate from attach. Bind remains creation-time wiring only. An instance stays retained while attachments hold it and tears down at a safe boundary. Recorded workspace, session, and agent-instance event scopes as the initial model for multi-device delivery without transport broadcast.
+
+### 2026-08-12: explicit instance identity deferred
+
+Removed explicit agent-instance ids and event scope from the H4 contract. Workspace and durable session scope cover H4 routing, future branch identity covers branch-bound application routing, and manager object identity covers lifecycle races. Ephemeral execution can introduce an explicit identity when it has a concrete routing or stale-work consumer.

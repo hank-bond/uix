@@ -68,7 +68,5 @@ function matchesScope(scope: EventScope, attachment: Attachment): boolean {
       return true;
     case "session":
       return scope.sessionId === attachment.sessionId;
-    case "agent-instance":
-      return scope.instanceId === attachment.instanceId;
   }
 }

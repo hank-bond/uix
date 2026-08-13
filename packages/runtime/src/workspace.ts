@@ -12,7 +12,6 @@ import type { ActivationResult } from "./features/loader";
 const WorkspaceIdBrand: unique symbol = Symbol("WorkspaceId");
 const SessionIdBrand: unique symbol = Symbol("SessionId");
 const BranchIdBrand: unique symbol = Symbol("BranchId");
-const AgentInstanceIdBrand: unique symbol = Symbol("AgentInstanceId");
 const AttachmentIdBrand: unique symbol = Symbol("AttachmentId");
 
 /** Canonical workspace id, owned by the host's workspace catalog. */
@@ -23,11 +22,6 @@ export type SessionId = string & { readonly [SessionIdBrand]: true };
 
 /** Durable id of the first Pi entry belonging to one branch. */
 export type BranchId = string & { readonly [BranchIdBrand]: true };
-
-/** One live agent execution at a session-branch viewpoint. */
-export type AgentInstanceId = string & {
-  readonly [AgentInstanceIdBrand]: true;
-};
 
 /** A connection's owned, retargetable binding within one workspace. */
 export type AttachmentId = string & { readonly [AttachmentIdBrand]: true };
@@ -55,11 +49,6 @@ export function toBranchId(id: string): BranchId {
   return id as BranchId;
 }
 
-export function toAgentInstanceId(id: string): AgentInstanceId {
-  assertIdToken("agent instance id", id);
-  return id as AgentInstanceId;
-}
-
 export function toAttachmentId(id: string): AttachmentId {
   assertIdToken("attachment id", id);
   return id as AttachmentId;
@@ -74,7 +63,7 @@ export interface SessionTarget {
 
 /**
  * The exactly-one-workspace runtime surface a host composes. The runtime
- * owns dispatch and agent-instance resolution. The host owns the connection
+ * owns dispatch and agent resolution. The host owns the connection
  * and routes events. A host never assumes this runtime lives in its process.
  */
 export interface WorkspaceRuntime {
@@ -97,10 +86,8 @@ export interface WorkspaceRuntime {
 export interface RuntimeAttachment {
   readonly attachmentId: AttachmentId;
   readonly workspaceId: WorkspaceId;
-  /** Current session target. */
+  /** Current accepted session target. */
   readonly sessionId: SessionId;
-  /** The primary agent instance currently bound. */
-  readonly instanceId: AgentInstanceId;
   /** Dispatch one canonical request. The attachment stamps its accepted runtime routing context. */
   dispatch(request: CanonicalRequest): Promise<CanonicalResponse>;
   /** Retarget to another session: acquire the new instance before releasing the old one. A failure leaves the target unchanged. */

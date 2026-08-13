@@ -27,7 +27,7 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 - **[channel-registry.ts](./channel-registry.ts)** Holds the workspace's canonical channel table and routes requests and events with validation at the boundary.
 - **[dispatch.ts](./dispatch.ts)** The canonical channel request/response envelope and host-stamped attachment context.
 - **[document-store.ts](./document-store.ts)** Persists each document's current content and immutable snapshots under stable namespace and document IDs.
-- **[events.ts](./events.ts)** Explicitly scoped runtime events: workspace, session, or agent-instance delivery.
+- **[events.ts](./events.ts)** Explicitly scoped runtime events: workspace or durable-session delivery.
 - **[index.ts](./index.ts)** The @uix/runtime public facade re-exporting the workspace-runtime contract and its factory.
 - **[lifecycle.ts](./lifecycle.ts)** Provides disposable helpers that clean up component resources with their owners.
 - **[log.ts](./log.ts)** Creates main-process loggers that label messages by component and choose readable or JSON output for the environment.

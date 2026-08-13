@@ -71,7 +71,7 @@ import type {
   WorkspaceId,
   WorkspaceRuntime as WorkspaceRuntimeContract,
 } from "./workspace";
-import { toAgentInstanceId, toAttachmentId } from "./workspace";
+import { toAttachmentId } from "./workspace";
 import { createWorkspaceSettings } from "./workspace-settings";
 
 /** The channel transport the host provides. */
@@ -103,8 +103,6 @@ export interface WorkspaceRuntimeOptions {
   apiModuleDir?: string;
   dependencies: WorkspaceRuntimeDependencies;
 }
-
-const PrimaryAgentInstanceId = toAgentInstanceId("primary");
 
 /**
  * The runtime-internal surface an attachment closes over. Not part of the
@@ -649,7 +647,6 @@ class WorkspaceRuntimeAttachment implements RuntimeAttachment {
   readonly attachmentId: AttachmentId;
   readonly workspaceId: WorkspaceId;
   sessionId: SessionId;
-  readonly instanceId = PrimaryAgentInstanceId;
   #disposed = false;
 
   constructor(

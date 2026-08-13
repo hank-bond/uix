@@ -15,7 +15,6 @@ export {
   type WorkspaceRuntimeOptions,
 } from "./runtime";
 export type {
-  AgentInstanceId,
   AttachmentId,
   BranchId,
   RuntimeAttachment,
@@ -25,7 +24,6 @@ export type {
   WorkspaceRuntime,
 } from "./workspace";
 export {
-  toAgentInstanceId,
   toAttachmentId,
   toBranchId,
   toSessionId,

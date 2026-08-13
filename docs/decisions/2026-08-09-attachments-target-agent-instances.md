@@ -1,7 +1,7 @@
 ---
 summary: "A connection attaches to one agent instance at a session-branch viewpoint. Boots are single-flight and separate from attach. An instance stays retained while attachments hold it and tears down at a safe boundary. Each instance owns its state at its viewpoint. The canonical URL names the attachment's target."
 kind: explanation
-status: accepted
+status: superseded
 ---
 
 # Attachments target agent instances

@@ -66,7 +66,7 @@ The exact shared host package name remains reviewable in the first unit. The own
 - **The supervisor owns workspace policy.** Workspace ids, runtime boot coalescing, workspace retention, and runtime teardown do not belong to a workspace runtime.
 - **The runtime owns agent instances.** One primary instance per session is the first policy. Single-flight boot, attachment retention, retargeting, event scope, and safe turn-boundary teardown live inside the workspace runtime.
 - **Hosts route, runtimes dispatch.** A host resolves the workspace and owns physical connection context. It passes the connection's `SessionTarget` through unchanged and binds the returned runtime attachment to that connection. The runtime resolves an omitted `branchId`, acquires or boots the corresponding agent, validates canonical channel requests, and emits explicitly scoped events. Feature payloads contain no transport or tenancy fields.
-- **No global broadcast semantics.** Workspace, session, and agent-instance events reach only matching attachments. A transport can optimize subscription mechanics without redefining delivery scope.
+- **No global broadcast semantics.** H4 routes workspace and session events only to matching attachments. Explicit agent-instance identity and event scope wait for a concrete ephemeral-execution or stale-work requirement. A transport can optimize subscription mechanics without redefining delivery scope.
 - **One wire-log boundary.** Every channel crossing records through one chokepoint with per-contract redaction. The log can be neither dodged nor spoofed, and crossing lines stay identical across hosts.
 - **The launcher precedes all runtimes.** A host can serve workspace catalogs with zero active workspaces. Launcher HTTP, CLI JSON, Electron, and native clients consume one machine-readable projection.
 - **The browser client is host-neutral.** Shared launcher and workspace clients receive constructed adapters. They do not inspect Electron globals or select transports.
@@ -104,7 +104,7 @@ Build the smallest executable contracts for workspace supervision, workspace han
 - A supervisor acquiring a workspace handle through a single-flight boot promise.
 - A handle creating an attachment for an initial session target.
 - An attachment dispatching requests and retargeting its session.
-- Workspace, session, and agent-instance event scopes.
+- Workspace and session event scopes. Explicit agent-instance scope is deferred until it has a concrete consumer.
 - Workspace and attachment retention with deterministic disposal.
 - A host-facing `WorkspaceHandle` type with one implementation.
 
@@ -156,7 +156,7 @@ Module-level mutable state must not leak across instances. In particular, the ep
 
 The manager composes `AgentInstance` objects under the first shipping policy of one primary instance per session. It owns attach, single-flight boot, warm attach, retention refcount, and acquire-before-release retarget. Teardown policies cover idle immediate, running at a safe turn boundary, and cancel-on-attach. It enforces one active turn per primary instance with busy rejection, and failed acquisition preserves the old instance.
 
-The live ownership map is keyed by session id in H4. Several attachments to the same session retain and share one instance, which is the multi-device behavior the first server needs. Internal instance identity or a generation token may guard stale lifecycle work, but it has no application-level meaning. Applications address the durable session, not the ephemeral execution.
+The live ownership map is keyed by session id in H4. Several attachments to the same session retain and share one instance, which is the multi-device behavior the first server needs. The manager uses object identity for its lifecycle races. H4 does not mint or expose an instance id without a concrete stale-work consumer. Applications address the durable session, not the ephemeral execution.
 
 **Review gate:** The lifecycle scenario list below, minus Canvas and future branch items, passes against the mocked SDK with two sessions in one runtime.
 
@@ -170,7 +170,7 @@ This unit establishes the branch-viewpoint ownership grain without implementing 
 
 #### H4.4: Session-scoped events and reload reconciliation
 
-Application routing uses workspace and session scope. An attachment's accepted URL and host authorization establish its workspace and session subscription. The host stamps that context. Payload fields cannot widen it. Agent activity for the primary branch reaches every authorized attachment viewing that session. Internal instance ids, if any, do not enter feature payloads, canonical URLs, or application selection.
+Application routing uses workspace and session scope. An attachment's accepted URL and host authorization establish its workspace and session subscription. The host stamps that context. Payload fields cannot widen it. Agent activity for the primary branch reaches every authorized attachment viewing that session. H4 has no explicit instance id or agent-instance event scope.
 
 Preserve the current single-branch Chat behavior in H4, including its live transcript updates. The future all-branch feed described below is a session-scoped durable completed-entry stream, not a reason to implement branch topology or broadcast every token delta now.
 
@@ -298,7 +298,7 @@ Perform the local-server threat review before allowing non-loopback binding. Def
 - Configurable post-turn warm retention and always-on agent instance policies.
 - Host-authored background agent retention and cron orchestration.
 - Multiple branch-bound agents on one durable session tree.
-- Ephemeral call-and-response agents.
+- Ephemeral call-and-response agents, including any explicit agent-instance identity and event scope that their routing requires.
 - Remote identity, tenancy, authorization, collaboration, and hosted persistence.
 - Non-loopback server operation before a separate security model.
 - Fruition onboarding, defaults, subscription UX, installers, updates, and final repository timing.
