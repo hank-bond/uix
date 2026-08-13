@@ -1,0 +1,11 @@
+{{/* devlog posts are single pages. The post headings come from the markdown
+   body itself (the docs-index validator requires exactly one H1 per file), so
+   this layout renders the content as-is. */}}
+{{ define "title" }}{{ .Title }} — {{ .Site.Title }}{{ end }}
+{{ define "main" }}
+  <div class="devlog">
+    <article class="devlog__post">
+      {{ .Content }}
+    </article>
+  </div>
+{{ end }}

@@ -8,3 +8,7 @@ out/
 *.tsbuildinfo
 /uix.workspace.json
 .pi/
+
+# Generated Hugo output (website build artifacts)
+website/public/
+website/.hugo_build.lock

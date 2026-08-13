@@ -1,0 +1,7 @@
+baseURL = "https://uix.sh/"
+languageCode = "en-us"
+title = "UIX"
+publishDir = "public"
+# Spartan by default: no taxonomies, no RSS yet. Turn kinds back on when the
+# devlog earns them.
+disableKinds = ["taxonomy", "term", "RSS"]

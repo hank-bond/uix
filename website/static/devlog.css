@@ -1,0 +1,75 @@
+/* =============================================================================
+   UIX devlog pages
+   -----------------------------------------------------------------------------
+   Shared chrome (tokens, reset, body, topbar) comes from styles.css. This file
+   only styles devlog content. Deliberately plain: no motion, no flourish.
+   ============================================================================= */
+
+/* styles.css hides the static bar mark on motion-capable screens because the
+   hero brand docks into the bar. Devlog pages have no hero brand, so keep the
+   mark visible there. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: scroll()) {
+    .page .topbar__brand {
+      display: block;
+    }
+  }
+}
+
+/* content column: the article takes the center 60% of the page */
+.devlog {
+  width: 60%;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 8vw, 4rem) 0;
+}
+.devlog h1 {
+  margin: 0 0 1.5rem;
+  font-size: 1.8rem;
+  line-height: 1.25;
+}
+.devlog__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.devlog__list a {
+  color: var(--fg);
+  text-decoration: none;
+}
+.devlog__list a:hover {
+  text-decoration: underline;
+}
+.devlog__list time,
+.devlog__post time {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+/* frontmatter summary as a byline under each entry's title */
+.devlog__summary {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.devlog__post p {
+  margin: 0 0 1rem;
+}
+/* images span the article column, inset a little from its edges */
+.devlog__post img {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: 0 0.75rem;
+}
+
+/* on narrow screens, 60% becomes cramped: go full width with side padding */
+@media (max-width: 768px) {
+  .devlog {
+    width: 100%;
+    padding: clamp(2.5rem, 8vw, 4rem) 1.25rem;
+  }
+}

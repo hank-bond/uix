@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ block "title" . }}{{ .Site.Title }}{{ end }}</title>
+    <meta
+      name="description"
+      content="{{ block "description" . }}{{ .Site.Title }}{{ end }}"
+    />
+    <link rel="icon" href="/uix-logo-white.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+    {{ if not .IsHome }}<link rel="stylesheet" href="/devlog.css" />{{ end }}
+    {{ block "head" . }}{{ end }}
+  </head>
+  <body class="{{ if .IsHome }}home{{ else }}page{{ end }}">
+    <!-- Sticky bar. Static/reduced-motion: shows the compact mark (a home link).
+       Motion: on the home page this mark is hidden and the big brand animates/docks here. -->
+    <header class="topbar">
+      <a
+        class="topbar__brand"
+        href="{{ if .IsHome }}#top{{ else }}/{{ end }}"
+        aria-label="UIX — {{ if .IsHome }}back to top{{ else }}home{{ end }}"
+      >
+        <svg
+          viewBox="0 0 7 6"
+          fill="currentColor"
+          shape-rendering="crispEdges"
+          aria-hidden="true"
+        >
+          <rect x="2" y="1" width="1" height="1" />
+          <rect x="1" y="2" width="1" height="1" />
+          <rect x="3" y="2" width="1" height="1" />
+          <rect x="5" y="2" width="1" height="1" />
+          <rect x="1" y="3" width="1" height="1" />
+          <rect x="3" y="3" width="2" height="1" />
+          <rect x="1" y="4" width="3" height="1" />
+          <rect x="5" y="4" width="1" height="1" />
+        </svg>
+      </a>
+      {{ if .IsHome }}
+        <nav class="topbar__nav" aria-label="Site">
+          <a href="/devlog/">devlog</a>
+        </nav>
+      {{ end }}
+    </header>
+
+    <main id="top">
+      {{ block "main" . }}{{ end }}
+    </main>
+
+    {{ block "scripts" . }}{{ end }}
+  </body>
+</html>

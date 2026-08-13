@@ -23,9 +23,18 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: "0.160.1"
+          extended: true
+      - run: hugo --minify --source website
+      # The root Markdown docs (accessibility.md and friends) are repo
+      # documentation first, so they stay at website/ root for the docs-index
+      # script; copy them into the artifact to keep their published URLs.
+      - run: cp website/*.md website/public/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: website
+          path: website/public
       - id: deployment
         uses: actions/deploy-pages@v4

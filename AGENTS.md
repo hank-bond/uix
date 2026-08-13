@@ -93,7 +93,7 @@ The `src/docs/` tree hosts the user-implementation how-tos. The `docs/` tree con
 - **[src/docs/](./src/docs/AGENTS.md)** User-implementation guides for building UIX applications, colocated with the framework and findable by the agents and builders who use it.
 - **[docs/](./docs/AGENTS.md)** Repository-level documentation holds cross-boundary architecture, workflows, external context, decisions, design threads, and documentation practice.
 - **[plans/](./plans/AGENTS.md)** Active build specs, reviewable delivery units, and a backlog of smaller implementation seeds.
-- **[website/](./website/AGENTS.md)** The zero-build uix.sh landing page uses static HTML, CSS, and JavaScript with a reduced-motion-safe brandmark morph. _Read when editing the landing page, brandmark animation, styles, or favicon._
+- **[website/](./website/AGENTS.md)** The uix.sh site builds with Hugo: a landing page with a reduced-motion-safe brandmark morph plus a hand-written devlog. _Read when editing the landing page, devlog, brandmark animation, styles, or favicon._
 
 <!-- INDEX:END -->
 

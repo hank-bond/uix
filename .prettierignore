@@ -9,3 +9,9 @@ package-lock.json
 # scripts/docs-index.mjs; it owns its own (markdown-special-char-safe)
 # formatting, so keep Prettier out of all of them at any depth.
 **/AGENTS.md
+
+# Hugo templates are Go-templated; Prettier cannot parse {{ }} markup.
+# Build output is generated and gitignored.
+website/layouts/
+website/hugo.toml
+website/public/

@@ -116,6 +116,22 @@ body {
   width: auto;
 }
 
+/* nav links in the bar (currently: the devlog entry on the home page) */
+.topbar__nav {
+  position: absolute;
+  right: 1.25rem;
+  top: 50%;
+  translate: 0 -50%;
+}
+.topbar__nav a {
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+.topbar__nav a:hover {
+  color: var(--fg);
+}
+
 /* hero: the brand centered in the viewport below the bar; mock right after */
 .hero {
   min-height: calc(100svh - var(--bar-h));
