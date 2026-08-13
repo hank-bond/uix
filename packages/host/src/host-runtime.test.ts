@@ -203,13 +203,14 @@ class FakeRuntime implements WorkspaceRuntime {
     void this.dispose();
   }
 
-  async createAttachment(target: SessionTarget): Promise<RuntimeAttachment> {
-    const instanceId = await this.agents.boot(target.sessionId);
+  async createAttachment(target?: SessionTarget): Promise<RuntimeAttachment> {
+    const acceptedTarget = target ?? { sessionId: s1 };
+    const instanceId = await this.agents.boot(acceptedTarget.sessionId);
     this.#nextAttachment += 1;
     return new FakeRuntimeAttachment(
       this,
       toAttachmentId(`attachment-${String(this.#nextAttachment)}`),
-      target.sessionId,
+      acceptedTarget.sessionId,
       instanceId,
     );
   }

@@ -6,6 +6,7 @@
 // runtime in process or behind a transport.
 
 import fs from "node:fs";
+import { join } from "node:path";
 
 import { agentChannels, type AgentEvent } from "@uix/api/agent-channels";
 import { type FeatureEventPublisher, withHandlers } from "@uix/api/channels";
@@ -13,6 +14,10 @@ import type { ReloadResult } from "@uix/api/substrate-channels";
 import { substrateChannels } from "@uix/api/substrate-channels";
 
 import { createAgentDriver } from "./agent/driver";
+import {
+  type OpenedPrimarySession,
+  openWorkspaceFallbackSession,
+} from "./agent/session-manager";
 import { sessionWorkspaceSettings } from "./agent/session-settings";
 import { agentWorkspaceSettings } from "./agent/settings";
 import { AgentContextRegistry } from "./agent-context/registry";
@@ -133,6 +138,7 @@ class WorkspaceRuntime
   readonly #surfaces = new SurfaceRegistry();
   readonly #surfacePipeline: SurfaceModulePipeline;
   readonly #driver: ReturnType<typeof createAgentDriver>;
+  readonly #openFallbackSession: () => Promise<OpenedPrimarySession>;
   readonly #uixPublisher: FeatureEventPublisher<typeof substrateChannels>;
   readonly #substrate: FeatureSubstrate;
   readonly #reloadCoordinator: {
@@ -189,6 +195,23 @@ class WorkspaceRuntime
       this.#channels,
     ).createPublisher(agentChannels);
 
+    const sessionSettings = workspaceSettings.forNamespace(
+      sessionWorkspaceSettings,
+    );
+    let inFlightFallback: Promise<OpenedPrimarySession> | undefined;
+    this.#openFallbackSession = () => {
+      if (inFlightFallback) return inFlightFallback;
+      const opening = openWorkspaceFallbackSession({
+        cwd: workspace.agentCwd,
+        sessionDir: join(workspace.stateRoot, ".uix", "sessions"),
+        preferredSessionId: sessionSettings.get("selected")?.sessionId,
+      }).finally(() => {
+        if (inFlightFallback === opening) inFlightFallback = undefined;
+      });
+      inFlightFallback = opening;
+      return opening;
+    };
+
     this.#driver = this.#bag.add(
       createAgentDriver({
         onEvent: (event) => {
@@ -205,9 +228,7 @@ class WorkspaceRuntime
         // Lazy handles: workspace scopes register during the settings reload
         // inside loadFeatures(), before any driver method can read them.
         agentSettings: workspaceSettings.forNamespace(agentWorkspaceSettings),
-        sessionSettings: workspaceSettings.forNamespace(
-          sessionWorkspaceSettings,
-        ),
+        sessionSettings,
         onStatusChange: (status) => {
           agentPublisher.status_changed(status);
         },
@@ -531,15 +552,15 @@ class WorkspaceRuntime
     }
   }
 
-  async createAttachment(target: SessionTarget): Promise<RuntimeAttachment> {
-    if (this.#disposed)
-      return Promise.reject(new Error("Workspace runtime is disposed"));
-    assertSupportedSessionTarget(target);
+  async createAttachment(target?: SessionTarget): Promise<RuntimeAttachment> {
+    if (this.#disposed) throw new Error("Workspace runtime is disposed");
+    const acceptedTarget = target ?? (await this.#openFallbackSession()).target;
+    assertSupportedSessionTarget(acceptedTarget);
     this.#nextAttachment += 1;
     const attachment = new WorkspaceRuntimeAttachment(
       this,
       toAttachmentId(`attachment-${String(this.#nextAttachment)}`),
-      target.sessionId,
+      acceptedTarget.sessionId,
     );
     this.#attachments.add(attachment);
     return Promise.resolve(attachment);

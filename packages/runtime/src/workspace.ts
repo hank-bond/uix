@@ -81,8 +81,8 @@ export interface WorkspaceRuntime {
   readonly workspaceId: WorkspaceId;
   /** Subscribe to runtime-owned scoped events. The host routes them to matching attachments. */
   onEvent(listener: (event: RuntimeEvent) => void): Disposable;
-  /** Create an attachment bound to a session target, booting its primary agent instance single-flight. */
-  createAttachment(target: SessionTarget): Promise<RuntimeAttachment>;
+  /** Create an attachment to an explicit target or the runtime-owned workspace fallback. */
+  createAttachment(target?: SessionTarget): Promise<RuntimeAttachment>;
   /** Activate the initial feature composition. A bad manifest logs and boots with no features. */
   load(): Promise<ActivationResult>;
   /** Replace the active feature composition and Pi resource tier, then notify the renderer. */

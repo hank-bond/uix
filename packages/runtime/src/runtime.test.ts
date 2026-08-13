@@ -251,7 +251,14 @@ describe("workspace runtime isolation", () => {
       true,
     );
 
-    // Attachments bind duplicate session ids. Dispatch is per-workspace.
+    // A workspace-only route resolves its fallback inside the runtime and
+    // returns an attachment with the accepted durable session identity.
+    const fallbackA = await runtimeA.createAttachment();
+    expect(fallbackA.sessionId).not.toBe("");
+    await fallbackA.dispose();
+
+    // Explicit attachments bind duplicate session ids unchanged. Dispatch is
+    // per-workspace.
     const attachA = await runtimeA.createAttachment({
       sessionId: toSessionId("s1"),
     });
