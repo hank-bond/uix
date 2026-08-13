@@ -642,10 +642,7 @@ class WorkspaceRuntimeAttachment implements RuntimeAttachment {
     this.sessionId = sessionId;
   }
 
-  dispatch(
-    context: AttachmentContext,
-    request: CanonicalRequest,
-  ): Promise<CanonicalResponse> {
+  dispatch(request: CanonicalRequest): Promise<CanonicalResponse> {
     if (this.#disposed) {
       return Promise.resolve({
         ok: false,
@@ -653,7 +650,11 @@ class WorkspaceRuntimeAttachment implements RuntimeAttachment {
       });
     }
     return this.#host.dispatch(
-      { ...context, workspaceId: this.workspaceId, sessionId: this.sessionId },
+      {
+        workspaceId: this.workspaceId,
+        attachmentId: this.attachmentId,
+        sessionId: this.sessionId,
+      },
       request,
     );
   }

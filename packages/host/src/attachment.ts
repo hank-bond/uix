@@ -14,7 +14,6 @@ import type {
   SessionTarget,
   WorkspaceId,
 } from "@uix/runtime";
-import type { AttachmentContext } from "@uix/runtime";
 
 /**
  * The host-facing attachment: one connection's owned, retargetable binding.
@@ -48,12 +47,7 @@ export class Attachment {
 
   async dispatch(request: CanonicalRequest): Promise<CanonicalResponse> {
     if (this.#disposed) throw new Error("Attachment is disposed");
-    const context: AttachmentContext = {
-      workspaceId: this.workspaceId,
-      attachmentId: this.attachmentId,
-      sessionId: this.sessionId,
-    };
-    return this.#inner.dispatch(context, request);
+    return this.#inner.dispatch(request);
   }
 
   async retarget(target: SessionTarget): Promise<void> {

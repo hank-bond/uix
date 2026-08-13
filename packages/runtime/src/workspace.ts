@@ -5,11 +5,7 @@
 
 import type { ReloadResult } from "@uix/api/substrate-channels";
 
-import type {
-  AttachmentContext,
-  CanonicalRequest,
-  CanonicalResponse,
-} from "./dispatch";
+import type { CanonicalRequest, CanonicalResponse } from "./dispatch";
 import type { RuntimeEvent } from "./events";
 import type { ActivationResult } from "./features/loader";
 
@@ -105,11 +101,8 @@ export interface RuntimeAttachment {
   readonly sessionId: SessionId;
   /** The primary agent instance currently bound. */
   readonly instanceId: AgentInstanceId;
-  /** Dispatch one canonical channel request. The host stamps attachment context outside the payload. */
-  dispatch(
-    context: AttachmentContext,
-    request: CanonicalRequest,
-  ): Promise<CanonicalResponse>;
+  /** Dispatch one canonical request. The attachment stamps its accepted runtime routing context. */
+  dispatch(request: CanonicalRequest): Promise<CanonicalResponse>;
   /** Retarget to another session: acquire the new instance before releasing the old one. A failure leaves the target unchanged. */
   retarget(target: SessionTarget): Promise<void>;
   /** Release this attachment's retention on its instance. Idempotent. */

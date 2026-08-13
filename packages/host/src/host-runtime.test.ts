@@ -103,10 +103,7 @@ class FakeRuntimeAttachment implements RuntimeAttachment {
     this.instanceId = instanceId;
   }
 
-  dispatch(
-    context: AttachmentContext,
-    request: CanonicalRequest,
-  ): Promise<CanonicalResponse> {
+  dispatch(request: CanonicalRequest): Promise<CanonicalResponse> {
     if (this.disposed) {
       return Promise.resolve({
         ok: false,
@@ -126,7 +123,11 @@ class FakeRuntimeAttachment implements RuntimeAttachment {
     try {
       return Promise.resolve({
         ok: true,
-        value: handler(request.payload, context),
+        value: handler(request.payload, {
+          workspaceId: this.workspaceId,
+          attachmentId: this.attachmentId,
+          sessionId: this.sessionId,
+        }),
       });
     } catch (error) {
       return Promise.resolve({
@@ -517,7 +518,7 @@ describe("workspace isolation", () => {
     await supervisor.dispose();
   });
 
-  it("stamps host attachment context outside feature payloads", async () => {
+  it("stamps accepted attachment context outside feature payloads", async () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const handle = await supervisor.acquire(ws1);
