@@ -9,7 +9,7 @@ kind: reference
 
 **Scope:** Source files, comments, package metadata, `AGENTS.md` files, and documentation outside `plans/`, `decisions/`, and `design/`. Navigation that routes readers to the plans tree points at plans without making plan content authoritative for a document's claims. Generated indexes and the documentation model count as navigation.
 
-**Approved example:** A comment states current behavior only, such as `The runtime keeps the selected-session singleton semantics the driver already provides`. A stub states its purpose in the present, such as `Empty. Owns the Electron composition and adapters`.
+**Approved example:** A comment states current behavior only, such as `The runtime keeps one guarded primary agent instance per session`. A stub states its purpose in the present, such as `Empty. Owns the Electron composition and adapters`.
 
 **Nonconforming example:** A comment names a plan unit, such as `H3 singleton semantics`. A stub says `Empty until H7 reconstitutes the host`. A code comment notes `a later unit replaces the singleton`.
 

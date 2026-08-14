@@ -11,7 +11,8 @@ summary: "Build explicit Electron and server hosts around a shared browser clien
 - **H2** in-memory host/runtime boundary proof landed.
 - **H3** real workspace runtime landed. The openWorkspace substrate moved into `packages/runtime`. `createWorkspaceRuntime` composes it over host ports, and the Electron app consumes it without host migration. The H3 isolation suite proves two concurrent workspaces with duplicate feature, channel, resource, and settings ids.
 - **H4.0** derisk spike landed: two real Pi runtimes coexist in one process, and two live agents append disjoint branches to one session file. See the H4 section.
-- **H4.1** in progress. Per-instance transcript identity, mutable state, branch-local model selection, explicit manager opening, forward `SessionTarget` identity, and the internal `AgentInstance` owner have landed. H4 still ships one primary branch per session. The deferred multi-branch architecture is recorded below.
+- **H4.1** owner primitives landed. Per-instance transcript identity, mutable state, branch-local model selection, explicit manager opening, forward `SessionTarget` identity, and the internal `AgentInstance` owner are present. Production driver retirement moves into H4.2 so the branch does not build a temporary singleton coordinator only to remove it.
+- **H4.2** in progress. It activates session-keyed instance supervision, guard-native lifetimes, attachment dispatch, non-blocking retarget, and teardown policy. H4 still ships one primary branch per session. The deferred multi-branch architecture is recorded below.
 
 ## Status and intent
 
@@ -20,7 +21,7 @@ This plan replaces the earlier transport-first Electron/server split. The discar
 The highest-risk questions land first as executable architecture:
 
 1. Can two real workspace runtimes with duplicate feature, channel, and resource ids coexist and dispose independently in one process?
-2. Can one workspace runtime host concurrent real Pi agents on separate sessions with single-flight boot, retention, retargeting, and safe teardown?
+2. Can one workspace runtime supervise concurrent real Pi agents on separate sessions with single-flight boot, explicit lifetime guards, retargeting, and safe teardown?
 3. Can one attachment and scoped dispatch boundary support in-memory tests, Electron IPC, and WebSocket connections without feature contracts learning transport fields?
 
 Broad source movement and host implementation follow only after those gates pass. A failed gate pauses the plan and reopens the design rather than adding compatibility around a wrong boundary.
@@ -32,11 +33,17 @@ The plan implements the synthesis in [`host-workspace-runtime-boundaries.md`](..
 ```text
 Host process
 ├── launcher and workspace catalog
-├── supervisor
-│   ├── WorkspaceHandle → WorkspaceRuntime A
-│   │   └── agent instance manager
-│   └── WorkspaceHandle → WorkspaceRuntime B
-│       └── agent instance manager
+├── WorkspaceSupervisor
+│   ├── supervised workspace A
+│   │   ├── WorkspaceGuard(s) → WorkspaceHandle
+│   │   └── WorkspaceRuntime
+│   │       └── WorkspaceAgentRuntime
+│   │           └── AgentInstanceSupervisor
+│   └── supervised workspace B
+│       ├── WorkspaceGuard(s) → WorkspaceHandle
+│       └── WorkspaceRuntime
+│           └── WorkspaceAgentRuntime
+│               └── AgentInstanceSupervisor
 └── platform and transport adapters
 ```
 
@@ -63,16 +70,16 @@ The exact shared host package name remains reviewable in the first unit. The own
 ## Load-bearing boundaries
 
 - **One runtime instance owns one workspace.** A host creates several instances in one process, and each lifetime bag isolates its workspace.
-- **The supervisor owns workspace policy.** Workspace ids, runtime boot coalescing, workspace retention, and runtime teardown do not belong to a workspace runtime.
-- **The runtime owns agent instances.** One primary instance per session is the first policy. Single-flight boot, attachment retention, retargeting, event scope, and safe turn-boundary teardown live inside the workspace runtime.
-- **Hosts route, runtimes dispatch.** A host resolves the workspace and owns physical connection context. It passes the connection's `SessionTarget` through unchanged and binds the returned runtime attachment to that connection. The runtime resolves an omitted `branchId`, acquires or boots the corresponding agent, validates canonical channel requests, and emits explicitly scoped events. Feature payloads contain no transport or tenancy fields.
+- **Supervisors own keyed child lifecycles.** The host's `WorkspaceSupervisor` owns workspace identity, single-flight runtime boot, workspace guard admission, lifetime policy, and teardown. It privately owns each supervised workspace and issues independent `WorkspaceGuard`s that provide the shared narrow `WorkspaceHandle`. The handle creates attachments but exposes no teardown authority. Each `WorkspaceAgentRuntime` similarly owns an `AgentInstanceSupervisor` without placing either supervisor on the ordinary request hot path.
+- **Guards make agent-instance use explicit.** One primary instance per session is the first policy. The instance supervisor owns single-flight boot, guard admission, lifetime policy, and teardown. Attachments, accepted requests, running turns, reload, and background work hold disposable `AgentInstanceGuard`s for their complete asynchronous use. Releasing a guard is immediate and removes one teardown veto. Zero guards permits policy but does not promise disposal. An instance owns its private session manager and restored state immediately, then boots its one Pi runtime lazily.
+- **Hosts route, runtimes dispatch.** A host resolves the workspace once and owns physical connection context. It acquires one workspace guard and passes the connection's `SessionTarget` through unchanged. The guard's workspace handle creates one runtime attachment, and the host binds both capabilities to the connection. The attachment owns request authority, target guards, event observation, and disposal. Its private supervised workspace holds only the delivery closure returned at creation, selects matching receivers, and sends through host transport. Each later canonical request asks the attachment to prepare one dispatch directly. The runtime resolves an omitted `branchId`, then acquires or boots the corresponding agent instance. One canonical channel table and handler model route the request and validate its request and response. Feature payloads contain no transport or tenancy fields.
 - **No global broadcast semantics.** H4 routes workspace and session events only to matching attachments. Explicit agent-instance identity and event scope wait for a concrete ephemeral-execution or stale-work requirement. A transport can optimize subscription mechanics without redefining delivery scope.
 - **One wire-log boundary.** Every channel crossing records through one chokepoint with per-contract redaction. The log can be neither dodged nor spoofed, and crossing lines stay identical across hosts.
 - **The launcher precedes all runtimes.** A host can serve workspace catalogs with zero active workspaces. Launcher HTTP, CLI JSON, Electron, and native clients consume one machine-readable projection.
 - **The browser client is host-neutral.** Shared launcher and workspace clients receive constructed adapters. They do not inspect Electron globals or select transports.
 - **Resources have one logical dispatcher.** Electron protocols and server HTTP encode workspace-qualified routes over the same runtime-owned resource semantics.
 - **Apps are explicit compositions.** Hosts do not silently install app features. Shared and workspace-local features remain explicit manifest references.
-- **Lifetimes compose.** Host, supervisor, workspace runtime, active feature composition, attachment, and agent instance each have an explicit owner and disposal boundary.
+- **Lifetimes compose.** The host owns physical connections. The workspace supervisor owns each supervised workspace and its runtime teardown. Each connection owns an independent workspace guard and one attachment. The guard provides a narrow shared workspace handle that exposes attachment creation without disposal. Each attachment owns a replaceable target guard, and detached operations own independent guards. The supervised workspace remains the parent lifetime. The runtime owns active feature composition, while its agent instance supervisor remains the sole owner of agent instances.
 
 ## Review units
 
@@ -80,7 +87,7 @@ The exact shared host package name remains reviewable in the first unit. The own
 
 Begin implementation from the mainline behavior plus approved design, naming, and documentation changes. Do not migrate the unlanded transport-first runtime and WebSocket implementation forward. Preserve it only as a test and design reference. Re-adopt an independently useful change, such as the local `@uix/api` package, only when it fits the target dependency graph without upward imports.
 
-Record the baseline Electron behavior and checks that later units must preserve. Remove or defer any unlanded decision whose conclusion depended on global broadcast or the old broadcast transport. Decide the fate of the two naming and lexicon commits that are not on main. Replay them after H1 establishes the target roots, or re-verify the vocabulary rules under main's configuration. A WebSocket choice may be recorded again after the scoped dispatch boundary proves it.
+Record the baseline Electron behavior and checks that later units must preserve. Remove or defer any unlanded decision whose conclusion depended on global broadcast or the old broadcast transport. Decide the fate of the two naming and lexicon commits that are not on main. Replay them after H1 establishes the target roots, or revalidate the vocabulary rules under main's configuration. A WebSocket choice may be recorded again after the scoped dispatch boundary proves it.
 
 **Review gate:** The branch contains the approved design and this plan, and it passes the repository checks. No partial server transport or host-neutral runtime extraction predates the new boundary.
 
@@ -101,12 +108,12 @@ Keep this unit behavior-light. Do not migrate the full Electron application, fea
 
 Build the smallest executable contracts for workspace supervision, workspace handles, attachments, canonical request dispatch, and scoped event delivery. Candidate names remain reviewable, but the model must express:
 
-- A supervisor acquiring a workspace handle through a single-flight boot promise.
-- A handle creating an attachment for an initial session target.
+- A supervisor acquiring an independent workspace guard through a single-flight boot promise.
+- The guard providing a narrow shared handle that creates an attachment for an initial session target without exposing workspace disposal.
 - An attachment dispatching requests and retargeting its session.
 - Workspace and session event scopes. Explicit agent-instance scope is deferred until it has a concrete consumer.
-- Workspace and attachment retention with deterministic disposal.
-- A host-facing `WorkspaceHandle` type with one implementation.
+- Workspace and attachment lifetimes with deterministic supervisor-owned disposal.
+- A host-facing `WorkspaceHandle` type with one private supervised-workspace implementation.
 
 Use fake runtimes and agents. Avoid Electron, WebSocket, HTTP, Pi, and feature loading. The scenarios should prove two workspaces with identical canonical ids, several attachments on one session, independent retargeting, scoped event delivery, failed-target rollback, and disposal isolation.
 
@@ -126,7 +133,7 @@ Do not migrate Electron yet. Use in-memory host and resource adapters so failure
 
 ### H4: Prove real agent instances
 
-Restructured into sub-units after the H4.0 derisk findings. The gate question (whether Pi and feature state can support concurrent in-process instances) has a preliminary **Pi passes** answer. The state-model risk is UIX-owned: the per-instance refactor, the instance manager, and the feature instance boundary.
+Restructured into sub-units after the H4.0 derisk findings. The gate question (whether Pi and feature state can support concurrent in-process instances) has a preliminary **Pi passes** answer. The state-model risk is UIX-owned: the per-instance refactor, the agent instance supervisor, and the feature instance boundary.
 
 #### H4.0: Derisk spike: Pi concurrency and shared-file branch writes
 
@@ -139,26 +146,40 @@ Findings that shape the design:
 
 - Appends are single-line O_APPEND writes, atomic per row. No file lock is needed in-process.
 - Compaction is a pure append that writes a `compaction` entry. Old rows stay in the file, and only context projection skips them. It never rewrites the file.
-- The only full-file rewrites are open-time: empty-file header init, session schema version migration, and new-file creation. Migration runs at most once per session file ever and is first-writer-safe. It is a boot rule, not a join rule.
+- The only full-file rewrites are open-time: empty-file header init, session schema version migration, and new-file creation. Migration runs at most once per session file ever and is first-writer-safe. It is an initial-open rule, not a concurrent-writer rule.
 - Multi-process is a non-goal. No cross-process writer topology exists, so the lock story is closed.
 
-#### H4.1: Per-instance agent owner (behavior-preserving refactor)
+#### H4.1: Per-instance agent owner primitives
 
-Extract the driver's instance-scoped state into an `AgentInstance`. Each instance owns one independent `SessionManager`, one `AgentSessionRuntime`, one transcript binding, one turn-state coordinator, one ephemeral transcript-id sequence, and one `currentModel`. It has one immutable primary session target and no `switchSession` method. Workspace-level services such as provider auth, the model catalog, workspace settings, and session-file discovery stay shared.
+_Status: landed as owner primitives. Production cutover and driver retirement occur with H4.2 so UIX does not add a temporary singleton coordinator._
 
-H4 deliberately supports **one primary branch per session**. `SessionTarget = { sessionId, branchId? }` reserves the eventual durable branch identity. `branchId` is the first row born on a branch. H4 accepts only the primary target with `branchId` omitted. It does not walk branch trees, expose fork selection, or silently ignore a supplied branch id. A branch-bearing target is unsupported until the deferred session coordinator exists.
+Extract the driver's instance-scoped state into an `AgentInstance`. Each instance owns one independent `SessionManager`, one transcript binding, one turn-state coordinator, one ephemeral transcript-id sequence, one `currentModel`, and at most one lazily booted `AgentSessionRuntime`. The instance is the lifecycle owner for one Pi execution and can be session-ready while that runtime remains unbooted. It has one immutable primary session target and no `switchSession` method. Workspace-level services such as provider auth, the model catalog, workspace settings, and session-file discovery stay shared.
+
+H4 deliberately supports **one primary branch per session**. `SessionTarget = { sessionId, branchId? }` reserves the eventual durable branch identity. `branchId` is the first row born on a branch. H4 accepts only the primary target with `branchId` omitted. It does not walk branch trees, expose fork selection, or silently ignore a provided branch id. A branch-bearing target is unsupported until the deferred session coordinator exists.
 
 Module-level mutable state must not leak across instances. In particular, the ephemeral live-item id sequence is instance-scoped. `selectModel` stops writing the workspace default. The chat picker records native Pi `model_change` state on the primary branch. The static workspace default remains a fallback for a branch with no model history. A separate settings path for changing that default is deferred. The reference manifest default remains `deepseek/deepseek-v4-flash`.
 
 **Review gate:** Existing driver tests stay green. New tests prove two instances do not share the ephemeral sequence, turn-state coordinator, transcript binding, or `currentModel`. The current single-session Electron behavior is unchanged, and no H4 path claims multi-branch behavior.
 
-#### H4.2: Instance manager lifecycle
+#### H4.2: Guarded instance supervision and production cutover
 
-The manager composes `AgentInstance` objects under the first shipping policy of one primary instance per session. It owns attach, single-flight boot, warm attach, retention refcount, and acquire-before-release retarget. Teardown policies cover idle immediate, running at a safe turn boundary, and cancel-on-attach. It enforces one active turn per primary instance with busy rejection, and failed acquisition preserves the old instance.
+_Status: in progress._
 
-The live ownership map is keyed by session id in H4. Several attachments to the same session retain and share one instance, which is the multi-device behavior the first server needs. The manager uses object identity for its lifecycle races. H4 does not mint or expose an instance id without a concrete stale-work consumer. Applications address the durable session, not the ephemeral execution.
+Retire the selected-session driver. Each `WorkspaceRuntime` owns one `WorkspaceAgentRuntime`, which composes shared agent services and an `AgentInstanceSupervisor`. The first shipping policy provides one primary `AgentInstance` per session. The supervisor owns keyed identity, single-flight instance boot, guard admission, lifetime policy, and teardown. It issues disposable `AgentInstanceGuard`s but is not on the ordinary prompt or channel-request hot path. One canonical attachment-dispatch path replaces direct transport handler invocation. Remove the runtime's channel transport registrar. Concrete hosts bind physical connections to attachments and subscribe to scoped runtime events. Ordinary feature and substrate agent requests share one registered handler model, while guarded attachment authority remains outside feature payloads. Remove `ContextualChannelRunner`, `registerContextual()`, and the parallel contextual handler map rather than creating a second handler category.
 
-**Review gate:** The lifecycle scenario list below, minus Canvas and future branch items, passes against the mocked SDK with two sessions in one runtime.
+An attachment owns one replaceable target guard. A successful retarget acquires the new guard and swaps it into the attachment. It releases the old guard synchronously and returns without waiting for an old running turn or its teardown. Failed acquisition preserves the old guard and accepted target. Request acceptance synchronously retains an operation guard and asks the workspace channel table to prepare one dispatch. The channel table provides the resolved handler, schemas, and contract-owned log policy. The attachment provides immutable workspace, session, and agent-instance authority. The resulting `PreparedDispatch` owns the operation guard and can outlive attachment retarget or disposal. Accepted work can request a retarget after attachment closure. It guards the requested instance for that operation without installing a new target guard on the closed attachment. Instance-specific agent operations consume live guards rather than accepting an unprotected instance across package seams.
+
+Every asynchronous instance use holds a guard for its complete duration. A live guard can synchronously retain another independently releasable guard on the same managed record. Retaining after release fails. A started turn retains its own guard before detached work begins and releases it after the final safe boundary. Reload and reconciliation visit instances under temporary guards. Future host-authored background work acquires a guard directly instead of fabricating an attachment. A guard establishes no event subscription. Releasing a guard is immediate, idempotent, and non-blocking. It does not await state commit or instance teardown. Zero guards makes the instance eligible for supervisor policy rather than promising disposal. The first policy tears down an eligible idle instance immediately. Later idle periods and always-on policy do not change guard semantics.
+
+The live ownership map is keyed by session id in H4. Several attachments and operations on the same session hold independent guards on one instance. Its Pi runtime may be unbooted, idle, or running. This is the multi-device behavior the first server needs. The supervisor uses managed-record object identity for acquisition and teardown races. Guard release can begin asynchronous teardown, but the supervisor owns and observes that work. Admission either cancels teardown before its point of no return or awaits it and boots a fresh instance. Acquisition and disposal cannot both win the same record. Parent disposal stops admission, releases owned attachment guards, drains operation guards, and awaits actual child teardown. H4 does not mint or expose an instance id without a concrete stale-work consumer. Internal guard ids and origins may support diagnostics but never become routing identity.
+
+The host receives each physical request frame and asks its bound attachment to prepare the dispatch. It records the inbound crossing with the prepared contract policy, invokes the handler, and records the result before sending the response frame. Physical messaging and wire-log writes remain host-owned. Log policy remains workspace-channel state rather than attachment state. Unknown channels use a fixed safe policy that records their canonical id without their client-authored payload. A prompt handler retains a separate turn guard before the prepared dispatch releases its operation guard.
+
+H4.2 includes minimum session-scoped agent-event delivery because an old running session must never publish into an attachment that already moved. Remaining authorized attachments on the old session continue receiving its activity. With none, the turn guard lets execution persist without live delivery. Complete event conformance, snapshot recovery, and reload reconciliation remain in later units. The runtime creates one `Attachment` object with identity, target guards, dispatch, retargeting, event listeners, and disposal. Creation privately returns its supervised workspace a narrow delivery closure. The supervised workspace selects receivers from event scope and invokes delivery without gaining request authority. No host façade or second runtime attachment duplicates identity, target, or lifetime.
+
+Migrate the existing selected-driver behavior suite to the replacement owner rather than deleting its behavior coverage. Add explicit scenarios for shared instances with unbooted Pi runtimes and prepared dispatches across concurrent retarget. Prove that prepared dispatches retain operation guards, preserve their accepted authority, and use their channel registration's log policy after the attachment moves. Cover a turn guard surviving disconnect, non-blocking running retarget, returning to the still-running instance, and guarded all-instance visitation. Also cover session event isolation, idempotent guard release, zero-guard policy, acquisition during pending teardown, final commit, parent drain, and guard-leak diagnostics. Do not rely on garbage collection for release.
+
+**Review gate:** The lifecycle scenario list below, minus Canvas and future branch items, passes against the mocked SDK with two sessions in one runtime. The tests can account for every guard owner and prove that no asynchronous instance operation uses an unguarded raw instance. Current single-window Electron behavior remains intact, while the multi-attachment behaviors are reviewed explicitly.
 
 #### H4.3: Feature instance boundary
 
@@ -168,9 +189,9 @@ This unit establishes the branch-viewpoint ownership grain without implementing 
 
 **Review gate:** Two sessions retain independent Canvas documents, anchors, turn state, and agent context.
 
-#### H4.4: Session-scoped events and reload reconciliation
+#### H4.4: Complete session-scoped events and reload reconciliation
 
-Application routing uses workspace and session scope. An attachment's accepted URL and host authorization establish its workspace and session subscription. The host stamps that context. Payload fields cannot widen it. Agent activity for the primary branch reaches every authorized attachment viewing that session. H4 has no explicit instance id or agent-instance event scope.
+H4.2 establishes the minimum session-scoped agent-event path required by non-blocking retarget. This unit completes routing conformance and recovery across every runtime event stream. Application routing uses workspace and session scope. An attachment's accepted URL and host authorization establish its workspace and session subscription. Payload fields cannot widen it. Agent activity for the primary branch reaches every authorized attachment viewing that session. H4 has no explicit instance id or agent-instance event scope, and no legacy unscoped publication path remains beside the scoped path.
 
 Preserve the current single-branch Chat behavior in H4, including its live transcript updates. The future all-branch feed described below is a session-scoped durable completed-entry stream, not a reason to implement branch topology or broadcast every token delta now.
 
@@ -184,22 +205,24 @@ Graduate the H4.0 spikes into the plan's review gate, and land per-instance `cur
 
 The lifecycle contract across H4.1–H4.5, implemented and tested:
 
-- Concurrent cold attachments awaiting one single-flight boot promise.
-- Warm attachment to an existing primary instance.
+- Concurrent attachments to an absent instance awaiting one single-flight boot promise and receiving independent guards on the result.
+- Attachment to an existing primary instance whose Pi runtime may be unbooted, idle, or running.
 - Two live agents on distinct sessions in one workspace runtime.
-- Acquire-before-release attachment retargeting.
-- Failed target acquisition preserving the accepted old instance.
+- Acquire-before-release attachment retargeting that synchronously releases the old guard and returns without awaiting an old running turn or teardown.
+- Failed target acquisition preserving the accepted old guard and target.
+- A request operation guard preserving its accepted instance across concurrent attachment retarget.
 - One active turn per primary instance, with a clear busy rejection for competing prompts.
-- Immediate teardown of a zero-attachment idle instance.
-- Teardown of a zero-attachment running instance after its safe turn boundary.
-- A new attachment canceling pending teardown.
+- A detached turn guard preserving the instance through its final safe boundary after every attachment leaves.
+- Immediate policy teardown of an eligible idle instance at zero guards.
+- An attachment acquired during the turn leaving the instance live after the turn guard releases.
 - Session-scoped agent events reaching every authorized attachment on that session.
 - Two sessions retaining independent restored Canvas documents, anchors, turn state, and agent context.
 - One attachment leaving a shared instance without committing, restoring, or disrupting peers.
-- Final state commit and safe teardown only when the agent instance tears down.
-- Workspace feature reload committing and reconciling every agent instance without cross-session state exchange.
+- Final state commit and safe teardown only when the agent instance actually tears down.
+- Workspace feature reload visiting every instance under temporary guards and reconciling them without cross-session state exchange.
+- Parent disposal stopping admission, accounting for every guard, and awaiting child teardown.
 
-Retained as later policies: configurable warm retention, always-on instances, host-authored retention, static-default model setting, and the multi-branch architecture below.
+Retained as later policies: configurable zero-guard idle periods, always-on instances, host-authored guarded work, static-default model setting, and the multi-branch architecture below.
 
 **Review gate:** Real Pi sessions and stateful features satisfy the lifecycle above without process-global collisions, cross-session event leakage, or shared primary-session state mutation. If Pi or feature state cannot support concurrent in-process instances, stop and revisit the state model. Neither host should depend on the shape first.
 
@@ -215,21 +238,21 @@ Session coordinator
 │   ├── entry id → durable entry and branch id
 │   └── branch id → mutable current head id
 ├── session-scoped completed-entry publisher
-└── exclusive branch leases
+└── exclusive branch ownership
     ├── branch A → AgentInstance A → private SessionManager A
     └── branch B → AgentInstance B → private SessionManager B
 ```
 
 The settled future responsibilities are:
 
-- **Stable identity and mutable position:** `branchId` is the first durable row on a branch and keys the exclusive lease. `headId` advances on every append and positions a newly booted manager. The application never uses a mutable head as branch identity.
-- **One manager per agent:** every branch-bound `AgentInstance` owns an independent Pi `SessionManager` because its leaf pointer is mutable. The coordinator supplies the resolved head. Instances do not discover branch ends independently.
+- **Stable identity and mutable position:** `branchId` is the first durable row on a branch and keys exclusive branch ownership. `headId` advances on every append and positions a newly booted manager. The application never uses a mutable head as branch identity.
+- **One manager per agent:** every branch-bound `AgentInstance` owns an independent Pi `SessionManager` because its leaf pointer is mutable. The coordinator provides the resolved head. Instances do not discover branch ends independently. The coordinator owns the complete graph and no long-lived manager of its own.
 - **One graph derivation on cold open:** scan the session entries once to derive complete topology, `entryId → branchId`, and `branchId → headId`. A persisted head index may later accelerate this. It remains rebuildable cache, and the append-only session file stays authoritative.
 - **Incremental graph updates:** instrument each private manager's durable append boundary. After Pi appends and returns an entry id, UIX reads and ingests the entry. It then advances that branch's head and publishes a session-scoped completed-entry event.
 - **Session visibility, agent isolation:** authorized viewers of a session receive its graph snapshot and completed durable entries for every branch. Agents retain only their private branch context. Cross-branch agent communication or synthesis requires a future explicit mechanism and is not implied by graph visibility.
 - **Application routing by branch, not instance:** future clients may hold handles to several branches and prompt their exclusive agents independently. Internal instance ids or generations may reject stale work, but have no URL, UI, or event-routing meaning.
 - **Host-stamped subscriptions:** the accepted connection URL and authorization establish the session subscription. The host passes its `SessionTarget` to the runtime unchanged. It does not inspect the session graph or resolve a missing `branchId`. The session coordinator applies the default-branch policy and returns an opaque attachment for the host to bind to the connection. Runtime envelopes qualify completed entries with session and branch identity outside feature-authored payloads. A client cannot spoof another session by placing routing fields in a request.
-- **Unborn branch:** a provisional internal lease rekeys once when its first durable append supplies the branch id. No marker row or minted durable token is added solely for UIX.
+- **Unborn branch:** a provisional internal ownership record rekeys once when its first durable append provides the branch id. No marker row or minted durable token is added solely for UIX.
 
 The first branch UI consumes the coordinator's branch catalog. It renders human-facing previews, fork points, timestamps, or user labels. Raw branch ids remain machine identity. Token deltas may later use an explicit live-branch subscription. The all-branch session feed needs only completed durable entries.
 
@@ -237,7 +260,7 @@ The first branch UI consumes the coordinator's branch catalog. It renders human-
 
 Move browser-compatible launcher and workspace UI into `packages/client`. Each entry receives a constructed client adapter from a host-owned client bootstrap. Remove ambient Electron detection from shared code. The page-shared module mechanism (the React, TypeBox, and `@uix/api` instances that bundled surfaces resolve against) moves with the workspace client.
 
-Give the workspace client canonical workspace-session navigation and a transport connection epoch. The URL names each attachment's target. The workspace-only route resolves the fallback session and never implies one globally active session. Snapshot-backed state owners use one reusable recovery pattern rather than optional feature-by-feature reconnect callbacks. Inventory every event stream and classify it as a durable snapshot signal, an ordered live delta, or an explicitly lossy notification. Define pending mutation loss as an indeterminate outcome rather than a confirmed failure, and do not retry mutations automatically.
+Give the workspace client canonical workspace-session navigation and a transport connection epoch. The URL names each attachment's target. The browser keeps no separate last-session preference. A workspace-only route resolves the most recently modified valid session, or creates one when none exists. It then replaces itself with the canonical workspace-session URL. Reloading an existing tab therefore restores its exact URL target, while a new workspace-only navigation resolves the newest session at that later time. Snapshot-backed state owners use one reusable recovery pattern rather than optional feature-by-feature reconnect callbacks. Inventory every event stream and classify it as a durable snapshot signal, an ordered live delta, or an explicitly lossy notification. Define pending mutation loss as an indeterminate outcome rather than a confirmed failure, and do not retry mutations automatically.
 
 The launcher client consumes a host-level catalog projection and can navigate to canonical workspace-session URLs. It does not require an active workspace runtime.
 
@@ -255,11 +278,11 @@ Update scaffolding and development references so core runtime and hosts can buil
 
 Move Electron main, preload, launcher client bootstrap, native chrome, IPC, protocol, recents, dialogs, and packaging assumptions under `hosts/electron`. The Electron host composes the shared supervisor, runtime, launcher client, and workspace client through concrete adapters.
 
-Bind each workspace window to one attachment rather than broadcasting through `BrowserWindow.getAllWindows()`. IPC requests carry host-stamped attachment context, and runtime events route only to matching windows.
+Bind each Electron window or future tab to one workspace guard and one attachment rather than broadcasting through `BrowserWindow.getAllWindows()`. IPC requests dispatch through that bound attachment, and runtime events route only to matching windows or tabs. Persist Electron's local window/tab layout and each canonical workspace-session target in the host profile. Reopening the application then restores the local chrome the user closed. Do not write a workspace-global selected-session setting.
 
 Bind Electron resource URLs through workspace-qualified routes. Today each runtime binds `protocol.handle` on the substrate scheme directly, so a second runtime would silently replace the first's handler. The host owns one registration and routes workspace-qualified URLs into each runtime's dispatcher. Make host shutdown await workspace runtime disposal. The current sync bag shim fires async teardown without awaiting. Keep process handlers, raw IPC, protocol registration, and window lifecycle inside the Electron host.
 
-Preserve existing dogfood behavior and add a concurrent-workspace proof with two windows. The launcher client uses the shared launcher presentation where its capabilities overlap and retains Electron-specific folder selection as an honest host capability.
+Preserve existing dogfood behavior and add a concurrent-workspace proof with two windows. Until this unit, the one-window Electron host may create its attachment directly from the runtime because canonical host targets arrive with the H5 client work. That transition must stay constrained to one workspace window and one attachment, preserve scoped delivery, and add no Electron accommodation to runtime contracts. H7 removes the direct path and makes the supervised workspace the sole holder of attachment delivery closures. The launcher client uses the shared launcher presentation where its capabilities overlap and retains Electron-specific folder selection as an honest host capability.
 
 **Review gate:** Electron passes existing behavior checks, and two workspace windows remain isolated despite duplicate feature ids. Session switching moves only the requesting attachment. No Electron import exists in runtime, client, app feature, or shared host-neutral code.
 
@@ -269,7 +292,7 @@ Create the server composition root under `hosts/server`. It starts with zero act
 
 Choose and implement the live transport against the proven attachment boundary. WebSocket remains the expected local choice because the channel surface is bidirectional. The unit must decide against actual operations and scoped delivery rather than inherit the discarded broadcast spike. The transport comparison analysis from the discarded spike remains available as reference in repository history.
 
-The wire protocol uses discriminated request, response, error, and event frames with required correlation fields. Every crossing records through the shared wire-log chokepoint with per-contract redaction, so server lines match Electron lines. The host resolves workspace and initial session from the connection URL. Session switching retargets the existing attachment. Events carry runtime scope and the host delivers them only to matching connections. Pending requests reject as indeterminate after a connection loss. Bounded outbound queues drop slow clients into the snapshot recovery path.
+The wire protocol uses discriminated request, response, error, and event frames with required correlation fields. Every crossing records through the shared wire-log chokepoint with per-contract redaction, so server lines match Electron lines. The host resolves workspace and initial session from the connection URL. Session switching retargets the existing attachment. Events include runtime scope, and the host delivers them only to matching connections. Pending requests reject as indeterminate after a connection loss. Bounded outbound queues drop slow clients into the snapshot recovery path.
 
 Run one conformance suite against in-memory, Electron, and real server adapters. Include two connections on one session, independent sessions in one workspace, concurrent workspaces, retargeting, malformed frames, request errors, redacted logging, scoped fan-out, disconnect, and reconnect.
 
@@ -295,8 +318,8 @@ Perform the local-server threat review before allowing non-loopback binding. Def
 
 ## Decisions deliberately deferred
 
-- Configurable post-turn warm retention and always-on agent instance policies.
-- Host-authored background agent retention and cron orchestration.
+- Configurable zero-guard idle periods and always-on agent instance policies.
+- Host-authored background agent guards and cron orchestration.
 - Multiple branch-bound agents on one durable session tree.
 - Ephemeral call-and-response agents, including any explicit agent-instance identity and event scope that their routing requires.
 - Remote identity, tenancy, authorization, collaboration, and hosted persistence.

@@ -41,7 +41,7 @@ _Feature activation_ validates a definition and settings, constructs context, an
 
 An _activated feature instance_ is the live result of one successful feature activation: its context objects, callbacks, registered contributions, and per-feature lifetime bag. Reloading the same entry creates a replacement activated feature instance even when its id and source are unchanged. A failed activation produces no activated feature instance. Its provisional bag disposes every capability already acquired.
 
-The _active feature composition_ is the set of activated feature instances currently owned by the workspace's feature bag. Reload commits turn state from those current instances, disposes them, activates replacement instances, and restores the selected session branch into the replacements.
+The _active feature composition_ is the set of activated feature instances currently owned by the workspace's feature bag. Reload visits every live agent instance under a temporary guard and commits its turn state. It then replaces the feature composition, reloads initialized Pi runtimes, and restores each live instance's branch state.
 
 Do not call an activated feature instance a feature generation. Use _generation_ only for a modeled replaceable object graph, such as a staged manifest or Pi runtime. Feature lifecycle uses activation, instance, active composition, and replacement instance.
 
@@ -206,13 +206,15 @@ Keep ordinary component-local state in React. Use a controller when multiple con
 
 ## Sessions, attachments, and agent instances
 
-A _session_ is a durable conversation tree. An _agent instance_ is one live agent execution attached to a session at a branch viewpoint. Its _agent instance state_ is the working state at that viewpoint, including the turn-state projection, agent context, Pi installation, and feature buffers for the branch. The _selected session graph_ is the durable graph chosen by the workspace. Main persists its identity in `session.selected`. Omitted-id history reads, commits, reload, and creating the runtime resolve against it. A _non-selected session_ is another durable graph read explicitly without changing that choice.
+A _session_ is a durable conversation tree. An _agent instance_ is the lifecycle owner for one Pi execution at an immutable session-branch viewpoint. It immediately owns one independent `SessionManager` and its _agent instance state_: transcript observation, ephemeral transcript identity, current-model projection, and a turn-state coordinator. Its `AgentSessionRuntime` boots lazily only when execution requires it. Stateful feature callbacks and buffers remain workspace-scoped while their per-instance instantiation boundary is unresolved.
 
-A connection's _attachment_ is its owned, retargetable handle on one agent instance. The connection attaches to the instance, booting it first when none is live. An instance stays retained while attachments hold it and tears down at a safe boundary when the last one leaves.
+An `AgentInstanceSupervisor` owns the live instances for one workspace runtime. The current policy keys one primary instance by session id, coalesces concurrent provisioning, and issues independent _guards_. A guard prevents teardown while its holder uses the instance. Releasing one guard is synchronous and affects no peer. Zero guards admits supervisor teardown policy rather than promising teardown to the releaser.
 
-The canonical URL names one attachment's target. A workspace may retain a _fallback session_ for the workspace-only route and launcher convenience. That value is not a global active session.
+A connection's _attachment_ is its runtime-created, retargetable capability. It owns one target guard, request authority, event observation, and disposal. Prepared requests and running turns retain independent guards, so accepted work can outlive attachment retarget or closure. A successful retarget acquires the new instance before releasing the old target guard.
 
-Use _fallback_ for the workspace-level session choice, _target_ for one attachment's live session, and _active_ for a runtime or renderer projection. Call an explicit read target _non-selected_, not _non-active_.
+UIX persists no workspace-global selected session. The current one-window Electron composition creates an attachment without an explicit target, so the runtime resolves the newest valid session or creates one. Canonical workspace-session browser URLs and per-window target restoration are not implemented.
+
+Use _fallback_ only for resolving an attachment request that omits a session, _target_ for one attachment's session, and _active_ for a runtime or renderer projection.
 
 ## Facet
 
@@ -260,12 +262,9 @@ UIX-core composes agent installers inside its single in-process Pi extension fac
 
 A _driver_ owns a runtime or lifecycle boundary. It creates the relevant lifetime bags, attaches behavior, orders teardown and reload, and exposes a small control surface.
 
-Examples:
+The former selected-session agent driver no longer exists. Its responsibilities are split across `WorkspaceAgentRuntime`, `AgentInstanceSupervisor`, and `AgentInstance`: workspace-shared provider services, keyed instance lifecycle, and one session-viewpoint Pi execution respectively. The feature loader owns manifest composition, per-entry bags, injected API construction, activated feature instance creation, reload/error isolation, and teardown of registered contributions.
 
-- The agent driver owns the Pi session boundary: session creation/resume, prompt/reload/history, live event forwarding, and the Pi extension factory that runs agent installers.
-- The feature loader owns feature activation: manifest composition, per-entry bags, injected API construction, activated feature instance creation, reload/error isolation, and teardown of registered contributions.
-
-Drivers own bags. Installers register things. Registries track live contributions. Bags decide when the returned disposables run.
+Exclusive owners use bags for registrations and unique children. Supervisors issue guards for independently held shared children. Installers register behavior, registries track live contributions, bags order exclusive cleanup, and guards prevent supervised teardown during shared use.
 
 ## Hook
 
@@ -319,7 +318,7 @@ UIX has three layers that can fall out of sync at different times:
 
 The feature loader reconciles disk to UIX memory by disposing the active composition and activating each accepted manifest entry. Replacement instances register their contributions. Registries become authoritative after activation.
 
-Agent-facing registries become a Pi runtime snapshot when the runtime starts or reloads. Workspace reload replaces feature contributions, then calls the driver's Pi resource reload path. UIX does not maintain a separate automatic dirty-marker path.
+Agent-facing registries become a Pi runtime snapshot when an instance's Pi runtime starts or reloads. Workspace reload replaces feature contributions, then visits every live agent instance under a temporary guard and reloads each initialized Pi runtime. UIX does not maintain a separate automatic dirty-marker path.
 
 Facets local to UIX reconcile through returned disposables and renderer or main notifications. They do not require Pi reload.
 

@@ -8,26 +8,34 @@ status: exploring
 
 ## Current synthesis
 
-A _host_ owns process and platform integration. A _workspace runtime_ owns the substrate semantics for exactly one workspace. A _supervisor_ sits inside the host and maps workspace ids to workspace handles. A workspace handle wraps one in-process runtime. The supervisor keeps several runtimes in one process, and each runtime's lifetime bag preserves teardown isolation. Process isolation is not a goal: a hosted deployment isolates users by VM, and local usage has no trust boundary between workspaces.
+A _host_ owns process and platform integration. A _workspace runtime_ owns the substrate semantics for exactly one workspace. A _supervisor_ sits inside the host and maps workspace ids to private _supervised workspaces_. Each supervised workspace owns one in-process runtime, its host-side event subscription, and every attachment in that parent lifetime. It provides callers a narrow `WorkspaceHandle` that can create attachments but cannot dispose the supervised workspace. The supervisor keeps several runtimes in one process, and each runtime's lifetime bag preserves teardown isolation. Process isolation is not a goal: a hosted deployment isolates users by VM, and local usage has no trust boundary between workspaces.
 
 ```text
 Host process
 ├── launcher and workspace catalog
-├── supervisor
-│   ├── WorkspaceHandle → WorkspaceRuntime A
-│   │   └── agent instance manager
-│   └── WorkspaceHandle → WorkspaceRuntime B
-│       └── agent instance manager
+├── WorkspaceSupervisor
+│   ├── supervised workspace A
+│   │   ├── WorkspaceGuard(s) → WorkspaceHandle
+│   │   └── WorkspaceRuntime
+│   │       └── WorkspaceAgentRuntime
+│   │           └── AgentInstanceSupervisor
+│   └── supervised workspace B
+│       ├── WorkspaceGuard(s) → WorkspaceHandle
+│       └── WorkspaceRuntime
+│           └── WorkspaceAgentRuntime
+│               └── AgentInstanceSupervisor
 └── platform and transport adapters
 ```
 
-The supervisor coalesces concurrent runtime boots and owns workspace-level retention and teardown policy. Each workspace runtime owns a discrete lifetime bag, feature composition, stores, registries, and agent instance manager. Disposing one runtime cannot remove another runtime's channels, resources, features, or process bindings.
+Concurrent acquisitions of one workspace share one runtime boot through single-flight and receive independent `WorkspaceGuard`s. Each guard protects the private supervised workspace and provides its shared narrow `WorkspaceHandle`; the handle exposes none of the supervisor's lifetime authority. A live workspace guard can retain another guard for connection setup, background work, or another asynchronous use. Release is synchronous and idempotent. At zero guards, the first policy begins workspace teardown. The `WorkspaceSupervisor` owns that policy and observes the private supervised workspace as it stops event delivery, disposes child attachments, and disposes the runtime. Each workspace runtime owns a discrete lifetime bag, feature composition, stores, registries, and one `WorkspaceAgentRuntime`. That agent runtime owns an `AgentInstanceSupervisor` for its keyed instances. Disposing one runtime cannot remove another runtime's channels, resources, features, or process bindings.
 
-The host resolves a connection's workspace id before it reaches a runtime. The selected workspace runtime creates an attachment that resolves the session and agent instance. This creates two parallel lifetime levels: the supervisor maps a workspace id to a coalesced runtime boot, and one workspace runtime maps an agent target to a single-flight instance boot. [`agent-session-routing.md`](./agent-session-routing.md) owns attachment retargeting and agent-instance teardown.
+The host resolves a connection's workspace id once, acquires a workspace guard from the workspace supervisor, and asks its handle for an attachment to the accepted session target. This creates two parallel supervision levels: the `WorkspaceSupervisor` maps a workspace id to a single-flight runtime boot, and one `AgentInstanceSupervisor` maps an agent target to a single-flight instance boot. The resulting attachment is the connection's bound request capability, so later messages do not traverse either supervisor or repeat workspace or instance resolution. The attachment owns a replaceable instance guard, and operation-specific guards protect asynchronous work after dispatch. [`agent-session-routing.md`](./agent-session-routing.md) owns attachment retargeting, guard lifetimes, and agent-instance teardown.
 
-Hosts own physical connections, URL routing, origin and authentication policy, native capabilities, and process lifecycle. Runtime request dispatch receives host-stamped attachment context outside feature payloads. Runtime events name a workspace or durable-session delivery scope, and the host delivers them to matching connections. Feature channel contracts do not contain transport, tenancy, or connection-routing fields.
+A physical connection owns both its workspace guard and its attachment. Host-authored work such as a scheduled job owns a workspace guard without fabricating a connection, then acquires any agent instance guards it needs. Hosts own physical connections, URL routing, origin and authentication policy, native capabilities, and process lifecycle. A host treats each canonical channel payload as opaque and asks its bound attachment to prepare a dispatch. The attachment contributes trusted current authority and an operation guard. The runtime's one channel table contributes the handler, schemas, and contract-owned log policy. The host records the inbound crossing with that prepared policy, invokes the handler, records the result, and sends the response frame. Retarget cannot move an accepted request to another instance, and log policy remains workspace-channel state rather than attachment state. Runtime events name a workspace or durable-session delivery scope, and the supervised workspace delivers them only to matching attachments for host transport. Feature channel contracts do not contain transport, tenancy, or connection-routing fields.
 
-The runtime declares its dependencies, and the host provides them. Channel transport, resource delivery, `openExternal`, the Pi profile directory, and the API module directory are dependencies from the runtime's perspective. An adapter is the translator that binds one communication or platform capability to another.
+`Attachment` is one runtime-created object and the only domain attachment. It owns identity, current target guard, dispatch, retargeting, event listeners, and disposal. Attachment creation also gives the private supervised workspace a narrow delivery closure. The supervised workspace keeps that closure, selects matching attachments from runtime event scope, and invokes delivery. Callers receive only the attachment. The runtime therefore owns request authority and guard mechanics, while the host owns receiver selection and physical transport without a second attachment object.
+
+The runtime declares its platform dependencies, and the host provides them. Resource delivery, `openExternal`, the Pi profile directory, and the API module directory are dependencies from the runtime's perspective. Canonical channel traffic no longer enters through an injected transport registrar: hosts bind physical connections to attachments and subscribe to scoped runtime events. Unknown canonical channels prepare an explicit error with a safe log policy that omits the untrusted payload. An adapter is the translator that binds one communication or platform capability to another.
 
 ### Launcher and catalog
 
@@ -56,7 +64,7 @@ The server uses stable host-owned workspace ids rather than filesystem paths in 
 /w/:workspaceId/s/:sessionId           canonical workspace-session page
 ```
 
-A direct request or reload of the canonical URL resolves the workspace runtime, creates an attachment, and attaches it to the named session's primary agent instance. The workspace-only route resolves the persisted fallback session or the newest session; that choice is launcher convenience rather than a global active session. An ordinary session switch retargets the existing attachment first, then updates browser history after the runtime confirms success. A workspace switch navigates to another workspace URL and rebuilds the client composition because its manifest and surfaces may differ.
+A direct request or reload of the canonical URL resolves the workspace runtime, creates an attachment, and attaches it to the named session's primary agent instance. The workspace-only route resolves the most recently modified valid session, or creates one when none exists, and then replaces itself with the canonical workspace-session URL. An ordinary session switch retargets the existing attachment first, then updates browser history after the runtime confirms success. A workspace switch navigates to another workspace URL and rebuilds the client composition because its manifest and surfaces may differ. Browser clients persist no separate last-session preference: each tab's canonical URL is authoritative. Electron instead persists its local windows or tabs and their canonical workspace-session targets in the host profile so reopening the application restores the local chrome the user closed.
 
 ### Repository ownership
 
@@ -83,11 +91,10 @@ apps/
 
 An app is a distributable host plus an explicit workspace and feature composition. A host is infrastructure and does not become an app merely because it can display the launcher or workspace client. Entries under `apps/features` are reusable source catalogs, not globally discovered features. Every workspace manifest continues to select its feature entries explicitly.
 
-The dependency direction is one-way: runtime, client, and feature implementations depend on author contracts; hosts compose runtime and client; workspace manifests select shared or local feature entries. Runtime and client packages never import either host, and feature implementations never import runtime or host internals. Shared host coordination lives in `packages/host`: the workspace supervisor, workspace and attachment handles, and the machine-readable launcher/catalog projection schemas. The feature-author API never carries host operations, and the launcher/catalog schemas never live inside a workspace runtime because the launcher exists above every runtime.
+The dependency direction is one-way. Runtime, client, and feature implementations depend on author contracts. Hosts compose runtime and client. Workspace manifests select shared or local feature entries. Runtime and client packages never import either host, and feature implementations never import runtime or host internals. Shared host coordination lives in `packages/host`: the workspace supervisor, workspace and attachment handles, and the machine-readable launcher/catalog projection schemas. The feature-author API never includes host operations, and the launcher/catalog schemas never live inside a workspace runtime because the launcher exists above every runtime.
 
 ## Open questions
 
-- What workspace-level retention and teardown policy should the first supervisor use after the last connection leaves?
 - Which workspace registration operations belong in the first server launcher rather than the later native launcher?
 - Does the first server process expose one configured workspace catalog or aggregate several configured roots?
 
@@ -118,3 +125,25 @@ Removed the proxy handle and process isolation from the host model. Local usage 
 ### 2026-08-09: Ownership roots and the package graph land
 
 Established the target ownership roots with package metadata and enforced the dependency graph before code moves. `packages/runtime`, `packages/client`, and `packages/host` exist as empty source-only packages; `hosts/electron` and `hosts/server` exist as empty composition roots; `apps/features` and `apps/workspaces` exist as explicit composition catalogs. Shared host coordination earns `packages/host` — the workspace supervisor, workspace handles, and the machine-readable launcher/catalog projection schemas — keeping host operations out of the feature-author API and out of every workspace runtime. ESLint now enforces the one-way import graph per ownership root, with a vitest suite proving each boundary fires.
+
+### 2026-08-13: handles narrow authority and attachments route requests
+
+Separated the supervisor-private owner of one runtime from the narrow `WorkspaceHandle` it provides to callers. The private supervised workspace owns event routing, child attachments, and teardown. The handle creates attachments and exposes no disposal operation. Workspace resolution occurs once at connection setup. Every later canonical request travels directly through the connection's bound attachment into the runtime channel table rather than using the supervisor as a multi-workspace request router.
+
+Settled session restoration by host shape. Browser tabs use only canonical workspace-session URLs. A workspace-only URL resolves the newest valid session and then becomes the canonical workspace-session URL. Electron persists each local window or tab's canonical target in its own host profile.
+
+### 2026-08-14: supervision repeats at the agent-instance level
+
+Generalized supervision as keyed child lifecycle ownership rather than a host-only role. The host's `WorkspaceSupervisor` owns workspace runtime boot and teardown. Each `WorkspaceAgentRuntime` owns an `AgentInstanceSupervisor` that provides single-flight instance boot, disposable guards, lifetime policy, and teardown without joining the ordinary request hot path.
+
+### 2026-08-14: one attachment and a narrow delivery closure
+
+Removed the proposed host façade over a second runtime attachment object. The runtime creates one `Attachment` with request authority, target guards, event observation, and disposal. Creation privately provides the supervised workspace a delivery closure. The host still selects receivers and sends transport frames, but no wrapper duplicates attachment identity, target, or lifetime.
+
+### 2026-08-14: prepared dispatch keeps static policy at workspace scope
+
+Placed handler schemas and wire-log policy on the canonical workspace channel entry. The attachment contributes only its accepted authority and a retained operation guard. A short-lived `PreparedDispatch` joins those inputs so the host can record the crossing before invocation without copying a channel catalog or assigning workspace policy to each attachment.
+
+### 2026-08-15: workspace supervision adopts guards
+
+Made guards the project pattern for independently retained shared live objects. `WorkspaceSupervisor.acquire()` returns an independent `WorkspaceGuard`, which protects the private supervised workspace and provides its shared narrow `WorkspaceHandle`. Connections and host-authored jobs release their own guards without affecting peers. Zero guards admits workspace teardown policy, while asynchronous supervisor disposal stops admission, drains guards, and awaits actual runtime teardown.

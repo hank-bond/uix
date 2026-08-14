@@ -1,5 +1,5 @@
 ---
-summary: "Cleanup-requiring behavior uses lifecycle helpers and belongs to an explicit DisposableBag lifetime."
+summary: "Exclusive cleanup belongs to Disposable lifetimes, while independently retained shared objects use supervisor-issued guards."
 kind: reference
 read_when: "Read before attaching callbacks, listeners, IPC, protocols, timers, or any other behavior that requires cleanup."
 ---
@@ -31,6 +31,30 @@ bag[Symbol.dispose]();
 ```
 
 Disposable values with non-trivial cleanup implement `Disposable` or use `disposable(() => ...)`. Do not discard a returned `Disposable`. Put it in a bag or `using` declaration.
+
+## Shared ownership uses guards
+
+Use a supervisor-issued guard when several independent holders can keep one shared live object from tearing down. Each acquisition receives its own guard. Releasing that guard is synchronous, idempotent, and affects no other holder. A live guard may `retain()` another independently releasable guard for asynchronous work derived from the current authority.
+
+A guard can provide access to the protected object or to a separate operational handle, but it does not own ordinary domain operations. Zero guards only admits the supervisor's lifetime policy. It does not promise immediate teardown, and callers never await teardown through `release()`.
+
+```ts
+const workspaceGuard = await workspaceSupervisor.acquire(workspaceId);
+const attachment = await workspaceGuard.handle.createAttachment(target);
+
+const backgroundGuard = workspaceGuard.retain("background");
+workspaceGuard.release();
+
+try {
+  // The workspace remains protected independently of the connection.
+} finally {
+  backgroundGuard.release();
+}
+```
+
+Use the same pattern for workspace runtimes, agent instances, and future shared live objects. A parent supervisor stops admission, drains live guards, and awaits actual child teardown during its asynchronous disposal. Teardown failures remain observable and cannot silently admit a replacement beside a child that failed to dispose.
+
+Do not replace ordinary ownership with guards. Registrations, listeners, timers, adapters, and uniquely owned child objects remain `Disposable` or `AsyncDisposable` values in lifetime bags. Guards are specifically for independently retained shared live objects.
 
 ## When to add a lifecycle helper
 
