@@ -1,0 +1,263 @@
+// Supervises session-keyed agent instances and issues explicit lifetime guards.
+
+import type { AgentInstance } from "./instance";
+import { createLogger } from "../log";
+import type { SessionId, SessionTarget } from "../workspace";
+
+const log = createLogger("agent-instance-supervisor");
+
+/** A disposable veto against teardown of one supervised agent instance. */
+export interface AgentInstanceGuard extends Disposable {
+  readonly instance: AgentInstance;
+  /** Mint another independently releasable guard on the same instance. */
+  retain(origin?: string): AgentInstanceGuard;
+  /** Relinquish this guard. Immediate, idempotent, and non-blocking. */
+  release(): void;
+}
+
+export interface AgentInstanceGuardSnapshotEntry {
+  readonly guardId: number;
+  readonly sessionId: SessionId;
+  readonly origin: string;
+}
+
+/** Point-in-time read view of the currently active agent instance guards. */
+export type AgentInstanceGuardSnapshot =
+  readonly AgentInstanceGuardSnapshotEntry[];
+
+export interface AgentInstanceSupervisor extends AsyncDisposable {
+  /** Resolve or boot the target, then issue one guard on the accepted instance. */
+  acquire(
+    target: SessionTarget,
+    options?: {
+      readonly bootInstance?: () => Promise<AgentInstance>;
+      readonly origin?: string;
+    },
+  ): Promise<AgentInstanceGuard>;
+  /** Visit a stable snapshot under one temporary guard per live instance. */
+  visit(
+    visitor: (guard: AgentInstanceGuard) => Promise<void>,
+    origin?: string,
+  ): Promise<void>;
+  /** Capture the currently active guards without exposing guard authority. */
+  getGuardSnapshot(): AgentInstanceGuardSnapshot;
+  /** Stop admission, drain every guard, and await actual child teardown. */
+  dispose(): Promise<void>;
+}
+
+export interface AgentInstanceSupervisorOptions {
+  readonly bootInstance: (target: SessionTarget) => Promise<AgentInstance>;
+}
+
+interface AgentInstanceSupervisionState {
+  readonly instance: AgentInstance;
+  readonly guards: Map<number, string>;
+  readonly zeroWaiters: Set<() => void>;
+  teardown?: Promise<void>;
+}
+
+/** Creates the primary-instance supervisor for one workspace agent runtime. */
+export function createAgentInstanceSupervisor(
+  opts: AgentInstanceSupervisorOptions,
+): AgentInstanceSupervisor {
+  const instances = new Map<SessionId, AgentInstanceSupervisionState>();
+  const inFlightBoots = new Map<
+    SessionId,
+    Promise<AgentInstanceSupervisionState>
+  >();
+  const teardownFailures: unknown[] = [];
+  let nextGuardId = 0;
+  let disposal: Promise<void> | undefined;
+  let disposed = false;
+
+  function isDisposed(): boolean {
+    return disposed;
+  }
+
+  function recordTeardownFailure(sessionId: SessionId, error: unknown): void {
+    teardownFailures.push(error);
+    log.error(
+      {
+        sessionId,
+        err: error instanceof Error ? error.message : String(error),
+      },
+      "agent_instance_teardown_failed",
+    );
+  }
+
+  function startTeardown(
+    sessionId: SessionId,
+    managed: AgentInstanceSupervisionState,
+  ): Promise<void> {
+    if (managed.teardown) return managed.teardown;
+    const teardown = Promise.resolve()
+      .then(() => managed.instance.dispose())
+      .then(() => {
+        if (instances.get(sessionId) === managed) instances.delete(sessionId);
+      })
+      .catch((error: unknown) => {
+        recordTeardownFailure(sessionId, error);
+        throw error;
+      });
+    managed.teardown = teardown;
+    void teardown.catch(() => undefined);
+    return teardown;
+  }
+
+  function notifyZero(managed: AgentInstanceSupervisionState): void {
+    if (managed.guards.size !== 0) return;
+    for (const resolve of managed.zeroWaiters) resolve();
+    managed.zeroWaiters.clear();
+  }
+
+  function waitForZero(managed: AgentInstanceSupervisionState): Promise<void> {
+    if (managed.guards.size === 0) return Promise.resolve();
+    return new Promise((resolve) => {
+      managed.zeroWaiters.add(resolve);
+    });
+  }
+
+  function createGuard(
+    sessionId: SessionId,
+    managed: AgentInstanceSupervisionState,
+    origin: string,
+  ): AgentInstanceGuard {
+    if (managed.teardown || instances.get(sessionId) !== managed) {
+      throw new Error("Agent instance teardown has started");
+    }
+    nextGuardId += 1;
+    const guardId = nextGuardId;
+    managed.guards.set(guardId, origin);
+    let released = false;
+
+    const release = (): void => {
+      if (released) return;
+      released = true;
+      managed.guards.delete(guardId);
+      if (managed.guards.size !== 0) return;
+      notifyZero(managed);
+      void startTeardown(sessionId, managed);
+    };
+
+    return {
+      instance: managed.instance,
+      retain(retainedOrigin = "retained") {
+        if (released) throw new Error("Agent instance guard is released");
+        return createGuard(sessionId, managed, retainedOrigin);
+      },
+      release,
+      [Symbol.dispose]: release,
+    };
+  }
+
+  function getOrBoot(
+    target: SessionTarget,
+    bootInstance: () => Promise<AgentInstance> = () =>
+      opts.bootInstance(target),
+  ): Promise<AgentInstanceSupervisionState> {
+    const existing = instances.get(target.sessionId);
+    if (existing && !existing.teardown) return Promise.resolve(existing);
+    const inFlight = inFlightBoots.get(target.sessionId);
+    if (inFlight) return inFlight;
+
+    const boot = bootInstance()
+      .then(async (instance) => {
+        if (disposed) {
+          try {
+            await instance.dispose();
+          } catch (error) {
+            recordTeardownFailure(target.sessionId, error);
+            throw error;
+          }
+          throw new Error("Agent instance supervisor is disposed");
+        }
+        const managed: AgentInstanceSupervisionState = {
+          instance,
+          guards: new Map(),
+          zeroWaiters: new Set(),
+        };
+        instances.set(target.sessionId, managed);
+        return managed;
+      })
+      .finally(() => {
+        if (inFlightBoots.get(target.sessionId) === boot) {
+          inFlightBoots.delete(target.sessionId);
+        }
+      });
+    inFlightBoots.set(target.sessionId, boot);
+    return boot;
+  }
+
+  async function acquire(
+    target: SessionTarget,
+    options?: {
+      readonly bootInstance?: () => Promise<AgentInstance>;
+      readonly origin?: string;
+    },
+  ): Promise<AgentInstanceGuard> {
+    if (disposed) throw new Error("Agent instance supervisor is disposed");
+    if (target.branchId) {
+      throw new Error("Branch session targets are not supported");
+    }
+
+    const existing = instances.get(target.sessionId);
+    if (existing?.teardown) await existing.teardown;
+    if (isDisposed()) throw new Error("Agent instance supervisor is disposed");
+
+    const state = await getOrBoot(target, options?.bootInstance);
+    if (isDisposed()) throw new Error("Agent instance supervisor is disposed");
+    return createGuard(target.sessionId, state, options?.origin ?? "acquire");
+  }
+
+  async function dispose(): Promise<void> {
+    if (disposal) return disposal;
+    disposed = true;
+    disposal = (async () => {
+      const pending = [...inFlightBoots.values()];
+      await Promise.allSettled(pending);
+      inFlightBoots.clear();
+
+      const live = [...instances.entries()];
+      await Promise.allSettled(
+        live.map(async ([sessionId, managed]) => {
+          await waitForZero(managed);
+          await startTeardown(sessionId, managed);
+        }),
+      );
+      instances.clear();
+      if (teardownFailures.length > 0) {
+        throw new AggregateError(
+          teardownFailures,
+          "One or more agent instance teardowns failed",
+        );
+      }
+    })();
+    return disposal;
+  }
+
+  return {
+    acquire,
+    async visit(visitor, origin = "visit") {
+      if (disposed) throw new Error("Agent instance supervisor is disposed");
+      const guards = [...instances.entries()]
+        .filter(([, managed]) => !managed.teardown)
+        .map(([sessionId, managed]) => createGuard(sessionId, managed, origin));
+      try {
+        await Promise.all(guards.map((guard) => visitor(guard)));
+      } finally {
+        for (const guard of guards) guard.release();
+      }
+    },
+    getGuardSnapshot() {
+      return [...instances.entries()].flatMap(([sessionId, managed]) =>
+        [...managed.guards.entries()].map(([guardId, origin]) => ({
+          guardId,
+          sessionId,
+          origin,
+        })),
+      );
+    },
+    dispose,
+    [Symbol.asyncDispose]: dispose,
+  };
+}

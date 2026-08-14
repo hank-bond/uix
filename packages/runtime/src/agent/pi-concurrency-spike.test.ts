@@ -17,7 +17,7 @@
 // It does not re-test Pi internals that Pi's own suite covers. It exercises
 // only UIX's composition assumption over Pi: one shared profile, one cwd,
 // several live sessions. Findings here (e.g. a shared-profile write race)
-// become design constraints for the instance manager.
+// become design constraints for the instance supervisor.
 //
 // Gating:
 //   - The suite skips when the userspace Pi profile is absent (override the

@@ -1,4 +1,4 @@
-// Restores feature state from the selected branch before allowing the driver to commit new state.
+// Restores feature state from one selected branch before its guarded instance can commit new state.
 
 import type { SessionManager } from "@earendil-works/pi-coding-agent";
 

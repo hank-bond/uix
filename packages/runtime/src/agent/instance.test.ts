@@ -84,6 +84,24 @@ describe("AgentInstance", () => {
     );
   });
 
+  it("admits only one active turn and ends it idempotently", async () => {
+    const harness = createHarness();
+    const instance = createAgentInstance({
+      target: harness.target,
+      manager: harness.manager,
+      createRuntime: harness.createRuntime,
+      state: { emit: () => undefined, cwd: "/workspace" },
+    });
+
+    const turn = instance.beginTurn();
+    expect(() => instance.beginTurn()).toThrow("Agent is already running");
+    turn[Symbol.dispose]();
+    turn[Symbol.dispose]();
+    const nextTurn = instance.beginTurn();
+    nextTurn[Symbol.dispose]();
+    await instance.dispose();
+  });
+
   it("shares one runtime boot across concurrent callers", async () => {
     const harness = createHarness();
     let resolveRuntime!: (runtime: AgentSessionRuntime) => void;
@@ -198,7 +216,7 @@ describe("AgentInstance", () => {
     expect(harness.runtimeDispose).toHaveBeenCalledOnce();
   });
 
-  it("disposes an idle instance at its safe boundary immediately", async () => {
+  it("disposes its runtime directly once its supervisor admits teardown", async () => {
     const harness = createHarness();
     const instance = createAgentInstance({
       target: harness.target,
@@ -208,53 +226,50 @@ describe("AgentInstance", () => {
     });
     await instance.getRuntime();
 
-    await expect(
-      instance.disposeAtSafeTurnBoundary(new AbortController().signal),
-    ).resolves.toBe(true);
+    await instance.dispose();
+
     expect(harness.sessionSubscribe).not.toHaveBeenCalled();
     expect(harness.runtimeDispose).toHaveBeenCalledOnce();
   });
 
-  it("waits for agent_end before disposing a running instance", async () => {
+  it("still disposes runtime and state when the final turn-state commit fails", async () => {
     const harness = createHarness();
-    harness.setStreaming(true);
     const instance = createAgentInstance({
       target: harness.target,
       manager: harness.manager,
       createRuntime: harness.createRuntime,
+      commitFinalTurnState: () => Promise.reject(new Error("commit failed")),
       state: { emit: () => undefined, cwd: "/workspace" },
     });
     await instance.getRuntime();
 
-    const safeDisposal = instance.disposeAtSafeTurnBoundary(
-      new AbortController().signal,
-    );
-    expect(harness.runtimeDispose).not.toHaveBeenCalled();
-    harness.setStreaming(false);
-    harness.emit({ type: "agent_end" });
+    await expect(instance.dispose()).rejects.toThrow("disposal failed");
 
-    await expect(safeDisposal).resolves.toBe(true);
     expect(harness.runtimeDispose).toHaveBeenCalledOnce();
+    await expect(instance.getRuntime()).rejects.toThrow("disposed");
   });
 
-  it("cancels pending safe disposal when aborted", async () => {
+  it("commits final turn state before disposing instance state", async () => {
     const harness = createHarness();
-    harness.setStreaming(true);
+    const order: string[] = [];
     const instance = createAgentInstance({
       target: harness.target,
       manager: harness.manager,
       createRuntime: harness.createRuntime,
+      commitFinalTurnState: (_manager, state) => {
+        state.setCurrentModel(undefined);
+        order.push("finalized");
+        return Promise.resolve();
+      },
       state: { emit: () => undefined, cwd: "/workspace" },
     });
-    await instance.getRuntime();
-    const controller = new AbortController();
 
-    const safeDisposal = instance.disposeAtSafeTurnBoundary(controller.signal);
-    controller.abort();
+    await instance.dispose();
 
-    await expect(safeDisposal).resolves.toBe(false);
-    expect(harness.runtimeDispose).not.toHaveBeenCalled();
-    await expect(instance.getRuntime()).resolves.toBe(harness.runtime);
+    expect(order).toEqual(["finalized"]);
+    expect(() => {
+      instance.state.setCurrentModel(undefined);
+    }).toThrow("disposed");
   });
 
   it("disposes its state and booted runtime idempotently", async () => {
