@@ -248,7 +248,7 @@ describe("supervisor", () => {
     await supervisor.dispose();
   });
 
-  it("retains a workspace until the last release, then tears down and re-boots fresh", async () => {
+  it("retains a workspace until the last release, then disposes and re-boots fresh", async () => {
     let runtime: FakeRuntime | undefined;
     const supervisor = supervisorWithBoot((workspaceId) => {
       const created = new FakeRuntime(workspaceId);

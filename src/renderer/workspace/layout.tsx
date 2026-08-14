@@ -87,8 +87,8 @@ export function SurfaceMount({
     () => actionRegistry.forFeature(entry.featureId),
     [actionRegistry, entry.featureId],
   );
-  // Memoized so surface effects keyed on the client don't tear down and
-  // re-run (resubscribing, re-fetching history) every workspace render.
+  // Memoized so surface effects keyed on the client do not restart
+  // (resubscribing, re-fetching history) on every workspace render.
   const client = useMemo(
     () =>
       surface.contract

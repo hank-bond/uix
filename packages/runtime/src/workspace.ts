@@ -76,7 +76,7 @@ export interface WorkspaceRuntime {
   load(): Promise<ActivationResult>;
   /** Replace the active feature composition and Pi resource tier, then notify the renderer. */
   reload(): Promise<ReloadResult>;
-  /** Dispose the runtime: tear down agent instances and release routes. Idempotent. */
+  /** Dispose the runtime, its agent instances, and its routes. Idempotent. */
   dispose(): Promise<void>;
   /** Sync bag shim for host composition: fires the async dispose without awaiting it. */
   [Symbol.dispose](): void;

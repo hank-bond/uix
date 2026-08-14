@@ -18,6 +18,6 @@ bag.add(subscribe(session, (event) => { ... }));
 
 **Nonconforming example:** Attach a handler without a bag or `using` declaration, so nothing owns its disposal.
 
-**Reason:** An unpaired listener, handler, subscription, or timer is the most common leak pattern in Electron and observable-style code. The helpers return a `Disposable`. The bag requires the caller to choose where that cleanup lives. Disposing the lifetime then tears down every owned capability in reverse acquisition order.
+**Reason:** An unpaired listener, handler, subscription, or timer is the most common leak pattern in Electron and observable-style code. The helpers return a `Disposable`. The bag requires the caller to choose where that cleanup lives. Disposing the lifetime then disposes every owned capability in reverse acquisition order.
 
 **Exceptions:** One-shot process-end events such as `will-quit` and `window-all-closed` can attach through the raw API because there is no useful earlier cleanup point. Comment the call to explain why.

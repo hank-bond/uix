@@ -12,7 +12,7 @@ The [lifetimes.paired-cleanup](./rules/lifetimes.paired-cleanup.md) rule require
 
 IPC crossings use `src/main/ipc.ts`: `handle()` for invoke endpoints and `send()` for window pushes. This path records every crossing in the wire log.
 
-Other attachments use the lifetime helpers: the Electron app/window bindings in `src/main/lifecycle.ts`, and the host-neutral helpers (`DisposableBag`, `disposable`, `subscribe`, `installProcessHandlers`) in `@uix/runtime/lifecycle`. Each returned `Disposable` goes into the bag matching the behavior's lifetime. Disposing the lifetime tears down every owned capability in reverse acquisition order.
+Other attachments use the lifetime helpers: the Electron app/window bindings in `src/main/lifecycle.ts`, and the host-neutral helpers (`DisposableBag`, `disposable`, `subscribe`, `installProcessHandlers`) in `@uix/runtime/lifecycle`. Each returned `Disposable` goes into the bag matching the behavior's lifetime. Disposing the lifetime disposes every owned capability in reverse acquisition order.
 
 ```ts
 import * as ipc from "./ipc";
@@ -34,7 +34,7 @@ Disposable values with non-trivial cleanup implement `Disposable` or use `dispos
 
 ## Shared ownership uses guards
 
-Use a supervisor-issued guard when several independent holders can keep one shared live object from tearing down. Each acquisition receives its own guard. Releasing that guard is synchronous, idempotent, and affects no other holder. A live guard may `retain()` another independently releasable guard for asynchronous work derived from the current authority.
+Use a supervisor-issued guard when several independent holders can prevent teardown of one shared live object. Each acquisition receives its own guard. Releasing that guard is synchronous, idempotent, and affects no other holder. A live guard may `retain()` another independently releasable guard for asynchronous work derived from the current authority.
 
 A guard can provide access to the protected object or to a separate operational handle, but it does not own ordinary domain operations. Zero guards only admits the supervisor's lifetime policy. It does not promise immediate teardown, and callers never await teardown through `release()`.
 
@@ -55,6 +55,21 @@ try {
 Use the same pattern for workspace runtimes, agent instances, and future shared live objects. A parent supervisor stops admission, drains live guards, and awaits actual child teardown during its asynchronous disposal. Teardown failures remain observable and cannot silently admit a replacement beside a child that failed to dispose.
 
 Do not replace ordinary ownership with guards. Registrations, listeners, timers, adapters, and uniquely owned child objects remain `Disposable` or `AsyncDisposable` values in lifetime bags. Guards are specifically for independently retained shared live objects.
+
+## Supervision protocol
+
+Every supervisor follows one ownership and teardown protocol. The supervisor is the sole owner of each admitted child. Callers use guards or narrower handles, and direct child disposal remains inside the supervisor except for rollback before admission.
+
+Apply these practices to every supervised child lifecycle:
+
+- Acquisition resolves or single-flights boot by key, then returns one independent guard.
+- Every asynchronous use holds a guard through its final safe boundary. A lexical use releases with `using` or `finally`. A longer use transfers its guard into one named disposable owner.
+- Every teardown trigger joins one idempotent, single-flight teardown. Zero guards admits lifetime policy but does not itself promise teardown.
+- Teardown waits for policy admission, invokes child disposal, removes only the exact supervised generation that completed, and observes failures before admitting a replacement.
+- Parent disposal stops admission, drains guards, starts or joins every child teardown, and awaits completion. Synchronous bags own `Disposable` values. Asynchronous owners await `AsyncDisposable` values explicitly.
+- Guard snapshots expose detached point-in-time metadata for inspection and leak tests. They provide no guard authority.
+
+When an integration cannot follow this sequence exactly, its nearest ownership-boundary comment explains the deviation. It names the child owner, protection holder, cleanup transfer, and reason the standard sequence does not apply. A deviation does not introduce a second public cleanup protocol: `dispose` remains the cleanup operation, while teardown names the supervised lifecycle process around it.
 
 ## When to add a lifecycle helper
 

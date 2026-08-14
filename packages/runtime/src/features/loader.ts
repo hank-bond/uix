@@ -229,7 +229,7 @@ const loadFeatureDefinition = async (
  *
  * @param entries resolved manifest refs, in manifest order.
  * @param parentBag the loader adds every per-feature bag here, so one
- *   dispose at host shutdown or reload clear tears down everything.
+ *   disposal at host shutdown or reload clearing disposes everything.
  * @param substrate the facet registries and context ingredients the
  *   definitions register into.
  */

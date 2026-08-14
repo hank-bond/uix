@@ -1,14 +1,13 @@
 // Provides disposable helpers that clean up component resources with their owners.
 //
-// The concrete lifetime scopes: the host bag owns process handlers, protocols,
-// IPC, window listeners, the feature composition, workspace settings, and the
-// agent driver. A child features bag clears on feature reload and disposes on
-// shutdown. Each feature activation gets its own provisional bag that joins the
-// features bag only after successful activation. The agent driver keeps an
-// internal bag for Pi event subscriptions and live session cleanup.
+// The concrete exclusive lifetime scopes include host process bindings,
+// windows, feature compositions, workspace settings, and subscriptions. Child
+// feature bags clear on reload and dispose on shutdown. Independently held
+// shared objects such as workspaces and agent instances use supervisor-issued
+// guards instead of bags or caller-managed reference counts.
 //
 // The rule: every attached callback produces a Disposable, and that
-// Disposable goes into a bag that's torn down together. This makes
+// Disposable goes into a bag that's disposed together. This makes
 // "register" and "cleanup" structurally inseparable, so you can't
 // register something and forget to clean it up.
 //
@@ -34,7 +33,7 @@ import process from "node:process";
 import type { Logger } from "./log";
 
 /**
- * A collection of Disposables that are torn down together, in LIFO
+ * A collection of Disposables that are disposed together, in LIFO
  * order, when the bag itself is disposed. Roughly equivalent to
  * VSCode's `DisposableStore` or .NET's `CompositeDisposable`.
  *
@@ -81,7 +80,7 @@ export class DisposableBag implements Disposable {
   }
 
   #drain(): void {
-    // LIFO: tear down in reverse acquisition order so dependents
+    // LIFO: dispose in reverse acquisition order so dependents
     // go first. (You added the listener after creating the thing it
     // listens to, so dispose the listener first.)
     while (this.#items.length > 0) {
@@ -90,7 +89,7 @@ export class DisposableBag implements Disposable {
       try {
         item[Symbol.dispose]();
       } catch {
-        // Continue tearing down siblings even if one throws.
+        // Continue disposing siblings even if one throws.
       }
     }
   }

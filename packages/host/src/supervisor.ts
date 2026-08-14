@@ -34,7 +34,7 @@ export class Supervisor {
    * Acquire a workspace handle, booting its runtime single-flight. Concurrent
    * acquires for one workspace share one boot promise and one handle. Every
    * acquire must be matched by a release. At zero refs the handle and its
-   * runtime tear down deterministically.
+   * runtime are disposed deterministically.
    */
   async acquire(workspaceId: WorkspaceId): Promise<WorkspaceHandle> {
     const existing = this.#entries.get(workspaceId);
@@ -64,7 +64,7 @@ export class Supervisor {
     }
   }
 
-  /** Release one acquire. Idempotent. At zero refs the workspace tears down. */
+  /** Release one acquire. Idempotent. At zero refs the workspace is disposed. */
   async release(workspaceId: WorkspaceId): Promise<void> {
     const entry = this.#entries.get(workspaceId);
     if (!entry) return;
