@@ -1,8 +1,7 @@
-// Explicitly scoped runtime events: workspace or durable-session delivery.
-//
-// A transport can optimize subscription mechanics without redefining scope.
-// The host routes each event only to matching attachments. There is no
-// workspace-wide broadcast semantic for session activity.
+// Explicitly scoped canonical runtime events for host-selected delivery.
+
+import type { ChannelCanonicalId } from "@uix/api/channel-resolution";
+import type { ChannelEventLogOptions } from "@uix/api/channels";
 
 import type { SessionId } from "./workspace";
 
@@ -13,6 +12,9 @@ export type EventScope =
 export interface RuntimeEvent {
   /** Stable event id, unique within the emitting runtime. */
   readonly id: string;
+  /** Canonical channel address used by the receiving client transport. */
+  readonly channel: ChannelCanonicalId;
   readonly scope: EventScope;
   readonly payload: unknown;
+  readonly logOptions?: ChannelEventLogOptions<unknown>;
 }

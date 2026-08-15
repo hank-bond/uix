@@ -12,6 +12,8 @@ import type { ReloadResult } from "@uix/api/substrate-channels";
 
 /** Host channel names. Keep this list small. Features register their own. */
 export const Channels = {
+  /** Renderer → main. Generic canonical workspace request. */
+  request: "uix:request",
   /** Renderer → main. invoke-style. Reloads host resources in place. */
   reload: "uix:reload",
   /** Picker → main. invoke-style. Recents for the start picker. */

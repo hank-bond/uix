@@ -30,32 +30,18 @@ export interface OpenedPrimarySession {
 interface OpenWorkspaceFallbackSessionOptions {
   readonly cwd: string;
   readonly sessionDir: string;
-  readonly preferredSessionId?: string;
 }
 
 /** Open the workspace fallback session, recovering through recent then new. */
 export async function openWorkspaceFallbackSession(
   opts: OpenWorkspaceFallbackSessionOptions,
 ): Promise<OpenedPrimarySession> {
-  let manager: SessionManager | undefined;
-  if (opts.preferredSessionId) {
-    try {
-      manager = await openExistingSessionManager(
-        opts.sessionDir,
-        opts.preferredSessionId,
-      );
-    } catch {
-      // An unreadable preferred file follows the same fallback as a stale id.
-    }
-  }
-
-  if (!manager) {
-    const sdk = await import("@earendil-works/pi-coding-agent");
-    try {
-      manager = sdk.SessionManager.continueRecent(opts.cwd, opts.sessionDir);
-    } catch {
-      manager = sdk.SessionManager.create(opts.cwd, opts.sessionDir);
-    }
+  const sdk = await import("@earendil-works/pi-coding-agent");
+  let manager: SessionManager;
+  try {
+    manager = sdk.SessionManager.continueRecent(opts.cwd, opts.sessionDir);
+  } catch {
+    manager = sdk.SessionManager.create(opts.cwd, opts.sessionDir);
   }
 
   return {

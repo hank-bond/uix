@@ -102,11 +102,7 @@ describe("registerFeatureContributions", () => {
         [Symbol.dispose]() {},
       }),
     });
-    const channels = new ChannelRegistry({
-      transportRegistrar: () => ({
-        [Symbol.dispose]() {},
-      }),
-    });
+    const channels = new ChannelRegistry();
     const agentTools = new AgentToolRegistry();
     const agentSystemPrompt = new AgentSystemPromptRegistry();
     const agentSkills = new AgentSkillRegistry();

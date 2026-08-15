@@ -5,7 +5,7 @@
 
 import type { ReloadResult } from "@uix/api/substrate-channels";
 
-import type { CanonicalRequest, CanonicalResponse } from "./dispatch";
+import type { CanonicalRequest, PreparedDispatch } from "./dispatch";
 import type { RuntimeEvent } from "./events";
 import type { ActivationResult } from "./features/loader";
 
@@ -70,28 +70,38 @@ export interface WorkspaceRuntime {
   readonly workspaceId: WorkspaceId;
   /** Subscribe to runtime-owned scoped events. The host routes them to matching attachments. */
   onEvent(listener: (event: RuntimeEvent) => void): Disposable;
-  /** Create an attachment to an explicit target or the runtime-owned workspace fallback. */
-  createAttachment(target?: SessionTarget): Promise<RuntimeAttachment>;
+  /** Create one attachment and its supervisor-private event delivery closure. */
+  createAttachment(target?: SessionTarget): Promise<CreatedAttachment>;
   /** Activate the initial feature composition. A bad manifest logs and boots with no features. */
   load(): Promise<ActivationResult>;
   /** Replace the active feature composition and Pi resource tier, then notify the renderer. */
   reload(): Promise<ReloadResult>;
-  /** Dispose the runtime, its agent instances, and its routes. Idempotent. */
+  /** Dispose the runtime: tear down agent instances and release routes. Idempotent. */
   dispose(): Promise<void>;
   /** Sync bag shim for host composition: fires the async dispose without awaiting it. */
   [Symbol.dispose](): void;
 }
 
-/** The runtime-owned half of an attachment: the binding that resolves the session and agent instance. */
-export interface RuntimeAttachment {
+/** One connection's runtime-created request, target, event, and lifetime capability. */
+export interface Attachment extends Disposable {
   readonly attachmentId: AttachmentId;
   readonly workspaceId: WorkspaceId;
-  /** Current accepted session target. */
-  readonly sessionId: SessionId;
-  /** Dispatch one canonical request. The attachment stamps its accepted runtime routing context. */
-  dispatch(request: CanonicalRequest): Promise<CanonicalResponse>;
-  /** Retarget to another session: acquire the new instance before releasing the old one. A failure leaves the target unchanged. */
+  /** Current accepted durable target. */
+  readonly target: SessionTarget;
+  /** Accept one request with immutable guarded context. */
+  prepareDispatch(request: CanonicalRequest): PreparedDispatch;
+  /** Acquire the new target before synchronously releasing the previous guard. */
   retarget(target: SessionTarget): Promise<void>;
-  /** Release this attachment's retention on its instance. Idempotent. */
-  dispose(): Promise<void>;
+  /** Observe events selected and delivered by the supervised workspace. */
+  onEvent(listener: (event: RuntimeEvent) => void): Disposable;
+  /** Observe deterministic attachment closure. */
+  onClose(listener: () => void): Disposable;
+  /** Close event observation and release the target guard. Idempotent. */
+  dispose(): void;
+}
+
+/** Runtime creation result. Only the supervised workspace keeps `deliver`. */
+export interface CreatedAttachment {
+  readonly attachment: Attachment;
+  deliver(event: RuntimeEvent): void;
 }

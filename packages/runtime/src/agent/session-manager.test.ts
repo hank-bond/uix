@@ -82,25 +82,7 @@ describe("openExistingSessionManager", () => {
 });
 
 describe("openWorkspaceFallbackSession", () => {
-  it("returns the accepted target for a readable preferred session", async () => {
-    const target = await createSessionFile("preferred");
-    const manager = sdk.manager("preferred");
-    sdk.open.mockReturnValue(manager);
-
-    await expect(
-      openWorkspaceFallbackSession({
-        cwd: "/workspace",
-        sessionDir: target.sessionDir,
-        preferredSessionId: "preferred",
-      }),
-    ).resolves.toEqual({
-      target: { sessionId: "preferred" },
-      manager,
-    });
-    expect(sdk.continueRecent).not.toHaveBeenCalled();
-  });
-
-  it("recovers a stale preference through the recent session", async () => {
+  it("continues the most recent session", async () => {
     const { sessionDir } = await createSessionFile("other");
     const manager = sdk.manager("recent");
     sdk.continueRecent.mockReturnValue(manager);
@@ -109,7 +91,6 @@ describe("openWorkspaceFallbackSession", () => {
       openWorkspaceFallbackSession({
         cwd: "/workspace",
         sessionDir,
-        preferredSessionId: "missing",
       }),
     ).resolves.toEqual({
       target: { sessionId: "recent" },

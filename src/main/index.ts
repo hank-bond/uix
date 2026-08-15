@@ -6,10 +6,10 @@
 // open workspace per host instance (v1).
 //
 // The workspace substrate itself lives in `@uix/runtime`: openWorkspace()
-// constructs one workspace runtime over Electron ports (the IPC channel
-// transport, the resource protocol transport, shell.openExternal) and keeps
-// only host chrome here: the window, the menu, the picker, recents, and the
-// reload IPC channel.
+// constructs one workspace runtime with resource and external-link
+// dependencies. Canonical IPC requests enter through the window attachment.
+// This file keeps host chrome and physical transport: the window, menu,
+// picker, recents, wire logging, and reload IPC channel.
 //
 // All cleanup-requiring bindings (IPC handlers, app events, window events)
 // flow through the helpers in src/main/ipc.ts and src/main/lifecycle.ts and
@@ -30,7 +30,11 @@ import {
 } from "electron";
 
 import type { ReloadResult } from "@uix/api/substrate-channels";
-import { createWorkspaceRuntime, toWorkspaceId } from "@uix/runtime";
+import {
+  type Attachment,
+  createWorkspaceRuntime,
+  toWorkspaceId,
+} from "@uix/runtime";
 import { WorkspaceManifestFileName } from "@uix/runtime/features/manifest";
 import { installProcessHandlers } from "@uix/runtime/lifecycle";
 import { createLogger } from "@uix/runtime/log";
@@ -127,44 +131,71 @@ async function openWorkspace(
   ipc.initLogFile(workspace.stateRoot);
 
   const apiModuleDir = join(app.getAppPath(), "packages/api/src");
+  let attachment: Attachment | undefined;
+  let mainWindow: BrowserWindow | null = null;
   const runtime = createWorkspaceRuntime({
     workspaceId: toWorkspaceId(LocalWorkspaceId),
     workspace,
     piAppDataDir,
     ...(fs.existsSync(apiModuleDir) && { apiModuleDir }),
     dependencies: {
-      channelTransport: {
-        transportRegistrar(canonicalId, handler, logOpts) {
-          return ipc.handle(canonicalId, handler, logOpts);
-        },
-        publish(channel, payload, logOpts) {
-          for (const win of BrowserWindow.getAllWindows()) {
-            ipc.send(win, channel, payload, {
-              describePayload: logOpts?.describeEvent,
-            });
-          }
-        },
-      },
       resourceTransport: createElectronResourceTransport(),
       openExternal: (url) => shell.openExternal(url),
     },
   });
   hostBag.add(runtime);
-
-  let mainWindow: BrowserWindow | null = null;
-  mainWindow = openShellWindow(hostBag, {
-    page: "index",
-    onClosed: () => {
-      mainWindow = null;
-    },
-  });
-  applyWorkspaceMenu(mainWindow, () => runtime.reload());
+  hostBag.add(
+    ipc.handleCanonicalRequest(Channels.request, (request) => {
+      if (!attachment) throw new Error("Workspace is not attached");
+      return attachment.prepareDispatch(request);
+    }),
+  );
 
   // One load pass activates the whole composition, the manifest's entries,
   // in manifest order. A bad manifest must not brick the host: the runtime
   // logs it loudly and boots with no features. The user can then fix the
   // manifest and reload.
   const initialActivation = await runtime.load();
+
+  // This one-window composition resolves its fallback session directly through
+  // the runtime. It owns exactly one workspace window and one attachment and
+  // does not route this path through the shared workspace supervisor.
+  const openWorkspaceWindow = async (): Promise<void> => {
+    if (mainWindow) return;
+    const created = await runtime.createAttachment();
+    const windowAttachment = created.attachment;
+    const attachmentBag = new DisposableBag();
+    attachment = windowAttachment;
+    attachmentBag.add(
+      runtime.onEvent((event) => {
+        if (
+          event.scope.kind === "workspace" ||
+          event.scope.sessionId === windowAttachment.target.sessionId
+        ) {
+          created.deliver(event);
+        }
+      }),
+    );
+    attachmentBag.add(
+      windowAttachment.onEvent((event) => {
+        if (!mainWindow) return;
+        ipc.send(mainWindow, event.channel, event.payload, {
+          describePayload: event.logOptions?.describeEvent,
+        });
+      }),
+    );
+    mainWindow = openShellWindow(hostBag, {
+      page: "index",
+      onClosed: () => {
+        mainWindow = null;
+        if (attachment === windowAttachment) attachment = undefined;
+        attachmentBag[Symbol.dispose]();
+        windowAttachment.dispose();
+      },
+    });
+    applyWorkspaceMenu(mainWindow, () => runtime.reload());
+  };
+  await openWorkspaceWindow();
 
   // Record the recent by manifest name (best-effort: a workspace without a
   // manifest isn't listable, and a bad manifest was already logged above).
@@ -181,15 +212,14 @@ async function openWorkspace(
 
   hostBag.add(
     onApp("activate", () => {
-      if (mainWindow === null) {
-        mainWindow = openShellWindow(hostBag, {
-          page: "index",
-          onClosed: () => {
-            mainWindow = null;
-          },
-        });
-        applyWorkspaceMenu(mainWindow, () => runtime.reload());
-      }
+      void openWorkspaceWindow().catch((thrown: unknown) => {
+        const error =
+          thrown instanceof Error ? thrown : new Error(String(thrown));
+        createLogger("main").error(
+          { err: error.message, stack: error.stack },
+          "workspace_window_open_failed",
+        );
+      });
     }),
   );
 }

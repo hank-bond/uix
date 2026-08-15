@@ -24,7 +24,7 @@ function makeSubstrate(manifestPath?: string): {
   substrate: FeatureSubstrate;
   agentTools: AgentToolRegistry;
   surfaces: SurfaceRegistry;
-  channelIds: Set<string>;
+  channels: ChannelRegistry;
   settingsScopes: Map<
     string,
     { committed: boolean; values: Map<string, unknown> }
@@ -89,17 +89,7 @@ function makeSubstrate(manifestPath?: string): {
   };
   const agentTools = new AgentToolRegistry();
   const surfaces = new SurfaceRegistry();
-  const channelIds = new Set<string>();
-  const channels = new ChannelRegistry({
-    transportRegistrar: (canonicalId) => {
-      channelIds.add(canonicalId);
-      return {
-        [Symbol.dispose]() {
-          channelIds.delete(canonicalId);
-        },
-      };
-    },
-  });
+  const channels = new ChannelRegistry();
   const substrate: FeatureSubstrate = {
     documents,
     settings,
@@ -112,7 +102,7 @@ function makeSubstrate(manifestPath?: string): {
     substrate,
     agentTools,
     surfaces,
-    channelIds,
+    channels,
     settingsScopes,
     committedSettings,
   };
@@ -572,7 +562,7 @@ export const feature = {
 };
 `,
     });
-    const { substrate, channelIds } = makeSubstrate(manifestPath);
+    const { substrate, channels } = makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },
@@ -582,6 +572,6 @@ export const feature = {
 
     expect(result.failed).toEqual([]);
     expect(result.activated.map((f) => f.id)).toEqual(["valuey"]);
-    expect([...channelIds]).toContain("valuey.ping");
+    expect(channels.listCanonicalIds()).toContain("valuey.ping");
   });
 });

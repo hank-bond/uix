@@ -11,7 +11,7 @@
 // runtime is proven against fake host dependencies, so failures reveal
 // runtime isolation rather than platform behavior.
 
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -23,12 +23,16 @@ import {
   normalizeResourceRoute,
   ResourceProtocolScheme,
 } from "@uix/api/resource-routes";
-import type { RuntimeEvent } from "@uix/runtime";
+import type {
+  Attachment,
+  CanonicalRequest,
+  CanonicalResponse,
+  RuntimeEvent,
+} from "@uix/runtime";
 import type { WorkspaceRuntimeDependencies } from "@uix/runtime";
 import {
   createWorkspaceRuntime,
   toBranchId,
-  toSessionId,
   toWorkspaceId,
 } from "@uix/runtime";
 
@@ -78,6 +82,10 @@ export const feature = defineFeature({
               requestSchema: Type.Object({}),
               responseSchema: Type.String(),
               handler: () => ctx.settings.get("greeting") ?? "no-greeting",
+              log: {
+                describeRequest: () => ({ kind: "ping" }),
+                describeResponse: (value) => ({ characters: value.length }),
+              },
             },
             read_doc: {
               requestSchema: Type.Object({}),
@@ -124,7 +132,6 @@ interface FakeTransports {
     string,
     (request: Request) => Response | Promise<Response>
   >;
-  published: Array<{ channel: string; payload: unknown }>;
 }
 
 function fakeTransports(): FakeTransports {
@@ -132,17 +139,8 @@ function fakeTransports(): FakeTransports {
     string,
     (request: Request) => Response | Promise<Response>
   >();
-  const published: Array<{ channel: string; payload: unknown }> = [];
   return {
     dependencies: {
-      channelTransport: {
-        transportRegistrar: () => ({
-          [Symbol.dispose]() {},
-        }),
-        publish: (channel, payload) => {
-          published.push({ channel, payload });
-        },
-      },
       resourceTransport: (scheme, handler) => {
         resourceHandlers.set(scheme, handler);
         return {
@@ -154,7 +152,6 @@ function fakeTransports(): FakeTransports {
       openExternal: () => {},
     },
     resourceHandlers,
-    published,
   };
 }
 
@@ -165,6 +162,7 @@ async function makeWorkspace(
   greeting: string,
 ): Promise<Workspace> {
   const dir = await mkdtemp(join(tmpdir(), `iso-${name}-`));
+  await mkdir(join(dir, ".uix", "sessions"), { recursive: true });
   await writeFile(
     join(dir, "uix.workspace.json"),
     JSON.stringify(
@@ -196,8 +194,16 @@ async function writeFixture(): Promise<string> {
 }
 
 function loadedEventCount(events: RuntimeEvent[]): number {
-  return events.filter((event) => event.id.startsWith("composition_loaded"))
+  return events.filter((event) => event.channel === "uix.composition_loaded")
     .length;
+}
+
+async function dispatch(
+  attachment: Attachment,
+  request: CanonicalRequest,
+): Promise<CanonicalResponse> {
+  using prepared = attachment.prepareDispatch(request);
+  return await prepared.invoke();
 }
 
 describe("workspace runtime isolation", () => {
@@ -253,39 +259,91 @@ describe("workspace runtime isolation", () => {
 
     // A workspace-only route resolves its fallback inside the runtime and
     // returns an attachment with the accepted durable session identity.
-    const fallbackA = await runtimeA.createAttachment();
-    expect(fallbackA.sessionId).not.toBe("");
-    await fallbackA.dispose();
-
-    // Explicit attachments bind duplicate session ids unchanged. Dispatch is
-    // per-workspace.
-    const attachA = await runtimeA.createAttachment({
-      sessionId: toSessionId("s1"),
-    });
-    const attachB = await runtimeB.createAttachment({
-      sessionId: toSessionId("s1"),
-    });
+    const fallbackA = (await runtimeA.createAttachment()).attachment;
+    expect(fallbackA.target.sessionId).not.toBe("");
+    // A second attachment to the same durable session shares the warm primary
+    // instance. A second workspace remains independent.
+    const fallbackB = (await runtimeB.createAttachment()).attachment;
+    const attachA = (
+      await runtimeA.createAttachment({
+        sessionId: fallbackA.target.sessionId,
+      })
+    ).attachment;
+    const attachB = (
+      await runtimeB.createAttachment({
+        sessionId: fallbackB.target.sessionId,
+      })
+    ).attachment;
     await expect(
       runtimeA.createAttachment({
-        sessionId: toSessionId("s1"),
+        sessionId: fallbackA.target.sessionId,
         branchId: toBranchId("branch-1"),
       }),
     ).rejects.toThrow("Branch session targets are not supported");
     await expect(
       attachA.retarget({
-        sessionId: toSessionId("s1"),
+        sessionId: fallbackA.target.sessionId,
         branchId: toBranchId("branch-1"),
       }),
     ).rejects.toThrow("Branch session targets are not supported");
-    expect(attachA.sessionId).toBe(toSessionId("s1"));
+    expect(attachA.target.sessionId).toBe(fallbackA.target.sessionId);
     // The same canonical channel id resolves per-workspace behavior: each
     // feature's handler reads its own persisted greeting setting.
+    const history = toChannelCanonicalId("agent", "session_history");
+    expect(
+      await dispatch(fallbackA, { channel: history, payload: {} }),
+    ).toEqual(await dispatch(attachA, { channel: history, payload: {} }));
+
+    // New Session retargets only the requesting attachment. Its peer remains
+    // on the shared previous instance and can still read that history.
+    const previousSessionId = fallbackA.target.sessionId;
+    const newSession = toChannelCanonicalId("agent", "new_session");
+    expect(
+      await dispatch(fallbackA, {
+        channel: newSession,
+        payload: undefined,
+      }),
+    ).toMatchObject({ ok: true });
+    expect(fallbackA.target.sessionId).not.toBe(previousSessionId);
+    expect(attachA.target.sessionId).toBe(previousSessionId);
+    const freshSessionId = fallbackA.target.sessionId;
+    const switchSession = toChannelCanonicalId("agent", "switch_session");
     const ping = toChannelCanonicalId("echo", "ping");
-    expect(await attachA.dispatch({ channel: ping, payload: {} })).toEqual({
+    const closingAttachment = (
+      await runtimeA.createAttachment({ sessionId: freshSessionId })
+    ).attachment;
+    using preparedPing = closingAttachment.prepareDispatch({
+      channel: ping,
+      payload: {},
+    });
+    using acceptedSwitch = closingAttachment.prepareDispatch({
+      channel: switchSession,
+      payload: { sessionId: freshSessionId },
+    });
+    await closingAttachment.retarget({ sessionId: previousSessionId });
+    await dispatch(fallbackA, {
+      channel: switchSession,
+      payload: { sessionId: previousSessionId },
+    });
+    expect(fallbackA.target.sessionId).toBe(previousSessionId);
+
+    // A preparation keeps its accepted context and channel log policy after
+    // the attachment moves.
+    expect(preparedPing.logOptions.describeRequest?.({})).toEqual({
+      kind: "ping",
+    });
+    expect(await preparedPing.invoke()).toEqual({ ok: true, value: "hello-A" });
+
+    // Accepted work survives attachment closure. It can guard and inspect the
+    // requested agent without installing a target on the closed attachment.
+    closingAttachment.dispose();
+    expect(await acceptedSwitch.invoke()).toMatchObject({ ok: true });
+    expect(closingAttachment.target.sessionId).toBe(previousSessionId);
+    expect(await dispatch(attachA, { channel: ping, payload: {} })).toEqual({
       ok: true,
       value: "hello-A",
     });
-    expect(await attachB.dispatch({ channel: ping, payload: {} })).toEqual({
+    expect(await dispatch(attachB, { channel: ping, payload: {} })).toEqual({
       ok: true,
       value: "hello-B",
     });
@@ -293,15 +351,15 @@ describe("workspace runtime isolation", () => {
     // Document stores are rooted per workspace: A's writes never reach B.
     const writeDoc = toChannelCanonicalId("echo", "write_doc");
     const readDoc = toChannelCanonicalId("echo", "read_doc");
-    await attachA.dispatch({
+    await dispatch(attachA, {
       channel: writeDoc,
       payload: { content: "a-notes" },
     });
-    expect(await attachA.dispatch({ channel: readDoc, payload: {} })).toEqual({
+    expect(await dispatch(attachA, { channel: readDoc, payload: {} })).toEqual({
       ok: true,
       value: "a-notes",
     });
-    expect(await attachB.dispatch({ channel: readDoc, payload: {} })).toEqual({
+    expect(await dispatch(attachB, { channel: readDoc, payload: {} })).toEqual({
       ok: true,
       value: null,
     });
@@ -309,13 +367,13 @@ describe("workspace runtime isolation", () => {
     // The substrate settings channel answers per workspace scope.
     const getSetting = toChannelCanonicalId("uix", "get_setting");
     expect(
-      await attachA.dispatch({
+      await dispatch(attachA, {
         channel: getSetting,
         payload: { featureId: "echo", key: "greeting" },
       }),
     ).toEqual({ ok: true, value: "hello-A" });
     expect(
-      await attachB.dispatch({
+      await dispatch(attachB, {
         channel: getSetting,
         payload: { featureId: "echo", key: "greeting" },
       }),
@@ -344,11 +402,11 @@ describe("workspace runtime isolation", () => {
 
     // Surface composition: both serve the same feature id, built per runtime.
     const surfaces = toChannelCanonicalId("uix", "surfaces");
-    const surfacesA = await attachA.dispatch({
+    const surfacesA = await dispatch(attachA, {
       channel: surfaces,
       payload: undefined,
     });
-    const surfacesB = await attachB.dispatch({
+    const surfacesB = await dispatch(attachB, {
       channel: surfaces,
       payload: undefined,
     });
@@ -395,22 +453,24 @@ describe("workspace runtime isolation", () => {
     const reloadA = await runtimeA.reload();
     expect(reloadA.featuresActivated).toBe(1);
     expect(reloadA.featuresFailed).toBe(0);
-    expect(await attachA.dispatch({ channel: ping, payload: {} })).toEqual({
+    expect(await dispatch(attachA, { channel: ping, payload: {} })).toEqual({
       ok: true,
       value: "hello-A2",
     });
-    expect(await attachB.dispatch({ channel: ping, payload: {} })).toEqual({
+    expect(await dispatch(attachB, { channel: ping, payload: {} })).toEqual({
       ok: true,
       value: "hello-B",
     });
 
-    // Disposing one runtime removes only its state and routes.
-    await runtimeA.dispose();
-    expect(await attachA.dispatch({ channel: ping, payload: {} })).toEqual({
-      ok: false,
-      error: { code: "disposed", message: "Attachment is disposed" },
-    });
-    expect(await attachB.dispatch({ channel: ping, payload: {} })).toEqual({
+    // Disposing one runtime removes only its state and routes. Concurrent
+    // callers share the same drain rather than observing early completion.
+    const disposalA = runtimeA.dispose();
+    expect(runtimeA.dispose()).toBe(disposalA);
+    await disposalA;
+    expect(() =>
+      attachA.prepareDispatch({ channel: ping, payload: {} }),
+    ).toThrow("Attachment is disposed");
+    expect(await dispatch(attachB, { channel: ping, payload: {} })).toEqual({
       ok: true,
       value: "hello-B",
     });

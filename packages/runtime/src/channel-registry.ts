@@ -1,12 +1,4 @@
-// Holds the workspace's canonical channel table and routes requests and events with validation at the boundary.
-//
-// The registry validates unknown requests and handler responses at the
-// dispatch boundary while preserving contract-owned log descriptions.
-// Canonical-id reservations remain recoverable across transport acquisition
-// and disposal failures. The host binds transport addresses (Electron IPC
-// handlers) to the same validated runners the attachment dispatch path uses,
-// so one canonical table serves both the wire and the host-stamped
-// attachment context.
+// Owns one workspace's canonical channel table, prepared dispatches, and typed event publication.
 
 import { Value } from "typebox/value";
 
@@ -24,39 +16,52 @@ import type {
 } from "@uix/api/channels";
 import { createFeatureEventPublisher } from "@uix/api/channels";
 
-import type { AttachmentContext } from "./dispatch";
-import type { CanonicalRequest, CanonicalResponse } from "./dispatch";
+import type {
+  AttachmentDispatchContext,
+  CanonicalRequest,
+  CanonicalResponse,
+  PreparedDispatch,
+} from "./dispatch";
 import { disposable, DisposableBag } from "./lifecycle";
 
-export type ChannelTransportRegistrar = (
-  canonicalId: ChannelCanonicalId,
-  handler: (req: unknown) => Promise<unknown>,
-  logOpts?: ChannelRequestLogOptions<unknown, unknown>,
-) => Disposable;
-
-export type ChannelTransportPublisher = (
+export type ChannelEventPublisher = (
   canonicalId: ChannelCanonicalId,
   payload: unknown,
   logOpts?: ChannelEventLogOptions<unknown>,
 ) => void;
 
 export interface ChannelRegistryOptions {
-  transportRegistrar: ChannelTransportRegistrar;
-  publish?: ChannelTransportPublisher;
+  publish?: ChannelEventPublisher;
 }
 
-/** Bind resolved channel requests and event publication to one transport. */
-export class ChannelRegistry {
-  readonly #transportRegistrar: ChannelTransportRegistrar;
-  readonly #publish: ChannelTransportPublisher;
-  readonly #canonicalIds = new Set<ChannelCanonicalId>();
-  readonly #runners = new Map<
-    ChannelCanonicalId,
-    (req: unknown) => Promise<unknown>
-  >();
+export interface ChannelRequestRegistration<Req, Res> {
+  readonly canonicalId: ChannelCanonicalId;
+  readonly requestSchema: ResolvedChannelRequestContribution<
+    Req,
+    Res
+  >["requestSchema"];
+  readonly responseSchema: ResolvedChannelRequestContribution<
+    Req,
+    Res
+  >["responseSchema"];
+  readonly handler: (
+    request: Req,
+    context: AttachmentDispatchContext,
+  ) => Res | Promise<Res>;
+  readonly log?: ChannelRequestLogOptions<Req, Res>;
+}
 
-  constructor(opts: ChannelRegistryOptions) {
-    this.#transportRegistrar = opts.transportRegistrar;
+interface RegisteredRunner {
+  readonly logOptions: ChannelRequestLogOptions<unknown, unknown>;
+  run(context: AttachmentDispatchContext, payload: unknown): Promise<unknown>;
+}
+
+/** One canonical request table for feature and substrate handlers alike. */
+export class ChannelRegistry {
+  readonly #publish: ChannelEventPublisher;
+  readonly #runners = new Map<ChannelCanonicalId, RegisteredRunner>();
+
+  constructor(opts: ChannelRegistryOptions = {}) {
     this.#publish = opts.publish ?? (() => undefined);
   }
 
@@ -68,101 +73,122 @@ export class ChannelRegistry {
     this.#publish(canonicalId, payload, logOpts);
   }
 
-  /**
-   * Register one resolved request and return its exact transport lifetime.
-   *
-   * The validated runner becomes both the transport binding and the
-   * attachment dispatch path. A failed transport acquisition releases the
-   * reserved id. Disposal also releases the id when transport cleanup
-   * throws.
-   */
+  /** Current canonical request ids for diagnostics and composition tests. */
+  listCanonicalIds(): readonly ChannelCanonicalId[] {
+    return [...this.#runners.keys()];
+  }
+
+  /** Register one validated handler in the workspace's canonical table. */
   register<Req, Res>(
-    resolvedContribution: ResolvedChannelRequestContribution<Req, Res>,
+    registration: ChannelRequestRegistration<Req, Res>,
   ): Disposable {
-    const { canonicalId } = resolvedContribution;
-    if (this.#canonicalIds.has(canonicalId)) {
+    const { canonicalId } = registration;
+    if (this.#runners.has(canonicalId)) {
       throw new Error(`Channel already registered: ${canonicalId}`);
     }
 
-    const run = async (rawReq: unknown): Promise<unknown> => {
-      const req = Value.Parse(resolvedContribution.requestSchema, rawReq);
-      const res = await resolvedContribution.handler(req as Req);
-      return Value.Parse(resolvedContribution.responseSchema, res);
-    };
-
-    this.#canonicalIds.add(canonicalId);
-    this.#runners.set(canonicalId, run);
-    let handlerDisposable: Disposable;
-    try {
-      handlerDisposable = this.#transportRegistrar(
-        canonicalId,
-        run,
-        resolvedContribution.log as
+    const runner: RegisteredRunner = {
+      logOptions:
+        (registration.log as
           | ChannelRequestLogOptions<unknown, unknown>
-          | undefined,
-      );
-    } catch (err) {
-      this.#canonicalIds.delete(canonicalId);
-      this.#runners.delete(canonicalId);
-      throw err;
-    }
+          | undefined) ?? {},
+      async run(context, payload) {
+        const request = Value.Parse(registration.requestSchema, payload) as Req;
+        const response = await registration.handler(request, context);
+        return Value.Parse(registration.responseSchema, response);
+      },
+    };
+    this.#runners.set(canonicalId, runner);
 
     let disposed = false;
     return disposable(() => {
       if (disposed) return;
       disposed = true;
-      try {
-        handlerDisposable[Symbol.dispose]();
-      } finally {
-        this.#canonicalIds.delete(canonicalId);
+      if (this.#runners.get(canonicalId) === runner) {
         this.#runners.delete(canonicalId);
       }
     });
   }
 
   /**
-   * Dispatch one canonical request with host-stamped attachment context.
-   *
-   * The context travels outside the feature payload: features receive only
-   * their validated request, while the runtime dispatch machinery may scope
-   * state and routing by workspace, attachment, and session. Unknown channels
-   * and handler failures return explicit structured errors rather than
-   * throwing, so a host can answer a connection without exception plumbing.
+   * Join immutable attachment context with one resolved channel entry.
+   * Unknown requests receive a payload-redacting log policy.
    */
-  async dispatch(
-    context: AttachmentContext,
+  prepare(
+    context: AttachmentDispatchContext,
     request: CanonicalRequest,
-  ): Promise<CanonicalResponse> {
-    const run = this.#runners.get(request.channel);
-    if (!run) {
-      return {
-        ok: false,
-        error: {
-          code: "unknown_channel",
-          message: `Unknown channel ${request.channel}`,
-        },
-      };
-    }
-    try {
-      return { ok: true, value: await run(request.payload) };
-    } catch (err) {
-      return {
-        ok: false,
-        error: {
-          code: "handler_error",
-          message: err instanceof Error ? err.message : String(err),
-        },
-      };
-    }
+    releaseOperationGuard: () => void,
+  ): PreparedDispatch {
+    const runner = this.#runners.get(request.channel);
+    const logOptions: ChannelRequestLogOptions<unknown, unknown> = runner
+      ? runner.logOptions
+      : {
+          describeRequest: () => ({ channel: request.channel }),
+          describeResponse: (response) => response,
+        };
+    let invoked = false;
+    let released = false;
+    const release = (): void => {
+      if (released) return;
+      released = true;
+      releaseOperationGuard();
+    };
+
+    return {
+      request,
+      logOptions,
+      async invoke(): Promise<CanonicalResponse> {
+        if (released) {
+          return {
+            ok: false,
+            error: {
+              code: "disposed",
+              message: "Prepared dispatch is disposed",
+            },
+          };
+        }
+        if (invoked) {
+          return {
+            ok: false,
+            error: {
+              code: "already_invoked",
+              message: "Prepared dispatch was already invoked",
+            },
+          };
+        }
+        invoked = true;
+        try {
+          if (!runner) {
+            return {
+              ok: false,
+              error: {
+                code: "unknown_channel",
+                message: `Unknown channel ${request.channel}`,
+              },
+            };
+          }
+          return {
+            ok: true,
+            value: await runner.run(context, request.payload),
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            error: {
+              code: "handler_error",
+              message: error instanceof Error ? error.message : String(error),
+            },
+          };
+        } finally {
+          release();
+        }
+      },
+      [Symbol.dispose]: release,
+    };
   }
 }
 
-/**
- * Register feature-owned channel groups as one rollback-safe lifetime.
- *
- * Every contract must name the feature that contributes it. A later failure
- * disposes all request handlers acquired earlier in the operation.
- */
+/** Register feature-owned channel groups as one rollback-safe lifetime. */
 export function registerChannelContributions(
   registry: ChannelRegistry,
   featureId: string,
@@ -171,9 +197,6 @@ export function registerChannelContributions(
   const bag = new DisposableBag();
   try {
     for (const contribution of contributions) {
-      // The contract states its owner once, where it's defined. A mismatch
-      // here means a feature is registering handlers under someone else's
-      // channel namespace: always a wiring bug, never valid.
       if (contribution.feature !== featureId) {
         throw new Error(
           `Feature ${featureId} cannot register channels owned by ${contribution.feature}`,
@@ -187,19 +210,13 @@ export function registerChannelContributions(
       }
     }
     return bag;
-  } catch (err) {
+  } catch (error) {
     bag[Symbol.dispose]();
-    throw err;
+    throw error;
   }
 }
 
-/**
- * The `channels` capability handed to a feature's context. It closes over the
- * feature id and the registry here, so the registry can only mint a publisher for
- * the feature's own namespace, and only when the caller presents a contract. There is no
- * untyped publish surface and no way to emit onto canonical ids nobody
- * declared.
- */
+/** Mint a typed event publisher restricted to one feature namespace. */
 export function createFeatureEventPublisherFactory(
   featureId: string,
   publisher: Pick<ChannelRegistry, "publish">,

@@ -146,9 +146,7 @@ export type SetSessionTitleRequest = Static<
 
 const SessionSummaryListSchema = Type.Array(SessionSummarySchema);
 
-export const SessionHistoryRequestSchema = Type.Object({
-  sessionId: Type.Optional(SessionIdSchema),
-});
+export const SessionHistoryRequestSchema = Type.Object({});
 export type SessionHistoryRequest = Static<typeof SessionHistoryRequestSchema>;
 
 export const SessionHistoryResponseSchema = Type.Object({
@@ -380,12 +378,12 @@ export const agentChannels = {
       requestSchema: ListSessionSummariesRequestSchema,
       responseSchema: SessionSummaryListSchema,
     },
-    /** Replace the active agent slot's selected graph with a fresh session. */
+    /** Retarget the requesting attachment to a fresh durable session. */
     new_session: {
       requestSchema: Type.Void(),
       responseSchema: SessionSummarySchema,
     },
-    /** Replace the active agent slot's selected graph with an existing session. */
+    /** Retarget the requesting attachment to an existing durable session. */
     switch_session: {
       requestSchema: SwitchSessionRequestSchema,
       responseSchema: SessionSummarySchema,
@@ -413,10 +411,7 @@ export const agentChannels = {
       requestSchema: Type.Void(),
       responseSchema: ToolCatalogResponseSchema,
     },
-    /**
-     * Validated against Pi's available models. Persists the workspace
-     * default and switches the live session when one exists.
-     */
+    /** Validated against Pi's available models and recorded on the branch. */
     select_model: {
       requestSchema: ModelRefSchema,
       responseSchema: AgentStatusSchema,

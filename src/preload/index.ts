@@ -9,7 +9,8 @@ import { contextBridge, ipcRenderer } from "electron";
 import { Channels, type ChannelTransport } from "../shared/ipc";
 
 const transport: ChannelTransport = {
-  request: (channel, payload) => ipcRenderer.invoke(channel, payload),
+  request: (channel, payload) =>
+    ipcRenderer.invoke(Channels.request, { channel, payload }),
   subscribe: (channel, handler) => {
     const listener = (
       _e: Electron.IpcRendererEvent,

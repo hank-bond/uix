@@ -12,10 +12,6 @@ import {
   type SettingsHandle,
 } from "@uix/api/settings";
 
-import {
-  type SelectedSessionSetting,
-  sessionWorkspaceSettings,
-} from "./agent/session-settings";
 import { keybindingsWorkspaceSettings } from "./keybindings/settings";
 import { WorkspaceManifestStore } from "./manifest-store";
 import {
@@ -548,47 +544,6 @@ describe("workspace namespace settings", () => {
     };
     expect(written.settings).toEqual({
       agent: { defaultModel: { provider: "anthropic", id: "claude" } },
-    });
-  });
-
-  it("loads and persists the selected-session identity", async () => {
-    const manifestPath = await tempManifest({
-      name: "Demo",
-      settings: {
-        session: {
-          selected: {
-            sessionId: "session-1",
-          },
-        },
-      },
-      features: [],
-    });
-    using harness = createHarness(manifestPath, [sessionWorkspaceSettings]);
-    const { settings, manifest } = harness;
-
-    await settings.reload();
-    const session = settings.forNamespace(sessionWorkspaceSettings);
-    expectTypeOf(session.get("selected")).toEqualTypeOf<
-      SelectedSessionSetting | undefined
-    >();
-    expect(session.get("selected")).toEqual({
-      sessionId: "session-1",
-    });
-
-    session.set("selected", {
-      sessionId: "session-2",
-    });
-    await manifest.flush();
-
-    const written = (await readManifest(manifestPath)) as {
-      settings: Record<string, unknown>;
-    };
-    expect(written.settings).toEqual({
-      session: {
-        selected: {
-          sessionId: "session-2",
-        },
-      },
     });
   });
 

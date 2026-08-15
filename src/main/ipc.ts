@@ -27,6 +27,7 @@ import { join } from "node:path";
 import { type BrowserWindow, ipcMain } from "electron";
 import pino from "pino";
 
+import type { CanonicalRequest, PreparedDispatch } from "@uix/runtime";
 import { createLogger } from "@uix/runtime/log";
 
 import { recordWireCrossing } from "./ipc-wire-log";
@@ -35,6 +36,17 @@ import { disposable } from "./lifecycle";
 const log = createLogger("ipc");
 
 let fileLog: pino.Logger | undefined;
+
+const CanonicalChannelPattern = /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/;
+
+/** Read only a log-safe canonical id from an unprepared physical frame. */
+function tryParseCanonicalRequestChannel(frame: unknown): string | undefined {
+  if (!frame || typeof frame !== "object") return undefined;
+  const channel: unknown = (frame as { readonly channel?: unknown }).channel;
+  return typeof channel === "string" && CanonicalChannelPattern.test(channel)
+    ? channel
+    : undefined;
+}
 
 /** Arm the raw-payload file capture. Call once startup resolves the state root. */
 export function initLogFile(stateRoot: string): void {
@@ -96,6 +108,70 @@ export function handle<Req, Res>(
   });
   return disposable(() => {
     ipcMain.removeHandler(channel);
+  });
+}
+
+/**
+ * Register the one generic canonical request endpoint. Contract-owned log
+ * policy comes from the prepared dispatch while this host records the actual
+ * physical crossing.
+ */
+export function handleCanonicalRequest(
+  physicalChannel: string,
+  prepare: (request: CanonicalRequest) => PreparedDispatch,
+): Disposable {
+  ipcMain.handle(physicalChannel, async (_event, frame: unknown) => {
+    const requestChannel = tryParseCanonicalRequestChannel(frame);
+    let dispatch: PreparedDispatch;
+    try {
+      dispatch = prepare(frame as CanonicalRequest);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const logChannel = requestChannel ?? `${physicalChannel}:invalid`;
+      recordWireCrossing(
+        { terminal: log, file: fileLog },
+        `in:${logChannel}`,
+        frame,
+        {
+          describe: () => ({
+            channel: requestChannel ?? "invalid",
+            redacted: "request payload unavailable before dispatch preparation",
+          }),
+        },
+      );
+      fileLog?.info({ err: message }, `error:${logChannel}`);
+      log.debug({ err: message }, `error:${logChannel}`);
+      throw error;
+    }
+
+    using prepared = dispatch;
+    const request = prepared.request;
+    const logOptions = prepared.logOptions;
+    recordWireCrossing(
+      { terminal: log, file: fileLog },
+      `in:${request.channel}`,
+      request.payload,
+      { describe: logOptions.describeRequest },
+    );
+    const response = await prepared.invoke();
+    if (!response.ok) {
+      fileLog?.info(
+        { err: response.error.message },
+        `error:${request.channel}`,
+      );
+      log.debug({ err: response.error.message }, `error:${request.channel}`);
+      throw new Error(response.error.message);
+    }
+    recordWireCrossing(
+      { terminal: log, file: fileLog },
+      `result:${request.channel}`,
+      response.value,
+      { describe: logOptions.describeResponse },
+    );
+    return response.value;
+  });
+  return disposable(() => {
+    ipcMain.removeHandler(physicalChannel);
   });
 }
 

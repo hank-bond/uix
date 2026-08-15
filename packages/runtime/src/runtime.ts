@@ -1,25 +1,35 @@
 // Composes the workspace substrate into one exactly-one-workspace runtime over host-provided dependencies.
 //
-// The host supplies the channel transport, the resource transport,
-// openExternal, and the workspace target as injected dependencies. No
-// Electron import exists anywhere in this package. A host may compose this
-// runtime in process or behind a transport.
+// The host supplies resource delivery, external-link opening, and stable
+// workspace dependencies. Canonical requests enter through runtime-created
+// attachments, while scoped events leave through runtime listeners.
 
 import fs from "node:fs";
 import { join } from "node:path";
 
+import type { SessionManager } from "@earendil-works/pi-coding-agent";
+import type { Static } from "typebox";
+
 import { agentChannels, type AgentEvent } from "@uix/api/agent-channels";
-import { type FeatureEventPublisher, withHandlers } from "@uix/api/channels";
+import {
+  type ChannelCanonicalId,
+  toChannelCanonicalId,
+} from "@uix/api/channel-resolution";
+import {
+  type ChannelEventLogOptions,
+  type FeatureEventPublisher,
+  withHandlers,
+} from "@uix/api/channels";
 import type { ReloadResult } from "@uix/api/substrate-channels";
 import { substrateChannels } from "@uix/api/substrate-channels";
 
-import { createAgentDriver } from "./agent/driver";
+import type { AgentInstanceGuard } from "./agent/instance-supervisor";
 import {
   type OpenedPrimarySession,
   openWorkspaceFallbackSession,
 } from "./agent/session-manager";
-import { sessionWorkspaceSettings } from "./agent/session-settings";
 import { agentWorkspaceSettings } from "./agent/settings";
+import { createWorkspaceAgentRuntime } from "./agent/workspace-agent-runtime";
 import { AgentContextRegistry } from "./agent-context/registry";
 import { AgentSkillRegistry } from "./agent-skill-registry";
 import { AgentSystemPromptRegistry } from "./agent-system-prompt-registry";
@@ -29,15 +39,13 @@ import {
 } from "./agent-tools/registry";
 import {
   ChannelRegistry,
-  type ChannelTransportPublisher,
-  type ChannelTransportRegistrar,
   createFeatureEventPublisherFactory,
   registerChannelContributions,
 } from "./channel-registry";
 import type {
-  AttachmentContext,
+  AttachmentDispatchContext,
   CanonicalRequest,
-  CanonicalResponse,
+  PreparedDispatch,
 } from "./dispatch";
 import { createLocalDocumentStoreFactory } from "./document-store";
 import type { EventScope, RuntimeEvent } from "./events";
@@ -64,25 +72,18 @@ import type { Workspace } from "./roots";
 import { SettingsRegistry } from "./settings-registry";
 import { TurnStateRegistry } from "./turn-state";
 import type {
+  Attachment as AttachmentContract,
   AttachmentId,
-  RuntimeAttachment,
-  SessionId,
+  CreatedAttachment,
   SessionTarget,
   WorkspaceId,
   WorkspaceRuntime as WorkspaceRuntimeContract,
 } from "./workspace";
-import { toAttachmentId } from "./workspace";
+import { toAttachmentId, toSessionId } from "./workspace";
 import { createWorkspaceSettings } from "./workspace-settings";
-
-/** The channel transport the host provides. */
-export interface WorkspaceChannelTransportDependencies {
-  transportRegistrar: ChannelTransportRegistrar;
-  publish: ChannelTransportPublisher;
-}
 
 /** The dependencies a host provides. The runtime declares them, never imports them. */
 export interface WorkspaceRuntimeDependencies {
-  channelTransport: WorkspaceChannelTransportDependencies;
   /**
    * Resource serving on the reserved substrate origin. Omitted when the host
    * does not serve resources (the registry still owns routes, unbound).
@@ -108,25 +109,28 @@ export interface WorkspaceRuntimeOptions {
  * The runtime-internal surface an attachment closes over. Not part of the
  * WorkspaceRuntime contract: the host never sees these.
  */
-interface RuntimeAttachmentHost {
+interface AttachmentOwner {
   readonly workspaceId: WorkspaceId;
-  dispatch(
-    context: AttachmentContext,
+  acquireAgentInstanceGuard(
+    target: SessionTarget,
+    openedManager?: SessionManager,
+    origin?: string,
+  ): Promise<AgentInstanceGuard>;
+  prepareDispatch(
+    context: AttachmentDispatchContext,
     request: CanonicalRequest,
-  ): Promise<CanonicalResponse>;
-  retargetTo(target: SessionTarget): Promise<void>;
-  dropAttachment(attachment: WorkspaceRuntimeAttachment): void;
+    releaseOperationGuard: () => void,
+  ): PreparedDispatch;
+  dropAttachment(attachment: Attachment): void;
 }
 
 /**
  * The exactly-one-workspace runtime. Owns the accepted feature composition,
- * settings, stores, registries, the selected-session agent driver, and the
- * reload coordinator under one lifetime bag. Disposing it removes only this
+ * settings, stores, registries, workspace agent runtime, and reload
+ * coordinator under one lifetime bag. Disposing it removes only this
  * workspace's state and routes.
  */
-class WorkspaceRuntime
-  implements WorkspaceRuntimeContract, RuntimeAttachmentHost
-{
+class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   readonly #workspaceId: WorkspaceId;
   readonly #bag = new DisposableBag();
   readonly #featuresBag = new DisposableBag();
@@ -135,7 +139,7 @@ class WorkspaceRuntime
   readonly #settingsRegistry: SettingsRegistry;
   readonly #surfaces = new SurfaceRegistry();
   readonly #surfacePipeline: SurfaceModulePipeline;
-  readonly #driver: ReturnType<typeof createAgentDriver>;
+  readonly #agentRuntime: ReturnType<typeof createWorkspaceAgentRuntime>;
   readonly #openFallbackSession: () => Promise<OpenedPrimarySession>;
   readonly #uixPublisher: FeatureEventPublisher<typeof substrateChannels>;
   readonly #substrate: FeatureSubstrate;
@@ -146,11 +150,12 @@ class WorkspaceRuntime
       turnStateCommitted: boolean;
     }>;
   };
-  readonly #attachments = new Set<WorkspaceRuntimeAttachment>();
+  readonly #attachments = new Set<Attachment>();
   readonly #listeners = new Set<(event: RuntimeEvent) => void>();
   readonly #workspace: Workspace;
   #nextAttachment = 0;
   #nextEventId = 0;
+  #disposal: Promise<void> | undefined;
   #disposed = false;
 
   constructor(opts: WorkspaceRuntimeOptions) {
@@ -166,11 +171,7 @@ class WorkspaceRuntime
     const workspaceSettings = createWorkspaceSettings(
       workspaceManifest,
       this.#settingsRegistry,
-      [
-        agentWorkspaceSettings,
-        sessionWorkspaceSettings,
-        keybindingsWorkspaceSettings,
-      ],
+      [agentWorkspaceSettings, keybindingsWorkspaceSettings],
     );
 
     this.#resources = this.#bag.add(
@@ -179,30 +180,35 @@ class WorkspaceRuntime
         transportRegistrar: dependencies.resourceTransport,
       }),
     );
-    this.#channels = new ChannelRegistry(dependencies.channelTransport);
+    this.#channels = new ChannelRegistry({
+      publish: (channel, payload, logOptions) => {
+        this.#emit({ kind: "workspace" }, channel, payload, logOptions);
+      },
+    });
     const turnState = new TurnStateRegistry();
     const agentTools = new AgentToolRegistry();
     const agentSystemPrompt = new AgentSystemPromptRegistry();
     const agentSkills = new AgentSkillRegistry();
     const agentContext = new AgentContextRegistry();
 
-    // Agent publisher: created early so the driver can emit events through
-    // the channel transport.
-    const agentPublisher = createFeatureEventPublisherFactory(
-      "agent",
-      this.#channels,
-    ).createPublisher(agentChannels);
+    const createAgentEventPublisher = (
+      scope: EventScope,
+    ): FeatureEventPublisher<typeof agentChannels> =>
+      createFeatureEventPublisherFactory("agent", {
+        publish: (channel, payload, logOptions) => {
+          this.#emit(scope, channel, payload, logOptions);
+        },
+      }).createPublisher(agentChannels);
+    const workspaceAgentPublisher = createAgentEventPublisher({
+      kind: "workspace",
+    });
 
-    const sessionSettings = workspaceSettings.forNamespace(
-      sessionWorkspaceSettings,
-    );
     let inFlightFallback: Promise<OpenedPrimarySession> | undefined;
     this.#openFallbackSession = () => {
       if (inFlightFallback) return inFlightFallback;
       const opening = openWorkspaceFallbackSession({
         cwd: workspace.agentCwd,
         sessionDir: join(workspace.stateRoot, ".uix", "sessions"),
-        preferredSessionId: sessionSettings.get("selected")?.sessionId,
       }).finally(() => {
         if (inFlightFallback === opening) inFlightFallback = undefined;
       });
@@ -210,35 +216,35 @@ class WorkspaceRuntime
       return opening;
     };
 
-    this.#driver = this.#bag.add(
-      createAgentDriver({
-        onEvent: (event) => {
-          logChatContent(event);
-          agentPublisher.event(event);
-        },
-        workspace,
-        piAppDataDir,
-        turnState,
-        agentSystemPrompt,
-        agentSkills,
-        agentContext,
-        agentInstallers: [createAgentToolInstaller(agentTools)],
-        // Lazy handles: workspace scopes register during the settings reload
-        // inside loadFeatures(), before any driver method can read them.
-        agentSettings: workspaceSettings.forNamespace(agentWorkspaceSettings),
-        sessionSettings,
-        onStatusChange: (status) => {
-          agentPublisher.status_changed(status);
-        },
-        openExternal: dependencies.openExternal,
-        onProviderAuthFlowSnapshot: (snapshot) => {
-          agentPublisher.provider_auth_flow_changed(snapshot);
-        },
-        onModelAvailabilityChange: () => {
-          agentPublisher.model_availability_changed();
-        },
-      }),
-    );
+    this.#agentRuntime = createWorkspaceAgentRuntime({
+      onEvent: (sessionId, event) => {
+        logChatContent(event);
+        createAgentEventPublisher({ kind: "session", sessionId }).event(event);
+      },
+      workspace,
+      piAppDataDir,
+      turnState,
+      agentSystemPrompt,
+      agentSkills,
+      agentContext,
+      agentInstallers: [createAgentToolInstaller(agentTools)],
+      // Lazy handles: workspace scopes register during the settings reload
+      // inside loadFeatures(), before any agent operation can read them.
+      agentSettings: workspaceSettings.forNamespace(agentWorkspaceSettings),
+      onStatusChange: (sessionId, status) => {
+        createAgentEventPublisher({
+          kind: "session",
+          sessionId,
+        }).status_changed(status);
+      },
+      openExternal: dependencies.openExternal,
+      onProviderAuthFlowSnapshot: (snapshot) => {
+        workspaceAgentPublisher.provider_auth_flow_changed(snapshot);
+      },
+      onModelAvailabilityChange: () => {
+        workspaceAgentPublisher.model_availability_changed();
+      },
+    });
 
     // Substrate workspace channels under the reserved `uix` id: the surface
     // composition the renderer mounts, plus the changed signal fired after
@@ -312,101 +318,151 @@ class WorkspaceRuntime
       ]),
     );
 
-    // Register substrate agent channels before feature contributions so the
-    // prompt/history handlers can close over the driver.
-    this.#bag.add(
-      registerChannelContributions(this.#channels, "agent", [
-        withHandlers(agentChannels, {
-          prompt: {
-            handler: (req) => {
-              // Fire and forget. The renderer subscribes to the event
-              // stream, and the invoke resolves once the prompt has been
-              // accepted.
-              void this.#driver.prompt(req.text);
-            },
-          },
-          session_history: {
-            handler: ({ sessionId }) => this.#driver.sessionHistory(sessionId),
-            log: {
-              // A snapshot is the entire persisted transcript, already on disk;
-              // record only its durable identity and size at the crossing.
-              describeResponse: ({ session, transcript }) => ({
-                sessionId: session.sessionId,
-                items: transcript.items.length,
-              }),
-            },
-          },
-          list_session_summaries: {
-            handler: ({ limit }) => this.#driver.listSessionSummaries(limit),
-            log: {
-              describeResponse: (sessions) => ({
-                sessionIds: sessions.map((session) => session.sessionId),
-              }),
-            },
-          },
-          new_session: {
-            handler: () => this.#driver.newSession(),
-          },
-          switch_session: {
-            handler: ({ sessionId }) => this.#driver.switchSession(sessionId),
-          },
-          set_session_title: {
-            handler: ({ sessionId, title }) =>
-              this.#driver.setSessionTitle(sessionId, title),
-          },
-          list_models: {
-            handler: async () => ({ models: await this.#driver.listModels() }),
-          },
-          set_model_favorite: {
-            handler: async (update) => ({
-              models: await this.#driver.setModelFavorite(update),
-            }),
-          },
-          agent_status: {
-            handler: () => this.#driver.getStatus(),
-          },
-          tool_catalog: {
-            handler: () => ({
-              tools: agentTools.list().map(({ tool }) => ({
-                name: tool.name,
-                label: tool.label,
-              })),
-            }),
-            log: {
-              describeResponse: ({ tools }) => ({ toolCount: tools.length }),
-            },
-          },
-          select_model: {
-            handler: (ref) => this.#driver.selectModel(ref),
-          },
-          list_auth_providers: {
-            handler: async () => ({
-              providers: await this.#driver.listAuthProviders(),
-            }),
-          },
-          current_provider_auth_flow: {
-            handler: () => this.#driver.getCurrentProviderAuthFlow() ?? null,
-          },
-          begin_provider_auth_flow: {
-            handler: ({ providerId, authType }) =>
-              this.#driver.beginProviderAuthFlow(providerId, authType),
-          },
-          answer_provider_auth_flow: {
-            handler: ({ flowId, promptId, value }) => {
-              this.#driver.answerProviderAuthFlow(flowId, promptId, value);
-            },
-          },
-          open_provider_auth_link: {
-            handler: ({ flowId, linkId }) =>
-              this.#driver.openProviderAuthLink(flowId, linkId),
-          },
-          cancel_provider_auth_flow: {
-            handler: ({ flowId }) => {
-              this.#driver.cancelProviderAuthFlow(flowId);
-            },
-          },
-        }),
-      ]),
+    const registerAgentRequest = <
+      K extends keyof typeof agentChannels.requests,
+    >(
+      name: K,
+      handler: (
+        context: AttachmentDispatchContext,
+        request: Static<(typeof agentChannels.requests)[K]["requestSchema"]>,
+      ) =>
+        | Static<(typeof agentChannels.requests)[K]["responseSchema"]>
+        | Promise<Static<(typeof agentChannels.requests)[K]["responseSchema"]>>,
+    ): globalThis.Disposable => {
+      const contract = agentChannels.requests[name];
+      return this.#channels.register({
+        canonicalId: toChannelCanonicalId("agent", name),
+        requestSchema: contract.requestSchema,
+        responseSchema: contract.responseSchema,
+        handler: (
+          request: Static<(typeof agentChannels.requests)[K]["requestSchema"]>,
+          context: AttachmentDispatchContext,
+        ) => handler(context, request),
+        ...("log" in contract ? { log: contract.log } : {}),
+      });
+    };
+
+    const agentChannelsBag = this.#bag.add(new DisposableBag());
+    agentChannelsBag.add(
+      registerAgentRequest("prompt", (context, request) => {
+        void this.#agentRuntime.prompt(
+          context.agentInstanceGuard,
+          request.text,
+        );
+      }),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest("session_history", (context) =>
+        this.#agentRuntime.readSessionHistory(context.agentInstanceGuard),
+      ),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest("list_session_summaries", (_context, { limit }) =>
+        this.#agentRuntime.listSessionSummaries(limit),
+      ),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest("new_session", async (context) => {
+        const opened = await this.#agentRuntime.createSession();
+        const guard = await context.retarget(opened.target, opened.manager);
+        try {
+          return (await this.#agentRuntime.readSessionHistory(guard)).session;
+        } finally {
+          guard.release();
+        }
+      }),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest("switch_session", async (context, { sessionId }) => {
+        const guard = await context.retarget({
+          sessionId: toSessionId(sessionId),
+        });
+        try {
+          return (await this.#agentRuntime.readSessionHistory(guard)).session;
+        } finally {
+          guard.release();
+        }
+      }),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest(
+        "set_session_title",
+        (context, { sessionId, title }) =>
+          this.#agentRuntime.setSessionTitle(
+            context.agentInstanceGuard,
+            sessionId,
+            title,
+          ),
+      ),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest("list_models", async () => ({
+        models: await this.#agentRuntime.listModels(),
+      })),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest("set_model_favorite", async (_context, update) => ({
+        models: await this.#agentRuntime.setModelFavorite(update),
+      })),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest("agent_status", (context) =>
+        this.#agentRuntime.getStatus(context.agentInstanceGuard),
+      ),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest("tool_catalog", () => ({
+        tools: agentTools.list().map(({ tool }) => ({
+          name: tool.name,
+          label: tool.label,
+        })),
+      })),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest("select_model", (context, ref) =>
+        this.#agentRuntime.selectModel(context.agentInstanceGuard, ref),
+      ),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest("list_auth_providers", async () => ({
+        providers: await this.#agentRuntime.listAuthProviders(),
+      })),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest(
+        "current_provider_auth_flow",
+        () => this.#agentRuntime.getCurrentProviderAuthFlow() ?? null,
+      ),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest(
+        "begin_provider_auth_flow",
+        (_context, { providerId, authType }) =>
+          this.#agentRuntime.beginProviderAuthFlow(providerId, authType),
+      ),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest(
+        "answer_provider_auth_flow",
+        (_context, { flowId, promptId, value }) => {
+          this.#agentRuntime.answerProviderAuthFlow(flowId, promptId, value);
+        },
+      ),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest(
+        "open_provider_auth_link",
+        (_context, { flowId, linkId }) =>
+          this.#agentRuntime.openProviderAuthLink(flowId, linkId),
+      ),
+    );
+    agentChannelsBag.add(
+      registerAgentRequest(
+        "cancel_provider_auth_flow",
+        (_context, { flowId }) => {
+          this.#agentRuntime.cancelProviderAuthFlow(flowId);
+        },
+      ),
     );
 
     const apiModuleDir = opts.apiModuleDir;
@@ -429,15 +485,15 @@ class WorkspaceRuntime
     };
 
     this.#reloadCoordinator = createWorkspaceReloadCoordinator({
-      commitTurnState: () => this.#driver.commitFeatureTurnState(),
+      commitTurnState: () => this.#agentRuntime.commitFeatureTurnState(),
       loadFeatures: () =>
         loadFeatures(
           this.#currentSources(),
           this.#featuresBag,
           this.#substrate,
         ),
-      reloadPiResources: () => this.#driver.reloadPiResources(),
-      restoreTurnState: () => this.#driver.restoreFeatureTurnState(),
+      reloadPiResources: () => this.#agentRuntime.reloadPiResources(),
+      restoreTurnState: () => this.#agentRuntime.restoreFeatureTurnState(),
       publishSurfacesChanged: () => {
         this.#uixPublisher.surfaces_changed({});
       },
@@ -483,14 +539,9 @@ class WorkspaceRuntime
       "activation_complete",
     );
     this.#uixPublisher.surfaces_changed({});
-    // Restoration must start after initial feature activation: the accepted
-    // turn-state cell registry determines which selected-branch state is
-    // retained and restored. The auth-bearing live agent stays lazy until the
-    // first prompt.
-    this.#driver.init();
     this.#emit(
       { kind: "workspace" },
-      "composition_loaded",
+      toChannelCanonicalId("uix", "composition_loaded"),
       this.#activationPayload(activation),
     );
     return activation;
@@ -530,7 +581,7 @@ class WorkspaceRuntime
       );
       this.#emit(
         { kind: "workspace" },
-        "composition_reloaded",
+        toChannelCanonicalId("uix", "composition_reloaded"),
         this.#activationPayload(featureActivation),
       );
       return {
@@ -550,61 +601,88 @@ class WorkspaceRuntime
     }
   }
 
-  async createAttachment(target?: SessionTarget): Promise<RuntimeAttachment> {
+  async createAttachment(target?: SessionTarget): Promise<CreatedAttachment> {
     if (this.#disposed) throw new Error("Workspace runtime is disposed");
-    const acceptedTarget = target ?? (await this.#openFallbackSession()).target;
+    const openedFallback = target
+      ? undefined
+      : await this.#openFallbackSession();
+    const acceptedTarget = target ?? openedFallback?.target;
+    if (!acceptedTarget) throw new Error("Session target resolution failed");
     assertSupportedSessionTarget(acceptedTarget);
+    const guard = await this.#agentRuntime.acquire(
+      acceptedTarget,
+      openedFallback?.manager,
+      "attachment",
+    );
+    if (this.#isDisposed()) {
+      guard.release();
+      throw new Error("Workspace runtime is disposed");
+    }
     this.#nextAttachment += 1;
-    const attachment = new WorkspaceRuntimeAttachment(
+    const attachment = new Attachment(
       this,
       toAttachmentId(`attachment-${String(this.#nextAttachment)}`),
-      acceptedTarget.sessionId,
+      guard,
     );
     this.#attachments.add(attachment);
-    return Promise.resolve(attachment);
+    return {
+      attachment,
+      deliver: (event) => {
+        attachment.deliver(event);
+      },
+    };
   }
 
-  // Runtime-internal attachment host surface (not part of WorkspaceRuntime).
+  // Attachment-owner surface, internal to this runtime.
 
-  /** Dispatch one canonical request through this workspace's channel table. */
-  async dispatch(
-    context: AttachmentContext,
-    request: CanonicalRequest,
-  ): Promise<CanonicalResponse> {
-    if (this.#disposed) {
-      return {
-        ok: false,
-        error: { code: "disposed", message: "Workspace runtime is disposed" },
-      };
-    }
-    return this.#channels.dispatch(context, request);
-  }
-
-  /** Current singleton semantics: retarget switches the workspace's selected session. */
-  async retargetTo(target: SessionTarget): Promise<void> {
+  acquireAgentInstanceGuard(
+    target: SessionTarget,
+    openedManager?: SessionManager,
+    origin = "attachment",
+  ): Promise<AgentInstanceGuard> {
     assertSupportedSessionTarget(target);
-    await this.#driver.switchSession(target.sessionId);
+    return this.#agentRuntime.acquire(target, openedManager, origin);
   }
 
-  /** Release one attachment's binding. Idempotent. */
-  dropAttachment(attachment: WorkspaceRuntimeAttachment): void {
+  prepareDispatch(
+    context: AttachmentDispatchContext,
+    request: CanonicalRequest,
+    releaseOperationGuard: () => void,
+  ): PreparedDispatch {
+    if (this.#disposed) {
+      releaseOperationGuard();
+      throw new Error("Workspace runtime is disposed");
+    }
+    return this.#channels.prepare(context, request, releaseOperationGuard);
+  }
+
+  dropAttachment(attachment: Attachment): void {
     this.#attachments.delete(attachment);
   }
 
-  async dispose(): Promise<void> {
-    if (this.#disposed) return;
+  dispose(): Promise<void> {
+    if (this.#disposal) return this.#disposal;
     this.#disposed = true;
-    for (const attachment of [...this.#attachments]) {
-      await attachment.dispose();
-    }
-    this.#attachments.clear();
-    this.#listeners.clear();
-    this.#featuresBag[Symbol.dispose]();
-    this.#bag[Symbol.dispose]();
+    this.#disposal = (async () => {
+      for (const attachment of [...this.#attachments]) attachment.dispose();
+      this.#attachments.clear();
+      this.#listeners.clear();
+      try {
+        await this.#agentRuntime.dispose();
+      } finally {
+        this.#featuresBag[Symbol.dispose]();
+        this.#bag[Symbol.dispose]();
+      }
+    })();
+    return this.#disposal;
   }
 
   [Symbol.dispose](): void {
     void this.dispose();
+  }
+
+  #isDisposed(): boolean {
+    return this.#disposed;
   }
 
   #currentSources(): FeatureSources {
@@ -625,77 +703,138 @@ class WorkspaceRuntime
     };
   }
 
-  /** Runtime-internal: emit one scoped runtime event to host listeners. */
-  #emit(scope: EventScope, id: string, payload: unknown): void {
+  /** Runtime-internal: emit one scoped canonical event to host listeners. */
+  #emit(
+    scope: EventScope,
+    channel: ChannelCanonicalId,
+    payload: unknown,
+    logOptions?: ChannelEventLogOptions<unknown>,
+  ): void {
     const event: RuntimeEvent = {
-      id: `${id}-${String(this.#nextEventId)}`,
+      id: `event-${String(this.#nextEventId)}`,
+      channel,
       scope,
       payload,
+      ...(logOptions && { logOptions }),
     };
     this.#nextEventId += 1;
     for (const listener of this.#listeners) listener(event);
   }
 }
 
-/**
- * The runtime-owned half of an attachment: a binding to the workspace's
- * selected session through the primary agent instance. The runtime keeps
- * the selected-session singleton semantics the driver already provides.
- */
-class WorkspaceRuntimeAttachment implements RuntimeAttachment {
-  readonly #host: RuntimeAttachmentHost;
+/** One runtime-created attachment object. */
+class Attachment implements AttachmentContract {
+  readonly #owner: AttachmentOwner;
+  readonly #eventListeners = new Set<(event: RuntimeEvent) => void>();
+  readonly #closeListeners = new Set<() => void>();
   readonly attachmentId: AttachmentId;
   readonly workspaceId: WorkspaceId;
-  sessionId: SessionId;
+  #target: SessionTarget;
+  #targetGuard: AgentInstanceGuard;
   #disposed = false;
 
   constructor(
-    host: RuntimeAttachmentHost,
+    owner: AttachmentOwner,
     attachmentId: AttachmentId,
-    sessionId: SessionId,
+    targetGuard: AgentInstanceGuard,
   ) {
-    this.#host = host;
+    this.#owner = owner;
     this.attachmentId = attachmentId;
-    this.workspaceId = host.workspaceId;
-    this.sessionId = sessionId;
+    this.workspaceId = owner.workspaceId;
+    this.#target = targetGuard.instance.target;
+    this.#targetGuard = targetGuard;
   }
 
-  dispatch(request: CanonicalRequest): Promise<CanonicalResponse> {
-    if (this.#disposed) {
-      return Promise.resolve({
-        ok: false,
-        error: { code: "disposed", message: "Attachment is disposed" },
-      });
-    }
-    return this.#host.dispatch(
+  get target(): SessionTarget {
+    return this.#target;
+  }
+
+  prepareDispatch(request: CanonicalRequest): PreparedDispatch {
+    if (this.#disposed) throw new Error("Attachment is disposed");
+    const operationGuard = this.#targetGuard.retain("dispatch");
+    const acceptedTarget = operationGuard.instance.target;
+    return this.#owner.prepareDispatch(
       {
         workspaceId: this.workspaceId,
         attachmentId: this.attachmentId,
-        sessionId: this.sessionId,
+        target: acceptedTarget,
+        agentInstanceGuard: operationGuard,
+        retarget: (target, openedManager) =>
+          this.#retargetAndGuard(target, openedManager, true),
       },
       request,
+      () => {
+        operationGuard.release();
+      },
     );
   }
 
   async retarget(target: SessionTarget): Promise<void> {
-    if (this.#disposed) throw new Error("Attachment is disposed");
-    // The current singleton switches the selected session. A failure (e.g. the
-    // agent is streaming) leaves the target unchanged.
-    const before = this.sessionId;
-    try {
-      await this.#host.retargetTo(target);
-    } catch (err) {
-      this.sessionId = before;
-      throw err;
-    }
-    this.sessionId = target.sessionId;
+    const guard = await this.#retargetAndGuard(target, undefined, false);
+    guard.release();
   }
 
-  dispose(): Promise<void> {
-    if (this.#disposed) return Promise.resolve();
+  onEvent(listener: (event: RuntimeEvent) => void): Disposable {
+    if (this.#disposed) throw new Error("Attachment is disposed");
+    this.#eventListeners.add(listener);
+    return disposable(() => this.#eventListeners.delete(listener));
+  }
+
+  onClose(listener: () => void): Disposable {
+    if (this.#disposed) {
+      listener();
+      return disposable(() => undefined);
+    }
+    this.#closeListeners.add(listener);
+    return disposable(() => this.#closeListeners.delete(listener));
+  }
+
+  deliver(event: RuntimeEvent): void {
+    if (this.#disposed) return;
+    for (const listener of this.#eventListeners) listener(event);
+  }
+
+  dispose(): void {
+    if (this.#disposed) return;
     this.#disposed = true;
-    this.#host.dropAttachment(this);
-    return Promise.resolve();
+    this.#owner.dropAttachment(this);
+    this.#targetGuard.release();
+    this.#eventListeners.clear();
+    for (const listener of this.#closeListeners) listener();
+    this.#closeListeners.clear();
+  }
+
+  [Symbol.dispose](): void {
+    this.dispose();
+  }
+
+  #isDisposed(): boolean {
+    return this.#disposed;
+  }
+
+  async #retargetAndGuard(
+    target: SessionTarget,
+    openedManager: SessionManager | undefined,
+    allowClosed: boolean,
+  ): Promise<AgentInstanceGuard> {
+    if (this.#disposed && !allowClosed) {
+      throw new Error("Attachment is disposed");
+    }
+    const next = await this.#owner.acquireAgentInstanceGuard(
+      target,
+      openedManager,
+      "attachment",
+    );
+    if (this.#isDisposed()) {
+      if (allowClosed) return next;
+      next.release();
+      throw new Error("Attachment is disposed");
+    }
+    const previous = this.#targetGuard;
+    this.#target = next.instance.target;
+    this.#targetGuard = next;
+    previous.release();
+    return next.retain("retarget-response");
   }
 }
 
@@ -729,7 +868,7 @@ function logChatContent(event: AgentEvent): void {
   }
 }
 
-/** Create one workspace runtime over host-provided ports. */
+/** Create one workspace runtime over host-provided dependencies. */
 export function createWorkspaceRuntime(
   opts: WorkspaceRuntimeOptions,
 ): WorkspaceRuntimeContract {
