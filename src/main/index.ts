@@ -120,7 +120,7 @@ async function openWorkspace(
   hostBag: DisposableBag,
   recents: RecentsStore,
   workspace: Workspace,
-  piProfileDir: string,
+  piAppDataDir: string,
 ): Promise<void> {
   // Raw IPC payloads spill to a per-run file under the state root. Path is
   // logged as `ipc_log_file` when armed.
@@ -130,7 +130,7 @@ async function openWorkspace(
   const runtime = createWorkspaceRuntime({
     workspaceId: toWorkspaceId(LocalWorkspaceId),
     workspace,
-    piProfileDir,
+    piAppDataDir,
     ...(fs.existsSync(apiModuleDir) && { apiModuleDir }),
     dependencies: {
       channelTransport: {
@@ -246,7 +246,7 @@ function applyWorkspaceMenu(
 function openPicker(
   hostBag: DisposableBag,
   recents: RecentsStore,
-  piProfileDir: string,
+  piAppDataDir: string,
 ): void {
   const pickerBag = hostBag.add(new DisposableBag());
   const win = openShellWindow(pickerBag, {
@@ -267,7 +267,7 @@ function openPicker(
         hostBag,
         recents,
         resolveWorkspace(target),
-        piProfileDir,
+        piAppDataDir,
       ).catch((thrown: unknown) => {
         const error =
           thrown instanceof Error ? thrown : new Error(String(thrown));
@@ -386,7 +386,7 @@ void app.whenReady().then(async () => {
   });
 
   const userDataDir = app.getPath("userData");
-  const piProfileDir = join(userDataDir, "pi");
+  const piAppDataDir = join(userDataDir, "pi");
   const recents = createRecentsStore(
     join(userDataDir, "recent-workspaces.json"),
   );
@@ -400,14 +400,14 @@ void app.whenReady().then(async () => {
       hostBag,
       recents,
       resolveWorkspace(envTarget),
-      piProfileDir,
+      piAppDataDir,
     );
     return;
   }
   const cwdWorkspace = resolveWorkspace();
   if (fs.existsSync(cwdWorkspace.manifestPath)) {
-    await openWorkspace(hostBag, recents, cwdWorkspace, piProfileDir);
+    await openWorkspace(hostBag, recents, cwdWorkspace, piAppDataDir);
     return;
   }
-  openPicker(hostBag, recents, piProfileDir);
+  openPicker(hostBag, recents, piAppDataDir);
 });

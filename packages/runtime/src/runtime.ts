@@ -97,8 +97,8 @@ export interface WorkspaceRuntimeOptions {
   workspaceId: WorkspaceId;
   /** Stable paths for state, the agent cwd, and the manifest. */
   workspace: Workspace;
-  /** Host-owned Pi profile shared across workspaces. */
-  piProfileDir: string;
+  /** Host-owned Pi app data directory shared across workspaces. */
+  piAppDataDir: string;
   /** On-disk dir of the `@uix/api` implementation feature imports resolve to. */
   apiModuleDir?: string;
   dependencies: WorkspaceRuntimeDependencies;
@@ -156,7 +156,7 @@ class WorkspaceRuntime
   constructor(opts: WorkspaceRuntimeOptions) {
     this.#workspaceId = opts.workspaceId;
     this.#workspace = opts.workspace;
-    const { workspace, piProfileDir, dependencies } = opts;
+    const { workspace, piAppDataDir, dependencies } = opts;
 
     const documents = createLocalDocumentStoreFactory(workspace.stateRoot);
     const workspaceManifest = this.#bag.add(
@@ -217,7 +217,7 @@ class WorkspaceRuntime
           agentPublisher.event(event);
         },
         workspace,
-        piProfileDir,
+        piAppDataDir,
         turnState,
         agentSystemPrompt,
         agentSkills,

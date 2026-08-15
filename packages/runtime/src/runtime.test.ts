@@ -219,14 +219,14 @@ describe("workspace runtime isolation", () => {
     const runtimeA = createWorkspaceRuntime({
       workspaceId: toWorkspaceId("ws-a"),
       workspace: workspaceA,
-      piProfileDir: join(workspaceA.stateRoot, ".pi"),
+      piAppDataDir: join(workspaceA.stateRoot, ".pi"),
       apiModuleDir,
       dependencies: transportsA.dependencies,
     });
     const runtimeB = createWorkspaceRuntime({
       workspaceId: toWorkspaceId("ws-b"),
       workspace: workspaceB,
-      piProfileDir: join(workspaceB.stateRoot, ".pi"),
+      piAppDataDir: join(workspaceB.stateRoot, ".pi"),
       apiModuleDir,
       dependencies: transportsB.dependencies,
     });

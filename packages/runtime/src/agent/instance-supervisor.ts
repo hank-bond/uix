@@ -26,11 +26,11 @@ export type AgentInstanceGuardSnapshot =
   readonly AgentInstanceGuardSnapshotEntry[];
 
 export interface AgentInstanceSupervisor extends AsyncDisposable {
-  /** Resolve or boot the target, then issue one guard on the accepted instance. */
+  /** Resolve or create the target, then issue one guard on the accepted instance. */
   acquire(
     target: SessionTarget,
     options?: {
-      readonly bootInstance?: () => Promise<AgentInstance>;
+      readonly createInstance?: () => Promise<AgentInstance>;
       readonly origin?: string;
     },
   ): Promise<AgentInstanceGuard>;
@@ -46,7 +46,7 @@ export interface AgentInstanceSupervisor extends AsyncDisposable {
 }
 
 export interface AgentInstanceSupervisorOptions {
-  readonly bootInstance: (target: SessionTarget) => Promise<AgentInstance>;
+  readonly createInstance: (target: SessionTarget) => Promise<AgentInstance>;
 }
 
 interface AgentInstanceSupervisionState {
@@ -61,7 +61,7 @@ export function createAgentInstanceSupervisor(
   opts: AgentInstanceSupervisorOptions,
 ): AgentInstanceSupervisor {
   const instances = new Map<SessionId, AgentInstanceSupervisionState>();
-  const inFlightBoots = new Map<
+  const inFlightCreations = new Map<
     SessionId,
     Promise<AgentInstanceSupervisionState>
   >();
@@ -150,17 +150,17 @@ export function createAgentInstanceSupervisor(
     };
   }
 
-  function getOrBoot(
+  function getOrCreate(
     target: SessionTarget,
-    bootInstance: () => Promise<AgentInstance> = () =>
-      opts.bootInstance(target),
+    createInstance: () => Promise<AgentInstance> = () =>
+      opts.createInstance(target),
   ): Promise<AgentInstanceSupervisionState> {
     const existing = instances.get(target.sessionId);
     if (existing && !existing.teardown) return Promise.resolve(existing);
-    const inFlight = inFlightBoots.get(target.sessionId);
+    const inFlight = inFlightCreations.get(target.sessionId);
     if (inFlight) return inFlight;
 
-    const boot = bootInstance()
+    const creation = createInstance()
       .then(async (instance) => {
         if (disposed) {
           try {
@@ -180,18 +180,18 @@ export function createAgentInstanceSupervisor(
         return managed;
       })
       .finally(() => {
-        if (inFlightBoots.get(target.sessionId) === boot) {
-          inFlightBoots.delete(target.sessionId);
+        if (inFlightCreations.get(target.sessionId) === creation) {
+          inFlightCreations.delete(target.sessionId);
         }
       });
-    inFlightBoots.set(target.sessionId, boot);
-    return boot;
+    inFlightCreations.set(target.sessionId, creation);
+    return creation;
   }
 
   async function acquire(
     target: SessionTarget,
     options?: {
-      readonly bootInstance?: () => Promise<AgentInstance>;
+      readonly createInstance?: () => Promise<AgentInstance>;
       readonly origin?: string;
     },
   ): Promise<AgentInstanceGuard> {
@@ -204,7 +204,7 @@ export function createAgentInstanceSupervisor(
     if (existing?.teardown) await existing.teardown;
     if (isDisposed()) throw new Error("Agent instance supervisor is disposed");
 
-    const state = await getOrBoot(target, options?.bootInstance);
+    const state = await getOrCreate(target, options?.createInstance);
     if (isDisposed()) throw new Error("Agent instance supervisor is disposed");
     return createGuard(target.sessionId, state, options?.origin ?? "acquire");
   }
@@ -213,9 +213,9 @@ export function createAgentInstanceSupervisor(
     if (disposal) return disposal;
     disposed = true;
     disposal = (async () => {
-      const pending = [...inFlightBoots.values()];
+      const pending = [...inFlightCreations.values()];
       await Promise.allSettled(pending);
-      inFlightBoots.clear();
+      inFlightCreations.clear();
 
       const live = [...instances.entries()];
       await Promise.allSettled(

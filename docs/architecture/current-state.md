@@ -71,7 +71,7 @@ UIX exposes no public arbitrary filesystem watcher. External manifest changes ta
 
 The main process owns one Pi `SessionManager` and a lazy `AgentSessionRuntime`. History and session summaries remain available before a live agent session starts.
 
-UIX stores sessions under the workspace state root. One application-owned Pi profile under Electron `userData` provides credentials, settings, models, and extension resources across workspaces.
+UIX stores sessions under the workspace state root. One Pi app data directory under Electron `userData` provides credentials, settings, models, and extension resources across workspaces.
 
 The driver creates Pi with built-in tools inactive. Manifest features therefore define the complete UIX-selected tool surface. Internal installers adapt live agent-facet registries into Pi.
 

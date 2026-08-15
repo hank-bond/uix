@@ -30,20 +30,21 @@ function fakeInstance(target: SessionTarget): {
 }
 
 describe("AgentInstanceSupervisor", () => {
-  it("shares one cold boot and issues independent guards", async () => {
+  it("shares one cold creation and issues independent guards", async () => {
     const target = { sessionId: toSessionId("session-1") };
-    const bootGate = deferred<AgentInstance>();
-    const bootInstance = vi.fn<AgentInstanceSupervisorOptions["bootInstance"]>(
-      () => bootGate.promise,
-    );
-    const supervisor = createAgentInstanceSupervisor({ bootInstance });
+    const creationGate = deferred<AgentInstance>();
+    const createInstance = vi.fn<
+      AgentInstanceSupervisorOptions["createInstance"]
+    >(() => creationGate.promise);
+    const supervisor = createAgentInstanceSupervisor({ createInstance });
 
     const first = supervisor.acquire(target, { origin: "attachment-a" });
     const second = supervisor.acquire(target, { origin: "attachment-b" });
-    expect(bootInstance).toHaveBeenCalledOnce();
+    expect(createInstance).toHaveBeenCalledOnce();
+    expect(supervisor.getGuardSnapshot()).toEqual([]);
 
     const fake = fakeInstance(target);
-    bootGate.resolve(fake.instance);
+    creationGate.resolve(fake.instance);
     const [guardA, guardB] = await Promise.all([first, second]);
     expect(guardA.instance).toBe(fake.instance);
     expect(guardB.instance).toBe(fake.instance);
@@ -64,7 +65,7 @@ describe("AgentInstanceSupervisor", () => {
     const target = { sessionId: toSessionId("session-1") };
     const fake = fakeInstance(target);
     const supervisor = createAgentInstanceSupervisor({
-      bootInstance: () => Promise.resolve(fake.instance),
+      createInstance: () => Promise.resolve(fake.instance),
     });
     const attachment = await supervisor.acquire(target, {
       origin: "attachment",
@@ -90,7 +91,7 @@ describe("AgentInstanceSupervisor", () => {
     const fake = fakeInstance(target);
     fake.dispose.mockReturnValue(teardownGate.promise);
     const supervisor = createAgentInstanceSupervisor({
-      bootInstance: () => Promise.resolve(fake.instance),
+      createInstance: () => Promise.resolve(fake.instance),
     });
     const guard = await supervisor.acquire(target);
 
@@ -109,28 +110,28 @@ describe("AgentInstanceSupervisor", () => {
     expect(drained).toBe(true);
   });
 
-  it("waits for admitted teardown before booting a fresh instance", async () => {
+  it("waits for admitted teardown before creating a fresh instance", async () => {
     const target = { sessionId: toSessionId("session-1") };
     const teardownGate = deferred<undefined>();
     const first = fakeInstance(target);
     const second = fakeInstance(target);
     first.dispose.mockReturnValue(teardownGate.promise);
-    const bootInstance = vi
-      .fn<AgentInstanceSupervisorOptions["bootInstance"]>()
+    const createInstance = vi
+      .fn<AgentInstanceSupervisorOptions["createInstance"]>()
       .mockResolvedValueOnce(first.instance)
       .mockResolvedValueOnce(second.instance);
-    const supervisor = createAgentInstanceSupervisor({ bootInstance });
+    const supervisor = createAgentInstanceSupervisor({ createInstance });
     const oldGuard = await supervisor.acquire(target);
     oldGuard.release();
 
     const acquisition = supervisor.acquire(target);
     await Promise.resolve();
-    expect(bootInstance).toHaveBeenCalledOnce();
+    expect(createInstance).toHaveBeenCalledOnce();
     teardownGate.resolve(undefined);
 
     const newGuard = await acquisition;
     expect(newGuard.instance).toBe(second.instance);
-    expect(bootInstance).toHaveBeenCalledTimes(2);
+    expect(createInstance).toHaveBeenCalledTimes(2);
     newGuard.release();
     await supervisor.dispose();
   });
@@ -143,7 +144,7 @@ describe("AgentInstanceSupervisor", () => {
       [b.sessionId, fakeInstance(b)],
     ]);
     const supervisor = createAgentInstanceSupervisor({
-      bootInstance: (target) => {
+      createInstance: (target) => {
         const found = instances.get(target.sessionId);
         if (!found) throw new Error(`Unexpected session ${target.sessionId}`);
         return Promise.resolve(found.instance);
@@ -167,25 +168,25 @@ describe("AgentInstanceSupervisor", () => {
     await supervisor.dispose();
   });
 
-  it("uses an acquisition-provided boot only for a cold target", async () => {
+  it("uses an acquisition-provided creation only for a cold target", async () => {
     const target = { sessionId: toSessionId("session-1") };
     const fallback = fakeInstance(target);
     const provided = fakeInstance(target);
-    const bootInstance = vi.fn(() => Promise.resolve(fallback.instance));
-    const providedBoot = vi.fn(() => Promise.resolve(provided.instance));
-    const supervisor = createAgentInstanceSupervisor({ bootInstance });
+    const createInstance = vi.fn(() => Promise.resolve(fallback.instance));
+    const providedCreation = vi.fn(() => Promise.resolve(provided.instance));
+    const supervisor = createAgentInstanceSupervisor({ createInstance });
 
     const first = await supervisor.acquire(target, {
-      bootInstance: providedBoot,
+      createInstance: providedCreation,
     });
     const second = await supervisor.acquire(target, {
-      bootInstance: providedBoot,
+      createInstance: providedCreation,
     });
 
     expect(first.instance).toBe(provided.instance);
     expect(second.instance).toBe(provided.instance);
-    expect(providedBoot).toHaveBeenCalledOnce();
-    expect(bootInstance).not.toHaveBeenCalled();
+    expect(providedCreation).toHaveBeenCalledOnce();
+    expect(createInstance).not.toHaveBeenCalled();
     first.release();
     second.release();
     await supervisor.dispose();
@@ -195,31 +196,31 @@ describe("AgentInstanceSupervisor", () => {
     const target = { sessionId: toSessionId("session-1") };
     const fake = fakeInstance(target);
     fake.dispose.mockRejectedValue(new Error("teardown failed"));
-    const bootInstance = vi.fn(() => Promise.resolve(fake.instance));
-    const supervisor = createAgentInstanceSupervisor({ bootInstance });
+    const createInstance = vi.fn(() => Promise.resolve(fake.instance));
+    const supervisor = createAgentInstanceSupervisor({ createInstance });
     const guard = await supervisor.acquire(target);
 
     guard.release();
 
     await expect(supervisor.acquire(target)).rejects.toThrow("teardown failed");
-    expect(bootInstance).toHaveBeenCalledOnce();
+    expect(createInstance).toHaveBeenCalledOnce();
     await expect(supervisor.dispose()).rejects.toThrow(
       "One or more agent instance teardowns failed",
     );
   });
 
-  it("observes disposal failure from a boot that finishes during shutdown", async () => {
+  it("observes disposal failure from creation during shutdown", async () => {
     const target = { sessionId: toSessionId("session-1") };
-    const bootGate = deferred<AgentInstance>();
+    const creationGate = deferred<AgentInstance>();
     const fake = fakeInstance(target);
     fake.dispose.mockRejectedValue(new Error("late teardown failed"));
     const supervisor = createAgentInstanceSupervisor({
-      bootInstance: () => bootGate.promise,
+      createInstance: () => creationGate.promise,
     });
     const acquisition = supervisor.acquire(target);
     const disposal = supervisor.dispose();
 
-    bootGate.resolve(fake.instance);
+    creationGate.resolve(fake.instance);
 
     await expect(acquisition).rejects.toThrow("late teardown failed");
     await expect(disposal).rejects.toThrow(
@@ -227,25 +228,25 @@ describe("AgentInstanceSupervisor", () => {
     );
   });
 
-  it("retries a failed boot", async () => {
+  it("retries a failed creation", async () => {
     const target = { sessionId: toSessionId("session-1") };
     const fake = fakeInstance(target);
-    const bootInstance = vi
-      .fn<AgentInstanceSupervisorOptions["bootInstance"]>()
-      .mockRejectedValueOnce(new Error("boot failed"))
+    const createInstance = vi
+      .fn<AgentInstanceSupervisorOptions["createInstance"]>()
+      .mockRejectedValueOnce(new Error("creation failed"))
       .mockResolvedValueOnce(fake.instance);
-    const supervisor = createAgentInstanceSupervisor({ bootInstance });
+    const supervisor = createAgentInstanceSupervisor({ createInstance });
 
-    await expect(supervisor.acquire(target)).rejects.toThrow("boot failed");
+    await expect(supervisor.acquire(target)).rejects.toThrow("creation failed");
     const guard = await supervisor.acquire(target);
     guard.release();
     await supervisor.dispose();
   });
 
   it("rejects branch-bearing targets until session coordination exists", async () => {
-    const bootInstance =
-      vi.fn<AgentInstanceSupervisorOptions["bootInstance"]>();
-    const supervisor = createAgentInstanceSupervisor({ bootInstance });
+    const createInstance =
+      vi.fn<AgentInstanceSupervisorOptions["createInstance"]>();
+    const supervisor = createAgentInstanceSupervisor({ createInstance });
 
     await expect(
       supervisor.acquire({
@@ -253,7 +254,7 @@ describe("AgentInstanceSupervisor", () => {
         branchId: toBranchId("branch-1"),
       }),
     ).rejects.toThrow("Branch session targets are not supported");
-    expect(bootInstance).not.toHaveBeenCalled();
+    expect(createInstance).not.toHaveBeenCalled();
     await supervisor.dispose();
   });
 
@@ -261,7 +262,7 @@ describe("AgentInstanceSupervisor", () => {
     const target = { sessionId: toSessionId("session-1") };
     const fake = fakeInstance(target);
     const supervisor = createAgentInstanceSupervisor({
-      bootInstance: () => Promise.resolve(fake.instance),
+      createInstance: () => Promise.resolve(fake.instance),
     });
     const guard = await supervisor.acquire(target);
     const disposal = supervisor.dispose();

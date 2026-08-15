@@ -19,14 +19,15 @@ The workspace runtime keeps the accepted feature composition, settings, stores, 
 The lifecycle vocabulary is settled:
 
 - `attach` establishes a connection's owned, retargetable handle on an agent instance.
-- `boot` is the discrete provisioning step: when no instance exists for the target, the runtime boots one first, then the connection attaches. Booting the instance does not boot the Pi runtime.
+- `create` constructs an agent instance with its private manager and restored state when none exists for the target. The connection then attaches to it.
+- `boot` starts the created instance's lazy Pi runtime when execution first requires it.
 - `bind` remains creation-time wiring only and does not describe the connection-to-instance relationship.
-- The `AgentInstanceSupervisor` owns keyed instance identity, single-flight boot, guard admission, lifetime policy, and teardown. It is not on the ordinary agent-operation hot path.
+- The `AgentInstanceSupervisor` owns keyed instance identity, single-flight creation, guard admission, lifetime policy, and teardown. It is not on the ordinary agent-operation hot path.
 - An `AgentInstanceGuard` is a disposable teardown veto. Attachments, turns, background work, reload, and any other asynchronous instance use hold guards for their complete use. A guard can provide internal access to its instance but does not become an operational handle.
 - A live guard can synchronously retain another independently releasable guard on the same managed instance. Retaining after release fails, and releasing either guard does not affect the other.
 - Releasing one or every guard removes protection without promising teardown. Zero guards makes an instance eligible for supervisor policy; the first policy tears down an eligible idle instance immediately.
 - A running turn owns a guard until its final safe boundary. The turn therefore explains why a disconnected instance remains live instead of requiring the final attachment release to await `agent_end`.
-- Concurrent attaches share one instance boot through single-flight.
+- Concurrent attaches share one instance creation through single-flight.
 
 The canonical URL names one attachment's target. A browser workspace-only route resolves the newest valid session and then replaces itself with that canonical URL. Electron restores each local window or tab's canonical target from its own host profile. Neither path creates a workspace-global active session.
 
@@ -49,3 +50,7 @@ Clarified that an agent instance owns one Pi execution, but its Pi runtime can r
 ### 2026-08-14: guards make instance use explicit
 
 Replaced the retention-token model with disposable `AgentInstanceGuard` capabilities issued by an `AgentInstanceSupervisor`. The supervisor remains the sole instance owner. Every asynchronous use holds a guard, and the running turn itself holds one through its safe boundary. Releasing a guard is immediate and only removes one teardown veto; zero guards permits supervisor policy but does not promise disposal. This makes attachments, detached turns, reload, and future background work use one visible lifetime rule.
+
+### 2026-08-14: creation precedes Pi runtime boot
+
+Refined the earlier boot term. Agent instance creation establishes the manager and restored state under the supervisor's exclusive in-flight ownership. The instance boots its Pi runtime only when execution first needs it. A guard is issued before the created instance reaches any consumer.

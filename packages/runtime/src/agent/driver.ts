@@ -152,8 +152,8 @@ export interface AgentDriverOptions {
   agentContext?: AgentContextRegistry;
   /** State root (pins the session dir) + agent cwd. */
   workspace: Workspace;
-  /** Host-owned Pi profile shared across workspaces. */
-  piProfileDir: string;
+  /** Host-owned Pi app data directory shared across workspaces. */
+  piAppDataDir: string;
   /**
    * Workspace `agent` settings namespace. Holds model defaults and favorites.
    * Without a default, UIX passes no model and Pi's own resolution applies,
@@ -249,7 +249,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
 
     const creation: Promise<AgentSessionServices> = createServices(
       opts.workspace.agentCwd,
-      opts.piProfileDir,
+      opts.piAppDataDir,
     )
       .then((services) => {
         if (disposed) throw new Error("Agent driver is disposed");
@@ -474,7 +474,7 @@ export function createAgentDriver(opts: AgentDriverOptions): AgentDriver {
 
     const openedRuntime = await sdk.createAgentSessionRuntime(createRuntime, {
       cwd: opts.workspace.agentCwd,
-      agentDir: opts.piProfileDir,
+      agentDir: opts.piAppDataDir,
       sessionManager: initialManager,
     });
     if (disposed) {

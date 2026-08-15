@@ -77,7 +77,7 @@ describe("AgentInstance", () => {
     expect(instance.target).toBe(harness.target);
     expect(instance.manager).toBe(harness.manager);
 
-    await expect(instance.getRuntime()).resolves.toBe(harness.runtime);
+    await expect(instance.bootRuntime()).resolves.toBe(harness.runtime);
     expect(harness.createRuntime).toHaveBeenCalledWith(
       harness.manager,
       instance.state,
@@ -116,8 +116,8 @@ describe("AgentInstance", () => {
       state: { emit: () => undefined, cwd: "/workspace" },
     });
 
-    const first = instance.getRuntime();
-    const second = instance.getRuntime();
+    const first = instance.bootRuntime();
+    const second = instance.bootRuntime();
     expect(second).toBe(first);
     expect(harness.createRuntime).toHaveBeenCalledOnce();
 
@@ -137,8 +137,8 @@ describe("AgentInstance", () => {
       state: { emit: () => undefined, cwd: "/workspace" },
     });
 
-    await expect(instance.getRuntime()).rejects.toThrow("runtime failed");
-    await expect(instance.getRuntime()).resolves.toBe(harness.runtime);
+    await expect(instance.bootRuntime()).rejects.toThrow("runtime failed");
+    await expect(instance.bootRuntime()).resolves.toBe(harness.runtime);
     expect(harness.createRuntime).toHaveBeenCalledTimes(2);
   });
 
@@ -164,7 +164,7 @@ describe("AgentInstance", () => {
       createRuntime: harness.createRuntime,
       state: { emit: () => undefined, cwd: "/workspace" },
     });
-    await instance.getRuntime();
+    await instance.bootRuntime();
 
     await expect(instance.reloadRuntimeIfActive()).resolves.toBe(true);
     expect(harness.sessionReload).toHaveBeenCalledOnce();
@@ -184,7 +184,7 @@ describe("AgentInstance", () => {
       state: { emit: () => undefined, cwd: "/workspace" },
     });
 
-    void instance.getRuntime();
+    void instance.bootRuntime();
     const reload = instance.reloadRuntimeIfActive();
     resolveRuntime(harness.runtime);
 
@@ -207,7 +207,7 @@ describe("AgentInstance", () => {
       state: { emit: () => undefined, cwd: "/workspace" },
     });
 
-    const boot = instance.getRuntime();
+    const boot = instance.bootRuntime();
     const disposal = instance.dispose();
     resolveRuntime(harness.runtime);
 
@@ -224,7 +224,7 @@ describe("AgentInstance", () => {
       createRuntime: harness.createRuntime,
       state: { emit: () => undefined, cwd: "/workspace" },
     });
-    await instance.getRuntime();
+    await instance.bootRuntime();
 
     await instance.dispose();
 
@@ -241,12 +241,12 @@ describe("AgentInstance", () => {
       commitFinalTurnState: () => Promise.reject(new Error("commit failed")),
       state: { emit: () => undefined, cwd: "/workspace" },
     });
-    await instance.getRuntime();
+    await instance.bootRuntime();
 
     await expect(instance.dispose()).rejects.toThrow("disposal failed");
 
     expect(harness.runtimeDispose).toHaveBeenCalledOnce();
-    await expect(instance.getRuntime()).rejects.toThrow("disposed");
+    await expect(instance.bootRuntime()).rejects.toThrow("disposed");
   });
 
   it("commits final turn state before disposing instance state", async () => {
@@ -280,11 +280,11 @@ describe("AgentInstance", () => {
       createRuntime: harness.createRuntime,
       state: { emit: () => undefined, cwd: "/workspace" },
     });
-    await instance.getRuntime();
+    await instance.bootRuntime();
 
     await Promise.all([instance.dispose(), instance.dispose()]);
     expect(harness.runtimeDispose).toHaveBeenCalledOnce();
-    await expect(instance.getRuntime()).rejects.toThrow("disposed");
+    await expect(instance.bootRuntime()).rejects.toThrow("disposed");
     expect(() => {
       instance.state.setCurrentModel(undefined);
     }).toThrow("disposed");

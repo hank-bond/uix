@@ -417,7 +417,7 @@ function createDriver(
       }
     },
     workspace,
-    piProfileDir: "/tmp/pi-profile",
+    piAppDataDir: "/tmp/pi-app-data",
     ...(settings && { agentSettings: settings }),
     ...(turnState && { turnState }),
     ...(sessionSettings && { sessionSettings }),
@@ -503,7 +503,7 @@ describe("driver model service (pre-session)", () => {
     expect(sdk.state.session).toBeUndefined();
     expect(sdk.state.servicesLoads).toBe(1);
     expect(sdk.state.servicesOptions).toEqual([
-      { cwd: "/tmp/ws", agentDir: "/tmp/pi-profile" },
+      { cwd: "/tmp/ws", agentDir: "/tmp/pi-app-data" },
     ]);
   });
 
@@ -610,8 +610,8 @@ describe("driver model service (pre-session)", () => {
     await expect(driver.reloadPiResources()).resolves.toBe(true);
     expect(sdk.state.servicesLoads).toBe(2);
     expect(sdk.state.servicesOptions).toEqual([
-      { cwd: "/tmp/ws", agentDir: "/tmp/pi-profile" },
-      { cwd: "/tmp/ws", agentDir: "/tmp/pi-profile" },
+      { cwd: "/tmp/ws", agentDir: "/tmp/pi-app-data" },
+      { cwd: "/tmp/ws", agentDir: "/tmp/pi-app-data" },
     ]);
     expect(sdk.state.session).toBeUndefined();
   });
@@ -1414,12 +1414,12 @@ describe("driver model service (session open)", () => {
     expect(sdk.state.lastCreateOptions?.["model"]).toEqual(openai);
     expect(sdk.state.servicesLoads).toBe(1);
     expect(sdk.state.servicesOptions).toEqual([
-      { cwd: "/tmp/ws", agentDir: "/tmp/pi-profile" },
+      { cwd: "/tmp/ws", agentDir: "/tmp/pi-app-data" },
     ]);
     expect(sdk.state.runtimeCreates).toBe(1);
     expect(sdk.state.runtimeOptions).toMatchObject({
       cwd: "/tmp/ws",
-      agentDir: "/tmp/pi-profile",
+      agentDir: "/tmp/pi-app-data",
       sessionManager: sdk.manager,
     });
     expect(driver.getStatus()).toEqual({
@@ -1492,7 +1492,7 @@ describe("driver model service (live session)", () => {
     expect(session.reload).toHaveBeenCalledOnce();
     expect(sdk.state.servicesLoads).toBe(1);
     expect(sdk.state.servicesOptions).toEqual([
-      { cwd: "/tmp/ws", agentDir: "/tmp/pi-profile" },
+      { cwd: "/tmp/ws", agentDir: "/tmp/pi-app-data" },
     ]);
   });
 

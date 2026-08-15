@@ -19,7 +19,7 @@ export interface AgentInstance {
   /** Begin the instance's only active turn, or reject when one is already active. */
   beginTurn(): Disposable;
   /** Boot the Pi runtime on first use. Concurrent callers share one attempt. */
-  getRuntime(): Promise<AgentSessionRuntime>;
+  bootRuntime(): Promise<AgentSessionRuntime>;
   /** Reload an active or already-booting runtime without starting an unused one. */
   reloadRuntimeIfActive(): Promise<boolean>;
   /** Finalize branch work and dispose the Pi runtime and instance state. */
@@ -51,7 +51,7 @@ export function createAgentInstance(opts: AgentInstanceOptions): AgentInstance {
   let turnActive = false;
   let disposed = false;
 
-  function getRuntime(): Promise<AgentSessionRuntime> {
+  function bootRuntime(): Promise<AgentSessionRuntime> {
     if (disposed) {
       return Promise.reject(new Error("Agent instance is disposed"));
     }
@@ -123,7 +123,7 @@ export function createAgentInstance(opts: AgentInstanceOptions): AgentInstance {
         },
       };
     },
-    getRuntime,
+    bootRuntime,
     async reloadRuntimeIfActive() {
       if (disposed) throw new Error("Agent instance is disposed");
       const activeRuntime = runtime ?? (await inFlightRuntimeBoot);

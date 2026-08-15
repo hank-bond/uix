@@ -62,7 +62,7 @@ Every supervisor follows one ownership and teardown protocol. The supervisor is 
 
 Apply these practices to every supervised child lifecycle:
 
-- Acquisition resolves or single-flights boot by key, then returns one independent guard.
+- Acquisition resolves or single-flights child creation by key, then returns one independent guard.
 - Every asynchronous use holds a guard through its final safe boundary. A lexical use releases with `using` or `finally`. A longer use transfers its guard into one named disposable owner.
 - Every teardown trigger joins one idempotent, single-flight teardown. Zero guards admits lifetime policy but does not itself promise teardown.
 - Teardown waits for policy admission, invokes child disposal, removes only the exact supervised generation that completed, and observes failures before admitting a replacement.
