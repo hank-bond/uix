@@ -15,7 +15,6 @@ These questions remain unresolved. A blocking question joins a milestone, then g
 - **Slot taxonomy:** What named slots should the host shell expose? Balance a useful minimum against premature layout commitments.
 - **Feature reload during an agent turn:** If reload replaces active tools, should UIX delay replacement, abort the turn, or let the turn finish?
 - **Feature state across concurrent agent instances:** The workspace owns one accepted feature composition. Each agent instance owns its state at its session-branch viewpoint: turn state, agent context, and working buffers. Settle the instantiation API first.
-- **Fallback session:** Canonical URLs identify each attachment's target, but the workspace-only route and launcher need a fallback session choice. Name and persist that convenience without recreating a global active session.
 
 ## Future apps (not substrate, but shaping it)
 

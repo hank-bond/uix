@@ -4,9 +4,9 @@ summary: "The Electron host composition opens one workspace runtime over Electro
 
 # Main process (Electron host)
 
-`index.ts` is the host composition root. It constructs exactly one workspace runtime from `@uix/runtime` over Electron transports: the IPC channel transport, the `uix-resource` protocol transport, and `shell.openExternal`. It owns the shell chrome around that runtime: windows, the workspace menu, the start picker, recents, and the reload IPC channel. The workspace substrate itself lives in `@uix/runtime`.
+`index.ts` is the host composition root. It constructs exactly one workspace runtime from `@uix/runtime` with the `uix-resource` protocol adapter and `shell.openExternal` dependency. It owns the shell chrome around that runtime: windows, the workspace menu, the start picker, recents, and Electron IPC. Canonical requests enter through the window's attachment, while scoped runtime events leave through its event subscription. The workspace substrate itself lives in `@uix/runtime`.
 
-Cleanup-producing bindings join explicit application, window, or picker lifetimes through `lifecycle.ts` (the host-neutral helpers re-exported from `@uix/runtime/lifecycle`). IPC remains a transport boundary: `ipc.ts` records every crossing and the channel registry inside the runtime binds resolved contributions to the transport provided here.
+Cleanup-producing bindings join explicit application, window, or picker lifetimes through `lifecycle.ts` (the host-neutral helpers re-exported from `@uix/runtime/lifecycle`). `ipc.ts` records every physical crossing. This one-window composition creates its fallback attachment directly from the runtime and does not use the shared `WorkspaceSupervisor`.
 
 ## Contents
 

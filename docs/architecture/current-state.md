@@ -27,15 +27,15 @@ Each activation owns one provisional `DisposableBag`. A failed feature loses eve
 
 Manifest and workspace-setting candidates validate before replacing the live generation. A malformed reload preserves the active composition. A malformed startup candidate logs an error and opens without features.
 
-Reload commits settled feature turn state, replaces the feature composition, reloads initialized Pi resources, and restores selected-branch state. Surface publication follows restoration. Requests serialize through `WorkspaceReloadCoordinator`.
+Reload commits settled feature turn state from every live agent instance before replacing the feature composition. It then reloads initialized Pi resources and restores each live instance's branch state. Surface publication follows restoration. Requests serialize through `WorkspaceReloadCoordinator`.
 
 ## Channels and resources
 
 A shared `ChannelContract` defines request, response, and event schemas. Backend code adds handlers with `withHandlers()` and obtains contract-bound event publishers through the injected feature context.
 
-`ChannelRegistry` resolves owner-scoped ids and validates requests and responses at the main boundary. Workspace clients derive typed request and event methods. Event clients validate incoming event payloads.
+Each workspace runtime owns one `ChannelRegistry` that resolves owner-scoped ids and validates requests and responses. A runtime-created attachment prepares each canonical request with immutable guarded context and the registry entry's log policy. The Electron host records the physical crossing and invokes that prepared dispatch. Workspace clients derive typed request and event methods, and event clients validate incoming payloads.
 
-Electron Inter-Process Communication (IPC) is the implemented channel transport. Canvas iframe writeback still uses a feature-owned `postMessage` shim before entering typed channels. A general iframe channel adapter does not exist.
+Electron Inter-Process Communication (IPC) is the implemented physical channel transport. Runtime events have workspace or session scope. Only matching attachments receive them. Canvas iframe writeback still uses a feature-owned `postMessage` shim before entering typed channels. A general iframe channel adapter does not exist.
 
 The `uix-resource://` protocol dispatches normalized feature resource routes. Surface bundles and files use a reserved substrate origin. Canvas documents use a feature-isolated resource origin.
 
@@ -47,7 +47,7 @@ Esbuild bundles surface entry modules on demand. Virtual shared modules preserve
 
 The mount path adopts each surface stylesheet inside a structural `@scope`. Name-global CSS declarations still require feature-prefixed names.
 
-The workspace renderer also owns actions, keybinding synchronization, and selected-session projections. Feature surfaces register action trees through scoped React context. Consumers receive a serializable flat catalog and id-based invocation.
+The workspace renderer also owns actions, keybinding synchronization, and the active attachment-target session projection. Feature surfaces register action trees through scoped React context. Consumers receive a serializable flat catalog and id-based invocation.
 
 Main persists portable keybindings under `settings.keybindings`. The renderer resolves platform gestures, identifies conflicts, and dispatches only confirmed unique bindings. A default command-palette feature has not landed.
 
@@ -57,11 +57,11 @@ Main persists portable keybindings under `settings.keybindings`. The renderer re
 
 `SettingsRegistry` owns live complete scopes. Feature definitions declare one TypeBox object or record schema plus an optional whole-object default. Defaults materialize into persisted state instead of remaining live overlays.
 
-The substrate registers `agent`, `session`, and `keybindings` workspace namespaces. Features receive only their bound `ctx.settings` handle. Surfaces receive a feature-bound settings client.
+The substrate registers `agent` and `keybindings` workspace namespaces. Features receive only their bound `ctx.settings` handle. Surfaces receive a feature-bound settings client.
 
 `DocumentStore` persists current document bytes and immutable versions under stable ids. `CanvasDocumentBuffer` adds Canvas normalization and anchored working projections without becoming durable authority.
 
-Turn-state contributions define named schema-bound cells. The coordinator commits changed complete snapshots at run boundaries and restores selected-branch values on startup, session replacement, and reload.
+Turn-state contributions define named schema-bound cells. Each agent instance owns a coordinator for its session viewpoint. It restores branch values before the instance is admitted, commits changed complete snapshots at run boundaries and teardown, and participates in guarded workspace reload. Contribution callbacks and feature buffers remain workspace-scoped. The runtime has no per-instance instantiation boundary for them.
 
 Agent-context contributions materialize hidden model-visible sections. One assembler combines active sections into a `uix.state` message and provides a generated vocabulary section to the system prompt.
 
@@ -69,13 +69,15 @@ UIX exposes no public arbitrary filesystem watcher. External manifest changes ta
 
 ## Agent runtime
 
-The main process owns one Pi `SessionManager` and a lazy `AgentSessionRuntime`. History and session summaries remain available before a live agent session starts.
+Each workspace runtime owns one `WorkspaceAgentRuntime`. Its `AgentInstanceSupervisor` maps session ids to guarded primary agent instances with single-flight creation and immediate zero-guard teardown policy. Each instance owns an independent Pi `SessionManager`, branch-restored state, and at most one lazily booted `AgentSessionRuntime`. History and session summaries remain available before Pi execution starts.
 
-UIX stores sessions under the workspace state root. One Pi app data directory under Electron `userData` provides credentials, settings, models, and extension resources across workspaces.
+Attachments hold replaceable target guards. Prepared requests, running turns, reload, and teardown-sensitive work hold independent guards for their complete asynchronous use. Several attachments to one session share its instance, while different sessions remain independently supervised.
 
-The driver creates Pi with built-in tools inactive. Manifest features therefore define the complete UIX-selected tool surface. Internal installers adapt live agent-facet registries into Pi.
+UIX stores sessions under the workspace state root. One application-owned Pi app data directory under Electron `userData` provides credentials, settings, models, and extension resources across workspaces.
 
-The substrate agent contract handles prompts, history, recent summaries, session replacement, titles, model selection, favorites, provider authentication, and live events. Chat consumes that contract as an ordinary feature.
+Each instance creates Pi with built-in tools inactive. Manifest features therefore define the complete UIX-selected tool surface. Internal installers adapt live agent-facet registries into Pi.
+
+The substrate agent contract handles prompts, history, recent summaries, attachment retargeting, titles, model selection, favorites, provider authentication, and session-scoped live events. Chat consumes that contract as an ordinary feature.
 
 Pi's `ModelRuntime` remains authoritative for providers, models, and authentication interactions. UIX projects available models and provider-owned login methods without persisting credentials itself.
 

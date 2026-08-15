@@ -5,7 +5,7 @@ read_when: "Implementing the workspace runtime, or changing the boundary the hos
 
 # Workspace runtime source map
 
-This package owns the runtime-facing contract and its implementation. An in-memory proof defined the smallest executable shape. The real substrate then moved out of `src/main` behind it. The runtime constructor (`runtime.ts`) composes documents, manifest store, workspace settings, the facet registries, the selected-session agent driver, the surface pipeline, and the reload coordinator. The host imports this package and provides the runtime's dependencies as adapters. Nothing here imports a concrete host, and the envelope carries no transport or tenancy fields.
+This package owns the runtime-facing contract and its implementation. An in-memory proof defined the smallest executable shape. The real substrate then moved out of `src/main` behind it. The runtime constructor (`runtime.ts`) composes documents, manifest store, workspace settings, facet registries, one workspace agent runtime, unified attachments, the surface pipeline, and the reload coordinator. The host imports this package and provides the runtime's dependencies as adapters. Nothing here imports a concrete host, and the envelope carries no transport or tenancy fields.
 
 ## Contents
 
@@ -24,10 +24,10 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 
 - **[agent-skill-registry.ts](./agent-skill-registry.ts)** Assembles feature-provided Pi skill paths and provides them when Pi discovers runtime resources.
 - **[agent-system-prompt-registry.ts](./agent-system-prompt-registry.ts)** Assembles each feature's system-prompt section in workspace order for Pi.
-- **[channel-registry.ts](./channel-registry.ts)** Holds the workspace's canonical channel table and routes requests and events with validation at the boundary.
-- **[dispatch.ts](./dispatch.ts)** The canonical channel request/response envelope and host-stamped attachment context.
+- **[channel-registry.ts](./channel-registry.ts)** Owns one workspace's canonical channel table, prepared dispatches, and typed event publication.
+- **[dispatch.ts](./dispatch.ts)** Canonical request preparation and the attachment-stamped dispatch context.
 - **[document-store.ts](./document-store.ts)** Persists each document's current content and immutable snapshots under stable namespace and document IDs.
-- **[events.ts](./events.ts)** Explicitly scoped runtime events: workspace or durable-session delivery.
+- **[events.ts](./events.ts)** Explicitly scoped canonical runtime events for host-selected delivery.
 - **[index.ts](./index.ts)** The @uix/runtime public facade re-exporting the workspace-runtime contract and its factory.
 - **[lifecycle.ts](./lifecycle.ts)** Provides disposable helpers that clean up component resources with their owners.
 - **[log.ts](./log.ts)** Creates main-process loggers that label messages by component and choose readable or JSON output for the environment.
