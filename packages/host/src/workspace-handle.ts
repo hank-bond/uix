@@ -1,32 +1,56 @@
-// The host-facing WorkspaceHandle: wraps one in-process runtime and routes scoped events to matching attachments.
-//
-// Nothing here assumes one workspace per process or a globally selected
-// session. Session choice lives on each attachment.
+// Private supervised-workspace ownership and its narrow public handle.
 
 import type {
+  Attachment,
+  CreatedAttachment,
+  EventScope,
   RuntimeEvent,
   SessionTarget,
   WorkspaceId,
   WorkspaceRuntime,
 } from "@uix/runtime";
-import type { EventScope } from "@uix/runtime";
 
-import { Attachment } from "./attachment";
+interface WorkspaceHandleOwner {
+  readonly workspaceId: WorkspaceId;
+  createAttachment(target: SessionTarget): Promise<Attachment>;
+}
 
-/**
- * The host-facing workspace handle: wraps one in-process runtime and routes
- * scoped events to matching attachments. A supervisor holds several handles
- * in one process.
- */
+/** Narrow host-facing capability for one supervised workspace. */
 export class WorkspaceHandle {
+  readonly #owner: WorkspaceHandleOwner;
+
+  constructor(owner: WorkspaceHandleOwner) {
+    this.#owner = owner;
+  }
+
+  get workspaceId(): WorkspaceId {
+    return this.#owner.workspaceId;
+  }
+
+  createAttachment(target: SessionTarget): Promise<Attachment> {
+    return this.#owner.createAttachment(target);
+  }
+}
+
+interface DeliveryRecord {
+  readonly attachment: Attachment;
+  readonly deliver: CreatedAttachment["deliver"];
+  readonly closeSubscription: Disposable;
+}
+
+/** Supervisor-private parent lifetime for one workspace runtime and its attachments. */
+export class SupervisedWorkspace implements WorkspaceHandleOwner {
   readonly #runtime: WorkspaceRuntime;
-  readonly #attachments = new Set<Attachment>();
-  #subscription: Disposable | undefined;
+  readonly #handle: WorkspaceHandle;
+  readonly #attachments = new Map<string, DeliveryRecord>();
+  #runtimeSubscription: Disposable | undefined;
+  #disposal: Promise<void> | undefined;
   #disposed = false;
 
   constructor(runtime: WorkspaceRuntime) {
     this.#runtime = runtime;
-    this.#subscription = runtime.onEvent((event) => {
+    this.#handle = new WorkspaceHandle(this);
+    this.#runtimeSubscription = runtime.onEvent((event) => {
       this.#route(event);
     });
   }
@@ -35,30 +59,59 @@ export class WorkspaceHandle {
     return this.#runtime.workspaceId;
   }
 
+  get handle(): WorkspaceHandle {
+    return this.#handle;
+  }
+
   async createAttachment(target: SessionTarget): Promise<Attachment> {
-    if (this.#disposed) throw new Error("Workspace handle is disposed");
-    const inner = await this.#runtime.createAttachment(target);
-    const attachment = new Attachment(inner);
-    this.#attachments.add(attachment);
+    if (this.#disposed) throw new Error("Workspace is disposed");
+    const created = await this.#runtime.createAttachment(target);
+    const { attachment } = created;
+    if (this.#isDisposed()) {
+      attachment.dispose();
+      throw new Error("Workspace is disposed");
+    }
+    const closeSubscription = attachment.onClose(() => {
+      const record = this.#attachments.get(attachment.attachmentId);
+      if (record?.attachment !== attachment) return;
+      this.#attachments.delete(attachment.attachmentId);
+      record.closeSubscription[Symbol.dispose]();
+    });
+    this.#attachments.set(attachment.attachmentId, {
+      attachment,
+      deliver: (event) => {
+        created.deliver(event);
+      },
+      closeSubscription,
+    });
     return attachment;
   }
 
-  #route(event: RuntimeEvent): void {
-    for (const attachment of this.#attachments) {
-      if (matchesScope(event.scope, attachment)) attachment.deliver(event);
-    }
+  dispose(): Promise<void> {
+    if (this.#disposal) return this.#disposal;
+    this.#disposed = true;
+    this.#disposal = (async () => {
+      this.#runtimeSubscription?.[Symbol.dispose]();
+      this.#runtimeSubscription = undefined;
+      const records = [...this.#attachments.values()];
+      this.#attachments.clear();
+      for (const record of records) {
+        record.closeSubscription[Symbol.dispose]();
+        record.attachment.dispose();
+      }
+      await this.#runtime.dispose();
+    })();
+    return this.#disposal;
   }
 
-  async dispose(): Promise<void> {
-    if (this.#disposed) return;
-    this.#disposed = true;
-    this.#subscription?.[Symbol.dispose]();
-    this.#subscription = undefined;
-    for (const attachment of [...this.#attachments]) {
-      await attachment.dispose();
+  #isDisposed(): boolean {
+    return this.#disposed;
+  }
+
+  #route(event: RuntimeEvent): void {
+    for (const { attachment, deliver } of this.#attachments.values()) {
+      if (matchesScope(event.scope, attachment)) deliver(event);
     }
-    this.#attachments.clear();
-    await this.#runtime.dispose();
   }
 }
 
@@ -67,6 +120,6 @@ function matchesScope(scope: EventScope, attachment: Attachment): boolean {
     case "workspace":
       return true;
     case "session":
-      return scope.sessionId === attachment.sessionId;
+      return scope.sessionId === attachment.target.sessionId;
   }
 }
