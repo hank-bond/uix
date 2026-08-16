@@ -80,7 +80,7 @@ Apply these rules before reaching for subsystem details:
 - **The agent changes artifacts, not live views:** Agent tools change authoritative feature data. Channels deliver validated events instead of exposing UI handles. See [`2026-05-30-no-agent-ui-manipulation.md`](docs/decisions/2026-05-30-no-agent-ui-manipulation.md).
 - **Hosting-compatible by default:** Address durable content by id behind owned stores. Do not expose local filesystem mechanics as feature contracts. See [`2026-05-31-hosting-compatible-by-default.md`](docs/decisions/2026-05-31-hosting-compatible-by-default.md).
 - **One logical channel API:** The Electron transport implements the contract today. Future iframe or hosted adapters must preserve the same request and event model.
-- **Guards protect shared live ownership:** Supervisors issue independent, idempotently disposable guards for shared children. Exclusive cleanup remains in disposable lifetime bags. See [`lifetimes.md`](docs/architecture/conventions/lifetimes.md).
+- **Guards protect shared live ownership:** Supervisors issue independent, idempotently disposable guards for shared children. Exclusive cleanup remains in disposable lifetime bags. See [`2026-08-15-supervisors-own-guarded-children.md`](docs/decisions/2026-08-15-supervisors-own-guarded-children.md) and [`lifetimes.md`](docs/architecture/conventions/lifetimes.md).
 - **Documentation is on demand:** Route through the map below and load only the relevant leaves.
 
 ## Where to read

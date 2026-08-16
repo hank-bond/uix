@@ -32,7 +32,7 @@ The lifecycle vocabulary is settled:
 
 The canonical URL names one attachment's target. A browser workspace-only route resolves the newest valid session and then replaces itself with that canonical URL. Electron restores each local window or tab's canonical target from its own host profile. Neither path creates a workspace-global active session.
 
-The controlled vocabulary lives in the [`lexicon`](../architecture/conventions/lexicon/AGENTS.md). [`agent-session-routing.md`](./agent-session-routing.md) owns the routing and lifecycle behavior.
+The controlled vocabulary lives in the [`lexicon`](../architecture/conventions/lexicon/AGENTS.md). [`agent-session-routing.md`](./agent-session-routing.md) owns the routing behavior. [`shared-live-object-lifetimes.md`](./shared-live-object-lifetimes.md) owns the cross-cutting supervisor and guard rationale.
 
 ## Log
 

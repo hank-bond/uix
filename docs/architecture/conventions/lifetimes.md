@@ -6,7 +6,7 @@ read_when: "Read before attaching callbacks, listeners, IPC, protocols, timers, 
 
 # Lifetimes
 
-The [lifetimes.paired-cleanup](./rules/lifetimes.paired-cleanup.md) rule requires every attachment to pair its cleanup. This file explains the main-process mechanics.
+The [lifetimes.paired-cleanup](./rules/lifetimes.paired-cleanup.md) rule requires every attachment to pair its cleanup. This file explains the main-process mechanics. The accepted [supervised-child decision](../../decisions/2026-08-15-supervisors-own-guarded-children.md) fixes the ownership model, while the [design record](../../design/shared-live-object-lifetimes.md) preserves its rejected alternatives.
 
 ## Lifetime management in the main process
 
