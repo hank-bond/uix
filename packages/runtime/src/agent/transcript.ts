@@ -69,14 +69,19 @@ export function createTranscriptProjector(): TranscriptProjector {
       }
 
       if (role === "assistant") {
-        const text = extractTranscriptText(entry.message);
-        if (text) {
-          items.push({
-            id: entry.id,
-            kind: "assistant",
-            text,
-            complete: true,
-          });
+        const error = extractAssistantError(entry.message);
+        if (error) {
+          items.push({ id: entry.id, kind: "error", message: error });
+        } else {
+          const text = extractTranscriptText(entry.message);
+          if (text) {
+            items.push({
+              id: entry.id,
+              kind: "assistant",
+              text,
+              complete: true,
+            });
+          }
         }
 
         for (const toolCall of extractToolCalls(
@@ -158,6 +163,16 @@ export function extractTranscriptText(message: unknown): string {
 export function getMessageRole(message: unknown): string {
   const role = asRecord(message)?.["role"];
   return typeof role === "string" ? role : "custom";
+}
+
+/** Returns Pi's reported failure for an assistant message, if any. */
+export function extractAssistantError(message: unknown): string | undefined {
+  const record = asRecord(message);
+  if (record?.["stopReason"] !== "error") return undefined;
+  const error = record["errorMessage"];
+  return typeof error === "string" && error.trim()
+    ? error.trim()
+    : "Agent request failed";
 }
 
 export function parseCustomTranscriptItem(

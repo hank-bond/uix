@@ -51,7 +51,7 @@ export function ChatBlockFrame({
       ) : null}
       {state === "success" || state === "error" ? (
         <span className="visually-hidden" role="status">
-          {state === "success" ? "Tool finished" : "Tool failed"}
+          {completionStatus(kind, state)}
         </span>
       ) : null}
       <div className="msg__text" data-block-part="content">
@@ -61,15 +61,24 @@ export function ChatBlockFrame({
   );
 }
 
+function completionStatus(
+  kind: TranscriptItem["kind"],
+  state: "success" | "error",
+): string {
+  if (kind === "error") return "Agent failed";
+  return state === "success" ? "Tool finished" : "Tool failed";
+}
+
 function toAccessibleLabel(kind: TranscriptItem["kind"]): string | undefined {
   switch (kind) {
     case "user":
       return "User message";
     case "assistant":
       return "Agent message";
+    case "error":
+      return "Agent error";
     case "tool":
     case "custom":
-    case "error":
       return undefined;
   }
 }

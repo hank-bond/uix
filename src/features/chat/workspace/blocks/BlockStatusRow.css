@@ -1,0 +1,69 @@
+/* Compact status-row chrome shared by tool calls and agent failures. */
+
+.block-status-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.125rem minmax(0, 1fr);
+  gap: 0.4rem;
+  align-items: start;
+  min-width: 0;
+  padding: 0.4rem;
+  border-radius: 0.3rem;
+  color: var(--fg-dim);
+}
+
+.block-status-row__content {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  gap: 0.1rem 0.45rem;
+  min-width: 0;
+}
+
+.block-status-row__label {
+  grid-column: 1;
+  grid-row: 1;
+  color: var(--fg-dim);
+  font-weight: 600;
+}
+
+.block-status-row__copy {
+  grid-column: 2;
+  grid-row: 2;
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.block-status-row__copy--inline {
+  grid-row: 1;
+}
+
+.block-status-row__description {
+  color: var(--fg-dim);
+  overflow-wrap: anywhere;
+}
+
+.block-status-row__state {
+  grid-column: 3;
+  grid-row: 1;
+  color: var(--error);
+  font-size: var(--chat-text-meta);
+  font-weight: 600;
+}
+
+@container chat-surface (max-width: 480px) {
+  .block-status-row__content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.1rem 0.45rem;
+  }
+
+  .block-status-row__state {
+    order: 2;
+  }
+
+  .block-status-row__copy {
+    flex: 1 1 auto;
+  }
+}

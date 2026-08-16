@@ -36,10 +36,10 @@ export function ToolCallDisclosure({
       data-has-actions={actions ? "" : undefined}
     >
       <details className="tool-call" data-block-part={part}>
-        <summary className="tool-call__summary">
+        <summary className="tool-call__summary block-status-row">
           <span className="tool-call__chevron" aria-hidden="true" />
-          <span className="tool-call__header">
-            <span className="tool-call__name">{label}</span>
+          <span className="block-status-row__content">
+            <span className="block-status-row__label">{label}</span>
             {params.length ? (
               <span className="tool-call__params">
                 {params.map((param) => (
@@ -53,12 +53,16 @@ export function ToolCallDisclosure({
               </span>
             ) : null}
             {description ? (
-              <span className="tool-call__summary-copy">
-                <span className="tool-call__description">{description}</span>
+              <span
+                className={`block-status-row__copy${params.length ? "" : " block-status-row__copy--inline"}`}
+              >
+                <span className="block-status-row__description">
+                  {description}
+                </span>
               </span>
             ) : null}
             {state === "error" ? (
-              <span className="tool-call__state">error</span>
+              <span className="block-status-row__state">error</span>
             ) : null}
           </span>
           {state === "running" ? (

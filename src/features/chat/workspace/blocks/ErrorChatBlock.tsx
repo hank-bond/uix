@@ -16,8 +16,22 @@ export function ErrorChatBlock({
       className="error"
       kind="error"
       state="error"
-      label="error"
-      body={item.message}
+      body={
+        <div className="block-status-row" data-block-part="error-summary">
+          <span className="error-block__marker" aria-hidden="true">
+            !
+          </span>
+          <span className="block-status-row__content">
+            <span className="block-status-row__label">agent</span>
+            <span className="block-status-row__copy block-status-row__copy--inline">
+              <span className="block-status-row__description">
+                {item.message}
+              </span>
+            </span>
+            <span className="block-status-row__state">error</span>
+          </span>
+        </div>
+      }
     />
   );
 }

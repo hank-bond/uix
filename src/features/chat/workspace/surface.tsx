@@ -3,10 +3,12 @@
 import { agentChannels } from "@uix/api/agent-channels";
 import { defineSurface } from "@uix/api/workspace";
 
+import blockStatusRowSheet from "./blocks/BlockStatusRow.css" with { type: "css" };
 import chatBlockFrameSheet from "./blocks/ChatBlockFrame.css" with { type: "css" };
 import codeBlockSheet from "./blocks/content/CodeBlock.css" with { type: "css" };
 import highlightedCodeSheet from "./blocks/content/HighlightedCode.css" with { type: "css" };
 import markdownContentSheet from "./blocks/content/MarkdownContent.css" with { type: "css" };
+import errorChatBlockSheet from "./blocks/ErrorChatBlock.css" with { type: "css" };
 import messageChatBlockSheet from "./blocks/MessageChatBlock.css" with { type: "css" };
 import canvasToolContentSheet from "./blocks/tool/content/CanvasToolContent.css" with { type: "css" };
 import commandToolContentSheet from "./blocks/tool/content/CommandToolContent.css" with { type: "css" };
@@ -28,6 +30,8 @@ export const surface = defineSurface({
   styles: [
     chatSheet,
     chatBlockFrameSheet,
+    blockStatusRowSheet,
+    errorChatBlockSheet,
     messageChatBlockSheet,
     toolContentSheet,
     codeBlockSheet,

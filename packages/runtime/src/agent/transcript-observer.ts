@@ -16,6 +16,7 @@ import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
 import { deriveToolFileLocation } from "./tool-file-location";
 import {
   type EphemeralTranscriptItemIdSequence,
+  extractAssistantError,
   extractTranscriptText,
   getMessageRole,
   parseCustomTranscriptItem,
@@ -180,12 +181,17 @@ function createLiveTranscriptForwarder(
         const role = getMessageRole(event.message);
         if (role === "assistant") {
           const current = ensureAssistant();
-          const finalText =
-            extractTranscriptText(event.message) || current.text;
+          const error = extractAssistantError(event.message);
+          const final: TranscriptItem = error
+            ? { id: current.id, kind: "error", message: error }
+            : {
+                ...current,
+                text: extractTranscriptText(event.message) || current.text,
+                complete: true,
+              };
           // Final content lands under the pre-key handle first, so display
           // never depends on the append wrapper. The rekey replace follows
           // in the same tick when Pi persists this exact message object.
-          const final = { ...current, text: finalText, complete: true };
           replace(final);
           assistant = undefined;
           identity.expectMessageKey(event.message, (durableId) => {

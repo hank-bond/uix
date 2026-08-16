@@ -57,6 +57,29 @@ describe("deriveTranscriptItems", () => {
     ]);
   });
 
+  it("projects terminal assistant failures as error rows", () => {
+    const items = deriveTranscriptItems(
+      [
+        entry("message", { role: "user", content: "hello" }),
+        entry("message", {
+          role: "assistant",
+          content: [{ type: "text", text: "" }],
+          stopReason: "error",
+          errorMessage: "Authentication failed",
+        }),
+      ],
+      "/workspace",
+    );
+
+    expect(items).toEqual([
+      expect.objectContaining({ kind: "user", text: "hello" }),
+      expect.objectContaining({
+        kind: "error",
+        message: "Authentication failed",
+      }),
+    ]);
+  });
+
   it("joins text blocks and preserves tool calls/results", () => {
     const assistant = entry("message", {
       role: "assistant",

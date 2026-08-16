@@ -133,6 +133,56 @@ describe("TranscriptObserver", () => {
     ]);
   });
 
+  it("replaces a failed assistant placeholder with a durable error row", () => {
+    const { observer, events } = createHarness();
+    const manager = createManager();
+    const active = createSession(manager);
+    observer.instrumentSessionManager(manager);
+    observer.bindSession(active.session);
+    const message = {
+      role: "assistant",
+      content: [{ type: "text", text: "" }],
+      stopReason: "error",
+      errorMessage: "Authentication failed",
+    };
+
+    active.emit({ type: "message_start", message });
+    const liveId = (
+      events[0] as Extract<AgentEvent, { type: "transcript_append" }>
+    ).item.id;
+    active.emit({ type: "message_end", message });
+    manager.appendMessage(message as never);
+
+    expect(events).toEqual([
+      {
+        type: "transcript_append",
+        item: {
+          id: liveId,
+          kind: "assistant",
+          text: "",
+          complete: false,
+        },
+      },
+      {
+        type: "transcript_replace",
+        item: {
+          id: liveId,
+          kind: "error",
+          message: "Authentication failed",
+        },
+      },
+      {
+        type: "transcript_replace",
+        previousId: liveId,
+        item: {
+          id: "entry-1",
+          kind: "error",
+          message: "Authentication failed",
+        },
+      },
+    ]);
+  });
+
   it("publishes self-contained file locations on live tool rows", () => {
     const { observer, events } = createHarness();
     const manager = createManager("/workspace");

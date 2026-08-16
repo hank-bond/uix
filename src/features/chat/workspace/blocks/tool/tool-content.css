@@ -70,15 +70,6 @@
 }
 
 .tool-call__summary {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1.125rem minmax(0, 1fr);
-  gap: 0.4rem;
-  align-items: start;
-  min-width: 0;
-  padding: 0.4rem;
-  border-radius: 0.3rem;
-  color: var(--fg-dim);
   cursor: pointer;
 }
 
@@ -113,21 +104,6 @@
 
 .tool-call__summary:hover .tool-call__chevron {
   color: var(--fg);
-}
-
-.tool-call__header {
-  /* Wide rows: name | (params over description) | error state. */
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) max-content;
-  gap: 0.1rem 0.45rem;
-  min-width: 0;
-}
-
-.tool-call__name {
-  grid-column: 1;
-  grid-row: 1;
-  color: var(--fg-dim);
-  font-weight: 600;
 }
 
 .tool-call__params {
@@ -165,32 +141,6 @@
   font-size: var(--chat-text-code);
 }
 
-.tool-call__summary-copy {
-  grid-column: 2;
-  grid-row: 2;
-  display: grid;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
-.tool-call__description {
-  color: var(--fg-dim);
-  overflow-wrap: anywhere;
-}
-
-.tool-call__state {
-  grid-column: 3;
-  grid-row: 1;
-  color: var(--error);
-  font-size: var(--chat-text-meta);
-  font-weight: 600;
-}
-
-/* No params shown: the reason takes the name's row beside the label. */
-.tool-call__header:not(:has(.tool-call__params)) .tool-call__summary-copy {
-  grid-row: 1;
-}
-
 /* Params hidden from the summary shift here as `key: value` rows. */
 .tool-call__params-list {
   display: grid;
@@ -223,35 +173,20 @@
   font-size: var(--chat-text-meta);
 }
 
-.msg--tool-error .tool-call__name,
-.msg--tool-error .tool-call__description,
+.msg--tool-error .block-status-row__label,
+.msg--tool-error .block-status-row__description,
 .msg--tool-error .tool-call__chevron {
   color: var(--error);
 }
 
-/* Narrow chat column: stack the summary so the label (and its params) keep
- * the first line and the reason wraps below at full width. */
+/* Narrow chat column: rows with params keep them beside the label and move
+ * the reason below at full width. */
 @container chat-surface (max-width: 480px) {
-  .tool-call__header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.1rem 0.45rem;
-  }
-
   .tool-call__params {
     order: 1;
   }
 
-  .tool-call__state {
-    order: 2;
-  }
-
-  .tool-call__summary-copy {
-    flex: 1 1 auto;
-  }
-
-  .tool-call__header:has(.tool-call__params) .tool-call__summary-copy {
+  .block-status-row__content:has(.tool-call__params) .block-status-row__copy {
     flex-basis: 100%;
     order: 3;
   }

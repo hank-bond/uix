@@ -48,13 +48,15 @@ describe("command tool chat rendering", () => {
   it("shows a clickable label-and-reason row and discloses command and output", () => {
     const html = renderCommandItem(item());
 
-    expect(html).toContain('class="tool-call__name">command</span>');
+    expect(html).toContain('class="block-status-row__label">command</span>');
     expect(html).toContain("I need to verify the changes.");
     expect(html).toContain('class="tool-call__param-key">command</span>');
     expect(html).toContain("npm test");
     expect(html).not.toContain("tool: ");
     expect(html).toContain('<details class="tool-call"');
-    expect(html).toContain('<summary class="tool-call__summary">');
+    expect(html).toContain(
+      '<summary class="tool-call__summary block-status-row">',
+    );
     expect(html).not.toContain("structured-command");
     expect(html).toContain('data-language="bash"');
     expect(html.indexOf("npm")).toBeGreaterThan(html.indexOf("<details"));

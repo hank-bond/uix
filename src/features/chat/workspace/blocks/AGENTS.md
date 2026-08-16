@@ -22,10 +22,12 @@ The `content/` subtree renders block bodies: markdown, highlighted source, and p
 ### Source files
 
 - **[BlockPresentationSettings.tsx](./BlockPresentationSettings.tsx)** Provides the chat feature's durable block-presentation preferences to transcript renderers.
+- **[BlockStatusRow.css](./BlockStatusRow.css)** Compact status-row chrome shared by tool calls and agent failures.
 - **[ChatBlock.tsx](./ChatBlock.tsx)** Renders one transcript item as its kind-specific chat block.
 - **[ChatBlockFrame.css](./ChatBlockFrame.css)** Chat block frame chrome: message label, running track, and body.
 - **[ChatBlockFrame.tsx](./ChatBlockFrame.tsx)** Renders the shared chat block chrome: label, running track, and body frame.
 - **[CustomMessageChatBlock.tsx](./CustomMessageChatBlock.tsx)** Renders a custom chat block from its content or details text.
+- **[ErrorChatBlock.css](./ErrorChatBlock.css)** Non-interactive agent failure row using the shared compact status chrome.
 - **[ErrorChatBlock.tsx](./ErrorChatBlock.tsx)** Renders an error chat block with the failure message.
 - **[MessageChatBlock.css](./MessageChatBlock.css)** User and assistant message block variants.
 - **[MessageChatBlock.tsx](./MessageChatBlock.tsx)** Renders a user or assistant message block with markdown content.
