@@ -76,9 +76,9 @@ class WorkspaceOwnershipState implements WorkspaceOwnership {
       this.#attachments.clear();
       for (const record of records) {
         record.closeSubscription[Symbol.dispose]();
-        record.attachment.dispose();
+        record.attachment[Symbol.dispose]();
       }
-      await this.#runtime.dispose();
+      await this.#runtime[Symbol.asyncDispose]();
     })();
     return this.#disposal;
   }

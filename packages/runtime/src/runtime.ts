@@ -652,25 +652,23 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     this.#attachments.delete(attachment);
   }
 
-  dispose(): Promise<void> {
+  [Symbol.asyncDispose](): Promise<void> {
     if (this.#disposal) return this.#disposal;
     this.#disposed = true;
     this.#disposal = (async () => {
-      for (const attachment of [...this.#attachments]) attachment.dispose();
+      for (const attachment of [...this.#attachments]) {
+        attachment[Symbol.dispose]();
+      }
       this.#attachments.clear();
       this.#listeners.clear();
       try {
-        await this.#agentRuntime.dispose();
+        await this.#agentRuntime[Symbol.asyncDispose]();
       } finally {
         this.#featuresBag[Symbol.dispose]();
         this.#bag[Symbol.dispose]();
       }
     })();
     return this.#disposal;
-  }
-
-  [Symbol.dispose](): void {
-    void this.dispose();
   }
 
   #currentSources(): FeatureSources {
@@ -785,7 +783,7 @@ class Attachment implements AttachmentContract {
     for (const listener of this.#eventListeners) listener(event);
   }
 
-  dispose(): void {
+  [Symbol.dispose](): void {
     if (this.#disposed) return;
     this.#disposed = true;
     this.#owner.dropAttachment(this);
@@ -793,10 +791,6 @@ class Attachment implements AttachmentContract {
     this.#eventListeners.clear();
     for (const listener of this.#closeListeners) listener();
     this.#closeListeners.clear();
-  }
-
-  [Symbol.dispose](): void {
-    this.dispose();
   }
 
   async #retargetAndGuard(

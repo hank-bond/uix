@@ -25,9 +25,10 @@ The lifecycle vocabulary is settled:
 - The `AgentInstanceSupervisor` owns keyed instance identity, single-flight creation, guard admission, lifetime policy, and teardown. It is not on the ordinary agent-operation hot path.
 - An `AgentInstanceGuard` is a disposable teardown veto. Attachments, turns, background work, reload, and any other asynchronous instance use hold guards for their complete use. A guard provides its operational instance value but does not absorb the instance's domain operations.
 - A live guard can synchronously retain another independently disposable guard on the same managed instance. Retaining after disposal fails, and disposing either guard does not affect the other.
-- Releasing one or every guard removes protection without promising teardown. Zero guards makes an instance eligible for supervisor policy; the first policy tears down an eligible idle instance immediately.
+- Disposing one or every guard removes protection without promising teardown. Zero guards makes an instance eligible for supervisor policy. The first policy tears down an eligible idle instance immediately.
 - A running turn owns a guard until its final safe boundary. The turn therefore explains why a disconnected instance remains live instead of requiring final attachment disposal to await `agent_end`.
 - Concurrent attaches share one instance creation through single-flight.
+- `visitLiveInstances()` takes one stable live snapshot, holds one temporary guard per instance, and passes only each operational `AgentInstance` value to the visitor. The supervisor owns those guards and disposes them after their visitor settles.
 
 The canonical URL names one attachment's target. A browser workspace-only route resolves the newest valid session and then replaces itself with that canonical URL. Electron restores each local window or tab's canonical target from its own host profile. Neither path creates a workspace-global active session.
 
@@ -49,7 +50,7 @@ Clarified that an agent instance owns one Pi execution, but its Pi runtime can r
 
 ### 2026-08-14: guards make instance use explicit
 
-Replaced the retention-token model with disposable `AgentInstanceGuard` capabilities issued by an `AgentInstanceSupervisor`. The supervisor remains the sole instance owner. Every asynchronous use holds a guard, and the running turn itself holds one through its safe boundary. Releasing a guard is immediate and only removes one teardown veto; zero guards permits supervisor policy but does not promise disposal. This makes attachments, detached turns, reload, and future background work use one visible lifetime rule.
+Replaced the retention-token model with disposable `AgentInstanceGuard` capabilities issued by an `AgentInstanceSupervisor`. The supervisor remains the sole instance owner. Every asynchronous use holds a guard, and the running turn itself holds one through its safe boundary. Disposing a guard is immediate and only removes one teardown veto. Zero guards permits supervisor policy but does not promise disposal. This makes attachments, detached turns, reload, and future background work use one visible lifetime rule.
 
 ### 2026-08-15: generic guards provide operational values
 

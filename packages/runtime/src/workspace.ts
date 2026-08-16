@@ -66,7 +66,7 @@ export interface SessionTarget {
  * owns dispatch and agent resolution. The host owns the connection
  * and routes events. A host never assumes this runtime lives in its process.
  */
-export interface WorkspaceRuntime {
+export interface WorkspaceRuntime extends AsyncDisposable {
   readonly workspaceId: WorkspaceId;
   /** Subscribe to runtime-owned scoped events. The host routes them to matching attachments. */
   onEvent(listener: (event: RuntimeEvent) => void): Disposable;
@@ -76,10 +76,6 @@ export interface WorkspaceRuntime {
   load(): Promise<ActivationResult>;
   /** Replace the active feature composition and Pi resource tier, then notify the renderer. */
   reload(): Promise<ReloadResult>;
-  /** Dispose the runtime: tear down agent instances and release routes. Idempotent. */
-  dispose(): Promise<void>;
-  /** Sync bag shim for host composition: fires the async dispose without awaiting it. */
-  [Symbol.dispose](): void;
 }
 
 /** One connection's runtime-created request, target, event, and lifetime capability. */
@@ -97,7 +93,7 @@ export interface Attachment extends Disposable {
   /** Observe deterministic attachment closure. */
   onClose(listener: () => void): Disposable;
   /** Close event observation and dispose the target guard. Idempotent. */
-  dispose(): void;
+  [Symbol.dispose](): void;
 }
 
 /** Runtime creation result. Only the supervised workspace keeps `deliver`. */

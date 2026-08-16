@@ -249,17 +249,13 @@ class FakeAttachment implements Attachment {
     for (const listener of this.#eventListeners) listener(event);
   }
 
-  dispose(): void {
+  [Symbol.dispose](): void {
     if (this.#disposed) return;
     this.#disposed = true;
     this.#targetGuard[Symbol.dispose]();
     this.#eventListeners.clear();
     for (const listener of this.#closeListeners) listener();
     this.#closeListeners.clear();
-  }
-
-  [Symbol.dispose](): void {
-    this.dispose();
   }
 }
 
@@ -330,16 +326,12 @@ class FakeRuntime implements WorkspaceRuntime {
     };
   }
 
-  dispose(): Promise<void> {
+  [Symbol.asyncDispose](): Promise<void> {
     this.disposed = true;
     this.#listeners.clear();
     return this.disposeError
       ? Promise.reject(this.disposeError)
       : Promise.resolve();
-  }
-
-  [Symbol.dispose](): void {
-    void this.dispose();
   }
 }
 
@@ -402,7 +394,7 @@ describe("workspace supervisor", () => {
     expect(() => first.value).toThrow("disposed");
     expect(second.value.workspaceId).toBe(ws1);
     second[Symbol.dispose]();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("retains independently and boots fresh after the last guard disposes", async () => {
@@ -425,7 +417,7 @@ describe("workspace supervisor", () => {
     const fresh = await supervisor.acquire(ws1);
     expect(runtimes).toHaveLength(2);
     fresh[Symbol.dispose]();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("does not boot beside a workspace that failed to tear down", async () => {
@@ -444,7 +436,7 @@ describe("workspace supervisor", () => {
       "workspace teardown failed",
     );
     expect(bootCalls).toBe(1);
-    await expect(supervisor.dispose()).rejects.toThrow(
+    await expect(supervisor[Symbol.asyncDispose]()).rejects.toThrow(
       "One or more workspaces failed to tear down",
     );
   });
@@ -462,7 +454,7 @@ describe("workspace supervisor", () => {
     expect(guard.value.workspaceId).toBe(ws1);
     expect(calls).toBe(2);
     guard[Symbol.dispose]();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("drains attachment creation under its holder guard", async () => {
@@ -472,13 +464,13 @@ describe("workspace supervisor", () => {
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
     const creation = workspace.value.createAttachment({ sessionId: s1 });
-    const disposal = supervisor.dispose();
+    const disposal = supervisor[Symbol.asyncDispose]();
 
     gate.resolve();
     const attachment = await creation;
     expect(runtime.disposed).toBe(false);
 
-    attachment.dispose();
+    attachment[Symbol.dispose]();
     workspace[Symbol.dispose]();
     await disposal;
     expect(runtime.agents.liveInstances).toBe(0);
@@ -488,7 +480,7 @@ describe("workspace supervisor", () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const guard = await supervisor.acquire(ws1);
-    const disposal = supervisor.dispose();
+    const disposal = supervisor[Symbol.asyncDispose]();
 
     await expect(supervisor.acquire(ws1)).rejects.toThrow("disposed");
     expect(runtime.disposed).toBe(false);
@@ -515,7 +507,7 @@ describe("unified attachments", () => {
     expect(runtime.agents.creationCount).toBe(1);
     expect(runtime.agents.liveInstances).toBe(1);
     workspace[Symbol.dispose]();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("retargets one attachment without moving its peers", async () => {
@@ -531,7 +523,7 @@ describe("unified attachments", () => {
     expect(b.target.sessionId).toBe(s1);
     expect(runtime.agents.creationCount).toBe(2);
     workspace[Symbol.dispose]();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("retargets away from and back to an independently guarded running instance", async () => {
@@ -554,7 +546,7 @@ describe("unified attachments", () => {
     runningGuard[Symbol.dispose]();
     expect(runtime.agents.guardsFor(s1)).toBe(1);
     workspace[Symbol.dispose]();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("keeps the old target on failed retarget", async () => {
@@ -572,7 +564,7 @@ describe("unified attachments", () => {
     expect(attachment.target.sessionId).toBe(s1);
     expect(runtime.agents.guardsFor(s1)).toBe(1);
     workspace[Symbol.dispose]();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("closes one attachment without disturbing its peer", async () => {
@@ -584,8 +576,8 @@ describe("unified attachments", () => {
     const ping = toChannelCanonicalId("chat", "ping");
     runtime.register(ping, () => "pong");
 
-    a.dispose();
-    a.dispose();
+    a[Symbol.dispose]();
+    a[Symbol.dispose]();
 
     expect(runtime.agents.guardsFor(s1)).toBe(1);
     expect(
@@ -595,7 +587,7 @@ describe("unified attachments", () => {
       value: "pong",
     });
     workspace[Symbol.dispose]();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("delivers workspace and session events only to matching attachments", async () => {
@@ -638,7 +630,7 @@ describe("unified attachments", () => {
       "new-session",
     ]);
     workspace[Symbol.dispose]();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("keeps prepared context stable across retarget", async () => {
@@ -663,7 +655,7 @@ describe("unified attachments", () => {
     expect(runtime.agents.guardsFor(s1)).toBe(0);
     expect(attachment.target.sessionId).toBe(s2);
     workspace[Symbol.dispose]();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("drains an admitted request after its connection closes", async () => {
@@ -685,8 +677,8 @@ describe("unified attachments", () => {
       });
       return await prepared.invoke();
     })();
-    const disposal = supervisor.dispose();
-    attachment.dispose();
+    const disposal = supervisor[Symbol.asyncDispose]();
+    attachment[Symbol.dispose]();
     workspace[Symbol.dispose]();
 
     expect(supervisor.getGuardSnapshot()).toEqual([
@@ -727,6 +719,6 @@ describe("unified attachments", () => {
     });
     workspaceA[Symbol.dispose]();
     workspaceB[Symbol.dispose]();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 });

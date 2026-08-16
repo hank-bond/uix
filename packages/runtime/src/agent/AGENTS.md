@@ -8,7 +8,7 @@ One workspace agent runtime owns shared provider and model services plus an agen
 
 Each instance's branch is the shared source for its persisted transcript and restored feature state. Historical projection and live observation must produce the same renderer transcript shape. Live rows begin with temporary IDs when necessary, then adopt Pi's durable entry IDs when Pi persists their messages.
 
-Workspace settings record the default model and favorites. Session-file readers provide history and summaries without opening a Pi runtime. Instance-specific operations use the handle carried by a live guard, and running turns retain their own guards through the final safe boundary.
+Bulk maintenance visits a stable live-instance snapshot under supervisor-owned temporary guards and passes only operational instance values to visitors. Workspace settings record the default model and favorites. Session-file readers provide history and summaries without opening a Pi runtime. Instance-specific operations use the handle carried by a live guard, and running turns retain their own guards through the final safe boundary.
 
 Provider discovery and interactive sign-in share Pi's authentication state. A completed sign-in refreshes model availability without coupling provider-specific prompts or links to the renderer transport.
 

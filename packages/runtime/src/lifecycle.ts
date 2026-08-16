@@ -1,4 +1,4 @@
-// Provides disposable helpers that clean up component resources with their owners.
+// Provides synchronous and asynchronous lifetime bags plus disposable helpers.
 //
 // The concrete exclusive lifetime scopes include host process bindings,
 // windows, feature compositions, workspace settings, and subscriptions. Child
@@ -11,19 +11,17 @@
 // "register" and "cleanup" structurally inseparable, so you can't
 // register something and forget to clean it up.
 //
-// What "Disposable" means here:
-//   - It's a TC39 standard interface: `{ [Symbol.dispose](): void }`.
-//   - A caller cleans up anything implementing that shape via the
-//     method, or by using `using x = ...` (lexical-scope auto-dispose).
-//   - The TypeScript `Disposable` type comes from the `ESNext.Disposable`
-//     lib (added to both tsconfigs in this commit).
+// What the disposal protocols mean here:
+//   - `Disposable` provides `{ [Symbol.dispose](): void }` for synchronous
+//     cleanup, while `AsyncDisposable` provides an awaited counterpart.
+//   - `using` and `await using` handle lexical ownership automatically.
+//   - The TypeScript protocol types come from `ESNext.Disposable`.
 //
-// Why a "Bag" (and not just `using` everywhere):
-//   - `using` cleans up at the end of the enclosing block. Great when a
-//     resource's lifetime is exactly that block.
-//   - Our subscriptions outlive the function that creates them. They
-//     live for the driver's lifetime, or the host's. For those, we need
-//     a container we explicitly dispose later. That's the Bag.
+// Why bags still exist:
+//   - Lexical cleanup ends with the enclosing block.
+//   - Subscriptions and workspace ownerships outlive their creating function.
+//     Their longer-lived owner stores them in the matching synchronous or
+//     asynchronous bag and disposes that bag when the owner ends.
 //
 // The Electron-specific lifetime helpers (window listeners, app events)
 // stay in the Electron host under src/main/lifecycle.ts.
@@ -91,6 +89,48 @@ export class DisposableBag implements Disposable {
       } catch {
         // Continue disposing siblings even if one throws.
       }
+    }
+  }
+}
+
+/** A LIFO owner for mixed synchronous and asynchronous lifetimes. */
+export class AsyncDisposableBag implements AsyncDisposable {
+  #items: Array<Disposable | AsyncDisposable> = [];
+  #disposal: Promise<void> | undefined;
+  #disposing = false;
+
+  add<D extends Disposable | AsyncDisposable>(item: D): D {
+    if (this.#disposing) {
+      throw new Error("Async disposable bag is disposing");
+    }
+    this.#items.push(item);
+    return item;
+  }
+
+  [Symbol.asyncDispose](): Promise<void> {
+    if (this.#disposal) return this.#disposal;
+    this.#disposing = true;
+    this.#disposal = this.#drain();
+    return this.#disposal;
+  }
+
+  async #drain(): Promise<void> {
+    const errors: unknown[] = [];
+    while (this.#items.length > 0) {
+      const item = this.#items.pop();
+      if (!item) break;
+      try {
+        if (Symbol.asyncDispose in item) {
+          await item[Symbol.asyncDispose]();
+        } else {
+          item[Symbol.dispose]();
+        }
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    if (errors.length > 0) {
+      throw new AggregateError(errors, "Async disposable bag disposal failed");
     }
   }
 }

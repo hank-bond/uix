@@ -20,4 +20,4 @@ bag.add(subscribe(session, (event) => { ... }));
 
 **Reason:** An unpaired listener, handler, subscription, or timer is the most common leak pattern in Electron and observable-style code. The helpers return a `Disposable`. The bag requires the caller to choose where that cleanup lives. Disposing the lifetime then disposes every owned capability in reverse acquisition order.
 
-**Exceptions:** One-shot process-end events such as `will-quit` and `window-all-closed` can attach through the raw API because there is no useful earlier cleanup point. Comment the call to explain why.
+**Exceptions:** The process-level `before-quit` coordinator can attach through the raw API because it owns disposal of the host lifetimes. Enrolling it in those lifetimes would create a cycle. Comment the call to explain that ownership.

@@ -5,11 +5,12 @@
 // instead of calling `app.on`, `win.on`, etc. directly. The IPC boundary
 // (`handle`/`send`) lives in ./ipc.ts, which follows the same convention.
 //
-// The host-neutral helpers (DisposableBag, disposable, onAbort, subscribe,
-// installProcessHandlers) live in `@uix/runtime/lifecycle` and are re-exported
+// The host-neutral helpers (DisposableBag, AsyncDisposableBag, disposable,
+// onAbort, subscribe, installProcessHandlers) live in `@uix/runtime/lifecycle` and are re-exported
 // here so main-process call sites keep one import path.
 
 import {
+  AsyncDisposableBag,
   disposable,
   DisposableBag,
   installProcessHandlers,
@@ -18,6 +19,7 @@ import {
 } from "@uix/runtime/lifecycle";
 
 export {
+  AsyncDisposableBag,
   disposable,
   DisposableBag,
   installProcessHandlers,

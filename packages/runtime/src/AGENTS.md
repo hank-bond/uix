@@ -30,7 +30,7 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 - **[events.ts](./events.ts)** Explicitly scoped canonical runtime events for host-selected delivery.
 - **[guard.ts](./guard.ts)** Generic guard capabilities that pair supervisor-owned lifetime authority with operational values.
 - **[index.ts](./index.ts)** The @uix/runtime public facade re-exporting the workspace-runtime contract and its factory.
-- **[lifecycle.ts](./lifecycle.ts)** Provides disposable helpers that clean up component resources with their owners.
+- **[lifecycle.ts](./lifecycle.ts)** Provides synchronous and asynchronous lifetime bags plus disposable helpers.
 - **[log.ts](./log.ts)** Creates main-process loggers that label messages by component and choose readable or JSON output for the environment.
 - **[manifest-store.ts](./manifest-store.ts)** Reads workspace manifests into staged copies and atomically writes the accepted copy back to disk.
 - **[reload.ts](./reload.ts)** Runs one workspace reload at a time across feature activation, Pi resources, restored state, and renderer notification.

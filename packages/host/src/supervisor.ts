@@ -85,7 +85,7 @@ export class WorkspaceSupervisor implements AsyncDisposable {
   }
 
   /** Stop admission, drain every guard, and await actual workspace teardown. */
-  dispose(): Promise<void> {
+  [Symbol.asyncDispose](): Promise<void> {
     if (this.#disposal) return this.#disposal;
     this.#disposed = true;
     this.#disposal = (async () => {
@@ -109,10 +109,6 @@ export class WorkspaceSupervisor implements AsyncDisposable {
       }
     })();
     return this.#disposal;
-  }
-
-  [Symbol.asyncDispose](): Promise<void> {
-    return this.dispose();
   }
 
   #recordTeardownFailure(error: unknown): void {

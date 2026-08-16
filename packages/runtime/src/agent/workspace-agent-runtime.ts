@@ -68,7 +68,7 @@ import { toSessionId } from "../workspace";
 const MaxSessionTitleCodePoints = 4096;
 const log = createLogger("agent");
 
-export interface WorkspaceAgentRuntime {
+export interface WorkspaceAgentRuntime extends AsyncDisposable {
   acquire(
     target: SessionTarget,
     openedManager?: SessionManager,
@@ -102,7 +102,6 @@ export interface WorkspaceAgentRuntime {
   commitFeatureTurnState(): Promise<boolean>;
   restoreFeatureTurnState(): Promise<void>;
   reloadPiResources(): Promise<boolean>;
-  dispose(): Promise<void>;
 }
 
 export interface WorkspaceAgentRuntimeOptions {
@@ -436,7 +435,7 @@ export function createWorkspaceAgentRuntime(
     if (disposal) return disposal;
     disposal = (async () => {
       try {
-        await instanceSupervisor.dispose();
+        await instanceSupervisor[Symbol.asyncDispose]();
       } finally {
         disposed = true;
         bag[Symbol.dispose]();
@@ -572,8 +571,7 @@ export function createWorkspaceAgentRuntime(
 
     async commitFeatureTurnState() {
       let committed = true;
-      await instanceSupervisor.visit(async (guard) => {
-        const instance = guard.value;
+      await instanceSupervisor.visitLiveInstances(async (instance) => {
         const coordinator = instance.state.turnStateCoordinator;
         if (!coordinator) return;
         if (!(await coordinator.commitIfReady(instance.manager))) {
@@ -584,8 +582,7 @@ export function createWorkspaceAgentRuntime(
     },
 
     async restoreFeatureTurnState() {
-      await instanceSupervisor.visit(async (guard) => {
-        const instance = guard.value;
+      await instanceSupervisor.visitLiveInstances(async (instance) => {
         await instance.state.turnStateCoordinator?.restoreCurrent(
           instance.manager,
         );
@@ -594,8 +591,8 @@ export function createWorkspaceAgentRuntime(
 
     async reloadPiResources() {
       let reloaded = false;
-      await instanceSupervisor.visit(async (guard) => {
-        if (await guard.value.reloadRuntimeIfActive()) reloaded = true;
+      await instanceSupervisor.visitLiveInstances(async (instance) => {
+        if (await instance.reloadRuntimeIfActive()) reloaded = true;
       });
       if (!controlServices && !inFlightControlServices) return reloaded;
       await getControlServices();
@@ -604,7 +601,7 @@ export function createWorkspaceAgentRuntime(
       return true;
     },
 
-    dispose,
+    [Symbol.asyncDispose]: dispose,
   };
 }
 

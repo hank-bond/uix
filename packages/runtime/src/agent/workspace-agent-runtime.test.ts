@@ -446,7 +446,7 @@ describe("workspace agent instances", () => {
 
     first[Symbol.dispose]();
     second[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("rejects a competing prompt before it enters Pi", async () => {
@@ -478,7 +478,7 @@ describe("workspace agent instances", () => {
     gate.resolve();
     await first;
     guard[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("keeps a detached turn guarded after its attachment disposes", async () => {
@@ -496,7 +496,7 @@ describe("workspace agent instances", () => {
     });
     guard[Symbol.dispose]();
     let disposed = false;
-    const disposal = agentRuntime.dispose().then(() => {
+    const disposal = agentRuntime[Symbol.asyncDispose]().then(() => {
       disposed = true;
     });
     await Promise.resolve();
@@ -530,7 +530,7 @@ describe("workspace agent instances", () => {
 
     a[Symbol.dispose]();
     b[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("attributes emitted activity to its originating session", async () => {
@@ -567,7 +567,7 @@ describe("workspace agent instances", () => {
     runningB[Symbol.dispose]();
     a[Symbol.dispose]();
     b[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("applies workspace model defaults when a session runtime boots", async () => {
@@ -582,7 +582,7 @@ describe("workspace agent instances", () => {
 
     expect(sdk.state.lastCreateOptions?.["model"]).toBe(openai);
     guard[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("lists available models without creating an agent instance", async () => {
@@ -594,7 +594,7 @@ describe("workspace agent instances", () => {
     ]);
     expect(sdk.state.runtimeCreates).toBe(0);
     expect(sdk.state.servicesLoads).toBe(1);
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("loads extension-provided models before returning the catalog", async () => {
@@ -614,7 +614,7 @@ describe("workspace agent instances", () => {
         id: "new-model",
       }),
     );
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("shares one in-flight control-services creation", async () => {
@@ -627,7 +627,7 @@ describe("workspace agent instances", () => {
     ]);
 
     expect(sdk.state.servicesLoads).toBe(1);
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("decorates, adds, and removes favorite models", async () => {
@@ -652,7 +652,7 @@ describe("workspace agent instances", () => {
       favorite: false,
     });
     expect(settings.values.get("favoriteModels")).toEqual([]);
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("rejects an unknown favorite without changing settings", async () => {
@@ -667,7 +667,7 @@ describe("workspace agent instances", () => {
       }),
     ).rejects.toThrow("Unknown model");
     expect(settings.values.has("favoriteModels")).toBe(false);
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("reloads control services only after they have been used", async () => {
@@ -679,7 +679,7 @@ describe("workspace agent instances", () => {
     expect(sdk.state.servicesLoads).toBe(1);
     await expect(agentRuntime.reloadPiResources()).resolves.toBe(true);
     expect(sdk.state.servicesLoads).toBe(2);
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("reports workspace default and branch-owned live model state", async () => {
@@ -701,7 +701,7 @@ describe("workspace agent instances", () => {
       model: { provider: "openai", id: "gpt-5" },
     });
     guard[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("selects an available model without changing the workspace default", async () => {
@@ -725,7 +725,7 @@ describe("workspace agent instances", () => {
       id: "claude-sonnet-4-5",
     });
     guard[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("rejects unavailable model selection", async () => {
@@ -742,7 +742,7 @@ describe("workspace agent instances", () => {
       }),
     ).rejects.toThrow("Model is not available");
     guard[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("reads history and summary without booting the Pi runtime", async () => {
@@ -773,7 +773,7 @@ describe("workspace agent instances", () => {
     ]);
     expect(sdk.state.runtimeCreates).toBe(0);
     guard[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("sets, clears, and normalizes session titles without booting Pi", async () => {
@@ -794,7 +794,7 @@ describe("workspace agent instances", () => {
     ).rejects.toThrow("cannot be blank");
     expect(sdk.state.runtimeCreates).toBe(0);
     guard[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("lets Pi restore a branch model_change instead of forcing the default", async () => {
@@ -817,7 +817,7 @@ describe("workspace agent instances", () => {
 
     expect(sdk.state.lastCreateOptions?.["model"]).toBeUndefined();
     guard[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("restores branch turn state before admitting the instance guard", async () => {
@@ -843,7 +843,7 @@ describe("workspace agent instances", () => {
     expect(sdk.state.servicesLoads).toBe(0);
     expect(sdk.state.runtimeCreates).toBe(0);
     guard[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("commits guarded feature turn state after restoration", async () => {
@@ -873,7 +873,7 @@ describe("workspace agent instances", () => {
       },
     );
     guard[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("propagates guarded feature snapshot failures", async () => {
@@ -898,7 +898,7 @@ describe("workspace agent instances", () => {
     );
     expect(sdk.manager.appendCustomEntry).not.toHaveBeenCalled();
     guard[Symbol.dispose]();
-    await expect(agentRuntime.dispose()).rejects.toThrow();
+    await expect(agentRuntime[Symbol.asyncDispose]()).rejects.toThrow();
   });
 
   it("rolls back failed creation before a later acquisition retries", async () => {
@@ -929,7 +929,7 @@ describe("workspace agent instances", () => {
 
     expect(branchReads).toBeGreaterThanOrEqual(2);
     guard[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("does not admit an instance until branch restoration settles", async () => {
@@ -965,7 +965,7 @@ describe("workspace agent instances", () => {
     const guard = await acquisition;
     expect(admitted).toBe(true);
     guard[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("reloads active Pi runtimes without booting unused Pi runtimes", async () => {
@@ -981,7 +981,7 @@ describe("workspace agent instances", () => {
     await expect(agentRuntime.reloadPiResources()).resolves.toBe(true);
     expect(sdk.state.session?.["reload"] as Mock).toHaveBeenCalledOnce();
     guard[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 
   it("mirrors Pi-originated model changes into status", async () => {
@@ -1003,6 +1003,6 @@ describe("workspace agent instances", () => {
       id: "gpt-5",
     });
     guard[Symbol.dispose]();
-    await agentRuntime.dispose();
+    await agentRuntime[Symbol.asyncDispose]();
   });
 });

@@ -75,7 +75,7 @@ describe("AgentInstanceSupervisor", () => {
     guardB[Symbol.dispose]();
     await Promise.resolve();
     expect(fake.dispose).toHaveBeenCalledOnce();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("retains independent operation and turn guards synchronously", async () => {
@@ -99,7 +99,7 @@ describe("AgentInstanceSupervisor", () => {
     await Promise.resolve();
     expect(fake.dispose).toHaveBeenCalledOnce();
     expect(() => operation.retain()).toThrow("disposed");
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("makes final guard disposal immediate while teardown remains asynchronous", async () => {
@@ -117,7 +117,7 @@ describe("AgentInstanceSupervisor", () => {
     await Promise.resolve();
     expect(fake.dispose).toHaveBeenCalledOnce();
     let drained = false;
-    const disposal = supervisor.dispose().then(() => {
+    const disposal = supervisor[Symbol.asyncDispose]().then(() => {
       drained = true;
     });
     await Promise.resolve();
@@ -150,7 +150,7 @@ describe("AgentInstanceSupervisor", () => {
     expect(newGuard.value).toBe(second.instance);
     expect(createInstance).toHaveBeenCalledTimes(2);
     newGuard[Symbol.dispose]();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("visits a stable snapshot under temporary guards", async () => {
@@ -171,8 +171,8 @@ describe("AgentInstanceSupervisor", () => {
     const guardB = await supervisor.acquire(b);
     const visited: AgentInstance[] = [];
 
-    await supervisor.visit((guard) => {
-      visited.push(guard.value);
+    await supervisor.visitLiveInstances((instance) => {
+      visited.push(instance);
       expect(
         supervisor.getGuardSnapshot().some(({ origin }) => origin === "reload"),
       ).toBe(true);
@@ -182,7 +182,7 @@ describe("AgentInstanceSupervisor", () => {
     expect(visited).toHaveLength(2);
     guardA[Symbol.dispose]();
     guardB[Symbol.dispose]();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("uses an acquisition-provided creation only for a cold target", async () => {
@@ -206,7 +206,7 @@ describe("AgentInstanceSupervisor", () => {
     expect(createInstance).not.toHaveBeenCalled();
     first[Symbol.dispose]();
     second[Symbol.dispose]();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("rejects reacquisition when the previous instance teardown fails", async () => {
@@ -221,7 +221,7 @@ describe("AgentInstanceSupervisor", () => {
 
     await expect(supervisor.acquire(target)).rejects.toThrow("teardown failed");
     expect(createInstance).toHaveBeenCalledOnce();
-    await expect(supervisor.dispose()).rejects.toThrow(
+    await expect(supervisor[Symbol.asyncDispose]()).rejects.toThrow(
       "One or more agent instance teardowns failed",
     );
   });
@@ -235,7 +235,7 @@ describe("AgentInstanceSupervisor", () => {
       createInstance: () => creationGate.promise,
     });
     const acquisition = supervisor.acquire(target);
-    const disposal = supervisor.dispose();
+    const disposal = supervisor[Symbol.asyncDispose]();
 
     creationGate.resolve(fake.instance);
 
@@ -257,7 +257,7 @@ describe("AgentInstanceSupervisor", () => {
     await expect(supervisor.acquire(target)).rejects.toThrow("creation failed");
     const guard = await supervisor.acquire(target);
     guard[Symbol.dispose]();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("rejects branch-bearing targets until session coordination exists", async () => {
@@ -272,7 +272,7 @@ describe("AgentInstanceSupervisor", () => {
       }),
     ).rejects.toThrow("Branch session targets are not supported");
     expect(createInstance).not.toHaveBeenCalled();
-    await supervisor.dispose();
+    await supervisor[Symbol.asyncDispose]();
   });
 
   it("stops admission and drains existing guards during parent disposal", async () => {
@@ -282,7 +282,7 @@ describe("AgentInstanceSupervisor", () => {
       createInstance: () => Promise.resolve(fake.instance),
     });
     const guard = await supervisor.acquire(target);
-    const disposal = supervisor.dispose();
+    const disposal = supervisor[Symbol.asyncDispose]();
 
     await expect(supervisor.acquire(target)).rejects.toThrow("disposed");
     expect(fake.dispose).not.toHaveBeenCalled();

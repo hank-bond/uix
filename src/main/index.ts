@@ -11,10 +11,10 @@
 // This file keeps host chrome and physical transport: the window, menu,
 // picker, recents, wire logging, and reload IPC channel.
 //
-// All cleanup-requiring bindings (IPC handlers, app events, window events)
-// flow through the helpers in src/main/ipc.ts and src/main/lifecycle.ts and
-// land in a single `hostBag`. One dispose on `will-quit` tears the whole
-// tree down. See docs/architecture/conventions/lifetimes.md.
+// Cleanup-requiring bindings flow through src/main/ipc.ts and lifecycle.ts.
+// Synchronous host bindings enter `hostBag`. Asynchronous workspace ownerships
+// enter `workspaceBag`. The `before-quit` coordinator drains both before
+// Electron resumes shutdown. See docs/architecture/conventions/lifetimes.md.
 
 import fs from "node:fs";
 import { basename, join } from "node:path";
@@ -42,7 +42,12 @@ import { resolveWorkspace, type Workspace } from "@uix/runtime/roots";
 
 import { bindExternalWebLinks } from "./external-links";
 import * as ipc from "./ipc";
-import { DisposableBag, onApp, onWindow } from "./lifecycle";
+import {
+  AsyncDisposableBag,
+  DisposableBag,
+  onApp,
+  onWindow,
+} from "./lifecycle";
 import { createRecentsStore, type RecentsStore } from "./recents";
 import {
   createElectronResourceTransport,
@@ -122,6 +127,7 @@ function openShellWindow(
  */
 async function openWorkspace(
   hostBag: DisposableBag,
+  workspaceBag: AsyncDisposableBag,
   recents: RecentsStore,
   workspace: Workspace,
   piAppDataDir: string,
@@ -133,17 +139,18 @@ async function openWorkspace(
   const apiModuleDir = join(app.getAppPath(), "packages/api/src");
   let attachment: Attachment | undefined;
   let mainWindow: BrowserWindow | null = null;
-  const runtime = createWorkspaceRuntime({
-    workspaceId: toWorkspaceId(LocalWorkspaceId),
-    workspace,
-    piAppDataDir,
-    ...(fs.existsSync(apiModuleDir) && { apiModuleDir }),
-    dependencies: {
-      resourceTransport: createElectronResourceTransport(),
-      openExternal: (url) => shell.openExternal(url),
-    },
-  });
-  hostBag.add(runtime);
+  const runtime = workspaceBag.add(
+    createWorkspaceRuntime({
+      workspaceId: toWorkspaceId(LocalWorkspaceId),
+      workspace,
+      piAppDataDir,
+      ...(fs.existsSync(apiModuleDir) && { apiModuleDir }),
+      dependencies: {
+        resourceTransport: createElectronResourceTransport(),
+        openExternal: (url) => shell.openExternal(url),
+      },
+    }),
+  );
   hostBag.add(
     ipc.handleCanonicalRequest(Channels.request, (request) => {
       if (!attachment) throw new Error("Workspace is not attached");
@@ -164,7 +171,8 @@ async function openWorkspace(
     if (mainWindow) return;
     const created = await runtime.createAttachment();
     const windowAttachment = created.attachment;
-    const attachmentBag = new DisposableBag();
+    const attachmentBag = hostBag.add(new DisposableBag());
+    attachmentBag.add(windowAttachment);
     attachment = windowAttachment;
     attachmentBag.add(
       runtime.onEvent((event) => {
@@ -190,7 +198,6 @@ async function openWorkspace(
         mainWindow = null;
         if (attachment === windowAttachment) attachment = undefined;
         attachmentBag[Symbol.dispose]();
-        windowAttachment.dispose();
       },
     });
     applyWorkspaceMenu(mainWindow, () => runtime.reload());
@@ -275,6 +282,7 @@ function applyWorkspaceMenu(
 // Section: Start picker
 function openPicker(
   hostBag: DisposableBag,
+  workspaceBag: AsyncDisposableBag,
   recents: RecentsStore,
   piAppDataDir: string,
 ): void {
@@ -295,6 +303,7 @@ function openPicker(
       if (!win.isDestroyed()) win.close();
       openWorkspace(
         hostBag,
+        workspaceBag,
         recents,
         resolveWorkspace(target),
         piAppDataDir,
@@ -381,9 +390,10 @@ function openPicker(
 }
 
 void app.whenReady().then(async () => {
-  // One bag for everything that lives as long as the host does.
-  // Anything we register goes in here; `will-quit` disposes it.
+  // Synchronous host bindings stop first during shutdown. Workspace runtimes
+  // then finish their asynchronous teardown before Electron resumes quitting.
   const hostBag = new DisposableBag();
+  const workspaceBag = new AsyncDisposableBag();
 
   app.setName("UIX");
 
@@ -405,14 +415,31 @@ void app.whenReady().then(async () => {
     }),
   );
 
-  // Dispose the whole tree on shutdown. Registered raw (not via
-  // onApp) because the listener's job IS to dispose hostBag. Putting
-  // it in the bag would make teardown circular. The handler is a
-  // one-shot process-end event with no useful moment to remove it
-  // anyway, so the lack of cleanup is fine.
+  // Electron does not await lifecycle listeners. Stop ordinary host work,
+  // prevent the first quit, await workspace ownership teardown, then resume.
+  // This listener owns shutdown itself, so enrolling it in either bag would be
+  // circular.
+  let quitReady = false;
+  let shutdown: Promise<void> | undefined;
   // eslint-disable-next-line no-restricted-syntax -- documented exception
-  app.on("will-quit", () => {
+  app.on("before-quit", (event) => {
+    if (quitReady) return;
+    event.preventDefault();
+    if (shutdown) return;
     hostBag[Symbol.dispose]();
+    shutdown = workspaceBag[Symbol.asyncDispose]()
+      .catch((error: unknown) => {
+        createLogger("main").error(
+          {
+            err: error instanceof Error ? error.message : String(error),
+          },
+          "host_shutdown_failed",
+        );
+      })
+      .then(() => {
+        quitReady = true;
+        app.quit();
+      });
   });
 
   const userDataDir = app.getPath("userData");
@@ -428,6 +455,7 @@ void app.whenReady().then(async () => {
   if (envTarget) {
     await openWorkspace(
       hostBag,
+      workspaceBag,
       recents,
       resolveWorkspace(envTarget),
       piAppDataDir,
@@ -436,8 +464,14 @@ void app.whenReady().then(async () => {
   }
   const cwdWorkspace = resolveWorkspace();
   if (fs.existsSync(cwdWorkspace.manifestPath)) {
-    await openWorkspace(hostBag, recents, cwdWorkspace, piAppDataDir);
+    await openWorkspace(
+      hostBag,
+      workspaceBag,
+      recents,
+      cwdWorkspace,
+      piAppDataDir,
+    );
     return;
   }
-  openPicker(hostBag, recents, piAppDataDir);
+  openPicker(hostBag, workspaceBag, recents, piAppDataDir);
 });

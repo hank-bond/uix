@@ -30,14 +30,12 @@ export interface AgentInstanceSupervisor extends AsyncDisposable {
     },
   ): Promise<AgentInstanceGuard>;
   /** Visit a stable snapshot under one temporary guard per live instance. */
-  visit(
-    visitor: (guard: AgentInstanceGuard) => Promise<void>,
+  visitLiveInstances(
+    visitor: (instance: AgentInstance) => Promise<void>,
     origin?: string,
   ): Promise<void>;
   /** Capture the currently active guards without exposing guard authority. */
   getGuardSnapshot(): AgentInstanceGuardSnapshot;
-  /** Stop admission, drain every guard, and await actual child teardown. */
-  dispose(): Promise<void>;
 }
 
 export interface AgentInstanceSupervisorOptions {
@@ -225,7 +223,7 @@ export function createAgentInstanceSupervisor(
 
   return {
     acquire,
-    async visit(visitor, origin = "visit") {
+    async visitLiveInstances(visitor, origin = "visit-live-instances") {
       if (disposed) throw new Error("Agent instance supervisor is disposed");
       const guards = [...instances.entries()]
         .filter(([, managed]) => !managed.teardown)
@@ -235,7 +233,7 @@ export function createAgentInstanceSupervisor(
       await Promise.all(
         guards.map(async (guard) => {
           using operationGuard = guard;
-          await visitor(operationGuard);
+          await visitor(operationGuard.value);
         }),
       );
     },
@@ -248,7 +246,6 @@ export function createAgentInstanceSupervisor(
         })),
       );
     },
-    dispose,
     [Symbol.asyncDispose]: dispose,
   };
 }

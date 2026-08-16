@@ -336,7 +336,7 @@ describe("workspace runtime isolation", () => {
 
     // Accepted work survives attachment closure. It can guard and inspect the
     // requested agent without installing a target on the closed attachment.
-    closingAttachment.dispose();
+    closingAttachment[Symbol.dispose]();
     expect(await acceptedSwitch.invoke()).toMatchObject({ ok: true });
     expect(closingAttachment.target.sessionId).toBe(previousSessionId);
     expect(await dispatch(attachA, { channel: ping, payload: {} })).toEqual({
@@ -464,8 +464,8 @@ describe("workspace runtime isolation", () => {
 
     // Disposing one runtime removes only its state and routes. Concurrent
     // callers share the same drain rather than observing early completion.
-    const disposalA = runtimeA.dispose();
-    expect(runtimeA.dispose()).toBe(disposalA);
+    const disposalA = runtimeA[Symbol.asyncDispose]();
+    expect(runtimeA[Symbol.asyncDispose]()).toBe(disposalA);
     await disposalA;
     expect(() =>
       attachA.prepareDispatch({ channel: ping, payload: {} }),
@@ -480,6 +480,6 @@ describe("workspace runtime isolation", () => {
       ),
     ).toBeDefined();
 
-    await runtimeB.dispose();
+    await runtimeB[Symbol.asyncDispose]();
   });
 });
