@@ -62,7 +62,7 @@ Acceptance:
 
 - Fake providers can drive both API-key and OAuth flows, including multiple sequential fields, selections, informational links, and authorization context retained beside manual input.
 - Only interactive Pi methods appear in the connection catalog, and the user can answer only the currently pending flow/prompt.
-- Startup ownership rejects concurrent flows. Cancellation/disposal aborts the flow signal and pending prompts and suppresses late provider callbacks. This landed presentation-safety guarantee does not yet prove that detached provider or refresh work has quiesced; cancellable background-task joining and bounded shutdown belong to H4.2a of the [Electron/server split](./electron-server-split.md).
+- Startup ownership rejects concurrent flows. Cancellation and disposal abort the flow signal and pending prompts, then suppress late provider callbacks. This landed presentation-safety guarantee does not prove that detached provider or refresh work has quiesced. Cancellable background-task joining and bounded shutdown belong to H4.2a of the [Electron/server split](./electron-server-split.md).
 - Pi alone persists credentials and refreshes model availability.
 
 ## P1: Generic connection modal · **landed 2026-07-25**

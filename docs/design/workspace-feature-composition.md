@@ -19,6 +19,8 @@ Canvas authored HTML remains inside a feature-owned iframe. UIX has no general i
 
 The implemented workspace runtime owns one `WorkspaceAgentRuntime` and one `AgentInstanceSupervisor`. Its first policy provides one guarded primary agent instance per session. Attachments on the same session share that instance, while turns and asynchronous operations hold independent guards. Feature-to-agent links, multiple agents on one session tree, and shared feature state remain design axes. Concurrent workspaces belong to host supervision rather than workspace composition. [`host-workspace-runtime-boundaries.md`](./host-workspace-runtime-boundaries.md) owns that boundary, and [`agent-session-routing.md`](./agent-session-routing.md) owns attachments and agent instances.
 
+The next Agent composition step separates one workspace feature generation from the mutable Agent facets instantiated for each `AgentInstance`. H4 keeps one implicit Agent composition across the workspace. Agent personalities, role selection, and agent-to-agent messaging remain deferred until after host extraction. The instance boundary should permit later workspace-defined compositions to select reusable facets without adding those concepts to the current author or wire contracts.
+
 The current public surface ABI returns a React node, and the compiler supplies a shared React instance. Those are implementation constraints rather than part of the layout or lifetime contract.
 
 The post-alpha target is an ESM definition that mounts into a substrate-provided DOM target with direct typed capabilities and deterministic cleanup. UIX supplies no reactive abstraction or framework-adapter matrix. An app template may still recommend React and Mantine because their constrained pattern, component ecosystem, and model training distribution are product-level strengths rather than substrate requirements. Mixing frameworks remains valid but is not the optimized application path: compatible dependencies may share ordinary ESM chunks, incompatible versions may coexist, and no framework object crosses the surface boundary.
@@ -55,7 +57,7 @@ Link and unlink events may need durable Agent-visible records because they chang
 ## Near-term direction
 
 1. Keep the framework-neutral surface migration out of the alpha critical path; promote its review-gated plan explicitly.
-2. Continue treating resources and channels as workspace facets. Install Agent facets into the selected primary agent instance through the workspace runtime, while preserving an explicit future link boundary for several agent instances.
+2. Keep resources and channels workspace-scoped by default, while instantiating mutable Agent facets for each guarded primary agent instance. Any workspace operation that touches instance state must resolve it from trusted attachment context rather than ambient selection or feature payload fields.
 3. Wait for the first foreign, generated, or executable surface before adding general iframe transport.
 
 ## Log
@@ -141,3 +143,9 @@ Reviewing the deferred plan separated the conclusions actually reached from mech
 Separated concurrent workspace orchestration from workspace feature composition. Each `WorkspaceRuntime` owns exactly one manifest-selected feature composition and one agent-mount manager. A host-level workspace supervisor coalesces runtime boots and chooses whether workspace endpoints share a process or use isolated processes. This keeps duplicate feature and channel ids valid across runtimes and makes each runtime bag the complete workspace teardown boundary.
 
 Replaced the selected-session singleton as the target model with one primary agent mount per session. This first policy supports shared multi-device views while preserving distinct session, mount, and future feature-agent-link identities. Multi-agent branch coordination remains open rather than being implied by concurrent workspace support.
+
+### 2026-08-15: instance facets precede Agent personalities
+
+Separated the immediate state-isolation requirement from the later product model for named Agent personalities or roles. H4.3 keeps one implicit workspace Agent composition but makes the workspace feature generation produce reusable Agent-facet definitions or factories. Each `AgentInstance` owns the mutable facet instances selected from that generation. This prevents two live sessions from sharing turn state, context buffers, stateful tools, or Canvas working projections while leaving a stable seam for later workspace-defined Agent compositions.
+
+The one-visible-target client does not remove this requirement. Attachment retarget can leave the old turn running under an independent guard while the user starts work in another session. Instance-local feature state must therefore be correct before the client displays several agents concurrently.
