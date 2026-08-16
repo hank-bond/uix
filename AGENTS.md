@@ -65,7 +65,7 @@ The framework provides these primitives. Product behavior above them belongs to 
 | **State services** | Own workspace settings, document persistence, and branch-scoped feature turn state. |
 | **Agent runtime** | Own Pi services and sessions, install agent facets, project transcripts, and coordinate restoration. |
 | **Workspace services** | Own renderer actions, keybindings, attachment-session projection, and fixed shell behavior. |
-| **Supervision and guards** | Supervisors own keyed shared children. Independent guards protect each holder's use until release admits teardown policy. |
+| **Supervision and guards** | Supervisors own keyed shared children. Independent disposable guards protect each holder's use until guard disposal admits teardown policy. |
 | **Lifetime bags** | Dispose exclusively owned app, feature, window, and registration capabilities in deterministic order. |
 
 The host shell remains fixed infrastructure. Features provide opinionated surfaces such as Chat, Canvas, palettes, settings editors, and report viewers.
@@ -80,7 +80,7 @@ Apply these rules before reaching for subsystem details:
 - **The agent changes artifacts, not live views:** Agent tools change authoritative feature data. Channels deliver validated events instead of exposing UI handles. See [`2026-05-30-no-agent-ui-manipulation.md`](docs/decisions/2026-05-30-no-agent-ui-manipulation.md).
 - **Hosting-compatible by default:** Address durable content by id behind owned stores. Do not expose local filesystem mechanics as feature contracts. See [`2026-05-31-hosting-compatible-by-default.md`](docs/decisions/2026-05-31-hosting-compatible-by-default.md).
 - **One logical channel API:** The Electron transport implements the contract today. Future iframe or hosted adapters must preserve the same request and event model.
-- **Guards protect shared live ownership:** Supervisors issue independent, idempotently releasable guards for shared children. Exclusive cleanup remains in disposable lifetime bags. See [`lifetimes.md`](docs/architecture/conventions/lifetimes.md).
+- **Guards protect shared live ownership:** Supervisors issue independent, idempotently disposable guards for shared children. Exclusive cleanup remains in disposable lifetime bags. See [`lifetimes.md`](docs/architecture/conventions/lifetimes.md).
 - **Documentation is on demand:** Route through the map below and load only the relevant leaves.
 
 ## Where to read

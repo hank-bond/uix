@@ -18,7 +18,7 @@ import {
 import { DisposableBag } from "../lifecycle";
 import type { TurnStateRegistry } from "../turn-state";
 
-export interface AgentInstanceState extends Disposable {
+export interface AgentInstanceState {
   readonly transcriptObserver: TranscriptObserver;
   readonly turnStateCoordinator: TurnStateCoordinator | undefined;
   readonly ephemeralTranscriptIds: EphemeralTranscriptItemIdSequence;
@@ -26,6 +26,9 @@ export interface AgentInstanceState extends Disposable {
   getCurrentModel(): ModelRef | undefined;
   setCurrentModel(model: ModelRef | undefined): void;
 }
+
+/** Ownership capability adding deterministic cleanup to operational state. */
+export type AgentInstanceStateOwnership = AgentInstanceState & Disposable;
 
 export interface AgentInstanceStateOptions {
   readonly emit: (event: AgentEvent) => void;
@@ -37,7 +40,7 @@ export interface AgentInstanceStateOptions {
 /** Creates the mutable state owned by one agent at one branch viewpoint. */
 export function createAgentInstanceState(
   opts: AgentInstanceStateOptions,
-): AgentInstanceState {
+): AgentInstanceStateOwnership {
   const bag = new DisposableBag();
   const ephemeralTranscriptIds = createEphemeralTranscriptItemIdSequence();
   const transcriptObserver = bag.add(
@@ -58,7 +61,6 @@ export function createAgentInstanceState(
   let disposed = false;
 
   function setCurrentModel(model: ModelRef | undefined): void {
-    if (disposed) throw new Error("Agent instance state is disposed");
     currentModel = model;
   }
 

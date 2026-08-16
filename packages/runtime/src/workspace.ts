@@ -96,7 +96,7 @@ export interface Attachment extends Disposable {
   onEvent(listener: (event: RuntimeEvent) => void): Disposable;
   /** Observe deterministic attachment closure. */
   onClose(listener: () => void): Disposable;
-  /** Close event observation and release the target guard. Idempotent. */
+  /** Close event observation and dispose the target guard. Idempotent. */
   dispose(): void;
 }
 

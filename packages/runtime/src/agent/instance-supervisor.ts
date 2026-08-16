@@ -1,19 +1,14 @@
 // Supervises session-keyed agent instances and issues explicit lifetime guards.
 
-import type { AgentInstance } from "./instance";
+import type { AgentInstance, AgentInstanceOwnership } from "./instance";
+import { createGuard, type Guard } from "../guard";
 import { createLogger } from "../log";
 import type { SessionId, SessionTarget } from "../workspace";
 
 const log = createLogger("agent-instance-supervisor");
 
-/** A disposable veto against teardown of one supervised agent instance. */
-export interface AgentInstanceGuard extends Disposable {
-  readonly instance: AgentInstance;
-  /** Mint another independently releasable guard on the same instance. */
-  retain(origin?: string): AgentInstanceGuard;
-  /** Relinquish this guard. Immediate, idempotent, and non-blocking. */
-  release(): void;
-}
+/** A disposable veto with one supervised agent instance's operational value. */
+export type AgentInstanceGuard = Guard<AgentInstance>;
 
 export interface AgentInstanceGuardSnapshotEntry {
   readonly guardId: number;
@@ -30,7 +25,7 @@ export interface AgentInstanceSupervisor extends AsyncDisposable {
   acquire(
     target: SessionTarget,
     options?: {
-      readonly createInstance?: () => Promise<AgentInstance>;
+      readonly createInstance?: () => Promise<AgentInstanceOwnership>;
       readonly origin?: string;
     },
   ): Promise<AgentInstanceGuard>;
@@ -46,11 +41,13 @@ export interface AgentInstanceSupervisor extends AsyncDisposable {
 }
 
 export interface AgentInstanceSupervisorOptions {
-  readonly createInstance: (target: SessionTarget) => Promise<AgentInstance>;
+  readonly createInstance: (
+    target: SessionTarget,
+  ) => Promise<AgentInstanceOwnership>;
 }
 
 interface AgentInstanceSupervisionState {
-  readonly instance: AgentInstance;
+  readonly ownership: AgentInstanceOwnership;
   readonly guards: Map<number, string>;
   readonly zeroWaiters: Set<() => void>;
   teardown?: Promise<void>;
@@ -70,10 +67,6 @@ export function createAgentInstanceSupervisor(
   let disposal: Promise<void> | undefined;
   let disposed = false;
 
-  function isDisposed(): boolean {
-    return disposed;
-  }
-
   function recordTeardownFailure(sessionId: SessionId, error: unknown): void {
     teardownFailures.push(error);
     log.error(
@@ -91,7 +84,7 @@ export function createAgentInstanceSupervisor(
   ): Promise<void> {
     if (managed.teardown) return managed.teardown;
     const teardown = Promise.resolve()
-      .then(() => managed.instance.dispose())
+      .then(() => managed.ownership[Symbol.asyncDispose]())
       .then(() => {
         if (instances.get(sessionId) === managed) instances.delete(sessionId);
       })
@@ -117,7 +110,7 @@ export function createAgentInstanceSupervisor(
     });
   }
 
-  function createGuard(
+  function createAgentInstanceGuard(
     sessionId: SessionId,
     managed: AgentInstanceSupervisionState,
     origin: string,
@@ -128,31 +121,23 @@ export function createAgentInstanceSupervisor(
     nextGuardId += 1;
     const guardId = nextGuardId;
     managed.guards.set(guardId, origin);
-    let released = false;
-
-    const release = (): void => {
-      if (released) return;
-      released = true;
-      managed.guards.delete(guardId);
-      if (managed.guards.size !== 0) return;
-      notifyZero(managed);
-      void startTeardown(sessionId, managed);
-    };
-
-    return {
-      instance: managed.instance,
-      retain(retainedOrigin = "retained") {
-        if (released) throw new Error("Agent instance guard is released");
-        return createGuard(sessionId, managed, retainedOrigin);
+    return createGuard<AgentInstance>({
+      label: "Agent instance",
+      value: managed.ownership,
+      retain: (retainedOrigin) =>
+        createAgentInstanceGuard(sessionId, managed, retainedOrigin),
+      onDispose: () => {
+        managed.guards.delete(guardId);
+        if (managed.guards.size !== 0) return;
+        notifyZero(managed);
+        void startTeardown(sessionId, managed);
       },
-      release,
-      [Symbol.dispose]: release,
-    };
+    });
   }
 
   function getOrCreate(
     target: SessionTarget,
-    createInstance: () => Promise<AgentInstance> = () =>
+    createInstance: () => Promise<AgentInstanceOwnership> = () =>
       opts.createInstance(target),
   ): Promise<AgentInstanceSupervisionState> {
     const existing = instances.get(target.sessionId);
@@ -161,10 +146,10 @@ export function createAgentInstanceSupervisor(
     if (inFlight) return inFlight;
 
     const creation = createInstance()
-      .then(async (instance) => {
+      .then(async (ownership) => {
         if (disposed) {
           try {
-            await instance.dispose();
+            await ownership[Symbol.asyncDispose]();
           } catch (error) {
             recordTeardownFailure(target.sessionId, error);
             throw error;
@@ -172,7 +157,7 @@ export function createAgentInstanceSupervisor(
           throw new Error("Agent instance supervisor is disposed");
         }
         const managed: AgentInstanceSupervisionState = {
-          instance,
+          ownership,
           guards: new Map(),
           zeroWaiters: new Set(),
         };
@@ -191,7 +176,7 @@ export function createAgentInstanceSupervisor(
   async function acquire(
     target: SessionTarget,
     options?: {
-      readonly createInstance?: () => Promise<AgentInstance>;
+      readonly createInstance?: () => Promise<AgentInstanceOwnership>;
       readonly origin?: string;
     },
   ): Promise<AgentInstanceGuard> {
@@ -202,11 +187,14 @@ export function createAgentInstanceSupervisor(
 
     const existing = instances.get(target.sessionId);
     if (existing?.teardown) await existing.teardown;
-    if (isDisposed()) throw new Error("Agent instance supervisor is disposed");
 
     const state = await getOrCreate(target, options?.createInstance);
-    if (isDisposed()) throw new Error("Agent instance supervisor is disposed");
-    return createGuard(target.sessionId, state, options?.origin ?? "acquire");
+    if (disposal) throw new Error("Agent instance supervisor is disposed");
+    return createAgentInstanceGuard(
+      target.sessionId,
+      state,
+      options?.origin ?? "acquire",
+    );
   }
 
   async function dispose(): Promise<void> {
@@ -241,12 +229,15 @@ export function createAgentInstanceSupervisor(
       if (disposed) throw new Error("Agent instance supervisor is disposed");
       const guards = [...instances.entries()]
         .filter(([, managed]) => !managed.teardown)
-        .map(([sessionId, managed]) => createGuard(sessionId, managed, origin));
-      try {
-        await Promise.all(guards.map((guard) => visitor(guard)));
-      } finally {
-        for (const guard of guards) guard.release();
-      }
+        .map(([sessionId, managed]) =>
+          createAgentInstanceGuard(sessionId, managed, origin),
+        );
+      await Promise.all(
+        guards.map(async (guard) => {
+          using operationGuard = guard;
+          await visitor(operationGuard);
+        }),
+      );
     },
     getGuardSnapshot() {
       return [...instances.entries()].flatMap(([sessionId, managed]) =>

@@ -436,7 +436,7 @@ describe("workspace agent instances", () => {
     const first = await agentRuntime.acquire(target, sdk.manager as never);
     const second = await agentRuntime.acquire(target);
 
-    expect(first.instance).toBe(second.instance);
+    expect(first.value).toBe(second.value);
     expect(sdk.state.runtimeCreates).toBe(0);
     await Promise.all([
       agentRuntime.prompt(first, "first"),
@@ -444,8 +444,8 @@ describe("workspace agent instances", () => {
     ]);
     expect(sdk.state.runtimeCreates).toBe(1);
 
-    first.release();
-    second.release();
+    first[Symbol.dispose]();
+    second[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
@@ -477,11 +477,11 @@ describe("workspace agent instances", () => {
 
     gate.resolve();
     await first;
-    guard.release();
+    guard[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
-  it("keeps a detached turn guarded after its attachment releases", async () => {
+  it("keeps a detached turn guarded after its attachment disposes", async () => {
     const gate = deferred();
     sdk.state.promptPromise = gate.promise;
     const { agentRuntime } = createHarness();
@@ -494,7 +494,7 @@ describe("workspace agent instances", () => {
     await vi.waitFor(() => {
       expect(sdk.state.session?.["prompt"] as Mock).toHaveBeenCalledOnce();
     });
-    guard.release();
+    guard[Symbol.dispose]();
     let disposed = false;
     const disposal = agentRuntime.dispose().then(() => {
       disposed = true;
@@ -523,13 +523,13 @@ describe("workspace agent instances", () => {
       managerB as never,
     );
 
-    expect(a.instance).not.toBe(b.instance);
-    expect(a.instance.state).not.toBe(b.instance.state);
-    a.instance.state.setCurrentModel({ provider: "openai", id: "gpt-5" });
-    expect(b.instance.state.getCurrentModel()).toBeUndefined();
+    expect(a.value).not.toBe(b.value);
+    expect(a.value.state).not.toBe(b.value.state);
+    a.value.state.setCurrentModel({ provider: "openai", id: "gpt-5" });
+    expect(b.value.state.getCurrentModel()).toBeUndefined();
 
-    a.release();
-    b.release();
+    a[Symbol.dispose]();
+    b[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
@@ -547,8 +547,8 @@ describe("workspace agent instances", () => {
       { sessionId: "session-b" as never },
       managerB as never,
     );
-    const runningA = a.instance.beginTurn();
-    const runningB = b.instance.beginTurn();
+    const runningA = a.value.beginTurn();
+    const runningB = b.value.beginTurn();
 
     await agentRuntime.prompt(a, "busy on a");
     await agentRuntime.prompt(b, "busy on b");
@@ -565,8 +565,8 @@ describe("workspace agent instances", () => {
 
     runningA[Symbol.dispose]();
     runningB[Symbol.dispose]();
-    a.release();
-    b.release();
+    a[Symbol.dispose]();
+    b[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
@@ -581,7 +581,7 @@ describe("workspace agent instances", () => {
     await agentRuntime.prompt(guard, "hello");
 
     expect(sdk.state.lastCreateOptions?.["model"]).toBe(openai);
-    guard.release();
+    guard[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
@@ -700,7 +700,7 @@ describe("workspace agent instances", () => {
       defaultModel: { provider: "openai", id: "gpt-5" },
       model: { provider: "openai", id: "gpt-5" },
     });
-    guard.release();
+    guard[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
@@ -724,7 +724,7 @@ describe("workspace agent instances", () => {
       provider: "anthropic",
       id: "claude-sonnet-4-5",
     });
-    guard.release();
+    guard[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
@@ -741,7 +741,7 @@ describe("workspace agent instances", () => {
         id: "gemini",
       }),
     ).rejects.toThrow("Model is not available");
-    guard.release();
+    guard[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
@@ -772,7 +772,7 @@ describe("workspace agent instances", () => {
       expect.objectContaining({ kind: "user", text: "hello" }),
     ]);
     expect(sdk.state.runtimeCreates).toBe(0);
-    guard.release();
+    guard[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
@@ -793,7 +793,7 @@ describe("workspace agent instances", () => {
       agentRuntime.setSessionTitle(guard, "session-id", "  \n "),
     ).rejects.toThrow("cannot be blank");
     expect(sdk.state.runtimeCreates).toBe(0);
-    guard.release();
+    guard[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
@@ -816,7 +816,7 @@ describe("workspace agent instances", () => {
     await agentRuntime.prompt(guard, "hello");
 
     expect(sdk.state.lastCreateOptions?.["model"]).toBeUndefined();
-    guard.release();
+    guard[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
@@ -842,7 +842,7 @@ describe("workspace agent instances", () => {
     expect(restore).toHaveBeenCalledWith("persisted");
     expect(sdk.state.servicesLoads).toBe(0);
     expect(sdk.state.runtimeCreates).toBe(0);
-    guard.release();
+    guard[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
@@ -872,7 +872,7 @@ describe("workspace agent instances", () => {
         state: { "canvas.documents": "live" },
       },
     );
-    guard.release();
+    guard[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
@@ -897,7 +897,7 @@ describe("workspace agent instances", () => {
       "snapshot failed",
     );
     expect(sdk.manager.appendCustomEntry).not.toHaveBeenCalled();
-    guard.release();
+    guard[Symbol.dispose]();
     await expect(agentRuntime.dispose()).rejects.toThrow();
   });
 
@@ -928,7 +928,7 @@ describe("workspace agent instances", () => {
     const guard = await agentRuntime.acquire(target, manager as never);
 
     expect(branchReads).toBeGreaterThanOrEqual(2);
-    guard.release();
+    guard[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
@@ -964,7 +964,7 @@ describe("workspace agent instances", () => {
     restoreGate.resolve();
     const guard = await acquisition;
     expect(admitted).toBe(true);
-    guard.release();
+    guard[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
@@ -980,7 +980,7 @@ describe("workspace agent instances", () => {
     await agentRuntime.prompt(guard, "hello");
     await expect(agentRuntime.reloadPiResources()).resolves.toBe(true);
     expect(sdk.state.session?.["reload"] as Mock).toHaveBeenCalledOnce();
-    guard.release();
+    guard[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 
@@ -1002,7 +1002,7 @@ describe("workspace agent instances", () => {
       provider: "openai",
       id: "gpt-5",
     });
-    guard.release();
+    guard[Symbol.dispose]();
     await agentRuntime.dispose();
   });
 });

@@ -4,11 +4,11 @@ summary: "The agent runtime opens Pi sessions, handles models and provider sign-
 
 # Agent runtime
 
-One workspace agent runtime owns shared provider and model services plus an agent instance supervisor. The supervisor issues explicit guards on session-keyed instances, while each instance owns its private session manager, restored state, and lazily booted Pi runtime. Ordered installers attach UIX behavior when a Pi runtime starts. Their order matters because Pi runs hooks in registration order.
+One workspace agent runtime owns shared provider and model services plus an agent instance supervisor. The supervisor retains session-keyed `AgentInstanceOwnership`s and issues generic guards that provide the operational `AgentInstance` values. The supervisor keeps each ownership private. That ownership controls its session manager, restored state, and lazily booted Pi runtime. Ordered installers attach UIX behavior when a Pi runtime starts. Their order matters because Pi runs hooks in registration order.
 
 Each instance's branch is the shared source for its persisted transcript and restored feature state. Historical projection and live observation must produce the same renderer transcript shape. Live rows begin with temporary IDs when necessary, then adopt Pi's durable entry IDs when Pi persists their messages.
 
-Workspace settings record the default model and favorites. Session-file readers provide history and summaries without opening a Pi runtime. Instance-specific operations require a live guard, and running turns retain their own guards through the final safe boundary.
+Workspace settings record the default model and favorites. Session-file readers provide history and summaries without opening a Pi runtime. Instance-specific operations use the handle carried by a live guard, and running turns retain their own guards through the final safe boundary.
 
 Provider discovery and interactive sign-in share Pi's authentication state. A completed sign-in refreshes model availability without coupling provider-specific prompts or links to the renderer transport.
 

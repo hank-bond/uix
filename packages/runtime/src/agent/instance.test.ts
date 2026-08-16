@@ -99,7 +99,7 @@ describe("AgentInstance", () => {
     turn[Symbol.dispose]();
     const nextTurn = instance.beginTurn();
     nextTurn[Symbol.dispose]();
-    await instance.dispose();
+    await instance[Symbol.asyncDispose]();
   });
 
   it("shares one runtime boot across concurrent callers", async () => {
@@ -193,7 +193,7 @@ describe("AgentInstance", () => {
     expect(harness.sessionReload).toHaveBeenCalledOnce();
   });
 
-  it("awaits and disposes a runtime that finishes booting during disposal", async () => {
+  it("awaits and disposes a pending runtime boot", async () => {
     const harness = createHarness();
     let resolveRuntime!: (runtime: AgentSessionRuntime) => void;
     const runtimeGate = new Promise<AgentSessionRuntime>((resolve) => {
@@ -208,10 +208,10 @@ describe("AgentInstance", () => {
     });
 
     const boot = instance.bootRuntime();
-    const disposal = instance.dispose();
+    const disposal = instance[Symbol.asyncDispose]();
     resolveRuntime(harness.runtime);
 
-    await expect(boot).rejects.toThrow("disposed");
+    await expect(boot).resolves.toBe(harness.runtime);
     await disposal;
     expect(harness.runtimeDispose).toHaveBeenCalledOnce();
   });
@@ -226,7 +226,7 @@ describe("AgentInstance", () => {
     });
     await instance.bootRuntime();
 
-    await instance.dispose();
+    await instance[Symbol.asyncDispose]();
 
     expect(harness.sessionSubscribe).not.toHaveBeenCalled();
     expect(harness.runtimeDispose).toHaveBeenCalledOnce();
@@ -243,10 +243,11 @@ describe("AgentInstance", () => {
     });
     await instance.bootRuntime();
 
-    await expect(instance.dispose()).rejects.toThrow("disposal failed");
+    await expect(instance[Symbol.asyncDispose]()).rejects.toThrow(
+      "disposal failed",
+    );
 
     expect(harness.runtimeDispose).toHaveBeenCalledOnce();
-    await expect(instance.bootRuntime()).rejects.toThrow("disposed");
   });
 
   it("commits final turn state before disposing instance state", async () => {
@@ -264,12 +265,9 @@ describe("AgentInstance", () => {
       state: { emit: () => undefined, cwd: "/workspace" },
     });
 
-    await instance.dispose();
+    await instance[Symbol.asyncDispose]();
 
     expect(order).toEqual(["finalized"]);
-    expect(() => {
-      instance.state.setCurrentModel(undefined);
-    }).toThrow("disposed");
   });
 
   it("disposes its state and booted runtime idempotently", async () => {
@@ -282,11 +280,10 @@ describe("AgentInstance", () => {
     });
     await instance.bootRuntime();
 
-    await Promise.all([instance.dispose(), instance.dispose()]);
+    await Promise.all([
+      instance[Symbol.asyncDispose](),
+      instance[Symbol.asyncDispose](),
+    ]);
     expect(harness.runtimeDispose).toHaveBeenCalledOnce();
-    await expect(instance.bootRuntime()).rejects.toThrow("disposed");
-    expect(() => {
-      instance.state.setCurrentModel(undefined);
-    }).toThrow("disposed");
   });
 });

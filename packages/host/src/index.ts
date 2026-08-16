@@ -7,5 +7,5 @@ export {
   WorkspaceSupervisor,
   type WorkspaceSupervisorOptions,
 } from "./supervisor";
-export { WorkspaceHandle } from "./workspace-handle";
+export type { Workspace } from "./workspace";
 export type { Attachment } from "@uix/runtime";

@@ -117,7 +117,7 @@ export class ChannelRegistry {
   prepare(
     context: AttachmentDispatchContext,
     request: CanonicalRequest,
-    releaseOperationGuard: () => void,
+    disposeOperationGuard: () => void,
   ): PreparedDispatch {
     const runner = this.#runners.get(request.channel);
     const logOptions: ChannelRequestLogOptions<unknown, unknown> = runner
@@ -127,18 +127,18 @@ export class ChannelRegistry {
           describeResponse: (response) => response,
         };
     let invoked = false;
-    let released = false;
-    const release = (): void => {
-      if (released) return;
-      released = true;
-      releaseOperationGuard();
+    let disposed = false;
+    const dispose = (): void => {
+      if (disposed) return;
+      disposed = true;
+      disposeOperationGuard();
     };
 
     return {
       request,
       logOptions,
       async invoke(): Promise<CanonicalResponse> {
-        if (released) {
+        if (disposed) {
           return {
             ok: false,
             error: {
@@ -180,10 +180,10 @@ export class ChannelRegistry {
             },
           };
         } finally {
-          release();
+          dispose();
         }
       },
-      [Symbol.dispose]: release,
+      [Symbol.dispose]: dispose,
     };
   }
 }

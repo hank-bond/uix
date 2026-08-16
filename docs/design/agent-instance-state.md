@@ -23,10 +23,10 @@ The lifecycle vocabulary is settled:
 - `boot` starts the created instance's lazy Pi runtime when execution first requires it.
 - `bind` remains creation-time wiring only and does not describe the connection-to-instance relationship.
 - The `AgentInstanceSupervisor` owns keyed instance identity, single-flight creation, guard admission, lifetime policy, and teardown. It is not on the ordinary agent-operation hot path.
-- An `AgentInstanceGuard` is a disposable teardown veto. Attachments, turns, background work, reload, and any other asynchronous instance use hold guards for their complete use. A guard can provide internal access to its instance but does not become an operational handle.
-- A live guard can synchronously retain another independently releasable guard on the same managed instance. Retaining after release fails, and releasing either guard does not affect the other.
+- An `AgentInstanceGuard` is a disposable teardown veto. Attachments, turns, background work, reload, and any other asynchronous instance use hold guards for their complete use. A guard provides its operational instance value but does not absorb the instance's domain operations.
+- A live guard can synchronously retain another independently disposable guard on the same managed instance. Retaining after disposal fails, and disposing either guard does not affect the other.
 - Releasing one or every guard removes protection without promising teardown. Zero guards makes an instance eligible for supervisor policy; the first policy tears down an eligible idle instance immediately.
-- A running turn owns a guard until its final safe boundary. The turn therefore explains why a disconnected instance remains live instead of requiring the final attachment release to await `agent_end`.
+- A running turn owns a guard until its final safe boundary. The turn therefore explains why a disconnected instance remains live instead of requiring final attachment disposal to await `agent_end`.
 - Concurrent attaches share one instance creation through single-flight.
 
 The canonical URL names one attachment's target. A browser workspace-only route resolves the newest valid session and then replaces itself with that canonical URL. Electron restores each local window or tab's canonical target from its own host profile. Neither path creates a workspace-global active session.
@@ -50,6 +50,10 @@ Clarified that an agent instance owns one Pi execution, but its Pi runtime can r
 ### 2026-08-14: guards make instance use explicit
 
 Replaced the retention-token model with disposable `AgentInstanceGuard` capabilities issued by an `AgentInstanceSupervisor`. The supervisor remains the sole instance owner. Every asynchronous use holds a guard, and the running turn itself holds one through its safe boundary. Releasing a guard is immediate and only removes one teardown veto; zero guards permits supervisor policy but does not promise disposal. This makes attachments, detached turns, reload, and future background work use one visible lifetime rule.
+
+### 2026-08-15: generic guards provide operational values
+
+Unified workspace and agent-instance guards as `Guard<Value>`. `AgentInstanceOwnership` combines the operational `AgentInstance` with lifecycle authority and remains private to the supervisor. Each guard provides the operational instance for its exact generation plus `retain` and `Symbol.dispose`. Lexical holders use `using`, while longer-lived connection and attachment holders dispose guards through their own deterministic cleanup.
 
 ### 2026-08-14: creation precedes Pi runtime boot
 

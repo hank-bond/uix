@@ -8,26 +8,26 @@ status: exploring
 
 ## Current synthesis
 
-A _host_ owns process and platform integration. A _workspace runtime_ owns the substrate semantics for exactly one workspace. A _supervisor_ sits inside the host and maps workspace ids to private _supervised workspaces_. Each supervised workspace owns one in-process runtime, its host-side event subscription, and every attachment in that parent lifetime. It provides callers a narrow `WorkspaceHandle` that can create attachments but cannot dispose the supervised workspace. The supervisor keeps several runtimes in one process, and each runtime's lifetime bag preserves teardown isolation. Process isolation is not a goal: a hosted deployment isolates users by VM, and local usage has no trust boundary between workspaces.
+A _host_ owns process and platform integration. A _workspace runtime_ owns the substrate semantics for exactly one workspace. A _supervisor_ sits inside the host and maps workspace ids to private `WorkspaceOwnership`s. Each `WorkspaceOwnership` combines the operational `Workspace` with lifecycle authority over one in-process runtime, its host-side event subscription, and every attachment in that parent lifetime. Guards provide callers the operational workspace without that lifecycle authority. The supervisor keeps several runtimes in one process, and each runtime's lifetime bag preserves teardown isolation. Process isolation is not a goal: a hosted deployment isolates users by VM, and local usage has no trust boundary between workspaces.
 
 ```text
 Host process
 ├── launcher and workspace catalog
 ├── WorkspaceSupervisor
 │   ├── supervised workspace A
-│   │   ├── WorkspaceGuard(s) → WorkspaceHandle
+│   │   ├── WorkspaceGuard(s) → Workspace
 │   │   └── WorkspaceRuntime
 │   │       └── WorkspaceAgentRuntime
 │   │           └── AgentInstanceSupervisor
 │   └── supervised workspace B
-│       ├── WorkspaceGuard(s) → WorkspaceHandle
+│       ├── WorkspaceGuard(s) → Workspace
 │       └── WorkspaceRuntime
 │           └── WorkspaceAgentRuntime
 │               └── AgentInstanceSupervisor
 └── platform and transport adapters
 ```
 
-Concurrent acquisitions of one workspace share one runtime boot through single-flight and receive independent `WorkspaceGuard`s. Each guard protects the private supervised workspace and provides its shared narrow `WorkspaceHandle`; the handle exposes none of the supervisor's lifetime authority. A live workspace guard can retain another guard for connection setup, background work, or another asynchronous use. Release is synchronous and idempotent. At zero guards, the first policy begins workspace teardown. The `WorkspaceSupervisor` owns that policy and observes the private supervised workspace as it stops event delivery, disposes child attachments, and disposes the runtime. Each workspace runtime owns a discrete lifetime bag, feature composition, stores, registries, and one `WorkspaceAgentRuntime`. That agent runtime owns an `AgentInstanceSupervisor` for its keyed instances. Disposing one runtime cannot remove another runtime's channels, resources, features, or process bindings.
+Concurrent acquisitions of one workspace share one runtime boot through single-flight and receive independent `WorkspaceGuard`s. Each guard protects the private `WorkspaceOwnership` and provides its operational `Workspace` value; the ownership capability remains private to the supervisor. A live workspace guard can retain another guard for connection setup, background work, or another asynchronous use. Guard disposal is synchronous and idempotent. At zero guards, the first policy begins workspace teardown. The `WorkspaceSupervisor` owns that policy and observes the private supervised workspace as it stops event delivery, disposes child attachments, and disposes the runtime. Each workspace runtime owns a discrete lifetime bag, feature composition, stores, registries, and one `WorkspaceAgentRuntime`. That agent runtime owns an `AgentInstanceSupervisor` for its keyed instances. Disposing one runtime cannot remove another runtime's channels, resources, features, or process bindings.
 
 The host resolves a connection's workspace id once, acquires a workspace guard from the workspace supervisor, and asks its handle for an attachment to the accepted session target. This creates two parallel supervision levels: the `WorkspaceSupervisor` maps a workspace id to a single-flight runtime boot, and one `AgentInstanceSupervisor` maps an agent target to a single-flight instance creation. The resulting attachment is the connection's bound request capability, so later messages do not traverse either supervisor or repeat workspace or instance resolution. The attachment owns a replaceable instance guard, and operation-specific guards protect asynchronous work after dispatch. [`agent-session-routing.md`](./agent-session-routing.md) owns attachment retargeting, guard lifetimes, and agent-instance teardown.
 
@@ -116,7 +116,7 @@ Placed the launcher above all workspace runtimes. The server can serve `/` with 
 
 Separated hosts from apps in the repository model. Hosts provide infrastructure. Apps combine a host with explicit feature and workspace compositions. Reusable app features can live under `apps/features`, and workspace-specific features can live beside each manifest without introducing auto-discovery.
 
-Settled the injected-effects vocabulary as `dependencies`, the runtime handle as `WorkspaceHandle`, and the external macOS client as the `native launcher` consuming host capability endpoints. The server advertises its address and the native launcher discovers it.
+Settled the injected-effects vocabulary as `dependencies`, the runtime's operational host surface as `Workspace`, and the external macOS client as the `native launcher` consuming host capability endpoints. The server advertises its address and the native launcher discovers it.
 
 ### 2026-08-09: process isolation dropped; the runtime is in-process by construction
 
@@ -128,7 +128,7 @@ Established the target ownership roots with package metadata and enforced the de
 
 ### 2026-08-13: handles narrow authority and attachments route requests
 
-Separated the supervisor-private owner of one runtime from the narrow `WorkspaceHandle` it provides to callers. The private supervised workspace owns event routing, child attachments, and teardown. The handle creates attachments and exposes no disposal operation. Workspace resolution occurs once at connection setup. Every later canonical request travels directly through the connection's bound attachment into the runtime channel table rather than using the supervisor as a multi-workspace request router.
+Separated the operational `Workspace` surface from the `WorkspaceOwnership` lifecycle authority retained by the supervisor. The ownership capability combines that operational surface with authority over event routing, child attachments, and teardown. Guards provide the workspace operations without exposing disposal. Workspace resolution occurs once at connection setup. Every later canonical request travels directly through the connection's bound attachment into the runtime channel table rather than using the supervisor as a multi-workspace request router.
 
 Settled session restoration by host shape. Browser tabs use only canonical workspace-session URLs. A workspace-only URL resolves the newest valid session and then becomes the canonical workspace-session URL. Electron persists each local window or tab's canonical target in its own host profile.
 
@@ -146,4 +146,4 @@ Placed handler schemas and wire-log policy on the canonical workspace channel en
 
 ### 2026-08-15: workspace supervision adopts guards
 
-Made guards the project pattern for independently retained shared live objects. `WorkspaceSupervisor.acquire()` returns an independent `WorkspaceGuard`, which protects the private supervised workspace and provides its shared narrow `WorkspaceHandle`. Connections and host-authored jobs release their own guards without affecting peers. Zero guards admits workspace teardown policy, while asynchronous supervisor disposal stops admission, drains guards, and awaits actual runtime teardown.
+Made guards the project pattern for independently retained shared live objects. `WorkspaceSupervisor.acquire()` returns an independent `WorkspaceGuard`, which protects the private `WorkspaceOwnership` and provides its operational `Workspace` value. Connections and host-authored jobs dispose their own guards without affecting peers. Zero guards admits workspace teardown policy, while asynchronous supervisor disposal stops admission, drains guards, and awaits actual runtime teardown.

@@ -22,9 +22,10 @@ export interface AgentInstance {
   bootRuntime(): Promise<AgentSessionRuntime>;
   /** Reload an active or already-booting runtime without starting an unused one. */
   reloadRuntimeIfActive(): Promise<boolean>;
-  /** Finalize branch work and dispose the Pi runtime and instance state. */
-  dispose(): Promise<void>;
 }
+
+/** Supervisor-only instance capability adding asynchronous lifecycle authority. */
+export type AgentInstanceOwnership = AgentInstance & AsyncDisposable;
 
 export interface AgentInstanceOptions {
   /** The accepted immutable target and its independently opened manager. */
@@ -43,28 +44,22 @@ export interface AgentInstanceOptions {
 }
 
 /** Creates an independently disposable instance with lazy Pi runtime boot. */
-export function createAgentInstance(opts: AgentInstanceOptions): AgentInstance {
+export function createAgentInstance(
+  opts: AgentInstanceOptions,
+): AgentInstanceOwnership {
   const state = createAgentInstanceState(opts.state);
   let runtime: AgentSessionRuntime | undefined;
   let inFlightRuntimeBoot: Promise<AgentSessionRuntime> | undefined;
   let disposal: Promise<void> | undefined;
   let turnActive = false;
-  let disposed = false;
 
   function bootRuntime(): Promise<AgentSessionRuntime> {
-    if (disposed) {
-      return Promise.reject(new Error("Agent instance is disposed"));
-    }
     if (runtime) return Promise.resolve(runtime);
     if (inFlightRuntimeBoot) return inFlightRuntimeBoot;
 
     const boot = opts
       .createRuntime(opts.manager, state)
-      .then(async (bootedRuntime) => {
-        if (disposed) {
-          await bootedRuntime.dispose();
-          throw new Error("Agent instance is disposed");
-        }
+      .then((bootedRuntime) => {
         runtime = bootedRuntime;
         return bootedRuntime;
       })
@@ -77,7 +72,6 @@ export function createAgentInstance(opts: AgentInstanceOptions): AgentInstance {
 
   function dispose(): Promise<void> {
     if (disposal) return disposal;
-    disposed = true;
     const bootedRuntime = runtime;
     const pendingBoot = inFlightRuntimeBoot;
     runtime = undefined;
@@ -89,8 +83,12 @@ export function createAgentInstance(opts: AgentInstanceOptions): AgentInstance {
         errors.push(error);
       }
       try {
-        if (bootedRuntime) await bootedRuntime.dispose();
-        else if (pendingBoot) await pendingBoot.catch(() => undefined);
+        let runtimeToDispose = bootedRuntime;
+        if (!runtimeToDispose && pendingBoot) {
+          runtimeToDispose = await pendingBoot.catch(() => undefined);
+          runtime = undefined;
+        }
+        await runtimeToDispose?.dispose();
       } catch (error) {
         errors.push(error);
       }
@@ -111,7 +109,6 @@ export function createAgentInstance(opts: AgentInstanceOptions): AgentInstance {
     manager: opts.manager,
     state,
     beginTurn() {
-      if (disposed) throw new Error("Agent instance is disposed");
       if (turnActive) throw new Error("Agent is already running");
       turnActive = true;
       let ended = false;
@@ -125,12 +122,11 @@ export function createAgentInstance(opts: AgentInstanceOptions): AgentInstance {
     },
     bootRuntime,
     async reloadRuntimeIfActive() {
-      if (disposed) throw new Error("Agent instance is disposed");
       const activeRuntime = runtime ?? (await inFlightRuntimeBoot);
       if (!activeRuntime) return false;
       await activeRuntime.session.reload();
       return true;
     },
-    dispose,
+    [Symbol.asyncDispose]: dispose,
   };
 }

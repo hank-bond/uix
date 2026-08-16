@@ -119,7 +119,7 @@ interface AttachmentOwner {
   prepareDispatch(
     context: AttachmentDispatchContext,
     request: CanonicalRequest,
-    releaseOperationGuard: () => void,
+    disposeOperationGuard: () => void,
   ): PreparedDispatch;
   dropAttachment(attachment: Attachment): void;
 }
@@ -364,24 +364,16 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     agentChannelsBag.add(
       registerAgentRequest("new_session", async (context) => {
         const opened = await this.#agentRuntime.createSession();
-        const guard = await context.retarget(opened.target, opened.manager);
-        try {
-          return (await this.#agentRuntime.readSessionHistory(guard)).session;
-        } finally {
-          guard.release();
-        }
+        using guard = await context.retarget(opened.target, opened.manager);
+        return (await this.#agentRuntime.readSessionHistory(guard)).session;
       }),
     );
     agentChannelsBag.add(
       registerAgentRequest("switch_session", async (context, { sessionId }) => {
-        const guard = await context.retarget({
+        using guard = await context.retarget({
           sessionId: toSessionId(sessionId),
         });
-        try {
-          return (await this.#agentRuntime.readSessionHistory(guard)).session;
-        } finally {
-          guard.release();
-        }
+        return (await this.#agentRuntime.readSessionHistory(guard)).session;
       }),
     );
     agentChannelsBag.add(
@@ -614,8 +606,8 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
       openedFallback?.manager,
       "attachment",
     );
-    if (this.#isDisposed()) {
-      guard.release();
+    if (this.#disposal) {
+      guard[Symbol.dispose]();
       throw new Error("Workspace runtime is disposed");
     }
     this.#nextAttachment += 1;
@@ -647,13 +639,13 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   prepareDispatch(
     context: AttachmentDispatchContext,
     request: CanonicalRequest,
-    releaseOperationGuard: () => void,
+    disposeOperationGuard: () => void,
   ): PreparedDispatch {
     if (this.#disposed) {
-      releaseOperationGuard();
+      disposeOperationGuard();
       throw new Error("Workspace runtime is disposed");
     }
-    return this.#channels.prepare(context, request, releaseOperationGuard);
+    return this.#channels.prepare(context, request, disposeOperationGuard);
   }
 
   dropAttachment(attachment: Attachment): void {
@@ -679,10 +671,6 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
 
   [Symbol.dispose](): void {
     void this.dispose();
-  }
-
-  #isDisposed(): boolean {
-    return this.#disposed;
   }
 
   #currentSources(): FeatureSources {
@@ -741,7 +729,7 @@ class Attachment implements AttachmentContract {
     this.#owner = owner;
     this.attachmentId = attachmentId;
     this.workspaceId = owner.workspaceId;
-    this.#target = targetGuard.instance.target;
+    this.#target = targetGuard.value.target;
     this.#targetGuard = targetGuard;
   }
 
@@ -752,7 +740,7 @@ class Attachment implements AttachmentContract {
   prepareDispatch(request: CanonicalRequest): PreparedDispatch {
     if (this.#disposed) throw new Error("Attachment is disposed");
     const operationGuard = this.#targetGuard.retain("dispatch");
-    const acceptedTarget = operationGuard.instance.target;
+    const acceptedTarget = operationGuard.value.target;
     return this.#owner.prepareDispatch(
       {
         workspaceId: this.workspaceId,
@@ -764,14 +752,17 @@ class Attachment implements AttachmentContract {
       },
       request,
       () => {
-        operationGuard.release();
+        operationGuard[Symbol.dispose]();
       },
     );
   }
 
   async retarget(target: SessionTarget): Promise<void> {
-    const guard = await this.#retargetAndGuard(target, undefined, false);
-    guard.release();
+    using _retargetGuard = await this.#retargetAndGuard(
+      target,
+      undefined,
+      false,
+    );
   }
 
   onEvent(listener: (event: RuntimeEvent) => void): Disposable {
@@ -798,7 +789,7 @@ class Attachment implements AttachmentContract {
     if (this.#disposed) return;
     this.#disposed = true;
     this.#owner.dropAttachment(this);
-    this.#targetGuard.release();
+    this.#targetGuard[Symbol.dispose]();
     this.#eventListeners.clear();
     for (const listener of this.#closeListeners) listener();
     this.#closeListeners.clear();
@@ -806,10 +797,6 @@ class Attachment implements AttachmentContract {
 
   [Symbol.dispose](): void {
     this.dispose();
-  }
-
-  #isDisposed(): boolean {
-    return this.#disposed;
   }
 
   async #retargetAndGuard(
@@ -825,15 +812,15 @@ class Attachment implements AttachmentContract {
       openedManager,
       "attachment",
     );
-    if (this.#isDisposed()) {
+    if (this.#disposed) {
       if (allowClosed) return next;
-      next.release();
+      next[Symbol.dispose]();
       throw new Error("Attachment is disposed");
     }
     const previous = this.#targetGuard;
-    this.#target = next.instance.target;
+    this.#target = next.value.target;
     this.#targetGuard = next;
-    previous.release();
+    previous[Symbol.dispose]();
     return next.retain("retarget-response");
   }
 }

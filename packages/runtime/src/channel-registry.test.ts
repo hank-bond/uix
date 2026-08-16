@@ -29,11 +29,11 @@ function fakeAttachmentDispatchContext(): AttachmentDispatchContext {
     attachmentId: toAttachmentId("attachment-1"),
     target,
     agentInstanceGuard: {
-      instance: { target } as never,
+      value: { target } as never,
       retain: () => {
         throw new Error("unused");
       },
-      release: () => undefined,
+
       [Symbol.dispose]() {},
     },
     retarget: () => Promise.reject(new Error("unused")),
@@ -43,19 +43,19 @@ function fakeAttachmentDispatchContext(): AttachmentDispatchContext {
 async function invoke(
   registry: ChannelRegistry,
   request: CanonicalRequest,
-  release = vi.fn(),
+  onDispose = vi.fn(),
 ): Promise<{
   prepared: PreparedDispatch;
   response: CanonicalResponse;
-  release: ReturnType<typeof vi.fn>;
+  onDispose: ReturnType<typeof vi.fn>;
 }> {
   const prepared = registry.prepare(
     fakeAttachmentDispatchContext(),
     request,
-    release,
+    onDispose,
   );
   const response = await prepared.invoke();
-  return { prepared, response, release };
+  return { prepared, response, onDispose };
 }
 
 describe("ChannelRegistry", () => {
@@ -72,7 +72,7 @@ describe("ChannelRegistry", () => {
       handler,
     });
 
-    const { response, release } = await invoke(registry, {
+    const { response, onDispose } = await invoke(registry, {
       channel: canonicalId,
       payload: { value: "hello" },
     });
@@ -82,7 +82,7 @@ describe("ChannelRegistry", () => {
       { value: "hello" },
       expect.objectContaining({ attachmentId: "attachment-1" }),
     );
-    expect(release).toHaveBeenCalledOnce();
+    expect(onDispose).toHaveBeenCalledOnce();
 
     registration[Symbol.dispose]();
     const unknown = await invoke(registry, {
@@ -98,7 +98,7 @@ describe("ChannelRegistry", () => {
     ).toEqual({ channel: canonicalId });
   });
 
-  it("releases a disposed preparation without invoking its handler", async () => {
+  it("disposes a preparation's operation guard without invoking its handler", async () => {
     const registry = new ChannelRegistry();
     const canonicalId = toChannelCanonicalId("feature", "ping");
     const handler = vi.fn(() => "pong");
@@ -108,11 +108,11 @@ describe("ChannelRegistry", () => {
       responseSchema: Type.String(),
       handler,
     });
-    const release = vi.fn();
+    const onDispose = vi.fn();
     const prepared = registry.prepare(
       fakeAttachmentDispatchContext(),
       { channel: canonicalId, payload: {} },
-      release,
+      onDispose,
     );
 
     prepared[Symbol.dispose]();
@@ -122,7 +122,7 @@ describe("ChannelRegistry", () => {
       ok: false,
       error: { code: "disposed" },
     });
-    expect(release).toHaveBeenCalledOnce();
+    expect(onDispose).toHaveBeenCalledOnce();
     expect(handler).not.toHaveBeenCalled();
   });
 

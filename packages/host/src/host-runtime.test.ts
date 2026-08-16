@@ -21,7 +21,7 @@ import type {
 } from "@uix/runtime";
 import { toAttachmentId, toSessionId, toWorkspaceId } from "@uix/runtime";
 
-import { WorkspaceSupervisor } from "./supervisor";
+import { type WorkspaceGuard, WorkspaceSupervisor } from "./supervisor";
 
 function deferred<T = void>(): {
   promise: Promise<T>;
@@ -51,7 +51,7 @@ interface FakeAgentInstanceSupervisionState {
 class FakeAgentInstanceGuard implements Disposable {
   readonly #supervisor: FakeAgentInstanceSupervisor;
   readonly sessionId: SessionId;
-  #released = false;
+  #disposed = false;
 
   constructor(supervisor: FakeAgentInstanceSupervisor, sessionId: SessionId) {
     this.#supervisor = supervisor;
@@ -59,18 +59,14 @@ class FakeAgentInstanceGuard implements Disposable {
   }
 
   retain(): FakeAgentInstanceGuard {
-    if (this.#released) throw new Error("Agent instance guard is released");
+    if (this.#disposed) throw new Error("Agent instance guard is disposed");
     return this.#supervisor.retain(this);
   }
 
-  release(): void {
-    if (this.#released) return;
-    this.#released = true;
-    this.#supervisor.release(this);
-  }
-
   [Symbol.dispose](): void {
-    this.release();
+    if (this.#disposed) return;
+    this.#disposed = true;
+    this.#supervisor.dropGuard(this);
   }
 }
 
@@ -106,7 +102,7 @@ class FakeAgentInstanceSupervisor {
     return this.#createGuard(guard.sessionId, state);
   }
 
-  release(guard: FakeAgentInstanceGuard): void {
+  dropGuard(guard: FakeAgentInstanceGuard): void {
     const state = this.#instances.get(guard.sessionId);
     if (!state) return;
     state.guards.delete(guard);
@@ -166,11 +162,11 @@ class FakeAttachment implements Attachment {
     const handler = this.#runtime.handlers.get(request.channel);
     const operationGuard = this.#targetGuard.retain();
     let invoked = false;
-    let released = false;
-    const release = (): void => {
-      if (released) return;
-      released = true;
-      operationGuard.release();
+    let disposed = false;
+    const dispose = (): void => {
+      if (disposed) return;
+      disposed = true;
+      operationGuard[Symbol.dispose]();
     };
     return {
       request,
@@ -178,7 +174,7 @@ class FakeAttachment implements Attachment {
         ? {}
         : { describeRequest: () => ({ channel: request.channel }) },
       async invoke(): Promise<CanonicalResponse> {
-        if (released) {
+        if (disposed) {
           return {
             ok: false,
             error: { code: "disposed", message: "Prepared dispatch disposed" },
@@ -218,10 +214,10 @@ class FakeAttachment implements Attachment {
             },
           };
         } finally {
-          release();
+          dispose();
         }
       },
-      [Symbol.dispose]: release,
+      [Symbol.dispose]: dispose,
     };
   }
 
@@ -231,7 +227,7 @@ class FakeAttachment implements Attachment {
     const previousGuard = this.#targetGuard;
     this.#target = target;
     this.#targetGuard = nextGuard;
-    previousGuard.release();
+    previousGuard[Symbol.dispose]();
   }
 
   onEvent(listener: (event: RuntimeEvent) => void): Disposable {
@@ -256,7 +252,7 @@ class FakeAttachment implements Attachment {
   dispose(): void {
     if (this.#disposed) return;
     this.#disposed = true;
-    this.#targetGuard.release();
+    this.#targetGuard[Symbol.dispose]();
     this.#eventListeners.clear();
     for (const listener of this.#closeListeners) listener();
     this.#closeListeners.clear();
@@ -348,9 +344,11 @@ class FakeRuntime implements WorkspaceRuntime {
 }
 
 async function dispatch(
+  workspaceGuard: WorkspaceGuard,
   attachment: Attachment,
   request: CanonicalRequest,
 ): Promise<CanonicalResponse> {
+  using _workspaceOperationGuard = workspaceGuard.retain("dispatch");
   using prepared = attachment.prepareDispatch(request);
   return await prepared.invoke();
 }
@@ -393,20 +391,21 @@ describe("workspace supervisor", () => {
 
     expect(bootCalls).toBe(1);
     expect(first).not.toBe(second);
-    expect(first.handle).toBe(second.handle);
+    expect(first.value).toBe(second.value);
     expect(supervisor.getGuardSnapshot().map(({ origin }) => origin)).toEqual([
       "connection-a",
       "connection-b",
     ]);
-    first.release();
-    first.release();
-    expect(() => first.retain()).toThrow("released");
-    expect(second.handle.workspaceId).toBe(ws1);
-    second.release();
+    first[Symbol.dispose]();
+    first[Symbol.dispose]();
+    expect(() => first.retain()).toThrow("disposed");
+    expect(() => first.value).toThrow("disposed");
+    expect(second.value.workspaceId).toBe(ws1);
+    second[Symbol.dispose]();
     await supervisor.dispose();
   });
 
-  it("retains independently and boots fresh after the last guard releases", async () => {
+  it("retains independently and boots fresh after the last guard disposes", async () => {
     const runtimes: FakeRuntime[] = [];
     const supervisor = supervisorWithBoot((workspaceId) => {
       const runtime = new FakeRuntime(workspaceId);
@@ -416,16 +415,16 @@ describe("workspace supervisor", () => {
 
     const first = await supervisor.acquire(ws1);
     const second = first.retain("background");
-    first.release();
+    first[Symbol.dispose]();
     expect(runtimes[0]?.disposed).toBe(false);
-    second.release();
+    second[Symbol.dispose]();
     await vi.waitFor(() => {
       expect(runtimes[0]?.disposed).toBe(true);
     });
 
     const fresh = await supervisor.acquire(ws1);
     expect(runtimes).toHaveLength(2);
-    fresh.release();
+    fresh[Symbol.dispose]();
     await supervisor.dispose();
   });
 
@@ -439,7 +438,7 @@ describe("workspace supervisor", () => {
     });
     const guard = await supervisor.acquire(ws1);
 
-    guard.release();
+    guard[Symbol.dispose]();
 
     await expect(supervisor.acquire(ws1)).rejects.toThrow(
       "workspace teardown failed",
@@ -460,25 +459,27 @@ describe("workspace supervisor", () => {
 
     await expect(supervisor.acquire(ws1)).rejects.toThrow("boot boom");
     const guard = await supervisor.acquire(ws1);
-    expect(guard.handle.workspaceId).toBe(ws1);
+    expect(guard.value.workspaceId).toBe(ws1);
     expect(calls).toBe(2);
-    guard.release();
+    guard[Symbol.dispose]();
     await supervisor.dispose();
   });
 
-  it("rejects an attachment that finishes creating during parent disposal", async () => {
+  it("drains attachment creation under its holder guard", async () => {
     const gate = deferred();
     const runtime = new FakeRuntime(ws1);
     runtime.attachmentGate = gate.promise;
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
-    const creation = workspace.handle.createAttachment({ sessionId: s1 });
+    const creation = workspace.value.createAttachment({ sessionId: s1 });
     const disposal = supervisor.dispose();
 
-    workspace.release();
     gate.resolve();
+    const attachment = await creation;
+    expect(runtime.disposed).toBe(false);
 
-    await expect(creation).rejects.toThrow("Workspace is disposed");
+    attachment.dispose();
+    workspace[Symbol.dispose]();
     await disposal;
     expect(runtime.agents.liveInstances).toBe(0);
   });
@@ -491,7 +492,7 @@ describe("workspace supervisor", () => {
 
     await expect(supervisor.acquire(ws1)).rejects.toThrow("disposed");
     expect(runtime.disposed).toBe(false);
-    guard.release();
+    guard[Symbol.dispose]();
 
     await disposal;
     expect(runtime.disposed).toBe(true);
@@ -504,16 +505,16 @@ describe("unified attachments", () => {
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
 
-    const a = await workspace.handle.createAttachment({ sessionId: s1 });
-    const b = await workspace.handle.createAttachment({ sessionId: s1 });
-    const c = await workspace.handle.createAttachment({ sessionId: s1 });
+    const a = await workspace.value.createAttachment({ sessionId: s1 });
+    const b = await workspace.value.createAttachment({ sessionId: s1 });
+    const c = await workspace.value.createAttachment({ sessionId: s1 });
 
     expect(a.target.sessionId).toBe(s1);
     expect(b.target.sessionId).toBe(s1);
     expect(c.target.sessionId).toBe(s1);
     expect(runtime.agents.creationCount).toBe(1);
     expect(runtime.agents.liveInstances).toBe(1);
-    workspace.release();
+    workspace[Symbol.dispose]();
     await supervisor.dispose();
   });
 
@@ -521,15 +522,15 @@ describe("unified attachments", () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
-    const a = await workspace.handle.createAttachment({ sessionId: s1 });
-    const b = await workspace.handle.createAttachment({ sessionId: s1 });
+    const a = await workspace.value.createAttachment({ sessionId: s1 });
+    const b = await workspace.value.createAttachment({ sessionId: s1 });
 
     await a.retarget({ sessionId: s2 });
 
     expect(a.target.sessionId).toBe(s2);
     expect(b.target.sessionId).toBe(s1);
     expect(runtime.agents.creationCount).toBe(2);
-    workspace.release();
+    workspace[Symbol.dispose]();
     await supervisor.dispose();
   });
 
@@ -537,7 +538,7 @@ describe("unified attachments", () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
-    const attachment = await workspace.handle.createAttachment({
+    const attachment = await workspace.value.createAttachment({
       sessionId: s1,
     });
     const runningGuard = await runtime.agents.acquire(s1);
@@ -550,9 +551,9 @@ describe("unified attachments", () => {
     expect(runtime.agents.creationCount).toBe(2);
     expect(runtime.agents.guardsFor(s1)).toBe(2);
 
-    runningGuard.release();
+    runningGuard[Symbol.dispose]();
     expect(runtime.agents.guardsFor(s1)).toBe(1);
-    workspace.release();
+    workspace[Symbol.dispose]();
     await supervisor.dispose();
   });
 
@@ -560,7 +561,7 @@ describe("unified attachments", () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
-    const attachment = await workspace.handle.createAttachment({
+    const attachment = await workspace.value.createAttachment({
       sessionId: s1,
     });
     runtime.agents.failNextCreation(s2);
@@ -570,7 +571,7 @@ describe("unified attachments", () => {
     );
     expect(attachment.target.sessionId).toBe(s1);
     expect(runtime.agents.guardsFor(s1)).toBe(1);
-    workspace.release();
+    workspace[Symbol.dispose]();
     await supervisor.dispose();
   });
 
@@ -578,8 +579,8 @@ describe("unified attachments", () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
-    const a = await workspace.handle.createAttachment({ sessionId: s1 });
-    const b = await workspace.handle.createAttachment({ sessionId: s1 });
+    const a = await workspace.value.createAttachment({ sessionId: s1 });
+    const b = await workspace.value.createAttachment({ sessionId: s1 });
     const ping = toChannelCanonicalId("chat", "ping");
     runtime.register(ping, () => "pong");
 
@@ -587,11 +588,13 @@ describe("unified attachments", () => {
     a.dispose();
 
     expect(runtime.agents.guardsFor(s1)).toBe(1);
-    expect(await dispatch(b, { channel: ping, payload: undefined })).toEqual({
+    expect(
+      await dispatch(workspace, b, { channel: ping, payload: undefined }),
+    ).toEqual({
       ok: true,
       value: "pong",
     });
-    workspace.release();
+    workspace[Symbol.dispose]();
     await supervisor.dispose();
   });
 
@@ -599,9 +602,9 @@ describe("unified attachments", () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
-    const a = await workspace.handle.createAttachment({ sessionId: s1 });
-    const b = await workspace.handle.createAttachment({ sessionId: s1 });
-    const c = await workspace.handle.createAttachment({ sessionId: s2 });
+    const a = await workspace.value.createAttachment({ sessionId: s1 });
+    const b = await workspace.value.createAttachment({ sessionId: s1 });
+    const c = await workspace.value.createAttachment({ sessionId: s2 });
     const received = new Map<string, string[]>();
     track(a, received);
     track(b, received);
@@ -634,7 +637,7 @@ describe("unified attachments", () => {
       "session-2",
       "new-session",
     ]);
-    workspace.release();
+    workspace[Symbol.dispose]();
     await supervisor.dispose();
   });
 
@@ -642,7 +645,7 @@ describe("unified attachments", () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
-    const attachment = await workspace.handle.createAttachment({
+    const attachment = await workspace.value.createAttachment({
       sessionId: s1,
     });
     const contextChannel = toChannelCanonicalId("chat", "context");
@@ -659,8 +662,41 @@ describe("unified attachments", () => {
     expect(response).toEqual({ ok: true, value: { sessionId: s1 } });
     expect(runtime.agents.guardsFor(s1)).toBe(0);
     expect(attachment.target.sessionId).toBe(s2);
-    workspace.release();
+    workspace[Symbol.dispose]();
     await supervisor.dispose();
+  });
+
+  it("drains an admitted request after its connection closes", async () => {
+    const runtime = new FakeRuntime(ws1);
+    const supervisor = supervisorFor(runtime);
+    const workspace = await supervisor.acquire(ws1);
+    const attachment = await workspace.value.createAttachment({
+      sessionId: s1,
+    });
+    const responseGate = deferred<string>();
+    const ping = toChannelCanonicalId("chat", "ping");
+    runtime.register(ping, () => responseGate.promise);
+
+    const response = (async () => {
+      using _workspaceOperationGuard = workspace.retain("dispatch");
+      using prepared = attachment.prepareDispatch({
+        channel: ping,
+        payload: {},
+      });
+      return await prepared.invoke();
+    })();
+    const disposal = supervisor.dispose();
+    attachment.dispose();
+    workspace[Symbol.dispose]();
+
+    expect(supervisor.getGuardSnapshot()).toEqual([
+      expect.objectContaining({ origin: "dispatch", workspaceId: ws1 }),
+    ]);
+    expect(runtime.disposed).toBe(false);
+    responseGate.resolve("pong");
+    await expect(response).resolves.toEqual({ ok: true, value: "pong" });
+    await disposal;
+    expect(runtime.disposed).toBe(true);
   });
 
   it("keeps duplicate channel ids isolated across workspaces", async () => {
@@ -671,22 +707,26 @@ describe("unified attachments", () => {
     );
     const workspaceA = await supervisor.acquire(ws1);
     const workspaceB = await supervisor.acquire(ws2);
-    const a = await workspaceA.handle.createAttachment({ sessionId: s1 });
-    const b = await workspaceB.handle.createAttachment({ sessionId: s1 });
+    const a = await workspaceA.value.createAttachment({ sessionId: s1 });
+    const b = await workspaceB.value.createAttachment({ sessionId: s1 });
     const ping = toChannelCanonicalId("chat", "ping");
     runtimeA.register(ping, () => "a");
     runtimeB.register(ping, () => "b");
 
-    expect(await dispatch(a, { channel: ping, payload: undefined })).toEqual({
+    expect(
+      await dispatch(workspaceA, a, { channel: ping, payload: undefined }),
+    ).toEqual({
       ok: true,
       value: "a",
     });
-    expect(await dispatch(b, { channel: ping, payload: undefined })).toEqual({
+    expect(
+      await dispatch(workspaceB, b, { channel: ping, payload: undefined }),
+    ).toEqual({
       ok: true,
       value: "b",
     });
-    workspaceA.release();
-    workspaceB.release();
+    workspaceA[Symbol.dispose]();
+    workspaceB[Symbol.dispose]();
     await supervisor.dispose();
   });
 });

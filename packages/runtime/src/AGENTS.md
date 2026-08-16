@@ -5,7 +5,7 @@ read_when: "Implementing the workspace runtime, or changing the boundary the hos
 
 # Workspace runtime source map
 
-This package owns the runtime-facing contract and its implementation. An in-memory proof defined the smallest executable shape. The real substrate then moved out of `src/main` behind it. The runtime constructor (`runtime.ts`) composes documents, manifest store, workspace settings, facet registries, one workspace agent runtime, unified attachments, the surface pipeline, and the reload coordinator. The host imports this package and provides the runtime's dependencies as adapters. Nothing here imports a concrete host, and the envelope carries no transport or tenancy fields.
+This package owns the runtime-facing contract and its implementation. An in-memory proof defined the smallest executable shape. The real substrate then moved out of `src/main` behind it. The runtime constructor (`runtime.ts`) composes documents, manifest store, workspace settings, facet registries, one workspace agent runtime, unified attachments, the surface pipeline, and the reload coordinator. The host imports this package and provides the runtime's dependencies as adapters. The generic `Guard<Value>` capability gives workspace and agent-instance supervisors one guard contract without exposing owner disposal. Nothing here imports a concrete host, and the envelope carries no transport or tenancy fields.
 
 ## Contents
 
@@ -28,6 +28,7 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 - **[dispatch.ts](./dispatch.ts)** Canonical request preparation and the attachment-stamped dispatch context.
 - **[document-store.ts](./document-store.ts)** Persists each document's current content and immutable snapshots under stable namespace and document IDs.
 - **[events.ts](./events.ts)** Explicitly scoped canonical runtime events for host-selected delivery.
+- **[guard.ts](./guard.ts)** Generic guard capabilities that pair supervisor-owned lifetime authority with operational values.
 - **[index.ts](./index.ts)** The @uix/runtime public facade re-exporting the workspace-runtime contract and its factory.
 - **[lifecycle.ts](./lifecycle.ts)** Provides disposable helpers that clean up component resources with their owners.
 - **[log.ts](./log.ts)** Creates main-process loggers that label messages by component and choose readable or JSON output for the environment.

@@ -28,8 +28,7 @@ import type { SettingsHandleFrom } from "@uix/api/settings";
 import { deriveProviderAuthCatalog } from "./auth-providers";
 import { deriveSelectedBranchProjection } from "./branch-projection";
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
-import type { AgentInstance } from "./instance";
-import { createAgentInstance } from "./instance";
+import { type AgentInstanceOwnership, createAgentInstance } from "./instance";
 import type { AgentInstanceState } from "./instance-state";
 import {
   type AgentInstanceGuard,
@@ -309,7 +308,7 @@ export function createWorkspaceAgentRuntime(
   async function createInstance(
     target: SessionTarget,
     openedManager?: SessionManager,
-  ): Promise<AgentInstance> {
+  ): Promise<AgentInstanceOwnership> {
     const manager =
       openedManager ??
       (await openExistingSessionManager(sessionDir, target.sessionId));
@@ -319,7 +318,7 @@ export function createWorkspaceAgentRuntime(
     const emit = (event: AgentEvent): void => {
       opts.onEvent(target.sessionId, event);
     };
-    const instance = createAgentInstance({
+    const ownership = createAgentInstance({
       target,
       manager,
       state: {
@@ -344,13 +343,13 @@ export function createWorkspaceAgentRuntime(
         }
       },
     });
-    stateRef.current = instance.state;
+    stateRef.current = ownership.state;
     try {
-      await instance.state.turnStateCoordinator?.restoreCurrent(manager);
-      return instance;
+      await ownership.state.turnStateCoordinator?.restoreCurrent(manager);
+      return ownership;
     } catch (restorationError) {
       try {
-        await instance.dispose();
+        await ownership[Symbol.asyncDispose]();
       } catch (disposalError) {
         throw new AggregateError(
           [restorationError, disposalError],
@@ -386,8 +385,8 @@ export function createWorkspaceAgentRuntime(
     operationGuard: AgentInstanceGuard,
     text: string,
   ): Promise<void> {
-    const turnGuard = operationGuard.retain("turn");
-    const { instance } = turnGuard;
+    using turnGuard = operationGuard.retain("turn");
+    const instance = turnGuard.value;
     const { state } = instance;
     const { turnStateCoordinator } = state;
     let turn: Disposable | undefined;
@@ -430,7 +429,6 @@ export function createWorkspaceAgentRuntime(
       }
     } finally {
       turn?.[Symbol.dispose]();
-      turnGuard.release();
     }
   }
 
@@ -474,7 +472,7 @@ export function createWorkspaceAgentRuntime(
     prompt,
 
     async readSessionHistory(guard, requestedSessionId) {
-      const { instance } = guard;
+      const instance = guard.value;
       let manager = instance.manager;
       if (
         requestedSessionId !== undefined &&
@@ -501,7 +499,7 @@ export function createWorkspaceAgentRuntime(
       readRecentSessionSummaries(sessionDir, limit),
 
     async setSessionTitle(guard, sessionId, title) {
-      const { instance } = guard;
+      const instance = guard.value;
       const normalized = normalizeSessionTitle(title);
       let manager = instance.manager;
       if (sessionId !== instance.target.sessionId) {
@@ -513,17 +511,17 @@ export function createWorkspaceAgentRuntime(
       return readSessionSummary(manager);
     },
 
-    getStatus: (guard) => statusFor(guard.instance.state),
+    getStatus: (guard) => statusFor(guard.value.state),
 
     async selectModel(guard, ref) {
-      const runtime = await guard.instance.bootRuntime();
+      const runtime = await guard.value.bootRuntime();
       const modelRuntime = runtime.services.modelRuntime;
       const model = modelRuntime.getModel(ref.provider, ref.id);
       if (!model || !modelRuntime.hasConfiguredAuth(ref.provider)) {
         throw new Error(`Model is not available: ${ref.provider}/${ref.id}`);
       }
       await runtime.session.setModel(model);
-      return statusFor(guard.instance.state);
+      return statusFor(guard.value.state);
     },
 
     listModels,
@@ -575,7 +573,7 @@ export function createWorkspaceAgentRuntime(
     async commitFeatureTurnState() {
       let committed = true;
       await instanceSupervisor.visit(async (guard) => {
-        const { instance } = guard;
+        const instance = guard.value;
         const coordinator = instance.state.turnStateCoordinator;
         if (!coordinator) return;
         if (!(await coordinator.commitIfReady(instance.manager))) {
@@ -587,7 +585,7 @@ export function createWorkspaceAgentRuntime(
 
     async restoreFeatureTurnState() {
       await instanceSupervisor.visit(async (guard) => {
-        const { instance } = guard;
+        const instance = guard.value;
         await instance.state.turnStateCoordinator?.restoreCurrent(
           instance.manager,
         );
@@ -597,7 +595,7 @@ export function createWorkspaceAgentRuntime(
     async reloadPiResources() {
       let reloaded = false;
       await instanceSupervisor.visit(async (guard) => {
-        if (await guard.instance.reloadRuntimeIfActive()) reloaded = true;
+        if (await guard.value.reloadRuntimeIfActive()) reloaded = true;
       });
       if (!controlServices && !inFlightControlServices) return reloaded;
       await getControlServices();

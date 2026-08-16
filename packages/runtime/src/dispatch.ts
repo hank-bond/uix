@@ -41,6 +41,6 @@ export interface AttachmentDispatchContext {
 export interface PreparedDispatch extends Disposable {
   readonly request: CanonicalRequest;
   readonly logOptions: ChannelRequestLogOptions<unknown, unknown>;
-  /** Invoke the resolved handler once and release the operation guard. */
+  /** Invoke the resolved handler once and dispose the operation guard. */
   invoke(): Promise<CanonicalResponse>;
 }

@@ -9,6 +9,7 @@ export type {
 } from "./dispatch";
 export type { EventScope, RuntimeEvent } from "./events";
 export type { ActivationResult } from "./features/loader";
+export { createGuard, type Guard, type GuardOptions } from "./guard";
 export {
   createWorkspaceRuntime,
   type WorkspaceRuntimeDependencies,

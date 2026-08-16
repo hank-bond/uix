@@ -1,22 +1,25 @@
 // Supervises workspace-keyed runtimes and issues independent workspace guards.
 
-import type { WorkspaceId, WorkspaceRuntime } from "@uix/runtime";
+import {
+  createGuard,
+  type Guard,
+  type WorkspaceId,
+  type WorkspaceRuntime,
+} from "@uix/runtime";
 
-import { SupervisedWorkspace, type WorkspaceHandle } from "./workspace-handle";
+import {
+  createWorkspaceOwnership,
+  type Workspace,
+  type WorkspaceOwnership,
+} from "./workspace";
 
 export interface WorkspaceSupervisorOptions {
   /** Boot a runtime for a workspace id. The host owns the boot policy. */
   boot(workspaceId: WorkspaceId): Promise<WorkspaceRuntime>;
 }
 
-/** An independent teardown veto that provides the shared workspace handle. */
-export interface WorkspaceGuard extends Disposable {
-  readonly handle: WorkspaceHandle;
-  /** Mint another independently releasable guard on the same workspace. */
-  retain(origin?: string): WorkspaceGuard;
-  /** Relinquish this guard. Immediate, idempotent, and non-blocking. */
-  release(): void;
-}
+/** An independent teardown veto with one supervised workspace. */
+export type WorkspaceGuard = Guard<Workspace>;
 
 export interface WorkspaceGuardSnapshotEntry {
   readonly guardId: number;
@@ -28,7 +31,7 @@ export interface WorkspaceGuardSnapshotEntry {
 export type WorkspaceGuardSnapshot = readonly WorkspaceGuardSnapshotEntry[];
 
 interface WorkspaceInstanceSupervisionState {
-  readonly workspace: SupervisedWorkspace;
+  readonly ownership: WorkspaceOwnership;
   readonly guards: Map<number, string>;
   readonly zeroWaiters: Set<() => void>;
   teardown?: Promise<void>;
@@ -62,12 +65,9 @@ export class WorkspaceSupervisor implements AsyncDisposable {
 
     const existing = this.#instances.get(workspaceId);
     if (existing?.teardown) await existing.teardown;
-    if (this.#isDisposed()) {
-      throw new Error("Workspace supervisor is disposed");
-    }
 
     const state = await this.#getOrCreate(workspaceId);
-    if (this.#isDisposed()) {
+    if (this.#disposal) {
       throw new Error("Workspace supervisor is disposed");
     }
     return this.#createGuard(workspaceId, state, origin);
@@ -115,10 +115,6 @@ export class WorkspaceSupervisor implements AsyncDisposable {
     return this.dispose();
   }
 
-  #isDisposed(): boolean {
-    return this.#disposed;
-  }
-
   #recordTeardownFailure(error: unknown): void {
     this.#teardownFailures.push(error);
   }
@@ -133,11 +129,11 @@ export class WorkspaceSupervisor implements AsyncDisposable {
 
     const creation = this.#options
       .boot(workspaceId)
-      .then((runtime) => new SupervisedWorkspace(runtime))
-      .then(async (workspace) => {
+      .then((runtime) => createWorkspaceOwnership(runtime))
+      .then(async (ownership) => {
         if (this.#disposed) {
           try {
-            await workspace.dispose();
+            await ownership[Symbol.asyncDispose]();
           } catch (error) {
             this.#recordTeardownFailure(error);
             throw error;
@@ -145,7 +141,7 @@ export class WorkspaceSupervisor implements AsyncDisposable {
           throw new Error("Workspace supervisor is disposed");
         }
         const state: WorkspaceInstanceSupervisionState = {
-          workspace,
+          ownership,
           guards: new Map(),
           zeroWaiters: new Set(),
         };
@@ -172,26 +168,18 @@ export class WorkspaceSupervisor implements AsyncDisposable {
     this.#nextGuardId += 1;
     const guardId = this.#nextGuardId;
     state.guards.set(guardId, origin);
-    let released = false;
-
-    const release = (): void => {
-      if (released) return;
-      released = true;
-      state.guards.delete(guardId);
-      if (state.guards.size !== 0) return;
-      this.#notifyZero(state);
-      void this.#startTeardown(workspaceId, state);
-    };
-
-    return {
-      handle: state.workspace.handle,
-      retain: (retainedOrigin = "retained") => {
-        if (released) throw new Error("Workspace guard is released");
-        return this.#createGuard(workspaceId, state, retainedOrigin);
+    return createGuard<Workspace>({
+      label: "Workspace",
+      value: state.ownership,
+      retain: (retainedOrigin) =>
+        this.#createGuard(workspaceId, state, retainedOrigin),
+      onDispose: () => {
+        state.guards.delete(guardId);
+        if (state.guards.size !== 0) return;
+        this.#notifyZero(state);
+        void this.#startTeardown(workspaceId, state);
       },
-      release,
-      [Symbol.dispose]: release,
-    };
+    });
   }
 
   #startTeardown(
@@ -200,7 +188,7 @@ export class WorkspaceSupervisor implements AsyncDisposable {
   ): Promise<void> {
     if (state.teardown) return state.teardown;
     const teardown = Promise.resolve()
-      .then(() => state.workspace.dispose())
+      .then(() => state.ownership[Symbol.asyncDispose]())
       .then(() => {
         if (this.#instances.get(workspaceId) === state) {
           this.#instances.delete(workspaceId);

@@ -1,4 +1,4 @@
-// Private supervised-workspace ownership and its narrow public handle.
+// Host-level workspace operations and supervisor-only lifecycle authority.
 
 import type {
   Attachment,
@@ -10,26 +10,10 @@ import type {
   WorkspaceRuntime,
 } from "@uix/runtime";
 
-interface WorkspaceHandleOwner {
+/** Operational surface for one supervised workspace. */
+export interface Workspace {
   readonly workspaceId: WorkspaceId;
   createAttachment(target: SessionTarget): Promise<Attachment>;
-}
-
-/** Narrow host-facing capability for one supervised workspace. */
-export class WorkspaceHandle {
-  readonly #owner: WorkspaceHandleOwner;
-
-  constructor(owner: WorkspaceHandleOwner) {
-    this.#owner = owner;
-  }
-
-  get workspaceId(): WorkspaceId {
-    return this.#owner.workspaceId;
-  }
-
-  createAttachment(target: SessionTarget): Promise<Attachment> {
-    return this.#owner.createAttachment(target);
-  }
 }
 
 interface DeliveryRecord {
@@ -38,18 +22,23 @@ interface DeliveryRecord {
   readonly closeSubscription: Disposable;
 }
 
-/** Supervisor-private parent lifetime for one workspace runtime and its attachments. */
-export class SupervisedWorkspace implements WorkspaceHandleOwner {
+/** Supervisor-only capability adding asynchronous lifecycle authority. */
+export type WorkspaceOwnership = Workspace & AsyncDisposable;
+
+export function createWorkspaceOwnership(
+  runtime: WorkspaceRuntime,
+): WorkspaceOwnership {
+  return new WorkspaceOwnershipState(runtime);
+}
+
+class WorkspaceOwnershipState implements WorkspaceOwnership {
   readonly #runtime: WorkspaceRuntime;
-  readonly #handle: WorkspaceHandle;
   readonly #attachments = new Map<string, DeliveryRecord>();
   #runtimeSubscription: Disposable | undefined;
   #disposal: Promise<void> | undefined;
-  #disposed = false;
 
   constructor(runtime: WorkspaceRuntime) {
     this.#runtime = runtime;
-    this.#handle = new WorkspaceHandle(this);
     this.#runtimeSubscription = runtime.onEvent((event) => {
       this.#route(event);
     });
@@ -59,18 +48,9 @@ export class SupervisedWorkspace implements WorkspaceHandleOwner {
     return this.#runtime.workspaceId;
   }
 
-  get handle(): WorkspaceHandle {
-    return this.#handle;
-  }
-
   async createAttachment(target: SessionTarget): Promise<Attachment> {
-    if (this.#disposed) throw new Error("Workspace is disposed");
     const created = await this.#runtime.createAttachment(target);
     const { attachment } = created;
-    if (this.#isDisposed()) {
-      attachment.dispose();
-      throw new Error("Workspace is disposed");
-    }
     const closeSubscription = attachment.onClose(() => {
       const record = this.#attachments.get(attachment.attachmentId);
       if (record?.attachment !== attachment) return;
@@ -87,9 +67,8 @@ export class SupervisedWorkspace implements WorkspaceHandleOwner {
     return attachment;
   }
 
-  dispose(): Promise<void> {
+  [Symbol.asyncDispose](): Promise<void> {
     if (this.#disposal) return this.#disposal;
-    this.#disposed = true;
     this.#disposal = (async () => {
       this.#runtimeSubscription?.[Symbol.dispose]();
       this.#runtimeSubscription = undefined;
@@ -102,10 +81,6 @@ export class SupervisedWorkspace implements WorkspaceHandleOwner {
       await this.#runtime.dispose();
     })();
     return this.#disposal;
-  }
-
-  #isDisposed(): boolean {
-    return this.#disposed;
   }
 
   #route(event: RuntimeEvent): void {
