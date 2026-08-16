@@ -33,6 +33,7 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 - **[lifecycle.ts](./lifecycle.ts)** Provides synchronous and asynchronous lifetime bags plus disposable helpers.
 - **[log.ts](./log.ts)** Creates main-process loggers that label messages by component and choose readable or JSON output for the environment.
 - **[manifest-store.ts](./manifest-store.ts)** Reads workspace manifests into staged copies and atomically writes the accepted copy back to disk.
+- **[operation-tracker.ts](./operation-tracker.ts)** Provides lexical cancellable operations that a parent can cancel and join during shutdown.
 - **[reload.ts](./reload.ts)** Runs one workspace reload at a time across feature activation, Pi resources, restored state, and renderer notification.
 - **[resource-registry.ts](./resource-registry.ts)** Routes resource URLs to the active feature handlers through one validated boundary.
 - **[roots.ts](./roots.ts)** Finds stable paths for workspace state, the agent working directory, and the manifest from one startup target.

@@ -60,6 +60,7 @@ const sdk = vi.hoisted(() => {
     servicesOptions: [] as Array<{ cwd: string; agentDir: string }>,
     pendingProviderModels: [] as FakeModel[],
     promptPromise: undefined as Promise<void> | undefined,
+    abortTurn: undefined as (() => void) | undefined,
     sessionTitle: undefined as string | undefined,
   };
 
@@ -118,6 +119,7 @@ const sdk = vi.hoisted(() => {
     model: FakeModel | undefined;
     sessionManager: Record<string, unknown>;
     isStreaming: boolean;
+    abort: Mock;
     unsubscribe: Mock;
     setModel: Mock;
     setSessionName: Mock;
@@ -132,6 +134,10 @@ const sdk = vi.hoisted(() => {
       model,
       sessionManager,
       isStreaming: false,
+      abort: vi.fn(() => {
+        state.abortTurn?.();
+        return Promise.resolve();
+      }),
       unsubscribe,
       setModel: vi.fn((next: FakeModel) => {
         (state.session as { model?: FakeModel }).model = next;
@@ -419,6 +425,7 @@ beforeEach(() => {
   sdk.state.servicesOptions = [];
   sdk.state.pendingProviderModels = [];
   sdk.state.promptPromise = undefined;
+  sdk.state.abortTurn = undefined;
   sdk.state.sessionTitle = undefined;
   sdk.registry.login.mockClear();
   sdk.registry.refresh.mockClear();
@@ -481,9 +488,85 @@ describe("workspace agent instances", () => {
     await agentRuntime[Symbol.asyncDispose]();
   });
 
-  it("keeps a detached turn guarded after its attachment disposes", async () => {
+  it("cancels one active turn through Pi without disposing its instance", async () => {
     const gate = deferred();
     sdk.state.promptPromise = gate.promise;
+    sdk.state.abortTurn = () => {
+      gate.resolve();
+    };
+    const { agentRuntime, events } = createHarness();
+    const guard = await agentRuntime.acquire(
+      { sessionId: "session-id" as never },
+      sdk.manager as never,
+    );
+
+    const prompt = agentRuntime.prompt(guard, "long turn");
+    await vi.waitFor(() => {
+      expect(sdk.state.session?.["prompt"] as Mock).toHaveBeenCalledOnce();
+    });
+
+    await expect(agentRuntime.cancelTurn(guard)).resolves.toBe(true);
+    await prompt;
+
+    expect(sdk.state.session?.["abort"] as Mock).toHaveBeenCalledOnce();
+    expect(
+      events.some(
+        (event) =>
+          event.type === "transcript_append" && event.item.kind === "error",
+      ),
+    ).toBe(false);
+    await expect(agentRuntime.cancelTurn(guard)).resolves.toBe(false);
+
+    guard[Symbol.dispose]();
+    await agentRuntime[Symbol.asyncDispose]();
+  });
+
+  it("does not abort idle Pi while cancelling turn-state preparation", async () => {
+    const snapshotGate = deferred();
+    const createSnapshot = vi.fn(async () => {
+      await snapshotGate.promise;
+      return "live";
+    });
+    const turnState = new TurnStateRegistry();
+    registerTurnStateContributions(turnState, "canvas", {
+      documents: {
+        schema: Type.String(),
+        createSnapshot,
+        restore: () => undefined,
+      },
+    });
+    const { agentRuntime } = createHarness(undefined, turnState);
+    const guard = await agentRuntime.acquire(
+      { sessionId: "session-id" as never },
+      sdk.manager as never,
+    );
+
+    const prompt = agentRuntime.prompt(guard, "prepared turn");
+    await vi.waitFor(() => {
+      expect(createSnapshot).toHaveBeenCalledOnce();
+    });
+    const cancellation = agentRuntime.cancelTurn(guard);
+    await Promise.resolve();
+
+    expect(sdk.state.session?.["abort"] as Mock).not.toHaveBeenCalled();
+    expect(sdk.state.session?.["prompt"] as Mock).not.toHaveBeenCalled();
+
+    snapshotGate.resolve();
+    await expect(cancellation).resolves.toBe(true);
+    await prompt;
+    expect(sdk.state.session?.["abort"] as Mock).not.toHaveBeenCalled();
+    expect(sdk.state.session?.["prompt"] as Mock).not.toHaveBeenCalled();
+
+    guard[Symbol.dispose]();
+    await agentRuntime[Symbol.asyncDispose]();
+  });
+
+  it("aborts a detached turn before draining its guard on shutdown", async () => {
+    const gate = deferred();
+    sdk.state.promptPromise = gate.promise;
+    sdk.state.abortTurn = () => {
+      gate.resolve();
+    };
     const { agentRuntime } = createHarness();
     const guard = await agentRuntime.acquire(
       { sessionId: "session-id" as never },
@@ -495,17 +578,10 @@ describe("workspace agent instances", () => {
       expect(sdk.state.session?.["prompt"] as Mock).toHaveBeenCalledOnce();
     });
     guard[Symbol.dispose]();
-    let disposed = false;
-    const disposal = agentRuntime[Symbol.asyncDispose]().then(() => {
-      disposed = true;
-    });
-    await Promise.resolve();
-    expect(disposed).toBe(false);
 
-    gate.resolve();
+    await agentRuntime[Symbol.asyncDispose]();
     await prompt;
-    await disposal;
-    expect(disposed).toBe(true);
+    expect(sdk.state.session?.["abort"] as Mock).toHaveBeenCalledOnce();
   });
 
   it("creates distinct sessions with independent instance state", async () => {
@@ -547,8 +623,9 @@ describe("workspace agent instances", () => {
       { sessionId: "session-b" as never },
       managerB as never,
     );
-    const runningA = a.value.beginTurn();
-    const runningB = b.value.beginTurn();
+    const control = { cancel: () => Promise.resolve() };
+    const runningA = a.value.registerActiveTurn(control);
+    const runningB = b.value.registerActiveTurn(control);
 
     await agentRuntime.prompt(a, "busy on a");
     await agentRuntime.prompt(b, "busy on b");

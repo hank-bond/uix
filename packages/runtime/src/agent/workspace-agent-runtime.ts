@@ -1,4 +1,4 @@
-// The workspace agent runtime coordinates shared agent services and session-keyed agent instances.
+// Coordinates shared agent services, session-keyed instances, and cancellable active turns.
 
 import { join } from "node:path";
 
@@ -60,6 +60,7 @@ import {
 } from "../agent-system-prompt-registry";
 import { DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
+import { OperationTracker } from "../operation-tracker";
 import type { Workspace } from "../roots";
 import type { TurnStateRegistry } from "../turn-state";
 import type { SessionId, SessionTarget } from "../workspace";
@@ -76,6 +77,7 @@ export interface WorkspaceAgentRuntime extends AsyncDisposable {
   ): Promise<AgentInstanceGuard>;
   createSession(): Promise<OpenedPrimarySession>;
   prompt(guard: AgentInstanceGuard, text: string): Promise<void>;
+  cancelTurn(guard: AgentInstanceGuard): Promise<boolean>;
   readSessionHistory(
     guard: AgentInstanceGuard,
     sessionId?: string,
@@ -128,6 +130,7 @@ export function createWorkspaceAgentRuntime(
   opts: WorkspaceAgentRuntimeOptions,
 ): WorkspaceAgentRuntime {
   const bag = new DisposableBag();
+  const turnOperations = new OperationTracker();
   const sessionDir = join(opts.workspace.stateRoot, ".uix", "sessions");
   let controlServices: AgentSessionServices | undefined;
   let inFlightControlServices: Promise<AgentSessionServices> | undefined;
@@ -384,23 +387,31 @@ export function createWorkspaceAgentRuntime(
     operationGuard: AgentInstanceGuard,
     text: string,
   ): Promise<void> {
+    await using operation = turnOperations.acquire();
     using turnGuard = operationGuard.retain("turn");
     const instance = turnGuard.value;
     const { state } = instance;
     const { turnStateCoordinator } = state;
-    let turn: Disposable | undefined;
+    let turnRegistered = false;
+
     try {
-      turn = instance.beginTurn();
-      const session = (await instance.bootRuntime()).session;
+      using _activeTurn = instance.registerActiveTurn(operation.control);
+      turnRegistered = true;
+      const session = (await operation.run(() => instance.bootRuntime()))
+        .session;
+
       if (turnStateCoordinator) {
         log.trace({}, "submitting_turn_state");
-        await turnStateCoordinator.commit(session.sessionManager);
+        await operation.run(() =>
+          turnStateCoordinator.commit(session.sessionManager),
+        );
       }
-      if (opts.agentContext) {
+
+      const agentContext = opts.agentContext;
+      if (agentContext) {
         log.trace({}, "building_agent_context");
-        const message = await assembleAgentContextMessage(
-          session.sessionManager,
-          opts.agentContext,
+        const message = await operation.run(() =>
+          assembleAgentContextMessage(session.sessionManager, agentContext),
         );
         if (message) {
           session.agent.state.messages.push({
@@ -413,34 +424,48 @@ export function createWorkspaceAgentRuntime(
           });
         }
       }
-      await session.prompt(text);
-    } catch (error) {
-      opts.onEvent(instance.target.sessionId, {
-        type: "transcript_append",
-        item: {
-          id: state.ephemeralTranscriptIds.next("error"),
-          kind: "error",
-          message: error instanceof Error ? error.message : String(error),
-        },
+      await operation.run(async () => {
+        using _piAbort = operation.onCancel(() => session.abort());
+        await session.prompt(text);
       });
-      if (turn) {
+    } catch (error) {
+      if (!disposed && !operation.signal.aborted) {
+        opts.onEvent(instance.target.sessionId, {
+          type: "transcript_append",
+          item: {
+            id: state.ephemeralTranscriptIds.next("error"),
+            kind: "error",
+            message: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+      if (turnRegistered && !operation.signal.aborted) {
         opts.onEvent(instance.target.sessionId, { type: "agent_end" });
       }
-    } finally {
-      turn?.[Symbol.dispose]();
     }
   }
 
   function dispose(): Promise<void> {
     if (disposal) return disposal;
+    disposed = true;
     disposal = (async () => {
+      const errors: unknown[] = [];
+      try {
+        await turnOperations[Symbol.asyncDispose]();
+      } catch (error) {
+        errors.push(error);
+      }
       try {
         await instanceSupervisor[Symbol.asyncDispose]();
+      } catch (error) {
+        errors.push(error);
       } finally {
-        disposed = true;
         bag[Symbol.dispose]();
         controlServices = undefined;
         inFlightControlServices = undefined;
+      }
+      if (errors.length > 0) {
+        throw new AggregateError(errors, "Workspace agent disposal failed");
       }
     })();
     return disposal;
@@ -469,6 +494,11 @@ export function createWorkspaceAgentRuntime(
     },
 
     prompt,
+
+    cancelTurn: (guard) =>
+      guard.value.cancelActiveTurn(
+        new Error("Agent turn cancelled by the user"),
+      ),
 
     async readSessionHistory(guard, requestedSessionId) {
       const instance = guard.value;

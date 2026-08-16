@@ -1,4 +1,4 @@
-// Agent channel contract.
+// Agent request and event contracts, including prompt, active-turn cancellation, models, and authentication.
 //
 // The substrate-owned agent channels (prompt/history/event stream) and the
 // transcript item shapes they hold. This lives behind @uix/api because
@@ -368,6 +368,11 @@ export const agentChannels = {
     prompt: {
       requestSchema: PromptRequestSchema,
       responseSchema: Type.Void(),
+    },
+    /** Request cancellation of the attachment's active shared turn. */
+    cancel_turn: {
+      requestSchema: Type.Void(),
+      responseSchema: Type.Object({ cancelled: Type.Boolean() }),
     },
     session_history: {
       requestSchema: SessionHistoryRequestSchema,

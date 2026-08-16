@@ -93,11 +93,20 @@ describe("AgentInstance", () => {
       state: { emit: () => undefined, cwd: "/workspace" },
     });
 
-    const turn = instance.beginTurn();
-    expect(() => instance.beginTurn()).toThrow("Agent is already running");
+    const cancel = vi.fn(() => Promise.resolve());
+    const control = { cancel };
+    const turn = instance.registerActiveTurn(control);
+    expect(() => instance.registerActiveTurn(control)).toThrow(
+      "Agent is already running",
+    );
+    expect(instance.isTurnActive()).toBe(true);
+    await expect(instance.cancelActiveTurn("user")).resolves.toBe(true);
+    expect(cancel).toHaveBeenCalledWith("user");
     turn[Symbol.dispose]();
     turn[Symbol.dispose]();
-    const nextTurn = instance.beginTurn();
+    expect(instance.isTurnActive()).toBe(false);
+    await expect(instance.cancelActiveTurn()).resolves.toBe(false);
+    const nextTurn = instance.registerActiveTurn(control);
     nextTurn[Symbol.dispose]();
     await instance[Symbol.asyncDispose]();
   });

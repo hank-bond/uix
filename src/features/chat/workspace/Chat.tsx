@@ -1,4 +1,4 @@
-// Renders the chat surface: transcript blocks, composer, status bar, and provider login.
+// Renders chat transcripts, prompt submission and cancellation, status controls, and provider login.
 //
 // One transcript item shape feeds the surface. Startup history provides completed
 // durable items. Live events append the same items, stream compact partials
@@ -89,6 +89,22 @@ export function Chat({ client }: ChatProps): JSX.Element {
     if (el) el.scrollTop = el.scrollHeight;
   }, [items]);
 
+  const cancelTurn = async (): Promise<void> => {
+    try {
+      await client.requests.cancel_turn();
+      setPending(false);
+    } catch (err) {
+      setItems((prev) => [
+        ...prev,
+        {
+          id: `local:error:${String(Date.now())}`,
+          kind: "error",
+          message: String(err),
+        },
+      ]);
+    }
+  };
+
   const onSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
     const text = draft.trim();
@@ -144,7 +160,10 @@ export function Chat({ client }: ChatProps): JSX.Element {
             setDraft(e.target.value);
           }}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.key === "Escape" && pending) {
+              e.preventDefault();
+              void cancelTurn();
+            } else if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               void onSubmit(e);
             }
@@ -153,10 +172,11 @@ export function Chat({ client }: ChatProps): JSX.Element {
         />
         <button
           className="composer__send"
-          type="submit"
-          disabled={pending || !draft.trim()}
+          type={pending ? "button" : "submit"}
+          disabled={!pending && !draft.trim()}
+          onClick={pending ? () => void cancelTurn() : undefined}
         >
-          {pending ? "…" : "send"}
+          {pending ? "stop" : "send"}
         </button>
       </form>
       <StatusBar

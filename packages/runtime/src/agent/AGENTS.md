@@ -25,7 +25,7 @@ Provider discovery and interactive sign-in share Pi's authentication state. A co
 - **[installers.ts](./installers.ts)** Assembles UIX's ordered Pi setup hooks into the single in-process extension used by each runtime.
 - **[instance-state.ts](./instance-state.ts)** Owns the mutable collaborators and projections scoped to one live agent instance.
 - **[instance-supervisor.ts](./instance-supervisor.ts)** Supervises session-keyed agent instances and issues explicit lifetime guards.
-- **[instance.ts](./instance.ts)** Owns one live Pi execution and its mutable state at one immutable session-branch viewpoint.
+- **[instance.ts](./instance.ts)** Owns one live Pi execution, active-turn cancellation, and mutable state at one session-branch viewpoint.
 - **[provider-auth-flow.ts](./provider-auth-flow.ts)** Runs one interactive provider sign-in at a time and exposes its prompts, links, progress, and result to the renderer.
 - **[session-files.ts](./session-files.ts)** Finds recent Pi session files and resolves a session ID to its JSONL file.
 - **[session-manager.ts](./session-manager.ts)** Opens one explicit durable session into its own Pi manager.
@@ -37,6 +37,6 @@ Provider discovery and interactive sign-in share Pi's authentication state. A co
 - **[transcript-observer.ts](./transcript-observer.ts)** Mirrors live Pi session events as renderer transcript updates with the same item shape as persisted history.
 - **[transcript.ts](./transcript.ts)** Derives the transcript items shown by the renderer from persisted Pi session entries.
 - **[turn-state-coordinator.ts](./turn-state-coordinator.ts)** Restores feature state from one selected branch before its guarded instance can commit new state.
-- **[workspace-agent-runtime.ts](./workspace-agent-runtime.ts)** The workspace agent runtime coordinates shared agent services and session-keyed agent instances.
+- **[workspace-agent-runtime.ts](./workspace-agent-runtime.ts)** Coordinates shared agent services, session-keyed instances, and cancellable active turns.
 
 <!-- INDEX:END -->

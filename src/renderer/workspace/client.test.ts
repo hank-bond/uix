@@ -71,6 +71,7 @@ describe("channel clients", () => {
     const onEvent = vi.fn();
     request
       .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ cancelled: true })
       .mockResolvedValueOnce({
         session: {
           sessionId: "session-1",
@@ -107,6 +108,7 @@ describe("channel clients", () => {
       });
 
     await agent.requests.prompt({ text: "hi" });
+    await agent.requests.cancel_turn(undefined);
     await agent.requests.session_history({});
     await agent.requests.list_session_summaries({ limit: 10 });
     await agent.requests.new_session(undefined);
@@ -118,6 +120,7 @@ describe("channel clients", () => {
     agent.events.event(onEvent);
 
     expect(request).toHaveBeenCalledWith("agent.prompt", { text: "hi" });
+    expect(request).toHaveBeenCalledWith("agent.cancel_turn", undefined);
     expect(request).toHaveBeenCalledWith("agent.session_history", {});
     expect(request).toHaveBeenCalledWith("agent.list_session_summaries", {
       limit: 10,

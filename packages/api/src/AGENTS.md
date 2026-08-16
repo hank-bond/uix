@@ -17,7 +17,7 @@ The files divide by facet. Feature and channel definitions (`feature.ts`, `chann
 ### Source files
 
 - **[actions.ts](./actions.ts)** Action contribution and catalog contracts.
-- **[agent-channels.ts](./agent-channels.ts)** Agent channel contract.
+- **[agent-channels.ts](./agent-channels.ts)** Agent request and event contracts, including prompt, active-turn cancellation, models, and authentication.
 - **[agent-context.ts](./agent-context.ts)** Agent-context contribution type.
 - **[agent-skills.ts](./agent-skills.ts)** Pi skill paths provided by an active feature.
 - **[agent-system-prompt.ts](./agent-system-prompt.ts)** A stable feature-owned section appended to the Agent's system prompt.

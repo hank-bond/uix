@@ -352,6 +352,13 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
       }),
     );
     agentChannelsBag.add(
+      registerAgentRequest("cancel_turn", async (context) => ({
+        cancelled: await this.#agentRuntime.cancelTurn(
+          context.agentInstanceGuard,
+        ),
+      })),
+    );
+    agentChannelsBag.add(
       registerAgentRequest("session_history", (context) =>
         this.#agentRuntime.readSessionHistory(context.agentInstanceGuard),
       ),

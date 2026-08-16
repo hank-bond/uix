@@ -1,4 +1,4 @@
-// Owns one live Pi execution and its mutable state at one immutable session-branch viewpoint.
+// Owns one live Pi execution, active-turn cancellation, and mutable state at one session-branch viewpoint.
 
 import type {
   AgentSessionRuntime,
@@ -10,14 +10,19 @@ import {
   type AgentInstanceStateOptions,
   createAgentInstanceState,
 } from "./instance-state";
+import type { OperationControl } from "../operation-tracker";
 import type { SessionTarget } from "../workspace";
 
 export interface AgentInstance {
   readonly target: SessionTarget;
   readonly manager: SessionManager;
   readonly state: AgentInstanceState;
-  /** Begin the instance's only active turn, or reject when one is already active. */
-  beginTurn(): Disposable;
+  /** Register the instance's only active turn, or reject when one is already active. */
+  registerActiveTurn(control: OperationControl): Disposable;
+  /** Request cancellation and await the active turn's lexical completion. */
+  cancelActiveTurn(reason?: unknown): Promise<boolean>;
+  /** Whether this instance currently has a registered active turn. */
+  isTurnActive(): boolean;
   /** Boot the Pi runtime on first use. Concurrent callers share one attempt. */
   bootRuntime(): Promise<AgentSessionRuntime>;
   /** Reload an active or already-booting runtime without starting an unused one. */
@@ -51,7 +56,7 @@ export function createAgentInstance(
   let runtime: AgentSessionRuntime | undefined;
   let inFlightRuntimeBoot: Promise<AgentSessionRuntime> | undefined;
   let disposal: Promise<void> | undefined;
-  let turnActive = false;
+  let activeTurn: OperationControl | undefined;
 
   function bootRuntime(): Promise<AgentSessionRuntime> {
     if (runtime) return Promise.resolve(runtime);
@@ -108,18 +113,24 @@ export function createAgentInstance(
     target: opts.target,
     manager: opts.manager,
     state,
-    beginTurn() {
-      if (turnActive) throw new Error("Agent is already running");
-      turnActive = true;
+    registerActiveTurn(control) {
+      if (activeTurn) throw new Error("Agent is already running");
+      activeTurn = control;
       let ended = false;
       return {
         [Symbol.dispose]() {
           if (ended) return;
           ended = true;
-          turnActive = false;
+          if (activeTurn === control) activeTurn = undefined;
         },
       };
     },
+    async cancelActiveTurn(reason) {
+      if (!activeTurn) return false;
+      await activeTurn.cancel(reason);
+      return true;
+    },
+    isTurnActive: () => activeTurn !== undefined,
     bootRuntime,
     async reloadRuntimeIfActive() {
       const activeRuntime = runtime ?? (await inFlightRuntimeBoot);
