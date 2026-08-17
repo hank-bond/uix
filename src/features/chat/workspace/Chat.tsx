@@ -50,6 +50,7 @@ export function Chat({ client }: ChatProps): JSX.Element {
   const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeHistoryRequestVersion = useRef(0);
+  const turnActivityEventVersion = useRef(0);
   const { sessionSelectionVersion, loadActiveHistory } = useWorkspaceSession();
   const statusBar = useFeatureSetting(chatSettings, "statusBar");
   const controls = useAgentControls(client);
@@ -64,16 +65,38 @@ export function Chat({ client }: ChatProps): JSX.Element {
     return client.events.event((event: AgentEvent) => {
       setItems((prev) => reduce(prev, event));
       if (event.type === "active_turn_start") {
+        turnActivityEventVersion.current += 1;
         setIsTurnActive(true);
         setIsSubmitting(false);
       }
       if (event.type === "active_turn_end") {
+        turnActivityEventVersion.current += 1;
         setIsTurnActive(false);
         setIsSubmitting(false);
         setIsStopping(false);
       }
     });
   }, [client]);
+
+  // Subscribe above before seeding. A live event that lands during this
+  // request wins over its older point-in-time activity snapshot.
+  useEffect(() => {
+    const eventVersion = turnActivityEventVersion.current;
+    let current = true;
+    void client.requests
+      .turn_activity(undefined)
+      .then(({ active }) => {
+        if (!current || eventVersion !== turnActivityEventVersion.current) {
+          return;
+        }
+        setIsTurnActive(active);
+        if (active) setIsSubmitting(false);
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [client, sessionSelectionVersion]);
 
   // A successful session mutation changes sessionSelectionVersion. Clear the
   // old projection immediately, invalidate its in-flight history read, and hydrate

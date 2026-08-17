@@ -359,6 +359,11 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
       })),
     );
     agentChannelsBag.add(
+      registerAgentRequest("turn_activity", (context) => ({
+        active: context.agentInstanceGuard.value.isTurnActive(),
+      })),
+    );
+    agentChannelsBag.add(
       registerAgentRequest("session_history", (context) =>
         this.#agentRuntime.readSessionHistory(context.agentInstanceGuard),
       ),

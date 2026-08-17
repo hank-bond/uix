@@ -1,4 +1,4 @@
-// Agent request and event contracts, including prompt, active-turn cancellation, models, and authentication.
+// Agent request and event contracts, including prompt, active-turn activity and cancellation, models, and authentication.
 //
 // The substrate-owned agent channels (prompt/history/event stream) and the
 // transcript item shapes they hold. This lives behind @uix/api because
@@ -16,6 +16,12 @@ export const PromptRequestSchema = Type.Object({
   text: Type.String(),
 });
 export type PromptRequest = Static<typeof PromptRequestSchema>;
+
+/** Current activity of the attachment-selected agent instance. */
+export const TurnActivitySnapshotSchema = Type.Object({
+  active: Type.Boolean(),
+});
+export type TurnActivitySnapshot = Static<typeof TurnActivitySnapshotSchema>;
 
 /** Point-in-time file location derived for a filesystem tool invocation. */
 export interface ToolFileLocation {
@@ -375,6 +381,11 @@ export const agentChannels = {
     cancel_turn: {
       requestSchema: Type.Void(),
       responseSchema: Type.Object({ cancelled: Type.Boolean() }),
+    },
+    /** Snapshot the attachment-selected instance's active-turn state. */
+    turn_activity: {
+      requestSchema: Type.Void(),
+      responseSchema: TurnActivitySnapshotSchema,
     },
     session_history: {
       requestSchema: SessionHistoryRequestSchema,
