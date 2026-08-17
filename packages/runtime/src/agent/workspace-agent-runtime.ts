@@ -387,16 +387,23 @@ export function createWorkspaceAgentRuntime(
     operationGuard: AgentInstanceGuard,
     text: string,
   ): Promise<void> {
-    await using operation = turnOperations.acquire();
     using turnGuard = operationGuard.retain("turn");
     const instance = turnGuard.value;
     const { state } = instance;
     const { turnStateCoordinator } = state;
     let turnRegistered = false;
+    let turnSignal: AbortSignal | undefined;
 
     try {
-      using _activeTurn = instance.registerActiveTurn(operation.control);
+      // Declaring this bag before the tracked operation makes reverse disposal
+      // complete cancellation before clearing the instance's active slot.
+      using activeTurnLifetime = new DisposableBag();
+      await using operation = turnOperations.acquire();
+      turnSignal = operation.signal;
+      activeTurnLifetime.add(instance.registerActiveTurn(operation.control));
       turnRegistered = true;
+      opts.onEvent(instance.target.sessionId, { type: "active_turn_start" });
+
       const session = (await operation.run(() => instance.bootRuntime()))
         .session;
 
@@ -429,7 +436,8 @@ export function createWorkspaceAgentRuntime(
         await session.prompt(text);
       });
     } catch (error) {
-      if (!disposed && !operation.signal.aborted) {
+      const cancelled = turnSignal?.aborted ?? false;
+      if (!disposed && !cancelled) {
         opts.onEvent(instance.target.sessionId, {
           type: "transcript_append",
           item: {
@@ -439,8 +447,12 @@ export function createWorkspaceAgentRuntime(
           },
         });
       }
-      if (turnRegistered && !operation.signal.aborted) {
+      if (turnRegistered && !cancelled) {
         opts.onEvent(instance.target.sessionId, { type: "agent_end" });
+      }
+    } finally {
+      if (turnRegistered && !disposed) {
+        opts.onEvent(instance.target.sessionId, { type: "active_turn_end" });
       }
     }
   }

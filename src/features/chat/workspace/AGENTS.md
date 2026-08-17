@@ -25,6 +25,7 @@ The status bar composes the session and model pills. The model pill opens the mo
 - **[agent-controls.ts](./agent-controls.ts)** Owns chat agent state: model picker, provider auth flow, and status over the agent channels.
 - **[Chat.css](./Chat.css)** Chat surface layout: transcript scroll, composer, and status bar.
 - **[Chat.tsx](./Chat.tsx)** Renders chat transcripts, prompt submission and cancellation, status controls, and provider login.
+- **[composer.ts](./composer.ts)** Derives Chat composer presentation and keyboard intent from shared turn activity.
 - **[css.d.ts](./css.d.ts)** The CSS module import shape for TypeScript. The browser executes CSS module scripts (import ... with { type: "css" }) natively. This declaration teaches TypeScript their shape.
 - **[model-actions.ts](./model-actions.ts)** Defines the chat feature's model picker actions: favorites and all models.
 - **[model-filter.ts](./model-filter.ts)** Picker filtering, extracted pure so it's testable without a DOM.

@@ -90,6 +90,8 @@ export type AgentEvent =
       text?: string;
       partialResult?: unknown;
     }
+  | { type: "active_turn_start" }
+  | { type: "active_turn_end" }
   | { type: "agent_start" }
   | { type: "agent_end" }
   | { type: "turn_start" }

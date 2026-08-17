@@ -60,7 +60,7 @@ const sdk = vi.hoisted(() => {
     servicesOptions: [] as Array<{ cwd: string; agentDir: string }>,
     pendingProviderModels: [] as FakeModel[],
     promptPromise: undefined as Promise<void> | undefined,
-    abortTurn: undefined as (() => void) | undefined,
+    abortTurn: undefined as (() => void | Promise<void>) | undefined,
     sessionTitle: undefined as string | undefined,
   };
 
@@ -134,9 +134,8 @@ const sdk = vi.hoisted(() => {
       model,
       sessionManager,
       isStreaming: false,
-      abort: vi.fn(() => {
-        state.abortTurn?.();
-        return Promise.resolve();
+      abort: vi.fn(async () => {
+        await state.abortTurn?.();
       }),
       unsubscribe,
       setModel: vi.fn((next: FakeModel) => {
@@ -481,6 +480,9 @@ describe("workspace agent instances", () => {
       ),
     ).toBe(true);
     expect(events.some((event) => event.type === "agent_end")).toBe(false);
+    expect(
+      events.filter((event) => event.type.startsWith("active_turn_")),
+    ).toEqual([{ type: "active_turn_start" }]);
 
     gate.resolve();
     await first;
@@ -515,7 +517,55 @@ describe("workspace agent instances", () => {
           event.type === "transcript_append" && event.item.kind === "error",
       ),
     ).toBe(false);
+    expect(
+      events.filter((event) => event.type.startsWith("active_turn_")),
+    ).toEqual([{ type: "active_turn_start" }, { type: "active_turn_end" }]);
     await expect(agentRuntime.cancelTurn(guard)).resolves.toBe(false);
+
+    guard[Symbol.dispose]();
+    await agentRuntime[Symbol.asyncDispose]();
+  });
+
+  it("ends active-turn activity only after Pi abort completion", async () => {
+    const promptGate = deferred();
+    const abortGate = deferred();
+    sdk.state.promptPromise = promptGate.promise;
+    sdk.state.abortTurn = async () => {
+      promptGate.resolve();
+      await abortGate.promise;
+    };
+    const { agentRuntime, events } = createHarness();
+    const guard = await agentRuntime.acquire(
+      { sessionId: "session-id" as never },
+      sdk.manager as never,
+    );
+
+    const prompt = agentRuntime.prompt(guard, "long turn");
+    await vi.waitFor(() => {
+      expect(sdk.state.session?.["prompt"] as Mock).toHaveBeenCalledOnce();
+    });
+    let cancellationCompleted = false;
+    const cancellation = agentRuntime.cancelTurn(guard).then((cancelled) => {
+      cancellationCompleted = true;
+      return cancelled;
+    });
+    await vi.waitFor(() => {
+      expect(sdk.state.session?.["abort"] as Mock).toHaveBeenCalledOnce();
+    });
+
+    expect(cancellationCompleted).toBe(false);
+    expect(guard.value.isTurnActive()).toBe(true);
+    expect(
+      events.filter((event) => event.type.startsWith("active_turn_")),
+    ).toEqual([{ type: "active_turn_start" }]);
+
+    abortGate.resolve();
+    await expect(cancellation).resolves.toBe(true);
+    await prompt;
+    expect(guard.value.isTurnActive()).toBe(false);
+    expect(
+      events.filter((event) => event.type.startsWith("active_turn_")),
+    ).toEqual([{ type: "active_turn_start" }, { type: "active_turn_end" }]);
 
     guard[Symbol.dispose]();
     await agentRuntime[Symbol.asyncDispose]();
@@ -535,7 +585,7 @@ describe("workspace agent instances", () => {
         restore: () => undefined,
       },
     });
-    const { agentRuntime } = createHarness(undefined, turnState);
+    const { agentRuntime, events } = createHarness(undefined, turnState);
     const guard = await agentRuntime.acquire(
       { sessionId: "session-id" as never },
       sdk.manager as never,
@@ -556,6 +606,9 @@ describe("workspace agent instances", () => {
     await prompt;
     expect(sdk.state.session?.["abort"] as Mock).not.toHaveBeenCalled();
     expect(sdk.state.session?.["prompt"] as Mock).not.toHaveBeenCalled();
+    expect(
+      events.filter((event) => event.type.startsWith("active_turn_")),
+    ).toEqual([{ type: "active_turn_start" }, { type: "active_turn_end" }]);
 
     guard[Symbol.dispose]();
     await agentRuntime[Symbol.asyncDispose]();

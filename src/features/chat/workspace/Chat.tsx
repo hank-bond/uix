@@ -25,6 +25,10 @@ import { type AgentControls, useAgentControls } from "./agent-controls";
 import { BlockPresentationSettingsProvider } from "./blocks/BlockPresentationSettings";
 import { ChatBlock } from "./blocks/ChatBlock";
 import { ToolCatalogProvider } from "./blocks/tool/tool-catalog";
+import {
+  deriveComposerKeyboardIntent,
+  deriveComposerPresentation,
+} from "./composer";
 import { ModelPill } from "./ModelPill";
 import { isPendingUserId, pendingUserId } from "./pending";
 import { ProviderLoginModal } from "./ProviderLoginModal";
@@ -40,19 +44,33 @@ export interface ChatProps {
 export function Chat({ client }: ChatProps): JSX.Element {
   const [items, setItems] = useState<TranscriptItem[]>([]);
   const [draft, setDraft] = useState("");
-  const [pending, setPending] = useState(false);
+  const [isTurnActive, setIsTurnActive] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeHistoryRequestVersion = useRef(0);
   const { sessionSelectionVersion, loadActiveHistory } = useWorkspaceSession();
   const statusBar = useFeatureSetting(chatSettings, "statusBar");
   const controls = useAgentControls(client);
+  const canStop = isSubmitting || isTurnActive;
+  const composer = deriveComposerPresentation({
+    canStop,
+    isStopping,
+    hasDraft: draft.trim().length > 0,
+  });
 
   useEffect(() => {
     return client.events.event((event: AgentEvent) => {
       setItems((prev) => reduce(prev, event));
-      if (event.type === "agent_end") {
-        setPending(false);
+      if (event.type === "active_turn_start") {
+        setIsTurnActive(true);
+        setIsSubmitting(false);
+      }
+      if (event.type === "active_turn_end") {
+        setIsTurnActive(false);
+        setIsSubmitting(false);
+        setIsStopping(false);
       }
     });
   }, [client]);
@@ -65,6 +83,9 @@ export function Chat({ client }: ChatProps): JSX.Element {
   useLayoutEffect(() => {
     const requestVersion = ++activeHistoryRequestVersion.current;
     setItems([]);
+    setIsTurnActive(false);
+    setIsSubmitting(false);
+    setIsStopping(false);
     setHydrated(false);
     void (async () => {
       try {
@@ -90,10 +111,14 @@ export function Chat({ client }: ChatProps): JSX.Element {
   }, [items]);
 
   const cancelTurn = async (): Promise<void> => {
+    if (!canStop || isStopping) return;
+    setIsStopping(true);
     try {
-      await client.requests.cancel_turn();
-      setPending(false);
+      const { cancelled } = await client.requests.cancel_turn();
+      if (!cancelled) setIsStopping(false);
+      setIsSubmitting(false);
     } catch (err) {
+      setIsStopping(false);
       setItems((prev) => [
         ...prev,
         {
@@ -108,9 +133,9 @@ export function Chat({ client }: ChatProps): JSX.Element {
   const onSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
     const text = draft.trim();
-    if (!text || pending) return;
+    if (!text || canStop || isStopping) return;
     setDraft("");
-    setPending(true);
+    setIsSubmitting(true);
     // Optimistic echo: show the message instantly as an unconfirmed pending
     // row. Main emits the authoritative born-keyed row once Pi persists it,
     // and the reducer swaps this row out (eventual consistency: display
@@ -119,7 +144,7 @@ export function Chat({ client }: ChatProps): JSX.Element {
     try {
       await client.requests.prompt({ text });
     } catch (err) {
-      setPending(false);
+      setIsSubmitting(false);
       setItems((prev) => [
         ...prev,
         {
@@ -160,23 +185,28 @@ export function Chat({ client }: ChatProps): JSX.Element {
             setDraft(e.target.value);
           }}
           onKeyDown={(e) => {
-            if (e.key === "Escape" && pending) {
-              e.preventDefault();
-              void cancelTurn();
-            } else if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void onSubmit(e);
-            }
+            const intent = deriveComposerKeyboardIntent({
+              key: e.key,
+              shiftKey: e.shiftKey,
+              canStop,
+              isStopping,
+            });
+            if (!intent) return;
+            e.preventDefault();
+            if (intent === "cancel") void cancelTurn();
+            if (intent === "submit") void onSubmit(e);
           }}
           rows={2}
         />
         <button
           className="composer__send"
-          type={pending ? "button" : "submit"}
-          disabled={!pending && !draft.trim()}
-          onClick={pending ? () => void cancelTurn() : undefined}
+          type={composer.action === "cancel" ? "button" : "submit"}
+          disabled={composer.disabled}
+          onClick={
+            composer.action === "cancel" ? () => void cancelTurn() : undefined
+          }
         >
-          {pending ? "stop" : "send"}
+          {composer.label}
         </button>
       </form>
       <StatusBar
@@ -233,6 +263,8 @@ function reduce(prev: TranscriptItem[], event: AgentEvent): TranscriptItem[] {
     case "transcript_partial":
       return applyPartial(prev, event);
 
+    case "active_turn_start":
+    case "active_turn_end":
     case "agent_start":
     case "agent_end":
     case "turn_start":
