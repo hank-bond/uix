@@ -15,7 +15,8 @@ summary: "Build minimal Electron and loopback server hosts over the proved works
 - **H4.2** landed. It activates session-keyed instance supervision, guard-native lifetimes, attachment dispatch, non-blocking retarget, and teardown policy. UIX-owned lifecycle capabilities now use the ECMAScript disposal protocols without parallel named cleanup operations. The deferred multi-branch architecture moved to the Agent feature plan.
 - **H4.2a** active-turn cancellation landed. Remaining operation hardening moved to [`runtime-operation-hardening.md`](./runtime-operation-hardening.md).
 - **Further Agent runtime work** moved to [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md).
-- **H5** is next: extract the shared browser clients without expanding the current single-target product envelope.
+- **H5.1** launcher extraction landed in `0e2ccdc`.
+- **H5.2** workspace extraction is in review. H5.3 follows with the browser-only boundary proof.
 - **H6-H8** add the minimal loopback server, rehome Electron, and prove basic two-host conformance.
 
 ## Status and intent

@@ -16,6 +16,7 @@ interface WorkspaceSessionControllerOptions {
     sessionId: string,
     title: string | null,
   ) => Promise<SessionSummary>;
+  synchronizeSessionLocation?: (sessionId: string) => void;
 }
 
 interface WorkspaceSessionSnapshot {
@@ -41,6 +42,9 @@ export class WorkspaceSessionController {
     sessionId: string,
     title: string | null,
   ) => Promise<SessionSummary>;
+  readonly #synchronizeSessionLocation:
+    | ((sessionId: string) => void)
+    | undefined;
   readonly #listeners = new Set<Listener>();
   #snapshot: WorkspaceSessionSnapshot = {
     activeSession: undefined,
@@ -51,6 +55,7 @@ export class WorkspaceSessionController {
     canSwitchSession: true,
   };
   #recentSessionsRequestVersion = 0;
+  #locationSessionId: string | undefined;
   #inFlightActiveHistory:
     | {
         sessionSelectionVersion: number;
@@ -64,6 +69,7 @@ export class WorkspaceSessionController {
     this.#requestNewSession = opts.requestNewSession;
     this.#requestSwitchSession = opts.requestSwitchSession;
     this.#requestSetSessionTitle = opts.requestSetSessionTitle;
+    this.#synchronizeSessionLocation = opts.synchronizeSessionLocation;
   }
 
   getSnapshot = (): WorkspaceSessionSnapshot => this.#snapshot;
@@ -108,6 +114,7 @@ export class WorkspaceSessionController {
           sessionSelectionVersion === this.#snapshot.sessionSelectionVersion
         ) {
           this.#publish({ activeSession: result.session });
+          this.#synchronizeLocation(result.session.sessionId);
         }
         return result;
       })
@@ -199,11 +206,27 @@ export class WorkspaceSessionController {
         sessionSelectionVersion: this.#snapshot.sessionSelectionVersion + 1,
         isSessionMutationPending: false,
       });
+      this.#synchronizeLocation(activeSession.sessionId);
       void this.loadRecentSessions().catch(() => {});
       return activeSession;
     } catch (error) {
       this.#publish({ isSessionMutationPending: false });
       throw error;
+    }
+  }
+
+  #synchronizeLocation(sessionId: string): void {
+    if (sessionId === this.#locationSessionId) return;
+    this.#locationSessionId = sessionId;
+    try {
+      this.#synchronizeSessionLocation?.(sessionId);
+    } catch (error) {
+      const report = (
+        globalThis as unknown as {
+          reportError?: (error: unknown) => void;
+        }
+      ).reportError;
+      report?.(error);
     }
   }
 

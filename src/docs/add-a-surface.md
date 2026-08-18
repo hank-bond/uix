@@ -12,7 +12,7 @@ Files involved:
 
 - [`packages/api/src/workspace.ts`](../../packages/api/src/workspace.ts), `defineSurface`, `SurfaceContribution`
 - [`packages/runtime/src/features/surface-pipeline.ts`](../../packages/runtime/src/features/surface-pipeline.ts), bundling and serving
-- [`src/renderer/workspace/layout.tsx`](../../src/renderer/workspace/layout.tsx), mounting, style scoping, error boundaries
+- [`packages/client/src/workspace/layout.tsx`](../../packages/client/src/workspace/layout.tsx), mounting, style scoping, error boundaries
 
 The reference for a real surface is [`src/features/chat/workspace/surface.tsx`](../../src/features/chat/workspace/surface.tsx).
 

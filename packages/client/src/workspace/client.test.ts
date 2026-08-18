@@ -1,13 +1,31 @@
+import { Type } from "typebox";
 import { describe, expect, it, type Mock, vi } from "vitest";
 
 import { agentChannels } from "@uix/api/agent-channels";
+import type { ChannelContract } from "@uix/api/channels";
 import {
   createChannelClient,
   createFeatureSettingsClient,
   type WorkspaceClient,
 } from "@uix/api/workspace";
-import { parseCanvasKey } from "#features/canvas/shared/addressing";
-import { canvasChannels } from "#features/canvas/shared/channels";
+
+const exampleChannels = {
+  feature: "reports",
+  requests: {
+    writeback: {
+      requestSchema: Type.Object({
+        key: Type.String(),
+        html: Type.String(),
+      }),
+      responseSchema: Type.Void(),
+    },
+  },
+  events: {
+    changed: {
+      event: Type.Object({ key: Type.String() }),
+    },
+  },
+} as const satisfies ChannelContract;
 
 function fakeWorkspaceClient(): {
   client: WorkspaceClient;
@@ -38,21 +56,21 @@ function fakeWorkspaceClient(): {
 describe("channel clients", () => {
   it("creates typed feature client from a channel contract", async () => {
     const { client, request, subscribe } = fakeWorkspaceClient();
-    const canvas = createChannelClient(client, canvasChannels);
+    const reports = createChannelClient(client, exampleChannels);
     const onChanged = vi.fn();
 
-    await canvas.requests.writeback({
-      key: parseCanvasKey("main"),
+    await reports.requests.writeback({
+      key: "main",
       html: "<main />",
     });
-    canvas.events.changed(onChanged);
+    reports.events.changed(onChanged);
 
-    expect(request).toHaveBeenCalledWith("canvas.writeback", {
+    expect(request).toHaveBeenCalledWith("reports.writeback", {
       key: "main",
       html: "<main />",
     });
     expect(subscribe).toHaveBeenCalledWith(
-      "canvas.changed",
+      "reports.changed",
       expect.any(Function),
     );
 

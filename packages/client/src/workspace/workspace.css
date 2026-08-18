@@ -1,4 +1,4 @@
-/* Base host chrome for the workspace window. */
+/* Base chrome for the shared workspace client. */
 /*
  * Plain CSS, no framework. The chrome stays tiny on purpose: everything
  * visually interesting happens inside the canvas iframe, which has its

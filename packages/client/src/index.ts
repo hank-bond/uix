@@ -7,3 +7,7 @@ export {
   type LauncherWorkspace,
   mountLauncherClient,
 } from "./launcher";
+export {
+  mountWorkspaceClient,
+  type WorkspaceClientMountOptions,
+} from "./workspace";

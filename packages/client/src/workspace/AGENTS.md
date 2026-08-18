@@ -1,14 +1,14 @@
 ---
-summary: "The workspace subsystem hosts runtime surfaces and owns session, action, and keybinding state in the renderer."
+summary: "The shared workspace client hosts runtime surfaces and owns session, action, and keybinding projections over a host-constructed channel client."
 ---
 
-# Workspace subsystem
+# Workspace client
 
-The workspace page is one composition. The surface host (`layout.tsx`) fetches the feature surface list and mounts each surface with a channel client, scoped styles, and an error boundary. `Workspace.tsx` renders the host's row and wraps it in the action, keybinding, and session providers.
+The workspace page is one browser composition behind `mountWorkspaceClient`. The surface host fetches the runtime composition and mounts each surface with feature-bound channels, settings, actions, scoped styles, and error isolation. Page-shared module installation preserves React, TypeBox, and `@uix/api` identity for runtime-built surfaces.
 
-Actions form one chain. Contributions resolve into ids and catalog entries (`action-resolution.ts`). The registry retains them and projects confirmed bindings (`action-registry.ts`, `action-binding-projection.ts`). Keyboard events convert to chords (`keyboard-event-shortcut.ts`, `shortcut-platform.ts`) and dispatch into the registry (`action-keyboard-dispatcher.tsx`). `keybinding-sync.tsx` reconciles defaults with the substrate settings. `action-context.tsx` provides the registry to the tree.
+Actions resolve into one renderer registry and synchronize confirmed bindings through substrate channels. The session controller owns active-session projection and idle-only mutations. An optional idempotent mount callback reflects accepted session selection into host-owned location encoding without participating in the mutation.
 
-Sessions flow from the agent channels into `session-controller.ts`, which owns the projection and mutations, exposed through `session-context.tsx`. `session-actions.tsx` registers the session actions into the registry.
+This directory contains no concrete transport, URL parser, Electron global, runtime implementation, or app feature import.
 
 ## Contents
 
@@ -26,12 +26,12 @@ Sessions flow from the agent channels into `session-controller.ts`, which owns t
 - **[keybinding-sync.tsx](./keybinding-sync.tsx)** Synchronizes confirmed keybindings between the action registry and the substrate keybindings channel.
 - **[keyboard-event-shortcut.ts](./keyboard-event-shortcut.ts)** Converts a KeyboardEvent into a resolved shortcut chord for action matching.
 - **[layout.tsx](./layout.tsx)** Hosts runtime surfaces: fetches the composition, loads surface modules, and mounts them with clients, scoped styles, and error boundaries.
-- **[preload.ts](./preload.ts)** Creates the workspace client over the preload channel transport.
-- **[provide-shared-modules.ts](./provide-shared-modules.ts)** Provides page-shared module instances for runtime surfaces.
 - **[session-actions.tsx](./session-actions.tsx)** Registers the workspace session actions as a feature action contribution.
 - **[session-context.tsx](./session-context.tsx)** Provides the workspace session handle and agent activity feed to the workspace tree.
 - **[session-controller.ts](./session-controller.ts)** Owns the active-session projection and session mutations for the workspace renderer.
 - **[shortcut-platform.ts](./shortcut-platform.ts)** Derives the shortcut platform (macOS or other) from the browser platform.
+- **[surface-shared-modules.ts](./surface-shared-modules.ts)** Installs page-shared module instances for runtime surfaces before workspace mount.
+- **[workspace.css](./workspace.css)** Base chrome for the shared workspace client.
 - **[Workspace.tsx](./Workspace.tsx)** Renders the workspace page: the composed surface row wrapped in action, keybinding, and session providers.
 
 <!-- INDEX:END -->

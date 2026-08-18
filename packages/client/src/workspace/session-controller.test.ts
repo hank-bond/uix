@@ -37,6 +37,7 @@ interface ControllerRequests {
     sessionId: string,
     title: string | null,
   ) => Promise<SessionSummary>;
+  synchronizeSessionLocation: (sessionId: string) => void;
 }
 
 function createController(
@@ -108,6 +109,36 @@ describe("WorkspaceSessionController", () => {
       activeSession: existingSession,
       sessionSelectionVersion: 0,
     });
+  });
+
+  it("synchronizes each accepted session location once", async () => {
+    const synchronizeSessionLocation = vi.fn();
+    const controller = createController({ synchronizeSessionLocation });
+
+    await controller.loadActiveHistory();
+    await controller.loadActiveHistory();
+    await controller.newSession();
+
+    expect(synchronizeSessionLocation.mock.calls).toEqual([
+      [existingSession.sessionId],
+      [newSession.sessionId],
+    ]);
+  });
+
+  it("does not roll back an accepted session when location sync fails", async () => {
+    const reportError = vi.fn();
+    vi.stubGlobal("reportError", reportError);
+    const locationError = new Error("location failed");
+    const controller = createController({
+      synchronizeSessionLocation: () => {
+        throw locationError;
+      },
+    });
+
+    await expect(controller.newSession()).resolves.toEqual(newSession);
+    expect(controller.getSnapshot().activeSession).toEqual(newSession);
+    expect(reportError).toHaveBeenCalledWith(locationError);
+    vi.unstubAllGlobals();
   });
 
   it("does not let an older history read replace a successful mutation", async () => {

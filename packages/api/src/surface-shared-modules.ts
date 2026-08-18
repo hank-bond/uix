@@ -5,7 +5,7 @@
 // instances (one React, one typebox, one @uix/api) rather than each
 // surface bundling its own. The pipeline maps these bare specifiers to virtual modules
 // that read the page-provided global. The page populates that global at boot
-// (src/renderer/workspace/provide-shared-modules.ts) before any surface loads.
+// (`@uix/client`'s workspace mount) before any surface loads.
 
 export const SurfaceSharedModules = [
   "react",

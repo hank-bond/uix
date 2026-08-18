@@ -28,8 +28,10 @@ const WorkspaceSessionControllerContext = createContext<
 
 export function WorkspaceSessionControllerProvider({
   children,
+  synchronizeSessionLocation,
 }: {
   children: ReactNode;
+  synchronizeSessionLocation?: (sessionId: string) => void;
 }): JSX.Element {
   const workspace = useWorkspaceClient();
   const agent = useMemo(
@@ -47,8 +49,9 @@ export function WorkspaceSessionControllerProvider({
           agent.requests.switch_session({ sessionId }),
         requestSetSessionTitle: (sessionId, title) =>
           agent.requests.set_session_title({ sessionId, title }),
+        synchronizeSessionLocation,
       }),
-    [agent],
+    [agent, synchronizeSessionLocation],
   );
   const snapshot = useSyncExternalStore(
     controller.subscribe,

@@ -37,11 +37,17 @@ const actionRegistry = new ActionRegistry({
 });
 const registerWorkspaceActions = actionRegistry.forFeature("uix");
 
-export function Workspace(): JSX.Element {
+export function Workspace({
+  synchronizeSessionLocation,
+}: {
+  synchronizeSessionLocation?: (sessionId: string) => void;
+}): JSX.Element {
   return (
     <ActionRegistryProvider registry={actionRegistry}>
       <FeatureActionsProvider register={registerWorkspaceActions}>
-        <WorkspaceSessionControllerProvider>
+        <WorkspaceSessionControllerProvider
+          synchronizeSessionLocation={synchronizeSessionLocation}
+        >
           <WorkspaceSessionActions />
           <ActionKeyboardDispatcher />
           <KeybindingSync />

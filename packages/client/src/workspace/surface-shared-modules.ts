@@ -1,4 +1,4 @@
-// Provides page-shared module instances for runtime surfaces.
+// Installs page-shared module instances for runtime surfaces before workspace mount.
 //
 // esbuild bundles surface modules while leaving the blessed bare specifiers
 // as virtual modules that read this global (@uix/api/surface-shared-modules).
@@ -41,4 +41,7 @@ const shared: Record<SurfaceSharedModule, Record<string, unknown>> = {
   "@uix/api/resources": toShared(resourcesApi),
 };
 
-(globalThis as Record<string, unknown>)[SurfaceSharedGlobal] = shared;
+/** Install the module identities consumed by runtime-built surface bundles. */
+export function installSurfaceSharedModules(): void {
+  (globalThis as Record<string, unknown>)[SurfaceSharedGlobal] = shared;
+}

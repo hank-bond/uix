@@ -1,4 +1,4 @@
-// Creates the workspace client over the preload channel transport.
+// Adapts the Electron preload transport to the shared workspace client contract.
 //
 // The workspace runs directly in the BrowserWindow. No iframe, no sandbox.
 // Multi-workspace isolation comes from separate BrowserWindows.
@@ -6,9 +6,9 @@
 import type { WorkspaceClient } from "@uix/api/workspace";
 import type { ChannelTransport } from "#shared/ipc";
 
-export const LocalWorkspaceId = "local";
+const LocalWorkspaceId = "local";
 
-export function createPreloadWorkspaceClient(
+export function createElectronWorkspaceClient(
   transport: ChannelTransport,
 ): WorkspaceClient {
   return {
