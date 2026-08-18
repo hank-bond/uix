@@ -1,13 +1,13 @@
 ---
 summary: "A workspace is a directory anywhere on disk defined by its uix.workspace.json manifest. The manifest is an explicit ordered list of feature entry-file references (relative or absolute) that replaces auto-discovery entirely."
 kind: explanation
-read_when: "Read before touching feature loading, workspace resolution, discovery/roots code, or the start/picker flow. Root scanning is retired and the manifest is the one source of composition truth."
+read_when: "Read before touching feature loading, workspace resolution, discovery/roots code, or the launcher flow. Root scanning is retired and the manifest is the one source of composition truth."
 status: accepted
 ---
 
 # Workspaces are manifest files. Auto-discovery is retired
 
-**Vocabulary, three levels.** The **App** is the running Electron application, the shell that shows the start picker and hosts windows. A **workspace** is what the App opens: a user-chosen directory anywhere on disk, defined by its manifest file. A **feature** is what a workspace composes. (This finalizes "App": earlier drafts reserved it for feature-bundle distribution, then briefly used it for the workspace dir itself, both retired. Distributing a bundle of features is just sharing a workspace directory template.)
+**Vocabulary, three levels.** The **App** is the running Electron application, the shell that shows the launcher and hosts windows. A **workspace** is what the App opens: a user-chosen directory anywhere on disk, defined by its manifest file. A **feature** is what a workspace composes. (This finalizes "App": earlier drafts reserved it for feature-bundle distribution, then briefly used it for the workspace dir itself, both retired. Distributing a bundle of features is just sharing a workspace directory template.)
 
 **The manifest is the composition.** `uix.workspace.json` lives in the workspace root. v1 schema is `name` plus `features`: an **explicit ordered array of feature references**. A reference is an entry file: the `.ts`/`.js` whose default export is the `FeatureDefinition`. It resolves relative to the manifest for workspace-local features or absolute for shared/cross-workspace ones. Manifest order is load order, extending [uix-core-composition-root](./2026-06-07-uix-core-composition-root.md)'s explicit-ordered-composition discipline to features (registration order is semantic for agent-facing facets). Removing a feature is deleting its line. Nothing can resurrect it. Layout, agent config, and feature↔agent links land in the manifest later, not in v1.
 
@@ -17,7 +17,7 @@ status: accepted
 
 **Workspace roots derive from the manifest.** `resolveWorkspace()`'s `process.cwd()` placeholder is replaced by the opened manifest's directory. `stateRoot` (Pi session + canvas store under the dir's `.uix/`) is pinned there for the life of the conversation. The agent's cwd _defaults_ there while remaining the mutable pointer per [project-root-vs-agent-cwd](./2026-06-06-project-root-vs-agent-cwd.md).
 
-**The App opens manifests.** On start with no target, a picker modal offers recent workspaces (manifest paths persisted in Electron `userData`) or creating a new one. Creating a new one means choosing a dir and writing the manifest. The default features are scaffolded into it once they ship as templates (see the scaffolding backlog seed). Semantics mirror VS Code's `.code-workspace`: the manifest file is the thing you open. First boot is just the empty-recents case of the same modal. One BrowserWindow per open workspace remains the model. V1 may scope to one open workspace per App instance, with concurrent multi-workspace windows following when the substrate is per-workspace-scoped.
+**The App opens manifests.** On start with no target, the launcher offers recent workspaces (manifest paths persisted in Electron `userData`) or creating a new one. Creating a new one means choosing a dir and writing the manifest. The default features are scaffolded into it once they ship as templates (see the scaffolding backlog seed). Semantics mirror VS Code's `.code-workspace`: the manifest file is the thing you open. First boot is just the launcher's empty-recents case. One BrowserWindow per open workspace remains the model. V1 may scope to one open workspace per App instance, with concurrent multi-workspace windows following when the substrate is per-workspace-scoped.
 
 **Rejected.**
 

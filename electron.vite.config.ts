@@ -20,6 +20,7 @@ import { defineConfig, externalizeDepsPlugin } from "electron-vite";
 // typebox.
 const alias = {
   "@uix/api": resolve(__dirname, "packages/api/src"),
+  "@uix/client": resolve(__dirname, "packages/client/src"),
   "@uix/runtime": resolve(__dirname, "packages/runtime/src"),
   "#backend": resolve(__dirname, "src/main"),
   "#features": resolve(__dirname, "src/features"),
@@ -55,10 +56,10 @@ export default defineConfig({
       outDir: "out/renderer",
       rollupOptions: {
         input: {
-          // index is the workspace page; picker is the App-shell start
-          // picker shown when no workspace target is known.
+          // index is the workspace page; launcher is the App-shell start
+          // launcher shown when no workspace target is known.
           index: resolve(__dirname, "src/renderer/index.html"),
-          picker: resolve(__dirname, "src/renderer/picker.html"),
+          launcher: resolve(__dirname, "src/renderer/launcher.html"),
         },
       },
     },

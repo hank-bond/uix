@@ -16,15 +16,15 @@ export const Channels = {
   request: "uix:request",
   /** Renderer → main. invoke-style. Reloads host resources in place. */
   reload: "uix:reload",
-  /** Picker → main. invoke-style. Recents for the start picker. */
-  pickerState: "uix:picker:state",
-  /** Picker → main. invoke-style. Open an existing workspace by manifest path. */
-  pickerOpen: "uix:picker:open",
-  /** Picker → main. invoke-style. Create (or adopt) a workspace via dir dialog. */
-  pickerCreate: "uix:picker:create",
+  /** Launcher → main. invoke-style. Reads the known workspace catalog. */
+  launcherState: "uix:launcher:state",
+  /** Launcher → main. invoke-style. Open an existing workspace by manifest path. */
+  launcherOpen: "uix:launcher:open",
+  /** Launcher → main. invoke-style. Create (or adopt) a workspace via dir dialog. */
+  launcherCreate: "uix:launcher:create",
 } as const;
 
-/** A previously opened workspace, listed by the start picker. */
+/** A previously opened workspace listed by the launcher. */
 export interface RecentWorkspace {
   /** Absolute path to the workspace's uix.workspace.json. The identity. */
   manifestPath: string;
@@ -34,25 +34,25 @@ export interface RecentWorkspace {
   openedAt: string;
 }
 
-export interface PickerState {
+export interface LauncherState {
   recents: RecentWorkspace[];
 }
 
-export interface PickerOpenRequest {
+export interface LauncherOpenRequest {
   manifestPath: string;
 }
 
-export interface PickerCreateRequest {
+export interface LauncherCreateRequest {
   /** Workspace name written into the new manifest. Falls back to the dir name. */
   name: string;
 }
 
 /**
- * Result of a picker action. `ok: true` means the host is transitioning to the
- * workspace (the picker window is about to close); `canceled` means the user
- * dismissed the native dialog and the picker stays up.
+ * Result of a launcher action. `ok: true` means the host is transitioning to the
+ * workspace (the launcher window is about to close); `canceled` means the user
+ * dismissed the native dialog and the launcher stays up.
  */
-export type PickerActionResult =
+export type LauncherActionResult =
   | { ok: true }
   | { ok: false; canceled?: boolean; error?: string };
 

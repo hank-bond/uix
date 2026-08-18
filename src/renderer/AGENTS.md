@@ -1,12 +1,12 @@
 ---
-summary: "The renderer runs two shell pages, the workspace window and the start picker, over the preload channel transport."
+summary: "The renderer runs workspace and launcher shell pages over the Electron preload channel transport."
 ---
 
 # Renderer shell
 
-The renderer is the host's two Electron pages. The start picker page (`picker/`) runs before any workspace opens and selects or creates one. The workspace page boots the composed surface row over the preload transport. Both pages reach main only through the preload channel transport (`window.channels`), never directly through `ipcRenderer`.
+The renderer is the host's two Electron pages. The launcher page (`launcher/`) adapts the preload transport into the shared `@uix/client` launcher before any workspace opens. The workspace page still boots the composed surface row directly and moves behind the shared client mount in the next H5 slice. Both pages reach main only through `window.channels`, never directly through `ipcRenderer`.
 
-`main.tsx` and `picker/main.tsx` are the page entries. `index.html` and `picker.html` are their documents, and `styles.css` and `picker/picker.css` their chrome. `window.d.ts` declares the transport surface. The workspace subsystem under `workspace/` hosts the runtime surfaces and owns session, action, and keybinding state.
+`main.tsx` and `launcher/main.ts` are the page entries. `index.html` and `launcher.html` remain Electron-owned documents. `styles.css` still owns workspace chrome, while launcher presentation moved with its shared client. `window.d.ts` declares the transport surface. The workspace subsystem under `workspace/` hosts runtime surfaces and owns session, action, and keybinding state.
 
 ## Contents
 
@@ -16,14 +16,14 @@ The renderer is the host's two Electron pages. The start picker page (`picker/`)
 
 ### Directories
 
-- **[picker/](./picker/AGENTS.md)** The start picker page lists recent workspaces and creates new ones before any workspace window opens.
+- **[launcher/](./launcher/AGENTS.md)** The Electron launcher bootstrap adapts preload IPC into the shared pre-workspace client.
 - **[workspace/](./workspace/AGENTS.md)** The workspace subsystem hosts runtime surfaces and owns session, action, and keybinding state in the renderer.
 
 ### Source files
 
 - **[index.html](./index.html)** The workspace page: boots over the preload transport and renders the composed surface row.
+- **[launcher.html](./launcher.html)** The launcher page: opens or creates a workspace before any workspace window exists.
 - **[main.tsx](./main.tsx)** Boots the workspace window and renders the workspace page over the preload transport.
-- **[picker.html](./picker.html)** The start picker page: opens or creates a workspace before any workspace window exists.
 - **[styles.css](./styles.css)** Base host chrome for the workspace window.
 - **[window.d.ts](./window.d.ts)** The preload channel transport surface exposed on `window.channels`.
 

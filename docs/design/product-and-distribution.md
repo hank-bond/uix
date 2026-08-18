@@ -61,6 +61,6 @@ Separated host infrastructure from app composition. Electron and server are disc
 
 Settled the hosted model as VM-per-user isolation. Local usage has no trust boundary between workspaces, and a hosted deployment gives each user a VM running one host instance, which is the local architecture unchanged. Process-isolated workspace runtimes and any cross-process runtime protocol are no longer part of the design.
 
-Moved launcher semantics above workspace runtimes. The web picker, CLI JSON, Electron picker, and native macOS supervisor consume one catalog projection through different adapters. A host can serve the launcher with zero active workspaces and lazily create runtimes from canonical workspace-session URLs.
+Moved launcher semantics above workspace runtimes. The web launcher, CLI JSON, Electron launcher, and native macOS supervisor consume one catalog projection through different adapters. A host can serve the launcher with zero active workspaces and lazily create runtimes from canonical workspace-session URLs.
 
 Defined an app as a host plus explicit workspace and feature compositions. This replaces the earlier claim that every interface above the substrate is itself a UIX app. Host launchers remain infrastructure, while Fruition and repository demos are apps. The repository reflects the distinction through `packages/`, `hosts/`, and `apps/` ownership roots.

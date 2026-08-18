@@ -93,7 +93,7 @@ The repository separates ownership roots: reusable substrate packages under [`pa
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
-- **[src/main/](./src/main/AGENTS.md)** The Electron host composition opens one workspace runtime over Electron transports and owns windows, menu, picker, recents, and the transports.
+- **[src/main/](./src/main/AGENTS.md)** The Electron host composition opens one workspace runtime over Electron transports and owns windows, menu, launcher, recents, and the transports.
 - **[src/docs/](./src/docs/AGENTS.md)** User-implementation guides for building UIX applications, colocated with the framework and findable by the agents and builders who use it.
 - **[docs/](./docs/AGENTS.md)** Repository-level documentation holds cross-boundary architecture, workflows, external context, decisions, design threads, and documentation practice.
 - **[plans/](./plans/AGENTS.md)** Active build specs, reviewable delivery units, and a backlog of smaller implementation seeds.

@@ -2,14 +2,14 @@
 //
 // Owns the host lifecycle: the shell boots, then either opens a workspace
 // directly (explicit UIX_WORKSPACE target, or a cwd that holds a manifest)
-// or shows the start picker, which provides the workspace to open. One
+// or shows the launcher, which provides the workspace to open. One
 // open workspace per host instance (v1).
 //
 // The workspace substrate itself lives in `@uix/runtime`: openWorkspace()
 // constructs one workspace runtime with resource and external-link
 // dependencies. Canonical IPC requests enter through the window attachment.
 // This file keeps host chrome and physical transport: the window, menu,
-// picker, recents, wire logging, and reload IPC channel.
+// launcher, recents, wire logging, and reload IPC channel.
 //
 // Cleanup-requiring bindings flow through src/main/ipc.ts and lifecycle.ts.
 // Synchronous host bindings enter `hostBag`. Asynchronous workspace ownerships
@@ -56,10 +56,10 @@ import {
 import { scaffoldWorkspace } from "./scaffold";
 import {
   Channels,
-  type PickerActionResult,
-  type PickerCreateRequest,
-  type PickerOpenRequest,
-  type PickerState,
+  type LauncherActionResult,
+  type LauncherCreateRequest,
+  type LauncherOpenRequest,
+  type LauncherState,
 } from "../shared/ipc";
 
 const isDev = !app.isPackaged;
@@ -71,7 +71,7 @@ const LocalWorkspaceId = "local";
 registerResourceProtocol();
 
 interface OpenShellWindowOptions {
-  page: "index" | "picker";
+  page: "index" | "launcher";
   onClosed?: () => void;
 }
 
@@ -81,7 +81,7 @@ function openShellWindow(
   options: OpenShellWindowOptions,
 ): BrowserWindow {
   const size =
-    options.page === "picker"
+    options.page === "launcher"
       ? { width: 560, height: 480, resizable: false }
       : { width: 1100, height: 720 };
   const win = new BrowserWindow({
@@ -110,7 +110,7 @@ function openShellWindow(
   const devUrl = process.env["ELECTRON_RENDERER_URL"];
   if (isDev && devUrl) {
     void win.loadURL(
-      options.page === "picker" ? `${devUrl}/picker.html` : devUrl,
+      options.page === "launcher" ? `${devUrl}/launcher.html` : devUrl,
     );
   } else {
     void win.loadFile(join(__dirname, `../renderer/${options.page}.html`));
@@ -238,7 +238,7 @@ async function openWorkspace(
  * workspace reload re-reads manifests and rebuilds surface modules from disk
  * every pass, so it needs no cache-busting sibling and leaves no page-reload
  * escape hatch. Host-specific by design so the future Electron/web host
- * split can hoist or replace it. The picker window keeps the default menu
+ * split can hoist or replace it. The launcher window keeps the default menu
  * (CmdOrCtrl+R is a page reload there, useful in dev).
  */
 function applyWorkspaceMenu(
@@ -275,31 +275,31 @@ function applyWorkspaceMenu(
 }
 
 /**
- * The start picker: a small shell window (not a feature, not a workspace
+ * The launcher: a small shell window (not a feature, not a workspace
  * page) offering recents and create-new. Its IPC handlers live in a child
  * bag disposed on transition, so the workspace boot starts clean.
  */
-// Section: Start picker
-function openPicker(
+// Section: Launcher
+function openLauncher(
   hostBag: DisposableBag,
   workspaceBag: AsyncDisposableBag,
   recents: RecentsStore,
   piAppDataDir: string,
 ): void {
-  const pickerBag = hostBag.add(new DisposableBag());
-  const win = openShellWindow(pickerBag, {
-    page: "picker",
+  const launcherBag = hostBag.add(new DisposableBag());
+  const win = openShellWindow(launcherBag, {
+    page: "launcher",
     onClosed: () => {
-      pickerBag[Symbol.dispose]();
+      launcherBag[Symbol.dispose]();
     },
   });
 
-  // Respond to the invoke first, then tear the picker down and boot the
+  // Respond to the invoke first, then tear the launcher down and boot the
   // workspace. Disposing the handler that is currently answering would
   // race its own response.
   const transition = (target: string): void => {
     setImmediate(() => {
-      pickerBag[Symbol.dispose]();
+      launcherBag[Symbol.dispose]();
       if (!win.isDestroyed()) win.close();
       openWorkspace(
         hostBag,
@@ -318,15 +318,15 @@ function openPicker(
     });
   };
 
-  pickerBag.add(
-    ipc.handle<unknown, PickerState>(Channels.pickerState, () => ({
+  launcherBag.add(
+    ipc.handle<unknown, LauncherState>(Channels.launcherState, () => ({
       recents: recents.list(),
     })),
   );
 
-  pickerBag.add(
-    ipc.handle<PickerOpenRequest, PickerActionResult>(
-      Channels.pickerOpen,
+  launcherBag.add(
+    ipc.handle<LauncherOpenRequest, LauncherActionResult>(
+      Channels.launcherOpen,
       (req) => {
         if (!fs.existsSync(req.manifestPath)) {
           return { ok: false, error: "That workspace no longer exists." };
@@ -337,9 +337,9 @@ function openPicker(
     ),
   );
 
-  pickerBag.add(
-    ipc.handle<PickerCreateRequest, PickerActionResult>(
-      Channels.pickerCreate,
+  launcherBag.add(
+    ipc.handle<LauncherCreateRequest, LauncherActionResult>(
+      Channels.launcherCreate,
       async (req) => {
         const result = await dialog.showOpenDialog(win, {
           title: "Choose a workspace folder",
@@ -353,7 +353,7 @@ function openPicker(
         // adopt it rather than overwriting the user's composition. The scaffolder
         // creates a fresh one with editable copies of the default features;
         // a failed dep install still opens (the broken feature lands in
-        // `failed[]`), but a failed copy/write keeps the picker up.
+        // `failed[]`), but a failed copy/write keeps the launcher up.
         const manifestPath = join(dir, WorkspaceManifestFileName);
         if (!fs.existsSync(manifestPath)) {
           const name = req.name.trim() || basename(dir);
@@ -450,7 +450,7 @@ void app.whenReady().then(async () => {
 
   // Which workspace? An explicit target (UIX_WORKSPACE, manifest path or
   // workspace dir) opens directly. So does a cwd that already holds a
-  // manifest (the repo dev flow). Otherwise the start picker decides.
+  // manifest (the repo dev flow). Otherwise the launcher decides.
   const envTarget = process.env["UIX_WORKSPACE"];
   if (envTarget) {
     await openWorkspace(
@@ -473,5 +473,5 @@ void app.whenReady().then(async () => {
     );
     return;
   }
-  openPicker(hostBag, workspaceBag, recents, piAppDataDir);
+  openLauncher(hostBag, workspaceBag, recents, piAppDataDir);
 });

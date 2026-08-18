@@ -96,7 +96,7 @@ describe("scaffoldWorkspace", () => {
     ).resolves.toBeDefined();
   });
 
-  it("throws when a template dir is missing (picker surfaces it, no manifest written)", async () => {
+  it("throws when a template dir is missing (launcher surfaces it, no manifest written)", async () => {
     const templatesDir = await mkdtemp(join(tmpdir(), "scaffold-empty-"));
     const workspaceDir = await mkdtemp(join(tmpdir(), "scaffold-ws-"));
 

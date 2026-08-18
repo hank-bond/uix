@@ -26,6 +26,7 @@
   "include": [
     "packages/api/src/**/*.ts",
     "packages/client/src/**/*.ts",
+    "packages/client/src/**/*.tsx",
     "apps/features/**/workspace/**/*.ts",
     "src/renderer/**/*.ts",
     "src/renderer/**/*.tsx",

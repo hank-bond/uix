@@ -14,7 +14,7 @@ Packages hold reusable, host-neutral substrate code. The dependency direction is
 ### Directories
 
 - **[api/](./api/AGENTS.md)** The `@uix/api` feature-author contracts: the one boundary features import and the substrate implements. _Adding or changing a contract that features import, or deciding whether a shape belongs in the author API at all._
-- **[client/](./client/AGENTS.md)** _(stub)._ Launcher and workspace browser clients: host-neutral UI entries that receive constructed adapters and never detect concrete hosts. _Writing shared browser client code, or deciding whether a client capability is host-owned._
+- **[client/](./client/AGENTS.md)** Launcher and workspace browser clients: host-neutral UI entries that receive constructed adapters and never detect concrete hosts. _Writing shared browser client code, or deciding whether a client capability is host-owned._
 - **[host/](./host/AGENTS.md)** Shared host contracts and coordination: the workspace supervisor, workspace and attachment handles, and the launcher/catalog projection schemas that concrete hosts compose. _Writing host-neutral supervision or launcher code that both Electron and server hosts share._
 - **[runtime/](./runtime/AGENTS.md)** Exactly one workspace's substrate semantics: the accepted feature composition, registries, stores, surface delivery, reload coordination, and agent instances one WorkspaceRuntime owns. _Writing backend substrate code that belongs to one workspace, or deciding whether a capability is runtime-owned or host-owned._
 

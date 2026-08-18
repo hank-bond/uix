@@ -11,7 +11,7 @@ This document records the implemented system at HEAD. The root [`AGENTS.md`](../
 
 Electron boots one workspace per application instance. `UIX_WORKSPACE` can name a manifest or workspace directory. Development also opens a manifest in the current working directory.
 
-Without either target, the start picker opens recent manifests or scaffolds a workspace. Bare scaffolding copies editable passthrough Pi tools and writes an explicit manifest.
+Without either target, the launcher opens recent manifests or scaffolds a workspace. Bare scaffolding copies editable passthrough Pi tools and writes an explicit manifest.
 
 `resolveWorkspace()` derives the state root, agent working directory, and manifest path from the workspace directory. Session and document state live under that root.
 

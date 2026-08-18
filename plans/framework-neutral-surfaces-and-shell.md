@@ -1,5 +1,5 @@
 ---
-summary: "Make frontend frameworks a feature choice rather than a UIX requirement in five post-alpha stages. Settle the minimal DOM/ESM boundary, land and prove neutral surface mounting, and migrate framework ownership into features. Then replace the workspace shell, replace the independent picker, and finish the public contract."
+summary: "Make frontend frameworks a feature choice rather than a UIX requirement in five post-alpha stages. Settle the minimal DOM/ESM boundary, land and prove neutral surface mounting, and migrate framework ownership into features. Then replace the workspace shell, replace the independent launcher, and finish the public contract."
 ---
 
 # Framework-neutral surfaces and shell
@@ -26,13 +26,13 @@ These are the decisions this plan may rely on. Details not stated here remain op
 - **Framework neutrality is not framework indifference at the product layer.** An app scaffold may explicitly standardize on React/Mantine, provide its own providers/hooks/build setup, and steer LLMs toward that path. Those conventions do not become substrate contracts.
 - **Styles and code accompany the surface through web-native delivery.** A surface contribution provides its mountable ESM entry and associated styles/assets in a form the substrate can deliver and clean up. The exact artifact and style representation is not yet decided.
 - **Ordinary ESM identity should make sharing possible without requiring it.** Surfaces may use different frameworks or incompatible versions. The build graph should not force compatible dependencies into duplicate runtime instances when their build and URL graph can share them. The exact build and linking mechanism is deferred.
-- **The fixed UIX chrome does not justify a frontend framework requirement.** The workspace shell and pre-workspace picker can eventually use direct HTML/CSS/DOM because they have a small, substrate-owned vocabulary. This is not a recommendation that application features avoid frameworks.
-- **The picker and workspace-shell migrations are discrete.** The picker exists before workspace composition and can be rewritten independently. The workspace shell follows the neutral mount seam because it currently owns surface composition through React.
+- **The fixed UIX chrome does not justify a frontend framework requirement.** The workspace shell and pre-workspace launcher can eventually use direct HTML/CSS/DOM because they have a small, substrate-owned vocabulary. This is not a recommendation that application features avoid frameworks.
+- **The launcher and workspace-shell migrations are discrete.** The launcher exists before workspace composition and can be rewritten independently. The workspace shell follows the neutral mount seam because it currently owns surface composition through React.
 - **Mixed-framework workspaces are valid, not necessarily optimal.** A coherent app will usually choose one stack for bundle efficiency, visual consistency, and shared conventions. UIX does not make that choice mandatory.
 
 ## Current and target boundary
 
-Today `SurfaceContribution.render()` returns a `ReactNode`: `@uix/api/workspace` exposes capabilities through React contexts/hooks. The surface compiler hardcodes React JSX and a page-shared React instance. And both the workspace page and picker are React roots.
+Today `SurfaceContribution.render()` returns a `ReactNode`: `@uix/api/workspace` exposes capabilities through React contexts/hooks. The surface compiler hardcodes React JSX and a page-shared React instance. And both the workspace page and launcher are React roots.
 
 The target is deliberately smaller than a frontend framework API:
 
@@ -62,7 +62,7 @@ The exact call signature, capability shape, cleanup value, and style representat
 
 ### N0: Inventory and decide the minimal boundary
 
-When we promote this plan after alpha, inventory every place where React currently participates in the public surface API, browser-side state ownership, and surface compilation/delivery. Also inventory shared modules, first-party features, shell layout, picker, tests, scaffolding, and package dependencies. Classify each use as substrate integration, fixed shell presentation, or feature-owned rendering.
+When we promote this plan after alpha, inventory every place where React currently participates in the public surface API, browser-side state ownership, and surface compilation/delivery. Also inventory shared modules, first-party features, shell layout, launcher, tests, scaffolding, and package dependencies. Classify each use as substrate integration, fixed shell presentation, or feature-owned rendering.
 
 Use small executable spikes to decide only the contracts needed by the next units: surface mount/lifetime/failure, style and asset delivery, and the ESM/build boundary. Compare module-sharing approaches against current reload isolation and the future HTTP host rather than choosing one from architectural taste. Distill the result into a replacement decision that explicitly supersedes the React-specific portions of [runtime surface pipeline](../docs/decisions/2026-07-02-runtime-surface-pipeline.md) and restates every surviving invariant.
 
@@ -92,11 +92,11 @@ Do not generalize the shell's fixed rendering needs into a reusable UIX template
 
 Outcome: the workspace shell contains no frontend-framework dependency while framework-owned feature surfaces continue to mount through the same neutral boundary.
 
-### N4: Replace the independent picker and finish the contract
+### N4: Replace the independent launcher and finish the contract
 
 Rewrite the small pre-workspace launcher client with direct HTML/CSS/DOM. It remains shared host-infrastructure UI because no workspace or feature composition exists yet. Concrete Electron and server bootstraps provide its catalog adapter. Do not invent a second feature system to make it replaceable. This rewrite may land any time after N0 and does not depend on N1-N3.
 
-Once the workspace and picker are both neutral, remove remaining substrate React wiring where the actual package boundaries permit it. Publish concise raw-DOM and React authoring examples and update the architecture and shipped surface docs. Add conformance coverage for coexistence, failure, reload, style cleanup, and dependency identity as decided in N0. Documentation must continue to distinguish the neutral substrate from any opinionated React/Mantine app scaffold.
+Once the workspace and launcher are both neutral, remove remaining substrate React wiring where the actual package boundaries permit it. Publish concise raw-DOM and React authoring examples and update the architecture and shipped surface docs. Add conformance coverage for coexistence, failure, reload, style cleanup, and dependency identity as decided in N0. Documentation must continue to distinguish the neutral substrate from any opinionated React/Mantine app scaffold.
 
 Outcome: developers can understand, build, and use UIX as a browser substrate without React, while React features and products remain a first-class ordinary composition.
 
@@ -219,11 +219,11 @@ The questions are intentionally more exhaustive than the decisions above. They a
 - What browser test environment is sufficient for DOM lifetime and accessibility behavior without coupling core tests to a framework?
 - Which shell state is renderer-owned cache state and must remain correct when local persistence is absent or cleared?
 
-### Picker and package boundaries
+### Launcher and package boundaries
 
-- Should the picker remain one static HTML page with a small ESM script, or does sharing shell styles/transport bootstrap justify a tiny common module?
+- Should the launcher remain one static HTML page with a small ESM script, or does sharing shell styles/transport bootstrap justify a tiny common module?
 - How are busy, error, cancellation, and recent-workspace updates expressed without creating reusable state/render helpers?
-- Can the picker migrate before N1 without causing throwaway build configuration work?
+- Can the launcher migrate before N1 without causing throwaway build configuration work?
 - At what physical package boundary can React disappear from the substrate install while first-party React feature templates remain in the repository or product distribution?
 - How do scaffolded feature `package.json` files declare renderer dependencies, and where does the opinionated app template declare shared conventions such as Mantine?
 - Does removing the renderer Vite React plugin wait for both shell pages, or do feature build paths remain independently configured?
@@ -235,7 +235,7 @@ The questions are intentionally more exhaustive than the decisions above. They a
 - Surface removal, failure, and reload deterministically release framework roots, subscriptions, actions, styles, and other mount-owned resources without affecting siblings.
 - Chat and Canvas retain behavior as ordinary React features whose renderer conventions and dependencies are not substrate APIs.
 - The selected ESM delivery model permits shared evaluation by URL where compatible and safe, while keeping incompatible versions separate.
-- The workspace shell and picker require no frontend framework and do not introduce a homegrown rendering/reactivity layer.
+- The workspace shell and launcher require no frontend framework and do not introduce a homegrown rendering/reactivity layer.
 - Shipped docs explain the neutral contract, a no-framework path, and an opinionated React path without presenting either as the only valid feature implementation.
 - The resulting browser boundary remains viable under both Electron and the planned server/HTTP host.
 
