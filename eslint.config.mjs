@@ -313,6 +313,11 @@ const ownershipBoundaryForbidden = {
     "@uix/host*",
     "**/hosts/**",
     "**/apps/**",
+    "**/src/main/**",
+    "**/src/preload/**",
+    "**/src/renderer/**",
+    "**/src/features/**",
+    "**/src/shared/**",
   ],
   "packages/host/**/*.{ts,tsx}": [
     "@uix/client",
@@ -349,14 +354,46 @@ export const ownershipBoundaryRules = Object.entries(
       "error",
       {
         paths: bareNodeBuiltinImports,
-        patterns: forbidden.map((pattern) => ({
-          group: [pattern],
-          message: `Ownership-root boundary: this root must not import ${pattern}.`,
-        })),
+        patterns: [
+          ...forbidden.map((pattern) => ({
+            group: [pattern],
+            message: `Ownership-root boundary: this root must not import ${pattern}.`,
+          })),
+          ...(glob.startsWith("packages/client/")
+            ? [
+                {
+                  regex: "^#(?:backend|features|shared)(?:/|$)",
+                  message:
+                    "Ownership-root boundary: shared clients must not import repository-internal aliases.",
+                },
+              ]
+            : []),
+        ],
       },
     ],
   },
 }));
+
+export const clientAdapterBoundaryRule = {
+  files: ["packages/client/**/*.{ts,tsx}"],
+  rules: {
+    "no-restricted-properties": [
+      "error",
+      {
+        object: "window",
+        property: "channels",
+        message:
+          "Shared clients receive host-constructed adapters and must not read window.channels.",
+      },
+      {
+        object: "globalThis",
+        property: "channels",
+        message:
+          "Shared clients receive host-constructed adapters and must not read globalThis.channels.",
+      },
+    ],
+  },
+};
 
 export default tseslint.config(
   {
@@ -727,6 +764,8 @@ export default tseslint.config(
 
   // Ownership-root dependency graph.
   ...ownershipBoundaryRules,
+
+  clientAdapterBoundaryRule,
 
   // Prettier last — disables stylistic rules that would fight the
   // formatter.

@@ -16,8 +16,9 @@ summary: "Build minimal Electron and loopback server hosts over the proved works
 - **H4.2a** active-turn cancellation landed. Remaining operation hardening moved to [`runtime-operation-hardening.md`](./runtime-operation-hardening.md).
 - **Further Agent runtime work** moved to [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md).
 - **H5.1** launcher extraction landed in `0e2ccdc`.
-- **H5.2** workspace extraction is in review. H5.3 follows with the browser-only boundary proof.
-- **H6-H8** add the minimal loopback server, rehome Electron, and prove basic two-host conformance.
+- **H5.2** workspace extraction landed in `0780f80`.
+- **H5.3** dependency-boundary enforcement landed. H5 is complete.
+- **H6** is next: build the minimal loopback server. H7-H8 then rehome Electron and prove basic two-host conformance.
 
 ## Status and intent
 
@@ -216,13 +217,15 @@ Implement H5 in three review slices:
 
 1. **H5.1 launcher seam:** land the host-neutral launcher adapter and disposable mount in `@uix/client`, then adapt the current Electron launcher without changing its behavior.
 2. **H5.2 workspace seam:** move workspace source and tests behind a disposable mount. Move shared-surface module installation with it. Preserve Electron behavior while adding session-location synchronization.
-3. **H5.3 boundary proof:** build both entries in a browser-only environment over fake adapters. Enforce that the client imports no runtime, host, Electron, or app implementation.
+3. **H5.3 boundary proof:** enforce that the client imports no runtime, host, Electron, app implementation, repository-internal alias, or ambient preload channel. Pin those restrictions with synthetic lint tests rather than a temporary browser host.
 
-**Review gate:** Launcher and workspace clients build in a browser-only environment over fake adapters. Electron behavior remains unchanged, and no shared client code reads Electron globals.
+**Result:** `@uix/client` owns both disposable page mounts and their presentation. Electron retains only documents, preload adaptation, and page bootstraps. Import and ambient-global guards keep that ownership boundary explicit. The real server entries in H6 provide the browser-only build proof.
+
+**Review gate:** Electron behavior remains unchanged. Shared client code reads no Electron global and cannot import concrete host, runtime, app, or legacy implementation paths.
 
 ### H6: Build the minimal loopback server host
 
-Create `hosts/server` over the existing workspace supervisor and one-workspace runtime. Bind loopback only. Serve the minimal launcher and canonical workspace-session pages. The first policy admits one live browser attachment per workspace, preventing concurrent tabs from selecting different sessions before viewpoint isolation lands.
+Create `hosts/server` over the existing workspace supervisor and one-workspace runtime. Bind loopback only. Serve the minimal launcher and canonical workspace-session pages. These real server entries are the browser-only client build proof. H5 leaves no fake host beside them. The first policy admits one live browser attachment per workspace, preventing concurrent tabs from selecting different sessions before viewpoint isolation lands.
 
 Use discriminated request, response, error, and event frames with correlation ids. The accepted URL selects the workspace and initial session. Ordinary frames repeat no routing identity. The host asks its bound attachment to prepare canonical dispatch and routes only matching runtime events.
 

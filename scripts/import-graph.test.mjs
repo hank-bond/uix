@@ -9,7 +9,10 @@ import { fileURLToPath } from "node:url";
 import { ESLint } from "eslint";
 import { describe, expect, it } from "vitest";
 
-import { ownershipBoundaryRules } from "../eslint.config.mjs";
+import {
+  clientAdapterBoundaryRule,
+  ownershipBoundaryRules,
+} from "../eslint.config.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -17,7 +20,7 @@ const eslint = new ESLint({
   cwd: root,
   // Ignore the repo config file; run only the boundary rules under test.
   overrideConfigFile: true,
-  overrideConfig: ownershipBoundaryRules,
+  overrideConfig: [...ownershipBoundaryRules, clientAdapterBoundaryRule],
 });
 
 async function lintImport(filePath, specifier) {
@@ -36,7 +39,10 @@ const forbidden = [
   ["packages/runtime/src/index.ts", "../../hosts/electron/index.ts"],
   ["packages/client/src/index.ts", "@uix/runtime"],
   ["packages/client/src/index.ts", "@uix/host"],
+  ["packages/client/src/index.ts", "#shared/ipc"],
   ["packages/client/src/index.ts", "../../hosts/server/index.ts"],
+  ["packages/client/src/index.ts", "../../../src/renderer/main.ts"],
+  ["packages/client/src/index.ts", "../../../src/features/chat/index.ts"],
   ["packages/host/src/index.ts", "@uix/client"],
   ["packages/host/src/index.ts", "@uix/host-electron"],
   ["packages/host/src/index.ts", "../../apps/features/chat/index.ts"],
@@ -71,6 +77,17 @@ const allowed = [
 ];
 
 describe("ownership-root import graph", () => {
+  it("blocks ambient host channels from shared clients", async () => {
+    const [result] = await eslint.lintText("window.channels.request();", {
+      filePath: "packages/client/src/index.ts",
+    });
+    expect(
+      result.messages.some(
+        (message) => message.ruleId === "no-restricted-properties",
+      ),
+    ).toBe(true);
+  });
+
   for (const [file, specifier] of forbidden) {
     it(`blocks ${specifier} from ${file}`, async () => {
       const messages = await lintImport(file, specifier);
