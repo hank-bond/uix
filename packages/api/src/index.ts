@@ -34,6 +34,12 @@ export type {
   FeaturePreflightContributions,
 } from "./feature";
 export { defineFeature } from "./feature";
+export type {
+  AgentFeatureState,
+  AgentFeatureStateBuilder,
+  WorkspaceFeatureState,
+  WorkspaceFeatureStateBuilder,
+} from "./feature-state";
 export type { FeatureLogFn, FeatureLogger } from "./log";
 export type { ResourceContribution, ResourceRequestContext } from "./resources";
 export {
