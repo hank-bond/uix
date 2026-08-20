@@ -1,5 +1,5 @@
 ---
-summary: "Exploring UIX's Pi composition root, feature facets, registry-to-installer boundary, reload reconciliation, typed communication, and deliberate override seams."
+summary: "Exploring UIX's Pi composition root, grouped feature facets, registry-to-installer boundary, reload reconciliation, typed communication, and base-tool composition."
 kind: explanation
 status: exploring
 ---
@@ -8,7 +8,7 @@ status: exploring
 
 ## Problem
 
-UIX contributes tools, hooks, prompt sections, skills, turn state, and agent context to Pi. Pi dispatches hooks by registration order without priorities, so installer order is semantic. UIX also owns non-Pi facets such as surfaces, channels, resources, settings, and documents. The design question is how these facets compose without collapsing their ownership or lifecycles.
+UIX contributes tools, hooks, prompt sections, skills, turn state, and model context to Pi. Pi dispatches hooks by registration order without priorities, so installer order is semantic. UIX also owns non-Pi facets such as surfaces, channels, resources, settings, and documents. The design question is how these facets compose without collapsing their ownership or lifecycles.
 
 ## Current synthesis
 
@@ -16,15 +16,15 @@ UIX contributes tools, hooks, prompt sections, skills, turn state, and agent con
 
 UIX adapts its agent facets through one in-process Pi extension factory. `createUixCoreExtension()` runs an ordered list of `AgentInstaller` functions, and list order defines Pi hook order.
 
-Feature authors do not receive Pi's `ExtensionAPI`. They contribute declarative agent facets through `@uix/api`; substrate registries resolve and validate those values. Internal installers then register tools, turn-state hooks, skills, system-prompt sections, agent context, and model-status observation with Pi.
+Feature authors do not receive Pi's `ExtensionAPI`. They contribute declarative agent facets through `@uix/api`; substrate registries resolve and validate those values. Internal installers then register tools, turn-state hooks, skills, system-prompt sections, model context, and model-status observation with Pi.
 
 This keeps three roles separate. Features author contributions, registries own live accepted values, and installers attach one registry snapshot to a Pi runtime generation.
 
 ### Features and facets
 
-A feature is UIX's loadable and lifetime unit. A facet is one substrate contribution axis, such as channels, resources, surfaces, tools, skills, turn state, or agent context.
+A feature is UIX's loadable and lifetime unit. A facet is one substrate contribution axis, such as channels, resources, surfaces, tools, skills, turn state, or model context.
 
-A feature can participate in many facets. The feature loader activates all facets under one provisional bag and enrolls the instance only after complete success.
+A feature can participate in many facets. Its definition exposes top-level Workspace and Agent feature-state prerequisites plus grouped contribution sections. Definition and settings admission remains feature-level; each later state, contribution, registration, restoration, and installation operation owns its own outcome and rollback bag where the downstream integration permits.
 
 A package can contain Pi extensions and UIX feature entries, but neither system adopts the other's lifecycle. Pi discovers its own extension resources while the workspace manifest selects UIX feature entries.
 
@@ -32,7 +32,7 @@ A package can contain Pi extensions and UIX feature entries, but neither system 
 
 Main-owned stores and registries remain authoritative. Surfaces use typed channels for requests and events; they do not message peer surfaces or import backend owners.
 
-`TurnStateCoordinator` sequences branch-scoped feature snapshots and restoration. The agent-context assembler combines model-visible sections. `WorkspaceReloadCoordinator` sequences feature replacement, Pi reconciliation, restoration, and renderer notification.
+`TurnStateCoordinator` sequences branch-scoped feature snapshots and restoration. The model-context assembler combines model-visible sections. `WorkspaceReloadCoordinator` sequences feature replacement, Pi reconciliation, restoration, and renderer notification.
 
 These coordinator and assembler roles do not become authorities over participant state. Each feature retains its own snapshot, restore, materialization, and domain behavior.
 
@@ -42,9 +42,9 @@ Reload reconciles disk into one accepted manifest generation, then replaces the 
 
 The renderer treats main registries as authoritative. Surface notifications cause it to request and reconcile the latest composition. Electron or Vite hard reload remains development tooling.
 
-### Override boundaries
+### Base-tool composition and replacement boundaries
 
-Ordinary feature tools are namespaced. The explicit `agentToolOverrides` facet permits exact-name replacements and application vocabulary while preserving duplicate-claim failure.
+All features use one Agent-tool contribution shape. Ordinary feature tools derive `${featureId}__${localName}`. One optional `baseTools: true` flag on a manifest feature entry designates the sole provider whose local names remain prefix-free as workspace-wide Agent vocabulary. The designation changes identity only; it grants no additional authority. Competing marked entries fail manifest validation, and a failed provider never causes a silent fallback.
 
 Other replacement seams should be earned independently. A replaceable command palette, settings editor, or resource viewer consumes a stable public catalog rather than receiving private registry callbacks.
 
@@ -58,9 +58,9 @@ A declarative contribution remains preferable for feature authors, but the subst
 
 ### State lifecycle transaction
 
-Turn state, model-visible agent context, and the user-run boundary are related phases. A feature can prepare stable refs, persist branch state, derive model context from those committed facts, and later restore its state. The coordinator owns ordering while each cell or context contribution owns domain meaning.
+Turn state, model context, and the user-run boundary are related phases. A feature can prepare stable refs, persist branch state, derive model context from those committed facts, and later restore its state. The coordinator owns ordering while each cell or context contribution owns domain meaning.
 
-This transaction should not collapse turn state into agent context. Model-invisible state and model-visible context have different retention and replay behavior. They share a boundary only where one run needs a coherent snapshot.
+This transaction should not collapse turn state into model context. Model-invisible state and model-visible context have different retention and replay behavior. They share a boundary only where one run needs a coherent snapshot.
 
 ### Override model retained from Pi
 
@@ -127,3 +127,13 @@ Canvas snapshots exposed that the canvas agent installer is the wrong long-term 
 Origin: a planning conversation walking C1 forward. C1 ([persistence-and-session-foundation](../../plans/persistence-and-session-foundation.md)) **landed narrow** — one factory (`createUixCoreExtension`) wrapping the existing `collectAgentBinding*` helpers. A fresh agent reading only that plan could not reconstruct the intended structure (composition root running ordered per-subsection facets), because the structure was nowhere written: `session-file-as-state-substrate` framed the extension only as "to get write access," `pi-self-extension-ethos` gave philosophy without mechanism, and `conversation-render-primitives` covered only the render axis. This thread captures the broader structure that walk surfaced — composition root + the pi-dispatch ordering rationale, the facet / override / communication models, and a best-effort vocabulary.
 
 The ordering kernel is firm enough to record as a decision ([uix-core-composition-root](../decisions/2026-06-07-uix-core-composition-root.md)) because it is _forced by pi's dispatch semantics_, not chosen. The facet generalization and the vocabulary are **tentative** — captured here as discussion context, explicitly not a commitment to this exact shape. Walk that produced it: pane concept (single-surface vs block-stream; pane ≠ block container), block concept (a registered typed renderer, not "just a component"), the interactive-button round-trip (durable entry + ephemeral signal + conversion), and the five-feature stress test (canvas local→remote redirect, message→sqlite tap, sparkline block, file-browser pane, history-tree pane) which the facet model carried with no special case — three of the five are net-new non-agent facets.
+
+### 2026-08-18 — grouped lifecycle lanes replace flat facets and tool overrides
+
+Made the Workspace/Agent context dependency visible in the author contract. Top-level context factories precede grouped `workspace` and `agent` contribution sections, while the substrate retains scheduling control over independent sibling operations. Definition and settings admission remains feature-level; later operation failures preserve successful siblings where their downstream integration can remain valid.
+
+Dropped the exact-name tool-override axis from the target contract. One ordinary tool path derives feature-prefixed names unless the manifest entry is the workspace's sole `baseTools` provider. This keeps prefix-free `read`/`write`/`command` vocabulary without giving feature source a second contribution type or implying replacement authority.
+
+### 2026-08-18 — live feature state owns contribution dependencies
+
+Replaced executable Workspace/Agent “context” with `WorkspaceFeatureState` and `AgentFeatureState`. State here is the live object graph: mutable values plus services and capabilities that operate on them. `workspaceState()` and `agentState()` build one atomic prerequisite for their matching contribution section. Each chained, single-entry addition transfers disposal into a candidate bag immediately and accumulates the inferred readonly state type. Turn state and model context then become explicit durable and model-visible projections of Agent feature state rather than competing meanings of context.
