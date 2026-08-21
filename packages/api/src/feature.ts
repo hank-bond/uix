@@ -12,10 +12,7 @@
 import type { AgentContextContribution } from "./agent-context";
 import type { AgentSkillContribution } from "./agent-skills";
 import type { AgentSystemPromptContribution } from "./agent-system-prompt";
-import type {
-  AgentToolContribution,
-  AgentToolOverrideContribution,
-} from "./agent-tools";
+import type { AgentToolContribution } from "./agent-tools";
 import type {
   ChannelContribution,
   FeatureEventPublisherFactory,
@@ -33,10 +30,7 @@ import type { TurnStateContributions } from "./turn-state";
 export type { AgentContextContribution } from "./agent-context";
 export type { AgentSkillContribution } from "./agent-skills";
 export type { AgentSystemPromptContribution } from "./agent-system-prompt";
-export type {
-  AgentToolContribution,
-  AgentToolOverrideContribution,
-} from "./agent-tools";
+export type { AgentToolContribution } from "./agent-tools";
 export type { ChannelContribution } from "./channels";
 export type { DocumentStoreFactory } from "./documents";
 export type { FeatureLogger } from "./log";
@@ -60,10 +54,8 @@ export type FeaturePreflightContributions = Record<string, never>;
 export interface FeatureContributions {
   resources?: readonly ResourceContribution[];
   channels?: readonly ChannelContribution[];
-  /** Feature-namespaced Pi tools. */
+  /** Pi tools, namespaced unless this feature is the manifest's base-tools provider. */
   agentTools?: readonly AgentToolContribution[];
-  /** Intentional exact-name Pi tools, including replacements and app vocabulary. */
-  agentToolOverrides?: readonly AgentToolOverrideContribution[];
   /** Stable Markdown appended to the agent system prompt while this feature is active. */
   agentSystemPrompt?: AgentSystemPromptContribution;
   /** Pi skill files/directories, resolved relative to the feature entry file. */

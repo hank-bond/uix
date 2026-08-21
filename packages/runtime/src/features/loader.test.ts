@@ -115,7 +115,7 @@ function makeSubstrate(manifestPath?: string): {
  */
 async function writeWorkspace(
   files: Record<string, string>,
-  refs?: string[],
+  refs?: Array<string | { entry: string; baseTools?: true }>,
 ): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "loader-test-"));
   for (const [file, source] of Object.entries(files)) {
@@ -127,7 +127,7 @@ async function writeWorkspace(
       name: "test workspace",
       features: (refs ?? Object.keys(files).map((f) => `./${f}`)).map(
         (ref) => ({
-          entry: ref,
+          ...(typeof ref === "string" ? { entry: ref } : ref),
           settings: {},
         }),
       ),
@@ -181,6 +181,23 @@ describe("loadFeatures", () => {
     bag.clear();
     expect(agentTools.list()).toHaveLength(0);
     expect(settingsScopes.has("greeter")).toBe(false);
+  });
+
+  it("retains local tool names for the manifest's base-tools provider", async () => {
+    const manifestPath = await writeWorkspace(
+      { "tools.ts": toolFeature("workspace_tools", "read") },
+      [{ entry: "./tools.ts", baseTools: true }],
+    );
+    const { substrate, agentTools } = makeSubstrate(manifestPath);
+
+    const result = await loadFeatures(
+      { manifestPath },
+      new DisposableBag(),
+      substrate,
+    );
+
+    expect(result.failed).toEqual([]);
+    expect(agentTools.list()[0]?.canonicalId).toBe("read");
   });
 
   it("registers in manifest order, not filesystem order", async () => {

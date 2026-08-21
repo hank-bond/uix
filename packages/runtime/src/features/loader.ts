@@ -249,6 +249,7 @@ export const activateFeatures = async (
     entry: string,
     loadDefinition: () => unknown,
     entryDir?: string,
+    isBaseToolsProvider = false,
   ): Promise<void> => {
     const flog = log.child({ feature: displayName, entry });
     flog.debug({}, "activating");
@@ -289,7 +290,7 @@ export const activateFeatures = async (
           substrate.registries,
           definition.id,
           definition.contribute({ ...baseContext, ...contributedContext }),
-          { entryDir },
+          { entryDir, isBaseToolsProvider },
         ),
       );
       featureSettings.commit();
@@ -312,13 +313,14 @@ export const activateFeatures = async (
     }
   };
 
-  for (const { index, ref, entry } of entries) {
+  for (const { index, ref, entry, baseTools } of entries) {
     await activate(
       index,
       ref,
       entry,
       () => loadFeatureDefinition(entry, jiti),
       dirname(entry),
+      baseTools === true,
     );
   }
 

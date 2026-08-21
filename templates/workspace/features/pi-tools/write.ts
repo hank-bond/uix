@@ -3,8 +3,8 @@
 import { createWriteToolDefinition } from "@earendil-works/pi-coding-agent";
 
 import type {
+  AgentToolContribution,
   AgentToolDefinition,
-  AgentToolOverrideContribution,
 } from "@uix/api/agent-tools";
 
 const baseline = createWriteToolDefinition(".");
@@ -26,4 +26,4 @@ const tool: AgentToolDefinition<typeof baseline.parameters> = {
   },
 };
 
-export const writeTool: AgentToolOverrideContribution = { name: "write", tool };
+export const writeTool: AgentToolContribution = { name: "write", tool };

@@ -8,27 +8,30 @@ import { describe, expect, it } from "vitest";
 
 import type { AgentToolDefinition } from "@uix/api/agent-tools";
 
-import { createWorkspaceToolOverrideContributions } from "./agent-tools";
+import { createWorkspaceToolContributions } from "./agent-tools";
 import { feature } from "../index";
 
 function tool(
   name: "read" | "write" | "edit" | "command",
 ): AgentToolDefinition {
-  const contribution = createWorkspaceToolOverrideContributions().find(
+  const contribution = createWorkspaceToolContributions().find(
     (entry) => entry.name === name,
   );
   if (!contribution) throw new Error(`Missing ${name} contribution`);
   return contribution.tool;
 }
 
-describe("file tool overrides", () => {
-  it("forms a surface-less feature with exact-name workspace tools", () => {
+describe("workspace base tools", () => {
+  it("forms a surface-less feature with ordinary tool contributions", () => {
     const contributions = feature.contribute({} as never);
 
     expect(contributions.surfaces).toBeUndefined();
-    expect(
-      contributions.agentToolOverrides?.map((entry) => entry.name),
-    ).toEqual(["read", "write", "edit", "command"]);
+    expect(contributions.agentTools?.map((entry) => entry.name)).toEqual([
+      "read",
+      "write",
+      "edit",
+      "command",
+    ]);
   });
 
   it("require a reason while preserving Pi's baseline arguments", () => {

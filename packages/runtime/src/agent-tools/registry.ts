@@ -1,13 +1,9 @@
 // Retains accepted feature tools, rejects duplicate Pi names, and installs a snapshot into each Pi runtime.
 
-import type {
-  AgentToolContribution,
-  AgentToolOverrideContribution,
-} from "@uix/api/agent-tools";
+import type { AgentToolContribution } from "@uix/api/agent-tools";
 
 import {
   resolveAgentToolContribution,
-  resolveAgentToolOverrideContribution,
   type ResolvedAgentToolContribution,
 } from "./resolution";
 import type { AgentInstaller } from "../agent/installers";
@@ -57,46 +53,19 @@ export function registerAgentToolContributions(
   contributions: readonly AgentToolContribution[],
   options: { readonly isBaseToolsProvider?: boolean } = {},
 ): Disposable {
-  return registerContributions(
-    registry,
-    featureId,
-    contributions,
-    (ownerId, contribution) =>
-      resolveAgentToolContribution(ownerId, contribution, options),
-  );
-}
-
-export function registerAgentToolOverrideContributions(
-  registry: AgentToolRegistry,
-  featureId: string,
-  contributions: readonly AgentToolOverrideContribution[],
-): Disposable {
-  return registerContributions(
-    registry,
-    featureId,
-    contributions,
-    resolveAgentToolOverrideContribution,
-  );
-}
-
-function registerContributions<Contribution>(
-  registry: AgentToolRegistry,
-  featureId: string,
-  contributions: readonly Contribution[],
-  resolve: (
-    featureId: string,
-    contribution: Contribution,
-  ) => ResolvedAgentToolContribution,
-): Disposable {
   const bag = new DisposableBag();
   try {
     for (const contribution of contributions) {
-      bag.add(registry.register(resolve(featureId, contribution)));
+      bag.add(
+        registry.register(
+          resolveAgentToolContribution(featureId, contribution, options),
+        ),
+      );
     }
     return bag;
-  } catch (err) {
+  } catch (error) {
     bag[Symbol.dispose]();
-    throw err;
+    throw error;
   }
 }
 

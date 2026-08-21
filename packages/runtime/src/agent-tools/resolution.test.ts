@@ -5,9 +5,7 @@ import type { AgentToolDefinition } from "@uix/api/agent-tools";
 
 import {
   resolveAgentToolContribution,
-  resolveAgentToolOverrideContribution,
   toAgentToolCanonicalId,
-  toAgentToolOverrideCanonicalId,
 } from "./resolution";
 
 const emptyParams = Type.Object({});
@@ -56,22 +54,6 @@ describe("toAgentToolCanonicalId", () => {
   });
 });
 
-describe("toAgentToolOverrideCanonicalId", () => {
-  it("retains a valid exact Pi tool name", () => {
-    expect(toAgentToolOverrideCanonicalId("read")).toBe("read");
-    expect(toAgentToolOverrideCanonicalId("write")).toBe("write");
-  });
-
-  it("rejects invalid exact names", () => {
-    expect(() => toAgentToolOverrideCanonicalId("Read")).toThrow(
-      "Invalid agent tool override name",
-    );
-    expect(() => toAgentToolOverrideCanonicalId("read-file")).toThrow(
-      "Invalid agent tool override name",
-    );
-  });
-});
-
 describe("resolveAgentToolContribution", () => {
   it("derives both ids and stamps the pi tool name", () => {
     const resolvedContribution = resolveAgentToolContribution("canvas", {
@@ -89,6 +71,30 @@ describe("resolveAgentToolContribution", () => {
     expect(resolvedContribution.tool.parameters).toBe(emptyParams);
   });
 
+  it("retains the admitted base-tools provider's local name", () => {
+    const resolvedContribution = resolveAgentToolContribution(
+      "workspace_tools",
+      { name: "read", tool: body() },
+      { isBaseToolsProvider: true },
+    );
+
+    expect(resolvedContribution.contributionId as string).toBe(
+      "workspace_tools.agent.read",
+    );
+    expect(resolvedContribution.canonicalId).toBe("read");
+    expect(resolvedContribution.tool.name).toBe("read");
+  });
+
+  it("rejects invalid base-tool names through the ordinary resolver", () => {
+    expect(() =>
+      resolveAgentToolContribution(
+        "workspace_tools",
+        { name: "read-file", tool: body() },
+        { isBaseToolsProvider: true },
+      ),
+    ).toThrow("Invalid agent tool name");
+  });
+
   it("does not mutate the author's body object", () => {
     const input = body();
     resolveAgentToolContribution("canvas", {
@@ -99,21 +105,5 @@ describe("resolveAgentToolContribution", () => {
     // The author shape is Omit<ToolDefinition, "name">. The original input
     // object must not gain a `name` key.
     expect("name" in input).toBe(false);
-  });
-});
-
-describe("resolveAgentToolOverrideContribution", () => {
-  it("retains the exact Pi name while deriving feature ownership", () => {
-    const resolvedContribution = resolveAgentToolOverrideContribution("chat", {
-      name: "read",
-      tool: body(),
-    });
-
-    expect(resolvedContribution.contributionId as string).toBe(
-      "chat.agent.read",
-    );
-    expect(resolvedContribution.canonicalId).toBe("read");
-    expect(resolvedContribution.tool.name).toBe("read");
-    expect(resolvedContribution.tool.parameters).toBe(emptyParams);
   });
 });

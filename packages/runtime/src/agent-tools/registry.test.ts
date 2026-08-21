@@ -11,7 +11,6 @@ import {
   AgentToolRegistry,
   createAgentToolInstaller,
   registerAgentToolContributions,
-  registerAgentToolOverrideContributions,
 } from "./registry";
 
 const emptyParams = Type.Object({});
@@ -74,47 +73,40 @@ describe("AgentToolRegistry", () => {
     ]);
   });
 
-  it("registers explicit overrides under exact Pi names", () => {
+  it("retains every local name for the admitted base-tools provider", () => {
     const registry = new AgentToolRegistry();
-    registerAgentToolContributions(registry, "chat", [
-      { name: "inspect", tool: body("inspect") },
-    ]);
-    registerAgentToolOverrideContributions(registry, "chat", [
-      { name: "read", tool: body("read override") },
-    ]);
-
-    expect([...installTools(registry).keys()]).toEqual([
-      "chat__inspect",
-      "read",
-    ]);
-  });
-
-  it("rejects competing exact-name overrides across features", () => {
-    const registry = new AgentToolRegistry();
-    registerAgentToolOverrideContributions(registry, "chat", [
-      { name: "read", tool: body("chat read") },
-    ]);
-
-    expect(() =>
-      registerAgentToolOverrideContributions(registry, "other", [
-        { name: "read", tool: body("other read") },
-      ]),
-    ).toThrow(
-      "Agent tool name already registered: read (existing: chat.agent.read, attempted: other.agent.read)",
+    registerAgentToolContributions(
+      registry,
+      "workspace_tools",
+      [
+        { name: "read", tool: body("read") },
+        { name: "write", tool: body("write") },
+      ],
+      { isBaseToolsProvider: true },
     );
+
+    expect([...installTools(registry).keys()]).toEqual(["read", "write"]);
   });
 
-  it("rejects one feature reusing a local identity across tool paths", () => {
+  it("rejects competing prefix-free names across claimed base providers", () => {
     const registry = new AgentToolRegistry();
-    registerAgentToolContributions(registry, "chat", [
-      { name: "read", tool: body("namespaced read") },
-    ]);
+    registerAgentToolContributions(
+      registry,
+      "first",
+      [{ name: "read", tool: body("first read") }],
+      { isBaseToolsProvider: true },
+    );
 
     expect(() =>
-      registerAgentToolOverrideContributions(registry, "chat", [
-        { name: "read", tool: body("read override") },
-      ]),
-    ).toThrow("Agent tool contribution already registered: chat.agent.read");
+      registerAgentToolContributions(
+        registry,
+        "second",
+        [{ name: "read", tool: body("second read") }],
+        { isBaseToolsProvider: true },
+      ),
+    ).toThrow(
+      "Agent tool name already registered: read (existing: first.agent.read, attempted: second.agent.read)",
+    );
   });
 
   it("rolls back earlier tools when the bulk register operation fails", () => {

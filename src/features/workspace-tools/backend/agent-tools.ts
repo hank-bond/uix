@@ -13,8 +13,8 @@ import {
 import { Type } from "typebox";
 
 import type {
+  AgentToolContribution,
   AgentToolDefinition,
-  AgentToolOverrideContribution,
 } from "@uix/api/agent-tools";
 
 const ReasonSchema = Type.String({
@@ -42,7 +42,7 @@ const CommandParams = Type.Object({
   reason: ReasonSchema,
 });
 
-export function createWorkspaceToolOverrideContributions(): readonly AgentToolOverrideContribution[] {
+export function createWorkspaceToolContributions(): readonly AgentToolContribution[] {
   return [
     { name: "read", tool: createReadOverride() },
     { name: "write", tool: createWriteOverride() },

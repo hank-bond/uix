@@ -16,11 +16,7 @@ export type {
   UpdateBuffer,
   UpdateContribution,
 } from "./agent-context";
-export type {
-  AgentToolContribution,
-  AgentToolDefinition,
-  AgentToolOverrideContribution,
-} from "./agent-tools";
+export type { AgentToolContribution, AgentToolDefinition } from "./agent-tools";
 export type {
   DocumentStore,
   DocumentStoreFactory,

@@ -11,10 +11,7 @@ import { registerAgentSkillContributions } from "../agent-skill-registry";
 import type { AgentSystemPromptRegistry } from "../agent-system-prompt-registry";
 import { registerAgentSystemPromptContribution } from "../agent-system-prompt-registry";
 import type { AgentToolRegistry } from "../agent-tools/registry";
-import {
-  registerAgentToolContributions,
-  registerAgentToolOverrideContributions,
-} from "../agent-tools/registry";
+import { registerAgentToolContributions } from "../agent-tools/registry";
 import type { ChannelRegistry } from "../channel-registry";
 import { registerChannelContributions } from "../channel-registry";
 import { DisposableBag } from "../lifecycle";
@@ -34,14 +31,16 @@ export interface FeatureContributionRegistries {
   surfaces?: SurfaceRegistry;
 }
 
-/** Where the feature's definition came from, for path-relative facets. */
-export interface FeatureOrigin {
+/** Admission data used while registering one feature's flat contribution set. */
+export interface FeatureContributionOptions {
   /**
    * Directory of the feature's entry file. Surface entry refs resolve
    * against it. Absent for compiled-in definitions, which therefore cannot
    * contribute surfaces.
    */
   entryDir?: string;
+  /** Whether admission designated this feature as the base-tools provider. */
+  isBaseToolsProvider?: boolean;
 }
 
 /**
@@ -54,7 +53,7 @@ export function registerFeatureContributions(
   registries: FeatureContributionRegistries,
   featureId: string,
   contributions: FeatureContributions,
-  origin: FeatureOrigin = {},
+  options: FeatureContributionOptions = {},
 ): Disposable {
   const bag = new DisposableBag();
 
@@ -100,21 +99,9 @@ export function registerFeatureContributions(
           registries.agentTools,
           featureId,
           contributions.agentTools,
-        ),
-      );
-    }
-
-    if (contributions.agentToolOverrides?.length) {
-      if (!registries.agentTools) {
-        throw new Error(
-          `Feature ${featureId} contributes agent tool overrides but no agent tool registry was provided`,
-        );
-      }
-      bag.add(
-        registerAgentToolOverrideContributions(
-          registries.agentTools,
-          featureId,
-          contributions.agentToolOverrides,
+          {
+            isBaseToolsProvider: options.isBaseToolsProvider === true,
+          },
         ),
       );
     }
@@ -140,7 +127,7 @@ export function registerFeatureContributions(
           `Feature ${featureId} contributes agent skills but no agent-skills registry was provided`,
         );
       }
-      if (!origin.entryDir) {
+      if (!options.entryDir) {
         throw new Error(
           `Feature ${featureId} contributes agent skills but was activated without an entry directory to resolve them against`,
         );
@@ -150,7 +137,7 @@ export function registerFeatureContributions(
           registries.agentSkills,
           featureId,
           contributions.agentSkills,
-          origin.entryDir,
+          options.entryDir,
         ),
       );
     }
@@ -194,7 +181,7 @@ export function registerFeatureContributions(
           `Feature ${featureId} contributes surfaces but no surface registry was provided`,
         );
       }
-      if (!origin.entryDir) {
+      if (!options.entryDir) {
         throw new Error(
           `Feature ${featureId} contributes surfaces but was activated without an entry directory to resolve them against`,
         );
@@ -204,7 +191,7 @@ export function registerFeatureContributions(
           registries.surfaces,
           featureId,
           contributions.surfaces,
-          origin.entryDir,
+          options.entryDir,
         ),
       );
     }

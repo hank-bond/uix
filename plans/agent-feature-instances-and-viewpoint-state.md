@@ -6,7 +6,7 @@ summary: "Build grouped workspace/Agent facet lifecycles, per-Agent feature stat
 
 ## Status and relationship to the host split
 
-A1 design is settled. A1.1, A1.2, A1.3.1, and A1.3.2 have landed. A1.3.3 is next. No production request path uses the new composition engine yet.
+A1 design is settled. A1.1, A1.2, and A1.3.1 through A1.3.3 have landed. A1.3.4 is next. No production request path uses the new composition engine yet.
 
 A1-A3 now precede the basic web host vertical. A server whose useful vertical is several tabs on different sessions must not ship against workspace-global Canvas working state. H6 therefore follows selected-view Canvas I/O and admits several browser attachments from its first supported flow instead of adding a temporary one-connection-per-workspace policy.
 
@@ -82,7 +82,7 @@ A1.3 uses narrow review slices. Each slice introduces one concept. Slices A1.3.5
 
 1. **A1.3.1: Nominal Agent composition admission (landed).** Replace the assembly helper with `AdmittedAgentCompositionDefinition`. Give it one private construction path, validate generation-static invariants, snapshot invariant-bearing data, and adopt the settled live-composition vocabulary.
 2. **A1.3.2: Manifest base-tools designation (landed).** Add `baseTools?: true`, reject several marked entries during manifest parsing, and make the resolved manifest reference retain the admitted marker.
-3. **A1.3.3: Unified tool path.** Remove the exact-name override contract and runtime operations. Apply admitted base-tool naming in the ordinary resolver and batch registry operation. Migrate workspace tools and the bare template without changing the grouped feature contract. End green.
+3. **A1.3.3: Unified tool path (landed).** Remove the exact-name override contract and runtime operations. Apply admitted base-tool naming in the ordinary resolver and batch registry operation. Migrate workspace tools and the bare template without changing the grouped feature contract. End green.
 4. **A1.3.4: Mixed active-feature lifetime.** Introduce one awaitable, replaceable owner for active feature lifetimes. Make reload and shutdown await asynchronous state cleanup without changing the author contract. End green.
 5. **A1.3.5: Grouped author-contract types.** Define Workspace and Agent bases, state factories, grouped facet factories, channel definitions, read-only Agent settings, and type inference tests. Change no loader or feature implementation in this slice.
 6. **A1.3.6: Workspace loader lane.** Validate and construct `workspaceState`, invoke Workspace facets as independent operations, and retain structured state, contribution, and registration outcomes. Add loader fixtures without implementing Agent realization.
