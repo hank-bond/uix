@@ -1,5 +1,5 @@
 ---
-summary: "Exploring UIX's Pi composition root, grouped feature facets, registry-to-installer boundary, reload reconciliation, typed communication, and base-tool composition."
+summary: "Exploring Pi installation from direct Workspace and Agent feature factories, including reload and typed communication."
 kind: explanation
 status: exploring
 ---
@@ -24,7 +24,7 @@ This keeps three roles separate. Features author contributions, registries own l
 
 A feature is UIX's loadable and lifetime unit. A facet is one substrate contribution axis, such as channels, resources, surfaces, tools, skills, turn state, or model context.
 
-A feature can participate in many facets. Its definition exposes top-level Workspace and Agent feature-state prerequisites plus grouped contribution sections. Definition and settings admission remains feature-level; each later state, contribution, registration, restoration, and installation operation owns its own outcome and rollback bag where the downstream integration permits.
+A feature can participate in many facets. Its optional `workspace(ctx)` factory runs once per feature activation. Its optional `agent(ctx)` factory runs once per `AgentInstance`. Each factory returns one contribution object. Its callbacks close over local values from that factory call. UIX registers each object as one unit under a feature bag.
 
 A package can contain Pi extensions and UIX feature entries, but neither system adopts the other's lifecycle. Pi discovers its own extension resources while the workspace manifest selects UIX feature entries.
 
@@ -42,11 +42,9 @@ Reload reconciles disk into one accepted manifest generation, then replaces the 
 
 The renderer treats main registries as authoritative. Surface notifications cause it to request and reconcile the latest composition. Electron or Vite hard reload remains development tooling.
 
-### Base-tool composition and replacement boundaries
+### Replacement boundaries
 
-All features use one Agent-tool contribution shape. Ordinary feature tools derive `${featureId}__${localName}`. One optional `baseTools: true` flag on a manifest feature entry designates the sole provider whose local names remain prefix-free as workspace-wide Agent vocabulary. The designation changes identity only; it grants no additional authority. Competing marked entries fail manifest validation, and a failed provider never causes a silent fallback.
-
-Other replacement seams should be earned independently. A replaceable command palette, settings editor, or resource viewer consumes a stable public catalog rather than receiving private registry callbacks.
+Add a replacement API only when a production replacement needs it. Prefix-free base-tool names, command palettes, settings editors, and resource viewers do not affect Agent state isolation.
 
 ### Why the composition root is semantic
 
@@ -137,3 +135,9 @@ Dropped the exact-name tool-override axis from the target contract. One ordinary
 ### 2026-08-18 — live feature state owns contribution dependencies
 
 Replaced executable Workspace/Agent “context” with `WorkspaceFeatureState` and `AgentFeatureState`. State here is the live object graph: mutable values plus services and capabilities that operate on them. `workspaceState()` and `agentState()` build one atomic prerequisite for their matching contribution section. Each chained, single-entry addition transfers disposal into a candidate bag immediately and accumulates the inferred readonly state type. Turn state and model context then become explicit durable and model-visible projections of Agent feature state rather than competing meanings of context.
+
+### 2026-08-21 — direct factories replace state builders
+
+Commits `dbf687d` through `248494e` implemented state builders, nominal Agent composition, per-facet result records, and a separate composition engine. No production path used that code. The required behavior is smaller: run mutable Agent feature code once per `AgentInstance`.
+
+The replacement uses `workspace(ctx)` and `agent(ctx)` factories. Each factory creates local values and returns one contribution object with optional disposal. UIX keeps per-instance registries and ordered Pi installation. An explicit revert keeps the experimental commits available in history.

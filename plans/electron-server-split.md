@@ -18,7 +18,7 @@ summary: "Build minimal Electron and loopback server hosts over the proved works
 - **H5.1** launcher extraction landed in `0e2ccdc`.
 - **H5.2** workspace extraction landed in `0780f80`.
 - **H5.3** dependency-boundary enforcement landed. H5 is complete.
-- **A1-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) are next: isolate session-viewpoint feature state before the web host exposes several tabs. **H6** then builds the minimal loopback server, followed by H7-H8 Electron rehoming and basic two-host conformance.
+- **R0 and A1-A2** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) are next. They revert the unused composition code, then isolate feature state per session through production. **H6** follows with the minimal loopback server, followed by H7-H8 Electron rehoming and basic two-host conformance.
 
 ## Status and intent
 
@@ -197,7 +197,7 @@ Prepared dispatch, provider authentication, model refresh, single-flight boots, 
 
 ### Runtime work split from this plan
 
-Agent facet lifecycles, viewpoint-scoped Canvas state, concurrent-session cutover, and reload reconciliation moved to [agent feature instances and viewpoint state](./agent-feature-instances-and-viewpoint-state.md). A1-A3 now precede H6 so the initial web host can admit several tabs on different sessions without a temporary one-connection-per-workspace policy. Reload reconciliation and the full concurrency gate remain A4-A5 follow-up work.
+Agent feature lifetimes, per-session Canvas state, selected-view routing, reload, and concurrent-session tests moved to [agent feature instances and viewpoint state](./agent-feature-instances-and-viewpoint-state.md). R0 reverts the unused state-builder and composition code. A1 moves feature state into the production `AgentInstance`, and A2 tests concurrent sessions. They precede H6 so the first web host can support several tabs on different sessions.
 
 Full reconnect recovery, provider-auth browser parity, app-source rehoming, discovery, security review, and packaging moved to [server browser parity and distribution](./server-browser-parity-and-distribution.md).
 
@@ -225,7 +225,7 @@ Implement H5 in three review slices:
 
 ### H6: Build the minimal loopback server host
 
-Create `hosts/server` over the existing workspace supervisor and one-workspace runtime. Bind loopback only. Serve the minimal launcher and canonical workspace-session pages. These real server entries are the browser-only client build proof. H5 leaves no fake host beside them. Each browser connection owns one workspace guard and one attachment with one current session target; several tabs may attach to the same workspace on the same or different sessions.
+Create `hosts/server` over the existing workspace supervisor and one-workspace runtime. Bind loopback only. Serve the minimal launcher and canonical workspace-session pages. These real server entries are the browser-only client build proof. H5 leaves no fake host beside them. Each browser connection owns one workspace guard and one attachment with one current session target. Several tabs may attach to the same workspace on the same or different sessions.
 
 Use discriminated request, response, error, and event frames with correlation ids. The accepted URL selects the workspace and initial session. Ordinary frames repeat no routing identity. The host asks its bound attachment to prepare canonical dispatch and routes only matching runtime events.
 
@@ -235,7 +235,7 @@ Support the basic reference flow with an already configured Pi profile. Open a w
 
 Apply the minimum loopback safety checks for Content Security Policy, iframe origins, path traversal, and resource routing. Broader threat review and non-loopback operation remain deferred.
 
-**Review gate:** Supported browser tabs open one configured workspace on distinct sessions, run isolated basic Agent turns, render the reference surfaces, and serve the matching Canvas resources. No server transport field enters runtime or feature payloads.
+**Review gate:** Supported browser tabs open one configured workspace on distinct sessions and run isolated basic Agent turns. They render the reference surfaces and serve the matching Canvas resources. No server transport field enters runtime or feature payloads.
 
 ### H7: Reconstitute Electron as a discrete host
 

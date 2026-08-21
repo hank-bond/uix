@@ -10,7 +10,7 @@ Plans are build specs slugged by deliverable. A plan needs to remain valid, but 
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
-- **[agent-feature-instances-and-viewpoint-state](./agent-feature-instances-and-viewpoint-state.md)** Build grouped workspace/Agent facet lifecycles, per-Agent feature states, isolated primary-session Canvas checkouts, and selected-view I/O without implementing multi-branch Agents.
+- **[agent-feature-instances-and-viewpoint-state](./agent-feature-instances-and-viewpoint-state.md)** Revert the unused A1 composition code, then create feature state per Agent instance and prove isolated Canvas sessions.
 - **[backlog](./backlog.md)** Compact seeds for planned UIX deliverables that need enough context to be actionable but aren't standalone specs yet.
 - **[canvas-reusable-assets](./canvas-reusable-assets.md)** Give Canvas a reusable local web-asset library in eight reviewable units. These cover feature-static resources, a same-origin asset route, AGENTS.md catalogs, DOM serialization controls, authoring guidance, a component model, serve-time expansion, and conflict-handling updates.
 - **[chat-provider-login](./chat-provider-login.md)** Add chat-first provider connection UX over Pi's provider-owned ModelRuntime auth flows, followed by a no-model onboarding takeover and ordinary model-selection handoff.
