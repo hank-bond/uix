@@ -1,7 +1,8 @@
 // Agent tool contribution types.
 //
-// Ordinary feature tools derive `${featureId}__${name}`. The manifest's sole
-// base-tools provider retains local names through the same contribution path.
+// Ordinary feature tools derive `${featureId}__${name}`. Explicit exact-name
+// contributions retain `name` so a feature can replace a Pi definition or
+// provide app-level vocabulary without weakening the ordinary namespace.
 //
 // A tool body is inherently a Pi artifact, so AgentToolDefinition is Pi's
 // ToolDefinition minus `name`. It is re-exported here so feature authors get the
@@ -30,11 +31,19 @@ export type AgentToolDefinition<TParams extends TSchema = TSchema> = Omit<
 >;
 
 export interface AgentToolContribution {
-  /**
-   * Local tool name. The substrate derives `${featureId}__${name}` unless the
-   * manifest admits this feature as the base-tools provider.
-   */
+  /** Local tool name: the facet derives `${featureId}__${name}` as the Pi tool name. */
   readonly name: string;
   /** Tool body: everything except `name`, which the substrate derives. */
+  readonly tool: AgentToolDefinition;
+}
+
+/**
+ * An intentional exact-name Pi tool. This is a separate contribution shape so
+ * ordinary feature tools cannot accidentally escape their feature namespace.
+ */
+export interface AgentToolOverrideContribution {
+  /** Exact Pi tool name to register, such as `read`, `write`, or `command`. */
+  readonly name: string;
+  /** Exact-name body. The substrate stamps the authored `name`. */
   readonly tool: AgentToolDefinition;
 }

@@ -10,7 +10,7 @@ describe("parseWorkspaceManifest", () => {
     const parsed = parseWorkspaceManifest(
       {
         name: "Demo",
-        features: [{ entry: "./features/chat/index.ts", baseTools: true }],
+        features: [{ entry: "./features/chat/index.ts" }],
         layout: { primary: "chat" },
       },
       manifestPath,
@@ -25,41 +25,7 @@ describe("parseWorkspaceManifest", () => {
         index: 0,
         ref: "./features/chat/index.ts",
         entry: resolve(dirname(manifestPath), "features/chat/index.ts"),
-        baseTools: true,
       },
     ]);
-  });
-
-  it("rejects several base-tools providers before feature source loads", () => {
-    const manifestPath = resolve("workspace", "uix.workspace.json");
-
-    expect(() =>
-      parseWorkspaceManifest(
-        {
-          name: "Demo",
-          features: [
-            { entry: "./features/first.ts", baseTools: true },
-            { entry: "./features/second.ts", baseTools: true },
-          ],
-        },
-        manifestPath,
-      ),
-    ).toThrow(
-      "workspace manifest may mark only one base-tools provider; marked entries: ./features/first.ts, ./features/second.ts",
-    );
-  });
-
-  it("accepts only the literal true base-tools marker", () => {
-    const manifestPath = resolve("workspace", "uix.workspace.json");
-
-    expect(() =>
-      parseWorkspaceManifest(
-        {
-          name: "Demo",
-          features: [{ entry: "./features/tools.ts", baseTools: false }],
-        },
-        manifestPath,
-      ),
-    ).toThrow("workspace manifest does not match schema");
   });
 });

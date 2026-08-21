@@ -2,9 +2,8 @@
 //
 // The concrete exclusive lifetime scopes include host process bindings,
 // windows, feature compositions, workspace settings, and subscriptions. Child
-// feature generations sit behind an awaitable replacement owner so mixed
-// cleanup completes on reload and shutdown. Independently held shared objects
-// such as workspaces and agent instances use supervisor-issued
+// feature bags clear on reload and dispose on shutdown. Independently held
+// shared objects such as workspaces and agent instances use supervisor-issued
 // guards instead of bags or caller-managed reference counts.
 //
 // The rule: every attached callback produces a Disposable, and that

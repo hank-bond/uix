@@ -10,8 +10,6 @@ export const WorkspaceManifestFileName = "uix.workspace.json";
 export const WorkspaceManifestFeatureSchema = Type.Object({
   entry: Type.String(),
   settings: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
-  /** The sole provider whose Agent tool names remain prefix-free. */
-  baseTools: Type.Optional(Type.Literal(true)),
 });
 
 /**
@@ -40,8 +38,6 @@ export interface ManifestFeatureRef {
   ref: string;
   /** Absolute entry-file path, resolved against the manifest's directory. */
   entry: string;
-  /** Whether this entry is the admitted base-tools provider. */
-  baseTools?: true;
 }
 
 export interface ParsedWorkspaceManifest {
@@ -64,15 +60,6 @@ export function parseWorkspaceManifest(
     );
   }
 
-  const baseToolsEntries = manifest.features.filter(
-    (feature) => feature.baseTools === true,
-  );
-  if (baseToolsEntries.length > 1) {
-    throw new Error(
-      `workspace manifest may mark only one base-tools provider; marked entries: ${baseToolsEntries.map(({ entry }) => entry).join(", ")}`,
-    );
-  }
-
   const dir = path.dirname(manifestPath);
   return {
     manifest,
@@ -80,7 +67,6 @@ export function parseWorkspaceManifest(
       index,
       ref: feature.entry,
       entry: path.resolve(dir, feature.entry),
-      ...(feature.baseTools === true && { baseTools: true as const }),
     })),
   };
 }

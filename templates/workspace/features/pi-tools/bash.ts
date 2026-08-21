@@ -3,8 +3,8 @@
 import { createBashToolDefinition } from "@earendil-works/pi-coding-agent";
 
 import type {
-  AgentToolContribution,
   AgentToolDefinition,
+  AgentToolOverrideContribution,
 } from "@uix/api/agent-tools";
 
 const baseline = createBashToolDefinition(".");
@@ -26,4 +26,4 @@ const tool: AgentToolDefinition<typeof baseline.parameters> = {
   },
 };
 
-export const bashTool: AgentToolContribution = { name: "bash", tool };
+export const bashTool: AgentToolOverrideContribution = { name: "bash", tool };

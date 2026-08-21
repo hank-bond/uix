@@ -1,9 +1,13 @@
 // Retains accepted feature tools, rejects duplicate Pi names, and installs a snapshot into each Pi runtime.
 
-import type { AgentToolContribution } from "@uix/api/agent-tools";
+import type {
+  AgentToolContribution,
+  AgentToolOverrideContribution,
+} from "@uix/api/agent-tools";
 
 import {
   resolveAgentToolContribution,
+  resolveAgentToolOverrideContribution,
   type ResolvedAgentToolContribution,
 } from "./resolution";
 import type { AgentInstaller } from "../agent/installers";
@@ -46,30 +50,53 @@ export class AgentToolRegistry {
   }
 }
 
-/** Register one feature's tools, retaining local names only for the designated base-tools provider. */
 export function registerAgentToolContributions(
   registry: AgentToolRegistry,
   featureId: string,
   contributions: readonly AgentToolContribution[],
-  options: { readonly isBaseToolsProvider?: boolean } = {},
+): Disposable {
+  return registerContributions(
+    registry,
+    featureId,
+    contributions,
+    resolveAgentToolContribution,
+  );
+}
+
+export function registerAgentToolOverrideContributions(
+  registry: AgentToolRegistry,
+  featureId: string,
+  contributions: readonly AgentToolOverrideContribution[],
+): Disposable {
+  return registerContributions(
+    registry,
+    featureId,
+    contributions,
+    resolveAgentToolOverrideContribution,
+  );
+}
+
+function registerContributions<Contribution>(
+  registry: AgentToolRegistry,
+  featureId: string,
+  contributions: readonly Contribution[],
+  resolve: (
+    featureId: string,
+    contribution: Contribution,
+  ) => ResolvedAgentToolContribution,
 ): Disposable {
   const bag = new DisposableBag();
   try {
     for (const contribution of contributions) {
-      bag.add(
-        registry.register(
-          resolveAgentToolContribution(featureId, contribution, options),
-        ),
-      );
+      bag.add(registry.register(resolve(featureId, contribution)));
     }
     return bag;
-  } catch (error) {
+  } catch (err) {
     bag[Symbol.dispose]();
-    throw error;
+    throw err;
   }
 }
 
-/** Installs a snapshot of every registered tool into one Pi runtime generation. */
 export function createAgentToolInstaller(
   registry: AgentToolRegistry,
 ): AgentInstaller {

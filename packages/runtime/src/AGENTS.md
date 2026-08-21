@@ -28,8 +28,6 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 - **[dispatch.ts](./dispatch.ts)** Canonical request preparation and the attachment-stamped dispatch context.
 - **[document-store.ts](./document-store.ts)** Persists each document's current content and immutable snapshots under stable namespace and document IDs.
 - **[events.ts](./events.ts)** Explicitly scoped canonical runtime events for host-selected delivery.
-- **[feature-operation-outcome.ts](./feature-operation-outcome.ts)** Structured internal outcomes for feature state, facet, restoration, and installation operations.
-- **[feature-state.ts](./feature-state.ts)** Creates atomic Workspace and Agent feature-state ownerships over mixed disposable lifetimes.
 - **[guard.ts](./guard.ts)** Generic guard capabilities that pair supervisor-owned lifetime authority with operational values.
 - **[index.ts](./index.ts)** The @uix/runtime public facade re-exporting the workspace-runtime contract and its factory.
 - **[lifecycle.ts](./lifecycle.ts)** Provides synchronous and asynchronous lifetime bags plus disposable helpers.

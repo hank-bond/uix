@@ -15,7 +15,6 @@ import type { DocumentStoreFactory } from "@uix/api/documents";
 import type { FeatureContext, FeatureDefinition } from "@uix/api/feature";
 import { defineSettings, type SettingsHandle } from "@uix/api/settings";
 
-import type { ActiveFeatureLifetimeOwner } from "./active-lifetimes";
 import {
   type FeatureContributionRegistries,
   registerFeatureContributions,
@@ -229,14 +228,14 @@ const loadFeatureDefinition = async (
  * entry lands in `failed[]` instead of aborting the pass.
  *
  * @param entries resolved manifest refs, in manifest order.
- * @param parentLifetimes the loader transfers every successful per-feature
- *   bag here so replacement and shutdown dispose the complete generation.
+ * @param parentBag the loader adds every per-feature bag here, so one
+ *   disposal at host shutdown or reload clearing disposes everything.
  * @param substrate the facet registries and context ingredients the
  *   definitions register into.
  */
 export const activateFeatures = async (
   entries: readonly ManifestFeatureRef[],
-  parentLifetimes: ActiveFeatureLifetimeOwner,
+  parentBag: DisposableBag,
   substrate: FeatureSubstrate,
 ): Promise<ActivationResult> => {
   const activated: ActivatedFeatureInstance[] = [];
@@ -250,15 +249,15 @@ export const activateFeatures = async (
     entry: string,
     loadDefinition: () => unknown,
     entryDir?: string,
-    isBaseToolsProvider = false,
   ): Promise<void> => {
     const flog = log.child({ feature: displayName, entry });
     flog.debug({}, "activating");
 
     // The loader creates the per-feature bag early so every acquired lifetime
-    // capability has an owner. It transfers the bag to the active owner only
-    // after activation succeeds. Failed activation disposes the provisional
-    // bag immediately, so it never enters replacement or shutdown teardown.
+    // capability has an owner. We only enroll
+    // it in the parent bag after activation succeeds. A
+    // loader disposes a failed feature's bag immediately, and it never
+    // becomes part of host-shutdown teardown.
     const bag = new DisposableBag();
 
     try {
@@ -290,13 +289,13 @@ export const activateFeatures = async (
           substrate.registries,
           definition.id,
           definition.contribute({ ...baseContext, ...contributedContext }),
-          { entryDir, isBaseToolsProvider },
+          { entryDir },
         ),
       );
       featureSettings.commit();
 
       takenIds.add(definition.id);
-      parentLifetimes.add(bag);
+      parentBag.add(bag);
       activated.push({ id: definition.id, displayName, entry, bag });
       flog.debug({ id: definition.id }, "activation_succeeded");
     } catch (thrown) {
@@ -313,14 +312,13 @@ export const activateFeatures = async (
     }
   };
 
-  for (const { index, ref, entry, baseTools } of entries) {
+  for (const { index, ref, entry } of entries) {
     await activate(
       index,
       ref,
       entry,
       () => loadFeatureDefinition(entry, jiti),
       dirname(entry),
-      baseTools === true,
     );
   }
 
@@ -329,28 +327,29 @@ export const activateFeatures = async (
 
 /**
  * Load the whole feature composition, the workspace manifest's entries,
- * into the active lifetime owner, replacing its current generation. This is
- * safe for initial startup and manual reload: the loader awaits complete mixed
- * cleanup before replacements activate with fresh contexts, callbacks,
- * registrations, and lifetimes.
+ * into the owned feature bag, replacing whatever that bag currently
+ * contains. Safe for initial startup (empty clear) and for manual reload
+ * (the loader disposes the active feature composition before replacement feature
+ * instances activate with fresh contexts, callbacks, registered contributions,
+ * and bags).
  *
- * The loader reads and validates the manifest before replacement, so a manifest
+ * The loader reads and validates the manifest before clearing, so a manifest
  * failure (unreadable, bad JSON, schema mismatch) rejects the pass and
- * leaves the active feature composition intact. Concurrent callers for one
- * owner share the same in-flight pass so replacement and activation never
- * overlap. Independent workspace owners load independently.
+ * leaves the active feature composition intact. Concurrent callers for one owned
+ * feature bag share the same in-flight pass so its clear/activate never
+ * overlaps. Independent workspace bags load independently.
  */
-const inFlightFeatureLoadByOwner = new WeakMap<
-  ActiveFeatureLifetimeOwner,
+const inFlightFeatureLoadByBag = new WeakMap<
+  DisposableBag,
   Promise<ActivationResult>
 >();
 
 export const loadFeatures = (
   sources: FeatureSources,
-  activeFeatureLifetimes: ActiveFeatureLifetimeOwner,
+  featuresBag: DisposableBag,
   substrate: FeatureSubstrate,
 ): Promise<ActivationResult> => {
-  const existing = inFlightFeatureLoadByOwner.get(activeFeatureLifetimes);
+  const existing = inFlightFeatureLoadByBag.get(featuresBag);
   if (existing) return existing;
 
   const load: Promise<ActivationResult> = (async () => {
@@ -369,22 +368,18 @@ export const loadFeatures = (
       entries = features;
       workspaceName = manifest.name;
     }
-    await activeFeatureLifetimes.replace();
-    const activation = await activateFeatures(
-      entries,
-      activeFeatureLifetimes,
-      substrate,
-    );
+    featuresBag.clear();
+    const activation = await activateFeatures(entries, featuresBag, substrate);
     return {
       ...activation,
       ...(workspaceName !== undefined && { workspaceName }),
     };
   })().finally(() => {
-    if (inFlightFeatureLoadByOwner.get(activeFeatureLifetimes) === load) {
-      inFlightFeatureLoadByOwner.delete(activeFeatureLifetimes);
+    if (inFlightFeatureLoadByBag.get(featuresBag) === load) {
+      inFlightFeatureLoadByBag.delete(featuresBag);
     }
   });
 
-  inFlightFeatureLoadByOwner.set(activeFeatureLifetimes, load);
+  inFlightFeatureLoadByBag.set(featuresBag, load);
   return load;
 };

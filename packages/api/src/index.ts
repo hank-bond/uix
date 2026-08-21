@@ -16,7 +16,11 @@ export type {
   UpdateBuffer,
   UpdateContribution,
 } from "./agent-context";
-export type { AgentToolContribution, AgentToolDefinition } from "./agent-tools";
+export type {
+  AgentToolContribution,
+  AgentToolDefinition,
+  AgentToolOverrideContribution,
+} from "./agent-tools";
 export type {
   DocumentStore,
   DocumentStoreFactory,
@@ -24,24 +28,12 @@ export type {
   DocumentVersion,
 } from "./documents";
 export type {
-  AgentChannelDefinition,
-  AgentFacetFactories,
-  AgentFeatureStateBase,
-  AgentFeatureStateFactory,
+  FeatureContext,
+  FeatureContributions,
   FeatureDefinition,
-  WorkspaceChannelDefinition,
-  WorkspaceFacetFactories,
-  WorkspaceFeatureStateBase,
-  WorkspaceFeatureStateFactory,
+  FeaturePreflightContributions,
 } from "./feature";
 export { defineFeature } from "./feature";
-export type {
-  AgentFeatureState,
-  AgentFeatureStateBuilder,
-  FeatureStateOf,
-  WorkspaceFeatureState,
-  WorkspaceFeatureStateBuilder,
-} from "./feature-state";
 export type { FeatureLogFn, FeatureLogger } from "./log";
 export type { ResourceContribution, ResourceRequestContext } from "./resources";
 export {
@@ -50,8 +42,6 @@ export {
   FeatureSettingAddressSchema,
   type FeatureSettingValueEnvelope,
   FeatureSettingValueEnvelopeSchema,
-  type ReadonlySettingsHandle,
-  type ReadonlySettingsHandleFrom,
   type SettingsDefinition,
   type SettingsHandle,
   type SettingsHandleFrom,

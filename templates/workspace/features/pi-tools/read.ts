@@ -3,8 +3,8 @@
 import { createReadToolDefinition } from "@earendil-works/pi-coding-agent";
 
 import type {
-  AgentToolContribution,
   AgentToolDefinition,
+  AgentToolOverrideContribution,
 } from "@uix/api/agent-tools";
 
 const baseline = createReadToolDefinition(".");
@@ -26,4 +26,4 @@ const tool: AgentToolDefinition<typeof baseline.parameters> = {
   },
 };
 
-export const readTool: AgentToolContribution = { name: "read", tool };
+export const readTool: AgentToolOverrideContribution = { name: "read", tool };

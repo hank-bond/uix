@@ -1,11 +1,16 @@
 // Checks feature tool names and assigns the Pi name and contribution ID used by the registry.
 //
-// Ordinary contributions derive `${featureId}__${name}`. The admitted
-// base-tools provider retains local names through this same resolver.
+// Ordinary contributions derive `${featureId}__${name}` while explicit
+// overrides retain their authored Pi name, preventing ordinary feature tools
+// from escaping their owner namespace.
 
 import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
 
-import type { AgentToolContribution } from "@uix/api/agent-tools";
+import type {
+  AgentToolContribution,
+  AgentToolDefinition,
+  AgentToolOverrideContribution,
+} from "@uix/api/agent-tools";
 import {
   type ContributionId,
   toContributionId,
@@ -35,6 +40,14 @@ export function toAgentToolCanonicalId(
   return `${featureId}__${name}` as AgentToolCanonicalId;
 }
 
+/** Validates and retains an intentional exact Pi tool name. */
+export function toAgentToolOverrideCanonicalId(
+  name: string,
+): AgentToolCanonicalId {
+  assertAgentToolToken("agent tool override name", name);
+  return name as AgentToolCanonicalId;
+}
+
 export interface ResolvedAgentToolContribution {
   readonly contributionId: ContributionId;
   readonly canonicalId: AgentToolCanonicalId;
@@ -43,20 +56,37 @@ export interface ResolvedAgentToolContribution {
 }
 
 /**
- * Resolve both ids and stamp `tool.name` from the canonical id. Base-tool
- * providers retain the local name. Every other feature receives its prefix.
+ * Derives both ids for an agent tool contribution and stamps `tool.name` from
+ * the canonical id. Pure. No registry, no side effects.
  */
 export function resolveAgentToolContribution(
   featureId: string,
   contribution: AgentToolContribution,
-  options: { readonly isBaseToolsProvider?: boolean } = {},
 ): ResolvedAgentToolContribution {
-  if (options.isBaseToolsProvider) {
-    assertAgentToolToken("agent tool name", contribution.name);
-  }
-  const canonicalId = options.isBaseToolsProvider
-    ? (contribution.name as AgentToolCanonicalId)
-    : toAgentToolCanonicalId(featureId, contribution.name);
+  return resolveAgentTool(
+    featureId,
+    contribution,
+    toAgentToolCanonicalId(featureId, contribution.name),
+  );
+}
+
+/** Retains the authored Pi name and stamps it onto an exact-name definition. */
+export function resolveAgentToolOverrideContribution(
+  featureId: string,
+  contribution: AgentToolOverrideContribution,
+): ResolvedAgentToolContribution {
+  return resolveAgentTool(
+    featureId,
+    contribution,
+    toAgentToolOverrideCanonicalId(contribution.name),
+  );
+}
+
+function resolveAgentTool(
+  featureId: string,
+  contribution: { readonly name: string; readonly tool: AgentToolDefinition },
+  canonicalId: AgentToolCanonicalId,
+): ResolvedAgentToolContribution {
   return {
     contributionId: toContributionId(featureId, "agent", contribution.name),
     canonicalId,

@@ -62,19 +62,11 @@ describe("scaffoldWorkspace", () => {
       await readFile(join(workspaceDir, WorkspaceManifestFileName), "utf8"),
     ) as {
       name: string;
-      features: Array<{
-        entry: string;
-        settings: unknown;
-        baseTools?: true;
-      }>;
+      features: Array<{ entry: string; settings: unknown }>;
     };
     expect(manifest.name).toBe("My Workspace");
     expect(manifest.features).toEqual([
-      {
-        entry: "./features/pi-tools/index.ts",
-        settings: {},
-        baseTools: true,
-      },
+      { entry: "./features/pi-tools/index.ts", settings: {} },
     ]);
 
     const rootPackage = JSON.parse(

@@ -1,5 +1,5 @@
 ---
-summary: "Module APIs stay intentionally small, validated constructors preserve checked invariants in types, and Node runtime dependencies remain visible as node-prefixed imports."
+summary: "Module APIs stay intentionally small, invalid values stop through explicit guards or assertions, and Node runtime dependencies remain visible as node-prefixed imports."
 kind: reference
 read_when: "Read before exporting a symbol, designing a validation boundary, or introducing a Node runtime dependency."
 ---
@@ -27,56 +27,6 @@ export function assertCanvasKey(key: string): void {
 Call sites that cannot recover should say what they mean: `assertCanvasKey(key)` instead of repeating the `if` and `throw`.
 
 Custom errors start with plain `Error` and a clear message. Add a custom subclass only when callers must branch on its type, as in `err instanceof InvalidCanvasKeyError`. Until then, assertion helpers keep call sites stable if the thrown type changes.
-
-## Validated constructors
-
-A validated constructor turns one successful boundary check into a type-level fact that downstream code can trust.
-
-Keep the candidate type separate from the accepted type. The validated constructor checks every invariant represented by the accepted type and remains its only ordinary construction path. Downstream APIs accept the accepted type and do not repeat those static checks. Values produced later by callbacks, deserialization, or other dynamic work still validate at their own boundaries.
-
-Use a private `unique symbol` brand for immutable primitive values. The constructor performs the one justified assertion after validation. The value remains the original primitive at execution time.
-
-```ts
-const CanvasKeyBrand: unique symbol = Symbol("CanvasKey");
-
-type CanvasKey = string & {
-  readonly [CanvasKeyBrand]: true;
-};
-
-function parseCanvasKey(candidate: string): CanvasKey {
-  if (!canvasKeyPattern.test(candidate)) {
-    throw new Error(`Invalid Canvas key: ${candidate}`);
-  }
-  return candidate as CanvasKey;
-}
-```
-
-Use a class with private state and a private constructor for an internal composite value that needs stronger nominal construction. Expose one static operation that validates the candidate, snapshots the invariant-bearing data, and invokes the constructor. The private state prevents a plain object or object spread from satisfying the accepted type.
-
-```ts
-class AgentCompositionDefinition {
-  readonly #features: readonly AdmittedAgentFeatureDefinition[];
-
-  private constructor(features: readonly AdmittedAgentFeatureDefinition[]) {
-    this.#features = Object.freeze([...features]);
-  }
-
-  static create(
-    candidate: CandidateAgentComposition,
-  ): AgentCompositionDefinition {
-    validateAgentComposition(candidate);
-    return new AgentCompositionDefinition(candidate.features);
-  }
-
-  get features(): readonly AdmittedAgentFeatureDefinition[] {
-    return this.#features;
-  }
-}
-```
-
-A plain branded object remains appropriate when an accepted value must retain a plain serializable shape. Admission must then own or freeze every field whose mutation could invalidate the proof. Serialization removes the proof in every representation, so external or persisted values always return through their validated constructor.
-
-Validated types provide a trusted-code boundary, not a hostile-code security boundary. Deliberate assertions and `any` can bypass TypeScript, so the validating cast stays local and conspicuous. Prefer module privacy and an exclusive construction path before adding specialized lint enforcement.
 
 ## Imports
 

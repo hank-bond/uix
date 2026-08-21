@@ -125,6 +125,7 @@ describe("registerFeatureContributions", () => {
         resources: [resourceContribution()],
         channels: [channelContribution()],
         agentTools: [agentTool("anchor_read")],
+        agentToolOverrides: [agentTool("read")],
         agentSystemPrompt: "Canvas guidance",
         agentSkills: ["./skills/canvas-authoring"],
         turnState: turnStateCells(),
@@ -160,6 +161,13 @@ describe("registerFeatureContributions", () => {
       }),
     ).toThrow(
       "Agent tool contribution already registered: canvas.agent.anchor_read",
+    );
+    expect(() =>
+      registerFeatureContributions({ agentTools }, "other", {
+        agentToolOverrides: [agentTool("read")],
+      }),
+    ).toThrow(
+      "Agent tool name already registered: read (existing: canvas.agent.read, attempted: other.agent.read)",
     );
     expect(() =>
       registerFeatureContributions({ agentSystemPrompt }, "canvas", {
@@ -210,6 +218,7 @@ describe("registerFeatureContributions", () => {
           resources: [resourceContribution()],
           channels: [channelContribution()],
           agentTools: [agentTool("anchor_read")],
+          agentToolOverrides: [agentTool("read")],
           agentSystemPrompt: "Reloaded guidance",
           agentSkills: ["./skills/canvas-authoring"],
           turnState: turnStateCells(),
@@ -224,21 +233,6 @@ describe("registerFeatureContributions", () => {
         { entryDir: "/workspace/features/canvas" },
       ),
     ).not.toThrow();
-  });
-
-  it("applies the admitted base-tools naming policy to the ordinary tool facet", () => {
-    const agentTools = new AgentToolRegistry();
-    registerFeatureContributions(
-      { agentTools },
-      "workspace_tools",
-      { agentTools: [agentTool("read"), agentTool("write")] },
-      { isBaseToolsProvider: true },
-    );
-
-    expect(agentTools.list().map(({ canonicalId }) => canonicalId)).toEqual([
-      "read",
-      "write",
-    ]);
   });
 
   it("rolls back earlier facets when a later facet fails", () => {
@@ -288,6 +282,14 @@ describe("registerFeatureContributions", () => {
       }),
     ).toThrow(
       "Feature canvas contributes agent tools but no agent tool registry was provided",
+    );
+
+    expect(() =>
+      registerFeatureContributions({}, "canvas", {
+        agentToolOverrides: [agentTool("read")],
+      }),
+    ).toThrow(
+      "Feature canvas contributes agent tool overrides but no agent tool registry was provided",
     );
 
     expect(() =>

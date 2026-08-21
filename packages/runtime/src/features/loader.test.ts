@@ -6,12 +6,12 @@ import { describe, expect, it } from "vitest";
 
 import type { DocumentStoreFactory } from "@uix/api/documents";
 
-import { ActiveFeatureLifetimeOwner } from "./active-lifetimes";
 import { type FeatureSubstrate, loadFeatures } from "./loader";
 import { WorkspaceManifestFileName } from "./manifest";
 import { SurfaceRegistry } from "./surfaces";
 import { AgentToolRegistry } from "../agent-tools/registry";
 import { ChannelRegistry } from "../channel-registry";
+import { DisposableBag } from "../lifecycle";
 import { WorkspaceManifestStore } from "../manifest-store";
 
 const documents: DocumentStoreFactory = {
@@ -115,7 +115,7 @@ function makeSubstrate(manifestPath?: string): {
  */
 async function writeWorkspace(
   files: Record<string, string>,
-  refs?: Array<string | { entry: string; baseTools?: true }>,
+  refs?: string[],
 ): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "loader-test-"));
   for (const [file, source] of Object.entries(files)) {
@@ -127,7 +127,7 @@ async function writeWorkspace(
       name: "test workspace",
       features: (refs ?? Object.keys(files).map((f) => `./${f}`)).map(
         (ref) => ({
-          ...(typeof ref === "string" ? { entry: ref } : ref),
+          entry: ref,
           settings: {},
         }),
       ),
@@ -165,7 +165,7 @@ describe("loadFeatures", () => {
     });
     const { substrate, agentTools, settingsScopes, committedSettings } =
       makeSubstrate(manifestPath);
-    const bag = new ActiveFeatureLifetimeOwner();
+    const bag = new DisposableBag();
 
     const result = await loadFeatures({ manifestPath }, bag, substrate);
 
@@ -178,26 +178,9 @@ describe("loadFeatures", () => {
     expect(committedSettings).toEqual(["greeter"]);
 
     // Reload teardown: clearing the bag removes the contribution and scope.
-    await bag.replace();
+    bag.clear();
     expect(agentTools.list()).toHaveLength(0);
     expect(settingsScopes.has("greeter")).toBe(false);
-  });
-
-  it("retains local tool names for the manifest's base-tools provider", async () => {
-    const manifestPath = await writeWorkspace(
-      { "tools.ts": toolFeature("workspace_tools", "read") },
-      [{ entry: "./tools.ts", baseTools: true }],
-    );
-    const { substrate, agentTools } = makeSubstrate(manifestPath);
-
-    const result = await loadFeatures(
-      { manifestPath },
-      new ActiveFeatureLifetimeOwner(),
-      substrate,
-    );
-
-    expect(result.failed).toEqual([]);
-    expect(agentTools.list()[0]?.canonicalId).toBe("read");
   });
 
   it("registers in manifest order, not filesystem order", async () => {
@@ -212,7 +195,7 @@ describe("loadFeatures", () => {
 
     const result = await loadFeatures(
       { manifestPath },
-      new ActiveFeatureLifetimeOwner(),
+      new DisposableBag(),
       substrate,
     );
 
@@ -226,11 +209,7 @@ describe("loadFeatures", () => {
   it("loads nothing without a manifest", async () => {
     const { substrate, agentTools } = makeSubstrate();
 
-    const result = await loadFeatures(
-      {},
-      new ActiveFeatureLifetimeOwner(),
-      substrate,
-    );
+    const result = await loadFeatures({}, new DisposableBag(), substrate);
 
     expect(result.failed).toEqual([]);
     expect(result.activated).toEqual([]);
@@ -250,12 +229,12 @@ describe("loadFeatures", () => {
     const [firstResult, secondResult] = await Promise.all([
       loadFeatures(
         { manifestPath: firstManifest },
-        new ActiveFeatureLifetimeOwner(),
+        new DisposableBag(),
         first.substrate,
       ),
       loadFeatures(
         { manifestPath: secondManifest },
-        new ActiveFeatureLifetimeOwner(),
+        new DisposableBag(),
         second.substrate,
       ),
     ]);
@@ -269,7 +248,7 @@ describe("loadFeatures", () => {
       "greeter.ts": toolFeature("greeter"),
     });
     const { substrate, agentTools } = makeSubstrate(manifestPath);
-    const bag = new ActiveFeatureLifetimeOwner();
+    const bag = new DisposableBag();
 
     await loadFeatures({ manifestPath }, bag, substrate);
     expect(agentTools.list()).toHaveLength(1);
@@ -300,7 +279,7 @@ describe("loadFeatures", () => {
 
     const result = await loadFeatures(
       { manifestPath },
-      new ActiveFeatureLifetimeOwner(),
+      new DisposableBag(),
       substrate,
     );
 
@@ -325,7 +304,7 @@ export const feature = {
 
     const result = await loadFeatures(
       { manifestPath },
-      new ActiveFeatureLifetimeOwner(),
+      new DisposableBag(),
       substrate,
     );
 
@@ -351,7 +330,7 @@ export const feature = {
 
     const result = await loadFeatures(
       { manifestPath },
-      new ActiveFeatureLifetimeOwner(),
+      new DisposableBag(),
       substrate,
     );
 
@@ -378,7 +357,7 @@ export const feature = {
 
     const result = await loadFeatures(
       { manifestPath },
-      new ActiveFeatureLifetimeOwner(),
+      new DisposableBag(),
       substrate,
     );
 
@@ -402,7 +381,7 @@ export const feature = {
 
     const result = await loadFeatures(
       { manifestPath },
-      new ActiveFeatureLifetimeOwner(),
+      new DisposableBag(),
       substrate,
     );
 
@@ -420,7 +399,7 @@ export const feature = {
 
     const result = await loadFeatures(
       { manifestPath },
-      new ActiveFeatureLifetimeOwner(),
+      new DisposableBag(),
       substrate,
     );
 
@@ -437,7 +416,7 @@ export const feature = {
 
     const result = await loadFeatures(
       { manifestPath },
-      new ActiveFeatureLifetimeOwner(),
+      new DisposableBag(),
       substrate,
     );
 
@@ -455,7 +434,7 @@ export const feature = {
 
     const result = await loadFeatures(
       { manifestPath },
-      new ActiveFeatureLifetimeOwner(),
+      new DisposableBag(),
       substrate,
     );
 
@@ -474,7 +453,7 @@ export const feature = {
 
     const result = await loadFeatures(
       { manifestPath },
-      new ActiveFeatureLifetimeOwner(),
+      new DisposableBag(),
       substrate,
     );
 
@@ -496,7 +475,7 @@ export const feature = {
 
     const result = await loadFeatures(
       { manifestPath },
-      new ActiveFeatureLifetimeOwner(),
+      new DisposableBag(),
       substrate,
     );
 
@@ -506,39 +485,6 @@ export const feature = {
     expect(result.failed[0]?.error.message).toContain(
       "already registered: dup",
     );
-  });
-
-  it("awaits asynchronous active-feature cleanup before activating replacements", async () => {
-    const manifestPath = await writeWorkspace({
-      "greeter.ts": toolFeature("greeter"),
-    });
-    const { substrate, agentTools } = makeSubstrate(manifestPath);
-    const lifetimes = new ActiveFeatureLifetimeOwner();
-    let releaseCleanup!: () => void;
-    const cleanupGate = new Promise<void>((resolve) => {
-      releaseCleanup = resolve;
-    });
-    let reportCleanupStarted!: () => void;
-    const cleanupStarted = new Promise<void>((resolve) => {
-      reportCleanupStarted = resolve;
-    });
-    lifetimes.add({
-      async [Symbol.asyncDispose]() {
-        reportCleanupStarted();
-        await cleanupGate;
-      },
-    });
-
-    const loading = loadFeatures({ manifestPath }, lifetimes, substrate);
-    await cleanupStarted;
-    expect(agentTools.list()).toEqual([]);
-
-    releaseCleanup();
-    await expect(loading).resolves.toMatchObject({
-      activated: [{ id: "greeter" }],
-      failed: [],
-    });
-    expect(agentTools.list()[0]?.canonicalId).toBe("greeter__greet");
   });
 
   it("re-registers manifest features cleanly on reload", async () => {
@@ -551,7 +497,7 @@ export const feature = {
     );
     const sources = { manifestPath };
     const { substrate, agentTools } = makeSubstrate(manifestPath);
-    const bag = new ActiveFeatureLifetimeOwner();
+    const bag = new DisposableBag();
 
     await loadFeatures(sources, bag, substrate);
     const second = await loadFeatures(sources, bag, substrate);
@@ -571,7 +517,7 @@ export const feature = {
 `,
     });
     const { substrate, surfaces } = makeSubstrate(manifestPath);
-    const bag = new ActiveFeatureLifetimeOwner();
+    const bag = new DisposableBag();
 
     const result = await loadFeatures({ manifestPath }, bag, substrate);
 
@@ -585,7 +531,7 @@ export const feature = {
       },
     ]);
 
-    await bag.replace();
+    bag.clear();
     expect(surfaces.list()).toEqual([]);
   });
 
@@ -620,7 +566,7 @@ export const feature = {
 
     const result = await loadFeatures(
       { manifestPath },
-      new ActiveFeatureLifetimeOwner(),
+      new DisposableBag(),
       substrate,
     );
 

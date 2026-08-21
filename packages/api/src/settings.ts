@@ -72,15 +72,11 @@ function toClosedSettingsSchema<Schema extends SettingsSchema>(
  * Scope-bound settings view, the same shape whether the scope is a
  * manifest feature entry or a substrate-owned workspace namespace.
  */
-export interface ReadonlySettingsHandle {
+export interface SettingsHandle {
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- TypeScript infers T from the call-site context (e.g. `getFavoriteModels(): ModelRef[]`). Inlining to unknown would force casts at every consumer.
   get<T = unknown>(key: string): T | undefined;
-  onChange(key: string, handler: (value: unknown) => void): () => void;
-}
-
-/** Writable Workspace view of one feature settings scope. */
-export interface SettingsHandle extends ReadonlySettingsHandle {
   set(key: string, value: unknown): void;
+  onChange(key: string, handler: (value: unknown) => void): () => void;
 }
 
 export type SettingsValues<Definition extends SettingsDefinition> = Static<
@@ -88,24 +84,16 @@ export type SettingsValues<Definition extends SettingsDefinition> = Static<
 >;
 
 /** A scope handle whose keys and values derive from its settings definition. */
-export interface ReadonlySettingsHandleFrom<
-  Definition extends SettingsDefinition,
-> {
+export interface SettingsHandleFrom<Definition extends SettingsDefinition> {
   get<Key extends Extract<keyof SettingsValues<Definition>, string>>(
     key: Key,
   ): SettingsValues<Definition>[Key] | undefined;
-  onChange<Key extends Extract<keyof SettingsValues<Definition>, string>>(
-    key: Key,
-    handler: (value: SettingsValues<Definition>[Key] | undefined) => void,
-  ): () => void;
-}
-
-/** Typed writable Workspace view of one feature settings scope. */
-export interface SettingsHandleFrom<
-  Definition extends SettingsDefinition,
-> extends ReadonlySettingsHandleFrom<Definition> {
   set<Key extends Extract<keyof SettingsValues<Definition>, string>>(
     key: Key,
     value: Exclude<SettingsValues<Definition>[Key], undefined>,
   ): void;
+  onChange<Key extends Extract<keyof SettingsValues<Definition>, string>>(
+    key: Key,
+    handler: (value: SettingsValues<Definition>[Key] | undefined) => void,
+  ): () => void;
 }
