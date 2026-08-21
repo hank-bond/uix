@@ -6,7 +6,7 @@ summary: "Build grouped workspace/Agent facet lifecycles, per-Agent feature stat
 
 ## Status and relationship to the host split
 
-A1 design is settled. A1.1 and A1.2 have landed. A1.3 is next as the author-contract and production cutover. No production request path uses the new composition engine yet.
+A1 design is settled. A1.1, A1.2, A1.3.1, and A1.3.2 have landed. A1.3.3 is next. No production request path uses the new composition engine yet.
 
 A1-A3 now precede the basic web host vertical. A server whose useful vertical is several tabs on different sessions must not ship against workspace-global Canvas working state. H6 therefore follows selected-view Canvas I/O and admits several browser attachments from its first supported flow instead of adding a temporary one-connection-per-workspace policy.
 
@@ -75,6 +75,28 @@ Implement the unified tool resolver in this engine. One composition feature may 
 Stop for review before A1.3.
 
 #### A1.3: Author-contract and production cutover
+
+##### Delivery slices
+
+A1.3 uses narrow review slices. Each slice introduces one concept. Slices A1.3.5 through A1.3.10 may leave the branch temporarily non-green rather than adding a compatibility adapter. Return typechecking and builds to green by A1.3.10. Restore complete production Agent behavior by A1.3.12.
+
+1. **A1.3.1: Nominal Agent composition admission (landed).** Replace the assembly helper with `AdmittedAgentCompositionDefinition`. Give it one private construction path, validate generation-static invariants, snapshot invariant-bearing data, and adopt the settled live-composition vocabulary.
+2. **A1.3.2: Manifest base-tools designation (landed).** Add `baseTools?: true`, reject several marked entries during manifest parsing, and make the resolved manifest reference retain the admitted marker.
+3. **A1.3.3: Unified tool path.** Remove the exact-name override contract and runtime operations. Apply admitted base-tool naming in the ordinary resolver and batch registry operation. Migrate workspace tools and the bare template without changing the grouped feature contract. End green.
+4. **A1.3.4: Mixed active-feature lifetime.** Introduce one awaitable, replaceable owner for active feature lifetimes. Make reload and shutdown await asynchronous state cleanup without changing the author contract. End green.
+5. **A1.3.5: Grouped author-contract types.** Define Workspace and Agent bases, state factories, grouped facet factories, channel definitions, read-only Agent settings, and type inference tests. Change no loader or feature implementation in this slice.
+6. **A1.3.6: Workspace loader lane.** Validate and construct `workspaceState`, invoke Workspace facets as independent operations, and retain structured state, contribution, and registration outcomes. Add loader fixtures without implementing Agent realization.
+7. **A1.3.7: Agent generation admission.** Convert admitted feature definitions into reusable Agent feature candidates. Admit static Agent contracts and base-tool policy, then emit one `AdmittedAgentCompositionDefinition`. The loader never constructs Agent state.
+8. **A1.3.8: Stateless feature migration.** Move Chat, workspace tools, and the bare template to the grouped contract. Keep this slice mechanical and free of Canvas lifecycle decisions.
+9. **A1.3.9: Canvas Workspace migration.** Move Canvas's repository, buffer bridge, resources, writeback channel, and surface into `workspaceState` and `workspace`. Move no Agent facet.
+10. **A1.3.10: Canvas Agent migration.** Move Canvas tools, turn state, model context, prompt, and skills into `agentState` and `agent`. Keep the temporary feature-private buffer bridge explicit. Restore typechecking and builds here.
+11. **A1.3.11: Agent-instance production cutover.** Give each `AgentInstance` the admitted composition and construct fresh live Agent feature compositions. Install their aggregate Pi capability. Remove workspace-global Agent registries and temporary registration paths.
+12. **A1.3.12: Agent channel routing.** Bind admitted static contracts into the canonical workspace table. Bind handlers per Agent instance and dispatch through the attachment's guarded instance. Restore complete Electron behavior and end green.
+13. **A1.3.13: Capability hardening.** Replace generic registry and state bundles with consumer-specific operational capabilities. Keep disposal with the supervisor and installation with Pi boot.
+14. **A1.3.14: Model-context rename.** Mechanically rename the model-visible `AgentContext*` family to `ModelContext*` after lifecycle behavior is stable.
+15. **A1.3.15: Documentation and final cleanup.** Add the lifecycle architecture record, update author guidance and current-state documentation, remove stale vocabulary, and run the final repository checks.
+
+The slices are review boundaries, not compatibility promises. Do not retain the old author path or an adapter after the cutover.
 
 Replace `FeatureDefinition.context`/`contribute` with top-level `workspaceState`/`agentState` and grouped `workspace`/`agent` sections in one breaking migration. Do not retain an adapter for the old shape. Change the loader from whole-feature registration to definition/settings admission, atomic Workspace feature-state construction, independent Workspace facet operations, and emission of the accepted generation's `AdmittedAgentCompositionDefinition`.
 
