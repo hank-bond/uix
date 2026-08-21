@@ -24,15 +24,21 @@ export type {
   DocumentVersion,
 } from "./documents";
 export type {
-  FeatureContext,
-  FeatureContributions,
+  AgentChannelDefinition,
+  AgentFacetFactories,
+  AgentFeatureStateBase,
+  AgentFeatureStateFactory,
   FeatureDefinition,
-  FeaturePreflightContributions,
+  WorkspaceChannelDefinition,
+  WorkspaceFacetFactories,
+  WorkspaceFeatureStateBase,
+  WorkspaceFeatureStateFactory,
 } from "./feature";
 export { defineFeature } from "./feature";
 export type {
   AgentFeatureState,
   AgentFeatureStateBuilder,
+  FeatureStateOf,
   WorkspaceFeatureState,
   WorkspaceFeatureStateBuilder,
 } from "./feature-state";
@@ -44,6 +50,8 @@ export {
   FeatureSettingAddressSchema,
   type FeatureSettingValueEnvelope,
   FeatureSettingValueEnvelopeSchema,
+  type ReadonlySettingsHandle,
+  type ReadonlySettingsHandleFrom,
   type SettingsDefinition,
   type SettingsHandle,
   type SettingsHandleFrom,

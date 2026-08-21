@@ -27,7 +27,7 @@ The files divide by facet. Feature and channel definitions (`feature.ts`, `chann
 - **[contribution-id.ts](./contribution-id.ts)** Shared contribution-id brand and constructor.
 - **[documents.ts](./documents.ts)** Document store contract.
 - **[feature-state.ts](./feature-state.ts)** Feature-state builder contracts for Workspace and Agent feature states.
-- **[feature.ts](./feature.ts)** Feature contribution contract.
+- **[feature.ts](./feature.ts)** Grouped feature author contract.
 - **[index.ts](./index.ts)** The `@uix/api` public facade re-exporting shared feature-author contracts.
 - **[log.ts](./log.ts)** Feature logger contract.
 - **[resource-canonical-id.ts](./resource-canonical-id.ts)** Resource canonical id brand and constructor.

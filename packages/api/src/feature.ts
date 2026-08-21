@@ -1,26 +1,30 @@
-// Feature contribution contract.
+// Grouped feature author contract.
 //
-// FeatureDefinition is the shape a manifest-selected feature entry exports:
-// an id, an optional context hook, and a contribute function that returns the
-// feature's facet contributions. First-party and workspace modules are
-// indistinguishable here. The substrate activates both through the same path.
-//
-// FeatureContext is the service bag injected by the host into every feature
-// at activation time. Features access external state only through this object
-// and the typed contribution schemas, never by importing host internals.
+// A manifest-selected feature declares optional Workspace and Agent state
+// prerequisites plus independent contribution factories in those authority
+// lanes. The substrate constructs each state before invoking its matching
+// section and privately controls sibling operation order.
 
 import type { AgentContextContribution } from "./agent-context";
 import type { AgentSkillContribution } from "./agent-skills";
 import type { AgentSystemPromptContribution } from "./agent-system-prompt";
 import type { AgentToolContribution } from "./agent-tools";
 import type {
-  ChannelContribution,
+  ChannelContract,
+  ChannelHandlers,
   FeatureEventPublisherFactory,
 } from "./channels";
 import type { DocumentStoreFactory } from "./documents";
+import type {
+  AgentFeatureStateBuilder,
+  FeatureStateOf,
+  WorkspaceFeatureStateBuilder,
+} from "./feature-state";
 import type { FeatureLogger } from "./log";
 import type { ResourceContribution } from "./resources";
 import type {
+  ReadonlySettingsHandle,
+  ReadonlySettingsHandleFrom,
   SettingsDefinition,
   SettingsHandle,
   SettingsHandleFrom,
@@ -31,96 +35,173 @@ export type { AgentContextContribution } from "./agent-context";
 export type { AgentSkillContribution } from "./agent-skills";
 export type { AgentSystemPromptContribution } from "./agent-system-prompt";
 export type { AgentToolContribution } from "./agent-tools";
-export type { ChannelContribution } from "./channels";
 export type { DocumentStoreFactory } from "./documents";
 export type { FeatureLogger } from "./log";
 export type { ResourceContribution } from "./resources";
-export type { SettingsDefinition, SettingsHandle } from "./settings";
+export type {
+  ReadonlySettingsHandle,
+  SettingsDefinition,
+  SettingsHandle,
+} from "./settings";
 export type {
   TurnStateCellDefinition,
   TurnStateContributions,
 } from "./turn-state";
 
-export interface FeatureContext {
-  documents: DocumentStoreFactory;
-  settings: SettingsHandle;
-  channels: FeatureEventPublisherFactory;
-  /** Feature-id-scoped structured logger bound by the host. */
-  log: FeatureLogger;
+type WritableFeatureSettings<Settings extends SettingsDefinition | undefined> =
+  [Settings] extends [SettingsDefinition]
+    ? SettingsHandleFrom<Extract<Settings, SettingsDefinition>>
+    : SettingsHandle;
+
+type ReadonlyFeatureSettings<Settings extends SettingsDefinition | undefined> =
+  [Settings] extends [SettingsDefinition]
+    ? ReadonlySettingsHandleFrom<Extract<Settings, SettingsDefinition>>
+    : ReadonlySettingsHandle;
+
+/** Substrate fields available while constructing one Workspace feature state. */
+export interface WorkspaceFeatureStateBase<
+  Settings extends SettingsDefinition | undefined = undefined,
+> {
+  readonly documents: DocumentStoreFactory;
+  readonly settings: WritableFeatureSettings<Settings>;
+  readonly channels: FeatureEventPublisherFactory;
+  readonly log: FeatureLogger;
 }
 
-export type FeaturePreflightContributions = Record<string, never>;
-
-export interface FeatureContributions {
-  resources?: readonly ResourceContribution[];
-  channels?: readonly ChannelContribution[];
-  /** Pi tools, namespaced unless this feature is the manifest's base-tools provider. */
-  agentTools?: readonly AgentToolContribution[];
-  /** Stable Markdown appended to the agent system prompt while this feature is active. */
-  agentSystemPrompt?: AgentSystemPromptContribution;
-  /** Pi skill files/directories, resolved relative to the feature entry file. */
-  agentSkills?: readonly AgentSkillContribution[];
-  turnState?: TurnStateContributions;
-  agentContext?: readonly AgentContextContribution[];
-  /**
-   * Frontend surface entry files, resolved against the feature entry's
-   * directory (absolute paths pass through). Each module must export
-   * `surface`, a `defineSurface` result. The workspace mounts them in
-   * composition order (manifest order, then declaration order here).
-   */
-  surfaces?: readonly string[];
+/** Substrate fields available while constructing one viewpoint-local Agent state. */
+export interface AgentFeatureStateBase<
+  Settings extends SettingsDefinition | undefined = undefined,
+> {
+  readonly settings: ReadonlyFeatureSettings<Settings>;
+  readonly channels: FeatureEventPublisherFactory;
+  readonly log: FeatureLogger;
 }
 
-export interface FeatureDefinition<ContributedContext extends object = object> {
-  id: string;
-  preflight?: FeaturePreflightContributions;
-  /**
-   * Feature-scoped settings declared before context construction so the
-   * loader can hydrate defaults and validate persisted values before
-   * handing `ctx.settings` to `context()` and `contribute()`.
-   */
-  settings?: SettingsDefinition;
-  /**
-   * Feature-local context hook. Runs first, before any other contribution,
-   * and the substrate guarantees its execution order. The substrate merges
-   * its return value onto the FeatureContext and hands it to
-   * `contribute` and every facet factory.
-   */
-  context?: (ctx: FeatureContext) => ContributedContext;
-  contribute(ctx: FeatureContext & ContributedContext): FeatureContributions;
+/** Synchronous construction of one Workspace feature state's live object graph. */
+export type WorkspaceFeatureStateFactory<
+  Settings extends SettingsDefinition | undefined = undefined,
+  Built extends WorkspaceFeatureStateBuilder<object> =
+    WorkspaceFeatureStateBuilder<WorkspaceFeatureStateBase<Settings>>,
+> = (
+  state: WorkspaceFeatureStateBuilder<WorkspaceFeatureStateBase<Settings>>,
+) => Built;
+
+/** Synchronous construction of one fresh viewpoint-local Agent feature state. */
+export type AgentFeatureStateFactory<
+  Settings extends SettingsDefinition | undefined = undefined,
+  Built extends AgentFeatureStateBuilder<object> = AgentFeatureStateBuilder<
+    AgentFeatureStateBase<Settings>
+  >,
+> = (state: AgentFeatureStateBuilder<AgentFeatureStateBase<Settings>>) => Built;
+
+/** One static Workspace protocol with handlers bound from Workspace state. */
+export interface WorkspaceChannelDefinition<
+  State extends object = object,
+  Contract extends ChannelContract = ChannelContract,
+> {
+  readonly contract: Contract;
+  readonly handlers: (state: Readonly<State>) => ChannelHandlers<Contract>;
 }
 
-type AuthoredFeatureContext<Settings extends SettingsDefinition | undefined> =
-  Omit<FeatureContext, "settings"> & {
-    settings: Settings extends SettingsDefinition
-      ? SettingsHandleFrom<Settings>
-      : SettingsHandle;
-  };
+/** One static Agent protocol with handlers bound from one Agent state. */
+export interface AgentChannelDefinition<
+  State extends object = object,
+  Contract extends ChannelContract = ChannelContract,
+> {
+  readonly contract: Contract;
+  readonly handlers: (state: Readonly<State>) => ChannelHandlers<Contract>;
+}
 
-type AuthoredFeatureDefinition<
+interface StateBoundChannelDefinition<State extends object> {
+  readonly contract: ChannelContract;
+  readonly handlers: (state: Readonly<State>) => object;
+}
+
+/** Independent Workspace contribution factories over completed Workspace state. */
+export interface WorkspaceFacetFactories<State extends object = object> {
+  readonly resources?: (
+    state: Readonly<State>,
+  ) => readonly ResourceContribution[];
+  readonly channels?: ReadonlyArray<StateBoundChannelDefinition<State>>;
+  /** Surface entry files resolved against the feature entry directory. */
+  readonly surfaces?: (state: Readonly<State>) => readonly string[];
+}
+
+/** Independent Agent contribution factories over one completed Agent state. */
+export interface AgentFacetFactories<State extends object = object> {
+  readonly tools?: (state: Readonly<State>) => readonly AgentToolContribution[];
+  readonly systemPrompt?: (
+    state: Readonly<State>,
+  ) => AgentSystemPromptContribution;
+  readonly skills?: (
+    state: Readonly<State>,
+  ) => readonly AgentSkillContribution[];
+  readonly turnState?: (state: Readonly<State>) => TurnStateContributions;
+  /** Model-visible projection of this viewpoint-local Agent feature state. */
+  readonly modelContext?: (
+    state: Readonly<State>,
+  ) => readonly AgentContextContribution[];
+  readonly channels?: ReadonlyArray<StateBoundChannelDefinition<State>>;
+}
+
+/** Runtime-erased grouped feature definition consumed after source loading. */
+export interface FeatureDefinition {
+  readonly id: string;
+  readonly settings?: SettingsDefinition;
+  readonly workspaceState?: WorkspaceFeatureStateFactory;
+  readonly agentState?: AgentFeatureStateFactory;
+  readonly workspace?: WorkspaceFacetFactories;
+  readonly agent?: AgentFacetFactories;
+}
+
+type CompletedWorkspaceState<
   Settings extends SettingsDefinition | undefined,
-  ContributedContext extends object,
-> = Omit<
-  FeatureDefinition<ContributedContext>,
-  "settings" | "context" | "contribute"
-> & {
-  settings?: Settings;
-  context?: (ctx: AuthoredFeatureContext<Settings>) => ContributedContext;
-  contribute(
-    ctx: AuthoredFeatureContext<Settings> & ContributedContext,
-  ): FeatureContributions;
-};
+  Built extends WorkspaceFeatureStateBuilder<object> | undefined,
+> =
+  Built extends WorkspaceFeatureStateBuilder<object>
+    ? FeatureStateOf<Built>
+    : Readonly<WorkspaceFeatureStateBase<Settings>>;
+
+type CompletedAgentState<
+  Settings extends SettingsDefinition | undefined,
+  Built extends AgentFeatureStateBuilder<object> | undefined,
+> =
+  Built extends AgentFeatureStateBuilder<object>
+    ? FeatureStateOf<Built>
+    : Readonly<AgentFeatureStateBase<Settings>>;
+
+interface AuthoredFeatureDefinition<
+  Settings extends SettingsDefinition | undefined,
+  WorkspaceBuilt extends WorkspaceFeatureStateBuilder<object> | undefined,
+  AgentBuilt extends AgentFeatureStateBuilder<object> | undefined,
+> {
+  readonly id: string;
+  readonly settings?: Settings;
+  readonly workspaceState?: (
+    state: WorkspaceFeatureStateBuilder<WorkspaceFeatureStateBase<Settings>>,
+  ) => Exclude<WorkspaceBuilt, undefined>;
+  readonly agentState?: (
+    state: AgentFeatureStateBuilder<AgentFeatureStateBase<Settings>>,
+  ) => Exclude<AgentBuilt, undefined>;
+  readonly workspace?: WorkspaceFacetFactories<
+    CompletedWorkspaceState<Settings, WorkspaceBuilt>
+  >;
+  readonly agent?: AgentFacetFactories<
+    CompletedAgentState<Settings, AgentBuilt>
+  >;
+}
 
 /**
- * Preserve an authored settings schema through the feature's injected context.
- * Runtime loading consumes the erased `FeatureDefinition`. This helper preserves
- * only source-level agreement between the definition and its callbacks.
+ * Preserve settings and state-builder inference across grouped contribution
+ * factories. Runtime loading consumes the erased {@link FeatureDefinition}.
  */
 export function defineFeature<
   const Settings extends SettingsDefinition | undefined = undefined,
-  ContributedContext extends object = object,
+  WorkspaceBuilt extends WorkspaceFeatureStateBuilder<object> | undefined =
+    undefined,
+  AgentBuilt extends AgentFeatureStateBuilder<object> | undefined = undefined,
 >(
-  definition: AuthoredFeatureDefinition<Settings, ContributedContext>,
-): FeatureDefinition<ContributedContext> {
-  return definition as unknown as FeatureDefinition<ContributedContext>;
+  definition: AuthoredFeatureDefinition<Settings, WorkspaceBuilt, AgentBuilt>,
+): FeatureDefinition {
+  return definition as unknown as FeatureDefinition;
 }
