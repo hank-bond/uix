@@ -49,6 +49,7 @@ import type {
 } from "./dispatch";
 import { createLocalDocumentStoreFactory } from "./document-store";
 import type { EventScope, RuntimeEvent } from "./events";
+import { ActiveFeatureLifetimeOwner } from "./features/active-lifetimes";
 import type {
   ActivationResult,
   FeatureSources,
@@ -127,13 +128,13 @@ interface AttachmentOwner {
 /**
  * The exactly-one-workspace runtime. Owns the accepted feature composition,
  * settings, stores, registries, workspace agent runtime, and reload
- * coordinator under one lifetime bag. Disposing it removes only this
- * workspace's state and routes.
+ * coordinator under explicit synchronous and asynchronous lifetime owners.
+ * Disposing it removes only this workspace's state and routes.
  */
 class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   readonly #workspaceId: WorkspaceId;
   readonly #bag = new DisposableBag();
-  readonly #featuresBag = new DisposableBag();
+  readonly #activeFeatureLifetimes = new ActiveFeatureLifetimeOwner();
   readonly #channels: ChannelRegistry;
   readonly #resources: ResourceRegistry;
   readonly #settingsRegistry: SettingsRegistry;
@@ -493,7 +494,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
       loadFeatures: () =>
         loadFeatures(
           this.#currentSources(),
-          this.#featuresBag,
+          this.#activeFeatureLifetimes,
           this.#substrate,
         ),
       reloadPiResources: () => this.#agentRuntime.reloadPiResources(),
@@ -526,7 +527,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     try {
       activation = await loadFeatures(
         this.#currentSources(),
-        this.#featuresBag,
+        this.#activeFeatureLifetimes,
         this.#substrate,
       );
     } catch (thrown) {
@@ -673,11 +674,25 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
       }
       this.#attachments.clear();
       this.#listeners.clear();
+      const teardownErrors: unknown[] = [];
       try {
         await this.#agentRuntime[Symbol.asyncDispose]();
+      } catch (error) {
+        teardownErrors.push(error);
+      }
+      try {
+        await this.#activeFeatureLifetimes[Symbol.asyncDispose]();
+      } catch (error) {
+        teardownErrors.push(error);
       } finally {
-        this.#featuresBag[Symbol.dispose]();
         this.#bag[Symbol.dispose]();
+      }
+      if (teardownErrors.length === 1) throw teardownErrors[0];
+      if (teardownErrors.length > 1) {
+        throw new AggregateError(
+          teardownErrors,
+          "Workspace runtime teardown failed",
+        );
       }
     })();
     return this.#disposal;
