@@ -11,8 +11,8 @@ import type { AgentToolDefinition } from "@uix/api/agent-tools";
 import type { ChannelContract } from "@uix/api/channels";
 
 import {
+  AdmittedAgentCompositionDefinition,
   type AgentFeatureDefinition,
-  assembleAgentCompositionDefinition,
 } from "./composition-definition";
 import {
   type AgentInstanceOwnership,
@@ -146,7 +146,9 @@ describe("Agent composition engine", () => {
         ],
       },
     };
-    const definition = assembleAgentCompositionDefinition([everything]);
+    const definition = AdmittedAgentCompositionDefinition.admitGeneration([
+      everything,
+    ]);
     const pis = new Map<string, FakePi>();
 
     const create = async (viewpoint: string): Promise<AgentInstanceOwnership> =>
@@ -203,8 +205,8 @@ describe("Agent composition engine", () => {
 
     const firstChannels = firstFeatures.registries.channels.list()[0];
     const secondChannels = secondFeatures.registries.channels.list()[0];
-    expect(firstChannels.contract).toBe(viewpointContract);
-    expect(secondChannels.contract).toBe(viewpointContract);
+    expect(firstChannels.contract).toEqual(viewpointContract);
+    expect(secondChannels.contract).toEqual(viewpointContract);
     expect(await firstChannels.handlers.identify.handler({})).toEqual({
       viewpoint: "first",
     });
@@ -264,7 +266,10 @@ describe("Agent composition engine", () => {
         tools: () => [{ name: "inspect", tool: toolBody("steady") }],
       },
     };
-    const definition = assembleAgentCompositionDefinition([fragile, steady]);
+    const definition = AdmittedAgentCompositionDefinition.admitGeneration([
+      fragile,
+      steady,
+    ]);
     const create = (viewpoint: string): Promise<AgentInstanceOwnership> =>
       createComposedAgentInstance({
         composition: definition,
@@ -351,7 +356,11 @@ describe("Agent composition engine", () => {
         tools: () => [{ name: "lookup", tool: toolBody("lookup") }],
       },
     };
-    const definition = assembleAgentCompositionDefinition([base, other, extra]);
+    const definition = AdmittedAgentCompositionDefinition.admitGeneration([
+      base,
+      other,
+      extra,
+    ]);
     const instance = await createComposedAgentInstance({
       composition: definition,
       createFeatureStateBase: () => ({}),
@@ -421,7 +430,10 @@ describe("Agent composition engine", () => {
     };
     const pi = createFakePi();
     const instance = await createComposedAgentInstance({
-      composition: assembleAgentCompositionDefinition([first, second]),
+      composition: AdmittedAgentCompositionDefinition.admitGeneration([
+        first,
+        second,
+      ]),
       createFeatureStateBase: () => ({}),
       target: { sessionId: toSessionId("installation") },
       manager: {} as SessionManager,
@@ -448,7 +460,7 @@ describe("Agent composition engine", () => {
       throw installFailure;
     });
     const instance = await createComposedAgentInstance({
-      composition: assembleAgentCompositionDefinition([
+      composition: AdmittedAgentCompositionDefinition.admitGeneration([
         {
           featureId: "broken",
           agent: {

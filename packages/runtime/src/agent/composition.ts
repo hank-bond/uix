@@ -3,7 +3,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 import type {
-  AgentCompositionDefinition,
+  AdmittedAgentCompositionDefinition,
   AgentFeatureDefinition,
 } from "./composition-definition";
 import { createAgentCompositionFacetState } from "./composition-registries";
@@ -42,7 +42,7 @@ type AgentCompositionFacetState = ReturnType<
   typeof createAgentCompositionFacetState
 >;
 type AgentFeatureFacet = keyof AgentFeatureDefinition["agent"];
-type Attempt<Value> =
+type OperationAttempt<Value> =
   | { readonly ok: true; readonly value: Value }
   | { readonly ok: false; readonly error: unknown };
 
@@ -55,8 +55,8 @@ const AgentFeatureFacetOrder = [
   "channels",
 ] as const satisfies readonly AgentFeatureFacet[];
 
-export interface AgentCompositionInstance {
-  readonly definition: AgentCompositionDefinition;
+export interface LiveAgentFeatureComposition {
+  readonly definition: AdmittedAgentCompositionDefinition;
   readonly featureStates: AgentCompositionFacetState["featureStateView"];
   readonly registries: AgentCompositionFacetState["registryCapabilities"];
   /** List completed state construction, contribution, and registration outcomes. */
@@ -64,25 +64,25 @@ export interface AgentCompositionInstance {
 }
 
 /** Setup-time capability for installing one accepted Agent snapshot into Pi. */
-export interface AgentCompositionInstaller {
+export interface AgentFeatureCompositionInstaller {
   /** Install each complete instance registry according to its natural Pi semantics. */
   install(pi: ExtensionAPI): Promise<void>;
 }
 
-export type AgentCompositionInstanceOwnership = AgentCompositionInstance &
-  AgentCompositionInstaller &
+export type LiveAgentFeatureCompositionOwnership = LiveAgentFeatureComposition &
+  AgentFeatureCompositionInstaller &
   AsyncDisposable;
 
-interface CreateAgentCompositionInstanceOptions {
-  readonly definition: AgentCompositionDefinition;
+interface CreateLiveAgentFeatureCompositionOptions {
+  readonly definition: AdmittedAgentCompositionDefinition;
   /** Construct the fresh substrate base for one feature and viewpoint. */
   readonly createFeatureStateBase: (feature: AgentFeatureDefinition) => object;
 }
 
 /** Instantiate admitted feature states and register each declared facet independently. */
-export async function createAgentCompositionInstance(
-  options: CreateAgentCompositionInstanceOptions,
-): Promise<AgentCompositionInstanceOwnership> {
+export async function createLiveAgentFeatureComposition(
+  options: CreateLiveAgentFeatureCompositionOptions,
+): Promise<LiveAgentFeatureCompositionOwnership> {
   const compositionBag = new AsyncDisposableBag();
   const { featureStates, featureStateView, registries, registryCapabilities } =
     createAgentCompositionFacetState();
@@ -342,7 +342,7 @@ function runAgentFacetOperation<Value>(
   phase: "contribution" | "registration",
   facet: AgentFeatureFacet,
   operation: () => Value,
-): Attempt<Value> {
+): OperationAttempt<Value> {
   try {
     const value = operation();
     outcomes.push(

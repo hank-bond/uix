@@ -6,13 +6,13 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 
 import {
-  type AgentCompositionInstaller,
-  type AgentCompositionInstance,
-  type AgentCompositionInstanceOwnership,
-  createAgentCompositionInstance,
+  type AgentFeatureCompositionInstaller,
+  createLiveAgentFeatureComposition,
+  type LiveAgentFeatureComposition,
+  type LiveAgentFeatureCompositionOwnership,
 } from "./composition";
 import type {
-  AgentCompositionDefinition,
+  AdmittedAgentCompositionDefinition,
   AgentFeatureDefinition,
 } from "./composition-definition";
 import {
@@ -28,7 +28,7 @@ export interface AgentInstance {
   readonly manager: SessionManager;
   readonly state: AgentInstanceState;
   /** Viewpoint-local feature states and registries when using the composition engine. */
-  readonly featureComposition?: AgentCompositionInstance;
+  readonly featureComposition?: LiveAgentFeatureComposition;
   /** Register the instance's only active turn, or reject when one is already active. */
   registerActiveTurn(control: OperationControl): Disposable;
   /** Request cancellation and await the active turn's lexical completion. */
@@ -58,19 +58,19 @@ export interface AgentInstanceOptions {
     state: AgentInstanceState,
   ) => Promise<void>;
   readonly state: AgentInstanceStateOptions;
-  readonly featureComposition?: AgentCompositionInstanceOwnership;
+  readonly featureComposition?: LiveAgentFeatureCompositionOwnership;
 }
 
 interface ComposedAgentInstanceOptions extends Omit<
   AgentInstanceOptions,
   "createRuntime" | "featureComposition"
 > {
-  readonly composition: AgentCompositionDefinition;
+  readonly composition: AdmittedAgentCompositionDefinition;
   readonly createFeatureStateBase: (feature: AgentFeatureDefinition) => object;
   readonly createRuntime: (
     manager: SessionManager,
     state: AgentInstanceState,
-    features: AgentCompositionInstance & AgentCompositionInstaller,
+    features: LiveAgentFeatureComposition & AgentFeatureCompositionInstaller,
   ) => Promise<AgentSessionRuntime>;
 }
 
@@ -187,12 +187,12 @@ export function createAgentInstance(
 export async function createComposedAgentInstance(
   opts: ComposedAgentInstanceOptions,
 ): Promise<AgentInstanceOwnership> {
-  const featureComposition = await createAgentCompositionInstance({
+  const featureComposition = await createLiveAgentFeatureComposition({
     definition: opts.composition,
     createFeatureStateBase: opts.createFeatureStateBase,
   });
-  const installableComposition: AgentCompositionInstance &
-    AgentCompositionInstaller = {
+  const installableComposition: LiveAgentFeatureComposition &
+    AgentFeatureCompositionInstaller = {
     definition: featureComposition.definition,
     featureStates: featureComposition.featureStates,
     registries: featureComposition.registries,
