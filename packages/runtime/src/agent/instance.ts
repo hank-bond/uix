@@ -6,6 +6,16 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 
 import {
+  type AgentCompositionInstaller,
+  type AgentCompositionInstance,
+  type AgentCompositionInstanceOwnership,
+  createAgentCompositionInstance,
+} from "./composition";
+import type {
+  AgentCompositionDefinition,
+  AgentFeatureDefinition,
+} from "./composition-definition";
+import {
   type AgentInstanceState,
   type AgentInstanceStateOptions,
   createAgentInstanceState,
@@ -17,6 +27,8 @@ export interface AgentInstance {
   readonly target: SessionTarget;
   readonly manager: SessionManager;
   readonly state: AgentInstanceState;
+  /** Viewpoint-local feature states and registries when using the composition engine. */
+  readonly featureComposition?: AgentCompositionInstance;
   /** Register the instance's only active turn, or reject when one is already active. */
   registerActiveTurn(control: OperationControl): Disposable;
   /** Request cancellation and await the active turn's lexical completion. */
@@ -46,6 +58,20 @@ export interface AgentInstanceOptions {
     state: AgentInstanceState,
   ) => Promise<void>;
   readonly state: AgentInstanceStateOptions;
+  readonly featureComposition?: AgentCompositionInstanceOwnership;
+}
+
+interface ComposedAgentInstanceOptions extends Omit<
+  AgentInstanceOptions,
+  "createRuntime" | "featureComposition"
+> {
+  readonly composition: AgentCompositionDefinition;
+  readonly createFeatureStateBase: (feature: AgentFeatureDefinition) => object;
+  readonly createRuntime: (
+    manager: SessionManager,
+    state: AgentInstanceState,
+    features: AgentCompositionInstance & AgentCompositionInstaller,
+  ) => Promise<AgentSessionRuntime>;
 }
 
 /** Creates an independently disposable instance with lazy Pi runtime boot. */
@@ -53,6 +79,15 @@ export function createAgentInstance(
   opts: AgentInstanceOptions,
 ): AgentInstanceOwnership {
   const state = createAgentInstanceState(opts.state);
+  const featureCompositionOwnership = opts.featureComposition;
+  const featureComposition = featureCompositionOwnership
+    ? {
+        definition: featureCompositionOwnership.definition,
+        featureStates: featureCompositionOwnership.featureStates,
+        registries: featureCompositionOwnership.registries,
+        listOutcomes: () => featureCompositionOwnership.listOutcomes(),
+      }
+    : undefined;
   let runtime: AgentSessionRuntime | undefined;
   let inFlightRuntimeBoot: Promise<AgentSessionRuntime> | undefined;
   let disposal: Promise<void> | undefined;
@@ -102,6 +137,11 @@ export function createAgentInstance(
       } catch (error) {
         errors.push(error);
       }
+      try {
+        await featureCompositionOwnership?.[Symbol.asyncDispose]();
+      } catch (error) {
+        errors.push(error);
+      }
       if (errors.length > 0) {
         throw new AggregateError(errors, "Agent instance disposal failed");
       }
@@ -113,6 +153,7 @@ export function createAgentInstance(
     target: opts.target,
     manager: opts.manager,
     state,
+    ...(featureComposition && { featureComposition }),
     registerActiveTurn(control) {
       if (activeTurn) throw new Error("Agent is already running");
       activeTurn = control;
@@ -140,4 +181,46 @@ export function createAgentInstance(
     },
     [Symbol.asyncDispose]: dispose,
   };
+}
+
+/** Construct one Agent instance from a fresh feature composition. */
+export async function createComposedAgentInstance(
+  opts: ComposedAgentInstanceOptions,
+): Promise<AgentInstanceOwnership> {
+  const featureComposition = await createAgentCompositionInstance({
+    definition: opts.composition,
+    createFeatureStateBase: opts.createFeatureStateBase,
+  });
+  const installableComposition: AgentCompositionInstance &
+    AgentCompositionInstaller = {
+    definition: featureComposition.definition,
+    featureStates: featureComposition.featureStates,
+    registries: featureComposition.registries,
+    listOutcomes: () => featureComposition.listOutcomes(),
+    install: (pi) => featureComposition.install(pi),
+  };
+  try {
+    return createAgentInstance({
+      target: opts.target,
+      manager: opts.manager,
+      state: opts.state,
+      featureComposition,
+      createRuntime: (manager, state) =>
+        opts.createRuntime(manager, state, installableComposition),
+      ...(opts.commitFinalTurnState && {
+        commitFinalTurnState: opts.commitFinalTurnState,
+      }),
+    });
+  } catch (creationError) {
+    try {
+      await featureComposition[Symbol.asyncDispose]();
+    } catch (disposalError) {
+      throw new AggregateError(
+        [creationError, disposalError],
+        "Agent instance creation and composition rollback failed",
+        { cause: disposalError },
+      );
+    }
+    throw creationError;
+  }
 }

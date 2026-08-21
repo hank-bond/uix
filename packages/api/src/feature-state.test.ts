@@ -21,10 +21,12 @@ interface AgentBase {
 // Return types stay inferred because inference across the chain is the contract under test.
 const _buildWorkspaceState = (
   state: WorkspaceFeatureStateBuilder<WorkspaceBase>,
-) =>
-  state
-    .add({ cache: new Map<string, string>() })
-    .add({ counter: { value: 0 } });
+) => {
+  state.log.info(String(state.settings.enabled));
+  const withCache = state.add({ cache: new Map<string, string>() });
+  withCache.cache.set("constructed", "yes");
+  return withCache.add({ counter: { value: 0 } });
+};
 
 type CompletedWorkspaceState = FeatureStateOf<
   ReturnType<typeof _buildWorkspaceState>
@@ -73,6 +75,8 @@ describe("feature-state author contracts", () => {
       state.add({ first: 1, second: 2 });
       // @ts-expect-error additions cannot replace a substrate member
       state.add({ settings: { enabled: false } });
+      // @ts-expect-error additions cannot replace construction authority
+      state.add({ add: "not authority" });
 
       const widened = state.add({ cache: new Map<string, string>() });
       // @ts-expect-error additions cannot replace an earlier addition

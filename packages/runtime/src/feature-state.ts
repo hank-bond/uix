@@ -49,9 +49,14 @@ export async function createFeatureStateOwnership<
 >(
   options: CreateFeatureStateOwnershipOptions<Kind, Base, Built>,
 ): Promise<FeatureStateOwnership<FeatureStateOf<Built>>> {
-  const owner = new AsyncDisposableBag();
+  const stateBag = new AsyncDisposableBag();
   const members = { ...options.base } as Record<PropertyKey, unknown>;
   const baseMemberNames = new Set(Reflect.ownKeys(options.base));
+  if (baseMemberNames.has("add")) {
+    throw new Error(
+      `${capitalize(options.lane)} feature state substrate base reserves construction member "add"`,
+    );
+  }
   const addedMemberNames = new Set<PropertyKey>();
   const builderState: { status: FeatureStateBuilderStatus } = {
     status: { type: "open" },
@@ -63,14 +68,17 @@ export async function createFeatureStateOwnership<
     throw normalized;
   };
 
-  const builder = {
-    add(addition: unknown): FeatureStateBuilder<FeatureStateKind, object> {
+  const builder = members as FeatureStateBuilder<FeatureStateKind, object>;
+  Object.defineProperty(members, "add", {
+    configurable: true,
+    enumerable: false,
+    value(addition: unknown): FeatureStateBuilder<FeatureStateKind, object> {
       assertFeatureStateBuilderOpen(builderState.status, options.lane);
 
       try {
         const entries = ownEntries(addition);
         for (const [, value] of entries) {
-          if (isDisposable(value)) owner.add(value);
+          if (isDisposable(value)) stateBag.add(value);
         }
 
         const [name, value] = requireSingleFeatureStateMember(
@@ -96,7 +104,7 @@ export async function createFeatureStateOwnership<
         return failBuilder(error);
       }
     },
-  } as FeatureStateBuilder<FeatureStateKind, object>;
+  });
 
   try {
     if (options.build) {
@@ -114,16 +122,21 @@ export async function createFeatureStateOwnership<
     }
 
     builderState.status = { type: "finalized" };
+    if (!Reflect.deleteProperty(members, "add")) {
+      throw new Error(
+        `${capitalize(options.lane)} feature state construction authority could not be revoked`,
+      );
+    }
     const state = Object.freeze(members) as Readonly<FeatureStateOf<Built>>;
     return {
       state,
-      [Symbol.asyncDispose]: () => owner[Symbol.asyncDispose](),
+      [Symbol.asyncDispose]: () => stateBag[Symbol.asyncDispose](),
     };
   } catch (error) {
     builderState.status = { type: "finalized" };
     const constructionError = normalizeError(error);
     try {
-      await owner[Symbol.asyncDispose]();
+      await stateBag[Symbol.asyncDispose]();
     } catch (disposalError) {
       throw new AggregateError(
         [constructionError, normalizeError(disposalError)],
@@ -163,6 +176,11 @@ function assertFeatureStateMemberNameAvailable(
   addedMemberNames: ReadonlySet<PropertyKey>,
   lane: FeatureStateKind,
 ): void {
+  if (name === "add") {
+    throw new Error(
+      `${capitalize(lane)} feature state member "add" collides with construction authority`,
+    );
+  }
   if (baseMemberNames.has(name)) {
     throw new Error(
       `${capitalize(lane)} feature state member ${JSON.stringify(name)} collides with substrate base state`,

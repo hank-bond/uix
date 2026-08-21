@@ -6,8 +6,7 @@ type FeatureOperationPhase =
   | "state"
   | "contribution"
   | "registration"
-  | "restoration"
-  | "installation";
+  | "restoration";
 
 interface FeatureOperationOutcomeBase {
   readonly featureId: string;
@@ -37,3 +36,52 @@ export type FeatureOperationOutcome =
   | SucceededFeatureOperation
   | FailedFeatureOperation
   | BlockedFeatureOperation;
+
+export function toSucceededOperationOutcome(
+  featureId: string,
+  lane: FeatureOperationLane,
+  phase: FeatureOperationPhase,
+  facet?: string,
+): FeatureOperationOutcome {
+  return {
+    featureId,
+    lane,
+    phase,
+    ...(facet && { facet }),
+    status: "succeeded",
+  };
+}
+
+export function toFailedOperationOutcome(
+  featureId: string,
+  lane: FeatureOperationLane,
+  phase: FeatureOperationPhase,
+  error: unknown,
+  facet?: string,
+): FeatureOperationOutcome {
+  return {
+    featureId,
+    lane,
+    phase,
+    ...(facet && { facet }),
+    status: "failed",
+    error,
+  };
+}
+
+export function toBlockedOperationOutcome(
+  featureId: string,
+  lane: FeatureOperationLane,
+  phase: FeatureOperationPhase,
+  facet: string,
+  error: unknown,
+): FeatureOperationOutcome {
+  return {
+    featureId,
+    lane,
+    phase,
+    facet,
+    status: "blocked",
+    error,
+  };
+}

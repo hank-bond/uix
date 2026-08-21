@@ -56,17 +56,20 @@ export interface ResolvedAgentToolContribution {
 }
 
 /**
- * Derives both ids for an agent tool contribution and stamps `tool.name` from
- * the canonical id. Pure. No registry, no side effects.
+ * Resolve both ids and stamp `tool.name` from the canonical id. Base-tool
+ * providers retain the local name. Every other feature receives its prefix.
  */
 export function resolveAgentToolContribution(
   featureId: string,
   contribution: AgentToolContribution,
+  options: { readonly isBaseToolsProvider?: boolean } = {},
 ): ResolvedAgentToolContribution {
   return resolveAgentTool(
     featureId,
     contribution,
-    toAgentToolCanonicalId(featureId, contribution.name),
+    options.isBaseToolsProvider
+      ? toAgentToolOverrideCanonicalId(contribution.name)
+      : toAgentToolCanonicalId(featureId, contribution.name),
   );
 }
 

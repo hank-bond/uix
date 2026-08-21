@@ -28,7 +28,7 @@ type SingleStringMember<Addition extends object> = [keyof Addition] extends [
     : never;
 
 type NewStateMember<State extends object, Addition extends object> = [
-  Extract<keyof Addition, keyof State>,
+  Extract<keyof Addition, keyof State | "add">,
 ] extends [never]
   ? unknown
   : never;
@@ -38,10 +38,10 @@ type NewStateMember<State extends object, Addition extends object> = [
  * Return the final builder chain from the state factory. Contribution factories
  * receive the completed state instead of this construction capability.
  */
-export interface FeatureStateBuilder<
+export type FeatureStateBuilder<
   Kind extends FeatureStateKind,
   State extends object,
-> {
+> = Readonly<State> & {
   readonly [featureStateKind]: Kind;
   readonly [featureStateValue]: State;
 
@@ -55,7 +55,7 @@ export interface FeatureStateBuilder<
       SingleStringMember<Addition> &
       NewStateMember<State, Addition>,
   ): FeatureStateBuilder<Kind, Readonly<State & Addition>>;
-}
+};
 
 /** Construction capability supplied to a Workspace feature-state factory. */
 export type WorkspaceFeatureStateBuilder<State extends object> =

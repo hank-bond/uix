@@ -30,9 +30,9 @@ describe("FeatureOperationOutcome", () => {
       {
         featureId: "canvas",
         lane: "agent",
-        phase: "installation",
+        phase: "restoration",
         status: "failed",
-        error: new Error("install failed"),
+        error: new Error("restore failed"),
       },
       {
         featureId: "canvas",

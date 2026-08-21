@@ -94,6 +94,45 @@ describe("createFeatureStateOwnership", () => {
     await candidate[Symbol.asyncDispose]();
   });
 
+  it("exposes base and accumulated members while retaining construction authority", async () => {
+    const candidate = await createFeatureStateOwnership({
+      lane: "agent",
+      base: { settings: { enabled: true } },
+      build: (state) => {
+        expect(state.settings.enabled).toBe(true);
+        const widened = state.add({ cache: new Map([["ready", true]]) });
+        expect(widened.cache.get("ready")).toBe(true);
+        return widened.add({ count: widened.cache.size });
+      },
+    });
+
+    expect(candidate.state).toMatchObject({ count: 1 });
+    await candidate[Symbol.asyncDispose]();
+  });
+
+  it("snapshots substrate base members once for construction and completed state", async () => {
+    let accesses = 0;
+    const base = Object.defineProperty({}, "capability", {
+      enumerable: true,
+      get: () => ({ access: ++accesses }),
+    }) as { readonly capability: { readonly access: number } };
+    let constructionCapability: { readonly access: number } | undefined;
+
+    const candidate = await createFeatureStateOwnership({
+      lane: "agent",
+      base,
+      build: (state) => {
+        constructionCapability = state.capability;
+        return state.add({ observedCapability: state.capability });
+      },
+    });
+
+    expect(accesses).toBe(1);
+    expect(candidate.state.capability).toBe(constructionCapability);
+    expect(candidate.state.observedCapability).toBe(constructionCapability);
+    await candidate[Symbol.asyncDispose]();
+  });
+
   it("finalizes a shallow-frozen state without builder authority", async () => {
     const candidate = await createFeatureStateOwnership({
       lane: "workspace",
@@ -133,7 +172,25 @@ describe("createFeatureStateOwnership", () => {
     expect(order).toEqual(["third", "second", "first"]);
   });
 
-  it("diagnoses substrate and prior-addition collisions", async () => {
+  it("diagnoses substrate, construction-authority, and prior-addition collisions", async () => {
+    await expect(
+      createFeatureStateOwnership({
+        lane: "agent",
+        base: { add: "reserved" },
+      }),
+    ).rejects.toThrow('substrate base reserves construction member "add"');
+
+    await expect(
+      createFeatureStateOwnership({
+        lane: "agent",
+        base: {},
+        build: (state) => {
+          asUnsafe(state).add({ add: "reserved" });
+          return state;
+        },
+      }),
+    ).rejects.toThrow('member "add" collides with construction authority');
+
     await expect(
       createFeatureStateOwnership({
         lane: "workspace",

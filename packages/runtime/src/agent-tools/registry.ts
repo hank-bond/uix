@@ -50,16 +50,19 @@ export class AgentToolRegistry {
   }
 }
 
+/** Register one feature's tools, retaining local names only for the designated base-tools provider. */
 export function registerAgentToolContributions(
   registry: AgentToolRegistry,
   featureId: string,
   contributions: readonly AgentToolContribution[],
+  options: { readonly isBaseToolsProvider?: boolean } = {},
 ): Disposable {
   return registerContributions(
     registry,
     featureId,
     contributions,
-    resolveAgentToolContribution,
+    (ownerId, contribution) =>
+      resolveAgentToolContribution(ownerId, contribution, options),
   );
 }
 
@@ -97,6 +100,7 @@ function registerContributions<Contribution>(
   }
 }
 
+/** Installs a snapshot of every registered tool into one Pi runtime generation. */
 export function createAgentToolInstaller(
   registry: AgentToolRegistry,
 ): AgentInstaller {

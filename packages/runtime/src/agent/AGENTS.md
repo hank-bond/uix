@@ -22,6 +22,9 @@ Provider discovery and interactive sign-in share Pi's authentication state. A co
 
 - **[auth-providers.ts](./auth-providers.ts)** Derives the provider sign-in list from Pi's available login methods and current connection state.
 - **[branch-projection.ts](./branch-projection.ts)** Derives current transcript and restorable feature state from one selected Pi branch.
+- **[composition-definition.ts](./composition-definition.ts)** Defines one immutable, reusable Agent composition recipe from admitted feature facets.
+- **[composition-registries.ts](./composition-registries.ts)** Defines the instance-local registry bundle and operational views for one Agent composition.
+- **[composition.ts](./composition.ts)** Instantiates one admitted Agent recipe into viewpoint-local feature states and registries.
 - **[installers.ts](./installers.ts)** Assembles UIX's ordered Pi setup hooks into the single in-process extension used by each runtime.
 - **[instance-state.ts](./instance-state.ts)** Owns the mutable collaborators and projections scoped to one live agent instance.
 - **[instance-supervisor.ts](./instance-supervisor.ts)** Supervises session-keyed agent instances and issues explicit lifetime guards.
