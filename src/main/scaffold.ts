@@ -14,7 +14,7 @@ import process from "node:process";
 import { WorkspaceManifestFileName } from "@uix/runtime/features/manifest";
 
 /** Template feature dirs copied into every new workspace, in composition order. */
-const DefaultFeatures = ["pi-tools"] as const;
+const DefaultFeatures = [{ name: "pi-tools", baseTools: true }] as const;
 
 export interface ScaffoldOptions {
   /** Bare workspace template root (repo `templates/workspace/` in dev). */
@@ -74,8 +74,8 @@ export async function scaffoldWorkspace(
   await mkdir(featuresDir, { recursive: true });
   for (const feature of DefaultFeatures) {
     await cp(
-      path.join(templatesDir, "features", feature),
-      path.join(featuresDir, feature),
+      path.join(templatesDir, "features", feature.name),
+      path.join(featuresDir, feature.name),
       {
         recursive: true,
         filter: (src) => path.basename(src) !== "node_modules",
@@ -86,8 +86,9 @@ export async function scaffoldWorkspace(
   const manifest = {
     name,
     features: DefaultFeatures.map((feature) => ({
-      entry: `./features/${feature}/index.ts`,
+      entry: `./features/${feature.name}/index.ts`,
       settings: {},
+      baseTools: feature.baseTools,
     })),
   };
   await writeFile(
