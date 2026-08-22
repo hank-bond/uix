@@ -78,6 +78,7 @@ export class CanvasDocumentBuffer implements Disposable {
       const currentLines = doc.read();
       const { startIndex, endIndex } = findMatchingRange(currentLines, edit);
       const replacementLines = splitText(edit.replacement);
+      assertNoAnchorLeak(currentLines, replacementLines);
       const nextText = [
         ...currentLines.slice(0, startIndex).map((line) => line.text),
         ...replacementLines,
@@ -253,6 +254,24 @@ function findMatchingLine(
     );
   }
   return index;
+}
+
+// A replacement line that exactly equals a live anchor is metadata copied into
+// authored content. Reject it before canonicalization so the anchor cannot be
+// persisted as document text; callers receive the correction in the error.
+function assertNoAnchorLeak(
+  lines: readonly AnchoredLine[],
+  replacementLines: readonly string[],
+): void {
+  const liveAnchors = new Set(lines.map((line) => line.anchor));
+  const leaked = replacementLines.find((line) => liveAnchors.has(line));
+  if (leaked !== undefined) {
+    throw new Error(
+      `Replacement line ${JSON.stringify(
+        leaked,
+      )} equals a live anchor name. Anchor names are metadata, not content; copy only the line text or wrap the word in markup.`,
+    );
+  }
 }
 
 function plainText(lines: readonly AnchoredLine[]): string {

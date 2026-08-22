@@ -307,6 +307,146 @@ describe("canvas agent tool contributions", () => {
     expect(content.content).toContain("goodbye");
   });
 
+  it("names the edit replacement parameter html, not replacement", () => {
+    const { tools } = setup();
+    const edit = tools.get("canvas__anchor_edit");
+    if (!edit) throw new Error("missing canvas__anchor_edit tool");
+
+    const params = edit.parameters as { properties?: Record<string, unknown> };
+    expect(params.properties).toHaveProperty("html");
+    expect(params.properties).not.toHaveProperty("replacement");
+  });
+
+  it("rejects edit html whose line starts with an anchor and the gutter delimiter", async () => {
+    const { tools } = setup();
+
+    const write = tools.get("canvas__anchor_write");
+    if (!write) throw new Error("missing canvas__anchor_write tool");
+    await write.execute(
+      "t1",
+      { key: "main", html: "<p>hello</p>", reason: "Testing the write path." },
+      undefined,
+      undefined,
+      {} as never,
+    );
+
+    const edit = tools.get("canvas__anchor_edit");
+    if (!edit) throw new Error("missing canvas__anchor_edit tool");
+    await expect(
+      edit.execute(
+        "t2",
+        {
+          key: "main",
+          start_line: "Kui§<html><head></head><body>",
+          end_line: "Kui§<html><head></head><body>",
+          html: "Cons§\n<p>leaked</p>",
+          reason: "Testing the edit guard.",
+        },
+        undefined,
+        undefined,
+        {} as never,
+      ),
+    ).rejects.toThrow(/delimiter/);
+  });
+
+  it("allows a gutter delimiter deeper in an html line", async () => {
+    const { tools } = setup();
+
+    const write = tools.get("canvas__anchor_write");
+    if (!write) throw new Error("missing canvas__anchor_write tool");
+    await write.execute(
+      "t1",
+      {
+        key: "main",
+        html: "<body>\n<p>a</p>\n</body>",
+        reason: "Testing the write path.",
+      },
+      undefined,
+      undefined,
+      {} as never,
+    );
+
+    const read = tools.get("canvas__anchor_read");
+    if (!read) throw new Error("missing canvas__anchor_read tool");
+    const result = await read.execute(
+      "t2",
+      { key: "main", reason: "Reading the canvas." },
+      undefined,
+      undefined,
+      {} as never,
+    );
+    const text = (result.content[0] as { type: "text"; text: string }).text;
+    const target = text.split("\n").find((line) => line.includes("<p>a</p>"));
+    if (!target) throw new Error("missing anchored line");
+
+    const edit = tools.get("canvas__anchor_edit");
+    if (!edit) throw new Error("missing canvas__anchor_edit tool");
+    const result2 = await edit.execute(
+      "t3",
+      {
+        key: "main",
+        start_line: target,
+        end_line: target,
+        html: "<p>Section § 2</p>",
+        reason: "Testing the delimiter shape guard.",
+      },
+      undefined,
+      undefined,
+      {} as never,
+    );
+    expect(result2.content[0]).toBeDefined();
+  });
+
+  it("rejects an edit whose html equals a live anchor", async () => {
+    const { tools } = setup();
+
+    const write = tools.get("canvas__anchor_write");
+    if (!write) throw new Error("missing canvas__anchor_write tool");
+    await write.execute(
+      "t1",
+      {
+        key: "main",
+        html: "<body>\n<p>a</p>\n</body>",
+        reason: "Testing the write path.",
+      },
+      undefined,
+      undefined,
+      {} as never,
+    );
+
+    const read = tools.get("canvas__anchor_read");
+    if (!read) throw new Error("missing canvas__anchor_read tool");
+    const result = await read.execute(
+      "t2",
+      { key: "main", reason: "Reading the canvas." },
+      undefined,
+      undefined,
+      {} as never,
+    );
+    const text = (result.content[0] as { type: "text"; text: string }).text;
+    const target = text.split("\n").find((line) => line.includes("<p>a</p>"));
+    if (!target) throw new Error("missing anchored line");
+
+    const edit = tools.get("canvas__anchor_edit");
+    if (!edit) throw new Error("missing canvas__anchor_edit tool");
+    const anchor = target.split("§")[0];
+    await expect(
+      edit.execute(
+        "t3",
+        {
+          key: "main",
+          start_line: target,
+          end_line: target,
+          html: `${anchor}\n<p>A</p>`,
+          reason: "Testing the anchor guard.",
+        },
+        undefined,
+        undefined,
+        {} as never,
+      ),
+    ).rejects.toThrow(/equals a live anchor/);
+  });
+
   it("records canvas snapshot pointers before input and after agent writes", async () => {
     const { tools, entries, inputBoundary, agentEnd } = setup();
 

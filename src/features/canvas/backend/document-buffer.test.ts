@@ -92,6 +92,21 @@ describe("CanvasDocumentBuffer", () => {
     ).rejects.toThrow(/mismatch/);
   });
 
+  it("rejects a replacement line that equals a live anchor", async () => {
+    const buffer = new CanvasDocumentBuffer(memoryStore());
+    const lines = await buffer.write("main", "<body>\n<p>a</p>\n</body>");
+    const target = lines.find((line) => line.text === "<p>a</p>");
+    if (!target) throw new Error("missing test line");
+
+    await expect(
+      buffer.edit("main", {
+        start: target,
+        end: target,
+        replacement: `${target.anchor}\n<p>A</p>`,
+      }),
+    ).rejects.toThrow(/equals a live anchor/);
+  });
+
   it("reconciles human writeback while preserving untouched anchors", async () => {
     const buffer = new CanvasDocumentBuffer(memoryStore());
     const lines = await buffer.write(
