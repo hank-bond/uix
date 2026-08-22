@@ -1,10 +1,12 @@
 ---
-summary: "Active build specs, reviewable delivery units, and a backlog of smaller implementation seeds."
+summary: "Mutable implementation plans divide requirement specifications into reviewable slices and track the active attempt, progress, and lessons."
 ---
 
 # Plans
 
-Plans are build specs slugged by deliverable. A plan needs to remain valid, but it does not need to be under active implementation. Landed or retired plans move to [`archive/`](./archive/). Plans cite the decisions in [`AGENTS.md`](../docs/decisions/AGENTS.md) and the design threads in [`AGENTS.md`](../docs/design/AGENTS.md) that bound them.
+Plans are disposable implementation artifacts slugged by deliverable. They divide requirement specifications into checked review slices and track one attempt's progress, mechanisms, findings, and verification. Plans carry no normative authority and may use the format that best serves the implementing agent.
+
+When an attempt resets, preserve a compact summary at the bottom of the plan. Record what worked, what did not work, relevant specification changes, and unresolved issues. Rewrite the active plan and discard the old implementation details. Landed or retired plans move to [`archive/`](./archive/). [`requirement-specifications.md`](../docs/contributing/requirement-specifications.md) defines the full lifecycle.
 
 <!-- INDEX:START -->
 
