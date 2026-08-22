@@ -5,13 +5,7 @@
 // with idempotent partial updates and whole-item completion replacements.
 
 import type { JSX } from "react";
-import {
-  type FormEvent,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
 import type { agentChannels } from "@uix/api/agent-channels";
@@ -25,10 +19,7 @@ import { type AgentControls, useAgentControls } from "./agent-controls";
 import { BlockPresentationSettingsProvider } from "./blocks/BlockPresentationSettings";
 import { ChatBlock } from "./blocks/ChatBlock";
 import { ToolCatalogProvider } from "./blocks/tool/tool-catalog";
-import {
-  deriveComposerKeyboardIntent,
-  deriveComposerPresentation,
-} from "./composer";
+import { ChatComposer } from "./ChatComposer";
 import { ModelPill } from "./ModelPill";
 import { pendingUserId } from "./pending";
 import { ProviderLoginModal } from "./ProviderLoginModal";
@@ -50,7 +41,6 @@ export function Chat({ client }: ChatProps): JSX.Element {
     items: [] as TranscriptItem[],
     turnActive: false,
   });
-  const [draft, setDraft] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -62,11 +52,6 @@ export function Chat({ client }: ChatProps): JSX.Element {
   const controls = useAgentControls(client);
   const { items, turnActive: isTurnActive } = agentState;
   const canStop = isSubmitting || isTurnActive;
-  const composer = deriveComposerPresentation({
-    canStop,
-    isStopping,
-    hasDraft: draft.trim().length > 0,
-  });
 
   useLayoutEffect(() => {
     return client.events.event((event: AgentEvent) => {
@@ -153,11 +138,8 @@ export function Chat({ client }: ChatProps): JSX.Element {
     }
   };
 
-  const onSubmit = async (e: FormEvent): Promise<void> => {
-    e.preventDefault();
-    const text = draft.trim();
+  const submitPrompt = async (text: string): Promise<void> => {
     if (!text || canStop || isStopping) return;
-    setDraft("");
     setIsSubmitting(true);
     // Optimistic echo: show the message instantly as an unconfirmed pending
     // row. Main emits the authoritative born-keyed row once Pi persists it,
@@ -200,44 +182,16 @@ export function Chat({ client }: ChatProps): JSX.Element {
           )}
         </BlockPresentationSettingsProvider>
       </div>
-      <form
-        className="composer"
-        onSubmit={(e) => {
-          void onSubmit(e);
+      <ChatComposer
+        canStop={canStop}
+        isStopping={isStopping}
+        onCancel={() => {
+          void cancelTurn();
         }}
-      >
-        <textarea
-          className="composer__input"
-          placeholder="say something…"
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-          }}
-          onKeyDown={(e) => {
-            const intent = deriveComposerKeyboardIntent({
-              key: e.key,
-              shiftKey: e.shiftKey,
-              canStop,
-              isStopping,
-            });
-            if (!intent) return;
-            e.preventDefault();
-            if (intent === "cancel") void cancelTurn();
-            if (intent === "submit") void onSubmit(e);
-          }}
-          rows={2}
-        />
-        <button
-          className="composer__send"
-          type={composer.action === "cancel" ? "button" : "submit"}
-          disabled={composer.disabled}
-          onClick={
-            composer.action === "cancel" ? () => void cancelTurn() : undefined
-          }
-        >
-          {composer.label}
-        </button>
-      </form>
+        onSubmit={(text) => {
+          void submitPrompt(text);
+        }}
+      />
       <StatusBar
         controls={controls}
         order={statusBar.value?.order ?? []}

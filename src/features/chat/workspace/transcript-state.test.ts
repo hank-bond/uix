@@ -47,6 +47,32 @@ describe("Chat transcript state", () => {
     });
   });
 
+  it("preserves unchanged item identities for row-level render containment", () => {
+    const user: TranscriptItem = {
+      id: "user-1",
+      kind: "user",
+      text: "question",
+    };
+    const assistant: TranscriptItem = {
+      id: "live:assistant:1",
+      kind: "assistant",
+      text: "answer",
+      complete: false,
+    };
+    const state = { items: [user, assistant], turnActive: true };
+
+    const next = reduceChatAgentState(state, {
+      type: "transcript_partial",
+      id: assistant.id,
+      text: " continues",
+      textOffset: assistant.text.length,
+    });
+
+    expect(next.items).not.toBe(state.items);
+    expect(next.items[0]).toBe(user);
+    expect(next.items[1]).not.toBe(assistant);
+  });
+
   it("replays completion and turn end that land after the captured snapshot", () => {
     const running: TranscriptItem = {
       id: "assistant-1:tool:call-1",

@@ -75,9 +75,15 @@ Stop for review before C6.
 
 Stop for review before C7.
 
-## C7: Performance, verification, and docs
+## C7: Performance, verification, and docs · **in progress**
 
-- Measure streaming Markdown and syntax-highlighting behavior before adding incremental parsing complexity.
-- Add any justified caching or stable-prefix parsing work.
-- Complete focused tests for the new rendering and backend paths.
-- Update the shipped agent reference, architecture-of-record, and relevant design thread.
+A 2026-08-22 development trace captured the first measured failure. Controlled composer input synchronously rendered the complete transcript. One 127.5 ms input task spent 115.4 ms in React's synchronous render. That work included 49.3 ms under Markdown rendering and 42.5 ms under `HighlightedCode`. Repeated input events spent roughly 89-130 ms in processing. The trace used the development JSX runtime. Its absolute durations are diagnostic rather than a production budget. The render fan-out is architectural in either runtime.
+
+Apply the measured work in review-gated slices:
+
+1. **Render containment.** Move draft ownership into a dedicated composer so keystrokes cannot render transcript siblings. Memoize transcript rows against the existing reducer invariant that unchanged items preserve object identity. Keep the identity invariant covered directly rather than adding a custom prop comparator. Stop for review.
+2. **Closed-disclosure containment.** Do not mount large tool detail bodies until their disclosure is opened. Preserve ordinary native disclosure behavior and decide from profiling whether opened content stays mounted after close. Stop for review.
+3. **Streaming containment.** Measure the remaining active-row path. Coalesce partial events to a browser frame. Avoid reparsing or highlighting a complete accumulated message more often than presentation requires. Prefer a simple active-message policy over an incremental Markdown parser unless the measured result requires one. Stop for review.
+4. **Transcript scale.** Measure initial hydration, long-session scrolling, DOM size, and layout after the first three slices. Add viewport-bounded rendering only when those measurements justify its variable-height and scroll-anchor complexity. Coordinate scroll work with [`chat-scroll-director.md`](./chat-scroll-director.md) instead of creating a second positioning owner.
+
+Defer the permanent benchmark loop until the browser host provides the cheaper automation boundary. Complete focused correctness tests and update the architecture record after the implementation shape settles.

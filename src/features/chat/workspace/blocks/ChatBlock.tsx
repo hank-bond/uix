@@ -1,6 +1,6 @@
 // Renders one transcript item as its kind-specific chat block.
 
-import type { JSX } from "react";
+import { type JSX, memo } from "react";
 
 import type { TranscriptItem } from "@uix/api/agent-channels";
 
@@ -13,7 +13,11 @@ interface ChatBlockProps {
   item: TranscriptItem;
 }
 
-export function ChatBlock({ item }: ChatBlockProps): JSX.Element {
+// Reducers preserve object identity for unchanged items, so this boundary keeps
+// unrelated Chat state and another item's stream updates out of this subtree.
+export const ChatBlock = memo(function ChatBlock({
+  item,
+}: ChatBlockProps): JSX.Element {
   switch (item.kind) {
     case "user":
       return <MessageChatBlock item={item} className="user" />;
@@ -26,4 +30,4 @@ export function ChatBlock({ item }: ChatBlockProps): JSX.Element {
     case "error":
       return <ErrorChatBlock item={item} />;
   }
-}
+});
