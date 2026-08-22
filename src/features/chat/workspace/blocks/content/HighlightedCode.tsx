@@ -1,8 +1,7 @@
 // Renders source text with refractor syntax highlighting.
 
 import { toJsxRuntime } from "hast-util-to-jsx-runtime";
-import type { JSX } from "react";
-import { Fragment } from "react";
+import { Fragment, type JSX, memo } from "react";
 import { jsx, jsxs } from "react/jsx-runtime";
 import { refractor } from "refractor";
 
@@ -34,7 +33,7 @@ interface HighlightedCodeProps {
 }
 
 /** Render literal source text, highlighting only a language Refractor knows. */
-export function HighlightedCode({
+export const HighlightedCode = memo(function HighlightedCode({
   text,
   language,
   className,
@@ -54,7 +53,7 @@ export function HighlightedCode({
       {highlighted ? toJsxRuntime(highlighted, { Fragment, jsx, jsxs }) : text}
     </code>
   );
-}
+});
 
 /** Infer a registered highlighting grammar from a lexical file extension. */
 export function inferCodeLanguageFromPath(path: string): string | undefined {

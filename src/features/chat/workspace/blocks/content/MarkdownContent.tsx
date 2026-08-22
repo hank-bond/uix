@@ -1,6 +1,6 @@
 // Renders markdown text with gfm tables and safe external-link handling.
 
-import type { JSX } from "react";
+import { type JSX, memo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -54,7 +54,13 @@ function isExternalWebHref(value: string): boolean {
   }
 }
 
-export function MarkdownContent({ text }: { text: string }): JSX.Element {
+// Completion and other row metadata may change without changing the source.
+// Keep those updates from rebuilding the Markdown syntax tree.
+export const MarkdownContent = memo(function MarkdownContent({
+  text,
+}: {
+  text: string;
+}): JSX.Element {
   return (
     <div className="markdown-content">
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
@@ -62,4 +68,4 @@ export function MarkdownContent({ text }: { text: string }): JSX.Element {
       </ReactMarkdown>
     </div>
   );
-}
+});
