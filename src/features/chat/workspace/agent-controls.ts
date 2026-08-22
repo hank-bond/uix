@@ -11,7 +11,7 @@ import type {
   ProviderAuthFlowSnapshot,
   ProviderAuthType,
 } from "@uix/api/agent-channels";
-import type { ChannelClient } from "@uix/api/workspace";
+import { type ChannelClient, useWorkspaceSession } from "@uix/api/workspace";
 
 import { getInitialModelScope, type ModelPickerScope } from "./model-filter";
 
@@ -60,6 +60,7 @@ export function useAgentControls(client: AgentChannelClient): {
   cancelProviderAuthFlow: () => Promise<void>;
   chooseModelForProvider: (providerId: string) => void;
 } {
+  const { sessionSelectionVersion } = useWorkspaceSession();
   const [status, setStatus] = useState<AgentStatus>();
   const [models, setModels] = useState<ModelCatalog>();
   const [modelError, setModelError] = useState<string>();
@@ -71,6 +72,8 @@ export function useAgentControls(client: AgentChannelClient): {
     useState<ProviderAuthFlowSnapshot>();
   const [providerAuthError, setProviderAuthError] = useState<string>();
   const modelRequestVersion = useRef(0);
+  const sessionSelectionVersionRef = useRef(sessionSelectionVersion);
+  sessionSelectionVersionRef.current = sessionSelectionVersion;
   const providerRequestVersion = useRef(0);
   const providerAuthEventVersion = useRef(0);
   const providerAuthFlowRef = useRef<ProviderAuthFlowSnapshot>();
@@ -101,10 +104,12 @@ export function useAgentControls(client: AgentChannelClient): {
   );
 
   // Subscribe before seeding so the client does not miss a status_changed
-  // that lands during the request.
+  // that lands during the request. Session changes clear the old status and
+  // seed from the newly accepted attachment target.
   useEffect(() => client.events.status_changed(setStatus), [client]);
   useEffect(() => {
     let cancelled = false;
+    setStatus(undefined);
     void client.requests
       .agent_status(undefined)
       .then((seed) => {
@@ -114,7 +119,7 @@ export function useAgentControls(client: AgentChannelClient): {
     return () => {
       cancelled = true;
     };
-  }, [client]);
+  }, [client, sessionSelectionVersion]);
 
   const refreshModels = useCallback(async () => {
     const version = ++modelRequestVersion.current;
@@ -167,14 +172,20 @@ export function useAgentControls(client: AgentChannelClient): {
 
   const selectModel = useCallback(
     async (model: ModelCatalogEntry) => {
+      const acceptedSessionSelectionVersion = sessionSelectionVersion;
       const nextStatus = await client.requests.select_model({
         provider: model.provider,
         id: model.id,
       });
+      if (
+        sessionSelectionVersionRef.current !== acceptedSessionSelectionVersion
+      ) {
+        return;
+      }
       setStatus(nextStatus);
       setModelPicker(undefined);
     },
-    [client],
+    [client, sessionSelectionVersion],
   );
 
   const setModelFavorite = useCallback(

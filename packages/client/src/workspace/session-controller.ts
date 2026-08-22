@@ -204,6 +204,9 @@ export class WorkspaceSessionController {
         activeSession,
         recentSessions: undefined,
         sessionSelectionVersion: this.#snapshot.sessionSelectionVersion + 1,
+        // Activity belongs to the old target. Its eventual end event is
+        // session-scoped and correctly will not reach this attachment.
+        isAgentRunning: false,
         isSessionMutationPending: false,
       });
       this.#synchronizeLocation(activeSession.sessionId);
@@ -234,7 +237,7 @@ export class WorkspaceSessionController {
     const next = { ...this.#snapshot, ...update };
     this.#snapshot = {
       ...next,
-      canSwitchSession: !next.isAgentRunning && !next.isSessionMutationPending,
+      canSwitchSession: !next.isSessionMutationPending,
     };
     for (const listener of this.#listeners) listener();
   }

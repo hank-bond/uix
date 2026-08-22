@@ -8,7 +8,6 @@ describe("workspace session actions", () => {
     const resolved = resolveActionContribution(
       "uix",
       createWorkspaceSessionActions({
-        isAgentRunning: () => false,
         newSession: () => Promise.resolve(),
       }),
     );
@@ -26,23 +25,16 @@ describe("workspace session actions", () => {
     });
   });
 
-  it("invokes the controller only while the agent is idle", async () => {
-    let agentRunning = true;
+  it("starts a new session while the selected session can keep running", async () => {
     const newSession = vi.fn(() => Promise.resolve());
     const resolved = resolveActionContribution(
       "uix",
-      createWorkspaceSessionActions({
-        isAgentRunning: () => agentRunning,
-        newSession,
-      }),
+      createWorkspaceSessionActions({ newSession }),
     );
     const run = resolved.resolvedContributions[0]?.run;
 
     await run();
-    expect(newSession).not.toHaveBeenCalled();
 
-    agentRunning = false;
-    await run();
     expect(newSession).toHaveBeenCalledOnce();
   });
 });

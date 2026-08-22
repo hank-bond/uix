@@ -338,7 +338,7 @@ describe("WorkspaceSessionController", () => {
     expect(requestRecentSessions).toHaveBeenCalledOnce();
   });
 
-  it("allows titles during a run but serializes them with session transitions", async () => {
+  it("allows session changes during a run and serializes mutations", async () => {
     const switchResponse = deferred<SessionSummary>();
     const requestSwitchSession = vi.fn(() => switchResponse.promise);
     const requestSetSessionTitle = vi.fn(() =>
@@ -351,30 +351,29 @@ describe("WorkspaceSessionController", () => {
 
     controller.updateAgentActivity({ type: "agent_start" });
     await expect(
-      controller.switchSession("session-2"),
-    ).resolves.toBeUndefined();
-    await expect(
       controller.setSessionTitle("session-1", "While running"),
     ).resolves.toEqual(existingSession);
-    expect(requestSwitchSession).not.toHaveBeenCalled();
     expect(requestSetSessionTitle).toHaveBeenCalledWith(
       "session-1",
       "While running",
     );
 
-    controller.updateAgentActivity({ type: "agent_end" });
     const first = controller.switchSession("session-2");
+    expect(requestSwitchSession).toHaveBeenCalledOnce();
     await expect(
       controller.switchSession("session-3"),
     ).resolves.toBeUndefined();
     await expect(
       controller.setSessionTitle("session-1", "Pending"),
     ).resolves.toBeUndefined();
-    expect(requestSwitchSession).toHaveBeenCalledOnce();
-    expect(requestSetSessionTitle).toHaveBeenCalledOnce();
 
     switchResponse.resolve(newSession);
     await first;
+    expect(controller.getSnapshot()).toMatchObject({
+      activeSession: newSession,
+      isAgentRunning: false,
+      canSwitchSession: true,
+    });
   });
 
   it("returns the active row without requesting the same session", async () => {
@@ -410,7 +409,7 @@ describe("WorkspaceSessionController", () => {
     });
   });
 
-  it("tracks agent activity reactively and independently from Chat", () => {
+  it("tracks selected-session activity without blocking retargeting", () => {
     const controller = createController();
     const listener = vi.fn();
     controller.subscribe(listener);
@@ -419,7 +418,7 @@ describe("WorkspaceSessionController", () => {
     expect(controller.canSwitchSession()).toBe(true);
     controller.updateAgentActivity({ type: "agent_start" });
     expect(controller.isAgentRunning()).toBe(true);
-    expect(controller.canSwitchSession()).toBe(false);
+    expect(controller.canSwitchSession()).toBe(true);
     expect(listener).toHaveBeenCalledOnce();
 
     controller.updateAgentActivity({ type: "turn_end" });

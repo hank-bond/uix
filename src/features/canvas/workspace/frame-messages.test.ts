@@ -92,6 +92,7 @@ describe("canvas frame messages", () => {
         html: "<html></html>",
         prompt: "respond",
       },
+      () => true,
       writeback,
       prompt,
     );
@@ -115,6 +116,7 @@ describe("canvas frame messages", () => {
           html: "<html></html>",
           prompt: "respond",
         },
+        () => true,
         () => Promise.reject(new Error("writeback failed")),
         prompt,
       ),
@@ -133,9 +135,35 @@ describe("canvas frame messages", () => {
         key: main,
         html: "<html></html>",
       },
+      () => true,
       writeback,
       prompt,
     );
+
+    expect(writeback).toHaveBeenCalledOnce();
+    expect(prompt).not.toHaveBeenCalled();
+  });
+
+  it("drops stale frame work before writeback and between writeback and prompt", async () => {
+    let current = false;
+    const writeback = vi.fn(() => Promise.resolve());
+    const prompt = vi.fn(() => Promise.resolve());
+    const message = {
+      type: "prompt" as const,
+      key: main,
+      html: "<html></html>",
+      prompt: "respond",
+    };
+
+    await forwardCanvasFrameMessage(message, () => current, writeback, prompt);
+    expect(writeback).not.toHaveBeenCalled();
+
+    current = true;
+    writeback.mockImplementation(() => {
+      current = false;
+      return Promise.resolve();
+    });
+    await forwardCanvasFrameMessage(message, () => current, writeback, prompt);
 
     expect(writeback).toHaveBeenCalledOnce();
     expect(prompt).not.toHaveBeenCalled();

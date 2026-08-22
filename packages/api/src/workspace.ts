@@ -69,13 +69,14 @@ export interface WorkspaceSessionHandle {
   readonly recentSessions: readonly SessionSummaryProjection[] | undefined;
   /** Changes only when the selected graph changes, not when its summary hydrates. */
   readonly sessionSelectionVersion: number;
+  /** False only while another session mutation is pending. */
   readonly canSwitchSession: boolean;
   readonly loadActiveHistory: () => Promise<TranscriptSnapshot>;
-  /** Returns undefined when current activity requires the renderer to skip. */
+  /** Returns undefined while another session mutation is pending. */
   readonly switchSession: (
     sessionId: string,
   ) => Promise<SessionSummaryProjection | undefined>;
-  /** Returns undefined when current activity requires the renderer to skip. */
+  /** Returns undefined while another session mutation is pending. */
   readonly setSessionTitle: (
     sessionId: string,
     title: string | null,

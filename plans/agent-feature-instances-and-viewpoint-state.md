@@ -1,5 +1,5 @@
 ---
-summary: "R0 and A1 landed: feature state is created per Agent instance. A2 remains for the full concurrent-session lifecycle gate."
+summary: "R0, A1, and A2 landed: feature state is created per Agent instance, and concurrent session viewpoints pass the production lifecycle gate."
 ---
 
 # Agent feature instances and viewpoint state
@@ -12,9 +12,9 @@ H4.2 allows an attachment to leave a guarded turn running on session A, move to 
 
 The first A1 implementation added state builders, a separate composition engine, nominal admission, deep snapshots, operation records, and capability views. No production request uses that engine. The implementation confirmed that Agent registries and lifetimes must be per instance, but the extra code did not serve that requirement.
 
-**R0 and A1 are complete.** The unused A1 commits remain in history behind one combined revert. The direct replacement uses `workspace(ctx)` and `agent(ctx)` factories, per-instance registries and bags, selected Agent channel handlers, and per-viewpoint Canvas buffers.
+**R0, A1, and A2 are complete.** The unused A1 commits remain in history behind one combined revert. The direct replacement uses `workspace(ctx)` and `agent(ctx)` factories, per-instance registries and bags, selected Agent channel handlers, and per-viewpoint Canvas buffers. The concurrent-session gate adds production Canvas viewpoint coverage, stale-frame rejection, and running-session retargeting in the shared client.
 
-A2 precedes the basic web host. H6 can then support several browser attachments with the full concurrent-session lifecycle suite. The [Electron and server host split](./electron-server-split.md) continues to own the concrete hosts. [Runtime operation hardening](./runtime-operation-hardening.md) owns the remaining cancellation work.
+H6 can now support several browser attachments over the proved concurrent-session lifecycle. The [Electron and server host split](./electron-server-split.md) continues to own the concrete hosts. [Runtime operation hardening](./runtime-operation-hardening.md) owns the remaining cancellation work.
 
 ## Planning rules
 
@@ -125,7 +125,7 @@ This migration is one review unit because smaller units would require an adapter
 
 Stop for review before A2.
 
-### A2: Prove concurrent sessions
+### A2: Prove concurrent sessions · **landed 2026-08-21**
 
 Complete session-scoped delivery for every event used by the reference application. Canvas presents content from the selected viewpoint, rejects stale iframe messages after a session change, and publishes changes only to attachments on the matching session.
 

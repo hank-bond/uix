@@ -37,6 +37,8 @@ export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
   );
   const frameRef = useRef<HTMLIFrameElement>(null);
   const htmlRef = useRef("");
+  const sessionSelectionVersionRef = useRef(sessionSelectionVersion);
+  sessionSelectionVersionRef.current = sessionSelectionVersion;
   const [changeVersion, setChangeVersion] = useState(0);
   const [frameVersion, setFrameVersion] = useState(0);
 
@@ -69,8 +71,12 @@ export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
   }, [client, canvasKey, changeVersion, sessionSelectionVersion]);
 
   useLayoutEffect(() => {
+    const acceptedSessionSelectionVersion = sessionSelectionVersion;
+    const isCurrentViewpoint = (): boolean =>
+      sessionSelectionVersionRef.current === acceptedSessionSelectionVersion;
     const origin = toCanvasFrameOrigin(workspace.workspaceId);
     const onMessage = (event: MessageEvent): void => {
+      if (!isCurrentViewpoint()) return;
       if (event.origin !== origin) return;
       if (event.source !== frameRef.current?.contentWindow) return;
       if (isCanvasFrameReady(event.data, canvasKey)) {
@@ -84,6 +90,7 @@ export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
       if (!message) return;
       void forwardCanvasFrameMessage(
         message,
+        isCurrentViewpoint,
         client.requests.writeback,
         agent.requests.prompt,
       );
@@ -92,7 +99,13 @@ export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
     return () => {
       window.removeEventListener("message", onMessage);
     };
-  }, [agent, client, canvasKey, workspace.workspaceId]);
+  }, [
+    agent,
+    client,
+    canvasKey,
+    sessionSelectionVersion,
+    workspace.workspaceId,
+  ]);
 
   return (
     <iframe

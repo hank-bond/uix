@@ -9,7 +9,6 @@ import { useActionContribution } from "@uix/api/workspace";
 import { useWorkspaceSessionController } from "./session-context";
 
 interface CreateWorkspaceSessionActionsOptions {
-  isAgentRunning: () => boolean;
   newSession: () => Promise<unknown>;
 }
 
@@ -25,7 +24,6 @@ export function createWorkspaceSessionActions(
           description: "Start a fresh conversation",
           defaultBinding: "mod+n",
           run: async () => {
-            if (opts.isAgentRunning()) return;
             await opts.newSession();
           },
         },
@@ -39,7 +37,6 @@ export function WorkspaceSessionActions(): JSX.Element | null {
   const actions = useMemo(
     () =>
       createWorkspaceSessionActions({
-        isAgentRunning: () => controller.isAgentRunning(),
         newSession: () => controller.newSession(),
       }),
     [controller],

@@ -18,7 +18,7 @@ summary: "Build minimal Electron and loopback server hosts over the proved works
 - **H5.1** launcher extraction landed in `0e2ccdc`.
 - **H5.2** workspace extraction landed in `0780f80`.
 - **H5.3** dependency-boundary enforcement landed. H5 is complete.
-- **R0 and A1** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **A2** is next for the concurrent-session lifecycle gate. **H6** then adds the minimal loopback server, followed by H7-H8 Electron rehoming and basic two-host conformance.
+- **R0, A1, and A2** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. The concurrent-session lifecycle gate is complete. **H6** is next for the minimal loopback server, followed by H7-H8 Electron rehoming and basic two-host conformance.
 
 ## Status and intent
 
@@ -197,7 +197,7 @@ Prepared dispatch, provider authentication, model refresh, single-flight boots, 
 
 ### Runtime work split from this plan
 
-Agent feature lifetimes, per-session Canvas state, selected-view routing, reload, and concurrent-session tests moved to [agent feature instances and viewpoint state](./agent-feature-instances-and-viewpoint-state.md). R0 reverted the unused state-builder and composition code. A1 moved feature state into the production `AgentInstance`. A2 now owns the concurrent-session gate before H6.
+Agent feature lifetimes, per-session Canvas state, selected-view routing, reload, and concurrent-session tests moved to [agent feature instances and viewpoint state](./agent-feature-instances-and-viewpoint-state.md). R0 reverted the unused state-builder and composition code. A1 moved feature state into the production `AgentInstance`. A2 completed the concurrent-session gate before H6.
 
 Full reconnect recovery, provider-auth browser parity, app-source rehoming, discovery, security review, and packaging moved to [server browser parity and distribution](./server-browser-parity-and-distribution.md).
 

@@ -52,15 +52,18 @@ export function parseCanvasFrameMessage(
 /**
  * Persist a prompt action's hydrated canvas before starting the agent turn.
  * This ordering lets submit preparation diff against the state visible at the
- * instant the human clicked the canvas action.
+ * instant the human clicked the canvas action. Recheck the viewpoint after
+ * writeback so an intervening session change cannot prompt the new target.
  */
 export async function forwardCanvasFrameMessage(
   message: CanvasFrameMessage,
+  isCurrentViewpoint: () => boolean,
   writeback: (req: { key: CanvasKey; html: string }) => Promise<void>,
   prompt: (req: { text: string }) => Promise<void>,
 ): Promise<void> {
+  if (!isCurrentViewpoint()) return;
   await writeback({ key: message.key, html: message.html });
-  if (message.type === "prompt") {
+  if (message.type === "prompt" && isCurrentViewpoint()) {
     await prompt({ text: message.prompt });
   }
 }

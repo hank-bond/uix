@@ -239,6 +239,31 @@ async function writeFixture(): Promise<string> {
   return dir;
 }
 
+async function makeCanvasWorkspace(): Promise<Workspace> {
+  const dir = await mkdtemp(join(tmpdir(), "canvas-viewpoints-"));
+  await mkdir(join(dir, ".uix", "sessions"), { recursive: true });
+  await writeFile(
+    join(dir, "uix.workspace.json"),
+    JSON.stringify(
+      {
+        name: "canvas-viewpoints",
+        features: [
+          {
+            entry: join(__dirname, "../../../src/features/canvas/index.ts"),
+          },
+        ],
+      },
+      null,
+      2,
+    ),
+  );
+  return {
+    stateRoot: dir,
+    agentCwd: dir,
+    manifestPath: join(dir, "uix.workspace.json"),
+  };
+}
+
 function loadedEventCount(events: RuntimeEvent[]): number {
   return events.filter((event) => event.channel === "uix.composition_loaded")
     .length;
@@ -253,6 +278,93 @@ async function dispatch(
 }
 
 describe("workspace runtime isolation", () => {
+  it("keeps the production Canvas on the selected concurrent-session viewpoint", async () => {
+    const workspace = await makeCanvasWorkspace();
+    const runtime = createWorkspaceRuntime({
+      workspaceId: toWorkspaceId("canvas-workspace"),
+      workspace,
+      piAppDataDir: join(workspace.stateRoot, ".pi"),
+      apiModuleDir,
+      dependencies: fakeTransports().dependencies,
+    });
+    const events: RuntimeEvent[] = [];
+    runtime.onEvent((event) => events.push(event));
+
+    const activation = await runtime.load();
+    expect(activation.activated.map(({ id }) => id)).toEqual(["canvas"]);
+
+    const selected = (await runtime.createAttachment()).attachment;
+    const sessionA = selected.target.sessionId;
+    const peerA = (await runtime.createAttachment({ sessionId: sessionA }))
+      .attachment;
+    const read = toChannelCanonicalId("canvas", "read");
+    const writeback = toChannelCanonicalId("canvas", "writeback");
+    const key = "main";
+    const htmlA = "<main>session A</main>";
+    const htmlB = "<main>session B</main>";
+    const canonicalA =
+      "<html><head></head><body><main>session A</main></body></html>";
+    const canonicalB =
+      "<html><head></head><body><main>session B</main></body></html>";
+
+    await expect(
+      dispatch(peerA, {
+        channel: writeback,
+        payload: { key, html: htmlA },
+      }),
+    ).resolves.toEqual({ ok: true, value: undefined });
+
+    const newSession = toChannelCanonicalId("agent", "new_session");
+    await expect(
+      dispatch(selected, { channel: newSession, payload: undefined }),
+    ).resolves.toMatchObject({ ok: true });
+    const sessionB = selected.target.sessionId;
+    expect(sessionB).not.toBe(sessionA);
+    expect(peerA.target.sessionId).toBe(sessionA);
+    await expect(
+      dispatch(selected, { channel: read, payload: { key } }),
+    ).resolves.toEqual({
+      ok: true,
+      value: "<html><head></head><body></body></html>",
+    });
+
+    await dispatch(selected, {
+      channel: writeback,
+      payload: { key, html: htmlB },
+    });
+    await expect(
+      dispatch(peerA, { channel: read, payload: { key } }),
+    ).resolves.toEqual({ ok: true, value: canonicalA });
+    await expect(
+      dispatch(selected, { channel: read, payload: { key } }),
+    ).resolves.toEqual({ ok: true, value: canonicalB });
+
+    events.length = 0;
+    await expect(runtime.reload()).resolves.toMatchObject({
+      featuresActivated: 1,
+      featuresFailed: 0,
+    });
+    const changedScopes = events
+      .filter(({ channel }) => channel === "canvas.changed")
+      .map(({ scope }) => scope);
+    expect(changedScopes).toEqual(
+      expect.arrayContaining([
+        { kind: "session", sessionId: sessionA },
+        { kind: "session", sessionId: sessionB },
+      ]),
+    );
+    await expect(
+      dispatch(peerA, { channel: read, payload: { key } }),
+    ).resolves.toEqual({ ok: true, value: canonicalA });
+    await expect(
+      dispatch(selected, { channel: read, payload: { key } }),
+    ).resolves.toEqual({ ok: true, value: canonicalB });
+
+    peerA[Symbol.dispose]();
+    selected[Symbol.dispose]();
+    await runtime[Symbol.asyncDispose]();
+  });
+
   it("runs two workspaces with duplicate ids without cross-talk", async () => {
     const fixtureDir = await writeFixture();
     const workspaceA = await makeWorkspace(
