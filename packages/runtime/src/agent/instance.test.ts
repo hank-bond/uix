@@ -22,7 +22,11 @@ interface Harness {
 }
 
 function createHarness(): Harness {
-  const manager = {} as SessionManager;
+  const manager = {
+    getBranch: () => [],
+    getHeader: () => ({ cwd: "/workspace" }),
+    getCwd: () => "/workspace",
+  } as unknown as SessionManager;
   const runtimeDispose = vi.fn<() => Promise<void>>(() => Promise.resolve());
   const sessionReload = vi.fn<() => Promise<void>>(() => Promise.resolve());
   let streaming = false;

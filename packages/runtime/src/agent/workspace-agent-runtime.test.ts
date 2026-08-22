@@ -1178,10 +1178,85 @@ describe("workspace agent instances", () => {
     const history = await agentRuntime.readSessionHistory(guard);
 
     expect(history.session.sessionId).toBe("session-id");
-    expect(history.transcript.items).toEqual([
-      expect.objectContaining({ kind: "user", text: "hello" }),
+    expect(history.snapshot).toEqual({
+      transcript: {
+        items: [expect.objectContaining({ kind: "user", text: "hello" })],
+      },
+      turnActive: false,
+    });
+    expect(sdk.state.runtimeCreates).toBe(0);
+    guard[Symbol.dispose]();
+    await agentRuntime[Symbol.asyncDispose]();
+  });
+
+  it("reads the Agent instance's durable plus in-memory transcript", async () => {
+    sdk.state.branch = [
+      {
+        id: "message-1",
+        parentId: null,
+        timestamp: "2026-07-19T10:00:00.000Z",
+        type: "message",
+        message: {
+          role: "user",
+          content: "run a command",
+          timestamp: 1,
+        },
+      },
+    ];
+    const { agentRuntime, events } = createHarness();
+    const guard = await agentRuntime.acquire(
+      { sessionId: "session-id" as never },
+      sdk.manager as never,
+    );
+    const tool = {
+      id: "message-2:tool:call-1",
+      kind: "tool" as const,
+      toolCallId: "call-1",
+      toolName: "bash",
+      cwd: "/tmp/ws",
+      args: { command: "sleep 15" },
+      complete: false,
+    };
+
+    guard.value.state.emitAgentEvent({
+      type: "transcript_append",
+      item: tool,
+    });
+    guard.value.state.emitAgentEvent({
+      type: "transcript_partial",
+      id: tool.id,
+      partialResult: { content: "still running" },
+    });
+    const running = guard.value.registerActiveTurn({
+      cancel: () => Promise.resolve(),
+    });
+
+    await expect(agentRuntime.readSessionHistory(guard)).resolves.toMatchObject(
+      {
+        snapshot: {
+          transcript: {
+            items: [
+              { id: "message-1", kind: "user", text: "run a command" },
+              {
+                ...tool,
+                partialResult: { content: "still running" },
+              },
+            ],
+          },
+          turnActive: true,
+        },
+      },
+    );
+    expect(events).toEqual([
+      { type: "transcript_append", item: tool },
+      {
+        type: "transcript_partial",
+        id: tool.id,
+        partialResult: { content: "still running" },
+      },
     ]);
     expect(sdk.state.runtimeCreates).toBe(0);
+    running[Symbol.dispose]();
     guard[Symbol.dispose]();
     await agentRuntime[Symbol.asyncDispose]();
   });

@@ -1,5 +1,5 @@
 ---
-summary: "R0, A1, and A2 landed: feature state is created per Agent instance, and concurrent session viewpoints pass the production lifecycle gate."
+summary: "R0-A2 landed. A3 is in review to make each Agent instance serve one current transcript from its durable seed plus live updates."
 ---
 
 # Agent feature instances and viewpoint state
@@ -14,7 +14,7 @@ The first A1 implementation added state builders, a separate composition engine,
 
 **R0, A1, and A2 are complete.** The unused A1 commits remain in history behind one combined revert. The direct replacement uses `workspace(ctx)` and `agent(ctx)` factories, per-instance registries and bags, selected Agent channel handlers, and per-viewpoint Canvas buffers. The concurrent-session gate adds production Canvas viewpoint coverage, stale-frame rejection, and running-session retargeting in the shared client.
 
-H6 can now support several browser attachments over the proved concurrent-session lifecycle. The [Electron and server host split](./electron-server-split.md) continues to own the concrete hosts. [Runtime operation hardening](./runtime-operation-hardening.md) owns the remaining cancellation work.
+A3 closes the current-transcript gap exposed by running-session retargeting before H6 adds browser attachments. The [Electron and server host split](./electron-server-split.md) continues to own the concrete hosts. [Runtime operation hardening](./runtime-operation-hardening.md) owns the remaining cancellation work.
 
 ## Planning rules
 
@@ -134,6 +134,14 @@ Run a production-path lifecycle suite for shared-session attachments, different-
 Remove the renderer restriction on session changes only after this suite passes. H6 then uses the same runtime for its first multi-connection server path.
 
 **Review gate:** Electron and the shared client can use concurrent session viewpoints without shared mutable feature state, stale writes, event leakage, or unclear cleanup. All repository checks pass.
+
+### A3: Serve the current transcript from the Agent instance · **in review**
+
+Seed one materialized transcript from the Agent instance's durable selected-branch projection. Route normalized transcript events through that read model before publishing them, and serve `session_history` from the guarded Agent instance instead of projecting its manager directly. The manager remains durable authority. The materialized transcript is an instance-lifetime projection cache.
+
+Return transcript and active-turn state in one current Agent snapshot. Chat briefly buffers events while loading, installs that snapshot, and replays the buffered stream tail for both transcript and activity. Remove the separate active-turn snapshot request. Make live partials idempotent: tool progress remains a replacement snapshot, while assistant deltas carry their append offset. Do not add transcript revisions, a renderer session cache, tool-specific overlays, or reconnect epochs.
+
+**Review gate:** Switching away and back during a running tool restores its spinner, latest partial output, and cancel action. Streaming assistant text, completion events, and turn completion survive snapshot hydration without duplication. Persisted idle history remains unchanged, and snapshot reads do not boot Pi. All repository checks pass.
 
 ## Lessons from the reverted commits
 

@@ -93,6 +93,11 @@ describe("TranscriptObserver", () => {
       message,
       assistantMessageEvent: { type: "text_delta", delta: "final " },
     });
+    active.emit({
+      type: "message_update",
+      message,
+      assistantMessageEvent: { type: "text_delta", delta: "answer" },
+    });
     active.emit({ type: "message_end", message });
     manager.appendMessage(message as never);
 
@@ -110,6 +115,13 @@ describe("TranscriptObserver", () => {
         type: "transcript_partial",
         id: liveId,
         text: "final ",
+        textOffset: 0,
+      },
+      {
+        type: "transcript_partial",
+        id: liveId,
+        text: "answer",
+        textOffset: 6,
       },
       {
         type: "transcript_replace",

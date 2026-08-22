@@ -90,7 +90,6 @@ describe("channel clients", () => {
     request
       .mockResolvedValueOnce(undefined)
       .mockResolvedValueOnce({ cancelled: true })
-      .mockResolvedValueOnce({ active: true })
       .mockResolvedValueOnce({
         session: {
           sessionId: "session-1",
@@ -98,7 +97,10 @@ describe("channel clients", () => {
           createdAt: "2026-07-19T10:00:00.000Z",
           modifiedAt: "2026-07-19T10:30:00.000Z",
         },
-        transcript: { items: [] },
+        snapshot: {
+          transcript: { items: [] },
+          turnActive: true,
+        },
       })
       .mockResolvedValueOnce([
         {
@@ -128,7 +130,6 @@ describe("channel clients", () => {
 
     await agent.requests.prompt({ text: "hi" });
     await agent.requests.cancel_turn(undefined);
-    await agent.requests.turn_activity(undefined);
     await agent.requests.session_history({});
     await agent.requests.list_session_summaries({ limit: 10 });
     await agent.requests.new_session(undefined);
@@ -141,7 +142,6 @@ describe("channel clients", () => {
 
     expect(request).toHaveBeenCalledWith("agent.prompt", { text: "hi" });
     expect(request).toHaveBeenCalledWith("agent.cancel_turn", undefined);
-    expect(request).toHaveBeenCalledWith("agent.turn_activity", undefined);
     expect(request).toHaveBeenCalledWith("agent.session_history", {});
     expect(request).toHaveBeenCalledWith("agent.list_session_summaries", {
       limit: 10,

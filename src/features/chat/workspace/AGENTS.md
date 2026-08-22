@@ -42,5 +42,6 @@ The status bar composes the session and model pills. The model pill opens the mo
 - **[SessionPill.css](./SessionPill.css)** Session pill and session picker styles.
 - **[SessionPill.tsx](./SessionPill.tsx)** Renders the session status pill and session picker for switching and renaming conversations.
 - **[surface.tsx](./surface.tsx)** The chat surface contribution over the agent channels.
+- **[transcript-state.ts](./transcript-state.ts)** Reconciles current Agent snapshots, live events, and renderer-local optimistic rows.
 
 <!-- INDEX:END -->

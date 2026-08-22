@@ -29,7 +29,6 @@ import type { DocumentStoreFactory } from "@uix/api/documents";
 import type { SettingsHandleFrom } from "@uix/api/settings";
 
 import { deriveProviderAuthCatalog } from "./auth-providers";
-import { deriveSelectedBranchProjection } from "./branch-projection";
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
 import { type AgentInstanceOwnership, createAgentInstance } from "./instance";
 import type { AgentInstanceState } from "./instance-state";
@@ -85,7 +84,6 @@ export interface WorkspaceAgentRuntime extends AsyncDisposable {
   cancelTurn(guard: AgentInstanceGuard): Promise<boolean>;
   readSessionHistory(
     guard: AgentInstanceGuard,
-    sessionId?: string,
   ): Promise<SessionHistoryResponse>;
   listSessionSummaries(limit: number): Promise<SessionSummary[]>;
   setSessionTitle(
@@ -468,7 +466,7 @@ export function createWorkspaceAgentRuntime(
       turnSignal = operation.signal;
       activeTurnLifetime.add(instance.registerActiveTurn(operation.control));
       turnRegistered = true;
-      opts.onEvent(instance.target.sessionId, { type: "active_turn_start" });
+      state.emitAgentEvent({ type: "active_turn_start" });
 
       const session = (await operation.run(() => instance.bootRuntime()))
         .session;
@@ -504,7 +502,7 @@ export function createWorkspaceAgentRuntime(
     } catch (error) {
       const cancelled = turnSignal?.aborted ?? false;
       if (!disposed && !cancelled) {
-        opts.onEvent(instance.target.sessionId, {
+        state.emitAgentEvent({
           type: "transcript_append",
           item: {
             id: state.ephemeralTranscriptIds.next("error"),
@@ -514,11 +512,11 @@ export function createWorkspaceAgentRuntime(
         });
       }
       if (turnRegistered && !cancelled) {
-        opts.onEvent(instance.target.sessionId, { type: "agent_end" });
+        state.emitAgentEvent({ type: "agent_end" });
       }
     } finally {
       if (turnRegistered && !disposed) {
-        opts.onEvent(instance.target.sessionId, { type: "active_turn_end" });
+        state.emitAgentEvent({ type: "active_turn_end" });
       }
     }
   }
@@ -578,27 +576,15 @@ export function createWorkspaceAgentRuntime(
         new Error("Agent turn cancelled by the user"),
       ),
 
-    async readSessionHistory(guard, requestedSessionId) {
+    async readSessionHistory(guard) {
       const instance = guard.value;
-      let manager = instance.manager;
-      if (
-        requestedSessionId !== undefined &&
-        requestedSessionId !== instance.target.sessionId
-      ) {
-        const opened = await openExistingSessionManager(
-          sessionDir,
-          requestedSessionId,
-        );
-        if (!opened) throw new Error(`Unknown session: ${requestedSessionId}`);
-        manager = opened;
-      }
+      const snapshot = {
+        transcript: instance.state.getTranscriptSnapshot(),
+        turnActive: instance.isTurnActive(),
+      };
       return {
-        session: await readSessionSummary(manager),
-        transcript: deriveSelectedBranchProjection(
-          manager.getBranch(),
-          manager.getHeader()?.cwd || manager.getCwd(),
-          instance.state.turnStateCoordinator?.toRegistrySnapshot(),
-        ).transcript,
+        session: await readSessionSummary(instance.manager),
+        snapshot,
       };
     },
 

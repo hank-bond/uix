@@ -21,7 +21,7 @@ import {
 import type { Static, TSchema } from "typebox";
 import { Value } from "typebox/value";
 
-import type { SessionSummary, TranscriptSnapshot } from "./agent-channels";
+import type { AgentSnapshot, SessionSummary } from "./agent-channels";
 import { toChannelCanonicalId } from "./channel-resolution";
 import type { ChannelContract } from "./channels";
 import { isIdToken } from "./contribution-id";
@@ -71,7 +71,7 @@ export interface WorkspaceSessionHandle {
   readonly sessionSelectionVersion: number;
   /** False only while another session mutation is pending. */
   readonly canSwitchSession: boolean;
-  readonly loadActiveHistory: () => Promise<TranscriptSnapshot>;
+  readonly loadActiveHistory: () => Promise<AgentSnapshot>;
   /** Returns undefined while another session mutation is pending. */
   readonly switchSession: (
     sessionId: string,

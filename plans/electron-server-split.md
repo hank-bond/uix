@@ -18,7 +18,7 @@ summary: "Build minimal Electron and loopback server hosts over the proved works
 - **H5.1** launcher extraction landed in `0e2ccdc`.
 - **H5.2** workspace extraction landed in `0780f80`.
 - **H5.3** dependency-boundary enforcement landed. H5 is complete.
-- **R0, A1, and A2** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. The concurrent-session lifecycle gate is complete. **H6** is next for the minimal loopback server, followed by H7-H8 Electron rehoming and basic two-host conformance.
+- **R0, A1, and A2** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **A3** is in review for Agent-instance current transcript snapshots. **H6** follows with the minimal loopback server, then H7-H8 Electron rehoming and basic two-host conformance.
 
 ## Status and intent
 

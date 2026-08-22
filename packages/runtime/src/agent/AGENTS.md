@@ -22,6 +22,7 @@ Provider discovery and interactive sign-in share Pi's authentication state. A co
 
 - **[auth-providers.ts](./auth-providers.ts)** Derives the provider sign-in list from Pi's available login methods and current connection state.
 - **[branch-projection.ts](./branch-projection.ts)** Derives current transcript and restorable feature state from one selected Pi branch.
+- **[current-transcript.ts](./current-transcript.ts)** Materializes one Agent instance's durable transcript seed plus live transcript updates.
 - **[installers.ts](./installers.ts)** Assembles UIX's ordered Pi setup hooks into the single in-process extension used by each runtime.
 - **[instance-state.ts](./instance-state.ts)** Owns the mutable collaborators and projections scoped to one live agent instance.
 - **[instance-supervisor.ts](./instance-supervisor.ts)** Supervises session-keyed agent instances and issues explicit lifetime guards.

@@ -2,9 +2,9 @@
 
 import type {
   AgentEvent,
+  AgentSnapshot,
   SessionHistoryResponse,
   SessionSummary,
-  TranscriptSnapshot,
 } from "@uix/api/agent-channels";
 
 interface WorkspaceSessionControllerOptions {
@@ -101,11 +101,11 @@ export class WorkspaceSessionController {
     }
   }
 
-  loadActiveHistory(): Promise<TranscriptSnapshot> {
+  loadActiveHistory(): Promise<AgentSnapshot> {
     const { sessionSelectionVersion } = this.#snapshot;
     const existing = this.#inFlightActiveHistory;
     if (existing?.sessionSelectionVersion === sessionSelectionVersion) {
-      return existing.promise.then(({ transcript }) => transcript);
+      return existing.promise.then(({ snapshot }) => snapshot);
     }
 
     const promise = this.#requestActiveHistory()
@@ -124,7 +124,7 @@ export class WorkspaceSessionController {
         }
       });
     this.#inFlightActiveHistory = { sessionSelectionVersion, promise };
-    return promise.then(({ transcript }) => transcript);
+    return promise.then(({ snapshot }) => snapshot);
   }
 
   async loadRecentSessions(): Promise<readonly SessionSummary[]> {

@@ -451,14 +451,6 @@ describe("workspace runtime isolation", () => {
     expect(
       await dispatch(fallbackA, { channel: history, payload: {} }),
     ).toEqual(await dispatch(attachA, { channel: history, payload: {} }));
-    const turnActivity = toChannelCanonicalId("agent", "turn_activity");
-    expect(
-      await dispatch(attachA, {
-        channel: turnActivity,
-        payload: undefined,
-      }),
-    ).toEqual({ ok: true, value: { active: false } });
-
     // New Session retargets only the requesting attachment. Its peer remains
     // on the shared previous instance and can still read that history.
     const previousSessionId = fallbackA.target.sessionId;

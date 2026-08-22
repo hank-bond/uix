@@ -32,6 +32,8 @@ function fakeInstance(target: SessionTarget): {
         ephemeralTranscriptIds: {} as never,
         transcriptObserver: {} as never,
         modelInstaller: vi.fn(),
+        emitAgentEvent: vi.fn(),
+        getTranscriptSnapshot: () => ({ items: [] }),
         getCurrentModel: () => undefined,
         setCurrentModel: vi.fn(),
       },

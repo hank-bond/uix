@@ -28,6 +28,19 @@ const newSession: SessionSummary = {
   modifiedAt: "2026-07-19T11:00:00.000Z",
 };
 
+function historyResponse(
+  session: SessionSummary = existingSession,
+  turnActive = false,
+): SessionHistoryResponse {
+  return {
+    session,
+    snapshot: {
+      transcript: { items: [] },
+      turnActive,
+    },
+  };
+}
+
 interface ControllerRequests {
   requestActiveHistory: () => Promise<SessionHistoryResponse>;
   requestRecentSessions: () => Promise<SessionSummary[]>;
@@ -44,11 +57,7 @@ function createController(
   overrides: Partial<ControllerRequests> = {},
 ): WorkspaceSessionController {
   return new WorkspaceSessionController({
-    requestActiveHistory: () =>
-      Promise.resolve({
-        session: existingSession,
-        transcript: { items: [] },
-      }),
+    requestActiveHistory: () => Promise.resolve(historyResponse()),
     requestRecentSessions: () => Promise.resolve([]),
     requestNewSession: () => Promise.resolve(newSession),
     requestSwitchSession: () => Promise.resolve(newSession),
@@ -97,13 +106,10 @@ describe("WorkspaceSessionController", () => {
     const second = controller.loadActiveHistory();
     expect(requestActiveHistory).toHaveBeenCalledOnce();
 
-    response.resolve({
-      session: existingSession,
-      transcript: { items: [] },
-    });
+    response.resolve(historyResponse(existingSession, true));
     await expect(Promise.all([first, second])).resolves.toEqual([
-      { items: [] },
-      { items: [] },
+      { transcript: { items: [] }, turnActive: true },
+      { transcript: { items: [] }, turnActive: true },
     ]);
     expect(controller.getSnapshot()).toMatchObject({
       activeSession: existingSession,
@@ -142,17 +148,14 @@ describe("WorkspaceSessionController", () => {
   });
 
   it("does not let an older history read replace a successful mutation", async () => {
-    const historyResponse = deferred<SessionHistoryResponse>();
+    const pendingHistory = deferred<SessionHistoryResponse>();
     const controller = createController({
-      requestActiveHistory: () => historyResponse.promise,
+      requestActiveHistory: () => pendingHistory.promise,
     });
 
     const history = controller.loadActiveHistory();
     await controller.newSession();
-    historyResponse.resolve({
-      session: existingSession,
-      transcript: { items: [] },
-    });
+    pendingHistory.resolve(historyResponse());
     await history;
 
     expect(controller.getSnapshot()).toMatchObject({
@@ -284,10 +287,7 @@ describe("WorkspaceSessionController", () => {
       title: "Active research",
     };
     const requestActiveHistory = vi.fn(() =>
-      Promise.resolve({
-        session: existingSession,
-        transcript: { items: [] },
-      }),
+      Promise.resolve(historyResponse()),
     );
     const controller = createController({
       requestActiveHistory,
@@ -320,8 +320,7 @@ describe("WorkspaceSessionController", () => {
       Promise.resolve([previewedSession]),
     );
     const controller = createController({
-      requestActiveHistory: () =>
-        Promise.resolve({ session: newSession, transcript: { items: [] } }),
+      requestActiveHistory: () => Promise.resolve(historyResponse(newSession)),
       requestRecentSessions,
     });
     await controller.loadActiveHistory();

@@ -2,6 +2,7 @@ import type { JSX } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import type { AgentSnapshot } from "@uix/api/agent-channels";
 import {
   useWorkspaceSession,
   WorkspaceSessionProvider,
@@ -12,8 +13,11 @@ function Probe(): JSX.Element {
   return <span>{activeSession?.title ?? "not established"}</span>;
 }
 
-const loadActiveHistory = (): Promise<{ items: never[] }> =>
-  Promise.resolve({ items: [] });
+const loadActiveHistory = (): Promise<AgentSnapshot> =>
+  Promise.resolve({
+    transcript: { items: [] },
+    turnActive: false,
+  });
 const switchSession = (): Promise<undefined> => Promise.resolve(undefined);
 const setSessionTitle = (): Promise<undefined> => Promise.resolve(undefined);
 

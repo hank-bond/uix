@@ -5,6 +5,7 @@ import type {
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
 
+import { deriveSelectedBranchProjection } from "./branch-projection";
 import {
   type AgentInstanceState,
   type AgentInstanceStateOptions,
@@ -63,7 +64,10 @@ export interface AgentInstanceOptions {
     manager: SessionManager,
     state: AgentInstanceState,
   ) => Promise<void>;
-  readonly state: Omit<AgentInstanceStateOptions, "turnState">;
+  readonly state: Omit<
+    AgentInstanceStateOptions,
+    "initialTranscript" | "turnState"
+  >;
 }
 
 /** Creates an independently disposable instance with lazy Pi runtime boot. */
@@ -86,6 +90,10 @@ export async function createAgentInstance(
     state = instanceBag.add(
       createAgentInstanceState({
         ...opts.state,
+        initialTranscript: deriveSelectedBranchProjection(
+          opts.manager.getBranch(),
+          opts.manager.getHeader()?.cwd || opts.manager.getCwd(),
+        ).transcript,
         turnState: features.turnState,
       }),
     );

@@ -6,7 +6,7 @@ summary: "The shared workspace client hosts runtime surfaces and owns session, a
 
 The workspace page is one browser composition behind `mountWorkspaceClient`. The surface host fetches the runtime composition and mounts each surface with feature-bound channels, settings, actions, scoped styles, and error isolation. Page-shared module installation preserves React, TypeBox, and `@uix/api` identity for runtime-built surfaces.
 
-Actions resolve into one renderer registry and synchronize confirmed bindings through substrate channels. The session controller owns active-session projection and idle-only mutations. An optional idempotent mount callback reflects accepted session selection into host-owned location encoding without participating in the mutation.
+Actions resolve into one renderer registry and synchronize confirmed bindings through substrate channels. The session controller owns active-session projection and serializes session mutations without using selected-Agent activity as a mutation veto. An optional idempotent mount callback reflects accepted session selection into host-owned location encoding without participating in the mutation.
 
 This directory contains no concrete transport, URL parser, Electron global, runtime implementation, or app feature import.
 

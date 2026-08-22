@@ -17,12 +17,6 @@ export const PromptRequestSchema = Type.Object({
 });
 export type PromptRequest = Static<typeof PromptRequestSchema>;
 
-/** Current activity of the attachment-selected agent instance. */
-export const TurnActivitySnapshotSchema = Type.Object({
-  active: Type.Boolean(),
-});
-export type TurnActivitySnapshot = Static<typeof TurnActivitySnapshotSchema>;
-
 /** Point-in-time file location derived for a filesystem tool invocation. */
 export interface ToolFileLocation {
   /** Absolute path derived from the invocation args and execution cwd. */
@@ -32,9 +26,8 @@ export interface ToolFileLocation {
 }
 
 /**
- * Durable transcript items rendered by conversation surfaces. Live events may
- * include in-flight fields on the same item shape. History replay only returns
- * completed durable items.
+ * Transcript items rendered by conversation surfaces. Agent snapshots include
+ * durable entries plus any in-flight fields currently held by the live instance.
  */
 export type TranscriptItem =
   | { id: string; kind: "user"; text: string }
@@ -84,17 +77,20 @@ export type AgentEvent =
     }
   | {
       /**
-       * Compact in-flight update to an already-appended item. The renderer is
-       * the accumulator: `text` appends to a streaming assistant row's text;
-       * `partialResult` overwrites a tool row's live progress payload (Pi
-       * tool updates are replacement snapshots, not increments). A full
-       * `transcript_replace` still lands at completion, so partials are pure
-       * display traffic. Dropping one loses nothing durable.
+       * Compact, idempotent assistant-text update. `textOffset` is the UTF-16
+       * length at which the delta belongs, so replay skips a delta already
+       * represented by a current snapshot.
        */
       type: "transcript_partial";
       id: string;
-      text?: string;
-      partialResult?: unknown;
+      text: string;
+      textOffset: number;
+    }
+  | {
+      /** Idempotent replacement of a tool row's live progress payload. */
+      type: "transcript_partial";
+      id: string;
+      partialResult: unknown;
     }
   | { type: "active_turn_start" }
   | { type: "active_turn_end" }
@@ -103,13 +99,20 @@ export type AgentEvent =
   | { type: "turn_start" }
   | { type: "turn_end" };
 
-/** Complete, durable transcript items replayed from the persisted session. */
+/** Point-in-time transcript items from one live Agent instance. */
 export interface TranscriptSnapshot {
   items: TranscriptItem[];
 }
 export const TranscriptSnapshotSchema = Type.Unsafe<TranscriptSnapshot>(
   Type.Any(),
 );
+
+/** Current presentation state of one live Agent instance. */
+export const AgentSnapshotSchema = Type.Object({
+  transcript: TranscriptSnapshotSchema,
+  turnActive: Type.Boolean(),
+});
+export type AgentSnapshot = Static<typeof AgentSnapshotSchema>;
 
 export const SessionIdSchema = Type.String({
   pattern: "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$",
@@ -159,7 +162,7 @@ export type SessionHistoryRequest = Static<typeof SessionHistoryRequestSchema>;
 
 export const SessionHistoryResponseSchema = Type.Object({
   session: SessionSummarySchema,
-  transcript: TranscriptSnapshotSchema,
+  snapshot: AgentSnapshotSchema,
 });
 export type SessionHistoryResponse = Static<
   typeof SessionHistoryResponseSchema
@@ -381,11 +384,6 @@ export const agentChannels = {
     cancel_turn: {
       requestSchema: Type.Void(),
       responseSchema: Type.Object({ cancelled: Type.Boolean() }),
-    },
-    /** Snapshot the attachment-selected instance's active-turn state. */
-    turn_activity: {
-      requestSchema: Type.Void(),
-      responseSchema: TurnActivitySnapshotSchema,
     },
     session_history: {
       requestSchema: SessionHistoryRequestSchema,

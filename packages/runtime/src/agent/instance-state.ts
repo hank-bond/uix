@@ -1,7 +1,12 @@
 // Owns the mutable collaborators and projections scoped to one live agent instance.
 
-import type { AgentEvent, ModelRef } from "@uix/api/agent-channels";
+import type {
+  AgentEvent,
+  ModelRef,
+  TranscriptSnapshot,
+} from "@uix/api/agent-channels";
 
+import { createCurrentTranscript } from "./current-transcript";
 import type { AgentInstaller } from "./installers";
 import {
   createEphemeralTranscriptItemIdSequence,
@@ -23,6 +28,9 @@ export interface AgentInstanceState {
   readonly turnStateCoordinator: TurnStateCoordinator | undefined;
   readonly ephemeralTranscriptIds: EphemeralTranscriptItemIdSequence;
   readonly modelInstaller: AgentInstaller;
+  /** Materialize and publish one event through this instance's event path. */
+  emitAgentEvent(event: AgentEvent): void;
+  getTranscriptSnapshot(): TranscriptSnapshot;
   getCurrentModel(): ModelRef | undefined;
   setCurrentModel(model: ModelRef | undefined): void;
 }
@@ -32,6 +40,7 @@ export type AgentInstanceStateOwnership = AgentInstanceState & Disposable;
 
 export interface AgentInstanceStateOptions {
   readonly emit: (event: AgentEvent) => void;
+  readonly initialTranscript: TranscriptSnapshot;
   readonly turnState?: TurnStateRegistry;
   readonly cwd: string;
   readonly onCurrentModelChange?: () => void;
@@ -43,9 +52,14 @@ export function createAgentInstanceState(
 ): AgentInstanceStateOwnership {
   const bag = new DisposableBag();
   const ephemeralTranscriptIds = createEphemeralTranscriptItemIdSequence();
+  const currentTranscript = createCurrentTranscript(opts.initialTranscript);
+  function emitAgentEvent(event: AgentEvent): void {
+    currentTranscript.apply(event);
+    opts.emit(event);
+  }
   const transcriptObserver = bag.add(
     createTranscriptObserver({
-      emit: opts.emit,
+      emit: emitAgentEvent,
       ephemeralIds: ephemeralTranscriptIds,
     }),
   );
@@ -68,6 +82,8 @@ export function createAgentInstanceState(
     transcriptObserver,
     turnStateCoordinator,
     ephemeralTranscriptIds,
+    emitAgentEvent,
+    getTranscriptSnapshot: () => currentTranscript.getSnapshot(),
     modelInstaller(pi) {
       pi.on("model_select", (event) => {
         setCurrentModel({

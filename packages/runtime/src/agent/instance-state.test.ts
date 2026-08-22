@@ -37,6 +37,7 @@ function createManager(): SessionManager {
 function createState(turnState = new TurnStateRegistry()): AgentInstanceState {
   return createAgentInstanceState({
     emit: () => undefined,
+    initialTranscript: { items: [] },
     turnState,
     cwd: "/workspace",
   });

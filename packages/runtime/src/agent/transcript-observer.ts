@@ -164,14 +164,15 @@ function createLiveTranscriptForwarder(
         const inner = event.assistantMessageEvent;
         if (inner.type === "text_delta") {
           // Accumulate locally (message_end falls back to this text when the
-          // final message extracts empty) but ship only the increment. The
-          // renderer accumulates its copy from partials.
+          // final message extracts empty). The offset makes the compact delta
+          // idempotent when replayed after a current transcript snapshot.
           const current = ensureAssistant();
           assistant = { ...current, text: current.text + inner.delta };
           emit({
             type: "transcript_partial",
             id: current.id,
             text: inner.delta,
+            textOffset: current.text.length,
           });
         }
         return;
