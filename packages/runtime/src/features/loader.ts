@@ -1,4 +1,4 @@
-// Loads the features selected by the workspace manifest and isolates failures so one feature cannot stop its siblings.
+// Activates manifest-selected Workspace factories and retains Agent factories in manifest order.
 //
 // Each pass validates candidate settings before replacement, then activates
 // entries sequentially in manifest order. A provisional lifetime rolls back one
@@ -10,19 +10,25 @@ import { dirname } from "node:path";
 import { createJiti, type Jiti } from "jiti";
 import { Type } from "typebox";
 
+import type { FeatureEventPublisherFactory } from "@uix/api/channels";
 import { isIdToken } from "@uix/api/contribution-id";
 import type { DocumentStoreFactory } from "@uix/api/documents";
-import type { FeatureContext, FeatureDefinition } from "@uix/api/feature";
+import type {
+  AgentFeatureInstance,
+  FeatureContext,
+  FeatureDefinition,
+} from "@uix/api/feature";
 import { defineSettings, type SettingsHandle } from "@uix/api/settings";
 
 import {
-  type FeatureContributionRegistries,
-  registerFeatureContributions,
+  addFeatureInstanceLifetime,
+  registerWorkspaceFeatureContributions,
+  type WorkspaceFeatureRegistries,
 } from "./contributions";
 import type { ManifestFeatureRef } from "./manifest";
 import type { ChannelRegistry } from "../channel-registry";
 import { createFeatureEventPublisherFactory } from "../channel-registry";
-import { DisposableBag } from "../lifecycle";
+import { AsyncDisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
 import { bindSettingsHandle } from "../settings-registry";
 import type { WorkspaceSettings } from "../workspace-settings";
@@ -77,7 +83,7 @@ export interface FeatureSubstrate {
   documents: DocumentStoreFactory;
   settings: FeatureActivationSettings;
   channels: ChannelRegistry;
-  registries: FeatureContributionRegistries;
+  registries: WorkspaceFeatureRegistries;
   /**
    * On-disk dir of the `@uix/api` implementation feature imports resolve
    * to (the repo's `packages/api/src` in dev). Supplied by the composition root;
@@ -97,15 +103,14 @@ export interface FeatureSources {
 }
 
 /**
- * Assembles the context bag a feature's `context`/`contribute` hooks receive.
- * One construction path for every feature. The substrate facets a feature
- * can touch are exactly what this returns.
+ * Assembles the context bag passed to one Workspace or Agent factory.
+ * One construction path binds settings listeners to the factory's bag.
  */
 export function assembleFeatureContext(
   featureId: string,
   substrate: FeatureSubstrate,
   settings: SettingsHandle,
-  bag: DisposableBag,
+  bag: AsyncDisposableBag,
 ): FeatureContext {
   return {
     documents: substrate.documents,
@@ -113,6 +118,17 @@ export function assembleFeatureContext(
     channels: createFeatureEventPublisherFactory(featureId, substrate.channels),
     log: createLogger(featureId),
   };
+}
+
+/** One Agent factory retained by a successful Workspace activation. */
+export interface ActivatedAgentFeature {
+  readonly id: string;
+  readonly entryDir?: string;
+  create(
+    channels: FeatureEventPublisherFactory,
+    bag: AsyncDisposableBag,
+    documents: DocumentStoreFactory,
+  ): AgentFeatureInstance;
 }
 
 /** One activated feature instance produced by a successful activation. */
@@ -124,7 +140,9 @@ export interface ActivatedFeatureInstance {
   /** Absolute entry-file path. */
   entry: string;
   /** Per-feature bag. Disposing it removes all the feature's contributions. */
-  bag: DisposableBag;
+  bag: AsyncDisposableBag;
+  /** Agent factory retained for each AgentInstance, when provided. */
+  agent?: ActivatedAgentFeature;
 }
 
 /**
@@ -149,6 +167,8 @@ export interface FailedFeature {
 export interface ActivationResult {
   activated: ActivatedFeatureInstance[];
   failed: FailedFeature[];
+  /** Cleanup failures from the replaced generation, preserved for reload reporting. */
+  cleanupErrors?: readonly unknown[];
   /** Accepted workspace name, when this pass loaded a manifest. */
   workspaceName?: string;
 }
@@ -164,7 +184,7 @@ const normalize = (thrown: unknown): Error =>
 const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
   if (typeof value !== "object" || value === null) {
     throw new Error(
-      "exported `feature` is not a FeatureDefinition (expected an object with id + contribute)",
+      "exported `feature` is not a FeatureDefinition (expected an object with id and a workspace or agent factory)",
     );
   }
   const def = value as Partial<FeatureDefinition>;
@@ -173,11 +193,16 @@ const validateFeatureDefinition = (value: unknown): FeatureDefinition => {
       `FeatureDefinition id is missing or invalid: ${String(def.id)}`,
     );
   }
-  if (typeof def.contribute !== "function") {
-    throw new Error(`FeatureDefinition ${def.id} has no contribute() function`);
+  if (def.workspace !== undefined && typeof def.workspace !== "function") {
+    throw new Error(`FeatureDefinition ${def.id} workspace is not a function`);
   }
-  if (def.context !== undefined && typeof def.context !== "function") {
-    throw new Error(`FeatureDefinition ${def.id} context is not a function`);
+  if (def.agent !== undefined && typeof def.agent !== "function") {
+    throw new Error(`FeatureDefinition ${def.id} agent is not a function`);
+  }
+  if (!def.workspace && !def.agent) {
+    throw new Error(
+      `FeatureDefinition ${def.id} has no workspace() or agent() factory`,
+    );
   }
   if (def.settings !== undefined) {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- exported feature objects are untrusted module code. Null is a real runtime value and typeof null === "object", so the null check is load-bearing despite the non-nullable type.
@@ -235,7 +260,7 @@ const loadFeatureDefinition = async (
  */
 export const activateFeatures = async (
   entries: readonly ManifestFeatureRef[],
-  parentBag: DisposableBag,
+  parentBag: AsyncDisposableBag,
   substrate: FeatureSubstrate,
 ): Promise<ActivationResult> => {
   const activated: ActivatedFeatureInstance[] = [];
@@ -258,7 +283,7 @@ export const activateFeatures = async (
     // it in the parent bag after activation succeeds. A
     // loader disposes a failed feature's bag immediately, and it never
     // becomes part of host-shutdown teardown.
-    const bag = new DisposableBag();
+    const bag = new AsyncDisposableBag();
 
     try {
       const definition = validateFeatureDefinition(await loadDefinition());
@@ -283,27 +308,70 @@ export const activateFeatures = async (
         featureSettings.settings,
         bag,
       );
-      const contributedContext = definition.context?.(baseContext) ?? {};
-      bag.add(
-        registerFeatureContributions(
-          substrate.registries,
-          definition.id,
-          definition.contribute({ ...baseContext, ...contributedContext }),
-          { entryDir },
-        ),
-      );
+      const workspaceInstance = definition.workspace?.(baseContext);
+      if (workspaceInstance) {
+        addFeatureInstanceLifetime(bag, workspaceInstance);
+        bag.add(
+          registerWorkspaceFeatureContributions(
+            substrate.registries,
+            definition.id,
+            workspaceInstance,
+            { entryDir },
+          ),
+        );
+      }
       featureSettings.commit();
 
+      const agentFactory = definition.agent;
+      const agent = agentFactory
+        ? {
+            id: definition.id,
+            ...(entryDir && { entryDir }),
+            create: (
+              channels: FeatureEventPublisherFactory,
+              agentBag: AsyncDisposableBag,
+              documents: DocumentStoreFactory,
+            ) =>
+              agentFactory({
+                ...assembleFeatureContext(
+                  definition.id,
+                  substrate,
+                  featureSettings.settings,
+                  agentBag,
+                ),
+                documents,
+                channels,
+              }),
+          }
+        : undefined;
       takenIds.add(definition.id);
       parentBag.add(bag);
-      activated.push({ id: definition.id, displayName, entry, bag });
+      activated.push({
+        id: definition.id,
+        displayName,
+        entry,
+        bag,
+        ...(agent && { agent }),
+      });
       flog.debug({ id: definition.id }, "activation_succeeded");
     } catch (thrown) {
       const error = normalize(thrown);
       // Tear down anything the definition added before it threw;
       // partial activation shouldn't leak
       // half-wired contributions.
-      bag[Symbol.dispose]();
+      try {
+        await bag[Symbol.asyncDispose]();
+      } catch (cleanupError) {
+        flog.error(
+          {
+            err:
+              cleanupError instanceof Error
+                ? cleanupError.message
+                : String(cleanupError),
+          },
+          "activation_rollback_failed",
+        );
+      }
       failed.push({ displayName, entry, error });
       flog.error(
         { err: error.message, stack: error.stack },
@@ -340,13 +408,13 @@ export const activateFeatures = async (
  * overlaps. Independent workspace bags load independently.
  */
 const inFlightFeatureLoadByBag = new WeakMap<
-  DisposableBag,
+  AsyncDisposableBag,
   Promise<ActivationResult>
 >();
 
 export const loadFeatures = (
   sources: FeatureSources,
-  featuresBag: DisposableBag,
+  featuresBag: AsyncDisposableBag,
   substrate: FeatureSubstrate,
 ): Promise<ActivationResult> => {
   const existing = inFlightFeatureLoadByBag.get(featuresBag);
@@ -368,10 +436,16 @@ export const loadFeatures = (
       entries = features;
       workspaceName = manifest.name;
     }
-    featuresBag.clear();
+    const cleanupErrors: unknown[] = [];
+    try {
+      await featuresBag.clear();
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
     const activation = await activateFeatures(entries, featuresBag, substrate);
     return {
       ...activation,
+      ...(cleanupErrors.length > 0 && { cleanupErrors }),
       ...(workspaceName !== undefined && { workspaceName }),
     };
   })().finally(() => {

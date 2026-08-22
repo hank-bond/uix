@@ -13,8 +13,6 @@ These questions remain unresolved. A blocking question joins a milestone, then g
 - **Substrate-owned `postMessage` filtering:** Canvas manually checks message origin, source window, and type before writeback. Determine how the substrate can bind known resource origins and iframe windows into a filtered subscription.
 - **Resource address handle after substrate-owned iframe transport:** `ResourceAddressHandle` combines a declarative route with imperative `toUrl()` and `toOrigin()` operations. A future iframe surface can make those conversions substrate-internal. Determine whether that surface model removes the public handle.
 - **Slot taxonomy:** What named slots should the host shell expose? Balance a useful minimum against premature layout commitments.
-- **Feature reload during an agent turn:** If reload replaces active tools, should UIX delay replacement, abort the turn, or let the turn finish?
-- **Feature state across concurrent agent instances:** The workspace owns one accepted feature composition. Each agent instance owns its state at its session-branch viewpoint: turn state, agent context, and working buffers. Settle the instantiation API first.
 
 ## Future apps (not substrate, but shaping it)
 

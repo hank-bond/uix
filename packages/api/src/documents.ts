@@ -1,9 +1,9 @@
 // Document store contract.
 //
-// Type-only definition of the document-store seam. Features declare their
-// dependency on DocumentStoreFactory through FeatureContext.documents. The
-// host binds the local filesystem implementation (src/main/document-store.ts)
-// at activation time without features importing any Node.js or Electron APIs.
+// Features receive this factory through their context. Workspace factories use
+// Workspace current bytes. Agent factories use viewpoint-scoped current bytes
+// while immutable versions remain shared. Features never import storage or host
+// implementations.
 
 export interface DocumentVersion<TMeta = unknown> {
   readonly id: string;
@@ -18,9 +18,10 @@ export interface DocumentStore {
   getCurrent(documentId: string): Promise<string | null>;
   /** Replace the current mutable latest content. */
   setCurrent(documentId: string, content: string): Promise<void>;
-  /** Persist the current content plus caller-owned metadata as an immutable version. */
+  /** Persist caller-owned content and metadata as an immutable version. */
   createSnapshot<TMeta>(
     documentId: string,
+    content: string,
     meta: TMeta,
   ): Promise<DocumentVersion<TMeta>>;
   /** Load a previously created immutable version, or null when absent. */

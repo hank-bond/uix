@@ -1,18 +1,24 @@
 import { type TSchema, Type } from "typebox";
 import { describe, expect, it } from "vitest";
 
-import {
-  type NormalizedResourceRoute,
-  normalizeResourceRoute,
-} from "@uix/api/resource-routes";
+import type { AgentToolContribution } from "@uix/api/agent-tools";
+import type { TurnStateContributions } from "@uix/api/turn-state";
 
-import { registerFeatureContributions } from "./contributions";
+import {
+  type AgentFeatureRegistries,
+  registerAgentFeatureContributions,
+  registerWorkspaceFeatureContributions,
+  type WorkspaceFeatureRegistries,
+} from "./contributions";
 import { SurfaceRegistry } from "./surfaces";
 import { AgentContextRegistry } from "../agent-context/registry";
 import { AgentSkillRegistry } from "../agent-skill-registry";
 import { AgentSystemPromptRegistry } from "../agent-system-prompt-registry";
 import { AgentToolRegistry } from "../agent-tools/registry";
-import { ChannelRegistry } from "../channel-registry";
+import {
+  AgentChannelHandlerRegistry,
+  ChannelRegistry,
+} from "../channel-registry";
 import { ResourceRegistry } from "../resource-registry";
 import { TurnStateRegistry } from "../turn-state";
 
@@ -43,30 +49,31 @@ function channelContribution(name = "refresh"): {
   };
 }
 
-function resourceContribution(name = "doc"): {
-  name: string;
-  route: NormalizedResourceRoute;
-  handler: () => Response;
-} {
+function workspaceRegistries(): WorkspaceFeatureRegistries {
   return {
-    name,
-    route: normalizeResourceRoute({ path: "/:key*", origin: "feature" }),
-    handler: () => new Response(""),
+    resources: new ResourceRegistry({ workspaceId: "local" }),
+    channels: new ChannelRegistry(),
+    invokeAgentChannel: (context, canonicalId, payload) =>
+      context.agentInstanceGuard.value.featureChannels.invoke(
+        canonicalId,
+        payload,
+      ),
+    surfaces: new SurfaceRegistry(),
   };
 }
 
-function agentTool(name: string): {
-  name: string;
-  tool: {
-    label: string;
-    description: string;
-    parameters: typeof emptyParams;
-    execute: () => Promise<{
-      content: never[];
-      details: Record<string, never>;
-    }>;
+function agentRegistries(): AgentFeatureRegistries {
+  return {
+    channels: new AgentChannelHandlerRegistry(),
+    agentTools: new AgentToolRegistry(),
+    agentSystemPrompt: new AgentSystemPromptRegistry(),
+    agentSkills: new AgentSkillRegistry(),
+    turnState: new TurnStateRegistry(),
+    agentContext: new AgentContextRegistry(),
   };
-} {
+}
+
+function agentTool(name: string): AgentToolContribution {
   return {
     name,
     tool: {
@@ -78,13 +85,7 @@ function agentTool(name: string): {
   };
 }
 
-function turnStateCells(): {
-  documents: {
-    schema: typeof emptyParams;
-    createSnapshot: () => Record<string, unknown>;
-    restore: () => undefined;
-  };
-} {
+function turnStateCells(): TurnStateContributions {
   return {
     documents: {
       schema: Type.Object({}),
@@ -94,35 +95,33 @@ function turnStateCells(): {
   };
 }
 
-describe("registerFeatureContributions", () => {
-  it("registers all contribution groups and disposes them together", () => {
-    const resources = new ResourceRegistry({
-      workspaceId: "local",
-      transportRegistrar: () => ({
-        [Symbol.dispose]() {},
-      }),
-    });
-    const channels = new ChannelRegistry();
-    const agentTools = new AgentToolRegistry();
-    const agentSystemPrompt = new AgentSystemPromptRegistry();
-    const agentSkills = new AgentSkillRegistry();
-    const turnState = new TurnStateRegistry();
-    const agentContext = new AgentContextRegistry();
-
-    const registries = {
-      resources,
-      channels,
-      agentTools,
-      agentSystemPrompt,
-      agentSkills,
-      turnState,
-      agentContext,
-    };
-    const featureLifetime = registerFeatureContributions(
+describe("feature contribution registration", () => {
+  it("registers and removes Workspace facets together", () => {
+    const registries = workspaceRegistries();
+    const lifetime = registerWorkspaceFeatureContributions(
       registries,
       "canvas",
       {
-        resources: [resourceContribution()],
+        agentChannelContracts: [channelContribution()],
+        surfaces: ["./surface.tsx"],
+      },
+      { entryDir: "/feature" },
+    );
+
+    expect(registries.channels.listCanonicalIds()).toEqual(["canvas.refresh"]);
+    expect(registries.surfaces.list()).toHaveLength(1);
+
+    lifetime[Symbol.dispose]();
+    expect(registries.channels.listCanonicalIds()).toEqual([]);
+    expect(registries.surfaces.list()).toEqual([]);
+  });
+
+  it("registers and removes Agent facets together", () => {
+    const registries = agentRegistries();
+    const lifetime = registerAgentFeatureContributions(
+      registries,
+      "canvas",
+      {
         channels: [channelContribution()],
         agentTools: [agentTool("anchor_read")],
         agentToolOverrides: [agentTool("read")],
@@ -137,228 +136,53 @@ describe("registerFeatureContributions", () => {
           },
         ],
       },
-      { entryDir: "/workspace/features/canvas" },
+      { entryDir: "/feature" },
     );
 
-    expect(() =>
-      registerFeatureContributions({ resources }, "canvas", {
-        resources: [resourceContribution()],
-      }),
-    ).toThrow("Resource already registered: canvas-doc");
-    expect(() =>
-      registerFeatureContributions({ channels }, "canvas", {
-        channels: [channelContribution()],
-      }),
-    ).toThrow("Channel already registered: canvas.refresh");
-    expect(() =>
-      registerFeatureContributions({ agentTools }, "canvas", {
-        agentTools: [
-          {
-            name: "anchor_read",
-            tool: agentTool("anchor_read").tool,
-          },
-        ],
-      }),
-    ).toThrow(
-      "Agent tool contribution already registered: canvas.agent.anchor_read",
+    expect(registries.channels.listCanonicalIds()).toEqual(["canvas.refresh"]);
+    expect(registries.agentTools.list()).toHaveLength(2);
+    expect(registries.agentSkills.list()[0]?.path).toBe(
+      "/feature/skills/canvas-authoring",
     );
-    expect(() =>
-      registerFeatureContributions({ agentTools }, "other", {
-        agentToolOverrides: [agentTool("read")],
-      }),
-    ).toThrow(
-      "Agent tool name already registered: read (existing: canvas.agent.read, attempted: other.agent.read)",
-    );
-    expect(() =>
-      registerFeatureContributions({ agentSystemPrompt }, "canvas", {
-        agentSystemPrompt: "Again",
-      }),
-    ).toThrow("Agent system prompt already registered: canvas");
-    expect(agentSkills.list()).toEqual([
-      {
-        featureId: "canvas",
-        path: "/workspace/features/canvas/skills/canvas-authoring",
-      },
-    ]);
-    expect(() =>
-      registerFeatureContributions({ turnState }, "canvas", {
-        turnState: turnStateCells(),
-      }),
-    ).toThrow("Turn state already registered: canvas.documents");
-    expect(() =>
-      registerFeatureContributions({ agentContext }, "other", {
-        agentContext: [
-          {
-            name: "canvas-diff",
-            description: "again",
-            materialize: () => undefined,
-          },
-        ],
-      }),
-    ).not.toThrow();
-    expect(() =>
-      registerFeatureContributions({ agentContext }, "canvas", {
-        agentContext: [
-          {
-            name: "canvas-diff",
-            description: "again",
-            materialize: () => undefined,
-          },
-        ],
-      }),
-    ).toThrow("Agent context already registered: canvas.canvas-diff");
+    expect(registries.turnState.list()).toHaveLength(1);
+    expect(registries.agentContext.list()).toHaveLength(1);
 
-    featureLifetime[Symbol.dispose]();
-
-    expect(() =>
-      registerFeatureContributions(
-        registries,
-        "canvas",
-        {
-          resources: [resourceContribution()],
-          channels: [channelContribution()],
-          agentTools: [agentTool("anchor_read")],
-          agentToolOverrides: [agentTool("read")],
-          agentSystemPrompt: "Reloaded guidance",
-          agentSkills: ["./skills/canvas-authoring"],
-          turnState: turnStateCells(),
-          agentContext: [
-            {
-              name: "canvas-diff",
-              description: "diffs",
-              materialize: () => undefined,
-            },
-          ],
-        },
-        { entryDir: "/workspace/features/canvas" },
-      ),
-    ).not.toThrow();
+    lifetime[Symbol.dispose]();
+    expect(registries.channels.listCanonicalIds()).toEqual([]);
+    expect(registries.agentTools.list()).toEqual([]);
+    expect(registries.turnState.list()).toEqual([]);
   });
 
-  it("rolls back earlier facets when a later facet fails", () => {
-    const resources = new ResourceRegistry({
-      workspaceId: "local",
-      transportRegistrar: () => ({
-        [Symbol.dispose]() {},
-      }),
+  it("rolls back earlier Agent facets when a later facet fails", () => {
+    const registries = agentRegistries();
+    registerAgentFeatureContributions(registries, "existing", {
+      agentToolOverrides: [agentTool("read")],
     });
 
     expect(() =>
-      registerFeatureContributions({ resources }, "canvas", {
-        resources: [resourceContribution()],
-        channels: [channelContribution()],
-      }),
-    ).toThrow(
-      "Feature canvas contributes channels but no channel registry was provided",
-    );
-
-    expect(() =>
-      registerFeatureContributions({ resources }, "canvas", {
-        resources: [resourceContribution()],
-      }),
-    ).not.toThrow();
-  });
-
-  it("rejects contribution groups when the matching registry is missing", () => {
-    expect(() =>
-      registerFeatureContributions({}, "canvas", {
-        resources: [resourceContribution()],
-      }),
-    ).toThrow(
-      "Feature canvas contributes resources but no resource registry was provided",
-    );
-
-    expect(() =>
-      registerFeatureContributions({}, "canvas", {
-        channels: [channelContribution()],
-      }),
-    ).toThrow(
-      "Feature canvas contributes channels but no channel registry was provided",
-    );
-
-    expect(() =>
-      registerFeatureContributions({}, "canvas", {
+      registerAgentFeatureContributions(registries, "canvas", {
         agentTools: [agentTool("anchor_read")],
-      }),
-    ).toThrow(
-      "Feature canvas contributes agent tools but no agent tool registry was provided",
-    );
-
-    expect(() =>
-      registerFeatureContributions({}, "canvas", {
         agentToolOverrides: [agentTool("read")],
       }),
-    ).toThrow(
-      "Feature canvas contributes agent tool overrides but no agent tool registry was provided",
-    );
-
-    expect(() =>
-      registerFeatureContributions({}, "canvas", {
-        agentSystemPrompt: "Canvas guidance",
-      }),
-    ).toThrow(
-      "Feature canvas contributes an agent system prompt but no agent-system-prompt registry was provided",
-    );
-
-    expect(() =>
-      registerFeatureContributions(
-        {},
-        "canvas",
-        { agentSkills: ["./skill"] },
-        { entryDir: "/feature" },
-      ),
-    ).toThrow(
-      "Feature canvas contributes agent skills but no agent-skills registry was provided",
-    );
-
-    expect(() =>
-      registerFeatureContributions({}, "canvas", {
-        turnState: turnStateCells(),
-      }),
-    ).toThrow(
-      "Feature canvas contributes turn state but no turn-state registry was provided",
-    );
-
-    expect(() =>
-      registerFeatureContributions({}, "canvas", {
-        agentContext: [
-          {
-            name: "canvas-diff",
-            description: "diffs",
-            materialize: () => undefined,
-          },
-        ],
-      }),
-    ).toThrow(
-      "Feature canvas contributes agent context but no agent-context registry was provided",
-    );
-
-    expect(() =>
-      registerFeatureContributions({}, "canvas", {
-        surfaces: ["./surface.tsx"],
-      }),
-    ).toThrow(
-      "Feature canvas contributes surfaces but no surface registry was provided",
-    );
+    ).toThrow("Agent tool name already registered: read");
+    expect(
+      registries.agentTools
+        .list()
+        .some(({ canonicalId }) => canonicalId === "canvas__anchor_read"),
+    ).toBe(false);
   });
 
-  it("rejects path contributions without an entry directory", () => {
-    const agentSkills = new AgentSkillRegistry();
+  it("rejects path facets without an entry directory", () => {
     expect(() =>
-      registerFeatureContributions({ agentSkills }, "canvas", {
-        agentSkills: ["./skill"],
-      }),
-    ).toThrow(
-      "Feature canvas contributes agent skills but was activated without an entry directory",
-    );
-
-    const surfaces = new SurfaceRegistry();
-    expect(() =>
-      registerFeatureContributions({ surfaces }, "canvas", {
+      registerWorkspaceFeatureContributions(workspaceRegistries(), "canvas", {
         surfaces: ["./surface.tsx"],
       }),
-    ).toThrow(
-      "Feature canvas contributes surfaces but was activated without an entry directory",
-    );
+    ).toThrow("without an entry directory");
+
+    expect(() =>
+      registerAgentFeatureContributions(agentRegistries(), "canvas", {
+        agentSkills: ["./skill"],
+      }),
+    ).toThrow("without an entry directory");
   });
 });

@@ -66,61 +66,60 @@ export const notesChannelsContribution: ChannelContribution = withHandlers(
 );
 ```
 
-Return the result through the feature's `channels` facet:
+For Workspace-scoped state, return the handler from `workspace(ctx)`:
 
 ```ts
-// features/notes/index.ts
-import { defineFeature } from "@uix/api/feature";
-import { notesChannelsContribution } from "./backend/channels";
-
 export const feature = defineFeature({
   id: "notes",
-  contribute() {
+  workspace() {
     return { channels: [notesChannelsContribution] };
   },
 });
 ```
 
-Handler input and output derive from the request and response schemas, so backend code receives typed domain values. The transport boundary alone accepts unknown payloads.
-
-## Publish backend events
-
-The feature context exposes a feature-bound event publisher factory. Mint the publisher once in a `context` hook and return it merged onto `ctx`, so your backend helpers and handlers can close over it. Presenting the shared contract mints only its declared event capabilities:
-
-```ts
-// features/notes/backend/context.ts
-import type { FeatureContext } from "@uix/api/feature";
-import type { FeatureEventPublisher } from "@uix/api/channels";
-import { notesChannels } from "../shared/channels";
-
-export type NotesContext = FeatureContext & {
-  events: FeatureEventPublisher<typeof notesChannels>;
-  persistNote: (text: string) => Promise<string>;
-};
-
-export function createNotesContext(ctx: FeatureContext): NotesContext {
-  return {
-    ...ctx,
-    events: ctx.channels.createPublisher(notesChannels),
-    persistNote,
-  };
-}
-```
-
-Wire it into the feature so `contribute` and your handlers receive it, then publish from the authoritative write:
+For state that belongs to the selected Agent viewpoint, register the contract once at Workspace scope and create the handler in each Agent factory:
 
 ```ts
 export const feature = defineFeature({
   id: "notes",
-  context: createNotesContext,
-  contribute(ctx) {
+  workspace() {
+    return { agentChannelContracts: [notesChannels] };
+  },
+  agent(ctx) {
+    const notes = createAgentNotes();
+    return {
+      channels: [
+        withHandlers(notesChannels, {
+          add: { handler: ({ text }) => notes.add(text) },
+        }),
+      ],
+    };
+  },
+});
+```
+
+The Workspace channel table validates the request and response. It selects the Agent handler through the attachment's accepted guard. Routing fields never enter feature payloads.
+
+## Publish backend events
+
+Each factory context exposes a feature-bound event publisher. Create it beside the state used by the handlers:
+
+```ts
+export const feature = defineFeature({
+  id: "notes",
+  workspace() {
+    return { agentChannelContracts: [notesChannels] };
+  },
+  agent(ctx) {
+    const notes = createAgentNotes();
+    const events = ctx.channels.createPublisher(notesChannels);
     return {
       channels: [
         withHandlers(notesChannels, {
           add: {
             async handler({ text }) {
-              const id = await ctx.persistNote(text);
-              ctx.events.added({ id });
+              const id = await notes.add(text);
+              events.added({ id });
             },
           },
         }),
@@ -130,7 +129,7 @@ export const feature = defineFeature({
 });
 ```
 
-Publish calls validate at compile time from the event schema. The main transport validates request and response payloads at its boundary, and the client also validates event payloads when it receives them. This mirrors how Canvas does it: see [`src/features/canvas/backend/context.ts`](../../src/features/canvas/backend/context.ts) and [`src/features/canvas/backend/contributions/channels.ts`](../../src/features/canvas/backend/contributions/channels.ts).
+Events published from `workspace(ctx)` reach every Workspace attachment. Events published from `agent(ctx)` reach attachments on that Agent's session. Publish calls derive their types from the event schema. The client validates event payloads when it receives them. Canvas uses this pattern in [`src/features/canvas/backend/context.ts`](../../src/features/canvas/backend/context.ts) and [`src/features/canvas/backend/contributions/channels.ts`](../../src/features/canvas/backend/contributions/channels.ts).
 
 ## Consume the typed client from a surface
 

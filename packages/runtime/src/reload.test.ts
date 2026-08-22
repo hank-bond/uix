@@ -2,6 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createWorkspaceReloadCoordinator } from "./reload";
 
+const idleFeatureReload = {
+  acquireReloadAdmission: () => ({
+    [Symbol.dispose]: () => undefined,
+  }),
+  reloadAgentFeatures: () => Promise.resolve([]),
+};
+
 function deferred(): { promise: Promise<void>; resolve: () => void } {
   let resolve!: () => void;
   const promise = new Promise<void>((done) => {
@@ -15,6 +22,7 @@ describe("workspace reload coordinator", () => {
     const restoreGate = deferred();
     const order: string[] = [];
     const coordinator = createWorkspaceReloadCoordinator({
+      ...idleFeatureReload,
       commitTurnState: () => Promise.resolve(true),
       loadFeatures: () => Promise.resolve({ activated: 2 }),
       reloadPiResources: () => Promise.resolve(true),
@@ -45,6 +53,7 @@ describe("workspace reload coordinator", () => {
     const order: string[] = [];
     const failure = new Error("Pi reload failed");
     const coordinator = createWorkspaceReloadCoordinator({
+      ...idleFeatureReload,
       commitTurnState: () => {
         order.push("commit");
         return Promise.resolve(true);
@@ -74,6 +83,7 @@ describe("workspace reload coordinator", () => {
     const failure = new Error("restore failed");
     const publish = vi.fn();
     const coordinator = createWorkspaceReloadCoordinator({
+      ...idleFeatureReload,
       commitTurnState: () => Promise.resolve(true),
       loadFeatures: () => Promise.resolve(undefined),
       reloadPiResources: () => Promise.resolve(false),
@@ -85,11 +95,47 @@ describe("workspace reload coordinator", () => {
     expect(publish).toHaveBeenCalledOnce();
   });
 
+  it("finishes and publishes replacement before reporting cleanup failures", async () => {
+    const workspaceCleanup = new Error("Workspace cleanup failed");
+    const agentCleanup = new Error("Agent cleanup failed");
+    const order: string[] = [];
+    const coordinator = createWorkspaceReloadCoordinator({
+      acquireReloadAdmission: idleFeatureReload.acquireReloadAdmission,
+      commitTurnState: () => Promise.resolve(true),
+      loadFeatures: () => {
+        order.push("workspace");
+        return Promise.resolve({ cleanupErrors: [workspaceCleanup] });
+      },
+      featureCleanupErrors: (activation) => activation.cleanupErrors,
+      reloadAgentFeatures: () => {
+        order.push("agent");
+        return Promise.resolve([agentCleanup]);
+      },
+      reloadPiResources: () => {
+        order.push("pi");
+        return Promise.resolve(true);
+      },
+      restoreTurnState: () => {
+        order.push("restore");
+        return Promise.resolve();
+      },
+      publishSurfacesChanged: () => {
+        order.push("publish");
+      },
+    });
+
+    await expect(coordinator.reload()).rejects.toThrow(
+      "Workspace reload completed with one or more failures",
+    );
+    expect(order).toEqual(["workspace", "agent", "pi", "restore", "publish"]);
+  });
+
   it("runs queued reloads one at a time and continues after failure", async () => {
     const firstGate = deferred();
     let reloadNumber = 0;
     const startedReloads: number[] = [];
     const coordinator = createWorkspaceReloadCoordinator({
+      ...idleFeatureReload,
       commitTurnState: async () => {
         reloadNumber += 1;
         startedReloads.push(reloadNumber);
@@ -107,8 +153,9 @@ describe("workspace reload coordinator", () => {
 
     const firstReload = coordinator.reload();
     const secondReload = coordinator.reload();
-    await Promise.resolve();
-    expect(startedReloads).toEqual([1]);
+    await vi.waitFor(() => {
+      expect(startedReloads).toEqual([1]);
+    });
 
     firstGate.resolve();
     await expect(firstReload).rejects.toThrow("first activation failed");

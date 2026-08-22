@@ -17,6 +17,9 @@ export function createCanvasChannelContributions(
 ): readonly ChannelContribution[] {
   return [
     withHandlers(canvasChannels, {
+      read: {
+        handler: ({ key }) => ctx.buffer.readHtml(key),
+      },
       writeback: {
         async handler(req) {
           ctx.log.debug(

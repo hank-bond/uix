@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   forwardCanvasFrameMessage,
+  isCanvasFrameReady,
   parseCanvasFrameMessage,
 } from "./frame-messages";
 import { parseCanvasKey } from "../shared/addressing";
@@ -9,6 +10,15 @@ import { parseCanvasKey } from "../shared/addressing";
 const main = parseCanvasKey("main");
 
 describe("canvas frame messages", () => {
+  it("accepts readiness only from the current Canvas key", () => {
+    expect(
+      isCanvasFrameReady({ type: "canvas:ready", key: "main" }, main),
+    ).toBe(true);
+    expect(
+      isCanvasFrameReady({ type: "canvas:ready", key: "other" }, main),
+    ).toBe(false);
+  });
+
   it("accepts a prompt carrying the current hydrated document", () => {
     expect(
       parseCanvasFrameMessage(

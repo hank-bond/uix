@@ -28,11 +28,11 @@ function memoryStore(initial: Record<string, string> = {}): DocumentStore {
       latest.set(docId, content);
       return Promise.resolve();
     },
-    createSnapshot: (docId, meta) => {
-      const version: DocumentVersion<typeof meta> = {
+    createSnapshot: <TMeta>(docId: string, content: string, meta: TMeta) => {
+      const version: DocumentVersion<TMeta> = {
         id: `v${String(versions.size + 1)}`,
         documentId: docId,
-        content: latest.get(docId) ?? "",
+        content,
         meta,
         createdAt: new Date(0).toISOString(),
       };
@@ -114,10 +114,8 @@ function captureCanvasState(store = memoryStore()): {
 
 describe("createCanvasTurnStateContributions", () => {
   it("creates a snapshot of every document loaded into the canvas working buffer", async () => {
-    const { contribution, buffer } = captureCanvasState(
-      memoryStore({ main: "<p>hello</p>" }),
-    );
-    await buffer.read("main");
+    const { contribution, buffer } = captureCanvasState();
+    await buffer.write("main", "<p>hello</p>");
     await buffer.write("reports/security", "<p>changed</p>");
 
     await expect(contribution.createSnapshot()).resolves.toEqual({
@@ -144,16 +142,14 @@ describe("createCanvasTurnStateContributions", () => {
   });
 
   it("restores document content and exact anchor state from version refs", async () => {
-    const { contribution, buffer, store } = captureCanvasState(
-      memoryStore({ main: "<p>hello</p>" }),
-    );
-    const anchoredBefore = await buffer.read("main");
+    const { contribution, buffer } = captureCanvasState();
+    const anchoredBefore = await buffer.write("main", "<p>hello</p>");
     const state = await contribution.createSnapshot();
     await buffer.write("main", "<p>changed</p>");
 
     await restoreCanvasDocuments(contribution, state);
 
-    expect(await store.getCurrent("main")).toBe(
+    expect(await buffer.readHtml("main")).toBe(
       "<html><head></head><body><p>hello</p></body></html>",
     );
     expect(await buffer.read("main")).toEqual(anchoredBefore);
@@ -167,6 +163,9 @@ describe("createCanvasTurnStateContributions", () => {
 
     await restoreCanvasDocuments(contribution);
 
+    expect(await buffer.readHtml("main")).toBe(
+      "<html><head></head><body></body></html>",
+    );
     expect(await store.getCurrent("main")).toBe("");
   });
 });

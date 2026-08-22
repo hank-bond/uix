@@ -1,13 +1,12 @@
-// Feature contribution contract.
+// Defines Workspace and per-Agent feature factories and their contribution contracts.
 //
-// FeatureDefinition is the shape a manifest-selected feature entry exports:
-// an id, an optional context hook, and a contribute function that returns the
-// feature's facet contributions. First-party and workspace modules are
-// indistinguishable here. The substrate activates both through the same path.
+// FeatureDefinition is the shape exported by every manifest-selected feature.
+// Workspace factories run once per feature activation. Agent factories run once
+// per AgentInstance. Callbacks returned by either factory close over values
+// created by that factory call.
 //
-// FeatureContext is the service bag injected by the host into every feature
-// at activation time. Features access external state only through this object
-// and the typed contribution schemas, never by importing host internals.
+// Feature contexts contain substrate capabilities. Features never import host
+// internals. They contain no workspace, attachment, or session routing values.
 
 import type { AgentContextContribution } from "./agent-context";
 import type { AgentSkillContribution } from "./agent-skills";
@@ -17,6 +16,7 @@ import type {
   AgentToolOverrideContribution,
 } from "./agent-tools";
 import type {
+  ChannelContract,
   ChannelContribution,
   FeatureEventPublisherFactory,
 } from "./channels";
@@ -55,10 +55,28 @@ export interface FeatureContext {
   log: FeatureLogger;
 }
 
-export type FeaturePreflightContributions = Record<string, never>;
+export type WorkspaceFeatureContext = FeatureContext;
+export type AgentFeatureContext = FeatureContext;
 
-export interface FeatureContributions {
+/** Contributions installed once for one active Workspace feature. */
+export interface WorkspaceFeatureContributions {
   resources?: readonly ResourceContribution[];
+  /** Workspace-scoped request handlers and event contracts. */
+  channels?: readonly ChannelContribution[];
+  /** Contracts whose handlers are supplied by each Agent factory. */
+  agentChannelContracts?: readonly ChannelContract[];
+  /**
+   * Frontend surface entry files, resolved against the feature entry's
+   * directory (absolute paths pass through). Each module must export
+   * `surface`, a `defineSurface` result. The workspace mounts them in
+   * composition order (manifest order, then declaration order here).
+   */
+  surfaces?: readonly string[];
+}
+
+/** Contributions installed separately for one AgentInstance. */
+export interface AgentFeatureContributions {
+  /** Handlers for contracts registered by `agentChannelContracts`. */
   channels?: readonly ChannelContribution[];
   /** Feature-namespaced Pi tools. */
   agentTools?: readonly AgentToolContribution[];
@@ -70,32 +88,21 @@ export interface FeatureContributions {
   agentSkills?: readonly AgentSkillContribution[];
   turnState?: TurnStateContributions;
   agentContext?: readonly AgentContextContribution[];
-  /**
-   * Frontend surface entry files, resolved against the feature entry's
-   * directory (absolute paths pass through). Each module must export
-   * `surface`, a `defineSurface` result. The workspace mounts them in
-   * composition order (manifest order, then declaration order here).
-   */
-  surfaces?: readonly string[];
 }
 
-export interface FeatureDefinition<ContributedContext extends object = object> {
+export type WorkspaceFeatureInstance = WorkspaceFeatureContributions &
+  Partial<Disposable & AsyncDisposable>;
+export type AgentFeatureInstance = AgentFeatureContributions &
+  Partial<Disposable & AsyncDisposable>;
+
+export interface FeatureDefinition {
   id: string;
-  preflight?: FeaturePreflightContributions;
-  /**
-   * Feature-scoped settings declared before context construction so the
-   * loader can hydrate defaults and validate persisted values before
-   * handing `ctx.settings` to `context()` and `contribute()`.
-   */
+  /** Feature-scoped settings loaded before either factory runs. */
   settings?: SettingsDefinition;
-  /**
-   * Feature-local context hook. Runs first, before any other contribution,
-   * and the substrate guarantees its execution order. The substrate merges
-   * its return value onto the FeatureContext and hands it to
-   * `contribute` and every facet factory.
-   */
-  context?: (ctx: FeatureContext) => ContributedContext;
-  contribute(ctx: FeatureContext & ContributedContext): FeatureContributions;
+  /** Runs once per active Workspace feature. */
+  workspace?: (ctx: WorkspaceFeatureContext) => WorkspaceFeatureInstance;
+  /** Runs once per AgentInstance. */
+  agent?: (ctx: AgentFeatureContext) => AgentFeatureInstance;
 }
 
 type AuthoredFeatureContext<Settings extends SettingsDefinition | undefined> =
@@ -105,30 +112,29 @@ type AuthoredFeatureContext<Settings extends SettingsDefinition | undefined> =
       : SettingsHandle;
   };
 
+type AuthoredFactories<Settings extends SettingsDefinition | undefined> =
+  | {
+      workspace(
+        ctx: AuthoredFeatureContext<Settings>,
+      ): WorkspaceFeatureInstance;
+      agent?: (ctx: AuthoredFeatureContext<Settings>) => AgentFeatureInstance;
+    }
+  | {
+      workspace?: (
+        ctx: AuthoredFeatureContext<Settings>,
+      ) => WorkspaceFeatureInstance;
+      agent(ctx: AuthoredFeatureContext<Settings>): AgentFeatureInstance;
+    };
+
 type AuthoredFeatureDefinition<
   Settings extends SettingsDefinition | undefined,
-  ContributedContext extends object,
-> = Omit<
-  FeatureDefinition<ContributedContext>,
-  "settings" | "context" | "contribute"
-> & {
+> = Omit<FeatureDefinition, "settings" | "workspace" | "agent"> & {
   settings?: Settings;
-  context?: (ctx: AuthoredFeatureContext<Settings>) => ContributedContext;
-  contribute(
-    ctx: AuthoredFeatureContext<Settings> & ContributedContext,
-  ): FeatureContributions;
-};
+} & AuthoredFactories<Settings>;
 
-/**
- * Preserve an authored settings schema through the feature's injected context.
- * Runtime loading consumes the erased `FeatureDefinition`. This helper preserves
- * only source-level agreement between the definition and its callbacks.
- */
+/** Preserve an authored settings schema through both feature factories. */
 export function defineFeature<
   const Settings extends SettingsDefinition | undefined = undefined,
-  ContributedContext extends object = object,
->(
-  definition: AuthoredFeatureDefinition<Settings, ContributedContext>,
-): FeatureDefinition<ContributedContext> {
-  return definition as unknown as FeatureDefinition<ContributedContext>;
+>(definition: AuthoredFeatureDefinition<Settings>): FeatureDefinition {
+  return definition as FeatureDefinition;
 }

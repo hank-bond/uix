@@ -18,7 +18,7 @@ summary: "Build minimal Electron and loopback server hosts over the proved works
 - **H5.1** launcher extraction landed in `0e2ccdc`.
 - **H5.2** workspace extraction landed in `0780f80`.
 - **H5.3** dependency-boundary enforcement landed. H5 is complete.
-- **R0 and A1-A2** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) are next. They revert the unused composition code, then isolate feature state per session through production. **H6** follows with the minimal loopback server, followed by H7-H8 Electron rehoming and basic two-host conformance.
+- **R0 and A1** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **A2** is next for the concurrent-session lifecycle gate. **H6** then adds the minimal loopback server, followed by H7-H8 Electron rehoming and basic two-host conformance.
 
 ## Status and intent
 
@@ -127,7 +127,7 @@ Use fake runtimes and agents. Avoid Electron, WebSocket, HTTP, Pi, and feature l
 
 ### H3: Prove concurrent real workspace runtimes
 
-_Status: landed._ The openWorkspace substrate moved into `packages/runtime` behind `createWorkspaceRuntime`. It covers documents, manifest store, workspace settings, the settings and channel registries, the resource registry, turn state, agent registries, feature loading, surfaces, and reload. Dispatch is runtime-owned canonical. `src/main` now constructs one runtime over Electron ports and keeps only host chrome. The `runtime.test.ts` suite instantiates two real workspaces with duplicate ids and exercises activation, settings, documents, dispatch, resources, surfaces, reload, events, and disposal.
+_Status: landed._ The openWorkspace substrate moved into `packages/runtime` behind `createWorkspaceRuntime`. It covers documents, manifest store, Workspace settings and registries, per-instance Agent registries, feature loading, surfaces, and reload. Dispatch is runtime-owned canonical. `src/main` now constructs one runtime over Electron ports and keeps only host chrome. The `runtime.test.ts` suite instantiates two real workspaces with duplicate ids and exercises activation, settings, documents, dispatch, resources, surfaces, reload, events, and disposal.
 
 Move enough backend substrate into `packages/runtime` to implement a real operational `Workspace` for exactly one workspace. Replace host handler registration with runtime-owned canonical dispatch. Keep channel and resource registries local to the runtime instance, and pass host-stamped attachment context into dispatch outside feature payloads. The E0 inventory in the appendix (from the discarded plan) already classified the Electron surface into runtime semantics and host behavior. Reuse it as the starting analysis.
 
@@ -197,7 +197,7 @@ Prepared dispatch, provider authentication, model refresh, single-flight boots, 
 
 ### Runtime work split from this plan
 
-Agent feature lifetimes, per-session Canvas state, selected-view routing, reload, and concurrent-session tests moved to [agent feature instances and viewpoint state](./agent-feature-instances-and-viewpoint-state.md). R0 reverts the unused state-builder and composition code. A1 moves feature state into the production `AgentInstance`, and A2 tests concurrent sessions. They precede H6 so the first web host can support several tabs on different sessions.
+Agent feature lifetimes, per-session Canvas state, selected-view routing, reload, and concurrent-session tests moved to [agent feature instances and viewpoint state](./agent-feature-instances-and-viewpoint-state.md). R0 reverted the unused state-builder and composition code. A1 moved feature state into the production `AgentInstance`. A2 now owns the concurrent-session gate before H6.
 
 Full reconnect recovery, provider-auth browser parity, app-source rehoming, discovery, security review, and packaging moved to [server browser parity and distribution](./server-browser-parity-and-distribution.md).
 

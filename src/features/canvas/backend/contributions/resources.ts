@@ -1,33 +1,27 @@
-// Canvas resource contributions.
+// Serves the static Canvas frame that receives selected-viewpoint HTML from its parent.
 
+import type { WorkspaceFeatureContext } from "@uix/api/feature";
 import type { ResourceContribution } from "@uix/api/resources";
 
 import {
-  CanvasResourceName,
-  CanvasResourceRoute,
+  CanvasFrameResourceName,
+  CanvasFrameResourceRoute,
   parseCanvasKeyRouteParam,
 } from "../../shared/addressing";
-import type { CanvasContext } from "../context";
-import { injectCanvasShim } from "../shim";
+import { createCanvasFrameBootstrap } from "../shim";
 
-export function createCanvasResourceContributions(
-  ctx: CanvasContext,
+export function createCanvasFrameResourceContributions(
+  ctx: WorkspaceFeatureContext,
 ): readonly ResourceContribution[] {
   return [
     {
-      name: CanvasResourceName,
-      route: CanvasResourceRoute,
-      async handler({ params }) {
+      name: CanvasFrameResourceName,
+      route: CanvasFrameResourceRoute,
+      handler({ params }) {
         const key = parseCanvasKeyRouteParam(params["key"]);
-        const html = key ? await ctx.store.getCurrent(key) : null;
-
-        if (key && html !== null) {
-          ctx.log.debug({ key }, "canvas_served");
-          return htmlResponse(injectCanvasShim(html, key), 200);
-        }
-
-        ctx.log.debug({ key: key ?? "invalid" }, "canvas_not_found");
-        return htmlResponse(notFoundHtml(key ?? "invalid"), 404);
+        if (!key) return htmlResponse("Invalid Canvas key", 400);
+        ctx.log.debug({ key }, "canvas_frame_served");
+        return htmlResponse(createCanvasFrameBootstrap(key), 200);
       },
     },
   ];
@@ -40,33 +34,5 @@ function htmlResponse(body: string, status: number): Response {
       "Cache-Control": "no-store",
       "Content-Type": "text/html; charset=utf-8",
     },
-  });
-}
-
-function notFoundHtml(key: string): string {
-  return `<!doctype html>
-<meta charset="utf-8">
-<title>Canvas not found</title>
-<body style="font-family: system-ui, sans-serif; color: #777; padding: 24px;">
-  <p>No canvas yet: <code>${escapeHtml(key)}</code></p>
-</body>`;
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (ch) => {
-    switch (ch) {
-      case "&":
-        return "&amp;";
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case '"':
-        return "&quot;";
-      case "'":
-        return "&#39;";
-      default:
-        return ch;
-    }
   });
 }

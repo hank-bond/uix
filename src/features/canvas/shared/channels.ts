@@ -11,6 +11,11 @@ export const CanvasChangedSchema = Type.Object({
 });
 export type CanvasChanged = Static<typeof CanvasChangedSchema>;
 
+export const CanvasReadSchema = Type.Object({
+  key: CanvasKeySchema,
+});
+export type CanvasRead = Static<typeof CanvasReadSchema>;
+
 export const CanvasWritebackSchema = Type.Object({
   key: CanvasKeySchema,
   html: Type.String(),
@@ -20,6 +25,10 @@ export type CanvasWriteback = Static<typeof CanvasWritebackSchema>;
 export const canvasChannels = {
   feature: "canvas",
   requests: {
+    read: {
+      requestSchema: CanvasReadSchema,
+      responseSchema: Type.String(),
+    },
     writeback: {
       requestSchema: CanvasWritebackSchema,
       responseSchema: Type.Void(),

@@ -21,23 +21,25 @@ The ordered `features` array in `uix.workspace.json` is the complete composition
 
 The main-process loader evaluates entries with Jiti and aliases the blessed `@uix/api` and TypeBox modules. Feature code remains trusted local code, not sandboxed code.
 
-Activation hydrates provisional feature settings before running `context()` and `contribute()`. It then registers resources, channels, agent tools, prompt sections, skills, turn state, agent context, and surfaces.
+Activation hydrates provisional feature settings before running `workspace(ctx)`. Workspace contributions include resources, Workspace channel handlers, Agent channel contracts, and surfaces. The loader retains `agent(ctx)` in manifest order.
 
-Each activation owns one provisional `DisposableBag`. A failed feature loses every acquired setting or facet capability, while sibling activation continues. A successful feature joins the active composition.
+Each Workspace activation owns one async-disposable feature bag. Each `AgentInstance` calls the retained Agent factories with fresh contexts. Its own bag holds their tools, channel handlers, prompt sections, skills, turn state, and model context. A failed Workspace or Agent factory loses its partial work, while sibling features continue.
 
 Manifest and workspace-setting candidates validate before replacing the live generation. A malformed reload preserves the active composition. A malformed startup candidate logs an error and opens without features.
 
-Reload commits settled feature turn state from every live agent instance before replacing the feature composition. It then reloads initialized Pi resources and restores each live instance's branch state. Surface publication follows restoration. Requests serialize through `WorkspaceReloadCoordinator`.
+Reload rejects while an Agent turn or feature-channel operation is active. An idle reload commits settled turn state, replaces Workspace features, rebuilds every live Agent feature bag, reloads initialized Pi runtimes, and restores each viewpoint. Cleanup failures do not stop forward replacement after the old generation clears. Surface publication follows restoration, then reload reports collected failures. Requests serialize through `WorkspaceReloadCoordinator`.
 
 ## Channels and resources
 
 A shared `ChannelContract` defines request, response, and event schemas. Backend code adds handlers with `withHandlers()` and obtains contract-bound event publishers through the injected feature context.
 
-Each workspace runtime owns one `ChannelRegistry` that resolves owner-scoped ids and validates requests and responses. A runtime-created attachment prepares each canonical request with immutable guarded context and the registry entry's log policy. The Electron host records the physical crossing and invokes that prepared dispatch. Workspace clients derive typed request and event methods, and event clients validate incoming payloads.
+Each workspace runtime owns one `ChannelRegistry` that resolves owner-scoped ids and validates requests and responses. Workspace handlers run directly. An Agent channel contract selects a handler from the prepared dispatch's accepted Agent guard. Each Agent instance owns those handler closures. Routing values do not enter feature payloads.
+
+A runtime-created attachment prepares each canonical request with immutable guarded context and the registry entry's log policy. The Electron host records the physical crossing and invokes that prepared dispatch. Workspace clients derive typed request and event methods, and event clients validate incoming payloads.
 
 Electron Inter-Process Communication (IPC) is the implemented physical channel transport. Runtime events have workspace or session scope. Only matching attachments receive them. Canvas iframe writeback still uses a feature-owned `postMessage` shim before entering typed channels. A general iframe channel adapter does not exist.
 
-The `uix-resource://` protocol dispatches normalized feature resource routes. Surface bundles and files use a reserved substrate origin. Canvas documents use a feature-isolated resource origin.
+The `uix-resource://` protocol dispatches normalized feature resource routes. Surface bundles and files use a reserved substrate origin. Canvas serves a static feature-origin frame, reads selected-viewpoint HTML through its typed channel, and transfers that HTML to the frame through a narrow `postMessage` handshake.
 
 ## Surface and workspace runtime
 
@@ -59,9 +61,9 @@ Main persists portable keybindings under `settings.keybindings`. The renderer re
 
 The substrate registers `agent` and `keybindings` workspace namespaces. Features receive only their bound `ctx.settings` handle. Surfaces receive a feature-bound settings client.
 
-`DocumentStore` persists current document bytes and immutable versions under stable ids. `CanvasDocumentBuffer` adds Canvas normalization and anchored working projections without becoming durable authority.
+`DocumentStore` persists mutable current bytes and caller-supplied immutable versions under stable ids. Workspace factories receive the Workspace document factory. Agent factories receive a viewpoint-scoped factory: mutable current bytes are private to that session, while immutable versions remain shared. Each Agent instance owns a `CanvasDocumentBuffer` with its local HTML, anchors, and document heads.
 
-Turn-state contributions define named schema-bound cells. Each agent instance owns a coordinator for its session viewpoint. It restores branch values before the instance is admitted, commits changed complete snapshots at run boundaries and teardown, and participates in guarded workspace reload. Contribution callbacks and feature buffers remain workspace-scoped. The runtime has no per-instance instantiation boundary for them.
+Turn-state contributions define named schema-bound cells. Each Agent instance owns its registry and coordinator for its session viewpoint. It restores branch values before the instance is admitted, commits changed snapshots at run boundaries and teardown, and participates in guarded Workspace reload. The tools, channel handlers, model context, and turn-state callbacks returned by one Agent factory close over the same local feature state.
 
 Agent-context contributions materialize hidden model-visible sections. One assembler combines active sections into a `uix.state` message and provides a generated vocabulary section to the system prompt.
 
@@ -75,7 +77,7 @@ Attachments hold replaceable target guards. Prepared requests, running turns, re
 
 UIX stores sessions under the workspace state root. One application-owned Pi app data directory under Electron `userData` provides credentials, settings, models, and extension resources across workspaces.
 
-Each instance creates Pi with built-in tools inactive. Manifest features therefore define the complete UIX-selected tool surface. Internal installers adapt live agent-facet registries into Pi.
+Each instance owns its Agent facet registries and creates Pi with built-in tools inactive. Manifest features therefore define the complete UIX-selected tool surface. Internal installers adapt that instance's registries into Pi.
 
 The substrate agent contract handles prompts, history, recent summaries, attachment retargeting, titles, model selection, favorites, provider authentication, and session-scoped live events. Chat consumes that contract as an ordinary feature.
 
@@ -91,7 +93,7 @@ The repository manifest composes these ordinary features:
 
 - **Chat:** Provides the conversation surface, session and model controls, provider login, Markdown rendering, syntax highlighting, and specialized tool presentations.
 - **Workspace tools:** Provides exact-name reason-bearing `read`, `write`, and `command` tools plus passthrough `edit`.
-- **Canvas:** Provides contained HTML documents, anchored tools, writeback channels, document resources, turn state, agent context, prompt guidance, and an authoring skill.
+- **Canvas:** Provides contained HTML documents, per-Agent anchored buffers, selected-viewpoint read and writeback channels, turn state, agent context, prompt guidance, and an authoring skill.
 
 None of these features is a compiled-in substrate default. Bare workspaces start with editable passthrough Pi tool source instead.
 

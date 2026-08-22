@@ -1,4 +1,4 @@
-// Defines the canvas feature and registers its contributions across every facet.
+// Defines the Canvas Workspace surface and per-Agent behavior.
 
 import { defineFeature } from "@uix/api/feature";
 
@@ -6,25 +6,34 @@ import { createCanvasAgentContextContributions } from "./agent-context";
 import { CanvasAgentSystemPrompt } from "./agent-system-prompt";
 import { createCanvasAgentToolContributions } from "./agent-tools";
 import { createCanvasChannelContributions } from "./channels";
-import { createCanvasResourceContributions } from "./resources";
+import { createCanvasFrameResourceContributions } from "./resources";
 import { createCanvasTurnStateContributions } from "./turn-state";
+import { canvasChannels } from "../../shared/channels";
 import { createCanvasContext } from "../context";
 
 export const canvasFeature = defineFeature({
   id: "canvas",
-  context: createCanvasContext,
-  contribute(ctx) {
+  workspace(ctx) {
     return {
-      resources: createCanvasResourceContributions(ctx),
+      resources: createCanvasFrameResourceContributions(ctx),
+      agentChannelContracts: [canvasChannels],
+      // Resolved against the feature entry file's dir (the feature root,
+      // src/features/canvas), not this file's.
+      surfaces: ["./workspace/surface.tsx"],
+    };
+  },
+  agent(baseContext) {
+    const ctx = createCanvasContext(baseContext);
+    return {
       channels: createCanvasChannelContributions(ctx),
       agentTools: createCanvasAgentToolContributions(ctx),
       agentSystemPrompt: CanvasAgentSystemPrompt,
       agentSkills: ["./skills/canvas-authoring"],
       turnState: createCanvasTurnStateContributions(ctx),
       agentContext: createCanvasAgentContextContributions(ctx),
-      // Resolved against the feature entry file's dir (the feature root,
-      // src/features/canvas), not this file's.
-      surfaces: ["./workspace/surface.tsx"],
+      [Symbol.dispose]: () => {
+        ctx.buffer[Symbol.dispose]();
+      },
     };
   },
 });

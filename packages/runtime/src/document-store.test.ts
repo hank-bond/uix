@@ -4,7 +4,11 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { createLocalDocumentStore } from "./document-store";
+import {
+  createLocalDocumentStore,
+  createLocalDocumentStoreFactory,
+  createViewpointDocumentStoreFactory,
+} from "./document-store";
 
 async function tempRoot(): Promise<string> {
   return mkdtemp(join(tmpdir(), "doc-store-"));
@@ -38,13 +42,16 @@ describe("createLocalDocumentStore", () => {
     ).resolves.toBe("<p>hello</p>");
   });
 
-  it("creates immutable versions from current bytes and opaque metadata", async () => {
+  it("creates immutable versions from supplied content and metadata", async () => {
     const root = await tempRoot();
     const store = createLocalDocumentStore(root, { namespace: "canvas" });
 
-    await store.setCurrent("main", "first");
-    const first = await store.createSnapshot("main", { anchors: ["a"] });
-    const duplicate = await store.createSnapshot("main", { anchors: ["a"] });
+    const first = await store.createSnapshot("main", "first", {
+      anchors: ["a"],
+    });
+    const duplicate = await store.createSnapshot("main", "first", {
+      anchors: ["a"],
+    });
     await store.setCurrent("main", "second");
     const loaded = await store.getVersion("main", first.id);
 
@@ -56,6 +63,28 @@ describe("createLocalDocumentStore", () => {
       meta: { anchors: ["a"] },
     });
     expect(await store.getCurrent("main")).toBe("second");
+  });
+
+  it("isolates mutable viewpoint content while sharing immutable versions", async () => {
+    const documents = createLocalDocumentStoreFactory(await tempRoot());
+    const first = createViewpointDocumentStoreFactory(
+      documents,
+      "session-a",
+    ).createStore({ namespace: "canvas" });
+    const second = createViewpointDocumentStoreFactory(
+      documents,
+      "session-b",
+    ).createStore({ namespace: "canvas" });
+
+    await first.setCurrent("main", "first viewpoint");
+    expect(await second.getCurrent("main")).toBeNull();
+
+    const version = await first.createSnapshot("main", "shared", {
+      anchors: ["a"],
+    });
+    await expect(second.getVersion("main", version.id)).resolves.toEqual(
+      version,
+    );
   });
 
   it("validates document ids before touching storage", async () => {

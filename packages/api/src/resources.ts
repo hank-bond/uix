@@ -1,7 +1,7 @@
 // Resource address capability and contribution type.
 //
 // ResourceContribution is the type feature authors declare in their
-// FeatureContributions.resources array. The substrate registers and dispatches
+// WorkspaceFeatureContributions.resources array. The substrate registers and dispatches
 // requests through the ResourceRegistry.
 //
 // ResourceAddressHandle is the substrate-provided capability for features to

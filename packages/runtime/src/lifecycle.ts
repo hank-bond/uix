@@ -96,21 +96,32 @@ export class DisposableBag implements Disposable {
 /** A LIFO owner for mixed synchronous and asynchronous lifetimes. */
 export class AsyncDisposableBag implements AsyncDisposable {
   #items: Array<Disposable | AsyncDisposable> = [];
+  #tail: Promise<void> = Promise.resolve();
   #disposal: Promise<void> | undefined;
-  #disposing = false;
+  #disposed = false;
 
   add<D extends Disposable | AsyncDisposable>(item: D): D {
-    if (this.#disposing) {
-      throw new Error("Async disposable bag is disposing");
+    if (this.#disposed) {
+      throw new Error("Async disposable bag is disposed");
     }
     this.#items.push(item);
     return item;
   }
 
+  /** Dispose current items in order and keep the bag available for replacement. */
+  clear(): Promise<void> {
+    if (this.#disposed) {
+      return Promise.reject(new Error("Async disposable bag is disposed"));
+    }
+    const clearing = this.#tail.then(() => this.#drain());
+    this.#tail = clearing.catch(() => undefined);
+    return clearing;
+  }
+
   [Symbol.asyncDispose](): Promise<void> {
     if (this.#disposal) return this.#disposal;
-    this.#disposing = true;
-    this.#disposal = this.#drain();
+    this.#disposed = true;
+    this.#disposal = this.#tail.then(() => this.#drain());
     return this.#disposal;
   }
 

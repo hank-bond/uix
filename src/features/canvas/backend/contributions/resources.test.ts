@@ -1,100 +1,49 @@
 import { describe, expect, it } from "vitest";
 
-import { createFeatureEventPublisher } from "@uix/api/channels";
-import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
-import type { FeatureContext } from "@uix/api/feature";
+import type { WorkspaceFeatureContext } from "@uix/api/feature";
 
-import { createCanvasResourceContributions } from "./resources";
-import { canvasChannels } from "../../shared/channels";
-import type { CanvasContext } from "../context";
-import { CanvasDocumentBuffer } from "../document-buffer";
+import { createCanvasFrameResourceContributions } from "./resources";
 
-function memoryStore(initial: Record<string, string> = {}): DocumentStore {
-  const current = new Map(Object.entries(initial));
-  return {
-    getCurrent: (documentId) =>
-      Promise.resolve(current.get(documentId) ?? null),
-    setCurrent: (documentId, content) => {
-      current.set(documentId, content);
-      return Promise.resolve();
-    },
-    createSnapshot: (documentId, meta) =>
-      Promise.resolve({
-        id: "v1",
-        documentId,
-        content: current.get(documentId) ?? "",
-        meta,
-        createdAt: new Date(0).toISOString(),
-      }),
-    getVersion: <TMeta>() =>
-      Promise.resolve(null as DocumentVersion<TMeta> | null),
-  };
-}
+const context = {
+  log: {
+    trace: () => undefined,
+    debug: () => undefined,
+    info: () => undefined,
+    warn: () => undefined,
+    error: () => undefined,
+  },
+} as unknown as WorkspaceFeatureContext;
 
-function fakeCanvasContext(store: DocumentStore): CanvasContext {
-  const base: FeatureContext = {
-    documents: { createStore: () => store },
-    settings: {
-      get: () => undefined,
-      set: () => {},
-      onChange: () => () => {},
-    },
-    channels: {
-      createPublisher: (contract) =>
-        createFeatureEventPublisher(() => undefined, contract),
-    },
-    log: {
-      trace: () => {},
-      debug: () => {},
-      info: () => {},
-      warn: () => {},
-      error: () => {},
-    },
-  };
-  return {
-    ...base,
-    store,
-    buffer: new CanvasDocumentBuffer(store),
-    events: base.channels.createPublisher(canvasChannels),
-  };
-}
-
-describe("createCanvasResourceContributions", () => {
-  it("serves current canvas HTML with the writeback shim", async () => {
-    const [resource] = createCanvasResourceContributions(
-      fakeCanvasContext(memoryStore({ main: "<p>Hello</p>" })),
-    );
+describe("Canvas frame resource", () => {
+  it("serves a static frame bootstrap for a valid key", async () => {
+    const resource = createCanvasFrameResourceContributions(context)[0];
 
     const response = await resource.handler({
-      request: new Request("uix-resource://canvas.local/doc/main"),
-      params: { key: ["main"] },
+      request: new Request("uix-resource://canvas.local/main"),
+      params: { key: ["reports", "weekly"] },
       query: {},
     });
-    const html = await response.text();
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("Content-Type")).toBe(
-      "text/html; charset=utf-8",
-    );
-    expect(html).toContain("<p>Hello</p>");
-    expect(html).toContain("canvas:writeback");
-    expect(html).toContain("canvas:prompt");
-    expect(html).toContain("event.isTrusted");
-    expect(html).toContain("[data-canvas-prompt]");
+    const html = await response.text();
+    expect(html).toContain("canvas:ready");
+    expect(html).toContain("reports/weekly");
+    expect(html).not.toContain("AgentInstance");
+    const script = html.match(/<script>([\s\S]*)<\/script>/)?.[1];
+    if (!script) throw new Error("Missing Canvas bootstrap script");
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval -- parse the generated standalone browser script without executing it.
+    expect(() => new Function(script)).not.toThrow();
   });
 
-  it("returns a small 404 page when the canvas is missing", async () => {
-    const [resource] = createCanvasResourceContributions(
-      fakeCanvasContext(memoryStore()),
-    );
+  it("rejects an invalid key without reading Agent state", async () => {
+    const resource = createCanvasFrameResourceContributions(context)[0];
 
     const response = await resource.handler({
-      request: new Request("uix-resource://canvas.local/doc/main"),
-      params: { key: ["main"] },
+      request: new Request("uix-resource://canvas.local/invalid"),
+      params: { key: ["Not Valid"] },
       query: {},
     });
 
-    expect(response.status).toBe(404);
-    await expect(response.text()).resolves.toContain("No canvas yet");
+    expect(response.status).toBe(400);
   });
 });

@@ -28,10 +28,14 @@ export type {
   DocumentVersion,
 } from "./documents";
 export type {
+  AgentFeatureContext,
+  AgentFeatureContributions,
+  AgentFeatureInstance,
   FeatureContext,
-  FeatureContributions,
   FeatureDefinition,
-  FeaturePreflightContributions,
+  WorkspaceFeatureContext,
+  WorkspaceFeatureContributions,
+  WorkspaceFeatureInstance,
 } from "./feature";
 export { defineFeature } from "./feature";
 export type { FeatureLogFn, FeatureLogger } from "./log";

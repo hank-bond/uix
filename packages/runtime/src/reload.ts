@@ -1,10 +1,13 @@
-// Runs one workspace reload at a time across feature activation, Pi resources, restored state, and renderer notification.
+// Reloads idle Workspace and Agent features before Pi resources, restored state, and renderer notification.
 //
 // Reload first commits turn state after restoration settles, or skips that commit when restoration is still pending. It stages and validates one manifest generation before promotion, then disposes the active composition and activates replacements. Reload requests serialize, and a successful reload gives disk precedence over pending debounced in-memory settings. Malformed manifests or workspace settings fail before promotion, so the active composition remains intact. Reload uses typed IPC, not an agent channel, and reconciles Pi only after replacing manifest features and workspace settings. It recreates the model or authentication services tier when one exists and calls Pi's native session reload when a live session exists. It never creates Pi services or a session solely to reload them.
 
 interface WorkspaceReloadCoordinatorOptions<TFeatureActivation> {
+  acquireReloadAdmission: () => Disposable;
   commitTurnState: () => Promise<boolean>;
   loadFeatures: () => Promise<TFeatureActivation>;
+  featureCleanupErrors?: (activation: TFeatureActivation) => readonly unknown[];
+  reloadAgentFeatures: () => Promise<readonly unknown[]>;
   reloadPiResources: () => Promise<boolean>;
   restoreTurnState: () => Promise<void>;
   publishSurfacesChanged: () => void;
@@ -32,11 +35,19 @@ export function createWorkspaceReloadCoordinator<TFeatureActivation>(
   const runReload = async (): Promise<
     WorkspaceReloadCompletion<TFeatureActivation>
   > => {
+    using _reloadAdmission = opts.acquireReloadAdmission();
     const turnStateCommitted = await opts.commitTurnState();
     const featureActivation = await opts.loadFeatures();
+    const errors: unknown[] = [
+      ...(opts.featureCleanupErrors?.(featureActivation) ?? []),
+    ];
+    try {
+      errors.push(...(await opts.reloadAgentFeatures()));
+    } catch (thrown) {
+      errors.push(thrown);
+    }
 
     let piResourcesReloaded = false;
-    const errors: unknown[] = [];
     try {
       piResourcesReloaded = await opts.reloadPiResources();
     } catch (thrown) {
@@ -57,7 +68,7 @@ export function createWorkspaceReloadCoordinator<TFeatureActivation>(
     if (errors.length > 1) {
       throw new AggregateError(
         errors,
-        "Pi resource reload and feature turn-state restoration failed",
+        "Workspace reload completed with one or more failures",
       );
     }
     if (errors.length === 1) throw errors[0];

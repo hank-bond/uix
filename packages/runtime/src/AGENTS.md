@@ -24,9 +24,9 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 
 - **[agent-skill-registry.ts](./agent-skill-registry.ts)** Assembles feature-provided Pi skill paths and provides them when Pi discovers runtime resources.
 - **[agent-system-prompt-registry.ts](./agent-system-prompt-registry.ts)** Assembles each feature's system-prompt section in workspace order for Pi.
-- **[channel-registry.ts](./channel-registry.ts)** Owns one workspace's canonical channel table, prepared dispatches, and typed event publication.
+- **[channel-registry.ts](./channel-registry.ts)** Owns Workspace channel contracts and routes selected requests to per-Agent handlers.
 - **[dispatch.ts](./dispatch.ts)** Canonical request preparation and the attachment-stamped dispatch context.
-- **[document-store.ts](./document-store.ts)** Persists each document's current content and immutable snapshots under stable namespace and document IDs.
+- **[document-store.ts](./document-store.ts)** Persists mutable document content and caller-supplied immutable versions under stable IDs.
 - **[events.ts](./events.ts)** Explicitly scoped canonical runtime events for host-selected delivery.
 - **[guard.ts](./guard.ts)** Generic guard capabilities that pair supervisor-owned lifetime authority with operational values.
 - **[index.ts](./index.ts)** The @uix/runtime public facade re-exporting the workspace-runtime contract and its factory.
@@ -34,7 +34,7 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 - **[log.ts](./log.ts)** Creates main-process loggers that label messages by component and choose readable or JSON output for the environment.
 - **[manifest-store.ts](./manifest-store.ts)** Reads workspace manifests into staged copies and atomically writes the accepted copy back to disk.
 - **[operation-tracker.ts](./operation-tracker.ts)** Provides lexical cancellable operations that a parent can cancel and join during shutdown.
-- **[reload.ts](./reload.ts)** Runs one workspace reload at a time across feature activation, Pi resources, restored state, and renderer notification.
+- **[reload.ts](./reload.ts)** Reloads idle Workspace and Agent features before Pi resources, restored state, and renderer notification.
 - **[resource-registry.ts](./resource-registry.ts)** Routes resource URLs to the active feature handlers through one validated boundary.
 - **[roots.ts](./roots.ts)** Finds stable paths for workspace state, the agent working directory, and the manifest from one startup target.
 - **[runtime.ts](./runtime.ts)** Composes the workspace substrate into one exactly-one-workspace runtime over host-provided dependencies.

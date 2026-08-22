@@ -1,4 +1,4 @@
-// Persists each document's current content and immutable snapshots under stable namespace and document IDs.
+// Persists mutable document content and caller-supplied immutable versions under stable IDs.
 //
 // The filesystem layout is private behind the feature-facing store contract.
 // Snapshot identity includes namespace, document id, content, and caller-owned
@@ -21,6 +21,32 @@ export function createLocalDocumentStoreFactory(
 ): DocumentStoreFactory {
   return {
     createStore: (opts) => createLocalDocumentStore(stateRoot, opts),
+  };
+}
+
+/** Scope mutable current bytes to one Agent viewpoint while sharing versions. */
+export function createViewpointDocumentStoreFactory(
+  documents: DocumentStoreFactory,
+  viewpointId: string,
+): DocumentStoreFactory {
+  const encodedViewpoint = encodeURIComponent(viewpointId);
+  return {
+    createStore(opts) {
+      const shared = documents.createStore(opts);
+      const current = documents.createStore({
+        ...opts,
+        namespace: `${opts.namespace}/viewpoints/${encodedViewpoint}`,
+      });
+      return {
+        getCurrent: (documentId) => current.getCurrent(documentId),
+        setCurrent: (documentId, content) =>
+          current.setCurrent(documentId, content),
+        createSnapshot: (documentId, content, meta) =>
+          shared.createSnapshot(documentId, content, meta),
+        getVersion: <TMeta>(documentId: string, versionId: string) =>
+          shared.getVersion<TMeta>(documentId, versionId),
+      };
+    },
   };
 }
 
@@ -50,12 +76,12 @@ export function createLocalDocumentStore(
       await mkdir(dirname(path), { recursive: true });
       await writeFile(path, content, "utf8");
     },
-    async createSnapshot<TMeta>(documentId: string, meta: TMeta) {
+    async createSnapshot<TMeta>(
+      documentId: string,
+      content: string,
+      meta: TMeta,
+    ) {
       opts.validateDocumentId?.(documentId);
-      const content =
-        (await readOptionalFile(
-          currentPath(stateRoot, opts, documentId, extension),
-        )) ?? "";
       const id = versionId(opts.namespace, documentId, content, meta);
       const path = versionPath(stateRoot, opts, documentId, id);
       try {
@@ -90,15 +116,6 @@ export function createLocalDocumentStore(
       }
     },
   };
-}
-
-async function readOptionalFile(path: string): Promise<string | null> {
-  try {
-    return await readFile(path, "utf8");
-  } catch (err) {
-    if (isNotFound(err)) return null;
-    throw err;
-  }
 }
 
 function documentRoot(stateRoot: string): string {

@@ -1,4 +1,4 @@
-// Owns one live Pi execution, active-turn cancellation, and mutable state at one session-branch viewpoint.
+// Owns one live Pi execution, active-turn cancellation, and mutable feature state at one session viewpoint.
 
 import type {
   AgentSessionRuntime,
@@ -10,13 +10,23 @@ import {
   type AgentInstanceStateOptions,
   createAgentInstanceState,
 } from "./instance-state";
+import { AgentContextRegistry } from "../agent-context/registry";
+import { AgentSkillRegistry } from "../agent-skill-registry";
+import { AgentSystemPromptRegistry } from "../agent-system-prompt-registry";
+import { AgentToolRegistry } from "../agent-tools/registry";
+import { AgentChannelHandlerRegistry } from "../channel-registry";
+import type { AgentFeatureRegistries } from "../features/contributions";
+import { AsyncDisposableBag } from "../lifecycle";
 import type { OperationControl } from "../operation-tracker";
+import { TurnStateRegistry } from "../turn-state";
 import type { SessionTarget } from "../workspace";
 
 export interface AgentInstance {
   readonly target: SessionTarget;
   readonly manager: SessionManager;
   readonly state: AgentInstanceState;
+  readonly features: AgentFeatureRegistries;
+  readonly featureChannels: AgentChannelHandlerRegistry;
   /** Register the instance's only active turn, or reject when one is already active. */
   registerActiveTurn(control: OperationControl): Disposable;
   /** Request cancellation and await the active turn's lexical completion. */
@@ -25,6 +35,8 @@ export interface AgentInstance {
   isTurnActive(): boolean;
   /** Boot the Pi runtime on first use. Concurrent callers share one attempt. */
   bootRuntime(): Promise<AgentSessionRuntime>;
+  /** Replace feature callbacks after Workspace reload and return cleanup failures. */
+  reloadFeatures(): Promise<readonly unknown[]>;
   /** Reload an active or already-booting runtime without starting an unused one. */
   reloadRuntimeIfActive(): Promise<boolean>;
 }
@@ -39,31 +51,78 @@ export interface AgentInstanceOptions {
   readonly createRuntime: (
     manager: SessionManager,
     state: AgentInstanceState,
+    features: AgentFeatureRegistries,
   ) => Promise<AgentSessionRuntime>;
+  /** Activate the current manifest's Agent factories into these stable registries. */
+  readonly activateFeatures: (
+    features: AgentFeatureRegistries,
+    featuresBag: AsyncDisposableBag,
+  ) => Promise<void>;
   /** Commit final turn state after the safe boundary. */
   readonly commitFinalTurnState?: (
     manager: SessionManager,
     state: AgentInstanceState,
   ) => Promise<void>;
-  readonly state: AgentInstanceStateOptions;
+  readonly state: Omit<AgentInstanceStateOptions, "turnState">;
 }
 
 /** Creates an independently disposable instance with lazy Pi runtime boot. */
-export function createAgentInstance(
+export async function createAgentInstance(
   opts: AgentInstanceOptions,
-): AgentInstanceOwnership {
-  const state = createAgentInstanceState(opts.state);
+): Promise<AgentInstanceOwnership> {
+  const features: AgentFeatureRegistries = {
+    channels: new AgentChannelHandlerRegistry(),
+    agentTools: new AgentToolRegistry(),
+    agentSystemPrompt: new AgentSystemPromptRegistry(),
+    agentSkills: new AgentSkillRegistry(),
+    turnState: new TurnStateRegistry(),
+    agentContext: new AgentContextRegistry(),
+  };
+  const instanceBag = new AsyncDisposableBag();
+  const featuresBag = instanceBag.add(new AsyncDisposableBag());
+  let state: AgentInstanceState & Disposable;
+  try {
+    await opts.activateFeatures(features, featuresBag);
+    state = instanceBag.add(
+      createAgentInstanceState({
+        ...opts.state,
+        turnState: features.turnState,
+      }),
+    );
+  } catch (error) {
+    try {
+      await instanceBag[Symbol.asyncDispose]();
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        "Agent instance creation and feature rollback failed",
+        { cause: cleanupError },
+      );
+    }
+    throw error;
+  }
   let runtime: AgentSessionRuntime | undefined;
   let inFlightRuntimeBoot: Promise<AgentSessionRuntime> | undefined;
   let disposal: Promise<void> | undefined;
   let activeTurn: OperationControl | undefined;
+
+  instanceBag.add({
+    [Symbol.asyncDispose]: async () => {
+      let runtimeToDispose = runtime;
+      if (!runtimeToDispose && inFlightRuntimeBoot) {
+        runtimeToDispose = await inFlightRuntimeBoot.catch(() => undefined);
+      }
+      runtime = undefined;
+      await runtimeToDispose?.dispose();
+    },
+  });
 
   function bootRuntime(): Promise<AgentSessionRuntime> {
     if (runtime) return Promise.resolve(runtime);
     if (inFlightRuntimeBoot) return inFlightRuntimeBoot;
 
     const boot = opts
-      .createRuntime(opts.manager, state)
+      .createRuntime(opts.manager, state, features)
       .then((bootedRuntime) => {
         runtime = bootedRuntime;
         return bootedRuntime;
@@ -75,11 +134,21 @@ export function createAgentInstance(
     return boot;
   }
 
+  async function reloadFeatures(): Promise<readonly unknown[]> {
+    if (activeTurn) throw new Error("Cannot reload features during a turn");
+    const cleanupErrors: unknown[] = [];
+    try {
+      await featuresBag.clear();
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
+    state.turnStateCoordinator?.clearRestoration();
+    await opts.activateFeatures(features, featuresBag);
+    return cleanupErrors;
+  }
+
   function dispose(): Promise<void> {
     if (disposal) return disposal;
-    const bootedRuntime = runtime;
-    const pendingBoot = inFlightRuntimeBoot;
-    runtime = undefined;
     disposal = (async () => {
       const errors: unknown[] = [];
       try {
@@ -88,17 +157,7 @@ export function createAgentInstance(
         errors.push(error);
       }
       try {
-        let runtimeToDispose = bootedRuntime;
-        if (!runtimeToDispose && pendingBoot) {
-          runtimeToDispose = await pendingBoot.catch(() => undefined);
-          runtime = undefined;
-        }
-        await runtimeToDispose?.dispose();
-      } catch (error) {
-        errors.push(error);
-      }
-      try {
-        state[Symbol.dispose]();
+        await instanceBag[Symbol.asyncDispose]();
       } catch (error) {
         errors.push(error);
       }
@@ -113,6 +172,8 @@ export function createAgentInstance(
     target: opts.target,
     manager: opts.manager,
     state,
+    features,
+    featureChannels: features.channels,
     registerActiveTurn(control) {
       if (activeTurn) throw new Error("Agent is already running");
       activeTurn = control;
@@ -132,6 +193,7 @@ export function createAgentInstance(
     },
     isTurnActive: () => activeTurn !== undefined,
     bootRuntime,
+    reloadFeatures,
     async reloadRuntimeIfActive() {
       const activeRuntime = runtime ?? (await inFlightRuntimeBoot);
       if (!activeRuntime) return false;

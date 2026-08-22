@@ -45,11 +45,11 @@ function memoryStore(): DocumentStore {
       map.set(docId, content);
       return Promise.resolve();
     },
-    createSnapshot: (docId, meta) => {
-      const version: DocumentVersion<typeof meta> = {
+    createSnapshot: <TMeta>(docId: string, content: string, meta: TMeta) => {
+      const version: DocumentVersion<TMeta> = {
         id: `v${String(versions.size + 1)}`,
         documentId: docId,
-        content: map.get(docId) ?? "",
+        content,
         meta,
         createdAt: new Date(0).toISOString(),
       };

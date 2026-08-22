@@ -230,12 +230,23 @@ export function createAgentInstanceSupervisor(
         .map(([sessionId, managed]) =>
           createAgentInstanceGuard(sessionId, managed, origin),
         );
-      await Promise.all(
+      const results = await Promise.allSettled(
         guards.map(async (guard) => {
           using operationGuard = guard;
           await visitor(operationGuard.value);
         }),
       );
+      const failures: unknown[] = [];
+      for (const result of results) {
+        if (result.status === "rejected") failures.push(result.reason);
+      }
+      if (failures.length > 1) {
+        throw new AggregateError(
+          failures,
+          "One or more instance visits failed",
+        );
+      }
+      if (failures.length === 1) throw failures[0];
     },
     getGuardSnapshot() {
       return [...instances.entries()].flatMap(([sessionId, managed]) =>

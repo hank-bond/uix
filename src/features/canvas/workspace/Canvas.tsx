@@ -1,27 +1,25 @@
-// Renders agent-authored canvas HTML in a sandboxed iframe with postMessage writeback.
-//
-// Renders agent-authored HTML from the document store in a sandboxed iframe.
-// Human edits flow back to the store via postMessage writeback.
-// The surface host provides the channel client via props.
+// Renders the selected Agent viewpoint's Canvas HTML in a feature-origin iframe.
 
 import type { JSX } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { agentChannels } from "@uix/api/agent-channels";
 import {
   type ChannelClient,
   createChannelClient,
   useWorkspaceClient,
+  useWorkspaceSession,
 } from "@uix/api/workspace";
 
 import {
   forwardCanvasFrameMessage,
+  isCanvasFrameReady,
   parseCanvasFrameMessage,
 } from "./frame-messages";
 import {
   type CanvasKey,
-  toResourceOrigin,
-  toResourceUrl,
+  toCanvasFrameOrigin,
+  toCanvasFrameUrl,
 } from "../shared/addressing";
 import type { canvasChannels } from "../shared/channels";
 
@@ -32,30 +30,56 @@ export interface CanvasProps {
 
 export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
   const workspace = useWorkspaceClient();
+  const { sessionSelectionVersion } = useWorkspaceSession();
   const agent = useMemo(
     () => createChannelClient(workspace, agentChannels),
     [workspace],
   );
   const frameRef = useRef<HTMLIFrameElement>(null);
-  const [token, setToken] = useState(0);
+  const htmlRef = useRef("");
+  const [changeVersion, setChangeVersion] = useState(0);
+  const [frameVersion, setFrameVersion] = useState(0);
 
   useEffect(() => {
     return client.events.changed((event) => {
       if (event.key === canvasKey) {
-        setToken((prev) => prev + 1);
+        setChangeVersion((previous) => previous + 1);
       }
     });
   }, [client, canvasKey]);
 
   useEffect(() => {
-    // The shim postMessages human edits and trusted-click prompt actions up
-    // from the sandboxed canvas frame. Trust only this feature's isolated
-    // origin, this exact iframe window, and this canvas key. The origin is
-    // feature-scoped rather than per-document.
-    const origin = toResourceOrigin(workspace.workspaceId);
+    let current = true;
+    htmlRef.current = "";
+    void client.requests
+      .read({ key: canvasKey })
+      .then((html) => {
+        if (!current) return;
+        htmlRef.current = html;
+        setFrameVersion((previous) => previous + 1);
+      })
+      .catch(() => {
+        if (!current) return;
+        htmlRef.current = "";
+        setFrameVersion((previous) => previous + 1);
+      });
+    return () => {
+      current = false;
+    };
+  }, [client, canvasKey, changeVersion, sessionSelectionVersion]);
+
+  useLayoutEffect(() => {
+    const origin = toCanvasFrameOrigin(workspace.workspaceId);
     const onMessage = (event: MessageEvent): void => {
       if (event.origin !== origin) return;
       if (event.source !== frameRef.current?.contentWindow) return;
+      if (isCanvasFrameReady(event.data, canvasKey)) {
+        frameRef.current.contentWindow?.postMessage(
+          { type: "canvas:load", key: canvasKey, html: htmlRef.current },
+          origin,
+        );
+        return;
+      }
       const message = parseCanvasFrameMessage(event.data, canvasKey);
       if (!message) return;
       void forwardCanvasFrameMessage(
@@ -72,14 +96,11 @@ export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
 
   return (
     <iframe
+      key={`${String(sessionSelectionVersion)}:${String(frameVersion)}`}
       ref={frameRef}
       className="canvas-frame"
-      src={toResourceUrl(workspace.workspaceId, canvasKey, token)}
+      src={toCanvasFrameUrl(workspace.workspaceId, canvasKey, frameVersion)}
       title={`canvas ${canvasKey}`}
-      // allow-scripts + allow-same-origin is safe here because the iframe's
-      // origin is the canvas's own custom-protocol origin (uix-resource://),
-      // not the workspace's. The canvas origin has no access to window.channels
-      // or the workspace DOM.
       sandbox="allow-scripts allow-same-origin"
     />
   );

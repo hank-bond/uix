@@ -1,6 +1,11 @@
-// Registers all of one feature's capabilities together and rolls them all back if any registration fails.
+// Registers one Workspace or Agent factory result as one rollback-safe unit.
 
-import type { FeatureContributions } from "@uix/api/feature";
+import type {
+  AgentFeatureContributions,
+  AgentFeatureInstance,
+  WorkspaceFeatureContributions,
+  WorkspaceFeatureInstance,
+} from "@uix/api/feature";
 
 import type { SurfaceRegistry } from "./surfaces";
 import { registerSurfaceContributions } from "./surfaces";
@@ -15,56 +20,66 @@ import {
   registerAgentToolContributions,
   registerAgentToolOverrideContributions,
 } from "../agent-tools/registry";
-import type { ChannelRegistry } from "../channel-registry";
-import { registerChannelContributions } from "../channel-registry";
-import { DisposableBag } from "../lifecycle";
+import type {
+  AgentChannelHandlerRegistry,
+  AgentChannelInvoker,
+  ChannelRegistry,
+} from "../channel-registry";
+import {
+  registerAgentChannelContracts,
+  registerAgentChannelHandlers,
+  registerChannelContributions,
+} from "../channel-registry";
+import { type AsyncDisposableBag, DisposableBag } from "../lifecycle";
 import type { ResourceRegistry } from "../resource-registry";
 import { registerResourceContributions } from "../resource-registry";
 import type { TurnStateRegistry } from "../turn-state";
 import { registerTurnStateContributions } from "../turn-state";
 
-export interface FeatureContributionRegistries {
-  resources?: ResourceRegistry;
-  channels?: ChannelRegistry;
-  agentTools?: AgentToolRegistry;
-  agentSystemPrompt?: AgentSystemPromptRegistry;
-  agentSkills?: AgentSkillRegistry;
-  turnState?: TurnStateRegistry;
-  agentContext?: AgentContextRegistry;
-  surfaces?: SurfaceRegistry;
+export interface WorkspaceFeatureRegistries {
+  resources: ResourceRegistry;
+  channels: ChannelRegistry;
+  invokeAgentChannel: AgentChannelInvoker;
+  surfaces: SurfaceRegistry;
+}
+
+export interface AgentFeatureRegistries {
+  channels: AgentChannelHandlerRegistry;
+  agentTools: AgentToolRegistry;
+  agentSystemPrompt: AgentSystemPromptRegistry;
+  agentSkills: AgentSkillRegistry;
+  turnState: TurnStateRegistry;
+  agentContext: AgentContextRegistry;
 }
 
 /** Where the feature's definition came from, for path-relative facets. */
 export interface FeatureOrigin {
-  /**
-   * Directory of the feature's entry file. Surface entry refs resolve
-   * against it. Absent for compiled-in definitions, which therefore cannot
-   * contribute surfaces.
-   */
+  /** Directory of the feature's entry file. */
   entryDir?: string;
 }
 
-/**
- * Register every contributed facet under one feature lifetime.
- *
- * The caller owns the returned lifetime. If any facet fails, this operation
- * disposes all earlier facet registrations before it rethrows.
- */
-export function registerFeatureContributions(
-  registries: FeatureContributionRegistries,
+/** Add a returned contribution object's standard cleanup to its owner. */
+export function addFeatureInstanceLifetime(
+  bag: AsyncDisposableBag,
+  instance: WorkspaceFeatureInstance | AgentFeatureInstance,
+): void {
+  if (Symbol.asyncDispose in instance) {
+    bag.add(instance as AsyncDisposable);
+  } else if (Symbol.dispose in instance) {
+    bag.add(instance as Disposable);
+  }
+}
+
+/** Register all Workspace facets returned by one feature factory. */
+export function registerWorkspaceFeatureContributions(
+  registries: WorkspaceFeatureRegistries,
   featureId: string,
-  contributions: FeatureContributions,
+  contributions: WorkspaceFeatureContributions,
   origin: FeatureOrigin = {},
 ): Disposable {
   const bag = new DisposableBag();
-
   try {
     if (contributions.resources?.length) {
-      if (!registries.resources) {
-        throw new Error(
-          `Feature ${featureId} contributes resources but no resource registry was provided`,
-        );
-      }
       bag.add(
         registerResourceContributions(
           registries.resources,
@@ -73,13 +88,7 @@ export function registerFeatureContributions(
         ),
       );
     }
-
     if (contributions.channels?.length) {
-      if (!registries.channels) {
-        throw new Error(
-          `Feature ${featureId} contributes channels but no channel registry was provided`,
-        );
-      }
       bag.add(
         registerChannelContributions(
           registries.channels,
@@ -88,112 +97,17 @@ export function registerFeatureContributions(
         ),
       );
     }
-
-    if (contributions.agentTools?.length) {
-      if (!registries.agentTools) {
-        throw new Error(
-          `Feature ${featureId} contributes agent tools but no agent tool registry was provided`,
-        );
-      }
+    if (contributions.agentChannelContracts?.length) {
       bag.add(
-        registerAgentToolContributions(
-          registries.agentTools,
+        registerAgentChannelContracts(
+          registries.channels,
           featureId,
-          contributions.agentTools,
+          contributions.agentChannelContracts,
+          registries.invokeAgentChannel,
         ),
       );
     }
-
-    if (contributions.agentToolOverrides?.length) {
-      if (!registries.agentTools) {
-        throw new Error(
-          `Feature ${featureId} contributes agent tool overrides but no agent tool registry was provided`,
-        );
-      }
-      bag.add(
-        registerAgentToolOverrideContributions(
-          registries.agentTools,
-          featureId,
-          contributions.agentToolOverrides,
-        ),
-      );
-    }
-
-    if (contributions.agentSystemPrompt !== undefined) {
-      if (!registries.agentSystemPrompt) {
-        throw new Error(
-          `Feature ${featureId} contributes an agent system prompt but no agent-system-prompt registry was provided`,
-        );
-      }
-      bag.add(
-        registerAgentSystemPromptContribution(
-          registries.agentSystemPrompt,
-          featureId,
-          contributions.agentSystemPrompt,
-        ),
-      );
-    }
-
-    if (contributions.agentSkills?.length) {
-      if (!registries.agentSkills) {
-        throw new Error(
-          `Feature ${featureId} contributes agent skills but no agent-skills registry was provided`,
-        );
-      }
-      if (!origin.entryDir) {
-        throw new Error(
-          `Feature ${featureId} contributes agent skills but was activated without an entry directory to resolve them against`,
-        );
-      }
-      bag.add(
-        registerAgentSkillContributions(
-          registries.agentSkills,
-          featureId,
-          contributions.agentSkills,
-          origin.entryDir,
-        ),
-      );
-    }
-
-    if (
-      contributions.turnState &&
-      Object.keys(contributions.turnState).length > 0
-    ) {
-      if (!registries.turnState) {
-        throw new Error(
-          `Feature ${featureId} contributes turn state but no turn-state registry was provided`,
-        );
-      }
-      bag.add(
-        registerTurnStateContributions(
-          registries.turnState,
-          featureId,
-          contributions.turnState,
-        ),
-      );
-    }
-
-    if (contributions.agentContext?.length) {
-      if (!registries.agentContext) {
-        throw new Error(
-          `Feature ${featureId} contributes agent context but no agent-context registry was provided`,
-        );
-      }
-      bag.add(
-        registerAgentContextContributions(
-          registries.agentContext,
-          featureId,
-          contributions.agentContext,
-        ),
-      );
-    }
-
     if (contributions.surfaces?.length) {
-      if (!registries.surfaces) {
-        throw new Error(
-          `Feature ${featureId} contributes surfaces but no surface registry was provided`,
-        );
-      }
       if (!origin.entryDir) {
         throw new Error(
           `Feature ${featureId} contributes surfaces but was activated without an entry directory to resolve them against`,
@@ -208,10 +122,94 @@ export function registerFeatureContributions(
         ),
       );
     }
-
     return bag;
-  } catch (err) {
+  } catch (error) {
     bag[Symbol.dispose]();
-    throw err;
+    throw error;
+  }
+}
+
+/** Register all Agent facets returned by one feature factory. */
+export function registerAgentFeatureContributions(
+  registries: AgentFeatureRegistries,
+  featureId: string,
+  contributions: AgentFeatureContributions,
+  origin: FeatureOrigin = {},
+): Disposable {
+  const bag = new DisposableBag();
+  try {
+    if (contributions.channels?.length) {
+      bag.add(
+        registerAgentChannelHandlers(
+          registries.channels,
+          featureId,
+          contributions.channels,
+        ),
+      );
+    }
+    if (contributions.agentTools?.length) {
+      bag.add(
+        registerAgentToolContributions(
+          registries.agentTools,
+          featureId,
+          contributions.agentTools,
+        ),
+      );
+    }
+    if (contributions.agentToolOverrides?.length) {
+      bag.add(
+        registerAgentToolOverrideContributions(
+          registries.agentTools,
+          featureId,
+          contributions.agentToolOverrides,
+        ),
+      );
+    }
+    if (contributions.agentSystemPrompt !== undefined) {
+      bag.add(
+        registerAgentSystemPromptContribution(
+          registries.agentSystemPrompt,
+          featureId,
+          contributions.agentSystemPrompt,
+        ),
+      );
+    }
+    if (contributions.agentSkills?.length) {
+      if (!origin.entryDir) {
+        throw new Error(
+          `Feature ${featureId} contributes agent skills but was activated without an entry directory to resolve them against`,
+        );
+      }
+      bag.add(
+        registerAgentSkillContributions(
+          registries.agentSkills,
+          featureId,
+          contributions.agentSkills,
+          origin.entryDir,
+        ),
+      );
+    }
+    if (contributions.turnState) {
+      bag.add(
+        registerTurnStateContributions(
+          registries.turnState,
+          featureId,
+          contributions.turnState,
+        ),
+      );
+    }
+    if (contributions.agentContext?.length) {
+      bag.add(
+        registerAgentContextContributions(
+          registries.agentContext,
+          featureId,
+          contributions.agentContext,
+        ),
+      );
+    }
+    return bag;
+  } catch (error) {
+    bag[Symbol.dispose]();
+    throw error;
   }
 }

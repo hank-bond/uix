@@ -15,6 +15,17 @@ export type CanvasFrameMessage =
       readonly prompt: string;
     };
 
+export function isCanvasFrameReady(
+  value: unknown,
+  canvasKey: CanvasKey,
+): boolean {
+  return (
+    isRecord(value) &&
+    value["type"] === "canvas:ready" &&
+    value["key"] === canvasKey
+  );
+}
+
 /** Validate the narrow postMessage vocabulary accepted from canvas HTML. */
 export function parseCanvasFrameMessage(
   value: unknown,

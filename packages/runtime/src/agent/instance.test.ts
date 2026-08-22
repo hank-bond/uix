@@ -66,7 +66,8 @@ function createHarness(): Harness {
 describe("AgentInstance", () => {
   it("opens its manager without booting Pi until first use", async () => {
     const harness = createHarness();
-    const instance = createAgentInstance({
+    const instance = await createAgentInstance({
+      activateFeatures: () => Promise.resolve(),
       target: harness.target,
       manager: harness.manager,
       createRuntime: harness.createRuntime,
@@ -81,12 +82,14 @@ describe("AgentInstance", () => {
     expect(harness.createRuntime).toHaveBeenCalledWith(
       harness.manager,
       instance.state,
+      instance.features,
     );
   });
 
   it("admits only one active turn and ends it idempotently", async () => {
     const harness = createHarness();
-    const instance = createAgentInstance({
+    const instance = await createAgentInstance({
+      activateFeatures: () => Promise.resolve(),
       target: harness.target,
       manager: harness.manager,
       createRuntime: harness.createRuntime,
@@ -118,7 +121,8 @@ describe("AgentInstance", () => {
       resolveRuntime = resolve;
     });
     harness.createRuntime.mockReturnValue(runtimeGate);
-    const instance = createAgentInstance({
+    const instance = await createAgentInstance({
+      activateFeatures: () => Promise.resolve(),
       target: harness.target,
       manager: harness.manager,
       createRuntime: harness.createRuntime,
@@ -139,7 +143,8 @@ describe("AgentInstance", () => {
     harness.createRuntime
       .mockRejectedValueOnce(new Error("runtime failed"))
       .mockResolvedValueOnce(harness.runtime);
-    const instance = createAgentInstance({
+    const instance = await createAgentInstance({
+      activateFeatures: () => Promise.resolve(),
       target: harness.target,
       manager: harness.manager,
       createRuntime: harness.createRuntime,
@@ -153,7 +158,8 @@ describe("AgentInstance", () => {
 
   it("does not boot an unused runtime merely to reload it", async () => {
     const harness = createHarness();
-    const instance = createAgentInstance({
+    const instance = await createAgentInstance({
+      activateFeatures: () => Promise.resolve(),
       target: harness.target,
       manager: harness.manager,
       createRuntime: harness.createRuntime,
@@ -167,7 +173,8 @@ describe("AgentInstance", () => {
 
   it("reloads an active runtime", async () => {
     const harness = createHarness();
-    const instance = createAgentInstance({
+    const instance = await createAgentInstance({
+      activateFeatures: () => Promise.resolve(),
       target: harness.target,
       manager: harness.manager,
       createRuntime: harness.createRuntime,
@@ -186,7 +193,8 @@ describe("AgentInstance", () => {
       resolveRuntime = resolve;
     });
     harness.createRuntime.mockReturnValue(runtimeGate);
-    const instance = createAgentInstance({
+    const instance = await createAgentInstance({
+      activateFeatures: () => Promise.resolve(),
       target: harness.target,
       manager: harness.manager,
       createRuntime: harness.createRuntime,
@@ -209,7 +217,8 @@ describe("AgentInstance", () => {
       resolveRuntime = resolve;
     });
     harness.createRuntime.mockReturnValue(runtimeGate);
-    const instance = createAgentInstance({
+    const instance = await createAgentInstance({
+      activateFeatures: () => Promise.resolve(),
       target: harness.target,
       manager: harness.manager,
       createRuntime: harness.createRuntime,
@@ -227,7 +236,8 @@ describe("AgentInstance", () => {
 
   it("disposes its runtime directly once its supervisor admits teardown", async () => {
     const harness = createHarness();
-    const instance = createAgentInstance({
+    const instance = await createAgentInstance({
+      activateFeatures: () => Promise.resolve(),
       target: harness.target,
       manager: harness.manager,
       createRuntime: harness.createRuntime,
@@ -243,7 +253,8 @@ describe("AgentInstance", () => {
 
   it("still disposes runtime and state when the final turn-state commit fails", async () => {
     const harness = createHarness();
-    const instance = createAgentInstance({
+    const instance = await createAgentInstance({
+      activateFeatures: () => Promise.resolve(),
       target: harness.target,
       manager: harness.manager,
       createRuntime: harness.createRuntime,
@@ -262,7 +273,8 @@ describe("AgentInstance", () => {
   it("commits final turn state before disposing instance state", async () => {
     const harness = createHarness();
     const order: string[] = [];
-    const instance = createAgentInstance({
+    const instance = await createAgentInstance({
+      activateFeatures: () => Promise.resolve(),
       target: harness.target,
       manager: harness.manager,
       createRuntime: harness.createRuntime,
@@ -279,9 +291,43 @@ describe("AgentInstance", () => {
     expect(order).toEqual(["finalized"]);
   });
 
+  it("activates replacement features after old cleanup fails", async () => {
+    const harness = createHarness();
+    const disposed: number[] = [];
+    let generation = 0;
+    const instance = await createAgentInstance({
+      activateFeatures: (_features, bag) => {
+        generation += 1;
+        const activeGeneration = generation;
+        bag.add({
+          [Symbol.asyncDispose]: () => {
+            disposed.push(activeGeneration);
+            return activeGeneration === 1
+              ? Promise.reject(new Error("old cleanup failed"))
+              : Promise.resolve();
+          },
+        });
+        return Promise.resolve();
+      },
+      target: harness.target,
+      manager: harness.manager,
+      createRuntime: harness.createRuntime,
+      state: { emit: () => undefined, cwd: "/workspace" },
+    });
+
+    const errors = await instance.reloadFeatures();
+
+    expect(errors).toHaveLength(1);
+    expect(generation).toBe(2);
+    expect(disposed).toEqual([1]);
+    await instance[Symbol.asyncDispose]();
+    expect(disposed).toEqual([1, 2]);
+  });
+
   it("disposes its state and booted runtime idempotently", async () => {
     const harness = createHarness();
-    const instance = createAgentInstance({
+    const instance = await createAgentInstance({
+      activateFeatures: () => Promise.resolve(),
       target: harness.target,
       manager: harness.manager,
       createRuntime: harness.createRuntime,

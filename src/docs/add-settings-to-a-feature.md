@@ -39,7 +39,7 @@ import { notesSettings } from "./shared/settings";
 export const feature = defineFeature({
   id: "notes",
   settings: notesSettings,
-  contribute(ctx) {
+  workspace(ctx) {
     const max = ctx.settings.get("maxNotes");
     ctx.settings.onChange("maxNotes", (next) => {});
     return {};

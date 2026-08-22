@@ -24,7 +24,7 @@ Declare the surface file in the feature's `surfaces` facet:
 // features/notes/index.ts
 export const feature = defineFeature({
   id: "notes",
-  contribute() {
+  workspace() {
     return { surfaces: ["./workspace/surface.tsx"] };
   },
 });

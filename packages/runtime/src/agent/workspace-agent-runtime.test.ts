@@ -7,6 +7,8 @@ import type {
   AgentStatus,
   ModelRef,
 } from "@uix/api/agent-channels";
+import { toChannelCanonicalId } from "@uix/api/channel-resolution";
+import { withHandlers } from "@uix/api/channels";
 import type {
   SettingsDefinition,
   SettingsHandleFrom,
@@ -18,6 +20,7 @@ import {
   createWorkspaceAgentRuntime,
   type WorkspaceAgentRuntime,
 } from "./workspace-agent-runtime";
+import type { ActivatedAgentFeature } from "../features/loader";
 import {
   registerTurnStateContributions,
   TurnStateRegistry,
@@ -40,6 +43,7 @@ const sdk = vi.hoisted(() => {
     replacementBranch: undefined as Array<Record<string, unknown>> | undefined,
     // Extension `on(event, handler)` hooks installed when the session opens.
     extensionHandlers: new Map<string, (event: unknown) => void>(),
+    registeredTools: [] as Array<{ name: string }>,
     extensionBindings: [] as Array<{
       sessionId: string;
       bindings: Record<string, unknown>;
@@ -206,6 +210,9 @@ const sdk = vi.hoisted(() => {
           on: (event: string, handler: (e: unknown) => void) => {
             state.extensionHandlers.set(event, handler);
           },
+          registerTool: (tool: { name: string }) => {
+            state.registeredTools.push(tool);
+          },
         };
         for (const factory of options.resourceLoaderOptions
           ?.extensionFactories ?? []) {
@@ -370,6 +377,38 @@ function fakeAgentSettings(initial?: ModelRef): SettingsHandleFrom<
   );
 }
 
+function agentFeaturesFromTurnState(
+  registry?: TurnStateRegistry,
+): readonly ActivatedAgentFeature[] {
+  if (!registry) return [];
+  const byFeature = new Map<
+    string,
+    Record<
+      string,
+      {
+        schema: ReturnType<TurnStateRegistry["list"]>[number]["schema"];
+        createSnapshot: ReturnType<
+          TurnStateRegistry["list"]
+        >[number]["createSnapshot"];
+        restore: ReturnType<TurnStateRegistry["list"]>[number]["restore"];
+      }
+    >
+  >();
+  for (const cell of registry.list()) {
+    const cells = byFeature.get(cell.featureId) ?? {};
+    cells[cell.cellName] = {
+      schema: cell.schema,
+      createSnapshot: cell.createSnapshot,
+      restore: cell.restore,
+    };
+    byFeature.set(cell.featureId, cells);
+  }
+  return [...byFeature].map(([id, turnState]) => ({
+    id,
+    create: () => ({ turnState }),
+  }));
+}
+
 function createHarness(
   settings?: SettingsHandleFrom<typeof agentWorkspaceSettings>,
   turnState?: TurnStateRegistry,
@@ -378,6 +417,9 @@ function createHarness(
     agentCwd: "/tmp/ws",
     manifestPath: "/tmp/ws/uix.workspace.json",
   },
+  agentFeatures: readonly ActivatedAgentFeature[] = agentFeaturesFromTurnState(
+    turnState,
+  ),
 ): {
   agentRuntime: WorkspaceAgentRuntime;
   events: AgentEvent[];
@@ -388,6 +430,22 @@ function createHarness(
   const scopedEvents: Array<{ sessionId: string; event: AgentEvent }> = [];
   const statuses: AgentStatus[] = [];
   const agentRuntime = createWorkspaceAgentRuntime({
+    documents: {
+      createStore: () => ({
+        getCurrent: () => Promise.resolve(null),
+        setCurrent: () => Promise.resolve(),
+        createSnapshot: (documentId, content, meta) =>
+          Promise.resolve({
+            id: "version",
+            documentId,
+            content,
+            meta,
+            createdAt: new Date(0).toISOString(),
+          }),
+        getVersion: () => Promise.resolve(null),
+      }),
+    },
+    getAgentFeatures: () => agentFeatures,
     onEvent: (sessionId, event) => {
       events.push(event);
       scopedEvents.push({ sessionId, event });
@@ -395,7 +453,7 @@ function createHarness(
     workspace,
     piAppDataDir: "/tmp/pi-app-data",
     ...(settings && { agentSettings: settings }),
-    ...(turnState && { turnState }),
+    onFeatureEvent: () => undefined,
     onStatusChange: (_sessionId, status) => statuses.push(status),
     openExternal: () => undefined,
     onProviderAuthFlowSnapshot: () => undefined,
@@ -409,6 +467,7 @@ beforeEach(() => {
   sdk.state.branch = [];
   sdk.state.replacementBranch = undefined;
   sdk.state.extensionHandlers.clear();
+  sdk.state.registeredTools = [];
   sdk.state.extensionBindings = [];
   sdk.state.session = undefined;
   sdk.state.runtimeCreates = 0;
@@ -452,6 +511,227 @@ describe("workspace agent instances", () => {
 
     first[Symbol.dispose]();
     second[Symbol.dispose]();
+    await agentRuntime[Symbol.asyncDispose]();
+  });
+
+  it("installs tools from the accepted instance registries", async () => {
+    const feature: ActivatedAgentFeature = {
+      id: "inspector",
+      create: () => ({
+        agentTools: [
+          {
+            name: "check",
+            tool: {
+              label: "check",
+              description: "check",
+              parameters: Type.Object({}),
+              execute: () => Promise.resolve({ content: [], details: {} }),
+            },
+          },
+        ],
+      }),
+    };
+    const { agentRuntime } = createHarness(undefined, undefined, undefined, [
+      feature,
+    ]);
+    const guard = await agentRuntime.acquire(
+      { sessionId: "session-a" as never },
+      sdk.manager as never,
+    );
+
+    await agentRuntime.prompt(guard, "inspect");
+
+    expect(sdk.state.registeredTools.map(({ name }) => name)).toContain(
+      "inspector__check",
+    );
+    guard[Symbol.dispose]();
+    await agentRuntime[Symbol.asyncDispose]();
+  });
+
+  it("creates separate feature closures for different sessions", async () => {
+    const contract = {
+      feature: "counter",
+      requests: {
+        increment: {
+          requestSchema: Type.Void(),
+          responseSchema: Type.Number(),
+        },
+      },
+      events: {},
+    } as const;
+    let factoryCalls = 0;
+    const feature: ActivatedAgentFeature = {
+      id: "counter",
+      create: () => {
+        factoryCalls += 1;
+        let count = 0;
+        return {
+          channels: [
+            withHandlers(contract, {
+              increment: { handler: () => ++count },
+            }),
+          ],
+        };
+      },
+    };
+    const { agentRuntime } = createHarness(undefined, undefined, undefined, [
+      feature,
+    ]);
+    const first = await agentRuntime.acquire(
+      { sessionId: "session-a" as never },
+      sdk.manager as never,
+    );
+    const firstPeer = await agentRuntime.acquire({
+      sessionId: "session-a" as never,
+    });
+    const second = await agentRuntime.acquire(
+      { sessionId: "session-b" as never },
+      sdk.manager as never,
+    );
+    const channel = toChannelCanonicalId("counter", "increment");
+
+    await expect(
+      first.value.featureChannels.invoke(channel, undefined),
+    ).resolves.toBe(1);
+    await expect(
+      firstPeer.value.featureChannels.invoke(channel, undefined),
+    ).resolves.toBe(2);
+    await expect(
+      second.value.featureChannels.invoke(channel, undefined),
+    ).resolves.toBe(1);
+    expect(first.value.features).toBe(firstPeer.value.features);
+    expect(first.value.features).not.toBe(second.value.features);
+    expect(factoryCalls).toBe(2);
+
+    first[Symbol.dispose]();
+    firstPeer[Symbol.dispose]();
+    second[Symbol.dispose]();
+    await agentRuntime[Symbol.asyncDispose]();
+  });
+
+  it("replaces idle feature callbacks and rejects reload during a turn", async () => {
+    const contract = {
+      feature: "generation",
+      requests: {
+        read: {
+          requestSchema: Type.Void(),
+          responseSchema: Type.Number(),
+        },
+      },
+      events: {},
+    } as const;
+    let generation = 1;
+    const disposed: number[] = [];
+    const feature: ActivatedAgentFeature = {
+      id: "generation",
+      create: () => {
+        const value = generation;
+        return {
+          channels: [
+            withHandlers(contract, {
+              read: { handler: () => value },
+            }),
+          ],
+          [Symbol.asyncDispose]: () => {
+            disposed.push(value);
+            return Promise.resolve();
+          },
+        };
+      },
+    };
+    const { agentRuntime } = createHarness(undefined, undefined, undefined, [
+      feature,
+    ]);
+    const guard = await agentRuntime.acquire(
+      { sessionId: "session-a" as never },
+      sdk.manager as never,
+    );
+    const channel = toChannelCanonicalId("generation", "read");
+    await expect(
+      guard.value.featureChannels.invoke(channel, undefined),
+    ).resolves.toBe(1);
+
+    const promptGate = deferred();
+    sdk.state.promptPromise = promptGate.promise;
+    const prompt = agentRuntime.prompt(guard, "hold reload");
+    await vi.waitFor(() => {
+      expect(sdk.state.session?.["prompt"] as Mock).toHaveBeenCalledOnce();
+    });
+    expect(() => agentRuntime.acquireReloadAdmission()).toThrow(
+      "Agent operation is active",
+    );
+    promptGate.resolve();
+    await prompt;
+
+    generation = 2;
+    {
+      using _reload = agentRuntime.acquireReloadAdmission();
+      await agentRuntime.prompt(guard, "blocked by reload");
+      expect(sdk.state.session?.["prompt"] as Mock).toHaveBeenCalledOnce();
+      await agentRuntime.reloadFeatureInstances();
+    }
+    await expect(
+      guard.value.featureChannels.invoke(channel, undefined),
+    ).resolves.toBe(2);
+    expect(disposed).toEqual([1]);
+
+    guard[Symbol.dispose]();
+    await agentRuntime[Symbol.asyncDispose]();
+    expect(disposed).toEqual([1, 2]);
+  });
+
+  it("keeps feature channel operations outside the reload boundary", async () => {
+    const contract = {
+      feature: "writer",
+      requests: {
+        write: {
+          requestSchema: Type.Void(),
+          responseSchema: Type.Void(),
+        },
+      },
+      events: {},
+    } as const;
+    const operationGate = deferred();
+    const handler = vi.fn(() => operationGate.promise);
+    const feature: ActivatedAgentFeature = {
+      id: "writer",
+      create: () => ({
+        channels: [
+          withHandlers(contract, {
+            write: { handler },
+          }),
+        ],
+      }),
+    };
+    const { agentRuntime } = createHarness(undefined, undefined, undefined, [
+      feature,
+    ]);
+    const guard = await agentRuntime.acquire(
+      { sessionId: "session-a" as never },
+      sdk.manager as never,
+    );
+    const channel = toChannelCanonicalId("writer", "write");
+
+    const operation = agentRuntime.invokeFeatureChannel(
+      guard,
+      channel,
+      undefined,
+    );
+    expect(() => agentRuntime.acquireReloadAdmission()).toThrow(
+      "Agent operation is active",
+    );
+    operationGate.resolve();
+    await operation;
+
+    {
+      using _reload = agentRuntime.acquireReloadAdmission();
+      await expect(
+        agentRuntime.invokeFeatureChannel(guard, channel, undefined),
+      ).rejects.toThrow("Workspace reload is active");
+    }
+    expect(handler).toHaveBeenCalledOnce();
+
+    guard[Symbol.dispose]();
     await agentRuntime[Symbol.asyncDispose]();
   });
 

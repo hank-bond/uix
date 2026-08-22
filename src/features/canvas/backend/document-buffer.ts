@@ -1,12 +1,8 @@
-// Holds one working canvas buffer per document and normalizes content before persisting it.
+// Holds one Agent viewpoint's Canvas HTML, anchors, and immutable version operations.
 //
-// Holds one AnchoredDocument per canvas document id touched by this activated
-// Canvas feature instance. Mutable current content stays plain HTML. Immutable
-// versions persist exact anchor state so turn-state restoration can recreate the
-// working projection without renumbering historical anchors.
-//
-// Operations keep the canonical-form invariant by normalizing content before it
-// reaches the core and persisting plain, un-anchored HTML as current content.
+// Each Agent factory creates one buffer. Mutable HTML and anchors remain local
+// to that instance. Turn-state commits persist plain HTML and exact anchor state
+// as immutable document versions, and restoration rebuilds the local projection.
 
 import type { DocumentStore, DocumentVersion } from "@uix/api/documents";
 
@@ -24,7 +20,7 @@ export interface DocumentVersionMeta {
   readonly anchors: AnchoredDocumentSnapshot;
 }
 
-export class CanvasDocumentBuffer {
+export class CanvasDocumentBuffer implements Disposable {
   readonly #store: DocumentStore;
   readonly #docs = new Map<string, AnchoredDocument>();
   readonly #documentOperationQueues = new Map<string, Promise<void>>();
@@ -33,22 +29,18 @@ export class CanvasDocumentBuffer {
     this.#store = store;
   }
 
-  // Syncs to the store first so a read never returns content a human edit has
-  // superseded.
   async read(
     docId: string,
     start?: number,
     end?: number,
   ): Promise<readonly AnchoredLine[]> {
     return this.#enqueueDocumentOperation(docId, async () => {
-      await this.#sync(docId);
       const doc = await this.#load(docId);
       return doc.read(start, end);
     });
   }
 
-  // Clobber the document with a full authored HTML body and persist it. Returns
-  // fresh anchored lines for the whole new document.
+  // Replace the viewpoint document with a full authored HTML body.
   async write(docId: string, html: string): Promise<readonly AnchoredLine[]> {
     return this.#enqueueDocumentOperation(docId, async () => {
       const doc = await this.#load(docId);
@@ -70,10 +62,7 @@ export class CanvasDocumentBuffer {
     });
   }
 
-  // Syncs to the store first: an edit computed against a stale cache would
-  // recommit the agent's whole view and silently revert a concurrent human edit
-  // to an untouched line. If the human touched the line being edited, the
-  // boundary match-guard rejects it.
+  // The boundary match guard rejects an edit against stale anchored text.
   //
   // The buffer splices replacement text first, then canonicalizes the
   // resulting whole document. Canonicalizing the replacement as a standalone fragment is
@@ -85,7 +74,6 @@ export class CanvasDocumentBuffer {
     edit: AnchoredEdit,
   ): Promise<readonly AnchoredChange[]> {
     return this.#enqueueDocumentOperation(docId, async () => {
-      await this.#sync(docId);
       const doc = await this.#load(docId);
       const currentLines = doc.read();
       const { startIndex, endIndex } = findMatchingRange(currentLines, edit);
@@ -109,17 +97,16 @@ export class CanvasDocumentBuffer {
     const result = new Map<string, DocumentVersion<DocumentVersionMeta>>();
     for (const docId of new Set(docIds)) {
       await this.#enqueueDocumentOperation(docId, async () => {
-        await this.#sync(docId);
         const doc = await this.#load(docId);
-        // Make the mutable latest byte-match the anchor state we are about to
-        // store. This canonicalizes cosmetic iframe/file rewrites at the
-        // durable boundary instead of creating a snapshot whose content and metadata disagree.
-        await this.#store.setCurrent(docId, plainText(doc.read()));
+        const content = plainText(doc.read());
+        await this.#store.setCurrent(docId, content);
         result.set(
           docId,
-          await this.#store.createSnapshot<DocumentVersionMeta>(docId, {
-            anchors: doc.toSnapshot(),
-          }),
+          await this.#store.createSnapshot<DocumentVersionMeta>(
+            docId,
+            content,
+            { anchors: doc.toSnapshot() },
+          ),
         );
       });
     }
@@ -176,16 +163,12 @@ export class CanvasDocumentBuffer {
     return diffAnchoredSnapshots(from.meta.anchors, to.meta.anchors);
   }
 
-  // No setCurrent: the content came *from* the store. Returns [] when already in
-  // sync, so it is cheap to call on every read/edit. Canonicalizing before the
-  // compare keeps a human's non-canonical HTML from registering as a spurious
-  // diff.
-  async #sync(docId: string): Promise<readonly AnchoredChange[]> {
-    const doc = await this.#load(docId);
-    const current = await this.#store.getCurrent(docId);
-    const canonical = current === null ? "" : canonicalizeHtml(current);
-    if (plainText(doc.read()) === canonical) return [];
-    return doc.reconcile(canonical);
+  readHtml(docId: string): Promise<string> {
+    return this.#enqueueDocumentOperation(docId, async () => {
+      const document = this.#docs.get(docId);
+      if (document) return plainText(document.read());
+      return canonicalizeHtml((await this.#store.getCurrent(docId)) ?? "");
+    });
   }
 
   async #requireVersion(
@@ -206,7 +189,7 @@ export class CanvasDocumentBuffer {
 
   #enqueueDocumentOperation<T>(
     docId: string,
-    operation: () => Promise<T>,
+    operation: () => T | PromiseLike<T>,
   ): Promise<T> {
     const previous =
       this.#documentOperationQueues.get(docId) ?? Promise.resolve();
@@ -227,13 +210,17 @@ export class CanvasDocumentBuffer {
   async #load(docId: string): Promise<AnchoredDocument> {
     let doc = this.#docs.get(docId);
     if (!doc) {
-      const current = await this.#store.getCurrent(docId);
       doc = new AnchoredDocument(
-        current === null ? "" : canonicalizeHtml(current),
+        canonicalizeHtml((await this.#store.getCurrent(docId)) ?? ""),
       );
       this.#docs.set(docId, doc);
     }
     return doc;
+  }
+
+  [Symbol.dispose](): void {
+    this.#docs.clear();
+    this.#documentOperationQueues.clear();
   }
 }
 

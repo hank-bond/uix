@@ -9,7 +9,7 @@ import { writeTool } from "./write";
 
 export const feature = defineFeature({
   id: "pi_tools",
-  contribute: () => ({
+  agent: () => ({
     agentToolOverrides: [readTool, writeTool, editTool, bashTool],
   }),
 });

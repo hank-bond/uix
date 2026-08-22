@@ -1,4 +1,4 @@
-// Coordinates shared agent services, session-keyed instances, and cancellable active turns.
+// Creates per-session feature instances and coordinates their Pi runtimes, models, and turns.
 
 import { join } from "node:path";
 
@@ -23,6 +23,9 @@ import type {
   SessionHistoryResponse,
   SessionSummary,
 } from "@uix/api/agent-channels";
+import type { ChannelCanonicalId } from "@uix/api/channel-resolution";
+import type { ChannelEventLogOptions } from "@uix/api/channels";
+import type { DocumentStoreFactory } from "@uix/api/documents";
 import type { SettingsHandleFrom } from "@uix/api/settings";
 
 import { deriveProviderAuthCatalog } from "./auth-providers";
@@ -35,6 +38,7 @@ import {
   createAgentInstanceSupervisor,
 } from "./instance-supervisor";
 import { createProviderAuthFlowCoordinator } from "./provider-auth-flow";
+import { ReloadAdmission } from "./reload-admission";
 import {
   type OpenedPrimarySession,
   openExistingSessionManager,
@@ -46,23 +50,24 @@ import {
 import type { agentWorkspaceSettings } from "./settings";
 import { createSystemPromptAssembler } from "./system-prompt";
 import {
-  type AgentContextRegistry,
   assembleAgentContextMessage,
   assembleAgentContextVocabularySection,
 } from "../agent-context/registry";
+import { createAgentSkillInstaller } from "../agent-skill-registry";
+import { assembleAgentSystemPromptSection } from "../agent-system-prompt-registry";
+import { createAgentToolInstaller } from "../agent-tools/registry";
+import { createFeatureEventPublisherFactory } from "../channel-registry";
+import { createViewpointDocumentStoreFactory } from "../document-store";
 import {
-  type AgentSkillRegistry,
-  createAgentSkillInstaller,
-} from "../agent-skill-registry";
-import {
-  type AgentSystemPromptRegistry,
-  assembleAgentSystemPromptSection,
-} from "../agent-system-prompt-registry";
-import { DisposableBag } from "../lifecycle";
+  addFeatureInstanceLifetime,
+  type AgentFeatureRegistries,
+  registerAgentFeatureContributions,
+} from "../features/contributions";
+import type { ActivatedAgentFeature } from "../features/loader";
+import { AsyncDisposableBag, DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
 import { OperationTracker } from "../operation-tracker";
 import type { Workspace } from "../roots";
-import type { TurnStateRegistry } from "../turn-state";
 import type { SessionId, SessionTarget } from "../workspace";
 import { toSessionId } from "../workspace";
 
@@ -101,7 +106,15 @@ export interface WorkspaceAgentRuntime extends AsyncDisposable {
   answerProviderAuthFlow(flowId: string, promptId: string, value: string): void;
   openProviderAuthLink(flowId: string, linkId: string): Promise<void>;
   cancelProviderAuthFlow(flowId: string): void;
+  /** Invoke one per-Agent handler outside the feature replacement boundary. */
+  invokeFeatureChannel(
+    guard: AgentInstanceGuard,
+    canonicalId: ChannelCanonicalId,
+    payload: unknown,
+  ): Promise<unknown>;
+  acquireReloadAdmission(): Disposable;
   commitFeatureTurnState(): Promise<boolean>;
+  reloadFeatureInstances(): Promise<readonly unknown[]>;
   restoreFeatureTurnState(): Promise<void>;
   reloadPiResources(): Promise<boolean>;
 }
@@ -110,13 +123,16 @@ export interface WorkspaceAgentRuntimeOptions {
   readonly workspace: Workspace;
   /** Host-owned Pi app data directory shared across workspaces. */
   readonly piAppDataDir: string;
-  readonly agentInstallers?: readonly AgentInstaller[];
-  readonly turnState?: TurnStateRegistry;
-  readonly agentSystemPrompt?: AgentSystemPromptRegistry;
-  readonly agentSkills?: AgentSkillRegistry;
-  readonly agentContext?: AgentContextRegistry;
+  readonly documents: DocumentStoreFactory;
+  readonly getAgentFeatures: () => readonly ActivatedAgentFeature[];
   readonly agentSettings?: SettingsHandleFrom<typeof agentWorkspaceSettings>;
   readonly onEvent: (sessionId: SessionId, event: AgentEvent) => void;
+  readonly onFeatureEvent: (
+    sessionId: SessionId,
+    channel: ChannelCanonicalId,
+    payload: unknown,
+    logOptions?: ChannelEventLogOptions<unknown>,
+  ) => void;
   readonly onStatusChange?: (sessionId: SessionId, status: AgentStatus) => void;
   readonly openExternal: (url: string) => void | Promise<void>;
   readonly onProviderAuthFlowSnapshot: (
@@ -135,6 +151,7 @@ export function createWorkspaceAgentRuntime(
   let controlServices: AgentSessionServices | undefined;
   let inFlightControlServices: Promise<AgentSessionServices> | undefined;
   let disposal: Promise<void> | undefined;
+  const reloadAdmission = new ReloadAdmission();
   let disposed = false;
 
   async function createServices(
@@ -190,28 +207,21 @@ export function createWorkspaceAgentRuntime(
     };
   }
 
-  function installersFor(state: AgentInstanceState): AgentInstaller[] {
-    const installers = [...(opts.agentInstallers ?? [])];
-    const systemPromptRegistry = opts.agentSystemPrompt;
-    const contextRegistry = opts.agentContext;
+  function installersFor(
+    state: AgentInstanceState,
+    features: AgentFeatureRegistries,
+  ): AgentInstaller[] {
+    const installers: AgentInstaller[] = [];
     if (state.turnStateCoordinator) {
       installers.push(state.turnStateCoordinator.agentInstaller);
     }
-    if (opts.agentSkills) {
-      installers.push(createAgentSkillInstaller(opts.agentSkills));
-    }
-    if (systemPromptRegistry || contextRegistry) {
-      installers.push(
-        createSystemPromptAssembler([
-          ...(systemPromptRegistry
-            ? [() => assembleAgentSystemPromptSection(systemPromptRegistry)]
-            : []),
-          ...(contextRegistry
-            ? [() => assembleAgentContextVocabularySection(contextRegistry)]
-            : []),
-        ]),
-      );
-    }
+    installers.push(createAgentSkillInstaller(features.agentSkills));
+    installers.push(
+      createSystemPromptAssembler([
+        () => assembleAgentSystemPromptSection(features.agentSystemPrompt),
+        () => assembleAgentContextVocabularySection(features.agentContext),
+      ]),
+    );
     installers.push(state.modelInstaller);
     return installers;
   }
@@ -252,10 +262,14 @@ export function createWorkspaceAgentRuntime(
     target: SessionTarget,
     manager: SessionManager,
     state: AgentInstanceState,
+    features: AgentFeatureRegistries,
   ): Promise<AgentSessionRuntime> {
     const sdk = await import("@earendil-works/pi-coding-agent");
     await state.turnStateCoordinator?.restoreCurrent(manager);
-    const installers = installersFor(state);
+    const installers = [
+      createAgentToolInstaller(features.agentTools),
+      ...installersFor(state, features),
+    ];
     const createRuntime: CreateAgentSessionRuntimeFactory = async ({
       sessionManager,
       sessionStartEvent,
@@ -307,6 +321,56 @@ export function createWorkspaceAgentRuntime(
     return runtime;
   }
 
+  async function activateFeatures(
+    target: SessionTarget,
+    registries: AgentFeatureRegistries,
+    featuresBag: AsyncDisposableBag,
+  ): Promise<void> {
+    const documents = createViewpointDocumentStoreFactory(
+      opts.documents,
+      target.sessionId,
+    );
+    for (const feature of opts.getAgentFeatures()) {
+      const featureBag = new AsyncDisposableBag();
+      try {
+        const channels = createFeatureEventPublisherFactory(feature.id, {
+          publish: (channel, payload, logOptions) => {
+            opts.onFeatureEvent(target.sessionId, channel, payload, logOptions);
+          },
+        });
+        const instance = feature.create(channels, featureBag, documents);
+        addFeatureInstanceLifetime(featureBag, instance);
+        featureBag.add(
+          registerAgentFeatureContributions(registries, feature.id, instance, {
+            entryDir: feature.entryDir,
+          }),
+        );
+        featuresBag.add(featureBag);
+      } catch (thrown) {
+        const error =
+          thrown instanceof Error ? thrown : new Error(String(thrown));
+        try {
+          await featureBag[Symbol.asyncDispose]();
+        } catch (cleanupError) {
+          log.error(
+            {
+              feature: feature.id,
+              err:
+                cleanupError instanceof Error
+                  ? cleanupError.message
+                  : String(cleanupError),
+            },
+            "agent_feature_rollback_failed",
+          );
+        }
+        log.error(
+          { feature: feature.id, err: error.message, stack: error.stack },
+          "agent_feature_activation_failed",
+        );
+      }
+    }
+  }
+
   async function createInstance(
     target: SessionTarget,
     openedManager?: SessionManager,
@@ -320,12 +384,11 @@ export function createWorkspaceAgentRuntime(
     const emit = (event: AgentEvent): void => {
       opts.onEvent(target.sessionId, event);
     };
-    const ownership = createAgentInstance({
+    const ownership = await createAgentInstance({
       target,
       manager,
       state: {
         emit,
-        turnState: opts.turnState,
         cwd: opts.workspace.agentCwd,
         onCurrentModelChange: () => {
           if (stateRef.current) {
@@ -336,8 +399,10 @@ export function createWorkspaceAgentRuntime(
           }
         },
       },
-      createRuntime: (acceptedManager, state) =>
-        createPiRuntime(target, acceptedManager, state),
+      activateFeatures: (registries, featuresBag) =>
+        activateFeatures(target, registries, featuresBag),
+      createRuntime: (acceptedManager, state, registries) =>
+        createPiRuntime(target, acceptedManager, state, registries),
       commitFinalTurnState: async (acceptedManager, state) => {
         const coordinator = state.turnStateCoordinator;
         if (coordinator?.isRestorationSettled(acceptedManager)) {
@@ -395,6 +460,7 @@ export function createWorkspaceAgentRuntime(
     let turnSignal: AbortSignal | undefined;
 
     try {
+      using _reloadAdmission = reloadAdmission.acquireOperation("Agent turn");
       // Declaring this bag before the tracked operation makes reverse disposal
       // complete cancellation before clearing the instance's active slot.
       using activeTurnLifetime = new DisposableBag();
@@ -414,8 +480,8 @@ export function createWorkspaceAgentRuntime(
         );
       }
 
-      const agentContext = opts.agentContext;
-      if (agentContext) {
+      const agentContext = instance.features.agentContext;
+      if (agentContext.list().length > 0) {
         log.trace({}, "building_agent_context");
         const message = await operation.run(() =>
           assembleAgentContextMessage(session.sessionManager, agentContext),
@@ -611,6 +677,15 @@ export function createWorkspaceAgentRuntime(
       providerAuth.cancel(flowId);
     },
 
+    async invokeFeatureChannel(guard, canonicalId, payload) {
+      using _reloadAdmission = reloadAdmission.acquireOperation(
+        "Agent feature-channel operation",
+      );
+      return await guard.value.featureChannels.invoke(canonicalId, payload);
+    },
+
+    acquireReloadAdmission: () => reloadAdmission.acquireReload(),
+
     async commitFeatureTurnState() {
       let committed = true;
       await instanceSupervisor.visitLiveInstances(async (instance) => {
@@ -621,6 +696,18 @@ export function createWorkspaceAgentRuntime(
         }
       });
       return committed;
+    },
+
+    async reloadFeatureInstances() {
+      const errors: unknown[] = [];
+      try {
+        await instanceSupervisor.visitLiveInstances(async (instance) => {
+          errors.push(...(await instance.reloadFeatures()));
+        });
+      } catch (error) {
+        errors.push(error);
+      }
+      return errors;
     },
 
     async restoreFeatureTurnState() {

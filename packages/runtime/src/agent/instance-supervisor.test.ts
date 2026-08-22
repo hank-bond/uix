@@ -35,10 +35,13 @@ function fakeInstance(target: SessionTarget): {
         getCurrentModel: () => undefined,
         setCurrentModel: vi.fn(),
       },
+      features: {} as never,
+      featureChannels: {} as never,
       registerActiveTurn: () => ({ [Symbol.dispose]: vi.fn() }),
       cancelActiveTurn: () => Promise.resolve(false),
       isTurnActive: () => false,
       bootRuntime: () => Promise.reject(new Error("unused")),
+      reloadFeatures: () => Promise.resolve([]),
       reloadRuntimeIfActive: () => Promise.resolve(false),
       [Symbol.asyncDispose]: dispose,
     },
@@ -182,6 +185,40 @@ describe("AgentInstanceSupervisor", () => {
     }, "reload");
 
     expect(visited).toHaveLength(2);
+    guardA[Symbol.dispose]();
+    guardB[Symbol.dispose]();
+    await supervisor[Symbol.asyncDispose]();
+  });
+
+  it("waits for every visit before aggregating failures", async () => {
+    const a = { sessionId: toSessionId("session-a") };
+    const b = { sessionId: toSessionId("session-b") };
+    const instances = new Map([
+      [a.sessionId, fakeInstance(a)],
+      [b.sessionId, fakeInstance(b)],
+    ]);
+    const supervisor = createAgentInstanceSupervisor({
+      createInstance: (target) =>
+        Promise.resolve(instances.get(target.sessionId)?.instance as never),
+    });
+    const guardA = await supervisor.acquire(a);
+    const guardB = await supervisor.acquire(b);
+    const secondVisit = deferred<undefined>();
+    let completed = false;
+
+    const visit = supervisor.visitLiveInstances(async (instance) => {
+      if (instance.target.sessionId === a.sessionId) {
+        throw new Error("first visit failed");
+      }
+      await secondVisit.promise;
+      completed = true;
+    });
+    await Promise.resolve();
+    expect(completed).toBe(false);
+    secondVisit.resolve(undefined);
+
+    await expect(visit).rejects.toThrow("first visit failed");
+    expect(completed).toBe(true);
     guardA[Symbol.dispose]();
     guardB[Symbol.dispose]();
     await supervisor[Symbol.asyncDispose]();

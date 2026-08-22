@@ -44,7 +44,7 @@ const apiModuleDir = join(__dirname, "../../api/src");
 const fixtureFeature = `
 import { Type } from "typebox";
 
-import type { ChannelContract } from "@uix/api/channels";
+import { type ChannelContract, withHandlers } from "@uix/api/channels";
 import { defineFeature } from "@uix/api/feature";
 import { normalizeResourceRoute } from "@uix/api/resource-routes";
 import { defineSettings } from "@uix/api/settings";
@@ -65,15 +65,37 @@ const contract = {
   events: {},
 } as const satisfies ChannelContract;
 
+const viewpointContract = {
+  feature: "echo",
+  requests: {
+    increment: {
+      requestSchema: Type.Void(),
+      responseSchema: Type.Number(),
+    },
+    read_view: {
+      requestSchema: Type.Void(),
+      responseSchema: Type.Union([Type.String(), Type.Null()]),
+    },
+    write_view: {
+      requestSchema: Type.Object({ content: Type.String() }),
+      responseSchema: Type.Void(),
+    },
+  },
+  events: {
+    incremented: { event: Type.Number() },
+  },
+} as const satisfies ChannelContract;
+
 export const feature = defineFeature({
   id: "echo",
   settings: defineSettings({
     schema: Type.Object({ greeting: Type.String() }),
     default: { greeting: "hello" },
   }),
-  contribute(ctx) {
+  workspace(ctx) {
     const docs = ctx.documents.createStore({ namespace: "echo" });
     return {
+      agentChannelContracts: [viewpointContract],
       channels: [
         {
           feature: "echo",
@@ -112,6 +134,30 @@ export const feature = defineFeature({
         },
       ],
       surfaces: ["./surface.tsx"],
+    };
+  },
+  agent(ctx) {
+    let count = 0;
+    const documents = ctx.documents.createStore({ namespace: "echo-view" });
+    const events = ctx.channels.createPublisher(viewpointContract);
+    return {
+      channels: [
+        withHandlers(viewpointContract, {
+          increment: {
+            handler: () => {
+              count += 1;
+              events.incremented(count);
+              return count;
+            },
+          },
+          read_view: {
+            handler: () => documents.getCurrent("notes"),
+          },
+          write_view: {
+            handler: ({ content }) => documents.setCurrent("notes", content),
+          },
+        }),
+      ],
     };
   },
 });
@@ -314,6 +360,51 @@ describe("workspace runtime isolation", () => {
     expect(fallbackA.target.sessionId).not.toBe(previousSessionId);
     expect(attachA.target.sessionId).toBe(previousSessionId);
     const freshSessionId = fallbackA.target.sessionId;
+
+    // The global channel contract selects a handler from the accepted Agent
+    // guard. Peers on one session share a closure. Different sessions and
+    // workspaces do not.
+    const increment = toChannelCanonicalId("echo", "increment");
+    expect(
+      await dispatch(attachA, { channel: increment, payload: undefined }),
+    ).toEqual({ ok: true, value: 1 });
+    expect(
+      await dispatch(fallbackA, { channel: increment, payload: undefined }),
+    ).toEqual({ ok: true, value: 1 });
+    expect(
+      await dispatch(attachA, { channel: increment, payload: undefined }),
+    ).toEqual({ ok: true, value: 2 });
+    expect(
+      await dispatch(attachB, { channel: increment, payload: undefined }),
+    ).toEqual({ ok: true, value: 1 });
+    expect(eventsA).toContainEqual(
+      expect.objectContaining({
+        channel: "echo.incremented",
+        scope: { kind: "session", sessionId: previousSessionId },
+        payload: 2,
+      }),
+    );
+
+    const readView = toChannelCanonicalId("echo", "read_view");
+    const writeView = toChannelCanonicalId("echo", "write_view");
+    await dispatch(attachA, {
+      channel: writeView,
+      payload: { content: "previous session" },
+    });
+    expect(
+      await dispatch(fallbackA, { channel: readView, payload: undefined }),
+    ).toEqual({ ok: true, value: null });
+    await dispatch(fallbackA, {
+      channel: writeView,
+      payload: { content: "fresh session" },
+    });
+    expect(
+      await dispatch(attachA, { channel: readView, payload: undefined }),
+    ).toEqual({ ok: true, value: "previous session" });
+    expect(
+      await dispatch(fallbackA, { channel: readView, payload: undefined }),
+    ).toEqual({ ok: true, value: "fresh session" });
+
     const switchSession = toChannelCanonicalId("agent", "switch_session");
     const ping = toChannelCanonicalId("echo", "ping");
     const closingAttachment = (
@@ -468,6 +559,12 @@ describe("workspace runtime isolation", () => {
       ok: true,
       value: "hello-B",
     });
+    expect(
+      await dispatch(attachA, { channel: readView, payload: undefined }),
+    ).toEqual({ ok: true, value: "previous session" });
+    expect(
+      await dispatch(attachA, { channel: increment, payload: undefined }),
+    ).toEqual({ ok: true, value: 1 });
 
     // Disposing one runtime removes only its state and routes. Concurrent
     // callers share the same drain rather than observing early completion.

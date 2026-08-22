@@ -35,13 +35,13 @@ Use **feature** for the UIX capability, loadable definition, and activation boun
 
 ## Feature lifecycle
 
-A _feature definition_ is the plain `FeatureDefinition` exported by one manifest entry module. It declares the feature id and the hooks that produce its contributions. It is not itself live state.
+A _feature definition_ is the plain `FeatureDefinition` exported by one manifest entry module. It declares the feature id and optional `workspace(ctx)` and `agent(ctx)` factories. It is not itself live state.
 
-_Feature activation_ validates a definition and settings, constructs context, and runs both hooks. It registers each facet under a provisional lifetime bag. Only complete success enrolls that bag.
+_Feature activation_ validates a definition and settings, runs its Workspace factory, and retains its Agent factory in manifest order. It registers the Workspace result under a provisional lifetime bag. Only complete success enrolls that bag.
 
-An _activated feature instance_ is the live result of one successful feature activation: its context objects, callbacks, registered contributions, and per-feature lifetime bag. Reloading the same entry creates a replacement activated feature instance even when its id and source are unchanged. A failed activation produces no activated feature instance. Its provisional bag disposes every capability already acquired.
+An _activated Workspace feature_ is the live result of one successful Workspace activation: its local values, registered contributions, retained Agent factory, and per-feature lifetime bag. An _Agent feature instance_ is the result of calling that Agent factory for one `AgentInstance`. It has its own local values, registrations, and feature bag. A failed factory removes that feature's partial work without stopping siblings.
 
-The _active feature composition_ is the set of activated feature instances currently owned by the workspace's feature bag. Reload visits every live agent instance under a temporary guard and commits its turn state. It then replaces the feature composition, reloads initialized Pi runtimes, and restores each live instance's branch state.
+The _active feature composition_ is the set of activated Workspace features and the corresponding Agent feature instances. Reload rejects during an active turn or Agent feature-channel operation. An idle reload commits every viewpoint, replaces Workspace features, rebuilds each live Agent feature bag, reloads initialized Pi runtimes, and restores each viewpoint. Cleanup failures are reported after forward replacement reaches a coherent state.
 
 Do not call an activated feature instance a feature generation. Use _generation_ only for a modeled replaceable object graph, such as a staged manifest or Pi runtime. Feature lifecycle uses activation, instance, active composition, and replacement instance.
 
@@ -78,9 +78,9 @@ A _contribution point_ is a UIX substrate API slot that accepts contributions.
 
 Examples:
 
-- The `FeatureContributions.channels` facet.
-- The `FeatureContributions.agentContext` facet.
-- The `FeatureContributions.surfaces` facet.
+- The `WorkspaceFeatureContributions.channels` facet.
+- The `AgentFeatureContributions.agentContext` facet.
+- The `WorkspaceFeatureContributions.surfaces` facet.
 - The surface-scoped `useActionContribution(...)` hook.
 
 A contribution point defines validation, lifetime, ownership, and how registered contributions are later used by the substrate.
@@ -184,13 +184,13 @@ A _store_ is a durable source-of-truth API or implementation for a state domain.
 
 A store may expose a change feed when its layer owns generic change semantics. Otherwise, the feature or buffer publishes a domain-specific invalidation event.
 
-`DocumentStore` persists bytes and versions without emitting Canvas refresh events. Canvas publishes `canvas.changed` when an agent write should refresh its iframe.
+`DocumentStore` persists bytes and versions without emitting Canvas refresh events. Agent factories receive document stores whose mutable current bytes are scoped to their viewpoint while immutable versions remain shared. Canvas publishes `canvas.changed` when an Agent write should refresh its iframe.
 
 ## Buffer
 
 A _buffer_ is a live, feature-specific working projection over a store. It may cache regenerable session state, normalize or validate writes, reconcile editor state, and translate between feature semantics and the store's generic durable shape.
 
-A buffer is not durable authority. It writes authoritative state through its backing store and can rebuild from store contents when needed. For example, `CanvasDocumentBuffer` keeps anchored document projections, canonicalizes HTML, and reconciles anchors while `DocumentStore` remains the durable current/version store underneath.
+A buffer is not durable authority. It persists snapshots through its backing store and rebuilds from durable state when needed. Each `CanvasDocumentBuffer` keeps one Agent viewpoint's HTML and anchored document projections. `DocumentStore` owns the immutable versions referenced by Canvas turn state.
 
 ## Controller
 
@@ -206,7 +206,7 @@ Keep ordinary component-local state in React. Use a controller when multiple con
 
 ## Sessions, attachments, and agent instances
 
-A _session_ is a durable conversation tree. An _agent instance_ is the lifecycle owner for one Pi execution at an immutable session-branch viewpoint. It immediately owns one independent `SessionManager` and its _agent instance state_: transcript observation, ephemeral transcript identity, current-model projection, and a turn-state coordinator. Its `AgentSessionRuntime` boots lazily only when execution requires it. Stateful feature callbacks and buffers remain workspace-scoped while their per-instance instantiation boundary is unresolved.
+A _session_ is a durable conversation tree. An _agent instance_ is the lifecycle owner for one Pi execution at an immutable session-branch viewpoint. It immediately owns one independent `SessionManager`, Agent facet registries, Agent feature instances, transcript observation, ephemeral transcript identity, current-model projection, and a turn-state coordinator. Its `AgentSessionRuntime` boots lazily only when execution requires it. Connections on one session share those feature instances. Different sessions do not.
 
 An `AgentInstanceSupervisor` owns the live instances for one workspace runtime. The current policy keys one primary instance by session id, single-flights concurrent creation, and issues independent _guards_. A guard prevents teardown while its holder uses the instance. Disposing one guard is synchronous and affects no peer. Zero guards admits supervisor teardown policy rather than promising teardown to the disposer.
 
@@ -229,7 +229,7 @@ Examples:
 - Transcript identity.
 - The agent-facing side of a feature.
 
-A feature may participate in many facets. Canvas contributes a surface, agent tools, turn-state snapshots, model-visible context, resources, and channels.
+A feature may participate in many facets. Canvas contributes a surface, Agent tools, turn-state snapshots, model-visible context, and selected-viewpoint channels.
 
 Use **facet** for the behavioral slice. Use **feature** for the loadable product/capability bundle that participates in those facets.
 

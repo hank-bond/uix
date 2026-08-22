@@ -23,9 +23,10 @@ function tool(
 
 describe("file tool overrides", () => {
   it("forms a surface-less feature with exact-name workspace tools", () => {
-    const contributions = feature.contribute({} as never);
+    const contributions = feature.agent?.({} as never);
+    if (!contributions) throw new Error("Missing Agent factory");
 
-    expect(contributions.surfaces).toBeUndefined();
+    expect(feature.workspace).toBeUndefined();
     expect(
       contributions.agentToolOverrides?.map((entry) => entry.name),
     ).toEqual(["read", "write", "edit", "command"]);

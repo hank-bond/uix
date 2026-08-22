@@ -1,9 +1,4 @@
-// Parses canvas keys and maps them to document resource ids and route values.
-//
-// Keys address canvas documents, not filesystem paths: keys are
-// slash-namespaced lowercase slug segments. The substrate resource route codec
-// owns transport URL construction. Canvas only maps its domain key to the
-// route params for the canvas document resource.
+// Parses Canvas keys and maps them to durable document ids and frame routes.
 
 import { Type } from "typebox";
 import { Value } from "typebox/value";
@@ -22,7 +17,7 @@ export type CanvasDocumentResourceId = string & {
   readonly [CanvasDocumentResourceIdBrand]: true;
 };
 
-export const CanvasResourceName = "doc";
+export const CanvasFrameResourceName = "frame";
 
 const CanvasKeyPattern = /^[a-z0-9-]+(?:\/[a-z0-9-]+)*$/;
 const CanvasDocumentResourceIdPrefix = "doc://canvas/";
@@ -66,22 +61,19 @@ export function parseCanvasKeyFromDocumentResourceId(
 export const CanvasKeyDescription =
   "lowercase slug segments [a-z0-9-]+ optionally separated by /";
 
-// v is mostly just used for cache busting so the browser knows it needs to
-// make a fresh web request to reload the iframe
-export const CanvasResourceQuerySchema = Type.Object({
+export const CanvasFrameQuerySchema = Type.Object({
   v: Type.Optional(Type.String()),
 });
 
-const canvasResourceAddressHandle = createResourceAddressHandle({
+const canvasFrameAddress = createResourceAddressHandle({
   featureId: "canvas",
-  name: CanvasResourceName,
+  name: CanvasFrameResourceName,
   path: "/:key*",
-  query: CanvasResourceQuerySchema,
+  query: CanvasFrameQuerySchema,
   origin: "feature",
 });
 
-/** Normalized route for the resource contribution. */
-export const CanvasResourceRoute = canvasResourceAddressHandle.route;
+export const CanvasFrameResourceRoute = canvasFrameAddress.route;
 
 export function parseCanvasKeyRouteParam(
   value: ResourceRouteParamValue | undefined,
@@ -94,18 +86,18 @@ export function parseCanvasKeyRouteParam(
   }
 }
 
-export function toResourceUrl(
+export function toCanvasFrameUrl(
   workspaceId: string,
   key: CanvasKey,
-  token?: number,
+  token: number,
 ): ResourceUrl {
-  return canvasResourceAddressHandle.toUrl({
+  return canvasFrameAddress.toUrl({
     workspaceId,
     params: { key: key.split("/") },
-    query: token === undefined ? {} : { v: String(token) },
+    query: { v: String(token) },
   });
 }
 
-export function toResourceOrigin(workspaceId: string): string {
-  return canvasResourceAddressHandle.toOrigin(workspaceId);
+export function toCanvasFrameOrigin(workspaceId: string): string {
+  return canvasFrameAddress.toOrigin(workspaceId);
 }

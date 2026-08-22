@@ -2,17 +2,29 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import type { FeatureEventPublisherFactory } from "@uix/api/channels";
 import type { DocumentStoreFactory } from "@uix/api/documents";
 
 import { type FeatureSubstrate, loadFeatures } from "./loader";
 import { WorkspaceManifestFileName } from "./manifest";
 import { SurfaceRegistry } from "./surfaces";
-import { AgentToolRegistry } from "../agent-tools/registry";
 import { ChannelRegistry } from "../channel-registry";
-import { DisposableBag } from "../lifecycle";
+import { AsyncDisposableBag } from "../lifecycle";
 import { WorkspaceManifestStore } from "../manifest-store";
+import { ResourceRegistry } from "../resource-registry";
+
+interface LoaderHarness {
+  substrate: FeatureSubstrate;
+  channels: ChannelRegistry;
+  surfaces: SurfaceRegistry;
+  settingsScopes: Map<
+    string,
+    { committed: boolean; values: Map<string, unknown> }
+  >;
+  committedSettings: string[];
+}
 
 const documents: DocumentStoreFactory = {
   createStore: () => {
@@ -20,17 +32,7 @@ const documents: DocumentStoreFactory = {
   },
 };
 
-function makeSubstrate(manifestPath?: string): {
-  substrate: FeatureSubstrate;
-  agentTools: AgentToolRegistry;
-  surfaces: SurfaceRegistry;
-  channels: ChannelRegistry;
-  settingsScopes: Map<
-    string,
-    { committed: boolean; values: Map<string, unknown> }
-  >;
-  committedSettings: string[];
-} {
+function makeSubstrate(manifestPath?: string): LoaderHarness {
   const manifestStore = manifestPath
     ? new WorkspaceManifestStore(manifestPath)
     : undefined;
@@ -59,7 +61,7 @@ function makeSubstrate(manifestPath?: string): {
       let disposed = false;
       return {
         settings: {
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- see SettingsHandle.get: TypeScript infers T from call-site context.
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- SettingsHandle.get infers T from the caller.
           get: <T = unknown>(key: string) =>
             settingsScopes.get(featureId)?.values.get(key) as T | undefined,
           set: (key: string, value: unknown) => {
@@ -87,32 +89,34 @@ function makeSubstrate(manifestPath?: string): {
       };
     },
   };
-  const agentTools = new AgentToolRegistry();
-  const surfaces = new SurfaceRegistry();
   const channels = new ChannelRegistry();
+  const surfaces = new SurfaceRegistry();
+  const resources = new ResourceRegistry({ workspaceId: "test" });
   const substrate: FeatureSubstrate = {
     documents,
     settings,
     channels,
-    registries: { agentTools, channels, surfaces },
-    // The repo's API package source: what the composition root supplies in dev.
+    registries: {
+      resources,
+      channels,
+      invokeAgentChannel: (context, canonicalId, payload) =>
+        context.agentInstanceGuard.value.featureChannels.invoke(
+          canonicalId,
+          payload,
+        ),
+      surfaces,
+    },
     apiModuleDir: join(__dirname, "../../../api/src"),
   };
   return {
     substrate,
-    agentTools,
-    surfaces,
     channels,
+    surfaces,
     settingsScopes,
     committedSettings,
   };
 }
 
-/**
- * Writes a workspace: the given feature files plus a manifest whose
- * `features` array lists `refs` (defaulting to every written file, in
- * insertion order).
- */
 async function writeWorkspace(
   files: Record<string, string>,
   refs?: string[],
@@ -125,103 +129,114 @@ async function writeWorkspace(
     join(dir, WorkspaceManifestFileName),
     JSON.stringify({
       name: "test workspace",
-      features: (refs ?? Object.keys(files).map((f) => `./${f}`)).map(
-        (ref) => ({
-          entry: ref,
-          settings: {},
-        }),
+      features: (refs ?? Object.keys(files).map((file) => `./${file}`)).map(
+        (entry) => ({ entry, settings: {} }),
       ),
     }),
   );
   return join(dir, WorkspaceManifestFileName);
 }
 
-const toolFeature = (id: string, tool = "greet"): string => `
+const featureSource = (id: string, request = "ping"): string => `
+import { Type } from "typebox";
+
 export const feature = {
   id: "${id}",
-  contribute(ctx) {
+  workspace(ctx) {
     ctx.log.debug({}, "activated");
     return {
-      agentTools: [
-        {
-          name: "${tool}",
-          tool: {
-            label: "${tool}",
-            description: "test tool",
-            parameters: { type: "object", properties: {} },
-            execute: async () => ({ content: [], details: {} }),
+      channels: [{
+        feature: "${id}",
+        requests: {
+          ${request}: {
+            requestSchema: Type.Object({}),
+            responseSchema: Type.String(),
+            handler: () => "${id}",
           },
         },
-      ],
+        events: {},
+      }],
     };
   },
+  agent: () => ({ agentSystemPrompt: "${id}" }),
 };
 `;
 
+const noEvents: FeatureEventPublisherFactory = {
+  createPublisher: () => ({}) as never,
+};
+
 describe("loadFeatures", () => {
-  it("loads a TS entry straight from a manifest ref and registers its contributions", async () => {
+  it("runs the Workspace factory and retains the Agent factory", async () => {
     const manifestPath = await writeWorkspace({
-      "greeter.ts": toolFeature("greeter"),
+      "greeter.ts": featureSource("greeter"),
     });
-    const { substrate, agentTools, settingsScopes, committedSettings } =
+    const { substrate, channels, settingsScopes, committedSettings } =
       makeSubstrate(manifestPath);
-    const bag = new DisposableBag();
+    const bag = new AsyncDisposableBag();
 
     const result = await loadFeatures({ manifestPath }, bag, substrate);
 
     expect(result.failed).toEqual([]);
-    expect(result.activated).toHaveLength(1);
-    expect(result.activated[0]?.id).toBe("greeter");
-    expect(result.activated[0]?.displayName).toBe("./greeter.ts");
-    expect(agentTools.list()[0]?.canonicalId).toBe("greeter__greet");
+    expect(result.activated[0]).toMatchObject({
+      id: "greeter",
+      displayName: "./greeter.ts",
+    });
+    expect(channels.listCanonicalIds()).toEqual(["greeter.ping"]);
+    expect(
+      result.activated[0]?.agent?.create(
+        noEvents,
+        new AsyncDisposableBag(),
+        documents,
+      ),
+    ).toMatchObject({
+      agentSystemPrompt: "greeter",
+    });
     expect(settingsScopes.get("greeter")?.committed).toBe(true);
     expect(committedSettings).toEqual(["greeter"]);
 
-    // Reload teardown: clearing the bag removes the contribution and scope.
-    bag.clear();
-    expect(agentTools.list()).toHaveLength(0);
+    await bag.clear();
+    expect(channels.listCanonicalIds()).toEqual([]);
     expect(settingsScopes.has("greeter")).toBe(false);
   });
 
-  it("registers in manifest order, not filesystem order", async () => {
+  it("keeps manifest order for Workspace and Agent factories", async () => {
     const manifestPath = await writeWorkspace(
       {
-        "aaa.ts": toolFeature("aaa"),
-        "zzz.ts": toolFeature("zzz"),
+        "aaa.ts": featureSource("aaa"),
+        "zzz.ts": featureSource("zzz"),
       },
       ["./zzz.ts", "./aaa.ts"],
     );
-    const { substrate, agentTools } = makeSubstrate(manifestPath);
+    const { substrate, channels } = makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },
-      new DisposableBag(),
+      new AsyncDisposableBag(),
       substrate,
     );
 
-    expect(result.activated.map((f) => f.id)).toEqual(["zzz", "aaa"]);
-    expect(agentTools.list().map((c) => c.canonicalId)).toEqual([
-      "zzz__greet",
-      "aaa__greet",
+    expect(result.activated.map(({ id }) => id)).toEqual(["zzz", "aaa"]);
+    expect(result.activated.map(({ agent }) => agent?.id)).toEqual([
+      "zzz",
+      "aaa",
     ]);
+    expect(channels.listCanonicalIds()).toEqual(["zzz.ping", "aaa.ping"]);
   });
 
   it("loads nothing without a manifest", async () => {
-    const { substrate, agentTools } = makeSubstrate();
-
-    const result = await loadFeatures({}, new DisposableBag(), substrate);
-
-    expect(result.failed).toEqual([]);
-    expect(result.activated).toEqual([]);
-    expect(agentTools.list()).toHaveLength(0);
+    const { substrate } = makeSubstrate();
+    await expect(
+      loadFeatures({}, new AsyncDisposableBag(), substrate),
+    ).resolves.toEqual({ activated: [], failed: [] });
   });
 
-  it("scopes in-flight loads to their owned feature bags", async () => {
+  it("scopes concurrent loads to their feature bags", async () => {
     const firstManifest = await writeWorkspace({
-      "first.ts": toolFeature("first"),
+      "first.ts": featureSource("first"),
     });
     const secondManifest = await writeWorkspace({
-      "second.ts": toolFeature("second"),
+      "second.ts": featureSource("second"),
     });
     const first = makeSubstrate(firstManifest);
     const second = makeSubstrate(secondManifest);
@@ -229,12 +244,12 @@ describe("loadFeatures", () => {
     const [firstResult, secondResult] = await Promise.all([
       loadFeatures(
         { manifestPath: firstManifest },
-        new DisposableBag(),
+        new AsyncDisposableBag(),
         first.substrate,
       ),
       loadFeatures(
         { manifestPath: secondManifest },
-        new DisposableBag(),
+        new AsyncDisposableBag(),
         second.substrate,
       ),
     ]);
@@ -243,84 +258,49 @@ describe("loadFeatures", () => {
     expect(secondResult.activated.map(({ id }) => id)).toEqual(["second"]);
   });
 
-  it("rejects a malformed manifest and leaves the current tree intact", async () => {
+  it("leaves active features intact when the manifest is malformed", async () => {
     const manifestPath = await writeWorkspace({
-      "greeter.ts": toolFeature("greeter"),
+      "greeter.ts": featureSource("greeter"),
     });
-    const { substrate, agentTools } = makeSubstrate(manifestPath);
-    const bag = new DisposableBag();
-
+    const { substrate, channels } = makeSubstrate(manifestPath);
+    const bag = new AsyncDisposableBag();
     await loadFeatures({ manifestPath }, bag, substrate);
-    expect(agentTools.list()).toHaveLength(1);
 
     await writeFile(manifestPath, "{ not json");
     await expect(
       loadFeatures({ manifestPath }, bag, substrate),
     ).rejects.toThrow("not valid JSON");
-    // The failed pass never cleared the bag: the feature is still live.
-    expect(agentTools.list()).toHaveLength(1);
-
-    await writeFile(manifestPath, JSON.stringify({ features: "nope" }));
-    await expect(
-      loadFeatures({ manifestPath }, bag, substrate),
-    ).rejects.toThrow("does not match schema");
-    expect(agentTools.list()).toHaveLength(1);
+    expect(channels.listCanonicalIds()).toEqual(["greeter.ping"]);
   });
 
-  it("isolates a throwing entry and continues with later manifest lines", async () => {
+  it("isolates a throwing entry and continues in manifest order", async () => {
     const manifestPath = await writeWorkspace(
       {
         "broken.mjs": `throw new Error("deliberate canary");`,
-        "greeter.ts": toolFeature("greeter"),
+        "greeter.ts": featureSource("greeter"),
       },
       ["./broken.mjs", "./greeter.ts"],
     );
-    const { substrate, agentTools } = makeSubstrate(manifestPath);
+    const { substrate } = makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },
-      new DisposableBag(),
+      new AsyncDisposableBag(),
       substrate,
     );
 
-    expect(result.failed).toHaveLength(1);
     expect(result.failed[0]?.error.message).toContain("deliberate canary");
-    expect(result.activated.map((f) => f.id)).toEqual(["greeter"]);
-    expect(agentTools.list()).toHaveLength(1);
+    expect(result.activated.map(({ id }) => id)).toEqual(["greeter"]);
   });
 
-  it("removes a provisional settings scope when context throws", async () => {
+  it("rolls back settings when the Workspace factory throws", async () => {
     const manifestPath = await writeWorkspace({
       "broken.ts": `
 export const feature = {
   id: "broken",
-  context() { throw new Error("context failed"); },
-  contribute: () => ({}),
-};
-`,
-    });
-    const { substrate, settingsScopes, committedSettings } =
-      makeSubstrate(manifestPath);
-
-    const result = await loadFeatures(
-      { manifestPath },
-      new DisposableBag(),
-      substrate,
-    );
-
-    expect(result.failed[0]?.error.message).toContain("context failed");
-    expect(settingsScopes.has("broken")).toBe(false);
-    expect(committedSettings).toEqual([]);
-  });
-
-  it("removes buffered settings when contribute throws", async () => {
-    const manifestPath = await writeWorkspace({
-      "broken.ts": `
-export const feature = {
-  id: "broken",
-  contribute(ctx) {
+  workspace(ctx) {
     ctx.settings.set("enabled", true);
-    throw new Error("contribute failed");
+    throw new Error("workspace failed");
   },
 };
 `,
@@ -330,199 +310,145 @@ export const feature = {
 
     const result = await loadFeatures(
       { manifestPath },
-      new DisposableBag(),
+      new AsyncDisposableBag(),
       substrate,
     );
 
-    expect(result.failed[0]?.error.message).toContain("contribute failed");
+    expect(result.failed[0]?.error.message).toContain("workspace failed");
     expect(settingsScopes.has("broken")).toBe(false);
     expect(committedSettings).toEqual([]);
   });
 
-  it("recovers the same id after a later-facet activation failure", async () => {
-    const manifestPath = await writeWorkspace(
-      {
-        "broken.ts": `
+  it("awaits returned Workspace cleanup during replacement", async () => {
+    const disposed = vi.fn();
+    const manifestPath = await writeWorkspace({
+      "clean.ts": `
 export const feature = {
-  id: "recovered",
-  contribute: () => ({ agentSystemPrompt: "missing registry" }),
+  id: "clean",
+  workspace() {
+    return {
+      [Symbol.asyncDispose]: async () => globalThis.__featureDisposed(),
+    };
+  },
 };
 `,
-        "recovered.ts": toolFeature("recovered"),
+    });
+    Object.assign(globalThis, { __featureDisposed: disposed });
+    const { substrate } = makeSubstrate(manifestPath);
+    const bag = new AsyncDisposableBag();
+
+    await loadFeatures({ manifestPath }, bag, substrate);
+    await loadFeatures({ manifestPath }, bag, substrate);
+
+    expect(disposed).toHaveBeenCalledOnce();
+    Reflect.deleteProperty(globalThis, "__featureDisposed");
+  });
+
+  it("activates Workspace replacements after old cleanup fails", async () => {
+    const activated = vi.fn();
+    const manifestPath = await writeWorkspace({
+      "unclean.ts": `
+export const feature = {
+  id: "unclean",
+  workspace() {
+    globalThis.__featureActivated();
+    return {
+      [Symbol.asyncDispose]: () => Promise.reject(new Error("cleanup failed")),
+    };
+  },
+};
+`,
+    });
+    Object.assign(globalThis, { __featureActivated: activated });
+    const { substrate } = makeSubstrate(manifestPath);
+    const bag = new AsyncDisposableBag();
+
+    await loadFeatures({ manifestPath }, bag, substrate);
+    const replacement = await loadFeatures({ manifestPath }, bag, substrate);
+
+    expect(activated).toHaveBeenCalledTimes(2);
+    expect(replacement.activated.map(({ id }) => id)).toEqual(["unclean"]);
+    expect(replacement.cleanupErrors).toHaveLength(1);
+    await expect(bag[Symbol.asyncDispose]()).rejects.toThrow("disposal failed");
+    Reflect.deleteProperty(globalThis, "__featureActivated");
+  });
+
+  it("rejects invalid exports, reserved ids, and duplicate ids", async () => {
+    const manifestPath = await writeWorkspace(
+      {
+        "bad.mjs": `export const feature = function nope() {};`,
+        "reserved.ts": featureSource("agent"),
+        "first.ts": featureSource("dup"),
+        "second.ts": featureSource("dup"),
       },
-      ["./broken.ts", "./recovered.ts"],
+      ["./bad.mjs", "./reserved.ts", "./first.ts", "./second.ts"],
     );
-    const { substrate, agentTools, settingsScopes, committedSettings } =
-      makeSubstrate(manifestPath);
+    const { substrate } = makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },
-      new DisposableBag(),
+      new AsyncDisposableBag(),
       substrate,
     );
 
-    expect(result.failed[0]?.error.message).toContain(
-      "no agent-system-prompt registry was provided",
+    expect(result.activated.map(({ id }) => id)).toEqual(["dup"]);
+    expect(result.failed.map(({ error }) => error.message)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("not a FeatureDefinition"),
+        expect.stringContaining("reserved: agent"),
+        expect.stringContaining("already registered: dup"),
+      ]),
     );
-    expect(result.activated.map((feature) => feature.id)).toEqual([
-      "recovered",
-    ]);
-    expect(agentTools.list()).toHaveLength(1);
-    expect(settingsScopes.get("recovered")?.committed).toBe(true);
-    expect(committedSettings).toEqual(["recovered"]);
   });
 
-  it("fails a ref whose file is missing without aborting the pass", async () => {
+  it("fails a missing ref without aborting later entries", async () => {
     const manifestPath = await writeWorkspace(
-      { "greeter.ts": toolFeature("greeter") },
+      { "greeter.ts": featureSource("greeter") },
       ["./missing.ts", "./greeter.ts"],
     );
     const { substrate } = makeSubstrate(manifestPath);
 
     const result = await loadFeatures(
       { manifestPath },
-      new DisposableBag(),
+      new AsyncDisposableBag(),
       substrate,
     );
 
-    expect(result.failed).toHaveLength(1);
     expect(result.failed[0]?.displayName).toBe("./missing.ts");
-    expect(result.activated.map((f) => f.id)).toEqual(["greeter"]);
+    expect(result.activated.map(({ id }) => id)).toEqual(["greeter"]);
   });
 
-  it("resolves absolute refs outside the workspace dir", async () => {
-    const sharedDir = await mkdtemp(join(tmpdir(), "shared-feature-"));
-    const sharedEntry = join(sharedDir, "shared.ts");
-    await writeFile(sharedEntry, toolFeature("shared"));
-    const manifestPath = await writeWorkspace({}, [sharedEntry]);
-    const { substrate } = makeSubstrate(manifestPath);
-
-    const result = await loadFeatures(
-      { manifestPath },
-      new DisposableBag(),
-      substrate,
-    );
-
-    expect(result.failed).toEqual([]);
-    expect(result.activated.map((f) => f.id)).toEqual(["shared"]);
-    expect(result.activated[0]?.entry).toBe(sharedEntry);
-  });
-
-  it("fails an entry whose `feature` export is not a FeatureDefinition", async () => {
+  it("re-registers features cleanly on reload", async () => {
     const manifestPath = await writeWorkspace({
-      "bad.mjs": `export const feature = function activate() {};`,
+      "greeter.ts": featureSource("greeter"),
+      "waver.ts": featureSource("waver", "wave"),
     });
-    const { substrate } = makeSubstrate(manifestPath);
+    const { substrate, channels } = makeSubstrate(manifestPath);
+    const bag = new AsyncDisposableBag();
 
-    const result = await loadFeatures(
-      { manifestPath },
-      new DisposableBag(),
-      substrate,
-    );
-
-    expect(result.activated).toEqual([]);
-    expect(result.failed[0]?.error.message).toContain(
-      "not a FeatureDefinition",
-    );
-  });
-
-  it("fails an entry that exports no `feature`", async () => {
-    const manifestPath = await writeWorkspace({
-      "default-only.mjs": `export default { id: "not-feature" };`,
-    });
-    const { substrate } = makeSubstrate(manifestPath);
-
-    const result = await loadFeatures(
-      { manifestPath },
-      new DisposableBag(),
-      substrate,
-    );
-
-    expect(result.activated).toEqual([]);
-    expect(result.failed[0]?.error.message).toContain(
-      "does not export `feature`",
-    );
-  });
-
-  it("rejects reserved ids", async () => {
-    const manifestPath = await writeWorkspace({
-      "impostor.ts": toolFeature("agent"),
-      "impostor2.ts": toolFeature("uix"),
-    });
-    const { substrate } = makeSubstrate(manifestPath);
-
-    const result = await loadFeatures(
-      { manifestPath },
-      new DisposableBag(),
-      substrate,
-    );
-
-    expect(result.activated).toEqual([]);
-    const messages = result.failed.map((f) => f.error.message).sort();
-    expect(messages[0]).toContain("reserved: agent");
-    expect(messages[1]).toContain("reserved: uix");
-  });
-
-  it("rejects a duplicate id within the same pass", async () => {
-    const manifestPath = await writeWorkspace(
-      {
-        "first.ts": toolFeature("dup"),
-        "second.ts": toolFeature("dup"),
-      },
-      ["./first.ts", "./second.ts"],
-    );
-    const { substrate } = makeSubstrate(manifestPath);
-
-    const result = await loadFeatures(
-      { manifestPath },
-      new DisposableBag(),
-      substrate,
-    );
-
-    // Manifest order: the first line wins, the second fails.
-    expect(result.activated.map((f) => f.id)).toEqual(["dup"]);
-    expect(result.failed[0]?.displayName).toBe("./second.ts");
-    expect(result.failed[0]?.error.message).toContain(
-      "already registered: dup",
-    );
-  });
-
-  it("re-registers manifest features cleanly on reload", async () => {
-    const manifestPath = await writeWorkspace(
-      {
-        "greeter.ts": toolFeature("greeter"),
-        "waver.ts": toolFeature("waver", "wave"),
-      },
-      ["./greeter.ts", "./waver.ts"],
-    );
-    const sources = { manifestPath };
-    const { substrate, agentTools } = makeSubstrate(manifestPath);
-    const bag = new DisposableBag();
-
-    await loadFeatures(sources, bag, substrate);
-    const second = await loadFeatures(sources, bag, substrate);
+    await loadFeatures({ manifestPath }, bag, substrate);
+    const second = await loadFeatures({ manifestPath }, bag, substrate);
 
     expect(second.failed).toEqual([]);
-    expect(second.activated.map((f) => f.id)).toEqual(["greeter", "waver"]);
-    expect(agentTools.list()).toHaveLength(2);
+    expect(second.activated.map(({ id }) => id)).toEqual(["greeter", "waver"]);
+    expect(channels.listCanonicalIds()).toEqual(["greeter.ping", "waver.wave"]);
   });
 
-  it("registers surface refs resolved against the feature entry's directory", async () => {
+  it("resolves surfaces against the feature entry directory", async () => {
     const manifestPath = await writeWorkspace({
       "shiny.ts": `
 export const feature = {
   id: "shiny",
-  contribute: () => ({ surfaces: ["./workspace/surface.tsx"] }),
+  workspace: () => ({ surfaces: ["./workspace/surface.tsx"] }),
 };
 `,
     });
     const { substrate, surfaces } = makeSubstrate(manifestPath);
-    const bag = new DisposableBag();
+    const bag = new AsyncDisposableBag();
 
     const result = await loadFeatures({ manifestPath }, bag, substrate);
-
-    expect(result.failed).toEqual([]);
     const entryDir = join(result.activated[0]?.entry ?? "", "..");
+
     expect(surfaces.list()).toEqual([
       {
         featureId: "shiny",
@@ -530,12 +456,11 @@ export const feature = {
         featureRoot: entryDir,
       },
     ]);
-
-    bag.clear();
+    await bag.clear();
     expect(surfaces.list()).toEqual([]);
   });
 
-  it("resolves @uix/api and typebox value imports through the loader aliases", async () => {
+  it("resolves @uix/api and typebox imports through loader aliases", async () => {
     const manifestPath = await writeWorkspace({
       "valuey.ts": `
 import { withHandlers } from "@uix/api/channels";
@@ -554,7 +479,7 @@ const contract = {
 
 export const feature = {
   id: "valuey",
-  contribute: () => ({
+  workspace: () => ({
     channels: [
       withHandlers(contract, { ping: { handler: () => ({ ok: true }) } }),
     ],
@@ -566,12 +491,11 @@ export const feature = {
 
     const result = await loadFeatures(
       { manifestPath },
-      new DisposableBag(),
+      new AsyncDisposableBag(),
       substrate,
     );
 
     expect(result.failed).toEqual([]);
-    expect(result.activated.map((f) => f.id)).toEqual(["valuey"]);
     expect(channels.listCanonicalIds()).toContain("valuey.ping");
   });
 });

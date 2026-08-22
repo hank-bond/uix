@@ -14,7 +14,7 @@ Files involved:
 - [`packages/api/src/resource-routes.ts`](../../packages/api/src/resource-routes.ts), route normalization and URL encode/decode
 - [`packages/runtime/src/resource-registry.ts`](../../packages/runtime/src/resource-registry.ts), the transport registry
 
-The reference for a real resource pair is [`src/features/canvas/backend/contributions/resources.ts`](../../src/features/canvas/backend/contributions/resources.ts) (route and handler) with the keys it serves in [`src/features/canvas/shared/addressing.ts`](../../src/features/canvas/shared/addressing.ts).
+The Canvas static frame resource in [`src/features/canvas/backend/contributions/resources.ts`](../../src/features/canvas/backend/contributions/resources.ts) is a current example. Its Agent-viewpoint HTML still travels through a selected channel handler rather than the Workspace resource request.
 
 ## Declare an address in shared code
 
@@ -59,13 +59,13 @@ export const reportResource = {
 };
 ```
 
-Return it from `contribute()`:
+Return it from `workspace(ctx)`:
 
 ```ts
 // features/reports/index.ts
 export const feature = defineFeature({
   id: "reports",
-  contribute() {
+  workspace() {
     return { resources: [reportResource] };
   },
 });
@@ -86,7 +86,7 @@ const url = reportAddress.toUrl({
 const origin = reportAddress.toOrigin(workspaceId);
 ```
 
-`toUrl()` returns a branded `ResourceUrl`. It validates address fields, parameter names, parameter shapes, and query values before encoding. `toOrigin()` returns the exact browser origin for security checks: Canvas uses it to validate iframe `postMessage` traffic.
+`toUrl()` returns a branded `ResourceUrl`. It validates address fields, parameter names, parameter shapes, and query values before encoding. `toOrigin()` returns the exact browser origin for security checks such as iframe `postMessage` validation.
 
 ## Verify
 

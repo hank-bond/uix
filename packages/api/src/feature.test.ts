@@ -15,7 +15,7 @@ describe("defineFeature", () => {
     const feature = defineFeature({
       id: "typed",
       settings: featureSettings,
-      contribute(ctx) {
+      workspace(ctx) {
         expectTypeOf(ctx.settings.get("enabled")).toEqualTypeOf<
           boolean | undefined
         >();

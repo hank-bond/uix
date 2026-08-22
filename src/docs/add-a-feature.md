@@ -10,7 +10,7 @@ A UIX **feature** is the loadable unit that adds a coherent capability (a chat, 
 
 Files involved:
 
-- [`packages/api/src/feature.ts`](../../packages/api/src/feature.ts), `FeatureDefinition`, `FeatureContext`, `FeatureContributions`
+- [`packages/api/src/feature.ts`](../../packages/api/src/feature.ts), `FeatureDefinition`, `WorkspaceFeatureContributions`, `AgentFeatureContributions`
 - [`packages/api/src/workspace.ts`](../../packages/api/src/workspace.ts), `defineSurface`
 
 A real feature combining every facet is [`src/features/canvas/`](../../src/features/canvas/). Use it as the reference for a complete contribution set.
@@ -25,7 +25,7 @@ import { defineFeature } from "@uix/api/feature";
 
 export const feature = defineFeature({
   id: "hello",
-  contribute(ctx) {
+  workspace(ctx) {
     ctx.log.info({}, "hello_loaded");
     return {};
   },
@@ -34,7 +34,9 @@ export const feature = defineFeature({
 
 `id` is the feature's identity. It owns contribution namespaces, channel ids, settings access, and logs. Workspace manifest entries do not repeat the id. If two entries export the same id, activation fails for the later one.
 
-`ctx` is the injected [`FeatureContext`](../../packages/api/src/feature.ts): `documents` (a document-store factory), `settings`, `channels` (an event-publisher factory), and `log`. Features access external state **only** through `ctx` and the typed `@uix/api` contracts, never by importing host internals.
+`workspace(ctx)` runs once per feature activation. `agent(ctx)` runs once for each `AgentInstance`. Both contexts provide `documents`, `settings`, `channels`, and `log`. In an Agent factory, mutable document current bytes are scoped to that viewpoint while immutable versions remain shared. Event publication from a Workspace factory has Workspace scope. Event publication from an Agent factory has that Agent's session scope.
+
+Create mutable Agent state inside `agent(ctx)` and let returned callbacks close over it. Features access external state only through `ctx` and the typed `@uix/api` contracts, never by importing host internals.
 
 ## Declare it in the manifest
 
@@ -58,9 +60,9 @@ Add an ordered entry reference to `uix.workspace.json`. Manifest order is activa
 await window.channels.reload();
 ```
 
-## The full contribution facade
+## Workspace and Agent contributions
 
-`contribute(ctx)` returns [`FeatureContributions`](../../packages/api/src/feature.ts), which can include resources, channels, agent tools, a system-prompt section, skills, turn state, agent context, and surfaces. Here is one feature contributing all of them:
+The two factories return different contribution groups:
 
 ```ts
 // features/notes/index.ts
@@ -68,31 +70,36 @@ import { defineFeature } from "@uix/api/feature";
 
 export const feature = defineFeature({
   id: "notes",
-  settings: notesSettings, // from ../shared/settings
-  context(ctx) {
-    // runs first; merged onto ctx for contribute
+  settings: notesSettings,
+
+  workspace(ctx) {
+    const repository = createNotesRepository(ctx.documents);
     return {
-      store: createNotesStore(
-        ctx.documents.createStore({ namespace: "notes" }),
-      ),
+      resources: [notesResource(repository)],
+      channels: [notesWorkspaceChannels(repository)],
+      agentChannelContracts: [notesAgentChannels],
+      surfaces: ["./workspace/surface.tsx"],
     };
   },
-  contribute(ctx) {
+
+  agent(ctx) {
+    const buffer = createNotesBuffer(ctx.documents);
     return {
-      resources: [notesResource], // serve iframe docs, fonts, images
-      channels: [notesChannelsContribution], // typed request handlers + events
-      agentTools: [notesReadTool(ctx), notesWriteTool(ctx)], // feature-scoped Pi tools
-      agentSystemPrompt: notesSystemPrompt, // stable Markdown for the agent
-      agentSkills: ["./skills/notes-authoring"], // larger optional guidance
-      turnState: notesTurnState(ctx), // branch-scoped durable state cells
-      agentContext: notesContext(ctx), // model-visible changing state
-      surfaces: ["./workspace/surface.tsx"], // resolved against the entry's dir
+      channels: [notesAgentHandlers(ctx, buffer)],
+      agentTools: [notesReadTool(buffer), notesWriteTool(buffer)],
+      agentSystemPrompt: notesSystemPrompt,
+      agentSkills: ["./skills/notes-authoring"],
+      turnState: notesTurnState(buffer),
+      agentContext: notesContext(buffer),
+      [Symbol.dispose]: () => buffer[Symbol.dispose](),
     };
   },
 });
 ```
 
-The [`Canvas` feature](../../src/features/canvas/backend/contributions/index.ts) is the real-world version of exactly this shape. A backend-only feature can omit `surfaces` without occupying workspace layout. A sibling how-to documents each facet:
+Workspace contributions include resources, Workspace request handlers, Agent channel contracts, and surfaces. Agent contributions include Agent channel handlers, tools, prompt sections, skills, turn state, and model context. A returned object may implement `Disposable` or `AsyncDisposable`. UIX disposes it after removing its registrations.
+
+The [`Canvas` feature](../../src/features/canvas/backend/contributions/index.ts) is the current reference. A backend-only feature can omit `surfaces`. A sibling how-to documents each facet:
 
 - [`add-a-channel.md`](./add-a-channel.md), `channels` + `ctx.channels.createPublisher(...)`
 - [`add-a-resource.md`](./add-a-resource.md), `resources` via `createResourceAddressHandle(...)`
@@ -105,7 +112,7 @@ Declare a settings schema in shared code so backend and surface get the same typ
 
 ## Channels
 
-A channel groups backend request handlers and backend-published events. Declare a schema-only contract in shared code, bind handlers with `withHandlers(...)`, and publish events through `ctx.channels.createPublisher(...)`:
+A channel groups backend request handlers and backend-published events. Declare a schema-only contract in shared code and bind handlers with `withHandlers(...)`:
 
 ```ts
 // features/notes/shared/channels.ts
@@ -144,7 +151,7 @@ export const notesChannelsContribution: ChannelContribution = withHandlers(
 );
 ```
 
-A surface binds the same contract through `defineSurface`, receiving a fully typed client. See [`add-a-channel.md`](./add-a-channel.md).
+Return a Workspace-scoped handler from `workspace(ctx)`. For per-Agent state, return the schema-only contract through `workspace(ctx).agentChannelContracts` and the handler through `agent(ctx).channels`. A surface binds the same contract through `defineSurface`. See [`add-a-channel.md`](./add-a-channel.md).
 
 ## Agent tools
 
@@ -241,4 +248,6 @@ A surface can omit `contract` when it needs only local state. See [`add-a-surfac
 
 ## What happens on load
 
-Activation hydrates provisional settings before running `context()` and `contribute()`, registers every returned facet, and joins the active composition only if all succeed. A failed feature rolls back its provisional bag without aborting siblings. Malformed manifests or workspace settings fail before promotion. See [`packages/runtime/src/features/`](../../packages/runtime/src/features/) for the runtime.
+Activation hydrates provisional settings, runs `workspace(ctx)`, and registers its contributions as one unit. It retains `agent(ctx)` in manifest order. Each `AgentInstance` calls those factories with fresh contexts and registers each returned object as one unit. A failed feature removes its partial work without aborting siblings.
+
+Reload rejects while an Agent turn or feature-channel operation is active. An idle reload commits turn state, replaces Workspace features, rebuilds every live Agent feature bag, reloads initialized Pi runtimes, and restores each viewpoint. Malformed manifests or Workspace settings fail before replacement. Cleanup failures are reported after forward replacement completes. See [`packages/runtime/src/features/`](../../packages/runtime/src/features/) for the runtime.

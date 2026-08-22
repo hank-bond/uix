@@ -4,9 +4,9 @@ summary: "The `@uix/api` boundary holds the author contracts that features impor
 
 # Author contracts
 
-The api boundary is one group: every production file here is a contract a feature author imports or a definition the substrate implements. Contracts stay schema- and type-only where possible so the same shapes serve both processes. Behavior lives in `src/main` and `src/renderer` behind these seams.
+The api boundary is one group: every production file here is a contract a feature author imports or a definition the substrate implements. Contracts stay schema- and type-only where possible so the same shapes serve backend and browser code. Behavior lives in the runtime, client, and host packages behind these contracts.
 
-The files divide by facet. Feature and channel definitions (`feature.ts`, `channels.ts`, `channel-resolution.ts`) establish what a feature declares and how channels derive validated clients. Resources and documents (`resources.ts`, `resource-routes.ts`, `documents.ts`) address durable content. The agent facets (`agent-tools.ts`, `agent-context.ts`, `agent-skills.ts`, `agent-system-prompt.ts`, `agent-channels.ts`, `turn-state.ts`) define what features contribute to each agent runtime slice. Actions, keybindings, and settings (`actions.ts`, `shortcuts.ts`, `settings.ts`) describe the interactive surface contracts, while `workspace.ts` binds the workspace client, sessions, and surfaces to feature components. `contribution-id.ts` provides the shared id grammar, `log.ts` the feature logger, and `index.ts` the public facade.
+The files divide by facet. Feature and channel definitions (`feature.ts`, `channels.ts`, `channel-resolution.ts`) establish the Workspace and Agent factories and how channels derive validated clients. Resources and documents (`resources.ts`, `resource-routes.ts`, `documents.ts`) address durable content. The agent facets (`agent-tools.ts`, `agent-context.ts`, `agent-skills.ts`, `agent-system-prompt.ts`, `agent-channels.ts`, `turn-state.ts`) define what features contribute to each agent runtime slice. Actions, keybindings, and settings (`actions.ts`, `shortcuts.ts`, `settings.ts`) describe the interactive surface contracts, while `workspace.ts` binds the workspace client, sessions, and surfaces to feature components. `contribution-id.ts` provides the shared id grammar, `log.ts` the feature logger, and `index.ts` the public facade.
 
 ## Contents
 
@@ -26,7 +26,7 @@ The files divide by facet. Feature and channel definitions (`feature.ts`, `chann
 - **[channels.ts](./channels.ts)** Typed channel request and event contracts.
 - **[contribution-id.ts](./contribution-id.ts)** Shared contribution-id brand and constructor.
 - **[documents.ts](./documents.ts)** Document store contract.
-- **[feature.ts](./feature.ts)** Feature contribution contract.
+- **[feature.ts](./feature.ts)** Defines Workspace and per-Agent feature factories and their contribution contracts.
 - **[index.ts](./index.ts)** The `@uix/api` public facade re-exporting shared feature-author contracts.
 - **[log.ts](./log.ts)** Feature logger contract.
 - **[resource-canonical-id.ts](./resource-canonical-id.ts)** Resource canonical id brand and constructor.

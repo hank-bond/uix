@@ -19,7 +19,7 @@ Canvas authored HTML remains inside a feature-owned iframe. UIX has no general i
 
 The implemented workspace runtime owns one `WorkspaceAgentRuntime` and one `AgentInstanceSupervisor`. Its first policy provides one guarded primary agent instance per session. Attachments on the same session share that instance, while turns and asynchronous operations hold independent guards. Feature-to-agent links, multiple agents on one session tree, and shared feature state remain design axes. Concurrent workspaces belong to host supervision rather than workspace composition. [`host-workspace-runtime-boundaries.md`](./host-workspace-runtime-boundaries.md) owns that boundary, and [`agent-session-routing.md`](./agent-session-routing.md) owns attachments and agent instances.
 
-The next feature change separates one Workspace feature activation from the Agent behavior created for each `AgentInstance`. The active manifest-ordered feature definitions provide the Agent factories. UIX does not add a separate composition identity, admitted-definition class, or named Agent model.
+The feature runtime separates one Workspace feature activation from the Agent behavior created for each `AgentInstance`. The active manifest-ordered feature definitions provide the Agent factories. UIX has no separate composition identity, admitted-definition class, or named Agent model.
 
 The author contract has two factories because UIX calls them at different scopes. `workspace(ctx)` runs once per feature activation. `agent(ctx)` runs once per Agent viewpoint. Each factory creates local values and returns one contribution object. Callbacks in that object close over the local values. The object may implement a standard disposal protocol. UIX owns it and its registration in one feature bag. UIX does not build a generic feature-state object.
 
@@ -27,7 +27,7 @@ Workspace context provides shared Workspace capabilities. Agent context provides
 
 Each feature factory and its contributions register as one unit. A failed registration removes that feature's partial work, while sibling features can continue. UIX records the feature id and error, not internal phases or successful operations.
 
-Instance-bound channels arrive with the first Canvas use that needs them. The Workspace registers the static protocol, and each Agent factory creates a handler over local state. This static and instance distinction applies to channels only.
+Canvas uses instance-bound channels. The Workspace registers the static protocol, and each Agent factory creates a handler over local state. This static and instance distinction applies to channels only.
 
 Named Agent behavior remains deferred. No manifest, author contract, or wire value represents it.
 
@@ -67,7 +67,7 @@ Link and unlink events may need durable Agent-visible records because they chang
 ## Near-term direction
 
 1. Keep the framework-neutral surface migration out of the alpha critical path; promote its review-gated plan explicitly.
-2. Keep resources and ordinary channels workspace-scoped by default. Instantiate every Agent facet for each guarded primary Agent instance. Any operation touching Agent state resolves through trusted attachment context rather than ambient selection or feature payload fields.
+2. Keep resources and Workspace handlers at Workspace scope. Instantiate every Agent facet for each guarded primary Agent instance. Any operation touching Agent state resolves through trusted attachment context rather than ambient selection or feature payload fields.
 3. Wait for the first foreign, generated, or executable surface before adding general iframe transport.
 
 ## Log

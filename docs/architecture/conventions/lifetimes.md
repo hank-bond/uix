@@ -32,7 +32,39 @@ bag[Symbol.dispose]();
 
 Disposable values with non-trivial cleanup implement `Disposable` or use `disposable(() => ...)`. Do not discard a returned `Disposable`. Put it in a bag or `using` declaration.
 
-Asynchronous ownerships implement `AsyncDisposable` and enter an `AsyncDisposableBag` when their lifetime outlives one lexical scope. The bag accepts synchronous and asynchronous values, disposes them in reverse order, continues after failures, and reports an aggregate error. It rejects additions after disposal starts. The Electron host stops synchronous bindings on the first `before-quit`, awaits its workspace bag, records teardown failure, and only then resumes quitting. Do not place asynchronous cleanup behind a fire-and-forget `Symbol.dispose` shim.
+Asynchronous ownerships implement `AsyncDisposable` and enter an `AsyncDisposableBag` when their lifetime outlives one lexical scope. The bag accepts synchronous and asynchronous values, disposes them in reverse order, continues after failures, and reports an aggregate error. It rejects additions after disposal starts. An exclusive owner puts independent cleanup capabilities in its bag instead of manually sequencing cleanup awaits. The Electron host stops synchronous bindings on the first `before-quit`, awaits its workspace bag, records teardown failure, and only then resumes quitting. Do not place asynchronous cleanup behind a fire-and-forget `Symbol.dispose` shim.
+
+Hot replacement validates candidates before clearing the active bag. A scoped reload-admission capability keeps Agent turns and feature-channel operations outside the replacement scope. Once clearing starts, the old generation cannot resume. The owner records cleanup failures, activates the replacement, completes restoration and publication, and then reports the collected errors.
+
+## Scoped reversible state
+
+A lexical state change returns an idempotent `Disposable` that reverses the change. The caller holds that capability with `using` for the complete scope.
+
+```ts
+using _admission = reloadAdmission.acquireOperation("Agent turn");
+await runTurn();
+```
+
+This pattern covers admission counters, busy flags, temporary vetoes, registrations, and scoped overrides. The owner keeps the state and exposes a domain-named acquisition method. The returned capability performs only the matching reversal.
+
+The same disposal protocol also owns usable resources. A database connection or transaction can expose operations and implement `AsyncDisposable`. A scoped state capability usually exposes no operational value. It records only the caller's temporary participation in owner state.
+
+Prefer the scoped capability over manually pairing state changes around asynchronous work:
+
+```ts
+activeOperations += 1;
+try {
+  await runOperation();
+} finally {
+  activeOperations -= 1;
+}
+```
+
+The manual form can be correct, but it repeats owner bookkeeping at every call site. A missing `finally`, early return, or later branch can leave the state unbalanced. Boolean set/reset blocks and happy-path-only cleanup have the same weakness. Cleanup capabilities remain idempotent, and synchronous reversal uses `Disposable` rather than `AsyncDisposable`.
+
+Use a bag when the capability outlives one lexical scope. Use `await using` when reversal is genuinely asynchronous. Use a supervisor-issued guard when independent holders protect one shared live child. Adapt a third-party `try`/`finally` boundary into a disposable helper when the pattern recurs.
+
+Do not introduce a generic counter or flag wrapper that hides domain meaning. `ReloadAdmission` owns reload policy, while another owner names its own state and acquisition operation.
 
 ## Shared ownership uses guards
 

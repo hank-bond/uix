@@ -1,4 +1,4 @@
-// Owns one workspace's canonical channel table, prepared dispatches, and typed event publication.
+// Owns Workspace channel contracts and routes selected requests to per-Agent handlers.
 
 import { Value } from "typebox/value";
 
@@ -9,6 +9,7 @@ import {
   toChannelCanonicalId,
 } from "@uix/api/channel-resolution";
 import type {
+  ChannelContract,
   ChannelContribution,
   ChannelEventLogOptions,
   ChannelRequestLogOptions,
@@ -29,6 +30,12 @@ export type ChannelEventPublisher = (
   payload: unknown,
   logOpts?: ChannelEventLogOptions<unknown>,
 ) => void;
+
+export type AgentChannelInvoker = (
+  context: AttachmentDispatchContext,
+  canonicalId: ChannelCanonicalId,
+  payload: unknown,
+) => Promise<unknown>;
 
 export interface ChannelRegistryOptions {
   publish?: ChannelEventPublisher;
@@ -54,6 +61,46 @@ export interface ChannelRequestRegistration<Req, Res> {
 interface RegisteredRunner {
   readonly logOptions: ChannelRequestLogOptions<unknown, unknown>;
   run(context: AttachmentDispatchContext, payload: unknown): Promise<unknown>;
+}
+
+interface AgentChannelHandler {
+  run(payload: unknown): unknown;
+}
+
+/** Request handlers bound to one AgentInstance. */
+export class AgentChannelHandlerRegistry {
+  readonly #handlers = new Map<ChannelCanonicalId, AgentChannelHandler>();
+
+  register(
+    canonicalId: ChannelCanonicalId,
+    handler: AgentChannelHandler,
+  ): Disposable {
+    if (this.#handlers.has(canonicalId)) {
+      throw new Error(
+        `Agent channel handler already registered: ${canonicalId}`,
+      );
+    }
+    this.#handlers.set(canonicalId, handler);
+    return disposable(() => {
+      if (this.#handlers.get(canonicalId) === handler) {
+        this.#handlers.delete(canonicalId);
+      }
+    });
+  }
+
+  invoke(canonicalId: ChannelCanonicalId, payload: unknown): Promise<unknown> {
+    const handler = this.#handlers.get(canonicalId);
+    if (!handler) {
+      return Promise.reject(
+        new Error(`Agent channel handler is unavailable: ${canonicalId}`),
+      );
+    }
+    return Promise.resolve(handler.run(payload));
+  }
+
+  listCanonicalIds(): readonly ChannelCanonicalId[] {
+    return [...this.#handlers.keys()];
+  }
 }
 
 /** One canonical request table for feature and substrate handlers alike. */
@@ -188,7 +235,75 @@ export class ChannelRegistry {
   }
 }
 
-/** Register feature-owned channel groups as one rollback-safe lifetime. */
+/** Register contracts whose handlers resolve through the accepted Agent guard. */
+export function registerAgentChannelContracts(
+  registry: ChannelRegistry,
+  featureId: string,
+  contracts: readonly ChannelContract[],
+  invokeAgentChannel: AgentChannelInvoker,
+): Disposable {
+  const bag = new DisposableBag();
+  try {
+    for (const contract of contracts) {
+      if (contract.feature !== featureId) {
+        throw new Error(
+          `Feature ${featureId} cannot register channels owned by ${contract.feature}`,
+        );
+      }
+      for (const [name, request] of Object.entries(contract.requests)) {
+        const canonicalId = toChannelCanonicalId(featureId, name);
+        bag.add(
+          registry.register({
+            canonicalId,
+            requestSchema: request.requestSchema,
+            responseSchema: request.responseSchema,
+            handler: (payload, context) =>
+              invokeAgentChannel(context, canonicalId, payload),
+            ...(request.log && { log: request.log }),
+          }),
+        );
+      }
+    }
+    return bag;
+  } catch (error) {
+    bag[Symbol.dispose]();
+    throw error;
+  }
+}
+
+/** Bind feature channel handlers to one AgentInstance. */
+export function registerAgentChannelHandlers(
+  registry: AgentChannelHandlerRegistry,
+  featureId: string,
+  contributions: readonly ChannelContribution[],
+): Disposable {
+  const bag = new DisposableBag();
+  try {
+    for (const contribution of contributions) {
+      if (contribution.feature !== featureId) {
+        throw new Error(
+          `Feature ${featureId} cannot register channels owned by ${contribution.feature}`,
+        );
+      }
+      for (const resolved of resolveChannelRequestContributions(
+        featureId,
+        contribution,
+      )) {
+        bag.add(
+          registry.register(resolved.canonicalId, {
+            run: resolved.handler,
+          }),
+        );
+      }
+    }
+    return bag;
+  } catch (error) {
+    bag[Symbol.dispose]();
+    throw error;
+  }
+}
+
+/** Register feature-owned Workspace channel groups as one rollback-safe lifetime. */
 export function registerChannelContributions(
   registry: ChannelRegistry,
   featureId: string,

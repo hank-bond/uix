@@ -10,7 +10,7 @@ import { createWorkspaceToolOverrideContributions } from "./backend/agent-tools"
 
 export const feature = defineFeature({
   id: "workspace_tools",
-  contribute: () => ({
+  agent: () => ({
     agentToolOverrides: createWorkspaceToolOverrideContributions(),
   }),
 });

@@ -1,5 +1,5 @@
 ---
-summary: "Revert the unused A1 composition code, then create feature state per Agent instance and prove isolated Canvas sessions."
+summary: "R0 and A1 landed: feature state is created per Agent instance. A2 remains for the full concurrent-session lifecycle gate."
 ---
 
 # Agent feature instances and viewpoint state
@@ -8,13 +8,13 @@ summary: "Revert the unused A1 composition code, then create feature state per A
 
 Mutable Agent-facing feature state must belong to one `AgentInstance`, not to `WorkspaceRuntime`.
 
-H4.2 allows an attachment to leave a guarded turn running on session A, move to session B, and start work there. Pi execution state is already separate for the two Agent instances. Feature state is not. Both instances can still reach Workspace-global Canvas buffers, turn-state callbacks, Agent-context buffers, tools, and registries.
+H4.2 allows an attachment to leave a guarded turn running on session A, move to session B, and start work there. Pi execution and mutable Agent feature state are now separate for the two Agent instances. Attachments on one session share its instance.
 
 The first A1 implementation added state builders, a separate composition engine, nominal admission, deep snapshots, operation records, and capability views. No production request uses that engine. The implementation confirmed that Agent registries and lifetimes must be per instance, but the extra code did not serve that requirement.
 
-**R0 is next:** revert the A1 commits while keeping them in history. Restore the last green feature path, then implement per-instance feature state through production. Every later unit must pass all checks and leave one supported path.
+**R0 and A1 are complete.** The unused A1 commits remain in history behind one combined revert. The direct replacement uses `workspace(ctx)` and `agent(ctx)` factories, per-instance registries and bags, selected Agent channel handlers, and per-viewpoint Canvas buffers.
 
-A1-A2 precede the basic web host. H6 can then support several browser attachments without sharing Canvas state across sessions. The [Electron and server host split](./electron-server-split.md) continues to own the concrete hosts. [Runtime operation hardening](./runtime-operation-hardening.md) owns the remaining cancellation work.
+A2 precedes the basic web host. H6 can then support several browser attachments with the full concurrent-session lifecycle suite. The [Electron and server host split](./electron-server-split.md) continues to own the concrete hosts. [Runtime operation hardening](./runtime-operation-hardening.md) owns the remaining cancellation work.
 
 ## Planning rules
 
@@ -61,10 +61,9 @@ export const feature = defineFeature({
   settings: canvasSettings,
 
   workspace(ctx) {
-    const repository = createCanvasRepository(ctx.documents);
-
     return {
-      resources: createCanvasResources(repository),
+      resources: createCanvasFrameResources(ctx),
+      agentChannelContracts: [canvasChannels],
       surfaces: ["./workspace/surface.tsx"],
     };
   },
@@ -74,11 +73,12 @@ export const feature = defineFeature({
     const buffer = new CanvasDocumentBuffer(checkout);
 
     return {
-      tools: createCanvasTools(buffer),
+      channels: createCanvasChannels(buffer),
+      agentTools: createCanvasTools(buffer),
       turnState: createCanvasTurnState(buffer),
-      modelContext: createCanvasModelContext(buffer),
-      systemPrompt: CanvasSystemPrompt,
-      skills: ["./skills/canvas-authoring"],
+      agentContext: createCanvasAgentContext(buffer),
+      agentSystemPrompt: CanvasSystemPrompt,
+      agentSkills: ["./skills/canvas-authoring"],
       [Symbol.asyncDispose]: () => checkout[Symbol.asyncDispose](),
     };
   },
@@ -95,7 +95,7 @@ Instance-bound channels arrive with the Canvas use that requires them. The Works
 
 ## Review units
 
-### R0: Revert the first A1 implementation
+### R0: Revert the first A1 implementation · **landed**
 
 Create an explicit revert of the A1 commit range. Keep the original commits in repository history and reference them in this plan. Preserve any uncommitted investigation as a local patch, not as production history.
 
@@ -103,7 +103,7 @@ Restore the previous feature contract, atomic feature registration, tests, and d
 
 **Review gate:** Production contains no feature-state builder, separate composition engine, nominal admission class, operation ledger, grouped builder contract, or unused capability view. Existing Electron behavior is unchanged. All repository checks pass.
 
-### A1: Move feature state into Agent instances
+### A1: Move feature state into Agent instances · **landed**
 
 Make one breaking migration from `context()` and `contribute()` to optional `workspace(ctx)` and `agent(ctx)` factories. Migrate the loader, runtime, first-party features, workspace template, and tests in the same unit. Keep no old author path or adapter.
 
@@ -117,7 +117,7 @@ Canvas is the production stateful feature for this unit. One `agent(ctx)` call o
 
 Route Canvas operations that use Agent state through the attachment-selected instance. Register the typed contract once at Workspace scope and bind one handler closure per Agent instance. Human writeback and prompt submission use the same accepted Agent guard. Feature payloads contain no Workspace, session, attachment, or Agent routing fields.
 
-Use one reload policy: reject reload while any Agent turn is active. Otherwise, commit live viewpoint state, replace the Workspace feature registrations, and rebuild each live Agent feature bag under a guard. Then reload initialized Pi runtimes and restore each viewpoint. Use the existing bags and supervisor visit operation. Do not add staged generation objects or fallback to old callbacks.
+Use one reload policy: reject reload while any Agent turn or feature-channel operation is active. Otherwise, commit live viewpoint state, replace the Workspace feature registrations, and rebuild each live Agent feature bag under a guard. Once old-generation cleanup starts, collect its failures and continue forward through Agent replacement, Pi reload, restoration, and surface publication. Report collected failures only after every visited instance settles. Use the existing bags and supervisor visit operation. Do not add staged generation objects or fallback to old callbacks.
 
 This migration is one review unit because smaller units would require an adapter or fail the checks.
 
@@ -155,6 +155,7 @@ Preserve any uncommitted A1.3.6 work as a local patch only.
 
 ## Deferred until there is a current use
 
+- **Feature-authored async cleanup:** When the first production feature owns several asynchronous cleanup capabilities, expose one author-facing bag or equivalent helper through `@uix/api`. Align the feature examples and lifecycle guidance in the same unit. Add scoped lint only when the canonical form is mechanically precise. Keep supervisors as the explicit shared-ownership exception, and do not make features import runtime internals.
 - Named Agent definitions, composition selection, roles, and Agent-to-Agent messaging.
 - Multiple branches written by different Agents in one session tree.
 - A generic document-checkout API beyond Canvas state.

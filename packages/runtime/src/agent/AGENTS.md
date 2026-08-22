@@ -4,7 +4,7 @@ summary: "The agent runtime opens Pi sessions, handles models and provider sign-
 
 # Agent runtime
 
-One workspace agent runtime owns shared provider and model services plus an agent instance supervisor. The supervisor retains session-keyed `AgentInstanceOwnership`s and issues generic guards that provide the operational `AgentInstance` values. The supervisor keeps each ownership private. That ownership controls its session manager, restored state, and lazily booted Pi runtime. Ordered installers attach UIX behavior when a Pi runtime starts. Their order matters because Pi runs hooks in registration order.
+One workspace agent runtime owns shared provider and model services plus an agent instance supervisor. The supervisor retains session-keyed `AgentInstanceOwnership`s and issues guards that provide operational `AgentInstance` values. Each instance owns its session manager, Agent feature factories, facet registries, restored state, and lazily booted Pi runtime. Ordered installers read that instance's registries when Pi starts or reloads.
 
 Each instance's branch is the shared source for its persisted transcript and restored feature state. Historical projection and live observation must produce the same renderer transcript shape. Live rows begin with temporary IDs when necessary, then adopt Pi's durable entry IDs when Pi persists their messages.
 
@@ -25,8 +25,9 @@ Provider discovery and interactive sign-in share Pi's authentication state. A co
 - **[installers.ts](./installers.ts)** Assembles UIX's ordered Pi setup hooks into the single in-process extension used by each runtime.
 - **[instance-state.ts](./instance-state.ts)** Owns the mutable collaborators and projections scoped to one live agent instance.
 - **[instance-supervisor.ts](./instance-supervisor.ts)** Supervises session-keyed agent instances and issues explicit lifetime guards.
-- **[instance.ts](./instance.ts)** Owns one live Pi execution, active-turn cancellation, and mutable state at one session-branch viewpoint.
+- **[instance.ts](./instance.ts)** Owns one live Pi execution, active-turn cancellation, and mutable feature state at one session viewpoint.
 - **[provider-auth-flow.ts](./provider-auth-flow.ts)** Runs one interactive provider sign-in at a time and exposes its prompts, links, progress, and result to the renderer.
+- **[reload-admission.ts](./reload-admission.ts)** Keeps Agent operations and Workspace feature reload outside each other's lexical scopes.
 - **[session-files.ts](./session-files.ts)** Finds recent Pi session files and resolves a session ID to its JSONL file.
 - **[session-manager.ts](./session-manager.ts)** Opens one explicit durable session into its own Pi manager.
 - **[session-summary.ts](./session-summary.ts)** Reads session titles, first user-message previews, and timestamps without opening each Pi session.
@@ -37,6 +38,6 @@ Provider discovery and interactive sign-in share Pi's authentication state. A co
 - **[transcript-observer.ts](./transcript-observer.ts)** Mirrors live Pi session events as renderer transcript updates with the same item shape as persisted history.
 - **[transcript.ts](./transcript.ts)** Derives the transcript items shown by the renderer from persisted Pi session entries.
 - **[turn-state-coordinator.ts](./turn-state-coordinator.ts)** Restores feature state from one selected branch before its guarded instance can commit new state.
-- **[workspace-agent-runtime.ts](./workspace-agent-runtime.ts)** Coordinates shared agent services, session-keyed instances, and cancellable active turns.
+- **[workspace-agent-runtime.ts](./workspace-agent-runtime.ts)** Creates per-session feature instances and coordinates their Pi runtimes, models, and turns.
 
 <!-- INDEX:END -->

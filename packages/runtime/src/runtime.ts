@@ -30,13 +30,6 @@ import {
 } from "./agent/session-manager";
 import { agentWorkspaceSettings } from "./agent/settings";
 import { createWorkspaceAgentRuntime } from "./agent/workspace-agent-runtime";
-import { AgentContextRegistry } from "./agent-context/registry";
-import { AgentSkillRegistry } from "./agent-skill-registry";
-import { AgentSystemPromptRegistry } from "./agent-system-prompt-registry";
-import {
-  AgentToolRegistry,
-  createAgentToolInstaller,
-} from "./agent-tools/registry";
 import {
   ChannelRegistry,
   createFeatureEventPublisherFactory,
@@ -50,6 +43,7 @@ import type {
 import { createLocalDocumentStoreFactory } from "./document-store";
 import type { EventScope, RuntimeEvent } from "./events";
 import type {
+  ActivatedAgentFeature,
   ActivationResult,
   FeatureSources,
   FeatureSubstrate,
@@ -59,7 +53,7 @@ import { SurfaceModulePipeline } from "./features/surface-pipeline";
 import { SurfaceRegistry } from "./features/surfaces";
 import { createKeybindingRequestHandlers } from "./keybindings/requests";
 import { keybindingsWorkspaceSettings } from "./keybindings/settings";
-import { disposable, DisposableBag } from "./lifecycle";
+import { AsyncDisposableBag, disposable, DisposableBag } from "./lifecycle";
 import { createLogger } from "./log";
 import { WorkspaceManifestStore } from "./manifest-store";
 import { createWorkspaceReloadCoordinator } from "./reload";
@@ -70,7 +64,6 @@ import {
 } from "./resource-registry";
 import type { Workspace } from "./roots";
 import { SettingsRegistry } from "./settings-registry";
-import { TurnStateRegistry } from "./turn-state";
 import type {
   Attachment as AttachmentContract,
   AttachmentId,
@@ -133,7 +126,7 @@ interface AttachmentOwner {
 class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   readonly #workspaceId: WorkspaceId;
   readonly #bag = new DisposableBag();
-  readonly #featuresBag = new DisposableBag();
+  readonly #featuresBag = new AsyncDisposableBag();
   readonly #channels: ChannelRegistry;
   readonly #resources: ResourceRegistry;
   readonly #settingsRegistry: SettingsRegistry;
@@ -153,6 +146,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   readonly #attachments = new Set<Attachment>();
   readonly #listeners = new Set<(event: RuntimeEvent) => void>();
   readonly #workspace: Workspace;
+  #agentFeatures: readonly ActivatedAgentFeature[] = [];
   #nextAttachment = 0;
   #nextEventId = 0;
   #disposal: Promise<void> | undefined;
@@ -185,12 +179,6 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
         this.#emit({ kind: "workspace" }, channel, payload, logOptions);
       },
     });
-    const turnState = new TurnStateRegistry();
-    const agentTools = new AgentToolRegistry();
-    const agentSystemPrompt = new AgentSystemPromptRegistry();
-    const agentSkills = new AgentSkillRegistry();
-    const agentContext = new AgentContextRegistry();
-
     const createAgentEventPublisher = (
       scope: EventScope,
     ): FeatureEventPublisher<typeof agentChannels> =>
@@ -217,17 +205,22 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     };
 
     this.#agentRuntime = createWorkspaceAgentRuntime({
+      documents,
       onEvent: (sessionId, event) => {
         logChatContent(event);
         createAgentEventPublisher({ kind: "session", sessionId }).event(event);
       },
+      onFeatureEvent: (sessionId, channel, payload, logOptions) => {
+        this.#emit(
+          { kind: "session", sessionId },
+          channel,
+          payload,
+          logOptions,
+        );
+      },
       workspace,
       piAppDataDir,
-      turnState,
-      agentSystemPrompt,
-      agentSkills,
-      agentContext,
-      agentInstallers: [createAgentToolInstaller(agentTools)],
+      getAgentFeatures: () => this.#agentFeatures,
       // Lazy handles: workspace scopes register during the settings reload
       // inside loadFeatures(), before any agent operation can read them.
       agentSettings: workspaceSettings.forNamespace(agentWorkspaceSettings),
@@ -415,11 +408,13 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
       ),
     );
     agentChannelsBag.add(
-      registerAgentRequest("tool_catalog", () => ({
-        tools: agentTools.list().map(({ tool }) => ({
-          name: tool.name,
-          label: tool.label,
-        })),
+      registerAgentRequest("tool_catalog", (context) => ({
+        tools: context.agentInstanceGuard.value.features.agentTools
+          .list()
+          .map(({ tool }) => ({
+            name: tool.name,
+            label: tool.label,
+          })),
       })),
     );
     agentChannelsBag.add(
@@ -479,23 +474,22 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
       registries: {
         resources: this.#resources,
         channels: this.#channels,
-        agentTools,
-        agentSystemPrompt,
-        agentSkills,
-        turnState,
-        agentContext,
+        invokeAgentChannel: (context, canonicalId, payload) =>
+          this.#agentRuntime.invokeFeatureChannel(
+            context.agentInstanceGuard,
+            canonicalId,
+            payload,
+          ),
         surfaces: this.#surfaces,
       },
     };
 
     this.#reloadCoordinator = createWorkspaceReloadCoordinator({
+      acquireReloadAdmission: () => this.#agentRuntime.acquireReloadAdmission(),
       commitTurnState: () => this.#agentRuntime.commitFeatureTurnState(),
-      loadFeatures: () =>
-        loadFeatures(
-          this.#currentSources(),
-          this.#featuresBag,
-          this.#substrate,
-        ),
+      loadFeatures: () => this.#loadFeatures(),
+      featureCleanupErrors: (activation) => activation.cleanupErrors ?? [],
+      reloadAgentFeatures: () => this.#agentRuntime.reloadFeatureInstances(),
       reloadPiResources: () => this.#agentRuntime.reloadPiResources(),
       restoreTurnState: () => this.#agentRuntime.restoreFeatureTurnState(),
       publishSurfacesChanged: () => {
@@ -524,11 +518,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   async load(): Promise<ActivationResult> {
     let activation: ActivationResult;
     try {
-      activation = await loadFeatures(
-        this.#currentSources(),
-        this.#featuresBag,
-        this.#substrate,
-      );
+      activation = await this.#loadFeatures();
     } catch (thrown) {
       const error =
         thrown instanceof Error ? thrown : new Error(String(thrown));
@@ -676,11 +666,26 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
       try {
         await this.#agentRuntime[Symbol.asyncDispose]();
       } finally {
-        this.#featuresBag[Symbol.dispose]();
-        this.#bag[Symbol.dispose]();
+        try {
+          await this.#featuresBag[Symbol.asyncDispose]();
+        } finally {
+          this.#bag[Symbol.dispose]();
+        }
       }
     })();
     return this.#disposal;
+  }
+
+  async #loadFeatures(): Promise<ActivationResult> {
+    const activation = await loadFeatures(
+      this.#currentSources(),
+      this.#featuresBag,
+      this.#substrate,
+    );
+    this.#agentFeatures = activation.activated.flatMap((feature) =>
+      feature.agent ? [feature.agent] : [],
+    );
+    return activation;
   }
 
   #currentSources(): FeatureSources {

@@ -23,6 +23,27 @@ describe("AsyncDisposableBag", () => {
     expect(order).toEqual(["second", "first"]);
   });
 
+  it("awaits a clear and accepts replacement lifetimes", async () => {
+    const order: string[] = [];
+    const bag = new AsyncDisposableBag();
+    bag.add({
+      [Symbol.asyncDispose]: async () => {
+        await Promise.resolve();
+        order.push("old");
+      },
+    });
+
+    await bag.clear();
+    bag.add({
+      [Symbol.dispose]: () => {
+        order.push("replacement");
+      },
+    });
+    await bag[Symbol.asyncDispose]();
+
+    expect(order).toEqual(["old", "replacement"]);
+  });
+
   it("joins idempotent disposal and rejects later additions", async () => {
     const dispose = vi.fn<() => Promise<void>>(() => Promise.resolve());
     const bag = new AsyncDisposableBag();
@@ -30,7 +51,7 @@ describe("AsyncDisposableBag", () => {
 
     const first = bag[Symbol.asyncDispose]();
     expect(bag[Symbol.asyncDispose]()).toBe(first);
-    expect(() => bag.add({ [Symbol.dispose]() {} })).toThrow("disposing");
+    expect(() => bag.add({ [Symbol.dispose]() {} })).toThrow("disposed");
 
     await first;
     expect(dispose).toHaveBeenCalledOnce();

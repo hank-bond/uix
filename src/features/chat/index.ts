@@ -12,7 +12,7 @@ import { chatSettings } from "./shared/settings";
 export const feature = defineFeature({
   id: "chat",
   settings: chatSettings,
-  contribute: () => ({
+  workspace: () => ({
     surfaces: ["./workspace/surface.tsx"],
   }),
 });
