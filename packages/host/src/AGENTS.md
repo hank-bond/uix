@@ -15,6 +15,7 @@ This package holds the host-neutral coordination both concrete hosts compose. A 
 
 ### Source files
 
+- **[catalog.ts](./catalog.ts)** The versioned machine-readable workspace catalog shared by host capability adapters.
 - **[index.ts](./index.ts)** The @uix/host public facade re-exporting shared host coordination contracts.
 - **[supervisor.ts](./supervisor.ts)** Supervises workspace-keyed runtimes and issues independent workspace guards.
 - **[workspace.ts](./workspace.ts)** Host-level workspace operations and supervisor-only lifecycle authority.

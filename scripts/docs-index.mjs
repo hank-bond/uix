@@ -52,18 +52,19 @@ const layers = [
   { dir: "apps", kind: "container" },
 ];
 
-const SOURCE_ROOTS = ["src", "scripts", "templates", "packages"];
-// Directories under a source root that carry a hand-authored AGENTS.md without a
-// generated source index at that level. src/docs is a documentation layer. The
-// package roots keep a routing AGENTS.md whose src/ subdirectory carries the
-// source index (see packages/api), so these entries stay excluded: the visitor
-// still descends and indexes packages/*/src/AGENTS.md.
+const SOURCE_ROOTS = ["src", "scripts", "templates", "packages", "hosts"];
+// Directories under a source root that include a hand-authored AGENTS.md without a
+// generated source index at that level. Documentation containers and empty
+// ownership roots stay excluded, while discovery still descends into their
+// source-owning children.
 const SOURCE_EXCLUDED_DIRECTORIES = new Set([
   "src/docs",
   "packages/api",
   "packages/runtime",
   "packages/client",
   "packages/host",
+  "hosts",
+  "hosts/electron",
 ]);
 
 const START = "<!-- INDEX:START -->";
@@ -171,7 +172,7 @@ function renderIndex(entries) {
     .join("\n");
 }
 
-// A container's children are its immediate subdirectories that carry an AGENTS.md
+// A container's children are its immediate subdirectories that include an AGENTS.md
 // plus its immediate top-level docs (AGENTS.md itself excluded).
 function autoChildren(dir) {
   const out = [];

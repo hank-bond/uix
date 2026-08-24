@@ -1,0 +1,75 @@
+// Starts one server host from injected environment and process-path inputs while cleaning up failed listener admission.
+
+import { resolveServerConfiguration } from "./configuration";
+import { createServerHost, type ServerHost } from "./server";
+
+interface StartServerOptions {
+  readonly environment: Readonly<Record<string, string | undefined>>;
+  readonly cwd: string;
+  readonly assetRoot: string;
+  readonly hostAddress?: string;
+  readonly createHost?: typeof createServerHost;
+}
+
+export interface StartedServer {
+  readonly ok: true;
+  readonly host: ServerHost;
+  readonly address: string;
+  readonly publicOrigin: string;
+  readonly registryPath: string;
+}
+
+export interface FailedServerStart {
+  readonly ok: false;
+  readonly error: Error;
+  readonly cleanupError?: Error;
+}
+
+export type ServerStartResult = StartedServer | FailedServerStart;
+
+/** Validate process configuration, open the listener, and clean up partial startup on failure. */
+export async function startServer(
+  options: StartServerOptions,
+): Promise<ServerStartResult> {
+  let host: ServerHost | undefined;
+  try {
+    const hostAddress = options.hostAddress ?? "127.0.0.1";
+    const configuration = resolveServerConfiguration({
+      environment: options.environment,
+      cwd: options.cwd,
+      hostAddress,
+    });
+    const createHost = options.createHost ?? createServerHost;
+
+    host = await createHost({
+      registryPath: configuration.registryPath,
+      publicOrigin: configuration.publicOrigin,
+      assetRoot: options.assetRoot,
+    });
+    const address = await host.listen({
+      host: hostAddress,
+      port: configuration.port,
+    });
+    return {
+      ok: true,
+      host,
+      address,
+      publicOrigin: configuration.publicOrigin,
+      registryPath: configuration.registryPath,
+    };
+  } catch (error) {
+    let cleanupError: Error | undefined;
+    if (host) {
+      try {
+        await host[Symbol.asyncDispose]();
+      } catch (cleanupFailure) {
+        cleanupError = toError(cleanupFailure);
+      }
+    }
+    return { ok: false, error: toError(error), cleanupError };
+  }
+}
+
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}

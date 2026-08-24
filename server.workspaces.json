@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "workspaces": [
+    {
+      "id": "uix",
+      "manifest": "./uix.workspace.json"
+    }
+  ]
+}

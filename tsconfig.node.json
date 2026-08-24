@@ -29,7 +29,7 @@
     "packages/runtime/src/**/*.ts",
     "packages/host/src/**/*.ts",
     "hosts/electron/**/*.ts",
-    "hosts/server/**/*.ts",
+    "hosts/server/src/node/**/*.ts",
     "apps/features/**/backend/**/*.ts",
     "src/main/**/*.ts",
     "src/features/*/index.ts",

@@ -723,9 +723,11 @@ export default tseslint.config(
   {
     files: [
       "eslint.config.mjs",
-      "*.config.ts",
-      "*.config.mjs",
-      "*.config.js",
+      "**/*.config.ts",
+      "**/*.config.mjs",
+      "**/*.config.js",
+      "**/*.test.mjs",
+      "**/*.test.js",
       "scripts/**/*.mjs",
       "scripts/**/*.js",
     ],

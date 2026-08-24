@@ -15,7 +15,9 @@
     "dev": "electron-vite dev",
     "dev:fast": "electron-vite dev --rendererOnly",
     "build": "electron-vite build",
+    "build:server": "node hosts/server/build.config.mjs",
     "start": "electron-vite preview",
+    "start:server": "node out/server/index.mjs",
     "typecheck": "node_modules/tsc7/bin/tsc -p tsconfig.node.json --noEmit && node_modules/tsc7/bin/tsc -p tsconfig.web.json --noEmit",
     "lint": "eslint .",
     "lint:cached": "eslint . --cache --cache-location node_modules/.cache/eslint/ --cache-strategy content",
@@ -24,10 +26,10 @@
     "format:check": "prettier --check .",
     "docs:index": "node scripts/docs-index.mjs",
     "docs:check": "node scripts/docs-index.mjs --check",
-    "vocabulary:check": "vale AGENTS.md README.md docs plans src packages website",
+    "vocabulary:check": "vale AGENTS.md README.md docs plans src packages hosts apps scripts templates website",
     "test": "vitest run",
     "prepare": "git config core.hooksPath .githooks || true",
-    "check": "npm run typecheck && npm run lint:cached && npm run test && npm run format:check && npm run docs:check && npm run vocabulary:check",
+    "check": "npm run typecheck && npm run lint:cached && npm run test && npm run build:server && npm run format:check && npm run docs:check && npm run vocabulary:check",
     "check:notest": "npm run typecheck && npm run lint:cached && npm run format:check && npm run docs:check && npm run vocabulary:check"
   },
   "dependencies": {

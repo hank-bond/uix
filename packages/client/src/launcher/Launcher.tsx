@@ -60,11 +60,11 @@ export function Launcher({
       </header>
 
       <section className="launcher__section">
-        <h2>Recent</h2>
+        <h2>Workspaces</h2>
         {workspaces === null ? (
           <p className="launcher__empty">…</p>
         ) : workspaces.length === 0 ? (
-          <p className="launcher__empty">No recent workspaces.</p>
+          <p className="launcher__empty">No workspaces.</p>
         ) : (
           <ul className="launcher__recents">
             {workspaces.map((workspace) => (

@@ -1,6 +1,12 @@
 // The @uix/host public facade re-exporting shared host coordination contracts.
 
 export {
+  assertWorkspaceCatalogId,
+  parseWorkspaceCatalog,
+  type WorkspaceCatalog,
+  WorkspaceCatalogVersion,
+} from "./catalog";
+export {
   type WorkspaceGuard,
   type WorkspaceGuardSnapshot,
   type WorkspaceGuardSnapshotEntry,

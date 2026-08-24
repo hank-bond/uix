@@ -72,6 +72,7 @@ const allowed = [
   ["hosts/electron/src/index.ts", "@uix/host"],
   ["hosts/electron/src/index.ts", "@uix/runtime"],
   ["hosts/electron/src/index.ts", "@uix/client"],
+  ["hosts/server/src/index.ts", "@uix/client"],
   ["hosts/server/src/index.ts", "@uix/host"],
   ["hosts/server/src/index.ts", "@uix/runtime"],
 ];

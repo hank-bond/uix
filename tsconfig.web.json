@@ -18,6 +18,8 @@
       "@uix/api/*": ["./packages/api/src/*.ts"],
       "@uix/client": ["./packages/client/src/index.ts"],
       "@uix/client/*": ["./packages/client/src/*.ts"],
+      "@uix/host": ["./packages/host/src/index.ts"],
+      "@uix/host/*": ["./packages/host/src/*.ts"],
       "#backend/*": ["./src/main/*"],
       "#features/*": ["./src/features/*"],
       "#shared/*": ["./src/shared/*"]
@@ -27,7 +29,9 @@
     "packages/api/src/**/*.ts",
     "packages/client/src/**/*.ts",
     "packages/client/src/**/*.tsx",
+    "packages/host/src/catalog.ts",
     "apps/features/**/workspace/**/*.ts",
+    "hosts/server/src/browser/**/*.ts",
     "src/renderer/**/*.ts",
     "src/renderer/**/*.tsx",
     "src/features/**/workspace/**/*.ts",

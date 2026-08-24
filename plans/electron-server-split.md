@@ -18,7 +18,7 @@ summary: "Build the Electron and web hosts over the proved workspace runtime, at
 - **H5.1** launcher extraction landed in `0e2ccdc`.
 - **H5.2** workspace extraction landed in `0780f80`.
 - **H5.3** dependency-boundary enforcement landed. H5 is complete.
-- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1-W9** build the web host from that spec. H7-H8 follow with Electron rehoming and two-host conformance.
+- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** is implemented and awaiting review. **W2-W9** continue the web host from that spec. H7-H8 follow with Electron rehoming and two-host conformance.
 
 ## Status and intent
 
@@ -222,7 +222,7 @@ Implement H5 in three review slices:
 
 ### W1: Workspace registry, catalog, and launcher
 
-Build the read-only workspace registry loaded at boot, the versioned public catalog projection, and the launcher page served with zero active runtimes. The registry file holds opaque workspace ids, names, and server roots. The projection exposes only ids, names, and canonical locations derived from the public-origin policy. Serve the shared launcher client over the catalog adapter, with no create or delete operations. Changing the registry requires a host restart.
+Build the read-only workspace registry loaded at boot, the versioned public catalog projection, and the launcher page served with zero active runtimes. The registry file holds opaque workspace ids and explicit `uix.workspace.json` references. The host snapshots each workspace name from its manifest and resolves relative references from the registry file. The projection exposes only ids, names, and canonical locations derived from the public-origin policy. Serve the shared launcher client over the catalog adapter, with no create or delete operations. Changing the registry or a projected manifest name requires a host restart.
 
 **Review gate:** The launcher lists configured workspaces with zero runtimes. The catalog is versioned and contains no filesystem or storage coordinates. Restart reflects registry edits. A wrong workspace id is rejected without revealing the registry path.
 

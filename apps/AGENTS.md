@@ -5,7 +5,7 @@ read_when: "Deciding whether code is an app feature or belongs in the substrate,
 
 # Apps
 
-Apps are explicit compositions: a host plus a workspace and feature composition. Entries under `apps/features` are reusable source catalogs, not compiled-in defaults; entries under `apps/workspaces` are manifests with optional local feature source. Hosts never install app features silently, and the core runtime and hosts build without importing this tree. Feature implementations import author contracts only.
+Apps are explicit compositions: a host plus a workspace and feature composition. Entries under `apps/features` are reusable source catalogs, not compiled-in defaults. Entries under `apps/workspaces` are manifests with optional local feature source. Hosts never install app features silently, and the core runtime and hosts build without importing this tree. Feature implementations import author contracts only.
 
 <!-- INDEX:START -->
 
