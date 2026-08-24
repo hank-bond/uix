@@ -1,5 +1,5 @@
 ---
-summary: "Build minimal Electron and loopback server hosts over the proved workspace runtime, attachment boundary, supervisor, and shared browser client."
+summary: "Build the Electron and web hosts over the proved workspace runtime, attachment boundary, supervisor, and shared browser client, per the accepted web-host specification."
 ---
 
 # Electron and server hosts
@@ -18,21 +18,15 @@ summary: "Build minimal Electron and loopback server hosts over the proved works
 - **H5.1** launcher extraction landed in `0e2ccdc`.
 - **H5.2** workspace extraction landed in `0780f80`.
 - **H5.3** dependency-boundary enforcement landed. H5 is complete.
-- **R0, A1, and A2** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **A3** is in review for Agent-instance current transcript snapshots. **H6** follows with the minimal loopback server, then H7-H8 Electron rehoming and basic two-host conformance.
+- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1-W9** build the web host from that spec. H7-H8 follow with Electron rehoming and two-host conformance.
 
 ## Status and intent
 
-This plan replaces the earlier transport-first Electron/server split. The discarded spike proved that Electron-independent runtime code and a WebSocket adapter are possible. It also let Electron's global handler and broadcast model shape the transport boundary before host, workspace, attachment, and client ownership were clear. The rebuilt path treats that work as evidence rather than an implementation base.
+This plan's landed units (H0-H5 and the Agent feature work) established the shared substrate. That substrate covers workspace supervision, attachment dispatch, guarded agent instances, and the host-neutral browser clients. The first server attempt (H6) implemented a minimal loopback host. It was discarded. The loopback-only scope, its redirect-to-WebSocket pending-attachment handoff, `.localhost` resource origins, and missing reconnect, shutdown-notification, provider-auth, and reload behaviors did not match the non-local direction. Its lessons are recorded in the attempt summary at the end of this plan.
 
-The highest-risk questions land first as executable architecture:
+The accepted [web-host specification](../docs/specs/web-host.md) now defines the web host independently of one implementation attempt. This plan builds to that specification. It adopts one trust domain with deployment-provided admission. It adopts a live control plane plus an HTTP content plane including immutable content references. Sessions are created and owned by their live connection. Reconnection is client-owned. The registry is read-only. The public-origin policy is explicit, and shutdown is graceful. The specification leaves the HTTP library, live transport, frame encoding, routing, and pathnames as degrees of freedom. The first web-host unit may pick them from current evidence rather than from the discarded attempt.
 
-1. Can two real workspace runtimes with duplicate feature, channel, and resource ids coexist and dispose independently in one process?
-2. Can one workspace runtime supervise concurrent real Pi agents on separate sessions with single-flight instance creation, explicit lifetime guards, retargeting, and safe teardown?
-3. Can one attachment and scoped dispatch boundary support in-memory tests, Electron IPC, and WebSocket connections without feature contracts learning transport fields?
-
-Broad source movement and host implementation follow only after those gates pass. A failed gate pauses the plan and reopens the design rather than adding compatibility around a wrong boundary.
-
-The plan implements the synthesis in [`host-workspace-runtime-boundaries.md`](../docs/design/host-workspace-runtime-boundaries.md), [`agent-session-routing.md`](../docs/design/agent-session-routing.md), [`agent-instance-state.md`](../docs/design/agent-instance-state.md), [`product-and-distribution.md`](../docs/design/product-and-distribution.md), and [`workspace-feature-composition.md`](../docs/design/workspace-feature-composition.md). It retains the decisions that features are the loadable unit, manifests are the composition authority, surface delivery is runtime-built, and designs remain hosting-compatible. Implementation follows the [`human-paced-implementation.md`](../docs/architecture/human-paced-implementation.md) loop: complete one review unit, explain it, and wait for approval.
+The plan implements the synthesis in [`host-workspace-runtime-boundaries.md`](../docs/design/host-workspace-runtime-boundaries.md), [`agent-session-routing.md`](../docs/design/agent-session-routing.md), [`agent-instance-state.md`](../docs/design/agent-instance-state.md), [`product-and-distribution.md`](../docs/design/product-and-distribution.md), and [`workspace-feature-composition.md`](../docs/design/workspace-feature-composition.md), against the accepted [web-host specification](../docs/specs/web-host.md). It retains the decisions that features are the loadable unit, manifests are the composition authority, surface delivery is runtime-built, and designs remain hosting-compatible. Implementation follows the [`human-paced-implementation.md`](../docs/architecture/human-paced-implementation.md) loop: complete one review unit, explain it, and wait for approval.
 
 ## Target topology
 
@@ -81,9 +75,12 @@ The exact shared host package name remains reviewable in the first unit. The own
 - **Hosts route, runtimes dispatch.** A host resolves the workspace once and owns physical connection context. It acquires one workspace guard and passes the connection's `SessionTarget` through unchanged. The guard's operational `Workspace` value creates one runtime attachment, and the host binds both capabilities to the connection. The attachment owns request authority, target guards, event observation, and disposal. Its private supervised workspace holds only the delivery closure returned at creation, selects matching receivers, and sends through host transport. Each later canonical request asks the attachment to prepare one dispatch directly. The runtime resolves an omitted `branchId`, then acquires or creates the corresponding agent instance. One canonical channel table and handler model route the request and validate its request and response. Feature payloads contain no transport or tenancy fields.
 - **No global broadcast semantics.** H4 routes workspace and session events only to matching attachments. Explicit agent-instance identity and event scope wait for a concrete ephemeral-execution or stale-work requirement. A transport can optimize subscription mechanics without redefining delivery scope.
 - **One wire-log boundary.** Every channel crossing records through one chokepoint with per-contract redaction. The log can be neither dodged nor spoofed, and crossing lines stay identical across hosts.
-- **The launcher precedes all runtimes.** A host can serve workspace catalogs with zero active workspaces. Launcher HTTP, CLI JSON, Electron, and native clients consume one machine-readable projection.
+- **The launcher precedes all runtimes.** A host can serve workspace catalogs with zero active workspaces. Launcher HTTP, CLI JSON, Electron, and native clients consume one machine-readable projection. The first web host loads a read-only workspace registry at boot. Changing it requires a restart. The served projection contains only opaque ids, names, and canonical locations.
 - **The browser client is host-neutral.** Shared launcher and workspace clients receive constructed adapters. They do not inspect Electron globals or select transports.
-- **Resources have one logical dispatcher.** Electron protocols and server HTTP encode workspace-qualified routes over the same runtime-owned resource semantics.
+- **One instance is one trust domain.** Strong isolation between deployments, users, or hosted tenants. Only weak cooperative isolation among code and content admitted within one workspace. Admission is deployment-provided, through a trusted network boundary or authenticated ingress. The host performs no login and holds no credentials in this version. Non-loopback operation requires an explicit public-origin policy. Every browser-visible location and cross-origin grant derives from that policy. The host never infers public locations from request headers.
+- **Live connections own their attachments.** A workspace-only URL serves a stateless shell. The connection creates its session and attachment and canonicalizes the location. No pending attachment crosses separate physical requests.
+- **Reconnection is client-owned.** The server detects dead connections with periodic ping/pong. The client reconnects with capped backoff and rehydrates snapshots rather than replaying events. Pending requests are rejected locally and never auto-resent. Mutating requests return the durable identity of what they created.
+- **One control plane, one content plane.** Live connections include requests, responses, events, and host-neutral immutable content references. HTTP includes the referenced content. Each fetch retains independent workspace authority and never depends on a live connection. Hosts map accepted content references onto browser transport URLs. Feature code never observes the transport encoding.
 - **Apps are explicit compositions.** Hosts do not silently install app features. Shared and workspace-local features remain explicit manifest references.
 - **Lifetimes compose.** The host owns physical connections. The workspace supervisor owns each supervised workspace and its runtime teardown. Each connection owns an independent workspace guard and one attachment. The guard provides an operational `Workspace` value that exposes attachment creation without disposal. Each attachment owns a replaceable target guard, and detached operations own independent guards. The supervised workspace remains the parent lifetime. The runtime owns active feature composition, while its agent instance supervisor remains the sole owner of agent instances.
 
@@ -223,66 +220,110 @@ Implement H5 in three review slices:
 
 **Review gate:** Electron behavior remains unchanged. Shared client code reads no Electron global and cannot import concrete host, runtime, app, or legacy implementation paths.
 
-### H6: Build the minimal loopback server host
+### W1: Workspace registry, catalog, and launcher
 
-Create `hosts/server` over the existing workspace supervisor and one-workspace runtime. Bind loopback only. Serve the minimal launcher and canonical workspace-session pages. These real server entries are the browser-only client build proof. H5 leaves no fake host beside them. Each browser connection owns one workspace guard and one attachment with one current session target. Several tabs may attach to the same workspace on the same or different sessions.
+Build the read-only workspace registry loaded at boot, the versioned public catalog projection, and the launcher page served with zero active runtimes. The registry file holds opaque workspace ids, names, and server roots. The projection exposes only ids, names, and canonical locations derived from the public-origin policy. Serve the shared launcher client over the catalog adapter, with no create or delete operations. Changing the registry requires a host restart.
 
-Use discriminated request, response, error, and event frames with correlation ids. The accepted URL selects the workspace and initial session. Ordinary frames repeat no routing identity. The host asks its bound attachment to prepare canonical dispatch and routes only matching runtime events.
+**Review gate:** The launcher lists configured workspaces with zero runtimes. The catalog is versioned and contains no filesystem or storage coordinates. Restart reflects registry edits. A wrong workspace id is rejected without revealing the registry path.
 
-Bind the runtime resource dispatcher to HTTP in this unit. Serve the workspace shell, surface modules, styles, feature resources, and contained Canvas content through workspace-qualified routes. Preserve logical resource identity while allowing HTTP and Electron protocol encodings to differ.
+### W2: Stateless workspace shell and live session creation
 
-Support the basic reference flow with an already configured Pi profile. Open a workspace, inspect history, prompt, stream transcript updates, and use current feature surfaces. Allow session switching only while idle. Do not promise running-turn reattachment, background-run presentation, automatic mutation retry, provider-login parity, or multiple visible session targets.
+Serve `/w/:workspace` as a stateless shell that acquires no runtime. On the live-connection upgrade, acquire the workspace through the supervisor, create a new session and attachment, and return the accepted session id. The client canonicalizes its location with a history replacement. A direct `/w/:workspace/s/:session` upgrade attaches to the named durable session. No pending-attachment map or cross-request handoff exists.
 
-Apply the minimum loopback safety checks for Content Security Policy, iframe origins, path traversal, and resource routing. Broader threat review and non-loopback operation remain deferred.
+**Review gate:** Two tabs opening the workspace-only URL create two independent sessions and attachments. Reloading a canonical URL reattaches to that session. Closing a connection disposes its attachment without affecting a peer.
 
-**Review gate:** Supported browser tabs open one configured workspace on distinct sessions and run isolated basic Agent turns. They render the reference surfaces and serve the matching Canvas resources. No server transport field enters runtime or feature payloads.
+### W3: Live transport protocol
+
+Define the discriminated ready, request, response, error, and event frames with physical correlation ids. Enforce exactly one terminal response per accepted request. Reject reuse of an in-flight correlation id without disturbing the original request. Route every canonical request through the bound attachment's prepared dispatch. Record crossings through the wire-log chokepoint with contract-owned redaction. Deliver runtime events only to matching attachment targets. Malformed frames never reach dispatch and correlate only after independent id validation.
+
+**Review gate:** Success, failure, duplicate-correlation, and disconnect semantics are proven. No workspace, session, or authentication identity appears in canonical payloads. Unknown channels log under the safe payload-omitting policy.
+
+### W4: Content plane
+
+Make content references host-neutral and immutable in live channel payloads, and serve the referenced bytes over HTTP. The host maps each accepted reference to a browser-fetchable URL for the workspace and session viewpoint. Each fetch retains its own workspace guard. It does not boot an Agent instance unless resolution requires one. Apply cache policy by content class. Versioned immutable content caches immutably, while pages, catalog, projections, and current-state endpoints stay no-store. Cross-origin grants derive only from the configured public-origin policy. Exported or frozen content must not require host-specific transport URLs.
+
+**Review gate:** A referenced document survives its originating socket disconnecting. Cache headers match content class. A fetch from an unauthorized origin receives no cross-origin grant. The substrate resource pipeline serves modules, styles, CSS assets, and fonts through the same content path.
+
+### W5: Deployment profiles and public origin
+
+Loopback-only startup may derive the public origin from the bound address. Any non-loopback startup requires an explicit public origin. Reject request authorities and browser origins outside the configured policy without trusting client-authored headers. Support the trusted-encrypted-network plaintext profile and the TLS-or-trusted-ingress profile. Keep non-loopback binding explicit. Apply the browser security policy (CSP) over only the origins the active client needs. A failed start closes every listener, socket, and runtime it opened.
+
+**Review gate:** Wrong-host and wrong-origin requests are rejected. Configured public origins produce correct absolute catalog, live, and content locations. The two deployment profiles satisfy the same contracts.
+
+### W6: Reconnect, heartbeat, and request semantics
+
+Add server-side dead-connection detection with periodic ping/pong (approximately 30 seconds) so a dead socket releases its attachment. Implement client-owned reconnection with capped backoff, triggered by close, error, network recovery, or visibility return, attaching to the session named by the canonical location. Rehydrate authoritative snapshots rather than replaying events. Reject pending client requests locally on disconnect and never auto-resent them. Mutating requests return the durable identity of the record they created. Safe retries reuse a client-supplied idempotency identity.
+
+**Review gate:** Laptop sleep/wake, network change, and server restart scenarios recover through snapshots without duplicate prompts. A prompt confirmed before disconnect is not re-run. Optimistic user rows confirm from the reconnect snapshot.
+
+### W7: Graceful shutdown and startup failure
+
+On termination, stop admission and notify live connections with a shutdown frame. Cancel active Agent runs through native cancellation. Close connections and dispose pending and live attachment ownership. Stop HTTP service and await workspace-supervisor teardown before exiting. The host never waits for an Agent run to complete. A failed start closes everything it opened.
+
+**Review gate:** Termination during an active turn cancels the run, notifies clients, and exits without leaking the listener or runtimes. A failed start leaves no port or runtime alive.
+
+### W8: Provider authentication on the browser device
+
+The web host does not open provider links on the server machine. The browser opens retained provider links and device codes on the user's device, so the Codex headless/device-code flow completes from an unconfigured Pi profile. API-key and manual prompt flows continue over the existing provider-auth channels. No callback or redirect endpoint exists in this version. Full OAuth callback parity is deferred.
+
+**Review gate:** A device-code flow completes from a fresh profile. Links and codes render and open on the client device. No server-side browser or callback is required.
+
+### W9: Workspace reload as a substrate channel
+
+Add a reload request to the substrate `uix` channel contract with the runtime's `ReloadResult` shape. Expose it as a shared workspace action with a non-reserved default binding and a palette entry. Reload is rejected while an Agent operation is active. A successful reload replaces the composition once and fans a composition-changed event to every attached tab without a page reload. Failures return structured diagnostics while the previous composition remains active. Electron's `CmdOrCtrl+R` menu item rehomes to the same substrate path.
+
+**Review gate:** Browser-triggered reload activates edited feature source and manifests. Every attached tab updates its surfaces, and Electron behavior is preserved.
 
 ### H7: Reconstitute Electron as a discrete host
 
 Move Electron main, preload, launcher bootstrap, native chrome, IPC, protocol, recents, dialogs, and packaging assumptions under `hosts/electron`. Compose the shared supervisor, runtime, launcher client, and workspace client through Electron adapters.
 
-Bind each Electron window to one workspace guard and attachment. Its `webContents` remains the physical connection identity. Replace each runtime's direct protocol registration with one host-owned workspace-qualified dispatcher. Preserve awaited shutdown and current dogfood behavior.
+Bind each Electron window to one workspace guard and attachment. Its `webContents` remains the physical connection identity. Replace each runtime's direct protocol registration with one host-owned workspace-qualified dispatcher. Preserve awaited shutdown and current dogfood behavior. Rehome the `CmdOrCtrl+R` reload menu item to the substrate `uix` reload channel from W9.
 
 Keep process handlers, raw IPC, protocol registration, and window lifecycle inside the Electron host. No Electron import may exist in runtime, client, app feature, or shared host-neutral code.
 
 **Review gate:** Electron passes existing behavior checks from its discrete composition root. The server and Electron hosts build without importing one another.
 
-### H8: Basic two-host conformance and split gate
+### H8: Two-host conformance and split gate
 
-Run one semantic suite against in-memory, Electron, and server adapters. Cover one workspace-session attachment, canonical request success and failure, scoped events, resource dispatch, redacted logging, disconnect, and deterministic disposal.
+Run one semantic suite against in-memory, Electron, and web-host adapters. The suite exercises the [web-host specification](../docs/specs/web-host.md) conformance outcomes. It covers one workspace-session attachment, canonical request success and failure, duplicate-correlation rejection, scoped events, and content dispatch with independent guards. It covers redacted logging, disconnect, reconnection with snapshot hydration, and deterministic disposal and shutdown.
 
-Keep concurrent-session Canvas behavior, complete reconnect recovery, provider authentication, reload parity, and distribution outside this gate. Their dedicated plans build on the same attachment, client-adapter, and resource boundaries.
+Keep concurrent-session Canvas behavior, complete distribution, and hardening outside this gate. Their dedicated plans build on the same attachment, client-adapter, and resource boundaries. Reconnect, provider auth, and reload parity are already covered by W6, W8, and W9 and join the gate.
 
-**Review gate:** Both concrete hosts run one shared workspace client over one runtime implementation. A basic Chat and Canvas flow works in Electron and a loopback browser without host-specific feature contracts.
+**Review gate:** Both concrete hosts run one shared workspace client over one runtime implementation. A basic Chat and Canvas flow works in Electron and a browser across the control/content split, without host-specific feature contracts.
 
 ## Decisions deliberately deferred
 
 - Named Agents, multiple branch-bound Agents, and multi-branch coordination, tracked in the Agent feature plan.
 - Complete operation cancellation and bounded shutdown, tracked in the hardening plan.
-- Reconnect recovery, provider-auth parity, app rehoming, security review, discovery, and packaging, tracked in the parity plan.
+- Writable registry operations. These include creating and deleting workspaces from the launcher, and host-side directory browsing.
+- OAuth callback endpoints and redirect flows. Only the device/headless flow is in scope for the first web host.
+- Resource exhaustion quotas. Bounded messages, concurrent requests, and outbound backpressure are deferred until there is evidence of a problem.
+- Tailscale Serve automation and Tailscale Services integration as supported deployment profiles.
+- Host login, credentials, and user identity. Admission remains deployment-provided.
+- Hostile multi-user tenancy on one instance. Hosted isolation remains VM- or instance-per-user.
+- A feature marketplace or hostile-feature sandbox with strong per-feature isolation.
 - Configurable zero-guard idle periods and always-on Agent policies.
 - Host-authored background Agent guards and cron orchestration.
 - Named Agents, multiple branch-bound Agents, spawning, and durable mailboxes.
 - Ephemeral call-and-response Agents and explicit instance identity.
 - Remote identity, tenancy, authorization, collaboration, and hosted persistence.
-- Non-loopback operation before a separate security model.
-- A feature marketplace or hostile-feature sandbox.
 
 ## Not in this plan
 
-- Preserving the discarded broadcast transport or global broadcast behavior for compatibility.
+- Preserving the discarded broadcast transport, global broadcast behavior, or the loopback-only server implementation for compatibility.
 - Maintaining parallel old and new runtime or renderer paths.
 - Replacing Electron with another desktop shell.
 - Building the native launcher UI.
 - Building Fruition or hosted Fruition.
 - Process-isolated workspace runtimes. Local isolation is in-process lifetime bags, and a hosted deployment isolates users by VM.
 - Adding implicit feature discovery or compiled-in default features.
+- Writable launcher operations or host login.
+- OAuth callback endpoints, hostile multi-user tenancy, or marketplace isolation on one instance.
 
 ## Completion gate
 
-The basic split completes when Electron and server are discrete hosts over one workspace runtime and shared browser client. A loopback browser can open one canonical workspace-session page and complete a basic Chat and Canvas flow. Electron preserves current behavior from its own composition root. Both hosts pass the constrained semantic suite without host fields entering feature contracts.
-
-This gate does not claim concurrent session safety, complete reconnect recovery, provider-auth parity, production hardening, or distributable packaging. The linked follow-up plans own those guarantees.
+The split completes when Electron and the web host are discrete hosts over one workspace runtime and shared browser client. A browser can open a workspace-only URL, create and revisit sessions, and run a basic Chat and Canvas flow across the control/content split. It can reconnect and rehydrate after a drop, and reload edited feature source. Electron preserves current behavior from its own composition root. Both hosts pass the semantic suite without host fields entering feature contracts, and the loopback and non-loopback deployment profiles satisfy the same web-host contracts.
 
 ## Appendix: E0 host-contract inventory
 
@@ -310,3 +351,11 @@ Ownership calls and unresolved cases:
 - `installProcessHandlers` is Node-neutral and stays shared.
 
 Acceptance status: every Electron import has an owner above. The runtime is describable without `Electron.App`, `BrowserWindow`, `ipcMain`, or `protocol`. H3 extracts `openWorkspace` into a runtime constructor taking these ports.
+
+## Attempt 1 (2026-08-23): the minimal loopback server is discarded
+
+- **Approach:** Built `hosts/server` over `node:http` plus `ws`. It used a redirect-to-WebSocket pending-attachment handoff, `.localhost` resource origins, and one configured workspace. This is the discarded H6 implementation.
+- **Worked:** The shared substrate (workspace supervision, attachment dispatch, guarded agent instances, and host-neutral browser clients) held across real runtimes. Discriminated live frames, prepared dispatch, scoped event delivery, and contract-owned redaction were sound. Surface modules, styles, and CSS assets (fonts) served through logical resource URLs. The CSS asset rebasing work survives in the substrate as a committed improvement.
+- **Did not work:** The loopback-only scope and the pending-attachment TTL. The `.localhost` origin encoding cannot be reached from another device. The catalog leaked `manifestPath`. Resource CORS echoed client origins. There was no reconnect, heartbeat, shutdown notification, or startup-failure cleanup. `openExternal` disabled provider authentication. Workspace reload had no browser path.
+- **Promoted:** The accepted [web-host specification](../docs/specs/web-host.md) now defines the non-local host. It records one trust domain and a control/content plane with immutable content references. It records live-created sessions, client-owned reconnection, and a read-only registry. It records an explicit public origin, SIGTERM cancellation, and Codex headless auth. It also records reload as a `uix` channel. Design threads and architecture docs record the direction.
+- **Unresolved:** HTTP library choice, writable registry operations, OAuth callback flows, resource quotas, Tailscale Serve automation, and hosted/marketplace strong isolation. The spec leaves the HTTP library a degree of freedom. Fastify versus a custom `node:http` path was discussed.
