@@ -1,14 +1,14 @@
 ---
-summary: "Repository-level documentation holds cross-boundary architecture, workflows, external context, decisions, design threads, and documentation practice."
+summary: "Repository-level documentation holds cross-boundary specifications, architecture, workflows, external context, decisions, design threads, and documentation practice."
 ---
 
 # Repository documentation
 
 This tree owns documentation whose scope crosses one source ownership boundary. It records UIX's shape, decisions, constraints, and broader workflows. Source-coupled guidance belongs beside its owning code under the placement practice in [`knowledge-placement.md`](./contributing/knowledge-placement.md).
 
-Active build specs live in [`AGENTS.md`](../plans/AGENTS.md), and the user-facing implementation guides live in [`AGENTS.md`](../src/docs/AGENTS.md).
+Active implementation plans live in [`AGENTS.md`](../plans/AGENTS.md), and the user-facing implementation guides live in [`AGENTS.md`](../src/docs/AGENTS.md).
 
-## The four document layers
+## The five document layers
 
 Each document layer has its own filename convention, summary template, and lifecycle. If the file is a point-in-time event, put the date in its filename. If it contains dated events, keep dates inside it.
 
@@ -16,10 +16,11 @@ Each document layer has its own filename convention, summary template, and lifec
 | --- | --- | --- | --- |
 | `decisions/` | `YYYY-MM-DD-slug` | the conclusion | write-once (only `status` may change) |
 | `design/` | `problem-name` | the open question + axes | synthesis mutable, `## Log` append-only |
+| `specs/` | `concept-name` | the stable concept contract | draft → accepted, then changed only with the concept |
 | `architecture/` | `constraint-name` | a current cross-cutting invariant or hard-won context | living, always = HEAD |
 | `../plans/` | `deliverable` | the deliverable + units | active → landed or archived under `../plans/archive/` |
 
-The records distill through _design note → decision → plan → architecture_. Each step is more settled than the last, and only the design note preserves rejected alternatives. Plans sit at the repository root because they track builds rather than document the system. Later records hold the applicable conclusion or enduring constraint.
+The records distill through _design note → decision → specification → plan → architecture_. A specification defines the stable behavior that an implementation attempt must satisfy. Each step is more settled than the last, and only the design note preserves rejected alternatives. Plans sit at the repository root because they track builds rather than document the system. Later records hold the applicable conclusion or enduring constraint.
 
 ## Document kinds
 
@@ -33,5 +34,6 @@ Each indexed document has a _kind_: reference, explanation, how-to, or tutorial.
 - **[contributing/](./contributing/AGENTS.md)** Documentation contribution practice prioritizes conceptual clarity, human reviewability, durable ownership, explicit routing, and consistent prose.
 - **[decisions/](./decisions/AGENTS.md)** Write-once dated UIX architecture decisions record settled conclusions and rationale for later plans, code, and reference documentation.
 - **[design/](./design/AGENTS.md)** Living design threads combine mutable synthesis with append-only logs of options, tradeoffs, and rejected alternatives.
+- **[specs/](./specs/AGENTS.md)** Requirement specifications define the stable contract and conformance outcomes for coherent UIX concepts, independent of one implementation attempt. _Writing, reviewing, accepting, or implementing a UIX requirement specification._
 
 <!-- INDEX:END -->

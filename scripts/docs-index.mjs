@@ -40,6 +40,7 @@ const layers = [
   { dir: "docs/contributing", kind: "container" },
   { dir: "docs/decisions", sort: "date-desc" },
   { dir: "docs/design", sort: "slug-asc" },
+  { dir: "docs/specs", sort: "slug-asc" },
   { dir: "docs/architecture", kind: "container" },
   { dir: "docs/architecture/conventions", kind: "container" },
   { dir: "docs/architecture/conventions/rules", sort: "slug-asc" },
@@ -74,12 +75,13 @@ const NOTE =
   "<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->";
 const SOURCE_NOTE =
   "<!-- Generated from production source-file summaries, local Markdown frontmatter, and child AGENTS.md summaries. Do not edit by hand; run `npm run docs:index`. -->";
-// Status is an optional override on the default "current" state: author it
-// only when a document's lifecycle position differs from active. Docs without
-// a lifecycle (AGENTS.md files, evergreen reference and how-to docs) omit it.
+// Specifications always declare draft or accepted status. Other lifecycle
+// layers author status only when their position differs from active. Docs
+// without a lifecycle (AGENTS.md files, evergreen leaves) omit it.
 const STATUSES = new Set([
   "accepted",
   "archived",
+  "draft",
   "exploring",
   "landed",
   "resolved",
@@ -118,10 +120,18 @@ function parseFrontmatter(text, file) {
     }
     fm[m[1]] = v;
   }
-  // summary is required; read_when, kind, and status are optional overrides on
-  // defaults (no trigger, no kind, status = current/active).
+  // Summary is required. Other fields follow their layer's rules.
   if (!fm.summary) throw new Error(`${file}: frontmatter missing "summary"`);
   return fm;
+}
+
+export function assertSpecification(file, frontmatter, text) {
+  if (frontmatter.status !== "draft" && frontmatter.status !== "accepted") {
+    throw new Error(`${file}: specification status must be draft or accepted`);
+  }
+  if (frontmatter.status === "accepted" && /^## Open questions$/m.test(text)) {
+    throw new Error(`${file}: accepted specification has open questions`);
+  }
 }
 
 function collect(layer) {
@@ -132,10 +142,12 @@ function collect(layer) {
     if (!name.endsWith(".md") || name === "AGENTS.md" || name === "README.md")
       continue;
     const file = `${layer.dir}/${name}`;
-    const fm = parseFrontmatter(readFileSync(join(dir, name), "utf8"), file);
+    const text = readFileSync(join(dir, name), "utf8");
+    const fm = parseFrontmatter(text, file);
     if (layer.dir !== "plans" && !fm.kind) {
       throw new Error(`${file}: indexed documentation missing "kind"`);
     }
+    if (layer.dir === "docs/specs") assertSpecification(file, fm, text);
     entries.push({ file: name, ...identify(name), ...fm });
   }
   if (layer.sort === "date-desc") {
@@ -150,9 +162,7 @@ function renderIndex(entries) {
   if (entries.length === 0) return "_(none yet)_";
   return entries
     .map((e) => {
-      // read_when and kind are optional; status is authored only when it differs
-      // from the default current state. The parenthetical renders when either a
-      // status or a kind is present.
+      // The parenthetical renders when status or kind is present.
       const trigger = e.read_when ? ` _${e.read_when}_` : "";
       const state = [e.status, e.kind].filter(Boolean).join(", ");
       const position = state ? ` _(${state})._` : "";

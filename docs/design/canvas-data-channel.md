@@ -61,6 +61,7 @@ The store remains the hosting seam. Local files or JSON objects are implementati
 - When does a second document feature justify a public document-kind or normalization contribution?
 - Which source provenance belongs in generic document-write events once multiple writers share one document?
 - Is a provider-specific anchor pool ever worth the added complexity beyond the model-agnostic pool?
+- Should Canvas resolve a key through the selected Agent viewpoint to an immutable content reference? Selected: yes — see the 2026-08-23 log entry. Retention and portability of the resulting identity remain open.
 
 ## Spawns
 
@@ -69,6 +70,12 @@ The store remains the hosting seam. Local files or JSON objects are implementati
 - Sibling design: [`pane-and-file-versioning.md`](./pane-and-file-versioning.md).
 
 ## Log
+
+### 2026-08-23: branch-aware immutable content references and the same-origin frame
+
+Canvas adopts the selected direction from [`cross-feature-interoperability.md`](./cross-feature-interoperability.md) and the [web-host specification](../specs/web-host.md). A substrate resolver interprets a Canvas key such as `main` through the selected Agent's session-branch viewpoint and returns an opaque immutable content reference naming exact bytes or a specific revision. Turn state records the committed version; on session reload or branch switch the client reads the newest committed version from that branch's turn state and fetches those bytes over HTTP. A convenience `latest` resolution may exist but resolves to an immutable reference before use and is never persisted as a durable identity. Live channel payloads carry content references, never browser transport URLs, and a content fetch never depends on a live connection.
+
+The Canvas frame is a document boundary, not a hostile-code sandbox. One web-host instance is one trust domain: Canvas HTML and manifest-selected surface code share that trust domain, so the frame may be same-origin and rely on iframe document, CSS, global-object, and lifecycle separation. Exported or frozen Canvas output must remain usable as standalone single-file HTML without host-specific transport URLs or privileges. Stronger per-content isolation belongs to a later hosted or marketplace profile.
 
 ### 2026-07-18 — document-keyed updates replace ambient open-canvas state
 

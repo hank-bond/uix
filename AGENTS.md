@@ -87,7 +87,7 @@ Apply these rules before reaching for subsystem details:
 
 ## Where to read
 
-The `src/docs/` tree hosts the user-implementation how-tos. The `docs/` tree contains cross-boundary architecture, workflows, external context, decisions, design threads, and documentation practice. Root-level `plans/` tracks builds. The `website/` directory contains the public uix.sh marketing site.
+The `src/docs/` tree hosts the user-implementation how-tos. The `docs/` tree contains cross-boundary specifications, architecture, workflows, external context, decisions, design threads, and documentation practice. Root-level `plans/` tracks builds. The `website/` directory contains the public uix.sh marketing site.
 
 The repository separates ownership roots: reusable substrate packages under [`packages/`](packages/AGENTS.md), concrete host composition roots under [`hosts/`](hosts/AGENTS.md), and explicit app compositions under [`apps/`](apps/AGENTS.md). The dependency direction is one-way. Substrate packages and feature implementations depend only on the `@uix/api` author contracts. Concrete hosts compose the shared supervisor, runtime, and clients. `packages/api`, `packages/runtime`, and `packages/host` are live. `packages/client` remains an empty ownership root.
 
@@ -97,7 +97,7 @@ The repository separates ownership roots: reusable substrate packages under [`pa
 
 - **[src/main/](./src/main/AGENTS.md)** The Electron host composition opens one workspace runtime over Electron transports and owns windows, menu, launcher, recents, and the transports.
 - **[src/docs/](./src/docs/AGENTS.md)** User-implementation guides for building UIX applications, colocated with the framework and findable by the agents and builders who use it.
-- **[docs/](./docs/AGENTS.md)** Repository-level documentation holds cross-boundary architecture, workflows, external context, decisions, design threads, and documentation practice.
+- **[docs/](./docs/AGENTS.md)** Repository-level documentation holds cross-boundary specifications, architecture, workflows, external context, decisions, design threads, and documentation practice.
 - **[plans/](./plans/AGENTS.md)** Mutable implementation plans divide requirement specifications into reviewable slices and track the active attempt, progress, and lessons.
 - **[website/](./website/AGENTS.md)** The zero-build uix.sh landing page uses static HTML, CSS, and JavaScript with a reduced-motion-safe brandmark morph. _Read when editing the landing page, brandmark animation, styles, or favicon._
 - **[packages/](./packages/AGENTS.md)** Reusable substrate packages. api holds the feature-author contracts. runtime owns the one-workspace substrate. host holds the shared supervision contracts. client is an empty ownership root awaiting the shared browser client. _Deciding whether code belongs in a reusable package, a concrete host, or an app composition._

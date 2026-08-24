@@ -41,6 +41,6 @@ npm run docs:index     # regenerate the index blocks
 npm run docs:check     # fail on stale indexes, malformed docs, or broken links
 ```
 
-The check requires frontmatter and one H1 in living documentation Markdown files except `README.md`. It validates relative links, lifecycle values, `kind` tags, source ownership boundaries, and generated index freshness. Archived plans retain their historical body shape.
+The check requires frontmatter and one H1 in living documentation Markdown files except `README.md`. It validates relative links, lifecycle values, specification status, `kind` tags, source ownership boundaries, and generated index freshness. Archived plans retain their historical body shape.
 
 Prose outside the markers is authored. The block between them is derived. **Never hand-edit it.** The generator overwrites a manual edit, or the freshness check rejects it. To change an entry, edit the source summary or the document's `summary`, `read_when`, `kind`, or `status`, then regenerate the indexes.

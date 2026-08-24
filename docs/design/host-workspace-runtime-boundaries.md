@@ -60,11 +60,11 @@ The server uses stable host-owned workspace ids rather than filesystem paths in 
 
 ```text
 /                                      launcher
-/w/:workspaceId                        resolve a fallback session
+/w/:workspaceId                        workspace shell (stateless)
 /w/:workspaceId/s/:sessionId           canonical workspace-session page
 ```
 
-A direct request or reload of the canonical URL resolves the workspace runtime, creates an attachment, and attaches it to the named session's primary agent instance. The workspace-only route resolves the most recently modified valid session, or creates one when none exists, and then replaces itself with the canonical workspace-session URL. An ordinary session switch retargets the existing attachment first, then updates browser history after the runtime confirms success. A workspace switch navigates to another workspace URL and rebuilds the client composition because its manifest and surfaces may differ. Browser clients persist no separate last-session preference: each tab's canonical URL is authoritative. Electron instead persists its local windows or tabs and their canonical workspace-session targets in the host profile so reopening the application restores the local chrome the user closed.
+A workspace-only URL serves the workspace shell without resolving a session or acquiring a workspace. The browser's live connection to that location acquires the workspace, creates a new session and attachment, and returns the accepted session id; the client then makes its location canonical with a history replacement. A direct request or reload of a canonical URL acquires the workspace and attaches to the named durable session. The live connection owns its workspace guard and attachment from connection setup onward; the host never holds a pending attachment across separate requests. An ordinary session switch retargets the existing attachment first and pushes a history entry after the runtime confirms success; browser back and forward retarget the attachment to the location's session and preserve the previous target on failure. A workspace switch navigates to another workspace URL and rebuilds the client composition because its manifest and surfaces may differ. Browser clients persist no separate last-session preference: each tab's canonical URL is authoritative. Electron instead persists its local windows or tabs and their canonical workspace-session targets in the host profile so reopening the application restores the local chrome the user closed.
 
 ### Repository ownership
 
@@ -96,7 +96,6 @@ The dependency direction is one-way. Runtime, client, and feature implementation
 ## Open questions
 
 - Which workspace registration operations belong in the first server launcher rather than the later native launcher?
-- Does the first server process expose one configured workspace catalog or aggregate several configured roots?
 
 ## Log
 
@@ -130,7 +129,7 @@ Established the target ownership roots with package metadata and enforced the de
 
 Separated the operational `Workspace` surface from the `WorkspaceOwnership` lifecycle authority retained by the supervisor. The ownership capability combines that operational surface with authority over event routing, child attachments, and teardown. Guards provide the workspace operations without exposing disposal. Workspace resolution occurs once at connection setup. Every later canonical request travels directly through the connection's bound attachment into the runtime channel table rather than using the supervisor as a multi-workspace request router.
 
-Settled session restoration by host shape. Browser tabs use only canonical workspace-session URLs. A workspace-only URL resolves the newest valid session and then becomes the canonical workspace-session URL. Electron persists each local window or tab's canonical target in its own host profile.
+Settled session restoration by host shape. Browser tabs use only canonical workspace-session URLs. A workspace-only URL serves the workspace shell, and the live connection creates a new session and canonicalizes the location itself. Electron persists each local window or tab's canonical target in its own host profile.
 
 ### 2026-08-14: supervision repeats at the agent-instance level
 
@@ -153,3 +152,11 @@ Made guards the project pattern for independently retained shared live objects. 
 Unified the one-session-per-tab host model around physical connection identity. One Electron `webContents` or one browser WebSocket owns one workspace guard and attachment. The connection URL or host bootstrap selects the workspace and initial session once, so ordinary canonical requests and events do not repeat workspace, attachment, or agent ids.
 
 A future connection can own several logical attachments without changing runtime contracts. The host replaces its single binding with a map and adds a host-issued attachment id only to the physical transport envelope. That attachment already implies its workspace. Workspace selection belongs to the attachment-open control operation, canonical feature payloads remain unchanged, and durable client state remains keyed by durable targets rather than ephemeral attachment identity.
+
+### 2026-08-23: the web host accepts the control/content split and live-created sessions
+
+Rebuilt the web-host direction around the accepted [web-host specification](../specs/web-host.md) after discarding the first loopback-only server attempt. One web-host instance is one trust domain: strong isolation between deployments, users, or hosted tenants, and only weak cooperative isolation among code and content admitted within one workspace. Admission is deployment-provided (a trusted network boundary such as a tailnet or an authenticated ingress); the host performs no login and holds no credentials in this version.
+
+The live connection owns its workspace guard and attachment from connection setup onward. A workspace-only URL is a stateless shell: the browser's live connection creates a new session and attachment and then canonicalizes the location. Canonical session URLs attach to the named durable session. The host never holds a pending attachment across separate physical requests, so the earlier redirect-plus-claim handoff and its TTL are gone.
+
+The host separates the live control plane from the content plane. Live connections carry requests, responses, events, and host-neutral immutable content references; HTTP carries the referenced content. Each content request retains its own workspace guard and does not depend on any live connection. Non-loopback operation requires an explicit public-origin policy from which every browser-visible location and cross-origin grant derives; the host never infers public locations from request headers.

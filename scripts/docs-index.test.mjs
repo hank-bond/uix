@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   assertSourceBoundary,
+  assertSpecification,
   collectSourceDirectory,
   parseSourceSummary,
   renderSourceIndex,
@@ -69,6 +70,45 @@ describe("parseSourceSummary", () => {
 
   it("ignores unsupported file formats", () => {
     expect(parseSourceSummary("package.json", "{}\n")).toBeUndefined();
+  });
+});
+
+describe("specification validation", () => {
+  it("requires an explicit draft or accepted status", () => {
+    expect(() =>
+      assertSpecification("docs/specs/example.md", {}, "# Example\n"),
+    ).toThrow("specification status must be draft or accepted");
+    expect(() =>
+      assertSpecification(
+        "docs/specs/example.md",
+        { status: "exploring" },
+        "# Example\n",
+      ),
+    ).toThrow("specification status must be draft or accepted");
+  });
+
+  it("allows open questions only in draft specifications", () => {
+    const text = "# Example\n\n## Open questions\n";
+    expect(() =>
+      assertSpecification("docs/specs/example.md", { status: "draft" }, text),
+    ).not.toThrow();
+    expect(() =>
+      assertSpecification(
+        "docs/specs/example.md",
+        { status: "accepted" },
+        text,
+      ),
+    ).toThrow("accepted specification has open questions");
+  });
+
+  it("allows an accepted specification without open questions", () => {
+    expect(() =>
+      assertSpecification(
+        "docs/specs/example.md",
+        { status: "accepted" },
+        "# Example\n\n## Conformance\n",
+      ),
+    ).not.toThrow();
   });
 });
 

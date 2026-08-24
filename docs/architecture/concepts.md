@@ -68,7 +68,7 @@ _Resource ids_ name addressable things. `doc://canvas/main` names a managed Canv
 
 Facet organization does not appear in resource paths. A surface, agent tool, snapshot, and restore coordinator can all reference the same resource.
 
-A resource declaration's `origin` policy partitions the browser origin. `origin: "feature"` puts the feature id in the URL host so Chromium isolates the resource from the workspace. `origin: "workspace"` keeps the workspace origin and places feature identity in the path. `toOrigin()` returns that exact origin for `postMessage` security checks. The `uix-resource` scheme is a transport/permission class, not a semantic document type, so browser fetch origins stay separate from domain ids such as `doc://canvas/main`.
+A resource declaration's `origin` policy chooses where the browser loads the resource. `origin: "feature"` puts the feature id in the URL host so Chromium gives the resource its own document realm; `origin: "workspace"` keeps the workspace origin and places feature identity in the path. `toOrigin()` returns that exact origin for `postMessage` checks. This is cooperative document isolation, not hostile-code containment: one web-host instance is one trust domain, so a single-origin deployment that loads resource content on the workspace origin is conforming. Stronger per-feature isolation belongs to a later hosted or marketplace profile. The `uix-resource` scheme is a transport/permission class, not a semantic document type, so browser fetch origins stay separate from domain ids such as `doc://canvas/main`.
 
 Use `uix.*` only for substrate-owned dotted ids (envelopes/customTypes). First-party default features are still features, so their contribution ids use feature namespaces such as `canvas.*` and `chat.*`.
 

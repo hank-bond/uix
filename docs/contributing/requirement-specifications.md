@@ -10,6 +10,8 @@ A _requirement specification_ defines what one coherent UIX concept means and mu
 
 A specification may align closely with one class when that class is the concept's semantic owner. Private helpers and incidental classes do not need specifications.
 
+Specifications live under `docs/specs/` and use a concept-name slug without a date. Every specification declares `status: draft` while requirements remain unsettled and `status: accepted` when it is authoritative. A draft may contain open questions. An accepted specification has no open questions and contains enough behavior and conformance detail to implement the concept without design history or a plan.
+
 ## Knowledge boundaries
 
 - Repository conventions constrain how every implementation is built.

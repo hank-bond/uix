@@ -88,8 +88,8 @@ These flows illustrate the agreed relationships, not final APIs.
 4. **Distribution:** settle the recommended package layout, lock/pinning policy, Git-package conventions, and any later manifest source-acquisition mechanism.
 5. **Capability runtime:** settle provider registration, optional client acquisition, one-versus-many provider cardinality, resource/provider binding, availability observation, failure semantics, and reload disposal.
 6. **Transport projection:** settle how one capability registration produces in-process and remote routes without duplicating the existing channel registry or exposing provider callbacks across process boundaries.
-7. **Document contract:** settle content representation, metadata, revisions, write preconditions, source provenance, update events, subscription scope, creation/deletion lifecycle, persistence, and conflict behavior.
-8. **Resource coordinates:** settle canonical workspace, managed-document, calendar, and external-resource identities, including mutable cwd and hosted interpretation.
+7. **Document contract:** settle content representation, metadata, revisions, write preconditions, source provenance, update events, subscription scope, creation/deletion lifecycle, persistence, and conflict behavior. A branch-aware substrate resolver maps feature-owned keypaths to immutable content references; references name exact stored bytes or a specific revision, and a convenience `latest` resolution may exist but must resolve to an immutable reference before use.
+8. **Resource coordinates:** settle canonical workspace, managed-document, calendar, and external-resource identities, including mutable cwd and hosted interpretation. Feature keypaths, canonical content references, and host delivery URLs stay separate; workspace and session-branch scope enters resolution at the keypath-to-content-reference step, and hosts map the accepted reference onto delivery URLs.
 9. **Viewer matching:** settle selectors over scheme, media type, semantic protocol/kind, role, and resource-specific checks. Settle default choice, explicit `Open With`, opening in multiple viewers, and persisted preferences.
 10. **Viewer lifetime and instances:** settle whether viewer registration follows mounted surface lifetime or another feature lifetime. Also settle how hidden/unmounted surfaces become available. Settle how surface/view instance identity participates in opening and focus.
 11. **Framework-neutral frontend API:** settle the plain workspace API and the boundaries of React or other framework adapters.
@@ -118,7 +118,7 @@ Settle the viewer descriptor, live catalog, matching, and invocation contract. P
 
 ### P4: Host transport separation
 
-Prove that canonical resource identity and capability/viewer APIs do not expose Electron delivery URLs. Establish the host seam that can provide Electron or hosted browser delivery without changing feature-facing identity.
+Prove that canonical resource identity and capability/viewer APIs do not expose Electron delivery URLs. Establish the host seam that can provide Electron or hosted browser delivery without changing feature-facing identity. The substrate or owning feature resolves branch-aware keypaths to immutable content references, and each host maps an accepted content reference onto its delivery URL and mount behavior. Live channel payloads carry content references while HTTP carries the referenced content, per the [web-host specification](../docs/specs/web-host.md).
 
 ### P5: First product vertical
 

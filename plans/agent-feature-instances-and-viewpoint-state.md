@@ -1,5 +1,5 @@
 ---
-summary: "R0-A2 landed. A3 is in review to make each Agent instance serve one current transcript from its durable seed plus live updates."
+summary: "R0-A3 landed: mutable feature state and the current transcript now belong to each guarded Agent instance viewpoint."
 ---
 
 # Agent feature instances and viewpoint state
@@ -12,7 +12,7 @@ H4.2 allows an attachment to leave a guarded turn running on session A, move to 
 
 The first A1 implementation added state builders, a separate composition engine, nominal admission, deep snapshots, operation records, and capability views. No production request uses that engine. The implementation confirmed that Agent registries and lifetimes must be per instance, but the extra code did not serve that requirement.
 
-**R0, A1, and A2 are complete.** The unused A1 commits remain in history behind one combined revert. The direct replacement uses `workspace(ctx)` and `agent(ctx)` factories, per-instance registries and bags, selected Agent channel handlers, and per-viewpoint Canvas buffers. The concurrent-session gate adds production Canvas viewpoint coverage, stale-frame rejection, and running-session retargeting in the shared client.
+**R0, A1, A2, and A3 are complete.** The unused A1 commits remain in history behind one combined revert. The direct replacement uses `workspace(ctx)` and `agent(ctx)` factories, per-instance registries and bags, selected Agent channel handlers, and per-viewpoint Canvas buffers. The concurrent-session gate adds production Canvas viewpoint coverage, stale-frame rejection, and running-session retargeting in the shared client.
 
 A3 closes the current-transcript gap exposed by running-session retargeting before H6 adds browser attachments. The [Electron and server host split](./electron-server-split.md) continues to own the concrete hosts. [Runtime operation hardening](./runtime-operation-hardening.md) owns the remaining cancellation work.
 
@@ -135,7 +135,7 @@ Remove the renderer restriction on session changes only after this suite passes.
 
 **Review gate:** Electron and the shared client can use concurrent session viewpoints without shared mutable feature state, stale writes, event leakage, or unclear cleanup. All repository checks pass.
 
-### A3: Serve the current transcript from the Agent instance · **in review**
+### A3: Serve the current transcript from the Agent instance · **landed 2026-08-22**
 
 Seed one materialized transcript from the Agent instance's durable selected-branch projection. Route normalized transcript events through that read model before publishing them, and serve `session_history` from the guarded Agent instance instead of projecting its manager directly. The manager remains durable authority. The materialized transcript is an instance-lifetime projection cache.
 
