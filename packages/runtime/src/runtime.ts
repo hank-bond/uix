@@ -82,6 +82,8 @@ export interface WorkspaceRuntimeDependencies {
    * does not serve resources (the registry still owns routes, unbound).
    */
   resourceTransport?: ResourceTransportRegistrar;
+  /** Map logical UIX resource URLs to the concrete browser transport. */
+  resolveResourceUrl?: (logicalUrl: string) => string;
   /** Opens only URLs provided by the active Pi auth provider. */
   openExternal: (url: string) => void | Promise<void>;
 }
@@ -244,7 +246,10 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     // every load pass so the page re-fetches. The pipeline bundles each
     // registered surface entry into a servable module. Its routes live on the
     // substrate origin.
-    this.#surfacePipeline = new SurfaceModulePipeline(this.#workspaceId);
+    this.#surfacePipeline = new SurfaceModulePipeline(
+      this.#workspaceId,
+      dependencies.resolveResourceUrl,
+    );
     this.#bag.add(
       registerResourceContributions(
         this.#resources,

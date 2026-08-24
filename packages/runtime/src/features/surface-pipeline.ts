@@ -99,14 +99,21 @@ const sharedModulesPlugin: Plugin = {
 /** Owns the replaceable built-module generation served to one workspace. */
 export class SurfaceModulePipeline {
   readonly #workspaceId: string;
+  readonly #resolveResourceUrl: (logicalUrl: string) => string;
   /** `${featureId}/${file}` → last-built module, replaced per build pass. */
   #built = new Map<string, BuiltModule>();
   /** featureId → feature root dir, for the files route. */
   #roots = new Map<string, string>();
+  /** `${featureId}/${file}` → CSS with browser asset URLs rebased to the files route. */
+  #styles = new Map<string, BuiltModule>();
   #buildVersion = 0;
 
-  constructor(workspaceId: string) {
+  constructor(
+    workspaceId: string,
+    resolveResourceUrl: (logicalUrl: string) => string = (url) => url,
+  ) {
     this.#workspaceId = workspaceId;
+    this.#resolveResourceUrl = resolveResourceUrl;
   }
 
   /**
@@ -121,6 +128,7 @@ export class SurfaceModulePipeline {
     const version = ++this.#buildVersion;
     const built = new Map<string, BuiltModule>();
     const roots = new Map<string, string>();
+    const styles = new Map<string, BuiltModule>();
     const entries: SurfaceEntry[] = [];
     const perFeatureIndex = new Map<string, number>();
 
@@ -134,18 +142,20 @@ export class SurfaceModulePipeline {
         // paths (macOS /tmp is a symlink, and feature dirs may be too).
         const featureRoot = await realpath(surface.featureRoot);
         roots.set(surface.featureId, featureRoot);
-        const module = await this.#bundle(surface, featureRoot);
+        const module = await this.#bundle(surface, featureRoot, styles);
         built.set(`${surface.featureId}/${file}`, module);
         entries.push({
           featureId: surface.featureId,
           entry: surface.entry,
-          url: encodeResourceUrl(ModuleRoute, {
-            featureId: "uix",
-            name: ModuleRouteName,
-            workspaceId: this.#workspaceId,
-            params: { feature: surface.featureId, file },
-            query: { v: module.hash },
-          }),
+          url: this.#resolveResourceUrl(
+            encodeResourceUrl(ModuleRoute, {
+              featureId: "uix",
+              name: ModuleRouteName,
+              workspaceId: this.#workspaceId,
+              params: { feature: surface.featureId, file },
+              query: { v: module.hash },
+            }),
+          ),
         });
         log.debug(
           { feature: surface.featureId, entry: surface.entry },
@@ -175,6 +185,7 @@ export class SurfaceModulePipeline {
     if (version === this.#buildVersion) {
       this.#built = built;
       this.#roots = roots;
+      this.#styles = styles;
     }
     return entries;
   }
@@ -215,6 +226,21 @@ export class SurfaceModulePipeline {
           if (!filePath.startsWith(root + sep)) {
             return textResponse("Resource not found", 404);
           }
+          const contentType =
+            FileContentTypes[extname(filePath)] ?? "application/octet-stream";
+          const builtStyle = this.#styles.get(
+            `${featureId}/${segments.join("/")}`,
+          );
+          if (builtStyle) {
+            return new Response(builtStyle.code, {
+              status: 200,
+              headers: {
+                ...corsHeaders(request),
+                "Cache-Control": "no-store",
+                "Content-Type": contentType,
+              },
+            });
+          }
           try {
             const content = await readFile(filePath);
             return new Response(new Uint8Array(content), {
@@ -222,9 +248,7 @@ export class SurfaceModulePipeline {
               headers: {
                 ...corsHeaders(request),
                 "Cache-Control": "no-store",
-                "Content-Type":
-                  FileContentTypes[extname(filePath)] ??
-                  "application/octet-stream",
+                "Content-Type": contentType,
               },
             });
           } catch {
@@ -238,6 +262,7 @@ export class SurfaceModulePipeline {
   async #bundle(
     surface: ResolvedSurfaceContribution,
     featureRoot: string,
+    styles: Map<string, BuiltModule>,
   ): Promise<BuiltModule> {
     const result = await build({
       entryPoints: [surface.entry],
@@ -253,7 +278,7 @@ export class SurfaceModulePipeline {
       tsconfigRaw: { compilerOptions: { jsx: "react-jsx" } },
       plugins: [
         sharedModulesPlugin,
-        this.#cssPlugin(surface.featureId, featureRoot),
+        this.#cssPlugin(surface.featureId, featureRoot, styles),
       ],
     });
     const code = result.outputFiles[0]?.text ?? "";
@@ -264,7 +289,11 @@ export class SurfaceModulePipeline {
    * Keeps CSS module scripts external, rewritten to content-hash-busted
    * files-route URLs so the browser fetches and executes them natively.
    */
-  #cssPlugin(featureId: string, featureRoot: string): Plugin {
+  #cssPlugin(
+    featureId: string,
+    featureRoot: string,
+    styles: Map<string, BuiltModule>,
+  ): Plugin {
     const workspaceId = this.#workspaceId;
     return {
       name: "surface-css",
@@ -290,24 +319,111 @@ export class SurfaceModulePipeline {
               ],
             };
           }
-          const content = await readFile(absolute);
+          const style = await this.#bundleStyle(
+            featureId,
+            featureRoot,
+            absolute,
+          );
+          const path = relativePath.split(sep);
+          styles.set(`${featureId}/${path.join("/")}`, style);
           return {
-            path: encodeResourceUrl(FilesRoute, {
-              featureId: "uix",
-              name: FilesRouteName,
-              workspaceId,
-              params: {
-                feature: featureId,
-                path: relativePath.split(sep),
-              },
-              query: { v: hashOf(content) },
-            }),
+            path: this.#resolveResourceUrl(
+              encodeResourceUrl(FilesRoute, {
+                featureId: "uix",
+                name: FilesRouteName,
+                workspaceId,
+                params: { feature: featureId, path },
+                query: { v: style.hash },
+              }),
+            ),
             external: true,
           };
         });
       },
     };
   }
+
+  /** Bundle one stylesheet so relative browser assets keep their feature-file identity after scoping. */
+  async #bundleStyle(
+    featureId: string,
+    featureRoot: string,
+    entry: string,
+  ): Promise<BuiltModule> {
+    const workspaceId = this.#workspaceId;
+    const result = await build({
+      entryPoints: [entry],
+      bundle: true,
+      write: false,
+      platform: "browser",
+      logLevel: "silent",
+      plugins: [
+        {
+          name: "surface-css-assets",
+          setup: (builder) => {
+            builder.onResolve({ filter: /.*/ }, async (args) => {
+              if (args.kind === "entry-point") return undefined;
+              if (isExternalCssReference(args.path)) {
+                return { path: args.path, external: true };
+              }
+              if (args.kind === "import-rule") {
+                const imported = resolve(args.resolveDir, args.path);
+                if (!imported.startsWith(featureRoot + sep)) {
+                  return {
+                    errors: [
+                      {
+                        text: `Surface styles must live inside the feature directory: ${args.path} escapes ${featureRoot}`,
+                      },
+                    ],
+                  };
+                }
+                return { path: imported };
+              }
+              if (args.kind !== "url-token") return undefined;
+
+              const absolute = resolve(args.resolveDir, args.path);
+              const relativePath = relative(featureRoot, absolute);
+              if (relativePath.startsWith("..")) {
+                return {
+                  errors: [
+                    {
+                      text: `Surface assets must live inside the feature directory: ${args.path} escapes ${featureRoot}`,
+                    },
+                  ],
+                };
+              }
+              const content = await readFile(absolute);
+              return {
+                path: this.#resolveResourceUrl(
+                  encodeResourceUrl(FilesRoute, {
+                    featureId: "uix",
+                    name: FilesRouteName,
+                    workspaceId,
+                    params: {
+                      feature: featureId,
+                      path: relativePath.split(sep),
+                    },
+                    query: { v: hashOf(content) },
+                  }),
+                ),
+                external: true,
+              };
+            });
+          },
+        },
+      ],
+    });
+    const code = result.outputFiles[0]?.text ?? "";
+    return { code, hash: hashOf(code) };
+  }
+}
+
+function isExternalCssReference(path: string): boolean {
+  return (
+    path.startsWith("/") ||
+    path.startsWith("//") ||
+    path.startsWith("#") ||
+    /^[A-Za-z][A-Za-z0-9+.-]*:/.test(path)
+  );
 }
 
 /**

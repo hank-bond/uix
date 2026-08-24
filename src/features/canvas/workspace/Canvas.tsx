@@ -7,6 +7,7 @@ import { agentChannels } from "@uix/api/agent-channels";
 import {
   type ChannelClient,
   createChannelClient,
+  resolveWorkspaceResourceUrl,
   useWorkspaceClient,
   useWorkspaceSession,
 } from "@uix/api/workspace";
@@ -74,7 +75,10 @@ export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
     const acceptedSessionSelectionVersion = sessionSelectionVersion;
     const isCurrentViewpoint = (): boolean =>
       sessionSelectionVersionRef.current === acceptedSessionSelectionVersion;
-    const origin = toCanvasFrameOrigin(workspace.workspaceId);
+    const origin = resolveWorkspaceResourceUrl(
+      workspace,
+      toCanvasFrameOrigin(workspace.workspaceId),
+    );
     const onMessage = (event: MessageEvent): void => {
       if (!isCurrentViewpoint()) return;
       if (event.origin !== origin) return;
@@ -99,20 +103,17 @@ export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
     return () => {
       window.removeEventListener("message", onMessage);
     };
-  }, [
-    agent,
-    client,
-    canvasKey,
-    sessionSelectionVersion,
-    workspace.workspaceId,
-  ]);
+  }, [agent, client, canvasKey, sessionSelectionVersion, workspace]);
 
   return (
     <iframe
       key={`${String(sessionSelectionVersion)}:${String(frameVersion)}`}
       ref={frameRef}
       className="canvas-frame"
-      src={toCanvasFrameUrl(workspace.workspaceId, canvasKey, frameVersion)}
+      src={resolveWorkspaceResourceUrl(
+        workspace,
+        toCanvasFrameUrl(workspace.workspaceId, canvasKey, frameVersion),
+      )}
       title={`canvas ${canvasKey}`}
       sandbox="allow-scripts allow-same-origin"
     />

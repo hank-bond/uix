@@ -155,8 +155,9 @@ describe("SurfaceModulePipeline", () => {
 
   it("serves feature files with content types and blocks path traversal", async () => {
     const reg = await writeFeature({
-      "surface.tsx": `export const surface = { name: "s", render: () => null };`,
-      "styles.css": `.s { color: blue; }`,
+      "surface.tsx": `import sheet from "./styles.css" with { type: "css" };\nexport const surface = { name: "s", styles: [sheet], render: () => null };`,
+      "styles.css": `@font-face { font-family: demo; src: url("./assets/demo.woff2") format("woff2"); }\n.s { color: blue; }`,
+      "assets/demo.woff2": "font bytes",
     });
     const pipeline = new SurfaceModulePipeline("local");
     await pipeline.buildAll([reg]);
@@ -167,7 +168,21 @@ describe("SurfaceModulePipeline", () => {
     );
     expect(css.status).toBe(200);
     expect(css.headers.get("Content-Type")).toBe("text/css; charset=utf-8");
-    expect(await css.text()).toContain("color: blue");
+    const cssText = await css.text();
+    expect(cssText).toContain("color: blue");
+    expect(cssText).toMatch(
+      /url\(uix-resource:\/\/uix\.local\/surface-files\/shiny\/assets\/demo\.woff2\?v=[0-9a-f]{12}\)/,
+    );
+
+    const font = await filesRoute.handler(
+      request({
+        feature: "shiny",
+        path: ["assets", "demo.woff2"],
+      }),
+    );
+    expect(font.status).toBe(200);
+    expect(font.headers.get("Content-Type")).toBe("font/woff2");
+    expect(await font.text()).toBe("font bytes");
 
     const traversal = await filesRoute.handler(
       request({ feature: "shiny", path: ["..", "secret.txt"] }),

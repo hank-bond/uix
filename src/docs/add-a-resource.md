@@ -75,18 +75,26 @@ export const feature = defineFeature({
 
 ## Create URLs and origins
 
-Renderer-shared code calls the handle with a workspace id and route values:
+Renderer-shared code creates a logical address from the handle, then resolves it through the current workspace client before giving it to the browser:
 
 ```ts
-const url = reportAddress.toUrl({
-  workspaceId,
+import {
+  resolveWorkspaceResourceUrl,
+  useWorkspaceClient,
+} from "@uix/api/workspace";
+
+const workspace = useWorkspaceClient();
+const logicalUrl = reportAddress.toUrl({
+  workspaceId: workspace.workspaceId,
   params: { reportId: "weekly" },
 });
+const url = resolveWorkspaceResourceUrl(workspace, logicalUrl);
 
-const origin = reportAddress.toOrigin(workspaceId);
+const logicalOrigin = reportAddress.toOrigin(workspace.workspaceId);
+const origin = resolveWorkspaceResourceUrl(workspace, logicalOrigin);
 ```
 
-`toUrl()` returns a branded `ResourceUrl`. It validates address fields, parameter names, parameter shapes, and query values before encoding. `toOrigin()` returns the exact browser origin for security checks such as iframe `postMessage` validation.
+`toUrl()` returns a branded logical `ResourceUrl`. It validates address fields, parameter names, parameter shapes, and query values before encoding. `toOrigin()` returns its logical origin. `resolveWorkspaceResourceUrl()` preserves those addresses in Electron and maps them to workspace-qualified HTTP origins in the server host. Resolve origins too before using them for checks such as iframe `postMessage` validation.
 
 ## Verify
 

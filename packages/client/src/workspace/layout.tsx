@@ -22,6 +22,7 @@ import {
   createFeatureSettingsClient,
   FeatureActionsProvider,
   FeatureSettingsProvider,
+  resolveWorkspaceResourceUrl,
   type SurfaceContribution,
   useWorkspaceClient,
 } from "@uix/api/workspace";
@@ -176,14 +177,19 @@ interface RuntimeSurfaceState {
  * Returns the surface name (the module's, once loaded) plus the body to render.
  */
 export function useRuntimeSurface(entry: SurfaceEntry): RuntimeSurfaceState {
+  const workspace = useWorkspaceClient();
+  const moduleUrl =
+    entry.url === undefined
+      ? undefined
+      : resolveWorkspaceResourceUrl(workspace, entry.url);
   const [loaded, setLoaded] = useState<
     { surface: SurfaceContribution } | { error: string } | undefined
   >(undefined);
 
   useEffect(() => {
-    if (entry.error !== undefined || entry.url === undefined) return;
+    if (entry.error !== undefined || moduleUrl === undefined) return;
     let alive = true;
-    import(/* @vite-ignore */ entry.url).then(
+    import(/* @vite-ignore */ moduleUrl).then(
       (module: { surface?: unknown }) => {
         if (!alive) return;
         try {
@@ -201,7 +207,7 @@ export function useRuntimeSurface(entry: SurfaceEntry): RuntimeSurfaceState {
     return () => {
       alive = false;
     };
-  }, [entry]);
+  }, [entry, moduleUrl]);
 
   const buildFailure =
     entry.error ??

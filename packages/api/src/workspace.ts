@@ -209,6 +209,16 @@ export interface WorkspaceClient {
     channel: string,
     handler: (event: unknown) => void,
   ) => () => void;
+  /** Map a logical UIX resource URL or origin to this host's browser transport. */
+  readonly resolveResourceUrl?: (logicalUrl: string) => string;
+}
+
+/** Resolve a logical resource address without making Electron callers provide an identity adapter. */
+export function resolveWorkspaceResourceUrl(
+  client: WorkspaceClient,
+  logicalUrl: string,
+): string {
+  return client.resolveResourceUrl?.(logicalUrl) ?? logicalUrl;
 }
 
 // The workspace client context lives here, not in page code, because
