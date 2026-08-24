@@ -10,7 +10,7 @@ The naming rules in [`rules/`](./rules/) state the invariants. This file explain
 
 ## Symbol naming
 
-- A `DisposableBag` that owns cleanup capabilities takes its name from the lifetime it tracks: `appBag`, `windowBag`, `sessionBag`.
+- A `DisposableBag` or `AsyncDisposableBag` that owns cleanup capabilities takes its name from the lifetime it tracks: `hostBag`, `workspaceBag`, `windowBag`, `sessionBag`.
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
 - Name symbols for their stable domain role and operation, not their current caller, pipeline position, trigger, owner, or implementation strategy. A name should remain correct if the symbol moves, gains another caller, or changes implementation without changing its essential domain guarantees. Let the receiver provide context (`turnStateCoordinator.restoreCurrent(...)`). Do not repeat that context in every method.
 - Function names describe the observable domain operation. Include distinctions that identify materially different operations or results. Put lifecycle ordering, current usage, race policy, preconditions, and nuanced skipped outcomes in behavioral comments. Do not encode those volatile details into a symbol merely because one caller currently depends on them.
@@ -19,14 +19,25 @@ The naming rules in [`rules/`](./rules/) state the invariants. This file explain
 - Parameters name each participant's domain role (`transport`, `contract`, `scope`, `owner`, `session`, `lifetime`, `bag`). Access restrictions live in scoped capability types and handles.
 - A domain catalog is `XCatalog`. One public item is `XCatalogEntry`. Reserve these names for the catalog concept in [`concepts.md`](../concepts.md). Do not use them for arbitrary lists or snapshots. Avoid `Descriptor` when the value is a catalog entry.
 - State-shape nouns hold these meanings:
-  - A **snapshot** is an immutable point-in-time value or independently identified artifact. `toSnapshot()` converts one live value to its snapshot representation. `createDocumentSnapshot()` creates a store-owned artifact. `getCatalogSnapshot()` retrieves an existing current snapshot.
-  - A **projection** is a purpose-specific, read-only, lower-information view of authoritative state. It is rebuildable and never independently authoritative. A physically persisted projection has cache semantics. Use `deriveXProjection()` for a one-shot derivation.
+  - **State** is live, owner-held current authority that can change during its lifecycle. A state object may mutate in place or replace its current generation, and consumers observe it only through the owner's capabilities. `AgentInstanceSupervisionState` is the supervisor-owned lifecycle state for one live agent instance.
+  - A **snapshot** is a detached, immutable point-in-time value or independently identified artifact. It never updates after the owner returns it and exposes no mutable alias into the source state. `toSnapshot()` converts one live value to its snapshot representation. `createDocumentSnapshot()` creates a store-owned artifact. `getCatalogSnapshot()` retrieves an existing current snapshot. `getGuardSnapshot()` captures active guard metadata without exposing guard authority.
+  - A **projection** is a purpose-specific, read-only, lower-information view of authoritative state. It is rebuildable and never independently authoritative. Point-in-time and derivation are independent properties, so an owner may return a projection as a snapshot. A physically persisted projection has cache semantics. Use `deriveXProjection()` for a one-shot derivation.
   - A **baseline** is the reference value used for comparison by a later operation. It remains derived unless its owning domain commits it.
 - React components are the exception: keep PascalCase noun names such as `Conversation` or `ChoiceButton`.
 - Add any `Disposable` implementation directly to a bag without another wrapper.
 - Use `Store` for durable source-of-truth APIs/implementations. A store may expose a change feed when the change semantics are generic at that layer. Otherwise domain-specific buffers/features publish higher-level invalidation events.
 - Use `Buffer` for live, feature-specific working projections over a store. Buffers may cache regenerable state, normalize writes, and reconcile feature/editor semantics, but durable authority stays in the backing store.
 - Use `Registry` for central in-memory maps of contributed things plus their routing (`ChannelRegistry`, `SettingsRegistry`). Registries do not persist.
+
+## Owned-name prefixes
+
+Project-owned names do not use the project name as a prefix. The repository, package, or owning feature is already the namespace. Each prefix is one more mention a project rename must chase down.
+
+The project name is reserved for names that live in a namespace shared with contributed or external components. There, the prefix is the discrete namespace separating system-owned names from theirs ([naming.project-prefix](./rules/naming.project-prefix.md)).
+
+Vale styles use plain names (`grammar`, `lexicon`, `comments`). Internal symbols use plain names (`substrateChannels`). Feature-authored markers in content use the feature's name (`data-canvas-prompt`, `canvas:writeback`).
+
+Substrate IPC channel names, the resource origin, the surface-root marker, the agent-context envelope, and the workspace manifest keep the reserved prefix. They must be recognizable inside streams or catalogs the system does not fully own.
 
 ## Projection naming
 

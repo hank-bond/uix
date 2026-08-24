@@ -1,4 +1,4 @@
-// canvas feature entry.
+// Canvas feature entry.
 //
 // The definition lives in backend/contributions. This root-level entry is
 // what the manifest references, so surface refs and served CSS/assets

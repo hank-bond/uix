@@ -1,0 +1,693 @@
+// Isolation proof: two real workspace runtimes in one process with
+// overlapping feature, channel, resource, and settings ids.
+//
+// Both workspaces load the same fixture feature (identical feature id, channel
+// canonical id, resource canonical id, surface feature id), each over its own
+// in-memory channel and resource transports. The scenarios exercise feature
+// activation, per-workspace settings, document storage isolation, canonical
+// dispatch with host-stamped attachment context, resource serving, surface
+// composition, independent reload, scoped runtime events, and disposal
+// isolation. No Electron, WebSocket, HTTP, or Pi services are involved. The
+// runtime is proven against fake host dependencies, so failures reveal
+// runtime isolation rather than platform behavior.
+
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+import { toChannelCanonicalId } from "@uix/api/channel-resolution";
+import {
+  encodeResourceUrl,
+  normalizeResourceRoute,
+  ResourceProtocolScheme,
+} from "@uix/api/resource-routes";
+import type {
+  Attachment,
+  CanonicalRequest,
+  CanonicalResponse,
+  RuntimeEvent,
+} from "@uix/runtime";
+import type { WorkspaceRuntimeDependencies } from "@uix/runtime";
+import {
+  createWorkspaceRuntime,
+  toBranchId,
+  toWorkspaceId,
+} from "@uix/runtime";
+
+import type { Workspace } from "./roots";
+
+const apiModuleDir = join(__dirname, "../../api/src");
+
+/** The fixture feature both workspaces load: identical ids everywhere. */
+const fixtureFeature = `
+import { Type } from "typebox";
+
+import { type ChannelContract, withHandlers } from "@uix/api/channels";
+import { defineFeature } from "@uix/api/feature";
+import { normalizeResourceRoute } from "@uix/api/resource-routes";
+import { defineSettings } from "@uix/api/settings";
+
+const contract = {
+  feature: "echo",
+  requests: {
+    ping: { requestSchema: Type.Object({}), responseSchema: Type.String() },
+    read_doc: {
+      requestSchema: Type.Object({}),
+      responseSchema: Type.Union([Type.String(), Type.Null()]),
+    },
+    write_doc: {
+      requestSchema: Type.Object({ content: Type.String() }),
+      responseSchema: Type.Void(),
+    },
+  },
+  events: {},
+} as const satisfies ChannelContract;
+
+const viewpointContract = {
+  feature: "echo",
+  requests: {
+    increment: {
+      requestSchema: Type.Void(),
+      responseSchema: Type.Number(),
+    },
+    read_view: {
+      requestSchema: Type.Void(),
+      responseSchema: Type.Union([Type.String(), Type.Null()]),
+    },
+    write_view: {
+      requestSchema: Type.Object({ content: Type.String() }),
+      responseSchema: Type.Void(),
+    },
+  },
+  events: {
+    incremented: { event: Type.Number() },
+  },
+} as const satisfies ChannelContract;
+
+export const feature = defineFeature({
+  id: "echo",
+  settings: defineSettings({
+    schema: Type.Object({ greeting: Type.String() }),
+    default: { greeting: "hello" },
+  }),
+  workspace(ctx) {
+    const docs = ctx.documents.createStore({ namespace: "echo" });
+    return {
+      agentChannelContracts: [viewpointContract],
+      channels: [
+        {
+          feature: "echo",
+          requests: {
+            ping: {
+              requestSchema: Type.Object({}),
+              responseSchema: Type.String(),
+              handler: () => ctx.settings.get("greeting") ?? "no-greeting",
+              log: {
+                describeRequest: () => ({ kind: "ping" }),
+                describeResponse: (value) => ({ characters: value.length }),
+              },
+            },
+            read_doc: {
+              requestSchema: Type.Object({}),
+              responseSchema: Type.Union([Type.String(), Type.Null()]),
+              handler: () => docs.getCurrent("notes"),
+            },
+            write_doc: {
+              requestSchema: Type.Object({ content: Type.String() }),
+              responseSchema: Type.Void(),
+              handler: async ({ content }) => {
+                await docs.setCurrent("notes", content);
+              },
+            },
+          },
+          events: {},
+        },
+      ],
+      resources: [
+        {
+          name: "greet",
+          route: normalizeResourceRoute({ path: "/", origin: "feature" }),
+          handler: () =>
+            new Response(ctx.settings.get("greeting") ?? "no-greeting"),
+        },
+      ],
+      surfaces: ["./surface.tsx"],
+    };
+  },
+  agent(ctx) {
+    let count = 0;
+    const documents = ctx.documents.createStore({ namespace: "echo-view" });
+    const events = ctx.channels.createPublisher(viewpointContract);
+    return {
+      channels: [
+        withHandlers(viewpointContract, {
+          increment: {
+            handler: () => {
+              count += 1;
+              events.incremented(count);
+              return count;
+            },
+          },
+          read_view: {
+            handler: () => documents.getCurrent("notes"),
+          },
+          write_view: {
+            handler: ({ content }) => documents.setCurrent("notes", content),
+          },
+        }),
+      ],
+    };
+  },
+});
+`;
+
+const fixtureSurface = `
+import { defineSurface } from "@uix/api/workspace";
+
+export const surface = defineSurface({
+  name: "echo",
+  render: () => null,
+});
+`;
+
+interface FakeTransports {
+  dependencies: WorkspaceRuntimeDependencies;
+  resourceHandlers: Map<
+    string,
+    (request: Request) => Response | Promise<Response>
+  >;
+}
+
+function fakeTransports(): FakeTransports {
+  const resourceHandlers = new Map<
+    string,
+    (request: Request) => Response | Promise<Response>
+  >();
+  return {
+    dependencies: {
+      resourceTransport: (scheme, handler) => {
+        resourceHandlers.set(scheme, handler);
+        return {
+          [Symbol.dispose]() {
+            resourceHandlers.delete(scheme);
+          },
+        };
+      },
+      openExternal: () => {},
+    },
+    resourceHandlers,
+  };
+}
+
+/** A temp workspace root plus its manifest referencing the shared fixture. */
+async function makeWorkspace(
+  name: string,
+  fixtureDir: string,
+  greeting: string,
+): Promise<Workspace> {
+  const dir = await mkdtemp(join(tmpdir(), `iso-${name}-`));
+  await mkdir(join(dir, ".uix", "sessions"), { recursive: true });
+  await writeFile(
+    join(dir, "uix.workspace.json"),
+    JSON.stringify(
+      {
+        name,
+        features: [
+          {
+            entry: join(fixtureDir, "echo.ts"),
+            settings: { greeting },
+          },
+        ],
+      },
+      null,
+      2,
+    ),
+  );
+  return {
+    stateRoot: dir,
+    agentCwd: dir,
+    manifestPath: join(dir, "uix.workspace.json"),
+  };
+}
+
+async function writeFixture(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), "iso-fixture-"));
+  await writeFile(join(dir, "echo.ts"), fixtureFeature);
+  await writeFile(join(dir, "surface.tsx"), fixtureSurface);
+  return dir;
+}
+
+async function makeCanvasWorkspace(): Promise<Workspace> {
+  const dir = await mkdtemp(join(tmpdir(), "canvas-viewpoints-"));
+  await mkdir(join(dir, ".uix", "sessions"), { recursive: true });
+  await writeFile(
+    join(dir, "uix.workspace.json"),
+    JSON.stringify(
+      {
+        name: "canvas-viewpoints",
+        features: [
+          {
+            entry: join(__dirname, "../../../src/features/canvas/index.ts"),
+          },
+        ],
+      },
+      null,
+      2,
+    ),
+  );
+  return {
+    stateRoot: dir,
+    agentCwd: dir,
+    manifestPath: join(dir, "uix.workspace.json"),
+  };
+}
+
+function loadedEventCount(events: RuntimeEvent[]): number {
+  return events.filter((event) => event.channel === "uix.composition_loaded")
+    .length;
+}
+
+async function dispatch(
+  attachment: Attachment,
+  request: CanonicalRequest,
+): Promise<CanonicalResponse> {
+  using prepared = attachment.prepareDispatch(request);
+  return await prepared.invoke();
+}
+
+describe("workspace runtime isolation", () => {
+  it("keeps the production Canvas on the selected concurrent-session viewpoint", async () => {
+    const workspace = await makeCanvasWorkspace();
+    const runtime = createWorkspaceRuntime({
+      workspaceId: toWorkspaceId("canvas-workspace"),
+      workspace,
+      piAppDataDir: join(workspace.stateRoot, ".pi"),
+      apiModuleDir,
+      dependencies: fakeTransports().dependencies,
+    });
+    const events: RuntimeEvent[] = [];
+    runtime.onEvent((event) => events.push(event));
+
+    const activation = await runtime.load();
+    expect(activation.activated.map(({ id }) => id)).toEqual(["canvas"]);
+
+    const selected = (await runtime.createAttachment()).attachment;
+    const sessionA = selected.target.sessionId;
+    const peerA = (await runtime.createAttachment({ sessionId: sessionA }))
+      .attachment;
+    const read = toChannelCanonicalId("canvas", "read");
+    const writeback = toChannelCanonicalId("canvas", "writeback");
+    const key = "main";
+    const htmlA = "<main>session A</main>";
+    const htmlB = "<main>session B</main>";
+    const canonicalA =
+      "<html><head></head><body><main>session A</main></body></html>";
+    const canonicalB =
+      "<html><head></head><body><main>session B</main></body></html>";
+
+    await expect(
+      dispatch(peerA, {
+        channel: writeback,
+        payload: { key, html: htmlA },
+      }),
+    ).resolves.toEqual({ ok: true, value: undefined });
+
+    const newSession = toChannelCanonicalId("agent", "new_session");
+    await expect(
+      dispatch(selected, { channel: newSession, payload: undefined }),
+    ).resolves.toMatchObject({ ok: true });
+    const sessionB = selected.target.sessionId;
+    expect(sessionB).not.toBe(sessionA);
+    expect(peerA.target.sessionId).toBe(sessionA);
+    await expect(
+      dispatch(selected, { channel: read, payload: { key } }),
+    ).resolves.toEqual({
+      ok: true,
+      value: "<html><head></head><body></body></html>",
+    });
+
+    await dispatch(selected, {
+      channel: writeback,
+      payload: { key, html: htmlB },
+    });
+    await expect(
+      dispatch(peerA, { channel: read, payload: { key } }),
+    ).resolves.toEqual({ ok: true, value: canonicalA });
+    await expect(
+      dispatch(selected, { channel: read, payload: { key } }),
+    ).resolves.toEqual({ ok: true, value: canonicalB });
+
+    events.length = 0;
+    await expect(runtime.reload()).resolves.toMatchObject({
+      featuresActivated: 1,
+      featuresFailed: 0,
+    });
+    const changedScopes = events
+      .filter(({ channel }) => channel === "canvas.changed")
+      .map(({ scope }) => scope);
+    expect(changedScopes).toEqual(
+      expect.arrayContaining([
+        { kind: "session", sessionId: sessionA },
+        { kind: "session", sessionId: sessionB },
+      ]),
+    );
+    await expect(
+      dispatch(peerA, { channel: read, payload: { key } }),
+    ).resolves.toEqual({ ok: true, value: canonicalA });
+    await expect(
+      dispatch(selected, { channel: read, payload: { key } }),
+    ).resolves.toEqual({ ok: true, value: canonicalB });
+
+    peerA[Symbol.dispose]();
+    selected[Symbol.dispose]();
+    await runtime[Symbol.asyncDispose]();
+  });
+
+  it("runs two workspaces with duplicate ids without cross-talk", async () => {
+    const fixtureDir = await writeFixture();
+    const workspaceA = await makeWorkspace(
+      "workspace-a",
+      fixtureDir,
+      "hello-A",
+    );
+    const workspaceB = await makeWorkspace(
+      "workspace-b",
+      fixtureDir,
+      "hello-B",
+    );
+    const transportsA = fakeTransports();
+    const transportsB = fakeTransports();
+
+    const runtimeA = createWorkspaceRuntime({
+      workspaceId: toWorkspaceId("ws-a"),
+      workspace: workspaceA,
+      piAppDataDir: join(workspaceA.stateRoot, ".pi"),
+      apiModuleDir,
+      dependencies: transportsA.dependencies,
+    });
+    const runtimeB = createWorkspaceRuntime({
+      workspaceId: toWorkspaceId("ws-b"),
+      workspace: workspaceB,
+      piAppDataDir: join(workspaceB.stateRoot, ".pi"),
+      apiModuleDir,
+      dependencies: transportsB.dependencies,
+    });
+
+    const eventsA: RuntimeEvent[] = [];
+    const eventsB: RuntimeEvent[] = [];
+    runtimeA.onEvent((event) => eventsA.push(event));
+    runtimeB.onEvent((event) => eventsB.push(event));
+
+    // Both workspaces activate the same feature id from the same entry.
+    const activationA = await runtimeA.load();
+    const activationB = await runtimeB.load();
+    expect(activationA.activated.map((f) => f.id)).toEqual(["echo"]);
+    expect(activationB.activated.map((f) => f.id)).toEqual(["echo"]);
+    expect(activationA.workspaceName).toBe("workspace-a");
+    expect(activationB.workspaceName).toBe("workspace-b");
+
+    // Composition events are scoped per runtime: A's load never reached B.
+    expect(loadedEventCount(eventsA)).toBe(1);
+    expect(loadedEventCount(eventsB)).toBe(1);
+    expect(eventsA.every((event) => event.scope.kind === "workspace")).toBe(
+      true,
+    );
+
+    // A workspace-only route resolves its fallback inside the runtime and
+    // returns an attachment with the accepted durable session identity.
+    const fallbackA = (await runtimeA.createAttachment()).attachment;
+    expect(fallbackA.target.sessionId).not.toBe("");
+    // A second attachment to the same durable session shares the warm primary
+    // instance. A second workspace remains independent.
+    const fallbackB = (await runtimeB.createAttachment()).attachment;
+    const attachA = (
+      await runtimeA.createAttachment({
+        sessionId: fallbackA.target.sessionId,
+      })
+    ).attachment;
+    const attachB = (
+      await runtimeB.createAttachment({
+        sessionId: fallbackB.target.sessionId,
+      })
+    ).attachment;
+    await expect(
+      runtimeA.createAttachment({
+        sessionId: fallbackA.target.sessionId,
+        branchId: toBranchId("branch-1"),
+      }),
+    ).rejects.toThrow("Branch session targets are not supported");
+    await expect(
+      attachA.retarget({
+        sessionId: fallbackA.target.sessionId,
+        branchId: toBranchId("branch-1"),
+      }),
+    ).rejects.toThrow("Branch session targets are not supported");
+    expect(attachA.target.sessionId).toBe(fallbackA.target.sessionId);
+    // The same canonical channel id resolves per-workspace behavior: each
+    // feature's handler reads its own persisted greeting setting.
+    const history = toChannelCanonicalId("agent", "session_history");
+    expect(
+      await dispatch(fallbackA, { channel: history, payload: {} }),
+    ).toEqual(await dispatch(attachA, { channel: history, payload: {} }));
+    // New Session retargets only the requesting attachment. Its peer remains
+    // on the shared previous instance and can still read that history.
+    const previousSessionId = fallbackA.target.sessionId;
+    const newSession = toChannelCanonicalId("agent", "new_session");
+    expect(
+      await dispatch(fallbackA, {
+        channel: newSession,
+        payload: undefined,
+      }),
+    ).toMatchObject({ ok: true });
+    expect(fallbackA.target.sessionId).not.toBe(previousSessionId);
+    expect(attachA.target.sessionId).toBe(previousSessionId);
+    const freshSessionId = fallbackA.target.sessionId;
+
+    // The global channel contract selects a handler from the accepted Agent
+    // guard. Peers on one session share a closure. Different sessions and
+    // workspaces do not.
+    const increment = toChannelCanonicalId("echo", "increment");
+    expect(
+      await dispatch(attachA, { channel: increment, payload: undefined }),
+    ).toEqual({ ok: true, value: 1 });
+    expect(
+      await dispatch(fallbackA, { channel: increment, payload: undefined }),
+    ).toEqual({ ok: true, value: 1 });
+    expect(
+      await dispatch(attachA, { channel: increment, payload: undefined }),
+    ).toEqual({ ok: true, value: 2 });
+    expect(
+      await dispatch(attachB, { channel: increment, payload: undefined }),
+    ).toEqual({ ok: true, value: 1 });
+    expect(eventsA).toContainEqual(
+      expect.objectContaining({
+        channel: "echo.incremented",
+        scope: { kind: "session", sessionId: previousSessionId },
+        payload: 2,
+      }),
+    );
+
+    const readView = toChannelCanonicalId("echo", "read_view");
+    const writeView = toChannelCanonicalId("echo", "write_view");
+    await dispatch(attachA, {
+      channel: writeView,
+      payload: { content: "previous session" },
+    });
+    expect(
+      await dispatch(fallbackA, { channel: readView, payload: undefined }),
+    ).toEqual({ ok: true, value: null });
+    await dispatch(fallbackA, {
+      channel: writeView,
+      payload: { content: "fresh session" },
+    });
+    expect(
+      await dispatch(attachA, { channel: readView, payload: undefined }),
+    ).toEqual({ ok: true, value: "previous session" });
+    expect(
+      await dispatch(fallbackA, { channel: readView, payload: undefined }),
+    ).toEqual({ ok: true, value: "fresh session" });
+
+    const switchSession = toChannelCanonicalId("agent", "switch_session");
+    const ping = toChannelCanonicalId("echo", "ping");
+    const closingAttachment = (
+      await runtimeA.createAttachment({ sessionId: freshSessionId })
+    ).attachment;
+    using preparedPing = closingAttachment.prepareDispatch({
+      channel: ping,
+      payload: {},
+    });
+    using acceptedSwitch = closingAttachment.prepareDispatch({
+      channel: switchSession,
+      payload: { sessionId: freshSessionId },
+    });
+    await closingAttachment.retarget({ sessionId: previousSessionId });
+    await dispatch(fallbackA, {
+      channel: switchSession,
+      payload: { sessionId: previousSessionId },
+    });
+    expect(fallbackA.target.sessionId).toBe(previousSessionId);
+
+    // A preparation keeps its accepted context and channel log policy after
+    // the attachment moves.
+    expect(preparedPing.logOptions.describeRequest?.({})).toEqual({
+      kind: "ping",
+    });
+    expect(await preparedPing.invoke()).toEqual({ ok: true, value: "hello-A" });
+
+    // Accepted work survives attachment closure. It can guard and inspect the
+    // requested agent without installing a target on the closed attachment.
+    closingAttachment[Symbol.dispose]();
+    expect(await acceptedSwitch.invoke()).toMatchObject({ ok: true });
+    expect(closingAttachment.target.sessionId).toBe(previousSessionId);
+    expect(await dispatch(attachA, { channel: ping, payload: {} })).toEqual({
+      ok: true,
+      value: "hello-A",
+    });
+    expect(await dispatch(attachB, { channel: ping, payload: {} })).toEqual({
+      ok: true,
+      value: "hello-B",
+    });
+
+    // Document stores are rooted per workspace: A's writes never reach B.
+    const writeDoc = toChannelCanonicalId("echo", "write_doc");
+    const readDoc = toChannelCanonicalId("echo", "read_doc");
+    await dispatch(attachA, {
+      channel: writeDoc,
+      payload: { content: "a-notes" },
+    });
+    expect(await dispatch(attachA, { channel: readDoc, payload: {} })).toEqual({
+      ok: true,
+      value: "a-notes",
+    });
+    expect(await dispatch(attachB, { channel: readDoc, payload: {} })).toEqual({
+      ok: true,
+      value: null,
+    });
+
+    // The substrate settings channel answers per workspace scope.
+    const getSetting = toChannelCanonicalId("uix", "get_setting");
+    expect(
+      await dispatch(attachA, {
+        channel: getSetting,
+        payload: { featureId: "echo", key: "greeting" },
+      }),
+    ).toEqual({ ok: true, value: "hello-A" });
+    expect(
+      await dispatch(attachB, {
+        channel: getSetting,
+        payload: { featureId: "echo", key: "greeting" },
+      }),
+    ).toEqual({ ok: true, value: "hello-B" });
+
+    // The same resource route serves each workspace's own handler.
+    const route = normalizeResourceRoute({ path: "/", origin: "feature" });
+    const urlA = encodeResourceUrl(route, {
+      featureId: "echo",
+      name: "greet",
+      workspaceId: "ws-a",
+    });
+    const urlB = encodeResourceUrl(route, {
+      featureId: "echo",
+      name: "greet",
+      workspaceId: "ws-b",
+    });
+    const responseA = await transportsA.resourceHandlers.get(
+      ResourceProtocolScheme,
+    )?.(new Request(urlA));
+    const responseB = await transportsB.resourceHandlers.get(
+      ResourceProtocolScheme,
+    )?.(new Request(urlB));
+    expect(await responseA?.text()).toBe("hello-A");
+    expect(await responseB?.text()).toBe("hello-B");
+
+    // Surface composition: both serve the same feature id, built per runtime.
+    const surfaces = toChannelCanonicalId("uix", "surfaces");
+    const surfacesA = await dispatch(attachA, {
+      channel: surfaces,
+      payload: undefined,
+    });
+    const surfacesB = await dispatch(attachB, {
+      channel: surfaces,
+      payload: undefined,
+    });
+    expect(surfacesA).toMatchObject({ ok: true });
+    expect(surfacesB).toMatchObject({ ok: true });
+    if (!surfacesA.ok || !surfacesB.ok) {
+      throw new Error("Surface composition request failed");
+    }
+    const surfacesValueA = surfacesA.value as {
+      surfaces: Array<{ featureId: string; url: string }>;
+      manifestFound: boolean;
+    };
+    const surfacesValueB = surfacesB.value as {
+      surfaces: Array<{ featureId: string; url: string }>;
+      manifestFound: boolean;
+    };
+    expect(surfacesValueA.surfaces).toHaveLength(1);
+    expect(surfacesValueB.surfaces).toHaveLength(1);
+    expect(surfacesValueA.surfaces[0].featureId).toBe("echo");
+    expect(surfacesValueB.surfaces[0].featureId).toBe("echo");
+    expect(surfacesValueA.manifestFound).toBe(true);
+    expect(surfacesValueB.manifestFound).toBe(true);
+    expect(surfacesValueA.surfaces[0].url).not.toBe(
+      surfacesValueB.surfaces[0].url,
+    );
+
+    // Reload one workspace: it picks up the new greeting, the other keeps its own.
+    await writeFile(
+      workspaceA.manifestPath,
+      JSON.stringify(
+        {
+          name: "workspace-a",
+          features: [
+            {
+              entry: join(fixtureDir, "echo.ts"),
+              settings: { greeting: "hello-A2" },
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+    const reloadA = await runtimeA.reload();
+    expect(reloadA.featuresActivated).toBe(1);
+    expect(reloadA.featuresFailed).toBe(0);
+    expect(await dispatch(attachA, { channel: ping, payload: {} })).toEqual({
+      ok: true,
+      value: "hello-A2",
+    });
+    expect(await dispatch(attachB, { channel: ping, payload: {} })).toEqual({
+      ok: true,
+      value: "hello-B",
+    });
+    expect(
+      await dispatch(attachA, { channel: readView, payload: undefined }),
+    ).toEqual({ ok: true, value: "previous session" });
+    expect(
+      await dispatch(attachA, { channel: increment, payload: undefined }),
+    ).toEqual({ ok: true, value: 1 });
+
+    // Disposing one runtime removes only its state and routes. Concurrent
+    // callers share the same drain rather than observing early completion.
+    const disposalA = runtimeA[Symbol.asyncDispose]();
+    expect(runtimeA[Symbol.asyncDispose]()).toBe(disposalA);
+    await disposalA;
+    expect(() =>
+      attachA.prepareDispatch({ channel: ping, payload: {} }),
+    ).toThrow("Attachment is disposed");
+    expect(await dispatch(attachB, { channel: ping, payload: {} })).toEqual({
+      ok: true,
+      value: "hello-B",
+    });
+    expect(
+      await transportsB.resourceHandlers.get(ResourceProtocolScheme)?.(
+        new Request(urlB),
+      ),
+    ).toBeDefined();
+
+    await runtimeB[Symbol.asyncDispose]();
+  });
+});

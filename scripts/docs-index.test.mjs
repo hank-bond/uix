@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   assertSourceBoundary,
+  assertSpecification,
   collectSourceDirectory,
   parseSourceSummary,
   renderSourceIndex,
@@ -38,17 +39,76 @@ describe("parseSourceSummary", () => {
   it("rejects a summary below the first line", () => {
     expect(() =>
       parseSourceSummary("second-line.ts", "\n// Describes the second line.\n"),
-    ).toThrow("second-line.ts: missing one-line source summary");
+    ).toThrow("second-line.ts: missing source summary");
   });
 
   it("rejects a supported source file without a summary", () => {
     expect(() =>
       parseSourceSummary("missing.ts", "export const value = 1;\n"),
-    ).toThrow("missing.ts: missing one-line source summary");
+    ).toThrow("missing.ts: missing source summary");
+  });
+
+  it("joins a wrapped slash summary across continuation lines", () => {
+    expect(
+      parseSourceSummary(
+        "wrapped.ts",
+        "// Coordinates repository checks and the\n// docs index from frontmatter.\n",
+      ),
+    ).toBe(
+      "Coordinates repository checks and the docs index from frontmatter.",
+    );
+  });
+
+  it("stops the summary at a blank separator line", () => {
+    expect(
+      parseSourceSummary(
+        "two-part.ts",
+        "// Coordinates repository checks.\n//\n// Elaboration follows.\n",
+      ),
+    ).toBe("Coordinates repository checks.");
   });
 
   it("ignores unsupported file formats", () => {
     expect(parseSourceSummary("package.json", "{}\n")).toBeUndefined();
+  });
+});
+
+describe("specification validation", () => {
+  it("requires an explicit draft or accepted status", () => {
+    expect(() =>
+      assertSpecification("docs/specs/example.md", {}, "# Example\n"),
+    ).toThrow("specification status must be draft or accepted");
+    expect(() =>
+      assertSpecification(
+        "docs/specs/example.md",
+        { status: "exploring" },
+        "# Example\n",
+      ),
+    ).toThrow("specification status must be draft or accepted");
+  });
+
+  it("allows open questions only in draft specifications", () => {
+    const text = "# Example\n\n## Open questions\n";
+    expect(() =>
+      assertSpecification("docs/specs/example.md", { status: "draft" }, text),
+    ).not.toThrow();
+    expect(() =>
+      assertSpecification(
+        "docs/specs/example.md",
+        { status: "accepted" },
+        text,
+      ),
+    ).toThrow("accepted specification has open questions");
+  });
+
+  it("allows an accepted specification without open questions", () => {
+    expect(() =>
+      assertSpecification(
+        "docs/specs/example.md",
+        { status: "accepted" },
+        "# Example\n\n## Conformance\n",
+      ),
+    ).not.toThrow();
   });
 });
 
@@ -66,7 +126,7 @@ describe("source directory indexes", () => {
   });
 
   it("collects production source files, local documentation, and indexed child directories", () => {
-    const repositoryRoot = mkdtempSync(join(tmpdir(), "uix-source-index-"));
+    const repositoryRoot = mkdtempSync(join(tmpdir(), "source-index-"));
     temporaryDirectories.push(repositoryRoot);
     const boundary = join(repositoryRoot, "boundary");
     const child = join(boundary, "child");

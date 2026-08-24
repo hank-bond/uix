@@ -89,11 +89,14 @@ The `src/docs/` tree hosts the user-implementation how-tos. The `docs/` tree con
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
-- **[src/main/](./src/main/AGENTS.md)** The Electron main process starts the app, opens one workspace, connects its features to Pi, and owns their runtime lifetimes.
+- **[src/main/](./src/main/AGENTS.md)** The Electron host composition opens one workspace runtime over Electron transports and owns windows, menu, launcher, recents, and the transports.
 - **[src/docs/](./src/docs/AGENTS.md)** User-implementation guides for building UIX applications, colocated with the framework and findable by the agents and builders who use it.
-- **[docs/](./docs/AGENTS.md)** Repository-level documentation holds cross-boundary architecture, workflows, external context, decisions, design threads, and documentation practice.
-- **[plans/](./plans/AGENTS.md)** Active build specs, reviewable delivery units, and a backlog of smaller implementation seeds.
+- **[docs/](./docs/AGENTS.md)** Repository-level documentation holds cross-boundary specifications, architecture, workflows, external context, decisions, design threads, and documentation practice.
+- **[plans/](./plans/AGENTS.md)** Mutable implementation plans divide requirement specifications into reviewable slices and track the active attempt, progress, and lessons.
 - **[website/](./website/AGENTS.md)** The uix.sh site builds with Hugo: a landing page with a reduced-motion-safe brandmark morph plus a hand-written devlog. _Read when editing the landing page, devlog, brandmark animation, styles, or favicon._
+- **[packages/](./packages/AGENTS.md)** Reusable substrate packages. api holds the feature-author contracts. runtime owns the one-workspace substrate. host holds the shared supervision contracts. client is an empty ownership root awaiting the shared browser client. _Deciding whether code belongs in a reusable package, a concrete host, or an app composition._
+- **[hosts/](./hosts/AGENTS.md)** Concrete host composition roots. Each host owns process and platform integration and composes the shared supervisor, runtime, and browser clients behind its own adapters. _Deciding whether code is host-owned (process, platform, transport) or belongs in a shared substrate package._
+- **[apps/](./apps/AGENTS.md)** Explicit app compositions. Reusable app-layer features and reference workspace manifests are never globally discovered. Every manifest selects its entries explicitly. _Deciding whether code is an app feature or belongs in the substrate, or composing a workspace._
 
 <!-- INDEX:END -->
 

@@ -1,0 +1,21 @@
+{
+  "name": "@uix/api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Feature-author contracts and transport-neutral shared types for UIX. Source-only local package: consumed by jiti, esbuild, and vite directly.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "types": "./src/index.ts",
+  "files": [
+    "src"
+  ]
+}

@@ -13,7 +13,7 @@ The filename holds the slug and, for decisions, the date. The directory holds th
 summary: "What this document establishes: its thesis, not its topic."
 kind: reference | explanation | how-to | tutorial
 read_when: "Read before {ACTIVITY} when the trigger is not obvious from the summary." # optional
-status: accepted | exploring | resolved | landed | archived | stub | superseded # optional override
+status: draft | accepted | exploring | resolved | landed | archived | stub | superseded # lifecycle only
 ---
 ```
 
@@ -37,7 +37,7 @@ Summary length follows the number of independently addressable claims, not body 
 
 Omit a trigger that only restates the subject. Use ordinary inline links for conceptual relationships rather than encoding document dependencies in frontmatter.
 
-**`status` (optional):** A lifecycle position that differs from the default current state. Author it only on lifecycle layers. Decisions use `accepted`, `superseded`, or `archived`. Design threads use `exploring` or `resolved`. Plans use `stub`, `landed`, or `archived`. Documents without a lifecycle, including each `AGENTS.md` and evergreen leaves, omit it.
+**`status` (lifecycle layers only):** A lifecycle position. Specifications always use `draft` or `accepted` because their authority must be explicit. Decisions use `accepted`, `superseded`, or `archived`. Design threads use `exploring` or `resolved`. Plans use `stub`, `landed`, or `archived`. Documents without a lifecycle, including each `AGENTS.md` and evergreen leaves, omit it.
 
 ## Layer summaries
 
@@ -45,12 +45,13 @@ Each layer's summary answers a different question:
 
 - Decisions state the conclusion.
 - Design threads state the open question and its axes.
+- Specifications state the stable concept contract.
 - Architecture states an invariant or context that remains necessary at HEAD and is not obvious from source.
 - Plans state the deliverable and its units.
 - A source-local leaf states one owning directory's multi-file context.
 - A repository leaf states a cross-boundary reader need.
 
-The shared template within a layer forces siblings to differ by subject. Different templates keep one subject's decision, design thread, constraint, and plan distinct by role.
+The shared template within a layer forces siblings to differ by subject. Different templates keep one subject's decision, design thread, specification, constraint, and plan distinct by role.
 
 ## Scope and mutability
 

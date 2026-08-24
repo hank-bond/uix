@@ -1,5 +1,5 @@
 ---
-summary: "Exploring composition beyond the single-page, single-agent runtime: contained surfaces, layout slots, feature-agent links, shared state, and concurrent workspaces."
+summary: "Exploring surface, layout, and feature-agent composition inside one-workspace runtimes while hosts supervise concurrent workspaces and agent instances preserve a later multi-agent path."
 kind: explanation
 read_when: "Read before designing surface contributions or layout, feature-agent linking, multi-agent sharing of feature state, reintroducing any Host/iframe boundary, or deciding whether chat/canvas should be treated as substrate."
 status: exploring
@@ -17,13 +17,25 @@ The workspace page mounts manifest-contributed surface modules in composition or
 
 Canvas authored HTML remains inside a feature-owned iframe. UIX has no general iframe surface kind or `postMessage` channel transport. Those primitives should wait for a foreign or generated surface that needs them.
 
-The implemented runtime owns one selected Pi session graph and installs all active agent facets into it. Feature-to-agent links, multiple agents, shared feature state, and concurrent workspaces remain design axes rather than current manifest concepts.
+The implemented workspace runtime owns one `WorkspaceAgentRuntime` and one `AgentInstanceSupervisor`. Its first policy provides one guarded primary agent instance per session. Attachments on the same session share that instance, while turns and asynchronous operations hold independent guards. Feature-to-agent links, multiple agents on one session tree, and shared feature state remain design axes. Concurrent workspaces belong to host supervision rather than workspace composition. [`host-workspace-runtime-boundaries.md`](./host-workspace-runtime-boundaries.md) owns that boundary, and [`agent-session-routing.md`](./agent-session-routing.md) owns attachments and agent instances.
+
+The feature runtime separates one Workspace feature activation from the Agent behavior created for each `AgentInstance`. The active manifest-ordered feature definitions provide the Agent factories. UIX has no separate composition identity, admitted-definition class, or named Agent model.
+
+The author contract has two factories because UIX calls them at different scopes. `workspace(ctx)` runs once per feature activation. `agent(ctx)` runs once per Agent viewpoint. Each factory creates local values and returns one contribution object. Callbacks in that object close over the local values. The object may implement a standard disposal protocol. UIX owns it and its registration in one feature bag. UIX does not build a generic feature-state object.
+
+Workspace context provides shared Workspace capabilities. Agent context provides the configuration, event publishing, logging, and viewpoint capabilities required by Agent features. It contains no attachment routing fields or state from another Agent instance. Features can reuse immutable module values, while each Agent factory creates new mutable buffers and callbacks.
+
+Each feature factory and its contributions register as one unit. A failed registration removes that feature's partial work, while sibling features can continue. UIX records the feature id and error, not internal phases or successful operations.
+
+Canvas uses instance-bound channels. The Workspace registers the static protocol, and each Agent factory creates a handler over local state. This static and instance distinction applies to channels only.
+
+Named Agent behavior remains deferred. No manifest, author contract, or wire value represents it.
 
 The current public surface ABI returns a React node, and the compiler supplies a shared React instance. Those are implementation constraints rather than part of the layout or lifetime contract.
 
 The post-alpha target is an ESM definition that mounts into a substrate-provided DOM target with direct typed capabilities and deterministic cleanup. UIX supplies no reactive abstraction or framework-adapter matrix. An app template may still recommend React and Mantine because their constrained pattern, component ecosystem, and model training distribution are product-level strengths rather than substrate requirements. Mixing frameworks remains valid but is not the optimized application path: compatible dependencies may share ordinary ESM chunks, incompatible versions may coexist, and no framework object crosses the surface boundary.
 
-Bare workspace creation scaffolds only editable passthrough Pi tools. Chat, Canvas, and `workspace_tools` form the repository reference application, not workspace defaults.
+Bare workspace creation scaffolds only editable passthrough Pi tools. Chat, Canvas, and `workspace_tools` form the repository reference application, not workspace defaults. Prefix-free base-tool vocabulary remains orthogonal to per-instance feature state and does not shape the replacement Agent-factory work.
 
 The next composition pressure comes from ambient surfaces, layout slots, contained surfaces, and eventual feature-to-agent links. New primitives should follow concrete product needs without reintroducing a privileged feature path.
 
@@ -39,7 +51,7 @@ Trusted page-realm surfaces and contained iframe surfaces are not interchangeabl
 
 Feature-to-Agent links should install only Agent-related facets. Workspace facets such as resources, channels, documents, and surfaces belong to the feature runtime even when no Agent is linked. Per-link state belongs only where behavior genuinely differs by Agent.
 
-Multiple Agents sharing one feature require an explicit concurrency model. Resource-keyed state and optimistic revision checks are a useful start, but the substrate should not promise shared mutation safety before a concrete feature proves the lock or conflict contract.
+Several Agents may use one loaded feature definition without sharing mutable state. Each Agent factory call owns its local values and document heads. Cross-Agent communication uses durable substrate messages. Each data authority defines its own merge and conflict behavior.
 
 Link and unlink events may need durable Agent-visible records because they change which tools and context exist. UI-only layout changes do not automatically belong in the transcript. The future link manager must keep those two kinds of change separate.
 
@@ -50,13 +62,12 @@ Link and unlink events may need durable Agent-visible records because they chang
 - What durable record represents adding or removing a feature-to-agent link?
 - Which state belongs to a feature runtime, and which state belongs to one future Agent link?
 - What locking or optimistic-concurrency contract permits multiple Agents to share one feature?
-- When should workspace scoping permit multiple concurrent workspace windows in one application instance?
 - Which React-independent surface capabilities and lifetime contract should the post-alpha migration settle?
 
 ## Near-term direction
 
 1. Keep the framework-neutral surface migration out of the alpha critical path; promote its review-gated plan explicitly.
-2. Continue treating resources and channels as workspace facets and Agent facets as contributions to the current single Agent. A future link manager can split Agent facets per link.
+2. Keep resources and Workspace handlers at Workspace scope. Instantiate every Agent facet for each guarded primary Agent instance. Any operation touching Agent state resolves through trusted attachment context rather than ambient selection or feature payload fields.
 3. Wait for the first foreign, generated, or executable surface before adding general iframe transport.
 
 ## Log
@@ -93,11 +104,11 @@ Second, reviewing what remained for "chat/canvas as removable features" exposed 
 
 ### 2026-07-02 — Apps are directories; defaults scaffold at creation
 
-Packaging discussion resolved where default features live in a prod build. Rejected the intermediate idea of materializing chat/canvas into a central `~/.uix/features/` on first boot — a central copy creates a template-update-policy problem (what happens when a new app version ships changed defaults over a user-edited copy) and doesn't match the workspace model. Instead: a **UIX App is a directory**, chosen by the user, located anywhere. The dir is the workspace composition on disk — feature packages visible in it, pi session + canvas store under its `.uix/`, discovery rooted at it. `resolveWorkspace()`'s `process.cwd()` was always a placeholder for exactly this ("a future project-picker replaces process.cwd() here").
+Packaging discussion resolved where default features live in a prod build. Rejected the intermediate idea of materializing chat/canvas into a central `~/.uix/features/` on first boot — a central copy creates a template-update-policy problem (what happens when a new app version ships changed defaults over a user-edited copy) and doesn't match the workspace model. Instead: a **UIX App is a directory**, chosen by the user, located anywhere. The dir is the workspace composition on disk — feature packages visible in it, pi session + canvas store under its `.uix/`, discovery rooted at it. `resolveWorkspace()`'s `process.cwd()` was always a placeholder for exactly this ("a future project launcher replaces process.cwd() here").
 
 Creating a new App scaffolds the shipped default feature packages (chat, canvas as source, from the binary's resources) into the dir; the user or agent can edit or delete them per App. Stamping at creation kills the update-policy question — new Apps get new templates, existing Apps keep theirs. The defaults double as the worked example for agents authoring features, which is why they must ship as readable source rather than compiled bundle code. Consequence for the loader: once scaffolding lands, `bundled.ts` must be removed rather than kept as a fallback, because a fallback would resurrect a default the user deliberately deleted.
 
-The shell grows a small start modal: create a new App (pick dir, scaffold) or reopen a recent one (recents in Electron `userData`); one BrowserWindow per open App, which the single-page-workspace collapse already set up. Scaffolding chat/canvas stays gated on discovery-fed surface composition and runtime-value `@uix/api` imports; the App-dir/picker/per-app-state half has no such gate and can land first. Captured as two backlog seeds (App dirs + start picker; default features scaffold into new Apps).
+The shell grows a small start modal: create a new App (pick dir, scaffold) or reopen a recent one (recents in Electron `userData`); one BrowserWindow per open App, which the single-page-workspace collapse already set up. Scaffolding chat/canvas stays gated on discovery-fed surface composition and runtime-value `@uix/api` imports; the App-dir/launcher/per-app-state half has no such gate and can land first. Captured as two backlog seeds (App dirs + launcher; default features scaffold into new Apps).
 
 ### 2026-07-02 — workspaces, not Apps; manifest replaces auto-discovery
 
@@ -109,7 +120,7 @@ Consequences for the just-landed loader: the per-entry activation machinery (val
 
 ### 2026-07-02 — refs go straight to the file; App names the Electron shell
 
-Two confirmations closing the manifest design. Manifest feature references point **directly at entry files**, not package dirs — the `package.json` layer only earned its place under discovery (the scanner needed a marker); with explicit references, a trivial feature is one `.ts` file plus one manifest line, the cheapest authoring loop for an agent. Folder references (dir → read its `package.json`) remain the compatible upgrade when something needs pi fields, multi-entry, or per-feature deps — pi's own bare-file → folder → package spectrum. And "App" lands as the name for the running Electron application itself — the shell showing the picker and hosting windows — completing the three-level vocabulary: App opens workspaces, workspaces compose features. Distilled into [workspace-manifest-not-discovery](../decisions/2026-07-02-workspace-manifest-not-discovery.md); build spec at [workspace-manifest-and-picker](../../plans/archive/workspace-manifest-and-picker.md).
+Two confirmations closing the manifest design. Manifest feature references point **directly at entry files**, not package dirs — the `package.json` layer only earned its place under discovery (the scanner needed a marker); with explicit references, a trivial feature is one `.ts` file plus one manifest line, the cheapest authoring loop for an agent. Folder references (dir → read its `package.json`) remain the compatible upgrade when something needs pi fields, multi-entry, or per-feature deps — pi's own bare-file → folder → package spectrum. And "App" lands as the name for the running Electron application itself — the shell showing the launcher and hosting windows — completing the three-level vocabulary: App opens workspaces, workspaces compose features. Distilled into [workspace-manifest-not-discovery](../decisions/2026-07-02-workspace-manifest-not-discovery.md); build spec at [workspace-manifest-and-picker](../../plans/archive/workspace-manifest-and-picker.md).
 
 ### 2026-07-02 — runtime surface pipeline: platform modules, substrate origin, no builtin anywhere
 
@@ -129,10 +140,62 @@ Rejected putting the whole authoring guide in the system prompt (permanent conte
 
 Revisited React's role after the runtime surface pipeline made it both the implementation and the public renderer ABI. React remains a strong choice for an opinionated vibe-coding app: it gives nontechnical users a constrained pattern they do not have to steer, models have unusually broad training distribution over its successful conventions, and component systems such as Mantine make one-shot task interfaces practical. Those are reasons for an app template to choose React, not reasons for every UIX surface to require it.
 
-The target boundary is an ESM `SurfaceDefinition` that receives an ordinary DOM mount target, direct typed UIX capabilities, static styles, an abort signal, error reporting, and deterministic cleanup. A framework bridge is feature/app source: React creates a root, Svelte mounts a component, Lit renders a template, and raw DOM appends nodes. UIX documents examples but owns no framework adapter matrix and, crucially, no generic reactivity, signals, effects, template language, or component model. The fixed picker and workspace chrome can use direct DOM because their vocabulary is small; that is not an authoring recommendation for evolving apps.
+The target boundary is an ESM `SurfaceDefinition` that receives an ordinary DOM mount target, direct typed UIX capabilities, static styles, an abort signal, error reporting, and deterministic cleanup. A framework bridge is feature/app source: React creates a root, Svelte mounts a component, Lit renders a template, and raw DOM appends nodes. UIX documents examples but owns no framework adapter matrix and, crucially, no generic reactivity, signals, effects, template language, or component model. The fixed launcher and workspace chrome can use direct DOM because their vocabulary is small; that is not an authoring recommendation for evolving apps.
 
 Feature sharing does not imply one self-contained framework runtime per surface. A feature owns compilation into ESM, while the workspace owns final dependency resolution/delivery: compatible resolved imports may become shared content-hashed chunks evaluated once by the browser, and incompatible framework versions remain separate. Mixing frameworks in one workspace is valid but may be inefficient and visually incoherent; an opinionated app remains free to enforce one stack. The implementation is deliberately deferred until after alpha and captured in [framework-neutral surfaces and shell](../../plans/framework-neutral-surfaces-and-shell.md).
 
 ### 2026-07-26 — planning clarification: outcome before mechanism
 
 Reviewing the deferred plan separated the conclusions actually reached from mechanisms proposed during the discussion. The settled outcome is a framework-neutral DOM/ESM surface boundary, user-owned framework bridges, no UIX reactivity, eventual direct-DOM shell chrome, and the ability for ordinary ESM URL identity to share compatible code without requiring one framework. We did not yet decide that UIX runs build commands, that a feature compiler preserves bare imports, that the workspace performs one multi-entry esbuild pass, that styles are exposed specifically as `CSSStyleSheet[]`, that every surface receives the same capability object, or that renderer ownership collapses into one `WorkspaceRuntime`. Those are post-alpha investigation questions, not architecture hidden in the plan.
+
+### 2026-08-09: concurrent workspaces move above workspace composition
+
+Separated concurrent workspace orchestration from workspace feature composition. Each `WorkspaceRuntime` owns exactly one manifest-selected feature composition and one agent-mount manager. A host-level workspace supervisor coalesces runtime boots and chooses whether workspace endpoints share a process or use isolated processes. This keeps duplicate feature and channel ids valid across runtimes and makes each runtime bag the complete workspace teardown boundary.
+
+Replaced the selected-session singleton as the target model with one primary agent mount per session. This first policy supports shared multi-device views while preserving distinct session, mount, and future feature-agent-link identities. Multi-agent branch coordination remains open rather than being implied by concurrent workspace support.
+
+### 2026-08-15: instance facets precede Agent personalities
+
+Separated the immediate state-isolation requirement from the later product model for named Agent personalities or roles. H4.3 keeps one implicit workspace Agent composition but makes the workspace feature generation produce reusable Agent-facet definitions or factories. Each `AgentInstance` owns the mutable facet instances selected from that generation. This prevents two live sessions from sharing turn state, context buffers, stateful tools, or Canvas working projections while leaving a stable seam for later workspace-defined Agent compositions.
+
+The one-visible-target client does not remove this requirement. Attachment retarget can leave the old turn running under an independent guard while the user starts work in another session. Instance-local feature state must therefore be correct before the client displays several agents concurrently.
+
+### 2026-08-16: named Agent compositions bind at branch birth
+
+Fixed the future relationship among workspace composition, Agent personas, branch state, and cooperative sub-Agents. Feature activation produces a catalog of reusable Agent-facet definitions. H4.3 represents today's homogeneous behavior as one implicit `AgentCompositionDefinition`; a later workspace manifest may name several compositions selecting different facets and guidance. Branch creation persists one composition key immutably, one Agent has exclusive ownership of that branch, and changing persona means forking rather than replacing behavior in place. The branch target remains the durable state coordinate; the composition key is behavior selection, not checkout identity.
+
+Spawning is asynchronous and creates an independently checkpointed branch from any selected conversation node. Spawn links are mailbox permissions and delivery policies rather than different Agent kinds: detached work grants no messaging authority; explicit cooperation grants two-way sends; automatic-result flow lets the spawning Agent send follow-ups while the coordinator forwards the spawned Agent's last response after each link-triggered run. Durable coordinator-owned inboxes wake idle or cold recipients and queue behind running recipients. Runs and rollback remain branch-local, so cooperative task graphs do not imply a distributed run or rollback transaction.
+
+### 2026-08-16: flat facet factories and disjoint contexts form the bumper lane
+
+Replaced the proposed nested workspace and Agent contribution objects with flat facet factories. Feature authors declare resources, surfaces, tools, turn state, context, and other capabilities without controlling their scheduler. The substrate classifies each facet's workspace registration, Agent instantiation, and Pi installation operations. This keeps feature source cohesive while allowing operation-specific retries, partial failure, and future lifecycle changes without reshaping author code.
+
+Removed live workspace context from Agent facet factories. A workspace-context extension serves only workspace facets. A fresh Agent-instance-context extension serves only one viewpoint's Agent facets. Substrate repositories can issue scoped checkout capabilities, but Agent code receives no mutable owner or sibling state. Cross-Agent coordination therefore requires durable substrate messages instead of shared memory.
+
+Facet failures no longer imply whole-feature or whole-Agent rollback. Shared context failure blocks only its dependent scope. After context succeeds, sibling facets instantiate, register, restore, and install independently where the downstream system permits. H4.3 keeps structured internal outcomes for tests and later diagnostics, while typed report channels, recovery UI, model-context handoff, and an optional diagnostics tool remain deferred.
+
+### 2026-08-18: grouped context lanes and one base-tool provider
+
+Replaced the flat author-contract direction with top-level `workspaceContext()` and `agentContext()` prerequisite factories plus grouped `workspace` and `agent` contribution sections. Flatness hid real dependencies: only workspace contributions receive the workspace extension, and only Agent contributions receive one viewpoint's Agent extension. Grouping encodes that durable authority boundary while sibling callables remain independent operations scheduled by the substrate. Renamed the old model-visible `agentContext` facet to `agent.modelContext`, separating the Agent's capability context from information directly materialized for its model.
+
+Kept settings top-level because one confirmed feature scope feeds both contexts. Workspace context can mutate that scope; Agent context begins with a read-only view. Session-specific values may later materialize workspace defaults at session creation, but no live session-over-workspace settings stack is designed now. Context properties are readonly and shallow-frozen, extension collisions fail at runtime, and no deep-freeze or hostile-code posture is implied.
+
+Removed the need for a separate exact-name tool contribution. Every feature uses `agent.tools`. One optional `baseTools: true` flag on a manifest feature entry designates the sole provider whose local tool names stay prefix-free; all other tools remain feature-prefixed. The manifest can reject multiple marked entries before source ids are known, admission verifies that the selected entry actually provides tools, and the role grants no additional capability.
+
+### 2026-08-18: channel lanes separate protocol admission from contextual handlers
+
+Placed channel descriptors inside either `workspace` or `agent`. Each descriptor carries a static `contract` and one `handlers(ctx)` factory. Static protocol admission therefore does not require a live Agent, while handler construction still closes over exactly one matching context. The containing section is durable authority: Workspace channels answer independently of selected session and publish to every workspace attachment; Agent channels resolve through the attachment-selected instance and publish only to that session. One contract cannot split requests or events across both lanes.
+
+### 2026-08-18: feature state replaces executable context
+
+Renamed the executable Workspace/Agent object graphs to `WorkspaceFeatureState` and `AgentFeatureState`, leaving context to its model-facing meaning. Feature state includes mutable values plus the services and capabilities that operate on them. Top-level `workspaceState()` and `agentState()` builders precede their matching contribution sections. Tools and channels operate on Agent feature state; turn state is its durable branch projection; model context is its inference-visible projection. The broader internal `AgentInstanceState` remains the substrate-owned portion beside the collection of per-feature states.
+
+State construction is one atomic section prerequisite. A builder accepts chained, single-entry `state.add({ name: value })` calls only. Each accepted value transfers disposal into the provisional candidate bag before the next acquisition, returns a builder with the accumulated inferred type, and rolls back with every earlier entry if construction later fails. Multi-key additions are rejected because the substrate cannot know whether caller-side construction was atomic. Completed state is readonly, shallow-frozen, and strips `add`; contribution factories receive operation authority without state-construction authority. A missing state builder simply finalizes the substrate base. State construction and contribution factories are synchronous wiring; existing effectful contracts retain their own asynchronous boundaries. Sibling facet failures remain independent only after state construction succeeds.
+
+The admitted generation also produces one immutable `AgentCompositionDefinition` over its reusable Agent feature definitions in manifest order. Each definition contains identity, base-tool policy, state construction, and contribution declarations without carrying live Workspace feature state. Every `AgentInstance` receives that snapshot and independently creates the feature states and registries it owns. No public Agent key, named composition, or wire identity exists yet.
+
+### 2026-08-21: direct factories replace the composition code
+
+Commits `dbf687d` through `248494e` confirmed that Workspace behavior runs once and mutable Agent behavior runs once per `AgentInstance`. They also added state builders, nominal composition, deep callback copies, per-facet result records, and a separate engine that no production path used.
+
+The replacement uses `workspace(ctx)` and `agent(ctx)` factories. Their callbacks close over local values, their returned objects may implement standard disposal, and UIX registers each feature as one unit. An explicit revert keeps the experimental commits available in history. Named Agent selection, generic document checkouts, and per-facet recovery remain deferred.

@@ -21,7 +21,8 @@ const session: WorkspaceSessionHandle = {
   recentSessions: [],
   sessionSelectionVersion: 0,
   canSwitchSession: true,
-  loadActiveHistory: () => Promise.resolve({ items: [] }),
+  loadActiveHistory: () =>
+    Promise.resolve({ transcript: { items: [] }, turnActive: false }),
   switchSession: () => Promise.resolve(undefined),
   setSessionTitle: () => Promise.resolve(undefined),
 };

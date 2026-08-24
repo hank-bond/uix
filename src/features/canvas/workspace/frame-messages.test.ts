@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   forwardCanvasFrameMessage,
+  isCanvasFrameReady,
   parseCanvasFrameMessage,
 } from "./frame-messages";
 import { parseCanvasKey } from "../shared/addressing";
@@ -9,11 +10,20 @@ import { parseCanvasKey } from "../shared/addressing";
 const main = parseCanvasKey("main");
 
 describe("canvas frame messages", () => {
+  it("accepts readiness only from the current Canvas key", () => {
+    expect(
+      isCanvasFrameReady({ type: "canvas:ready", key: "main" }, main),
+    ).toBe(true);
+    expect(
+      isCanvasFrameReady({ type: "canvas:ready", key: "other" }, main),
+    ).toBe(false);
+  });
+
   it("accepts a prompt carrying the current hydrated document", () => {
     expect(
       parseCanvasFrameMessage(
         {
-          type: "uix:canvas-prompt",
+          type: "canvas:prompt",
           key: "main",
           html: "<html><body>choice b</body></html>",
           prompt: "  Respond to my choices  ",
@@ -32,7 +42,7 @@ describe("canvas frame messages", () => {
     expect(
       parseCanvasFrameMessage(
         {
-          type: "uix:canvas-prompt",
+          type: "canvas:prompt",
           key: "other",
           html: "<html></html>",
           prompt: "respond",
@@ -43,7 +53,7 @@ describe("canvas frame messages", () => {
     expect(
       parseCanvasFrameMessage(
         {
-          type: "uix:canvas-prompt",
+          type: "canvas:prompt",
           key: "main",
           html: "<html></html>",
           prompt: "   ",
@@ -54,7 +64,7 @@ describe("canvas frame messages", () => {
     expect(
       parseCanvasFrameMessage(
         {
-          type: "uix:canvas-prompt",
+          type: "canvas:prompt",
           key: "main",
           html: "",
           prompt: "respond",
@@ -82,6 +92,7 @@ describe("canvas frame messages", () => {
         html: "<html></html>",
         prompt: "respond",
       },
+      () => true,
       writeback,
       prompt,
     );
@@ -105,6 +116,7 @@ describe("canvas frame messages", () => {
           html: "<html></html>",
           prompt: "respond",
         },
+        () => true,
         () => Promise.reject(new Error("writeback failed")),
         prompt,
       ),
@@ -123,9 +135,35 @@ describe("canvas frame messages", () => {
         key: main,
         html: "<html></html>",
       },
+      () => true,
       writeback,
       prompt,
     );
+
+    expect(writeback).toHaveBeenCalledOnce();
+    expect(prompt).not.toHaveBeenCalled();
+  });
+
+  it("drops stale frame work before writeback and between writeback and prompt", async () => {
+    let current = false;
+    const writeback = vi.fn(() => Promise.resolve());
+    const prompt = vi.fn(() => Promise.resolve());
+    const message = {
+      type: "prompt" as const,
+      key: main,
+      html: "<html></html>",
+      prompt: "respond",
+    };
+
+    await forwardCanvasFrameMessage(message, () => current, writeback, prompt);
+    expect(writeback).not.toHaveBeenCalled();
+
+    current = true;
+    writeback.mockImplementation(() => {
+      current = false;
+      return Promise.resolve();
+    });
+    await forwardCanvasFrameMessage(message, () => current, writeback, prompt);
 
     expect(writeback).toHaveBeenCalledOnce();
     expect(prompt).not.toHaveBeenCalled();

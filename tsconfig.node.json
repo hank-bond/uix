@@ -13,15 +13,24 @@
     "lib": ["ES2022", "ESNext.Disposable"],
     "types": ["node"],
     "paths": {
-      "@uix/api": ["./src/api/index.ts"],
-      "@uix/api/*": ["./src/api/*.ts"],
+      "@uix/api": ["./packages/api/src/index.ts"],
+      "@uix/api/*": ["./packages/api/src/*.ts"],
+      "@uix/runtime": ["./packages/runtime/src/index.ts"],
+      "@uix/runtime/*": ["./packages/runtime/src/*.ts"],
+      "@uix/host": ["./packages/host/src/index.ts"],
+      "@uix/host/*": ["./packages/host/src/*.ts"],
       "#backend/*": ["./src/main/*"],
       "#features/*": ["./src/features/*"],
       "#shared/*": ["./src/shared/*"]
     }
   },
   "include": [
-    "src/api/**/*.ts",
+    "packages/api/src/**/*.ts",
+    "packages/runtime/src/**/*.ts",
+    "packages/host/src/**/*.ts",
+    "hosts/electron/**/*.ts",
+    "hosts/server/**/*.ts",
+    "apps/features/**/backend/**/*.ts",
     "src/main/**/*.ts",
     "src/features/*/index.ts",
     "src/features/**/backend/**/*.ts",
@@ -35,5 +44,5 @@
   // workspace.ts is the web-only half of @uix/api (React surfaces,
   // CSSStyleSheet); nothing in the main process imports it, and it needs
   // the DOM lib this config deliberately lacks.
-  "exclude": ["src/api/workspace.ts"]
+  "exclude": ["packages/api/src/workspace.ts"]
 }

@@ -10,9 +10,9 @@ Durable settings live on the feature's manifest entry in `uix.workspace.json`. F
 
 Files involved:
 
-- [`src/api/settings.ts`](../../src/api/settings.ts), `defineSettings`
-- [`src/api/workspace.ts`](../../src/api/workspace.ts), `useFeatureSetting`
-- [`src/main/workspace/settings.ts`](../../src/main/workspace/settings.ts), the persistence substrate
+- [`packages/api/src/settings.ts`](../../packages/api/src/settings.ts), `defineSettings`
+- [`packages/api/src/workspace.ts`](../../packages/api/src/workspace.ts), `useFeatureSetting`
+- [`packages/runtime/src/workspace-settings.ts`](../../packages/runtime/src/workspace-settings.ts), the persistence substrate
 
 ## Declare a settings definition in shared code
 
@@ -39,7 +39,7 @@ import { notesSettings } from "./shared/settings";
 export const feature = defineFeature({
   id: "notes",
   settings: notesSettings,
-  contribute(ctx) {
+  workspace(ctx) {
     const max = ctx.settings.get("maxNotes");
     ctx.settings.onChange("maxNotes", (next) => {});
     return {};

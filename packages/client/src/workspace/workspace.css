@@ -1,0 +1,162 @@
+/* Base chrome for the shared workspace client. */
+/*
+ * Plain CSS, no framework. The chrome stays tiny on purpose: everything
+ * visually interesting happens inside the canvas iframe, which has its
+ * own (default) styles.
+ */
+
+:root {
+  color-scheme: dark;
+  --bg: #0e0e10;
+  --bg-surface-panel: #16161a;
+  --bg-input: #1d1d22;
+  --border: #2a2a2f;
+  --fg: #e6e6e6;
+  --fg-dim: #969696;
+  --fg-faint: #5a5a60;
+  --accent: #7aa2f7;
+  --error: #e06c75;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.workspace {
+  height: 100%;
+  overflow: hidden;
+  background: var(--border);
+}
+
+.workspace--empty {
+  display: grid;
+  place-items: center;
+}
+
+.workspace-panels {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.workspace-resize-separator {
+  width: 1px;
+  background: var(--border);
+  cursor: col-resize;
+  transition: background 120ms ease;
+}
+
+.workspace-resize-separator:hover,
+.workspace-resize-separator[data-separator="active"],
+.workspace-resize-separator[data-separator="focus"] {
+  background: var(--accent);
+}
+
+.surface-panel {
+  height: 100%;
+  background: var(--bg-surface-panel);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-width: 0;
+  min-height: 0;
+}
+
+.surface-panel__header {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  border-bottom: 1px solid var(--border);
+}
+
+.surface-panel__body {
+  padding: 1rem;
+  overflow: auto;
+  min-height: 0;
+}
+
+.surface-panel__body--placeholder {
+  display: grid;
+  place-items: center;
+  color: var(--fg-dim);
+  font-style: italic;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.surface-panel__body--canvas {
+  padding: 0;
+  overflow: hidden;
+}
+
+.canvas-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: white;
+}
+
+/* Runtime surface error card — the frontend twin of the loader's failed[]. */
+.surface-error {
+  margin: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--error);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--error) 8%, var(--bg-surface-panel));
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.surface-error__title {
+  margin: 0 0 6px;
+  color: var(--error);
+  font-weight: 600;
+}
+
+.surface-error__detail {
+  margin: 0 0 6px;
+  color: var(--fg);
+  white-space: pre-wrap;
+}
+
+.surface-error__entry {
+  margin: 0;
+  color: var(--fg-dim);
+}
+
+/* Empty composition. */
+.workspace-empty {
+  max-width: 480px;
+  padding: 18px 22px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-surface-panel);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.workspace-empty__title {
+  margin: 0 0 8px;
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.workspace-empty__detail {
+  margin: 0 0 8px;
+  color: var(--fg-dim);
+}
+
+.workspace-empty__path {
+  margin: 0;
+  color: var(--fg-faint);
+  overflow-wrap: anywhere;
+}

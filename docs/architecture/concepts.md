@@ -7,6 +7,16 @@ kind: reference
 
 This is the canonical vocabulary for UIX architecture discussions and code names. Use it to avoid overloading Pi terms and to distinguish feature loading, package distribution, and internal substrate wiring.
 
+## Host, supervisor, and workspace runtime
+
+A _host_ owns the process and platform integration: lifecycle, transports, native capabilities, and workspace supervision. Electron and the local server are hosts. A _client bootstrap_ is a host's page entry that constructs the transport client and mounts the shared client.
+
+The _supervisor_ is the host-internal component that supervises and routes requests to workspace runtimes. It maps workspace ids to workspace handles, coalesces runtime boots, and decides process placement. A _workspace handle_ is the host-facing handle to one in-process workspace runtime.
+
+A workspace runtime's _dependencies_ are the concrete effects it requires from the host, injected at construction. A runtime declares them, and the host provides them. An _adapter_ is a translator across communication capabilities.
+
+The _launcher_ is the shared pre-workspace client that selects or creates workspaces over host capability endpoints. A _native launcher_ is an external client, such as the macOS menu-bar app, that consumes the same host endpoints. A host can serve the launcher with zero active workspace runtimes.
+
 ## Feature
 
 A _feature_ is UIX's loadable unit and the coherent capability it adds: Canvas, Chat, a chess board, a file browser, or a report renderer. A feature can be first-party in-tree or provided by another manifest-referenced module.
@@ -25,13 +35,13 @@ Use **feature** for the UIX capability, loadable definition, and activation boun
 
 ## Feature lifecycle
 
-A _feature definition_ is the plain `FeatureDefinition` exported by one manifest entry module. It declares the feature id and the hooks that produce its contributions. It is not itself live runtime state.
+A _feature definition_ is the plain `FeatureDefinition` exported by one manifest entry module. It declares the feature id and optional `workspace(ctx)` and `agent(ctx)` factories. It is not itself live state.
 
-_Feature activation_ validates a definition and settings, constructs context, and runs both hooks. It registers each facet under a provisional lifetime bag. Only complete success enrolls that bag.
+_Feature activation_ validates a definition and settings, runs its Workspace factory, and retains its Agent factory in manifest order. It registers the Workspace result under a provisional lifetime bag. Only complete success enrolls that bag.
 
-An _activated feature instance_ is the live result of one successful feature activation: its context objects, callbacks, registered contributions, and per-feature lifetime bag. Reloading the same entry creates a replacement activated feature instance even when its id and source are unchanged. A failed activation produces no activated feature instance. Its provisional bag disposes every capability already acquired.
+An _activated Workspace feature_ is the live result of one successful Workspace activation: its local values, registered contributions, retained Agent factory, and per-feature lifetime bag. An _Agent feature instance_ is the result of calling that Agent factory for one `AgentInstance`. It has its own local values, registrations, and feature bag. A failed factory removes that feature's partial work without stopping siblings.
 
-The _active feature composition_ is the set of activated feature instances currently owned by the workspace's feature bag. Reload commits turn state from those current instances, disposes them, activates replacement instances, and restores the selected session branch into the replacements.
+The _active feature composition_ is the set of activated Workspace features and the corresponding Agent feature instances. Reload rejects during an active turn or Agent feature-channel operation. An idle reload commits every viewpoint, replaces Workspace features, rebuilds each live Agent feature bag, reloads initialized Pi runtimes, and restores each viewpoint. Cleanup failures are reported after forward replacement reaches a coherent state.
 
 Do not call an activated feature instance a feature generation. Use _generation_ only for a modeled replaceable object graph, such as a staged manifest or Pi runtime. Feature lifecycle uses activation, instance, active composition, and replacement instance.
 
@@ -46,9 +56,9 @@ UIX uses two id grammars for different things.
 
 Validated helpers construct both nominal brands. Internal registry sets and resolved contribution shapes retain those brands. External string boundaries cast inline.
 
-Author-facing `@uix/api` contributions contain local names instead of derived ids. `src/api/contribution-id.ts` owns the cross-facet grammar.
+Author-facing `@uix/api` contributions contain local names instead of derived ids. `packages/api/src/contribution-id.ts` owns the cross-facet grammar.
 
-Each consumer owns its canonical-id helpers and resolved shapes. Shared channel and resource resolution lives in `src/api/`. Main-only facets keep resolution in `src/main/`.
+Each consumer owns its canonical-id helpers and resolved shapes. Shared channel and resource resolution lives in `packages/api/src/`. Main-only facets keep resolution in `src/main/`.
 
 Envelope and customType ids stay substrate-owned and are not feature-scoped: `uix.state` (the display-hidden agent-context envelope), `uix.turn-state` (the persisted turn-state entry). Inner contributions use feature-scoped canonical ids: `<canvas.canvas-diff>` inside `<uix-state>`, or `canvas.documents` as a named cell inside a `uix.turn-state` entry.
 
@@ -58,11 +68,9 @@ _Resource ids_ name addressable things. `doc://canvas/main` names a managed Canv
 
 Facet organization does not appear in resource paths. A surface, agent tool, snapshot, and restore coordinator can all reference the same resource.
 
-A resource declaration's `origin` policy partitions the browser origin. `origin: "feature"` puts the feature id in the URL host so Chromium isolates the resource from the workspace. `origin: "workspace"` keeps the workspace origin and places feature identity in the path. `toOrigin()` returns that exact origin for `postMessage` security checks. The `uix-resource` scheme is a transport/permission class, not a semantic document type, so browser fetch origins stay separate from domain ids such as `doc://canvas/main`.
+A resource declaration's `origin` policy chooses where the browser loads the resource. `origin: "feature"` puts the feature id in the URL host so Chromium gives the resource its own document realm. `origin: "workspace"` keeps the workspace origin and places feature identity in the path. `toOrigin()` returns that exact origin for `postMessage` checks. This is cooperative document isolation, not hostile-code containment. One web-host instance is one trust domain. A single-origin deployment that loads resource content on the workspace origin is conforming. Stronger per-feature isolation belongs to a later hosted or marketplace profile. The `uix-resource` scheme is a transport/permission class, not a semantic document type. Browser fetch origins stay separate from domain ids such as `doc://canvas/main`.
 
 Use `uix.*` only for substrate-owned dotted ids (envelopes/customTypes). First-party default features are still features, so their contribution ids use feature namespaces such as `canvas.*` and `chat.*`.
-
-The build spec for this model is [`contribution-id-derivation.md`](../../plans/archive/contribution-id-derivation.md).
 
 ## Contribution point
 
@@ -70,9 +78,9 @@ A _contribution point_ is a UIX substrate API slot that accepts contributions.
 
 Examples:
 
-- The `FeatureContributions.channels` facet.
-- The `FeatureContributions.agentContext` facet.
-- The `FeatureContributions.surfaces` facet.
+- The `WorkspaceFeatureContributions.channels` facet.
+- The `AgentFeatureContributions.agentContext` facet.
+- The `WorkspaceFeatureContributions.surfaces` facet.
 - The surface-scoped `useActionContribution(...)` hook.
 
 A contribution point defines validation, lifetime, ownership, and how registered contributions are later used by the substrate.
@@ -176,13 +184,13 @@ A _store_ is a durable source-of-truth API or implementation for a state domain.
 
 A store may expose a change feed when its layer owns generic change semantics. Otherwise, the feature or buffer publishes a domain-specific invalidation event.
 
-`DocumentStore` persists bytes and versions without emitting Canvas refresh events. Canvas publishes `canvas.changed` when an agent write should refresh its iframe.
+`DocumentStore` persists bytes and versions without emitting Canvas refresh events. Agent factories receive document stores whose mutable current bytes are scoped to their viewpoint while immutable versions remain shared. Canvas publishes `canvas.changed` when an Agent write should refresh its iframe.
 
 ## Buffer
 
 A _buffer_ is a live, feature-specific working projection over a store. It may cache regenerable session state, normalize or validate writes, reconcile editor state, and translate between feature semantics and the store's generic durable shape.
 
-A buffer is not durable authority. It writes authoritative state through its backing store and can rebuild from store contents when needed. For example, `CanvasDocumentBuffer` keeps anchored document projections, canonicalizes HTML, and reconciles anchors while `DocumentStore` remains the durable current/version store underneath.
+A buffer is not durable authority. It persists snapshots through its backing store and rebuilds from durable state when needed. Each `CanvasDocumentBuffer` keeps one Agent viewpoint's HTML and anchored document projections. `DocumentStore` owns the immutable versions referenced by Canvas turn state.
 
 ## Controller
 
@@ -196,13 +204,17 @@ Keep ordinary component-local state in React. Use a controller when multiple con
 
 `WorkspaceSessionController` coordinates session projections, agent activity, mutations, and stale-result versions. Main and Pi remain authoritative for durable session graphs.
 
-## Session selection and activity
+## Sessions, attachments, and agent instances
 
-The _selected session graph_ is the durable graph chosen by the workspace. Main persists its identity in `session.selected`. Omitted-id history reads, commits, reload, and runtime creation resolve against it. A _non-selected session_ is another durable graph read explicitly without changing that choice.
+A _session_ is a durable conversation tree. An _agent instance_ is the lifecycle owner for one Pi execution at an immutable session-branch viewpoint. It immediately owns one independent `SessionManager`, Agent facet registries, Agent feature instances, transcript observation, ephemeral transcript identity, current-model projection, and a turn-state coordinator. Its `AgentSessionRuntime` boots lazily only when execution requires it. Connections on one session share those feature instances. Different sessions do not.
 
-The _active `AgentSession`_ is Pi's ephemeral runtime attached to the selected graph. The renderer's _active session projection_ contains the accepted summary and transcript.
+An `AgentInstanceSupervisor` owns the live instances for one workspace runtime. The current policy keys one primary instance by session id, single-flights concurrent creation, and issues independent _guards_. A guard prevents teardown while its holder uses the instance. Disposing one guard is synchronous and affects no peer. Zero guards admits supervisor teardown policy rather than promising teardown to the disposer.
 
-Use _selected_ for durable backend choice and _active_ for a runtime or renderer projection. Call an explicit read target _non-selected_, not _non-active_.
+A connection's _attachment_ is its runtime-created, retargetable capability. It owns one target guard, request authority, event observation, and disposal. Prepared requests and running turns retain independent guards, so accepted work can outlive attachment retarget or closure. A successful retarget acquires the new instance before releasing the old target guard.
+
+UIX persists no workspace-global selected session. The current one-window Electron composition creates an attachment without an explicit target, so the runtime resolves the newest valid session or creates one. Canonical workspace-session browser URLs and per-window target restoration are not implemented.
+
+Use _fallback_ only for resolving an attachment request that omits a session, _target_ for one attachment's session, and _active_ for a runtime or renderer projection.
 
 ## Facet
 
@@ -217,7 +229,7 @@ Examples:
 - Transcript identity.
 - The agent-facing side of a feature.
 
-A feature may participate in many facets. Canvas contributes a surface, agent tools, turn-state snapshots, model-visible context, resources, and channels.
+A feature may participate in many facets. Canvas contributes a surface, Agent tools, turn-state snapshots, model-visible context, and selected-viewpoint channels.
 
 Use **facet** for the behavioral slice. Use **feature** for the loadable product/capability bundle that participates in those facets.
 
@@ -250,16 +262,13 @@ UIX-core composes agent installers inside its single in-process Pi extension fac
 
 A _driver_ owns a runtime or lifecycle boundary. It creates the relevant lifetime bags, attaches behavior, orders teardown and reload, and exposes a small control surface.
 
-Examples:
+The former selected-session agent driver no longer exists. Its responsibilities are split across `WorkspaceAgentRuntime`, `AgentInstanceSupervisor`, and `AgentInstance`: workspace-shared provider services, keyed instance lifecycle, and one session-viewpoint Pi execution respectively. The feature loader owns manifest composition, per-entry bags, injected API construction, activated feature instance creation, reload/error isolation, and teardown of registered contributions.
 
-- The agent driver owns the Pi session boundary: session creation/resume, prompt/reload/history, live event forwarding, and the Pi extension factory that runs agent installers.
-- The feature loader owns feature activation: manifest composition, per-entry bags, injected API construction, activated feature instance creation, reload/error isolation, and teardown of registered contributions.
-
-Drivers own bags. Installers register things. Registries track live contributions. Bags decide when the returned disposables run.
+Exclusive owners use bags for registrations and unique children. Supervisors issue guards for independently held shared children. Installers register behavior, registries track live contributions, bags order exclusive cleanup, and guards prevent supervised teardown during shared use.
 
 ## Hook
 
-A _hook_ is a runtime callback registered at a named lifecycle point.
+A _hook_ is a callback registered at a named lifecycle point.
 
 Examples:
 
@@ -271,7 +280,7 @@ Installers register hooks. Hooks run later when the lifecycle event occurs.
 
 ## Coordinator
 
-A _coordinator_ is a substrate-owned, stateful component that sequences a multi-step lifecycle across independently owned participants and performs the side effects for that lifecycle. Participants can be registered contributions, runtime generations, stores, or external callbacks. The coordinator owns their workflow, not their underlying authority.
+A _coordinator_ is a substrate-owned, stateful component that sequences a multi-step lifecycle across independently owned participants and performs the side effects for that lifecycle. Participants can be registered contributions, generations, stores, or external callbacks. The coordinator owns their workflow, not their underlying authority.
 
 The turn-state coordinator works across registered state cells:
 
@@ -286,7 +295,7 @@ A coordinator owns timing, in-flight workflow state, and cross-participant mecha
 
 ## Assembler
 
-An _assembler_ is a substrate-owned pattern for turning many registered contributions into one runtime artifact or hook result.
+An _assembler_ is a substrate-owned pattern for turning many registered contributions into one artifact or hook result.
 
 The current example is the agent-context assembler:
 
@@ -309,7 +318,7 @@ UIX has three layers that can fall out of sync at different times:
 
 The feature loader reconciles disk to UIX memory by disposing the active composition and activating each accepted manifest entry. Replacement instances register their contributions. Registries become authoritative after activation.
 
-Agent-facing registries become a Pi runtime snapshot when the runtime starts or reloads. Workspace reload replaces feature contributions, then calls the driver's Pi resource reload path. UIX does not maintain a separate automatic dirty-marker path.
+Agent-facing registries become a Pi runtime snapshot when an instance's Pi runtime starts or reloads. Workspace reload replaces feature contributions, then visits every live agent instance under a temporary guard and reloads each initialized Pi runtime. UIX does not maintain a separate automatic dirty-marker path.
 
 Facets local to UIX reconcile through returned disposables and renderer or main notifications. They do not require Pi reload.
 

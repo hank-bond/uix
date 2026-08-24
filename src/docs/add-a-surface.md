@@ -10,9 +10,9 @@ A **surface** is a feature-owned React entry module the workspace mounts in the 
 
 Files involved:
 
-- [`src/api/workspace.ts`](../../src/api/workspace.ts), `defineSurface`, `SurfaceContribution`
-- [`src/main/features/surface-pipeline.ts`](../../src/main/features/surface-pipeline.ts), bundling and serving
-- [`src/renderer/workspace/layout.tsx`](../../src/renderer/workspace/layout.tsx), mounting, style scoping, error boundaries
+- [`packages/api/src/workspace.ts`](../../packages/api/src/workspace.ts), `defineSurface`, `SurfaceContribution`
+- [`packages/runtime/src/features/surface-pipeline.ts`](../../packages/runtime/src/features/surface-pipeline.ts), bundling and serving
+- [`packages/client/src/workspace/layout.tsx`](../../packages/client/src/workspace/layout.tsx), mounting, style scoping, error boundaries
 
 The reference for a real surface is [`src/features/chat/workspace/surface.tsx`](../../src/features/chat/workspace/surface.tsx).
 
@@ -24,7 +24,7 @@ Declare the surface file in the feature's `surfaces` facet:
 // features/notes/index.ts
 export const feature = defineFeature({
   id: "notes",
-  contribute() {
+  workspace() {
     return { surfaces: ["./workspace/surface.tsx"] };
   },
 });

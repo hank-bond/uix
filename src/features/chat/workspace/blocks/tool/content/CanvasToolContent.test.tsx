@@ -36,8 +36,8 @@ describe("CanvasToolContent", () => {
   it("renders the anchored payload preview with gutters stripped", () => {
     const html = renderCanvasContent(item());
 
-    expect(html).toContain('data-uix-part="canvas-tool-payload"');
-    expect(html).toContain('data-uix-part="tool-payload"');
+    expect(html).toContain('data-block-part="canvas-tool-payload"');
+    expect(html).toContain('data-block-part="tool-payload"');
     expect(html).toContain("&lt;main&gt;&lt;/main&gt;");
     expect(html).toContain("&lt;p&gt;hello&lt;/p&gt;");
     expect(html).not.toContain("a1§");
@@ -63,7 +63,7 @@ describe("CanvasToolContent", () => {
   it("renders nothing when there is no payload", () => {
     const html = renderCanvasContent(item({ result: undefined }));
 
-    expect(html).not.toContain('data-uix-part="tool-payload"');
+    expect(html).not.toContain('data-block-part="tool-payload"');
     expect(html).not.toContain("canvas-tool-toggle");
   });
 });

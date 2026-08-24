@@ -27,7 +27,7 @@ export function StructuredCommand({
   if (!pieces) return <HighlightedCode text={command} language="bash" />;
 
   return (
-    <span className="structured-command" data-uix-part="structured-command">
+    <span className="structured-command" data-block-part="structured-command">
       {pieces.map((piece, index) => (
         <span
           className={`structured-command__piece structured-command__piece--${piece.kind}`}

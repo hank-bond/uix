@@ -94,7 +94,7 @@
   margin-block-start: var(--chat-transcript-gap);
 }
 
-.chat__scroll > [data-uix-chat-block="tool"] + [data-uix-chat-block="tool"] {
+.chat__scroll > [data-chat-block="tool"] + [data-chat-block="tool"] {
   margin-block-start: 0;
 }
 

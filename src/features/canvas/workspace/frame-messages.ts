@@ -15,6 +15,17 @@ export type CanvasFrameMessage =
       readonly prompt: string;
     };
 
+export function isCanvasFrameReady(
+  value: unknown,
+  canvasKey: CanvasKey,
+): boolean {
+  return (
+    isRecord(value) &&
+    value["type"] === "canvas:ready" &&
+    value["key"] === canvasKey
+  );
+}
+
 /** Validate the narrow postMessage vocabulary accepted from canvas HTML. */
 export function parseCanvasFrameMessage(
   value: unknown,
@@ -25,11 +36,11 @@ export function parseCanvasFrameMessage(
   const html = value["html"];
   if (typeof html !== "string" || html === "") return undefined;
 
-  if (value["type"] === "uix:canvas-writeback") {
+  if (value["type"] === "canvas:writeback") {
     return { type: "writeback", key: canvasKey, html };
   }
 
-  if (value["type"] === "uix:canvas-prompt") {
+  if (value["type"] === "canvas:prompt") {
     const prompt = value["prompt"];
     if (typeof prompt !== "string" || prompt.trim() === "") return undefined;
     return { type: "prompt", key: canvasKey, html, prompt: prompt.trim() };
@@ -41,15 +52,18 @@ export function parseCanvasFrameMessage(
 /**
  * Persist a prompt action's hydrated canvas before starting the agent turn.
  * This ordering lets submit preparation diff against the state visible at the
- * instant the human clicked the canvas action.
+ * instant the human clicked the canvas action. Recheck the viewpoint after
+ * writeback so an intervening session change cannot prompt the new target.
  */
 export async function forwardCanvasFrameMessage(
   message: CanvasFrameMessage,
+  isCurrentViewpoint: () => boolean,
   writeback: (req: { key: CanvasKey; html: string }) => Promise<void>,
   prompt: (req: { text: string }) => Promise<void>,
 ): Promise<void> {
+  if (!isCurrentViewpoint()) return;
   await writeback({ key: message.key, html: message.html });
-  if (message.type === "prompt") {
+  if (message.type === "prompt" && isCurrentViewpoint()) {
     await prompt({ text: message.prompt });
   }
 }

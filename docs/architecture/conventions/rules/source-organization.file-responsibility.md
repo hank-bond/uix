@@ -7,7 +7,7 @@ kind: reference
 
 **Rule: must.** A source file owns one responsibility. Name it after the stable responsibility it implements and keep declarations beside the behavior that gives them meaning. A responsibility is a coherent unit of behavior or state: a capability, an operation, a role, or a state boundary. A reader seeks it out as one thing, and it changes as one thing.
 
-**Approved example:** A file whose whole responsibility one sentence of at most 30 words can state, such as `src/main/agent/driver.ts`.
+**Approved example:** A file whose whole responsibility one sentence of at most 30 words can state, such as `packages/runtime/src/agent/driver.ts`.
 
 **Nonconforming example:** A `utils.ts`, `helpers.ts`, `common.ts`, or `types.ts` that accumulates unrelated responsibilities.
 

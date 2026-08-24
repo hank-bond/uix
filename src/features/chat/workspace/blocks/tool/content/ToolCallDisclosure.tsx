@@ -35,11 +35,11 @@ export function ToolCallDisclosure({
       className="tool-call-frame"
       data-has-actions={actions ? "" : undefined}
     >
-      <details className="tool-call" data-uix-part={part}>
-        <summary className="tool-call__summary">
+      <details className="tool-call" data-block-part={part}>
+        <summary className="tool-call__summary block-status-row">
           <span className="tool-call__chevron" aria-hidden="true" />
-          <span className="tool-call__header">
-            <span className="tool-call__name">{label}</span>
+          <span className="block-status-row__content">
+            <span className="block-status-row__label">{label}</span>
             {params.length ? (
               <span className="tool-call__params">
                 {params.map((param) => (
@@ -53,25 +53,32 @@ export function ToolCallDisclosure({
               </span>
             ) : null}
             {description ? (
-              <span className="tool-call__summary-copy">
-                <span className="tool-call__description">{description}</span>
+              <span
+                className={`block-status-row__copy${params.length ? "" : " block-status-row__copy--inline"}`}
+              >
+                <span className="block-status-row__description">
+                  {description}
+                </span>
               </span>
             ) : null}
             {state === "error" ? (
-              <span className="tool-call__state">error</span>
+              <span className="block-status-row__state">error</span>
             ) : null}
           </span>
           {state === "running" ? (
             <progress
               className="msg__running-track"
-              data-uix-part="tool-status"
+              data-block-part="tool-status"
               aria-label="Tool running"
             />
           ) : null}
         </summary>
         <div className="tool-call__content">
           {expandedParams.length ? (
-            <div className="tool-call__params-list" data-uix-part="tool-params">
+            <div
+              className="tool-call__params-list"
+              data-block-part="tool-params"
+            >
               {expandedParams.map((param) => (
                 <div key={param.key} className="tool-call__param">
                   <span className="tool-call__param-key">{param.key}</span>

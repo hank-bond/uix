@@ -1,0 +1,16 @@
+/* Non-interactive agent failure row using the shared compact status chrome. */
+
+.error-block__marker {
+  box-sizing: border-box;
+  width: 1.125rem;
+  color: var(--error);
+  font-size: var(--chat-text-meta);
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.msg--error .block-status-row__label,
+.msg--error .block-status-row__description {
+  color: var(--error);
+}

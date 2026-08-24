@@ -1,18 +1,18 @@
 ---
-summary: "Cleanup-requiring behavior uses lifecycle helpers and belongs to an explicit DisposableBag lifetime."
+summary: "Exclusive cleanup belongs to Disposable lifetimes, while independently retained shared objects use supervisor-issued guards."
 kind: reference
 read_when: "Read before attaching callbacks, listeners, IPC, protocols, timers, or any other behavior that requires cleanup."
 ---
 
 # Lifetimes
 
-The [lifetimes.paired-cleanup](./rules/lifetimes.paired-cleanup.md) rule requires every attachment to pair its cleanup. This file explains the main-process mechanics.
+The [lifetimes.paired-cleanup](./rules/lifetimes.paired-cleanup.md) rule requires every attachment to pair its cleanup. This file explains the main-process mechanics. The accepted [supervised-child decision](../../decisions/2026-08-15-supervisors-own-guarded-children.md) fixes the ownership model, while the [design record](../../design/shared-live-object-lifetimes.md) preserves its rejected alternatives.
 
 ## Lifetime management in the main process
 
 IPC crossings use `src/main/ipc.ts`: `handle()` for invoke endpoints and `send()` for window pushes. This path records every crossing in the wire log.
 
-Other attachments use helpers from `src/main/lifecycle.ts`. Each returned `Disposable` goes into the bag matching the behavior's lifetime. Disposing the lifetime tears down every owned capability in reverse acquisition order.
+Other attachments use the lifetime helpers: the Electron app/window bindings in `src/main/lifecycle.ts`, and the host-neutral helpers (`DisposableBag`, `disposable`, `subscribe`, `installProcessHandlers`) in `@uix/runtime/lifecycle`. Each returned `Disposable` goes into the bag matching the behavior's lifetime. Disposing the lifetime disposes every owned capability in reverse acquisition order.
 
 ```ts
 import * as ipc from "./ipc";
@@ -32,6 +32,85 @@ bag[Symbol.dispose]();
 
 Disposable values with non-trivial cleanup implement `Disposable` or use `disposable(() => ...)`. Do not discard a returned `Disposable`. Put it in a bag or `using` declaration.
 
+Asynchronous ownerships implement `AsyncDisposable` and enter an `AsyncDisposableBag` when their lifetime outlives one lexical scope. The bag accepts synchronous and asynchronous values, disposes them in reverse order, continues after failures, and reports an aggregate error. It rejects additions after disposal starts. An exclusive owner puts independent cleanup capabilities in its bag instead of manually sequencing cleanup awaits. The Electron host stops synchronous bindings on the first `before-quit`, awaits its workspace bag, records teardown failure, and only then resumes quitting. Do not place asynchronous cleanup behind a fire-and-forget `Symbol.dispose` shim.
+
+Hot replacement validates candidates before clearing the active bag. A scoped reload-admission capability keeps Agent turns and feature-channel operations outside the replacement scope. Once clearing starts, the old generation cannot resume. The owner records cleanup failures, activates the replacement, completes restoration and publication, and then reports the collected errors.
+
+## Scoped reversible state
+
+A lexical state change returns an idempotent `Disposable` that reverses the change. The caller holds that capability with `using` for the complete scope.
+
+```ts
+using _admission = reloadAdmission.acquireOperation("Agent turn");
+await runTurn();
+```
+
+This pattern covers admission counters, busy flags, temporary vetoes, registrations, and scoped overrides. The owner keeps the state and exposes a domain-named acquisition method. The returned capability performs only the matching reversal.
+
+The same disposal protocol also owns usable resources. A database connection or transaction can expose operations and implement `AsyncDisposable`. A scoped state capability usually exposes no operational value. It records only the caller's temporary participation in owner state.
+
+Prefer the scoped capability over manually pairing state changes around asynchronous work:
+
+```ts
+activeOperations += 1;
+try {
+  await runOperation();
+} finally {
+  activeOperations -= 1;
+}
+```
+
+The manual form can be correct, but it repeats owner bookkeeping at every call site. A missing `finally`, early return, or later branch can leave the state unbalanced. Boolean set/reset blocks and happy-path-only cleanup have the same weakness. Cleanup capabilities remain idempotent, and synchronous reversal uses `Disposable` rather than `AsyncDisposable`.
+
+Use a bag when the capability outlives one lexical scope. Use `await using` when reversal is genuinely asynchronous. Use a supervisor-issued guard when independent holders protect one shared live child. Adapt a third-party `try`/`finally` boundary into a disposable helper when the pattern recurs.
+
+Do not introduce a generic counter or flag wrapper that hides domain meaning. `ReloadAdmission` owns reload policy, while another owner names its own state and acquisition operation.
+
+## Shared ownership uses guards
+
+Use a supervisor-issued guard when several independent holders can prevent teardown of one shared live object. Each acquisition receives its own guard. Disposing that guard is synchronous, idempotent, and affects no other holder. A live guard may `retain()` another independently disposable guard for asynchronous work derived from the current authority.
+
+When an operational value crosses beyond its lifecycle owner, the ordinary domain type defines operations. A private ownership capability combines that type with `Disposable` or `AsyncDisposable` authority and remains with the supervisor. Do not create an `XOwnership` split mechanically for an exclusive child used only by its owner. That child's domain contract can implement `Disposable` or `AsyncDisposable` directly. Ownership capabilities expose that authority through the disposal protocol rather than adding a parallel named `dispose()` operation. Every guard provides the protected generation's domain value without exposing its ownership. The generic guard owns only `value`, `retain`, and `Symbol.dispose`. Domain operations remain on `Workspace`, `AgentInstance`, or another guarded value. A disposed guard rejects further value access and retention. Operations reachable only through a live guard do not add method-level disposed checks: supervisor teardown cannot start until those guards drain. Zero guards only admits the supervisor's lifetime policy. It does not promise immediate teardown, and guard disposal never awaits teardown.
+
+```ts
+interface Guard<Value> extends Disposable {
+  readonly value: Value;
+  retain(origin?: string): Guard<Value>;
+}
+```
+
+Supervisor acquisition and `retain()` mint guards. `using` handles lexical guards. A connection, attachment, prepared dispatch, or other longer-lived holder stores its guard and disposes that guard from the holder's own disposal protocol. Rollback before transfer also invokes the guard's disposal symbol directly. Guard disposal disposes only the protection capability. Supervisor disposal drains guards and then disposes each retained ownership capability.
+
+```ts
+using workspaceGuard = await workspaceSupervisor.acquire(workspaceId);
+using attachment = await workspaceGuard.value.createAttachment(target);
+
+await handleCanonicalRequest(async (request) => {
+  using _requestGuard = workspaceGuard.retain("request");
+  using prepared = attachment.prepareDispatch(request);
+  return await prepared.invoke();
+});
+```
+
+Use the same pattern for workspace runtimes, agent instances, and future shared live objects. A parent supervisor stops admission, drains live guards, and awaits actual child teardown during its asynchronous disposal. Teardown failures remain observable and cannot silently admit a replacement beside a child that failed to dispose.
+
+Do not replace ordinary ownership with guards. Registrations, listeners, timers, adapters, and uniquely owned child objects remain `Disposable` or `AsyncDisposable` values in lifetime bags. Guards are specifically for independently retained shared live objects.
+
+## Supervision protocol
+
+Every supervisor follows one ownership and teardown protocol. The supervisor is the sole owner of each admitted child. Callers use guarded domain values, and ownership disposal remains inside the supervisor except for rollback before admission.
+
+Apply these practices to every supervised child lifecycle:
+
+- Acquisition resolves or single-flights child creation by key, then returns one independent guard.
+- Every asynchronous use holds a guard through its final safe boundary. A lexical use disposes with `using`. A longer use transfers its guard into one named disposable lifetime holder.
+- Every teardown trigger joins one idempotent, single-flight teardown. Zero guards admits lifetime policy but does not itself promise teardown.
+- Teardown waits for policy admission and invokes the child's ownership disposal protocol. It removes only the exact completed generation and observes failures before admitting a replacement.
+- Parent disposal stops admission, drains guards, starts or joins every child teardown, and awaits completion. Synchronous bags own `Disposable` values. Asynchronous owners await `AsyncDisposable` values explicitly.
+- Guard snapshots expose detached point-in-time metadata for inspection and leak tests. They provide no guard authority.
+
+When an integration cannot follow this sequence exactly, its nearest ownership-boundary comment explains the deviation. It names the child owner, protection holder, cleanup transfer, and reason the standard sequence does not apply. A deviation does not introduce a second public cleanup protocol: `dispose` remains the cleanup operation, while teardown names the supervised lifecycle process around it.
+
 ## When to add a lifecycle helper
 
-When cleanup-requiring code would call a raw attachment API, add a small helper to `src/main/lifecycle.ts`. The helper attaches the behavior and returns a `Disposable`.
+When cleanup-requiring code would call a raw attachment API, add a small helper beside the other lifetime helpers. The helper attaches the behavior and returns a `Disposable`.

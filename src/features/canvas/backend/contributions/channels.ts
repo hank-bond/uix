@@ -1,4 +1,4 @@
-// canvas channel contributions.
+// Canvas channel contributions.
 
 import type { ChannelContribution } from "@uix/api/channels";
 import { withHandlers } from "@uix/api/channels";
@@ -17,6 +17,9 @@ export function createCanvasChannelContributions(
 ): readonly ChannelContribution[] {
   return [
     withHandlers(canvasChannels, {
+      read: {
+        handler: ({ key }) => ctx.buffer.readHtml(key),
+      },
       writeback: {
         async handler(req) {
           ctx.log.debug(

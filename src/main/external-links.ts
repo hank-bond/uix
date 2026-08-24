@@ -2,12 +2,13 @@
 
 import type { WebContents } from "electron";
 
+import { createLogger } from "@uix/runtime/log";
+
 import {
   DisposableBag,
   onWillNavigate,
   setWindowOpenHandler,
 } from "./lifecycle";
-import { createLogger } from "./log";
 
 const log = createLogger("external-links");
 

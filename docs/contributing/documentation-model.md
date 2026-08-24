@@ -62,7 +62,7 @@ A document is a conceptually coherent, human-reviewable maintenance unit. A task
 
 ### Lifecycle
 
-The lifecycle axis marks maturity over time: a design note distills into a decision, a decision into a plan, and a plan into architecture. Each step is more settled than the last. The `status` field records the position only when it differs from the default current state: exploring, resolved, accepted, landed, archived, stub, or superseded.
+The lifecycle axis marks maturity over time. A design note distills into a decision. A decision distills into a specification. A specification guides a plan, whose result enters architecture. Each step is more settled than the last. Specifications use `draft` or `accepted` because their authority must be explicit. Other lifecycle layers use exploring, resolved, accepted, landed, archived, stub, or superseded when the position differs from the default current state.
 
 Lifecycle is orthogonal to kind: a document has both a need and a maturity. Plans are the exception because they track the build rather than document it and have no kind. Documents without a lifecycle, including `AGENTS.md` files and evergreen leaves, omit `status`.
 
@@ -71,10 +71,11 @@ Lifecycle is orthogonal to kind: a document has both a need and a maturity. Plan
 The documentation is living: a change to the code brings a documentation change that aligns future work. The evolution loop keeps the whole set coherent.
 
 1. **Capture:** Record the decision.
-2. **Distill:** Place the normative residue where the agent acts on it.
-3. **Index:** Regenerate the routing map in the same commit.
-4. **Project:** Propagate the decision over space and time. Space means backporting to existing documentation and code. Time means guiding future work.
-5. **Verify:** Confirm that the change complies and that nothing is stale.
+2. **Specify:** Define stable concept behavior and conformance outcomes.
+3. **Distill:** Place the normative residue where the agent acts on it.
+4. **Index:** Regenerate the routing map in the same commit.
+5. **Project:** Propagate the decision over space and time. Space means backporting to existing documentation and code. Time means guiding future work.
+6. **Verify:** Confirm that the change complies and that nothing is stale.
 
 A decision that is not propagated leaves the documentation inconsistent because a memoryless agent reads both versions and blends them. Partial propagation is worse than one consistent account. A corpus-wide review can verify relationships that no single maintenance unit owns.
 

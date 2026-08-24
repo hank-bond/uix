@@ -22,6 +22,6 @@
 }
 
 /* Keep optimistic rows visually distinct until main confirms their canonical identity. */
-.msg[data-uix-unconfirmed] .msg__text {
+.msg[data-unconfirmed] .msg__text {
   color: var(--fg-dim);
 }

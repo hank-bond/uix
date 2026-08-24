@@ -25,12 +25,22 @@ const layers = [
   {
     dir: ".",
     kind: "container",
-    children: ["src/main", "src/docs", "docs", "plans", "website"],
+    children: [
+      "src/main",
+      "src/docs",
+      "docs",
+      "plans",
+      "website",
+      "packages",
+      "hosts",
+      "apps",
+    ],
   },
   { dir: "docs", kind: "container" },
   { dir: "docs/contributing", kind: "container" },
   { dir: "docs/decisions", sort: "date-desc" },
   { dir: "docs/design", sort: "slug-asc" },
+  { dir: "docs/specs", sort: "slug-asc" },
   { dir: "docs/architecture", kind: "container" },
   { dir: "docs/architecture/conventions", kind: "container" },
   { dir: "docs/architecture/conventions/rules", sort: "slug-asc" },
@@ -38,10 +48,23 @@ const layers = [
   { dir: "plans", sort: "slug-asc" },
   { dir: "src/docs", sort: "slug-asc" },
   { dir: "website", sort: "slug-asc" },
+  { dir: "hosts", kind: "container" },
+  { dir: "apps", kind: "container" },
 ];
 
-const SOURCE_ROOTS = ["src", "scripts", "templates"];
-const SOURCE_EXCLUDED_DIRECTORIES = new Set(["src/docs"]);
+const SOURCE_ROOTS = ["src", "scripts", "templates", "packages"];
+// Directories under a source root that carry a hand-authored AGENTS.md without a
+// generated source index at that level. src/docs is a documentation layer. The
+// package roots keep a routing AGENTS.md whose src/ subdirectory carries the
+// source index (see packages/api), so these entries stay excluded: the visitor
+// still descends and indexes packages/*/src/AGENTS.md.
+const SOURCE_EXCLUDED_DIRECTORIES = new Set([
+  "src/docs",
+  "packages/api",
+  "packages/runtime",
+  "packages/client",
+  "packages/host",
+]);
 
 const START = "<!-- INDEX:START -->";
 const END = "<!-- INDEX:END -->";
@@ -52,12 +75,13 @@ const NOTE =
   "<!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->";
 const SOURCE_NOTE =
   "<!-- Generated from production source-file summaries, local Markdown frontmatter, and child AGENTS.md summaries. Do not edit by hand; run `npm run docs:index`. -->";
-// Status is an optional override on the default "current" state: author it
-// only when a document's lifecycle position differs from active. Docs without
-// a lifecycle (AGENTS.md files, evergreen reference and how-to docs) omit it.
+// Specifications always declare draft or accepted status. Other lifecycle
+// layers author status only when their position differs from active. Docs
+// without a lifecycle (AGENTS.md files, evergreen leaves) omit it.
 const STATUSES = new Set([
   "accepted",
   "archived",
+  "draft",
   "exploring",
   "landed",
   "resolved",
@@ -96,10 +120,18 @@ function parseFrontmatter(text, file) {
     }
     fm[m[1]] = v;
   }
-  // summary is required; read_when, kind, and status are optional overrides on
-  // defaults (no trigger, no kind, status = current/active).
+  // Summary is required. Other fields follow their layer's rules.
   if (!fm.summary) throw new Error(`${file}: frontmatter missing "summary"`);
   return fm;
+}
+
+export function assertSpecification(file, frontmatter, text) {
+  if (frontmatter.status !== "draft" && frontmatter.status !== "accepted") {
+    throw new Error(`${file}: specification status must be draft or accepted`);
+  }
+  if (frontmatter.status === "accepted" && /^## Open questions$/m.test(text)) {
+    throw new Error(`${file}: accepted specification has open questions`);
+  }
 }
 
 function collect(layer) {
@@ -110,10 +142,12 @@ function collect(layer) {
     if (!name.endsWith(".md") || name === "AGENTS.md" || name === "README.md")
       continue;
     const file = `${layer.dir}/${name}`;
-    const fm = parseFrontmatter(readFileSync(join(dir, name), "utf8"), file);
+    const text = readFileSync(join(dir, name), "utf8");
+    const fm = parseFrontmatter(text, file);
     if (layer.dir !== "plans" && !fm.kind) {
       throw new Error(`${file}: indexed documentation missing "kind"`);
     }
+    if (layer.dir === "docs/specs") assertSpecification(file, fm, text);
     entries.push({ file: name, ...identify(name), ...fm });
   }
   if (layer.sort === "date-desc") {
@@ -128,9 +162,7 @@ function renderIndex(entries) {
   if (entries.length === 0) return "_(none yet)_";
   return entries
     .map((e) => {
-      // read_when and kind are optional; status is authored only when it differs
-      // from the default current state. The parenthetical renders when either a
-      // status or a kind is present.
+      // The parenthetical renders when status or kind is present.
       const trigger = e.read_when ? ` _${e.read_when}_` : "";
       const state = [e.status, e.kind].filter(Boolean).join(", ");
       const position = state ? ` _(${state})._` : "";
@@ -215,25 +247,37 @@ export function parseSourceSummary(name, text, file = name) {
   const style = sourceSummaryStyle(name);
   if (!style) return undefined;
 
-  const line = text
-    .replace(/^\uFEFF/, "")
-    .split(/\r?\n/, 1)[0]
-    .trim();
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
 
   let summary;
   if (style === "slash") {
-    const match = line.match(/^\/\/\s+(.+)$/);
-    summary = match?.[1].trim();
+    // The summary starts on the first line and forms the first comment
+    // paragraph. A long summary may wrap onto continuation lines, so join
+    // every `//` line until a blank separator ends the paragraph.
+    const first = lines[0]?.trim() ?? "";
+    if (!first.startsWith("//")) {
+      throw new Error(`${file}: missing source summary`);
+    }
+    const texts = [];
+    for (const raw of lines) {
+      const content = raw.trim();
+      if (!content.startsWith("//")) break;
+      const value = content.slice(2).trim();
+      if (value === "") break;
+      texts.push(value);
+    }
+    summary = texts.join(" ");
   } else if (style === "css") {
+    const line = lines[0]?.trim() ?? "";
     const match = line.match(/^\/\*\s*(.+?)\s*\*\/$/);
     if (!line.startsWith("/**")) summary = match?.[1].trim();
   } else {
-    const match = line.match(/^<!--\s*(.+?)\s*-->$/);
+    const match = lines[0]?.trim().match(/^<!--\s*(.+?)\s*-->$/);
     summary = match?.[1].trim();
   }
 
   if (!summary) {
-    throw new Error(`${file}: missing one-line source summary`);
+    throw new Error(`${file}: missing source summary`);
   }
   return summary;
 }
@@ -312,10 +356,15 @@ function collectSourceIndexDirectories(repositoryRoot) {
   const directories = [];
 
   function visit(directory) {
-    if (SOURCE_EXCLUDED_DIRECTORIES.has(directory)) return;
     const absoluteDirectory = join(repositoryRoot, directory);
     if (!existsSync(absoluteDirectory)) return;
-    if (existsSync(join(absoluteDirectory, "AGENTS.md"))) {
+    // Excluded directories are not source-indexed themselves, but their children
+    // still are: src/docs is a doc layer, and the empty package roots keep
+    // hand-authored AGENTS.md until they earn production source.
+    if (
+      !SOURCE_EXCLUDED_DIRECTORIES.has(directory) &&
+      existsSync(join(absoluteDirectory, "AGENTS.md"))
+    ) {
       directories.push(directory);
     }
     for (const name of readdirSync(absoluteDirectory)) {

@@ -16,7 +16,7 @@ A _document resource_ is shared reactive truth with a host-neutral identity. Any
 
 A _resource viewer_ is a live renderer capability that advertises serializable matching metadata and privately retains its opener callback. The framework-neutral workspace registry owns lifetime, matching, catalog projection, and invocation. The feature where a human interaction originates owns its menu or link presentation: Chat or a file browser asks for matching viewers and renders `Open With`; the host does not infer resource meaning by globally intercepting every context-menu event.
 
-A _host delivery URL_ is transport, not identity. Electron may expose bytes through `uix-resource://...`, while a hosted runtime may use HTTP or WebSocket-backed routes. Features persist and exchange domain resource identities, then ask the host for an opaque browser URL only when a browser or iframe must fetch content.
+A _host delivery URL_ is transport, not identity. Electron may expose bytes through `uix-resource://...`, while a hosted runtime may use HTTP or WebSocket-backed routes. Features persist and exchange domain resource identities, then ask the host for an opaque browser URL only when a browser or iframe must fetch content. Live channel payloads carry host-neutral immutable content references — never transport URLs — and the browser fetches the referenced bytes over HTTP, so a content fetch never depends on a live connection.
 
 Public semantic protocols are distributed as ordinary package exports. A protocol can begin as a subpath of one feature package and move to a small independent package when unrelated publishers consume it. Installing the package does not activate the feature. Runtime schema discovery supports generic `unknown` consumers; statically typed authored consumers must import the protocol definition at build time.
 
@@ -41,9 +41,17 @@ The active build plan is [cross-feature capabilities and resource viewing](../..
 
 ## Open axes
 
-The plan deliberately leaves unresolved the exact identity syntax and authority, protocol descriptor and fingerprint rules, package and Git distribution conventions, provider cardinality and selection, document revisions and conflict policy, canonical resource coordinates, viewer selectors/defaults/instances, framework adapters, transport projection, and permissions. Protocol payload portability, package-version versus protocol-version policy, cancellation or streaming semantics, and resource creation/deletion lifecycle also need explicit decisions before their corresponding build units.
+The plan deliberately leaves unresolved the exact identity syntax and authority, protocol descriptor and fingerprint rules, package and Git distribution conventions, provider cardinality and selection, document revisions and conflict policy, canonical resource coordinates, viewer selectors/defaults/instances, framework adapters, transport projection, and permissions. Protocol payload portability, package-version versus protocol-version policy, cancellation or streaming semantics, and resource creation/deletion lifecycle need explicit decisions before their corresponding build units.
 
 ## Log
+
+### 2026-08-23: branch-aware immutable content references become the selected direction
+
+A substrate resolver interprets a feature-owned keypath through an Agent's session-branch viewpoint and returns an opaque **immutable content reference**. Canvas resolves `main` this way after turn state selects the branch version. The reference names exact bytes or a specific revision; a convenience `latest`-style resolution may exist but must resolve to an immutable reference before use and never be persisted as a durable identity. On session reload or branch switch, the client reads the newest committed version from the branch's turn state and fetches those bytes.
+
+This is now the direction required by the [web-host specification](../specs/web-host.md): live channels carry host-neutral content references, and HTTP carries the referenced content. Each content fetch retains independent workspace authority and does not depend on any live connection. Feature and runtime code never observe the browser transport encoding.
+
+Open axes remaining: whether the resulting identity is workspace-scoped, how it participates in retention and portability, and whether a second document consumer justifies a generic capability. The ownership split keeps branch-aware key resolution in the substrate or owning feature. Electron and web hosts only map an accepted reference onto their delivery URL and mount behavior.
 
 ### 2026-08-08 — file-link to editor vertical takes the direct-import path for the MVP
 

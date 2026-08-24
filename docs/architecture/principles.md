@@ -7,6 +7,18 @@ kind: reference
 
 Living list of load-bearing design rules. Add entries as they emerge from threads. Cite them in decisions and plans.
 
+## Require a current use
+
+Build only what a production path needs. A known future requirement may influence a choice between equally simple designs, but it does not justify more code. Add an abstraction, validation layer, diagnostic record, failure policy, or public contract only with its first production use.
+
+Prefer functions, closures, collections, and lifetime bags until repeated use identifies a smaller shared primitive. A spike may test an external assumption, but an alternate implementation does not become production code. Do not record a distinction unless a current caller can observe it or act on it.
+
+## Keep one checked implementation
+
+Every review unit compiles, passes all checks, and leaves one supported production path. Do not plan a failing interval, compatibility path, temporary abstraction, or production module that a later unit replaces.
+
+Migrate a breaking contract with all current callers when they cannot form smaller units that pass the checks. Prefer an explicit limited product policy over a general implementation without a current use.
+
 ## Make the right thing the only thing
 
 When a feature needs to do something and there's only one correct way to do it, the substrate should do it for the feature. Pre-bind, pre-validate, or derive at the boundary rather than handing the feature raw primitives it has to assemble correctly. Every decision and implementation detail a feature author must remember is an opportunity to get it wrong.

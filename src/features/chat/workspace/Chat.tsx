@@ -1,17 +1,11 @@
-// Renders the chat surface: transcript blocks, composer, status bar, and provider login.
+// Renders chat transcripts, prompt submission and cancellation, status controls, and provider login.
 //
-// One transcript item shape feeds the surface. Startup history provides completed
-// durable items. Live events append the same items, stream compact partials
-// into them, and replace them whole at completion.
+// One transcript item shape feeds the surface. The current Agent-instance
+// snapshot seeds durable and in-flight items. Live events continue that stream
+// with idempotent partial updates and whole-item completion replacements.
 
 import type { JSX } from "react";
-import {
-  type FormEvent,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
 import type { agentChannels } from "@uix/api/agent-channels";
@@ -25,10 +19,15 @@ import { type AgentControls, useAgentControls } from "./agent-controls";
 import { BlockPresentationSettingsProvider } from "./blocks/BlockPresentationSettings";
 import { ChatBlock } from "./blocks/ChatBlock";
 import { ToolCatalogProvider } from "./blocks/tool/tool-catalog";
+import { ChatComposer } from "./ChatComposer";
 import { ModelPill } from "./ModelPill";
-import { isPendingUserId, pendingUserId } from "./pending";
+import { pendingUserId } from "./pending";
 import { ProviderLoginModal } from "./ProviderLoginModal";
 import { SessionPill } from "./SessionPill";
+import {
+  hydrateChatAgentState,
+  reduceChatAgentState,
+} from "./transcript-state";
 import { chatSettings } from "../shared/settings";
 
 type AgentChannelClient = ChannelClient<typeof agentChannels>;
@@ -38,39 +37,66 @@ export interface ChatProps {
 }
 
 export function Chat({ client }: ChatProps): JSX.Element {
-  const [items, setItems] = useState<TranscriptItem[]>([]);
-  const [draft, setDraft] = useState("");
-  const [pending, setPending] = useState(false);
+  const [agentState, setAgentState] = useState({
+    items: [] as TranscriptItem[],
+    turnActive: false,
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeHistoryRequestVersion = useRef(0);
+  const bufferedHistoryEvents = useRef<AgentEvent[] | undefined>([]);
   const { sessionSelectionVersion, loadActiveHistory } = useWorkspaceSession();
   const statusBar = useFeatureSetting(chatSettings, "statusBar");
   const controls = useAgentControls(client);
+  const { items, turnActive: isTurnActive } = agentState;
+  const canStop = isSubmitting || isTurnActive;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     return client.events.event((event: AgentEvent) => {
-      setItems((prev) => reduce(prev, event));
-      if (event.type === "agent_end") {
-        setPending(false);
+      const buffered = bufferedHistoryEvents.current;
+      if (buffered) buffered.push(event);
+      else setAgentState((prev) => reduceChatAgentState(prev, event));
+      if (event.type === "active_turn_start") setIsSubmitting(false);
+      if (event.type === "active_turn_end") {
+        setIsSubmitting(false);
+        setIsStopping(false);
       }
     });
   }, [client]);
 
   // A successful session mutation changes sessionSelectionVersion. Clear the
-  // old projection immediately, invalidate its in-flight history read, and hydrate
-  // the newly selected session. Initial summary hydration leaves the version
-  // unchanged. Prepend so live events received during the request remain after
-  // the durable history.
+  // old projection immediately, invalidate its in-flight history read, and
+  // hydrate the newly selected session. Events continue into a short-lived
+  // buffer until the current Agent-instance snapshot is installed.
   useLayoutEffect(() => {
     const requestVersion = ++activeHistoryRequestVersion.current;
-    setItems([]);
+    bufferedHistoryEvents.current = [];
+    setAgentState({ items: [], turnActive: false });
+    setIsSubmitting(false);
+    setIsStopping(false);
     setHydrated(false);
     void (async () => {
       try {
         const snapshot = await loadActiveHistory();
         if (requestVersion !== activeHistoryRequestVersion.current) return;
-        setItems((prev) => [...snapshot.items.filter(isVisible), ...prev]);
+        const buffered = bufferedHistoryEvents.current ?? [];
+        bufferedHistoryEvents.current = undefined;
+        setAgentState((prev) =>
+          hydrateChatAgentState(snapshot, prev, buffered),
+        );
+      } catch {
+        if (requestVersion !== activeHistoryRequestVersion.current) return;
+        const buffered = bufferedHistoryEvents.current ?? [];
+        bufferedHistoryEvents.current = undefined;
+        setAgentState((prev) =>
+          hydrateChatAgentState(
+            { transcript: { items: [] }, turnActive: false },
+            prev,
+            buffered,
+          ),
+        );
       } finally {
         if (requestVersion === activeHistoryRequestVersion.current) {
           setHydrated(true);
@@ -89,29 +115,55 @@ export function Chat({ client }: ChatProps): JSX.Element {
     if (el) el.scrollTop = el.scrollHeight;
   }, [items]);
 
-  const onSubmit = async (e: FormEvent): Promise<void> => {
-    e.preventDefault();
-    const text = draft.trim();
-    if (!text || pending) return;
-    setDraft("");
-    setPending(true);
+  const cancelTurn = async (): Promise<void> => {
+    if (!canStop || isStopping) return;
+    setIsStopping(true);
+    try {
+      const { cancelled } = await client.requests.cancel_turn();
+      if (!cancelled) setIsStopping(false);
+      setIsSubmitting(false);
+    } catch (err) {
+      setIsStopping(false);
+      setAgentState((prev) => ({
+        ...prev,
+        items: [
+          ...prev.items,
+          {
+            id: `local:error:${String(Date.now())}`,
+            kind: "error",
+            message: String(err),
+          },
+        ],
+      }));
+    }
+  };
+
+  const submitPrompt = async (text: string): Promise<void> => {
+    if (!text || canStop || isStopping) return;
+    setIsSubmitting(true);
     // Optimistic echo: show the message instantly as an unconfirmed pending
     // row. Main emits the authoritative born-keyed row once Pi persists it,
     // and the reducer swaps this row out (eventual consistency: display
     // first, confirm via the canonical record).
-    setItems((prev) => [...prev, { id: pendingUserId(), kind: "user", text }]);
+    setAgentState((prev) => ({
+      ...prev,
+      items: [...prev.items, { id: pendingUserId(), kind: "user", text }],
+    }));
     try {
       await client.requests.prompt({ text });
     } catch (err) {
-      setPending(false);
-      setItems((prev) => [
+      setIsSubmitting(false);
+      setAgentState((prev) => ({
         ...prev,
-        {
-          id: `local:error:${String(Date.now())}`,
-          kind: "error",
-          message: String(err),
-        },
-      ]);
+        items: [
+          ...prev.items,
+          {
+            id: `local:error:${String(Date.now())}`,
+            kind: "error",
+            message: String(err),
+          },
+        ],
+      }));
     }
   };
 
@@ -130,35 +182,16 @@ export function Chat({ client }: ChatProps): JSX.Element {
           )}
         </BlockPresentationSettingsProvider>
       </div>
-      <form
-        className="composer"
-        onSubmit={(e) => {
-          void onSubmit(e);
+      <ChatComposer
+        canStop={canStop}
+        isStopping={isStopping}
+        onCancel={() => {
+          void cancelTurn();
         }}
-      >
-        <textarea
-          className="composer__input"
-          placeholder="say something…"
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void onSubmit(e);
-            }
-          }}
-          rows={2}
-        />
-        <button
-          className="composer__send"
-          type="submit"
-          disabled={pending || !draft.trim()}
-        >
-          {pending ? "…" : "send"}
-        </button>
-      </form>
+        onSubmit={(text) => {
+          void submitPrompt(text);
+        }}
+      />
       <StatusBar
         controls={controls}
         order={statusBar.value?.order ?? []}
@@ -200,121 +233,4 @@ function StatusBar({
       )}
     </div>
   );
-}
-
-function reduce(prev: TranscriptItem[], event: AgentEvent): TranscriptItem[] {
-  switch (event.type) {
-    case "transcript_append":
-      return isVisible(event.item) ? appendItem(prev, event.item) : prev;
-
-    case "transcript_replace":
-      return syncItem(prev, event.item, event.previousId);
-
-    case "transcript_partial":
-      return applyPartial(prev, event);
-
-    case "agent_start":
-    case "agent_end":
-    case "turn_start":
-    case "turn_end":
-      return prev;
-  }
-}
-
-// Append, or confirm an optimistic pending user row in place: main's
-// authoritative born-keyed user row replaces the composer's unconfirmed echo.
-// Text equality is the match guard so an unrelated user message (e.g.
-// extension-injected via sendUserMessage) appends normally instead of
-// consuming someone else's pending row. Today the persisted user entry is
-// the human's text verbatim, so equality holds. If input enrichment ever
-// changes the canonical text, relax this to confirm the oldest pending row
-// and let the canonical version win.
-function appendItem(
-  items: TranscriptItem[],
-  item: TranscriptItem,
-): TranscriptItem[] {
-  if (item.kind === "user") {
-    const index = items.findIndex(
-      (existing) =>
-        existing.kind === "user" &&
-        isPendingUserId(existing.id) &&
-        existing.text === item.text,
-    );
-    if (index !== -1) {
-      return [...items.slice(0, index), item, ...items.slice(index + 1)];
-    }
-  }
-  return [...items, item];
-}
-
-// Reconcile an item's presence in the list to match its visibility: replace
-// a visible item in place (kept current), remove an invisible one. A
-// rekey replace includes previousId (the pre-key transport handle). Matching
-// the new id first keeps a re-delivered rekey idempotent. The driver only
-// replaces ids it already appended, so a net-new insert here means a replace
-// outran or lost its append. Recover gracefully but warn, since that
-// ordering invariant is load-bearing for durable transcript identity.
-function syncItem(
-  items: TranscriptItem[],
-  item: TranscriptItem,
-  previousId?: string,
-): TranscriptItem[] {
-  let index = lastIndexById(items, item.id);
-  if (index === -1 && previousId !== undefined) {
-    index = lastIndexById(items, previousId);
-  }
-
-  if (!isVisible(item)) {
-    return index === -1
-      ? items
-      : [...items.slice(0, index), ...items.slice(index + 1)];
-  }
-  if (index === -1) {
-    // eslint-disable-next-line no-console -- ordering-broke diagnostic. The renderer has no logger facility
-    console.warn("transcript_replace inserted a net-new item", item.id);
-    return [...items, item];
-  }
-  return [...items.slice(0, index), item, ...items.slice(index + 1)];
-}
-
-// Merge an in-flight partial into its row: streamed text appends (the
-// renderer is the accumulator), a tool's partialResult overwrites (Pi tool
-// updates are replacement snapshots). The append always precedes its
-// partials and a full replace lands at completion, so an unmatched partial
-// means ordering broke. Warn and drop. Nothing durable is lost.
-function applyPartial(
-  items: TranscriptItem[],
-  event: Extract<AgentEvent, { type: "transcript_partial" }>,
-): TranscriptItem[] {
-  const index = lastIndexById(items, event.id);
-  if (index === -1) {
-    // eslint-disable-next-line no-console -- ordering-broke diagnostic. The renderer has no logger facility
-    console.warn("transcript_partial for unknown item", event.id);
-    return items;
-  }
-  const item = items[index];
-  let next: TranscriptItem;
-  if (item.kind === "assistant" && event.text !== undefined) {
-    next = { ...item, text: item.text + event.text };
-  } else if (item.kind === "tool") {
-    next = { ...item, partialResult: event.partialResult };
-  } else {
-    return items;
-  }
-  return [...items.slice(0, index), next, ...items.slice(index + 1)];
-}
-
-// Ids are unique, so scan direction is purely a performance choice: live
-// updates (per-token partials, completion/rekey replaces) target rows at or
-// near the tail, while a front scan walks the whole resumed history first.
-// (ES2022 lib, so no Array#findLastIndex.)
-function lastIndexById(items: TranscriptItem[], id: string): number {
-  for (let i = items.length - 1; i >= 0; i--) {
-    if (items[i].id === id) return i;
-  }
-  return -1;
-}
-
-function isVisible(item: TranscriptItem): boolean {
-  return item.kind !== "custom" || item.display;
 }

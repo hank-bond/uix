@@ -1,11 +1,9 @@
-// Injects the writeback shim into served canvas HTML so human edits flow back to the store.
+// Boots a feature-origin Canvas frame and injects postMessage writeback into viewpoint HTML.
 //
-// Injected into served canvas HTML so a human can edit the pane and have edits
-// flow back to the store. The canvas frame is sandboxed off `window.channels` (see
-// preload), so the only channel out is postMessage to the host, which
-// forwards over IPC. The server adds the shim at serve time and never persists it: the shim
-// removes its own <script> node before serializing, so it never leaks into
-// stored content.
+// The static frame receives selected-viewpoint HTML from its parent after the
+// parent reads it through the Agent channel. The frame cannot access
+// `window.channels`, so it sends edits and prompt actions back through
+// postMessage. The writeback script removes itself before serialization.
 
 import type { CanvasKey } from "../shared/addressing";
 
@@ -53,7 +51,7 @@ function shimScript(key: CanvasKey): string {
     if (html === lastHtml) return;
     lastHtml = html;
     parent.postMessage(
-      { type: "uix:canvas-writeback", key: KEY, html: html },
+      { type: "canvas:writeback", key: KEY, html: html },
       "*"
     );
   }
@@ -62,7 +60,7 @@ function shimScript(key: CanvasKey): string {
     timer = setTimeout(flush, 400);
   }
   // A canvas can declare a user-operated agent action with
-  // data-uix-prompt="...". Capture the trusted click now, then serialize on
+  // data-canvas-prompt="...". Capture the trusted click now, then serialize on
   // the next task so the document includes synchronous click-handler changes.
   // Scripted click()/dispatchEvent() events have isTrusted=false and cannot
   // start an agent run.
@@ -70,9 +68,9 @@ function shimScript(key: CanvasKey): string {
     schedule();
     var target = event.target;
     if (!event.isTrusted || !target || !target.closest) return;
-    var trigger = target.closest("[data-uix-prompt]");
+    var trigger = target.closest("[data-canvas-prompt]");
     if (!trigger) return;
-    var prompt = (trigger.getAttribute("data-uix-prompt") || "").trim();
+    var prompt = (trigger.getAttribute("data-canvas-prompt") || "").trim();
     if (!prompt) return;
     event.preventDefault();
     setTimeout(function () {
@@ -81,7 +79,7 @@ function shimScript(key: CanvasKey): string {
       lastHtml = html;
       parent.postMessage(
         {
-          type: "uix:canvas-prompt",
+          type: "canvas:prompt",
           key: KEY,
           html: html,
           prompt: prompt
@@ -91,7 +89,7 @@ function shimScript(key: CanvasKey): string {
     }, 0);
   }
   function init() {
-    window.__uixWriteback = schedule;
+    window.__canvasWriteback = schedule;
     document.addEventListener("input", schedule, true);
     document.addEventListener("change", schedule, true);
     document.addEventListener("click", onClick, true);
@@ -105,6 +103,27 @@ function shimScript(key: CanvasKey): string {
 })();`;
 }
 
-export function injectCanvasShim(html: string, key: CanvasKey): string {
-  return `${html}\n<script>${shimScript(key)}</script>`;
+export function createCanvasFrameBootstrap(key: CanvasKey): string {
+  const serializedKey = JSON.stringify(key);
+  const serializedShim = JSON.stringify(shimScript(key));
+  return `<!doctype html>
+<meta charset="utf-8">
+<script>
+(function () {
+  var KEY = ${serializedKey};
+  var SHIM = ${serializedShim};
+  function load(event) {
+    var data = event.data;
+    if (event.source !== parent || !data || data.type !== "canvas:load") return;
+    if (data.key !== KEY || typeof data.html !== "string") return;
+    window.removeEventListener("message", load);
+    document.open();
+    document.write(data.html);
+    document.write("<script>" + SHIM + "<\\/script>");
+    document.close();
+  }
+  window.addEventListener("message", load);
+  parent.postMessage({ type: "canvas:ready", key: KEY }, "*");
+})();
+</script>`;
 }

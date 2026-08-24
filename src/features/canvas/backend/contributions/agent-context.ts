@@ -1,4 +1,4 @@
-// canvas model-visible agent-context contributions.
+// Canvas model-visible agent-context contributions.
 
 import type { AgentContextContribution } from "@uix/api/agent-context";
 

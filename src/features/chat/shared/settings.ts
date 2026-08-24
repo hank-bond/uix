@@ -1,4 +1,4 @@
-// the chat feature's settings scope.
+// The chat feature's settings scope.
 
 import { type Static, Type } from "typebox";
 

@@ -16,11 +16,11 @@ export function CanvasToolContent({ item }: { item: ToolItem }): JSX.Element {
   return (
     <div
       className="canvas-tool-block__payload"
-      data-uix-part="canvas-tool-payload"
+      data-block-part="canvas-tool-payload"
     >
       {lines.length ? (
         <>
-          <pre className="tool-block__payload" data-uix-part="tool-payload">
+          <pre className="tool-block__payload" data-block-part="tool-payload">
             {visibleLines.join("\n")}
             {hasMore && !isExpanded ? "\n…" : ""}
           </pre>
@@ -28,7 +28,7 @@ export function CanvasToolContent({ item }: { item: ToolItem }): JSX.Element {
             <button
               className="canvas-tool-block__toggle"
               type="button"
-              data-uix-part="canvas-tool-toggle"
+              data-block-part="canvas-tool-toggle"
               aria-expanded={isExpanded}
               onClick={() => {
                 setIsExpanded((value) => !value);

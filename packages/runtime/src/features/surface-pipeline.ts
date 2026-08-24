@@ -1,0 +1,456 @@
+// Builds each active surface for the renderer and serves its code, styles, and feature files through resource URLs.
+//
+// Esbuild bundles feature-local code while page-owned shared modules and native
+// CSS module scripts remain external. Virtual CommonJS wrappers make named
+// imports read the page's live shared instances. Content-hash URLs prevent
+// reload from reusing stale browser modules, and build failures become
+// per-surface error entries.
+
+import { createHash } from "node:crypto";
+import { readFile, realpath } from "node:fs/promises";
+import { extname, join, relative, resolve, sep } from "node:path";
+
+import type { Plugin } from "esbuild";
+import { build } from "esbuild";
+import { Type } from "typebox";
+
+import {
+  encodeResourceUrl,
+  normalizeResourceRoute,
+  ResourceProtocolScheme,
+} from "@uix/api/resource-routes";
+import type { ResourceContribution } from "@uix/api/resources";
+import type { SurfaceEntry } from "@uix/api/substrate-channels";
+import {
+  SurfaceSharedGlobal,
+  SurfaceSharedModules,
+} from "@uix/api/surface-shared-modules";
+
+import type { ResolvedSurfaceContribution } from "./surfaces";
+import { createLogger } from "../log";
+
+const log = createLogger("surfaces");
+
+const ModuleRouteName = "surface";
+const FilesRouteName = "surface-files";
+
+const VersionQuery = Type.Object({ v: Type.Optional(Type.String()) });
+
+const ModuleRoute = normalizeResourceRoute({
+  path: "/:feature/:file",
+  query: VersionQuery,
+  origin: "feature",
+});
+
+const FilesRoute = normalizeResourceRoute({
+  path: "/:feature/:path*",
+  query: VersionQuery,
+  origin: "feature",
+});
+
+const FileContentTypes: Record<string, string> = {
+  ".css": "text/css; charset=utf-8",
+  ".gif": "image/gif",
+  ".jpeg": "image/jpeg",
+  ".jpg": "image/jpeg",
+  ".json": "application/json",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".ttf": "font/ttf",
+  ".webp": "image/webp",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+};
+
+interface BuiltModule {
+  readonly code: string;
+  readonly hash: string;
+}
+
+const hashOf = (content: string | Buffer): string =>
+  createHash("sha256").update(content).digest("hex").slice(0, 12);
+
+const escapeForRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Map blessed bare specifiers to virtual CommonJS modules that read the page's
+ * shared instances. Esbuild's CommonJS interop turns named imports into runtime
+ * property reads, avoiding a static re-export list while preserving instance
+ * identity.
+ */
+const sharedModulesPlugin: Plugin = {
+  name: "shared-modules",
+  setup(builder) {
+    const filter = new RegExp(
+      `^(${SurfaceSharedModules.map(escapeForRegExp).join("|")})$`,
+    );
+    builder.onResolve({ filter }, (args) => ({
+      path: args.path,
+      namespace: "shared",
+    }));
+    builder.onLoad({ filter: /.*/, namespace: "shared" }, (args) => ({
+      contents: `module.exports = globalThis.${SurfaceSharedGlobal}[${JSON.stringify(args.path)}];`,
+      loader: "js",
+    }));
+  },
+};
+
+/** Owns the replaceable built-module generation served to one workspace. */
+export class SurfaceModulePipeline {
+  readonly #workspaceId: string;
+  readonly #resolveResourceUrl: (logicalUrl: string) => string;
+  /** `${featureId}/${file}` → last-built module, replaced per build pass. */
+  #built = new Map<string, BuiltModule>();
+  /** featureId → feature root dir, for the files route. */
+  #roots = new Map<string, string>();
+  /** `${featureId}/${file}` → CSS with browser asset URLs rebased to the files route. */
+  #styles = new Map<string, BuiltModule>();
+  #buildVersion = 0;
+
+  constructor(
+    workspaceId: string,
+    resolveResourceUrl: (logicalUrl: string) => string = (url) => url,
+  ) {
+    this.#workspaceId = workspaceId;
+    this.#resolveResourceUrl = resolveResourceUrl;
+  }
+
+  /**
+   * Bundles every registered surface and returns the list the `uix.surfaces`
+   * channel serves. Rebuilds from scratch each call (called once per load
+   * pass per window). The pipeline drops previously built modules, so it
+   * never serves a deleted surface stale.
+   */
+  async buildAll(
+    surfaces: readonly ResolvedSurfaceContribution[],
+  ): Promise<SurfaceEntry[]> {
+    const version = ++this.#buildVersion;
+    const built = new Map<string, BuiltModule>();
+    const roots = new Map<string, string>();
+    const styles = new Map<string, BuiltModule>();
+    const entries: SurfaceEntry[] = [];
+    const perFeatureIndex = new Map<string, number>();
+
+    for (const surface of surfaces) {
+      const index = perFeatureIndex.get(surface.featureId) ?? 0;
+      perFeatureIndex.set(surface.featureId, index + 1);
+
+      const file = `${String(index)}.js`;
+      try {
+        // Realpath so containment checks agree with esbuild's resolved
+        // paths (macOS /tmp is a symlink, and feature dirs may be too).
+        const featureRoot = await realpath(surface.featureRoot);
+        roots.set(surface.featureId, featureRoot);
+        const module = await this.#bundle(surface, featureRoot, styles);
+        built.set(`${surface.featureId}/${file}`, module);
+        entries.push({
+          featureId: surface.featureId,
+          entry: surface.entry,
+          url: this.#resolveResourceUrl(
+            encodeResourceUrl(ModuleRoute, {
+              featureId: "uix",
+              name: ModuleRouteName,
+              workspaceId: this.#workspaceId,
+              params: { feature: surface.featureId, file },
+              query: { v: module.hash },
+            }),
+          ),
+        });
+        log.debug(
+          { feature: surface.featureId, entry: surface.entry },
+          "surface_built",
+        );
+      } catch (thrown) {
+        const error =
+          thrown instanceof Error ? thrown : new Error(String(thrown));
+        entries.push({
+          featureId: surface.featureId,
+          entry: surface.entry,
+          error: error.message,
+        });
+        log.error(
+          {
+            feature: surface.featureId,
+            entry: surface.entry,
+            err: error.message,
+          },
+          "surface_build_failed",
+        );
+      }
+    }
+
+    // Requests can overlap initial hydration and reload notifications. Only the
+    // newest requested composition may replace the modules served by routes.
+    if (version === this.#buildVersion) {
+      this.#built = built;
+      this.#roots = roots;
+      this.#styles = styles;
+    }
+    return entries;
+  }
+
+  /** The substrate resource routes, registered under the reserved `uix` id. */
+  createResourceContributions(): readonly ResourceContribution[] {
+    return [
+      {
+        name: ModuleRouteName,
+        route: ModuleRoute,
+        handler: ({ request, params }) => {
+          const key = `${String(params["feature"])}/${String(params["file"])}`;
+          const module = this.#built.get(key);
+          if (!module) {
+            return textResponse(`No built surface module: ${key}`, 404);
+          }
+          return new Response(module.code, {
+            status: 200,
+            headers: {
+              ...corsHeaders(request),
+              "Cache-Control": "no-store",
+              "Content-Type": "text/javascript; charset=utf-8",
+            },
+          });
+        },
+      },
+      {
+        name: FilesRouteName,
+        route: FilesRoute,
+        handler: async ({ request, params }) => {
+          const featureId = String(params["feature"]);
+          const root = this.#roots.get(featureId);
+          const segments = params["path"];
+          if (!root || !isStringArray(segments) || segments.length === 0) {
+            return textResponse("Resource not found", 404);
+          }
+          const filePath = resolve(join(root, ...segments));
+          if (!filePath.startsWith(root + sep)) {
+            return textResponse("Resource not found", 404);
+          }
+          const contentType =
+            FileContentTypes[extname(filePath)] ?? "application/octet-stream";
+          const builtStyle = this.#styles.get(
+            `${featureId}/${segments.join("/")}`,
+          );
+          if (builtStyle) {
+            return new Response(builtStyle.code, {
+              status: 200,
+              headers: {
+                ...corsHeaders(request),
+                "Cache-Control": "no-store",
+                "Content-Type": contentType,
+              },
+            });
+          }
+          try {
+            const content = await readFile(filePath);
+            return new Response(new Uint8Array(content), {
+              status: 200,
+              headers: {
+                ...corsHeaders(request),
+                "Cache-Control": "no-store",
+                "Content-Type": contentType,
+              },
+            });
+          } catch {
+            return textResponse("Resource not found", 404);
+          }
+        },
+      },
+    ];
+  }
+
+  async #bundle(
+    surface: ResolvedSurfaceContribution,
+    featureRoot: string,
+    styles: Map<string, BuiltModule>,
+  ): Promise<BuiltModule> {
+    const result = await build({
+      entryPoints: [surface.entry],
+      bundle: true,
+      write: false,
+      format: "esm",
+      platform: "browser",
+      sourcemap: "inline",
+      logLevel: "silent",
+      // Never read on-disk tsconfigs: repo path aliases must not leak into
+      // surface bundles (features import only relative paths, the blessed
+      // shared set, and CSS module scripts).
+      tsconfigRaw: { compilerOptions: { jsx: "react-jsx" } },
+      plugins: [
+        sharedModulesPlugin,
+        this.#cssPlugin(surface.featureId, featureRoot, styles),
+      ],
+    });
+    const code = result.outputFiles[0]?.text ?? "";
+    return { code, hash: hashOf(code) };
+  }
+
+  /**
+   * Keeps CSS module scripts external, rewritten to content-hash-busted
+   * files-route URLs so the browser fetches and executes them natively.
+   */
+  #cssPlugin(
+    featureId: string,
+    featureRoot: string,
+    styles: Map<string, BuiltModule>,
+  ): Plugin {
+    const workspaceId = this.#workspaceId;
+    return {
+      name: "surface-css",
+      setup: (builder) => {
+        builder.onResolve({ filter: /\.css$/ }, async (args) => {
+          if (args.with["type"] !== "css") {
+            return {
+              errors: [
+                {
+                  text: `Import CSS as a module script: import sheet from "${args.path}" with { type: "css" }`,
+                },
+              ],
+            };
+          }
+          const absolute = resolve(args.resolveDir, args.path);
+          const relativePath = relative(featureRoot, absolute);
+          if (relativePath.startsWith("..")) {
+            return {
+              errors: [
+                {
+                  text: `Surface styles must live inside the feature directory: ${args.path} escapes ${featureRoot}`,
+                },
+              ],
+            };
+          }
+          const style = await this.#bundleStyle(
+            featureId,
+            featureRoot,
+            absolute,
+          );
+          const path = relativePath.split(sep);
+          styles.set(`${featureId}/${path.join("/")}`, style);
+          return {
+            path: this.#resolveResourceUrl(
+              encodeResourceUrl(FilesRoute, {
+                featureId: "uix",
+                name: FilesRouteName,
+                workspaceId,
+                params: { feature: featureId, path },
+                query: { v: style.hash },
+              }),
+            ),
+            external: true,
+          };
+        });
+      },
+    };
+  }
+
+  /** Bundle one stylesheet so relative browser assets keep their feature-file identity after scoping. */
+  async #bundleStyle(
+    featureId: string,
+    featureRoot: string,
+    entry: string,
+  ): Promise<BuiltModule> {
+    const workspaceId = this.#workspaceId;
+    const result = await build({
+      entryPoints: [entry],
+      bundle: true,
+      write: false,
+      platform: "browser",
+      logLevel: "silent",
+      plugins: [
+        {
+          name: "surface-css-assets",
+          setup: (builder) => {
+            builder.onResolve({ filter: /.*/ }, async (args) => {
+              if (args.kind === "entry-point") return undefined;
+              if (isExternalCssReference(args.path)) {
+                return { path: args.path, external: true };
+              }
+              if (args.kind === "import-rule") {
+                const imported = resolve(args.resolveDir, args.path);
+                if (!imported.startsWith(featureRoot + sep)) {
+                  return {
+                    errors: [
+                      {
+                        text: `Surface styles must live inside the feature directory: ${args.path} escapes ${featureRoot}`,
+                      },
+                    ],
+                  };
+                }
+                return { path: imported };
+              }
+              if (args.kind !== "url-token") return undefined;
+
+              const absolute = resolve(args.resolveDir, args.path);
+              const relativePath = relative(featureRoot, absolute);
+              if (relativePath.startsWith("..")) {
+                return {
+                  errors: [
+                    {
+                      text: `Surface assets must live inside the feature directory: ${args.path} escapes ${featureRoot}`,
+                    },
+                  ],
+                };
+              }
+              const content = await readFile(absolute);
+              return {
+                path: this.#resolveResourceUrl(
+                  encodeResourceUrl(FilesRoute, {
+                    featureId: "uix",
+                    name: FilesRouteName,
+                    workspaceId,
+                    params: {
+                      feature: featureId,
+                      path: relativePath.split(sep),
+                    },
+                    query: { v: hashOf(content) },
+                  }),
+                ),
+                external: true,
+              };
+            });
+          },
+        },
+      ],
+    });
+    const code = result.outputFiles[0]?.text ?? "";
+    return { code, hash: hashOf(code) };
+  }
+}
+
+function isExternalCssReference(path: string): boolean {
+  return (
+    path.startsWith("/") ||
+    path.startsWith("//") ||
+    path.startsWith("#") ||
+    /^[A-Za-z][A-Za-z0-9+.-]*:/.test(path)
+  );
+}
+
+/**
+ * Module scripts, CSS module scripts, and fonts are always fetched in CORS
+ * mode, and the workspace page is a *different* origin than the substrate
+ * (the dev server or file: page). So these responses must grant it access
+ * by echoing its origin. Feature-origin content (a canvas iframe on a
+ * `uix-resource://` host) gets no grant: that's the one cross-origin
+ * consumer the substrate deliberately refuses.
+ */
+function corsHeaders(request: Request): Record<string, string> {
+  const origin = request.headers.get("origin");
+  if (!origin || origin.startsWith(`${ResourceProtocolScheme}://`)) {
+    return {};
+  }
+  return { "Access-Control-Allow-Origin": origin, Vary: "Origin" };
+}
+
+function isStringArray(value: unknown): value is readonly string[] {
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string")
+  );
+}
+
+function textResponse(body: string, status: number): Response {
+  return new Response(body, {
+    status,
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
+}

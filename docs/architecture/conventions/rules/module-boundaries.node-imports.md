@@ -1,5 +1,5 @@
 ---
-summary: "Import Node built-ins explicitly with the node: prefix so runtime dependencies stay visible."
+summary: "Import Node built-ins explicitly with the node: prefix so execution-time dependencies stay visible."
 kind: reference
 ---
 
@@ -17,6 +17,6 @@ import fs from "node:fs";
 
 **Nonconforming example:** Refer to the ambient `process` or `Buffer` globals, or import a built-in without the `node:` prefix.
 
-**Reason:** Readers scan imports to see what a module touches. A module reading `process.env` or `process.cwd()` depends on the runtime environment. Importing `process` makes that dependency visible.
+**Reason:** Readers scan imports to see what a module touches. A module reading `process.env` or `process.cwd()` depends on the execution environment. Importing `process` makes that dependency visible.
 
 **Enforcement:** ESLint rejects ambient `process` and `Buffer` access and bare Node built-in imports.

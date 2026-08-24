@@ -1,16 +1,14 @@
-// canvas agent tool contributions.
+// Canvas agent tool contributions.
 //
 // The agent reads, clobbers, and range-edits canvases by key through these
 // tools, always in the anchored §-gutter wire format, and gets fresh anchors
 // back in every result so it never re-reads to learn current anchors. The
-// document buffer canonicalizes content at the core boundary and hides
-// the local file store behind the document-store seam (see ../../../../main/document-store.ts and
-// ../document-buffer.ts).
+// The document buffer canonicalizes content at the core boundary and hides
+// persistence behind the document-store seam.
 //
 // Every HTML document edited here is a canvas, so these tools are canvas-named;
-// the canvas document runtime lives underneath in CanvasDocumentBuffer and
-// DocumentStore (a later case-2 surface could store non-HTML state docs there
-// with its own purpose-specific buffer).
+// CanvasDocumentBuffer and DocumentStore provide the document storage beneath
+// the tool boundary.
 
 import { Type } from "typebox";
 
@@ -22,7 +20,11 @@ import type {
 import { publishCanvasChanged } from "./channels";
 import { CanvasKeyDescription, CanvasKeySchema } from "../../shared/addressing";
 import { formatChangeHunks } from "../anchored-format";
-import { formatAnchoredText, parseAnchoredLine } from "../anchors/wire";
+import {
+  ANCHOR_GUTTER_DELIMITER,
+  formatAnchoredText,
+  parseAnchoredLine,
+} from "../anchors/wire";
 import type { CanvasContext } from "../context";
 
 const keyDescription = `Canvas key (not a filesystem path): ${CanvasKeyDescription}, e.g. main or reports/security-review.`;
@@ -73,11 +75,30 @@ const editParams = Type.Object({
     description:
       "Last line of the inclusive range, same `<anchor>§<text>` form (equal to start_line to replace a single line).",
   }),
-  replacement: Type.String({
+  html: Type.String({
     description:
-      "New content for the range (the line(s) only, no anchors). Express an insertion by including the retained line(s) plus the new one(s).",
+      "Raw HTML that replaces the range. Never include anchor names or the `§` delimiter. To keep a line, copy only the text after `§`. An empty string deletes the range.",
   }),
 });
+
+// The wire format never belongs in authored content. Reject a leading anchor
+// and gutter delimiter here, while allowing a delimiter deeper in the HTML.
+// The buffer separately rejects replacement lines equal to current anchors.
+function assertReplacementHasNoGutter(html: string): void {
+  const leaked = html.split("\n").find((line) => {
+    const delimiterIndex = line.indexOf(ANCHOR_GUTTER_DELIMITER);
+    return (
+      delimiterIndex > 0 && /^[A-Za-z]+$/.test(line.slice(0, delimiterIndex))
+    );
+  });
+  if (leaked !== undefined) {
+    throw new Error(
+      `Replacement html line starts with an anchor and the gutter delimiter: ${JSON.stringify(
+        leaked,
+      )}. Copy only the text after the delimiter, never the anchor or the delimiter.`,
+    );
+  }
+}
 
 export function createCanvasAgentToolContributions(
   ctx: CanvasContext,
@@ -98,8 +119,6 @@ function createReadTool(
       "Read a canvas as anchored lines (`<anchor>§<text>`). Each line is addressable by its anchor in canvas__anchor_edit. The key is not a filesystem path. Include a concise reason so the human can understand why the canvas is being read.",
     promptSnippet: "Read a canvas as anchored lines.",
     parameters: readParams,
-    // TypeScript infers `params: ReadParams` from `AgentToolDefinition<typeof readParams>`.
-    // No hand-annotation needed. The factory return type holds the schema.
     async execute(_toolCallId, { reason: _reason, ...params }) {
       const lines = await ctx.buffer.read(params.key, params.start, params.end);
       return {
@@ -149,15 +168,20 @@ function createEditTool(
   return {
     label: "edit canvas",
     description:
-      "Replace an inclusive anchor range in a canvas. Boundaries are full `<anchor>§<text>` lines from a previous result; the live lines must still match. Returns fresh anchors for the changed lines. Include a concise reason so the human can understand why the canvas is being edited.",
+      "Replace an inclusive anchor range in a canvas. Boundaries are full `<anchor>§<text>` lines from a previous result; the live lines must still match. `html` holds only authored content, never an anchored line. Returns fresh anchors for the changed lines. Include a concise reason so the human can understand why the canvas is being edited.",
     promptSnippet: "Replace an anchor range in a canvas.",
+    promptGuidelines: [
+      "Copy start_line and end_line verbatim from a previous read result.",
+      "Put only authored HTML in `html`. Never include anchor names or the `§` delimiter; copy only the text after `§` when you keep a line.",
+    ],
     parameters: editParams,
     executionMode: "sequential",
     async execute(_toolCallId, { reason: _reason, ...params }) {
+      assertReplacementHasNoGutter(params.html);
       const changes = await ctx.buffer.edit(params.key, {
         start: parseAnchoredLine(params.start_line),
         end: parseAnchoredLine(params.end_line),
-        replacement: params.replacement,
+        replacement: params.html,
       });
       publishCanvasChanged(ctx, params.key);
       return {

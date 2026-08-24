@@ -10,11 +10,11 @@ A **resource** contributes feature-owned browser content through the substrate `
 
 Files involved:
 
-- [`src/api/resources.ts`](../../src/api/resources.ts), `createResourceAddressHandle`, `ResourceContribution`, `ResourceRequestContext`
-- [`src/api/resource-routes.ts`](../../src/api/resource-routes.ts), route normalization and URL encode/decode
-- [`src/main/resource-registry.ts`](../../src/main/resource-registry.ts), the transport registry
+- [`packages/api/src/resources.ts`](../../packages/api/src/resources.ts), `createResourceAddressHandle`, `ResourceContribution`, `ResourceRequestContext`
+- [`packages/api/src/resource-routes.ts`](../../packages/api/src/resource-routes.ts), route normalization and URL encode/decode
+- [`packages/runtime/src/resource-registry.ts`](../../packages/runtime/src/resource-registry.ts), the transport registry
 
-The reference for a real resource pair is [`src/features/canvas/backend/contributions/resources.ts`](../../src/features/canvas/backend/contributions/resources.ts) (route and handler) with the keys it serves in [`src/features/canvas/shared/addressing.ts`](../../src/features/canvas/shared/addressing.ts).
+The Canvas static frame resource in [`src/features/canvas/backend/contributions/resources.ts`](../../src/features/canvas/backend/contributions/resources.ts) is a current example. Its Agent-viewpoint HTML still travels through a selected channel handler rather than the Workspace resource request.
 
 ## Declare an address in shared code
 
@@ -59,13 +59,13 @@ export const reportResource = {
 };
 ```
 
-Return it from `contribute()`:
+Return it from `workspace(ctx)`:
 
 ```ts
 // features/reports/index.ts
 export const feature = defineFeature({
   id: "reports",
-  contribute() {
+  workspace() {
     return { resources: [reportResource] };
   },
 });
@@ -75,18 +75,26 @@ export const feature = defineFeature({
 
 ## Create URLs and origins
 
-Renderer-shared code calls the handle with a workspace id and route values:
+Renderer-shared code creates a logical address from the handle, then resolves it through the current workspace client before giving it to the browser:
 
 ```ts
-const url = reportAddress.toUrl({
-  workspaceId,
+import {
+  resolveWorkspaceResourceUrl,
+  useWorkspaceClient,
+} from "@uix/api/workspace";
+
+const workspace = useWorkspaceClient();
+const logicalUrl = reportAddress.toUrl({
+  workspaceId: workspace.workspaceId,
   params: { reportId: "weekly" },
 });
+const url = resolveWorkspaceResourceUrl(workspace, logicalUrl);
 
-const origin = reportAddress.toOrigin(workspaceId);
+const logicalOrigin = reportAddress.toOrigin(workspace.workspaceId);
+const origin = resolveWorkspaceResourceUrl(workspace, logicalOrigin);
 ```
 
-`toUrl()` returns a branded `ResourceUrl`. It validates address fields, parameter names, parameter shapes, and query values before encoding. `toOrigin()` returns the exact browser origin for security checks: Canvas uses it to validate iframe `postMessage` traffic.
+`toUrl()` returns a branded logical `ResourceUrl`. It validates address fields, parameter names, parameter shapes, and query values before encoding. `toOrigin()` returns its logical origin. `resolveWorkspaceResourceUrl()` preserves those addresses in Electron and maps them to workspace-qualified HTTP origins in the server host. Resolve origins too before using them for checks such as iframe `postMessage` validation.
 
 ## Verify
 

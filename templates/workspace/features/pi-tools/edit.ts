@@ -1,3 +1,5 @@
+// Provides the workspace edit tool, rebinding Pi's baseline to the workspace cwd.
+
 import { createEditToolDefinition } from "@earendil-works/pi-coding-agent";
 
 import type {

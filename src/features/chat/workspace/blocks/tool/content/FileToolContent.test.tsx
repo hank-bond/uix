@@ -65,7 +65,9 @@ describe("file tool chat rendering", () => {
     expect(html).toContain("I need to inspect the entry point.");
     expect(html).toContain('<details class="tool-call"');
     expect(html).toContain('<pre class="code-block">');
-    expect(html).toContain('<summary class="tool-call__summary">');
+    expect(html).toContain(
+      '<summary class="tool-call__summary block-status-row">',
+    );
     expect(html).toContain('class="tool-call__section-label">result</span>');
     expect(html).toContain('data-language="typescript"');
     expect(html).toContain('class="token keyword"');

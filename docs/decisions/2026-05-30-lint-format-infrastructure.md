@@ -18,6 +18,6 @@ ESLint flat config (`eslint.config.mjs`), three layers:
 
 **Scripts:** `lint`, `lint:fix`, `format`, `format:check`, plus `check` = `typecheck && lint && format:check` as one gate.
 
-**Folded-in cleanup:** the deferred `AppEvent` overload errors in `lifecycle.ts` were fixed (couldn't pass `check` otherwise). `onApp` now takes a uniform `() => void` listener via one typed cast. `window-all-closed` migrated to `onApp`. `will-quit` stays raw with a documented disable: its job is to dispose `appBag`, so enrolling it would be circular.
+**Folded-in cleanup:** the deferred `AppEvent` overload errors in `lifecycle.ts` were fixed (couldn't pass `check` otherwise). `onApp` now takes a uniform `() => void` listener via one typed cast. `window-all-closed` migrated to `onApp`. The process shutdown coordinator stays raw with a documented disable: its job is to dispose the host lifetimes, so enrolling it would be circular. It now intercepts `before-quit`, awaits asynchronous workspace disposal, and then resumes quitting.
 
 **Real bugs caught on first run:** a floating Promise on `app.whenReady().then(...)`. An async function passed to `<form onSubmit>` (React expects sync handlers). Both fixed: evidence the type-checked ruleset earns its slower cost.
