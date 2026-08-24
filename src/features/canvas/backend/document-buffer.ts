@@ -258,7 +258,7 @@ function findMatchingLine(
 
 // A replacement line that exactly equals a live anchor is metadata copied into
 // authored content. Reject it before canonicalization so the anchor cannot be
-// persisted as document text; callers receive the correction in the error.
+// persisted as document text. Callers receive the correction in the error.
 function assertNoAnchorLeak(
   lines: readonly AnchoredLine[],
   replacementLines: readonly string[],
