@@ -37,7 +37,9 @@ const log = createLogger("features");
 
 const EmptyFeatureSettings = defineSettings({ schema: Type.Object({}) });
 
-const requireFromLoader = createRequire(__filename);
+const loaderModuleLocation =
+  typeof __filename === "string" ? __filename : import.meta.url;
+const requireFromLoader = createRequire(loaderModuleLocation);
 
 /**
  * The alias table feature entry imports resolve through: exactly the
@@ -55,7 +57,7 @@ const deriveBuildAliases = (apiModuleDir?: string): Record<string, string> => ({
 });
 
 const createFeatureJiti = (apiModuleDir?: string): Jiti =>
-  createJiti(__filename, {
+  createJiti(loaderModuleLocation, {
     // Same hot-reload lever Pi uses. Disabling the runtime module cache
     // lets editing a feature's .ts/.js file and reloading evaluate the
     // new source for the same absolute path. jiti may still keep its

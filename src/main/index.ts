@@ -169,7 +169,7 @@ async function openWorkspace(
   // does not route this path through the shared workspace supervisor.
   const openWorkspaceWindow = async (): Promise<void> => {
     if (mainWindow) return;
-    const created = await runtime.createAttachment();
+    const created = await runtime.createAttachment({ kind: "fallback" });
     const windowAttachment = created.attachment;
     const attachmentBag = hostBag.add(new DisposableBag());
     attachmentBag.add(windowAttachment);

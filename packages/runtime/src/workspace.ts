@@ -61,6 +61,12 @@ export interface SessionTarget {
   readonly branchId?: BranchId;
 }
 
+/** Host policy for resolving the initial target of one atomic attachment creation. */
+export type AttachmentAdmission =
+  | { readonly kind: "fallback" }
+  | { readonly kind: "new-session" }
+  | { readonly kind: "session"; readonly target: SessionTarget };
+
 /**
  * The exactly-one-workspace runtime surface a host composes. The runtime
  * owns dispatch and agent resolution. The host owns the connection
@@ -70,8 +76,8 @@ export interface WorkspaceRuntime extends AsyncDisposable {
   readonly workspaceId: WorkspaceId;
   /** Subscribe to runtime-owned scoped events. The host routes them to matching attachments. */
   onEvent(listener: (event: RuntimeEvent) => void): Disposable;
-  /** Create one attachment and its supervisor-private event delivery closure. */
-  createAttachment(target?: SessionTarget): Promise<CreatedAttachment>;
+  /** Atomically resolve the admitted target and create its attachment. */
+  createAttachment(admission: AttachmentAdmission): Promise<CreatedAttachment>;
   /** Activate the initial feature composition. A bad manifest logs and boots with no features. */
   load(): Promise<ActivationResult>;
   /** Replace the active feature composition and Pi resource tier, then notify the renderer. */

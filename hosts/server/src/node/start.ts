@@ -2,6 +2,7 @@
 
 import { resolveServerConfiguration } from "./configuration";
 import { createServerHost, type ServerHost } from "./server";
+import { createServerWorkspaceRuntime } from "./workspace-runtime";
 
 interface StartServerOptions {
   readonly environment: Readonly<Record<string, string | undefined>>;
@@ -17,6 +18,7 @@ export interface StartedServer {
   readonly address: string;
   readonly publicOrigin: string;
   readonly registryPath: string;
+  readonly piAppDataDir: string;
 }
 
 export interface FailedServerStart {
@@ -45,6 +47,11 @@ export async function startServer(
       registryPath: configuration.registryPath,
       publicOrigin: configuration.publicOrigin,
       assetRoot: options.assetRoot,
+      bootWorkspace: (registered) =>
+        createServerWorkspaceRuntime({
+          registered,
+          piAppDataDir: configuration.piAppDataDir,
+        }),
     });
     const address = await host.listen({
       host: hostAddress,
@@ -56,6 +63,7 @@ export async function startServer(
       address,
       publicOrigin: configuration.publicOrigin,
       registryPath: configuration.registryPath,
+      piAppDataDir: configuration.piAppDataDir,
     };
   } catch (error) {
     let cleanupError: Error | undefined;

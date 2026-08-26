@@ -39,6 +39,7 @@ import {
 import { createProviderAuthFlowCoordinator } from "./provider-auth-flow";
 import { ReloadAdmission } from "./reload-admission";
 import {
+  createDurablePrimarySession,
   type OpenedPrimarySession,
   openExistingSessionManager,
 } from "./session-manager";
@@ -68,7 +69,6 @@ import { createLogger } from "../log";
 import { OperationTracker } from "../operation-tracker";
 import type { Workspace } from "../roots";
 import type { SessionId, SessionTarget } from "../workspace";
-import { toSessionId } from "../workspace";
 
 const MaxSessionTitleCodePoints = 4096;
 const log = createLogger("agent");
@@ -557,17 +557,8 @@ export function createWorkspaceAgentRuntime(
       });
     },
 
-    async createSession() {
-      const sdk = await import("@earendil-works/pi-coding-agent");
-      const manager = sdk.SessionManager.create(
-        opts.workspace.agentCwd,
-        sessionDir,
-      );
-      return {
-        target: { sessionId: toSessionId(manager.getSessionId()) },
-        manager,
-      };
-    },
+    createSession: () =>
+      createDurablePrimarySession(opts.workspace.agentCwd, sessionDir),
 
     prompt,
 

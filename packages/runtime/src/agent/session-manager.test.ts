@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -6,6 +6,7 @@ import type { SessionManager } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  createDurablePrimarySession,
   openExistingSessionManager,
   openWorkspaceFallbackSession,
 } from "./session-manager";
@@ -55,6 +56,41 @@ async function createSessionFile(sessionId: string): Promise<{
   await writeFile(sessionFile, "");
   return { sessionDir, sessionFile };
 }
+
+describe("createDurablePrimarySession", () => {
+  it("writes and reopens the empty Pi header before accepting its id", async () => {
+    const root = await mkdtemp(join(tmpdir(), "durable-manager-"));
+    roots.push(root);
+    const sessionDir = join(root, "sessions");
+    const sessionFile = join(sessionDir, "2026-08-12T01-00-00-000Z_new.jsonl");
+    await mkdir(sessionDir, { recursive: true });
+    const header = {
+      type: "session" as const,
+      version: 3,
+      id: "new",
+      timestamp: "2026-08-12T01:00:00.000Z",
+      cwd: "/workspace",
+    };
+    const created = {
+      getSessionFile: () => sessionFile,
+      getHeader: () => header,
+    } as SessionManager;
+    const reopened = sdk.manager("new");
+    sdk.create.mockReturnValue(created);
+    sdk.open.mockReturnValue(reopened);
+
+    await expect(
+      createDurablePrimarySession("/workspace", sessionDir),
+    ).resolves.toEqual({
+      target: { sessionId: "new" },
+      manager: reopened,
+    });
+    expect(await readFile(sessionFile, "utf8")).toBe(
+      `${JSON.stringify(header)}\n`,
+    );
+    expect(sdk.open).toHaveBeenCalledWith(sessionFile, sessionDir);
+  });
+});
 
 describe("openExistingSessionManager", () => {
   it("opens a fresh manager for the explicit session target", async () => {

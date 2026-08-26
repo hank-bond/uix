@@ -66,6 +66,7 @@ import type { Workspace } from "./roots";
 import { SettingsRegistry } from "./settings-registry";
 import type {
   Attachment as AttachmentContract,
+  AttachmentAdmission,
   AttachmentId,
   CreatedAttachment,
   SessionTarget,
@@ -595,17 +596,32 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     }
   }
 
-  async createAttachment(target?: SessionTarget): Promise<CreatedAttachment> {
+  async createAttachment(
+    admission: AttachmentAdmission,
+  ): Promise<CreatedAttachment> {
     if (this.#disposed) throw new Error("Workspace runtime is disposed");
-    const openedFallback = target
-      ? undefined
-      : await this.#openFallbackSession();
-    const acceptedTarget = target ?? openedFallback?.target;
-    if (!acceptedTarget) throw new Error("Session target resolution failed");
+    switch (admission.kind) {
+      case "session":
+        return this.#createAcceptedAttachment(admission.target);
+      case "fallback": {
+        const opened = await this.#openFallbackSession();
+        return this.#createAcceptedAttachment(opened.target, opened.manager);
+      }
+      case "new-session": {
+        const opened = await this.#agentRuntime.createSession();
+        return this.#createAcceptedAttachment(opened.target, opened.manager);
+      }
+    }
+  }
+
+  async #createAcceptedAttachment(
+    acceptedTarget: SessionTarget,
+    openedManager?: SessionManager,
+  ): Promise<CreatedAttachment> {
     assertSupportedSessionTarget(acceptedTarget);
     const guard = await this.#agentRuntime.acquire(
       acceptedTarget,
-      openedFallback?.manager,
+      openedManager,
       "attachment",
     );
     if (this.#disposal) {

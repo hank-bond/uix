@@ -10,7 +10,7 @@ describe("public origin", () => {
 
     expect(origin).toBe("https://uix.example:8443");
     expect(toWorkspaceLocation(origin, toWorkspaceId("reference"))).toBe(
-      "https://uix.example:8443/w/reference",
+      "https://uix.example:8443/workspaces/reference",
     );
   });
 

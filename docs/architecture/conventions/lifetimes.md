@@ -83,7 +83,10 @@ Supervisor acquisition and `retain()` mint guards. `using` handles lexical guard
 
 ```ts
 using workspaceGuard = await workspaceSupervisor.acquire(workspaceId);
-using attachment = await workspaceGuard.value.createAttachment(target);
+using attachment = await workspaceGuard.value.createAttachment({
+  kind: "session",
+  target,
+});
 
 await handleCanonicalRequest(async (request) => {
   using _requestGuard = workspaceGuard.retain("request");

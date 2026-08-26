@@ -17,6 +17,7 @@ export {
 } from "./runtime";
 export type {
   Attachment,
+  AttachmentAdmission,
   AttachmentId,
   BranchId,
   CreatedAttachment,

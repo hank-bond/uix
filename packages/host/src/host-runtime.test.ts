@@ -6,6 +6,7 @@ import { toChannelCanonicalId } from "@uix/api/channel-resolution";
 import type {
   ActivationResult,
   Attachment,
+  AttachmentAdmission,
   AttachmentId,
   CanonicalRequest,
   CanonicalResponse,
@@ -265,6 +266,7 @@ class FakeRuntime implements WorkspaceRuntime {
   readonly handlers = new Map<string, Handler>();
   readonly #listeners = new Set<(event: RuntimeEvent) => void>();
   #nextAttachment = 0;
+  #nextSession = 2;
   attachmentGate: Promise<void> | undefined;
   disposeError: Error | undefined;
   disposed = false;
@@ -307,9 +309,28 @@ class FakeRuntime implements WorkspaceRuntime {
     });
   }
 
-  async createAttachment(target?: SessionTarget): Promise<CreatedAttachment> {
+  async createAttachment(
+    admission: AttachmentAdmission,
+  ): Promise<CreatedAttachment> {
+    switch (admission.kind) {
+      case "fallback":
+        return this.#createAttachment({ sessionId: s1 });
+      case "session":
+        return this.#createAttachment(admission.target);
+      case "new-session": {
+        const target = {
+          sessionId: toSessionId(`session-${String(this.#nextSession)}`),
+        };
+        this.#nextSession += 1;
+        return this.#createAttachment(target);
+      }
+    }
+  }
+
+  async #createAttachment(
+    acceptedTarget: SessionTarget,
+  ): Promise<CreatedAttachment> {
     await this.attachmentGate;
-    const acceptedTarget = target ?? { sessionId: s1 };
     const targetGuard = await this.agents.acquire(acceptedTarget.sessionId);
     this.#nextAttachment += 1;
     const attachment = new FakeAttachment(
@@ -351,6 +372,10 @@ function track(attachment: Attachment, byId: Map<string, string[]>): void {
     seen.push(event.id);
     byId.set(attachment.attachmentId, seen);
   });
+}
+
+function admitSession(sessionId: SessionId): AttachmentAdmission {
+  return { kind: "session", target: { sessionId } };
 }
 
 const ws1 = toWorkspaceId("workspace-1");
@@ -463,7 +488,7 @@ describe("workspace supervisor", () => {
     runtime.attachmentGate = gate.promise;
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
-    const creation = workspace.value.createAttachment({ sessionId: s1 });
+    const creation = workspace.value.createAttachment(admitSession(s1));
     const disposal = supervisor[Symbol.asyncDispose]();
 
     gate.resolve();
@@ -492,14 +517,34 @@ describe("workspace supervisor", () => {
 });
 
 describe("unified attachments", () => {
+  it("creates a fresh durable target for a new-session attachment", async () => {
+    const runtime = new FakeRuntime(ws1);
+    const supervisor = supervisorFor(runtime);
+    const workspace = await supervisor.acquire(ws1);
+
+    const first = await workspace.value.createAttachment({
+      kind: "new-session",
+    });
+    const second = await workspace.value.createAttachment({
+      kind: "new-session",
+    });
+
+    expect(first.target.sessionId).not.toBe(second.target.sessionId);
+    expect(runtime.agents.liveInstances).toBe(2);
+    first[Symbol.dispose]();
+    second[Symbol.dispose]();
+    workspace[Symbol.dispose]();
+    await supervisor[Symbol.asyncDispose]();
+  });
+
   it("shares one primary instance across several attachments", async () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
 
-    const a = await workspace.value.createAttachment({ sessionId: s1 });
-    const b = await workspace.value.createAttachment({ sessionId: s1 });
-    const c = await workspace.value.createAttachment({ sessionId: s1 });
+    const a = await workspace.value.createAttachment(admitSession(s1));
+    const b = await workspace.value.createAttachment(admitSession(s1));
+    const c = await workspace.value.createAttachment(admitSession(s1));
 
     expect(a.target.sessionId).toBe(s1);
     expect(b.target.sessionId).toBe(s1);
@@ -514,8 +559,8 @@ describe("unified attachments", () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
-    const a = await workspace.value.createAttachment({ sessionId: s1 });
-    const b = await workspace.value.createAttachment({ sessionId: s1 });
+    const a = await workspace.value.createAttachment(admitSession(s1));
+    const b = await workspace.value.createAttachment(admitSession(s1));
 
     await a.retarget({ sessionId: s2 });
 
@@ -530,9 +575,7 @@ describe("unified attachments", () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
-    const attachment = await workspace.value.createAttachment({
-      sessionId: s1,
-    });
+    const attachment = await workspace.value.createAttachment(admitSession(s1));
     const runningGuard = await runtime.agents.acquire(s1);
 
     await attachment.retarget({ sessionId: s2 });
@@ -553,9 +596,7 @@ describe("unified attachments", () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
-    const attachment = await workspace.value.createAttachment({
-      sessionId: s1,
-    });
+    const attachment = await workspace.value.createAttachment(admitSession(s1));
     runtime.agents.failNextCreation(s2);
 
     await expect(attachment.retarget({ sessionId: s2 })).rejects.toThrow(
@@ -571,8 +612,8 @@ describe("unified attachments", () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
-    const a = await workspace.value.createAttachment({ sessionId: s1 });
-    const b = await workspace.value.createAttachment({ sessionId: s1 });
+    const a = await workspace.value.createAttachment(admitSession(s1));
+    const b = await workspace.value.createAttachment(admitSession(s1));
     const ping = toChannelCanonicalId("chat", "ping");
     runtime.register(ping, () => "pong");
 
@@ -594,9 +635,9 @@ describe("unified attachments", () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
-    const a = await workspace.value.createAttachment({ sessionId: s1 });
-    const b = await workspace.value.createAttachment({ sessionId: s1 });
-    const c = await workspace.value.createAttachment({ sessionId: s2 });
+    const a = await workspace.value.createAttachment(admitSession(s1));
+    const b = await workspace.value.createAttachment(admitSession(s1));
+    const c = await workspace.value.createAttachment(admitSession(s2));
     const received = new Map<string, string[]>();
     track(a, received);
     track(b, received);
@@ -637,9 +678,7 @@ describe("unified attachments", () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
-    const attachment = await workspace.value.createAttachment({
-      sessionId: s1,
-    });
+    const attachment = await workspace.value.createAttachment(admitSession(s1));
     const contextChannel = toChannelCanonicalId("chat", "context");
     runtime.register(contextChannel, (_payload, context) => context.target);
     using prepared = attachment.prepareDispatch({
@@ -662,9 +701,7 @@ describe("unified attachments", () => {
     const runtime = new FakeRuntime(ws1);
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
-    const attachment = await workspace.value.createAttachment({
-      sessionId: s1,
-    });
+    const attachment = await workspace.value.createAttachment(admitSession(s1));
     const responseGate = deferred<string>();
     const ping = toChannelCanonicalId("chat", "ping");
     runtime.register(ping, () => responseGate.promise);
@@ -699,8 +736,8 @@ describe("unified attachments", () => {
     );
     const workspaceA = await supervisor.acquire(ws1);
     const workspaceB = await supervisor.acquire(ws2);
-    const a = await workspaceA.value.createAttachment({ sessionId: s1 });
-    const b = await workspaceB.value.createAttachment({ sessionId: s1 });
+    const a = await workspaceA.value.createAttachment(admitSession(s1));
+    const b = await workspaceB.value.createAttachment(admitSession(s1));
     const ping = toChannelCanonicalId("chat", "ping");
     runtimeA.register(ping, () => "a");
     runtimeB.register(ping, () => "b");

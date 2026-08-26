@@ -1,5 +1,7 @@
 // Opens one explicit durable session into its own Pi manager.
 
+import { writeFile } from "node:fs/promises";
+
 import type { SessionManager } from "@earendil-works/pi-coding-agent";
 
 import { resolveSessionFileById } from "./session-files";
@@ -25,6 +27,29 @@ export async function openExistingSessionManager(
 export interface OpenedPrimarySession {
   readonly target: SessionTarget;
   readonly manager: SessionManager;
+}
+
+/** Create and persist an empty session header so its accepted id is immediately reopenable. */
+export async function createDurablePrimarySession(
+  cwd: string,
+  sessionDir: string,
+): Promise<OpenedPrimarySession> {
+  const sdk = await import("@earendil-works/pi-coding-agent");
+  const created = sdk.SessionManager.create(cwd, sessionDir);
+  const sessionFile = created.getSessionFile();
+  const header = created.getHeader();
+  if (!sessionFile || header?.type !== "session") {
+    throw new Error("Pi did not create a persistent session header");
+  }
+  await writeFile(sessionFile, `${JSON.stringify(header)}\n`, {
+    encoding: "utf8",
+    flag: "wx",
+  });
+  const manager = sdk.SessionManager.open(sessionFile, sessionDir);
+  return {
+    target: { sessionId: toSessionId(manager.getSessionId()) },
+    manager,
+  };
 }
 
 interface OpenWorkspaceFallbackSessionOptions {

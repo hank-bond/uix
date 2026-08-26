@@ -11,7 +11,7 @@ describe("server launcher adapter", () => {
           {
             id: "reference",
             name: "Reference workspace",
-            location: "https://uix.example/w/reference",
+            location: "https://uix.example/workspaces/reference",
           },
         ],
       }),
@@ -28,7 +28,9 @@ describe("server launcher adapter", () => {
     await expect(adapter.openWorkspace("reference")).resolves.toBe("accepted");
 
     expect(readCatalog).toHaveBeenCalledOnce();
-    expect(setLocation).toHaveBeenCalledWith("https://uix.example/w/reference");
+    expect(setLocation).toHaveBeenCalledWith(
+      "https://uix.example/workspaces/reference",
+    );
     expect(adapter.createWorkspace).toBeUndefined();
   });
 

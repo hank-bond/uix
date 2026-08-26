@@ -38,7 +38,7 @@ describe("server launcher bootstrap", () => {
               {
                 id: "reference",
                 name: "Reference workspace",
-                location: "https://uix.example/w/reference",
+                location: "https://uix.example/workspaces/reference",
               },
             ],
           }),
@@ -78,7 +78,9 @@ describe("server launcher bootstrap", () => {
     await expect(mountOptions.adapter.openWorkspace("reference")).resolves.toBe(
       "accepted",
     );
-    expect(assign).toHaveBeenCalledWith("https://uix.example/w/reference");
+    expect(assign).toHaveBeenCalledWith(
+      "https://uix.example/workspaces/reference",
+    );
 
     expect(pagehide).toBeDefined();
     pagehide?.();

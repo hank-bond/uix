@@ -2,10 +2,10 @@
 
 import type {
   Attachment,
+  AttachmentAdmission,
   CreatedAttachment,
   EventScope,
   RuntimeEvent,
-  SessionTarget,
   WorkspaceId,
   WorkspaceRuntime,
 } from "@uix/runtime";
@@ -13,7 +13,7 @@ import type {
 /** Operational surface for one supervised workspace. */
 export interface Workspace {
   readonly workspaceId: WorkspaceId;
-  createAttachment(target: SessionTarget): Promise<Attachment>;
+  createAttachment(admission: AttachmentAdmission): Promise<Attachment>;
 }
 
 interface DeliveryRecord {
@@ -48,23 +48,10 @@ class WorkspaceOwnershipState implements WorkspaceOwnership {
     return this.#runtime.workspaceId;
   }
 
-  async createAttachment(target: SessionTarget): Promise<Attachment> {
-    const created = await this.#runtime.createAttachment(target);
-    const { attachment } = created;
-    const closeSubscription = attachment.onClose(() => {
-      const record = this.#attachments.get(attachment.attachmentId);
-      if (record?.attachment !== attachment) return;
-      this.#attachments.delete(attachment.attachmentId);
-      record.closeSubscription[Symbol.dispose]();
-    });
-    this.#attachments.set(attachment.attachmentId, {
-      attachment,
-      deliver: (event) => {
-        created.deliver(event);
-      },
-      closeSubscription,
-    });
-    return attachment;
+  async createAttachment(admission: AttachmentAdmission): Promise<Attachment> {
+    return this.#retainAttachment(
+      await this.#runtime.createAttachment(admission),
+    );
   }
 
   [Symbol.asyncDispose](): Promise<void> {
@@ -81,6 +68,24 @@ class WorkspaceOwnershipState implements WorkspaceOwnership {
       await this.#runtime[Symbol.asyncDispose]();
     })();
     return this.#disposal;
+  }
+
+  #retainAttachment(created: CreatedAttachment): Attachment {
+    const { attachment } = created;
+    const closeSubscription = attachment.onClose(() => {
+      const record = this.#attachments.get(attachment.attachmentId);
+      if (record?.attachment !== attachment) return;
+      this.#attachments.delete(attachment.attachmentId);
+      record.closeSubscription[Symbol.dispose]();
+    });
+    this.#attachments.set(attachment.attachmentId, {
+      attachment,
+      deliver: (event) => {
+        created.deliver(event);
+      },
+      closeSubscription,
+    });
+    return attachment;
   }
 
   #route(event: RuntimeEvent): void {

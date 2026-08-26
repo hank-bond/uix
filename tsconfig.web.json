@@ -32,6 +32,7 @@
     "packages/host/src/catalog.ts",
     "apps/features/**/workspace/**/*.ts",
     "hosts/server/src/browser/**/*.ts",
+    "hosts/server/src/live.ts",
     "src/renderer/**/*.ts",
     "src/renderer/**/*.tsx",
     "src/features/**/workspace/**/*.ts",

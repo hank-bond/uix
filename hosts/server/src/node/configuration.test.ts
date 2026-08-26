@@ -19,6 +19,7 @@ describe("server configuration", () => {
     ).toEqual({
       port: 3000,
       registryPath: join("/private/server", "server.workspaces.json"),
+      piAppDataDir: join("/private/server", ".uix-server", "pi"),
       publicOrigin: "http://127.0.0.1:3000",
     });
   });
@@ -30,6 +31,7 @@ describe("server configuration", () => {
           HOME: "/private/home",
           UIX_SERVER_PORT: "4312",
           UIX_SERVER_REGISTRY: "config/workspaces.json",
+          UIX_SERVER_DATA_DIR: "/var/lib/uix",
           UIX_PUBLIC_ORIGIN: "https://uix.example/",
         },
         cwd: "/private/server",
@@ -38,6 +40,7 @@ describe("server configuration", () => {
     ).toEqual({
       port: 4312,
       registryPath: join("/private/server", "config/workspaces.json"),
+      piAppDataDir: join("/var/lib/uix", "pi"),
       publicOrigin: "https://uix.example",
     });
   });
@@ -87,6 +90,8 @@ describe("server configuration", () => {
     expect(help).toContain("Default: 3000.");
     expect(help).toContain("UIX_SERVER_REGISTRY=<PATH>");
     expect(help).toContain("Default: server.workspaces.json.");
+    expect(help).toContain("UIX_SERVER_DATA_DIR=<PATH>");
+    expect(help).toContain("Default: .uix-server.");
     expect(help).toContain("UIX_PUBLIC_ORIGIN=<ORIGIN>");
     expect(help).toContain("Browser-visible HTTP(S) origin");
     expect(help).not.toContain("<VALUE>");

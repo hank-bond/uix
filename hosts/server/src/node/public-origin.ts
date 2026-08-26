@@ -2,6 +2,8 @@
 
 import type { WorkspaceId } from "@uix/runtime/workspace";
 
+import { toWorkspacePath } from "./routes";
+
 /** Accept one HTTP origin without credentials, path state, query, or fragment. */
 export function normalizePublicOrigin(value: string | URL): string {
   const url = new URL(value.toString());
@@ -24,6 +26,5 @@ export function toWorkspaceLocation(
   publicOrigin: string,
   workspaceId: WorkspaceId,
 ): string {
-  return new URL(`/w/${encodeURIComponent(workspaceId)}`, `${publicOrigin}/`)
-    .href;
+  return new URL(toWorkspacePath(workspaceId), `${publicOrigin}/`).href;
 }

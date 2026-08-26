@@ -5,6 +5,7 @@
   "description": "Server composition root and adapters: HTTP, live transport, process lifecycle, and client bootstraps over the shared supervisor, runtime, and clients.",
   "type": "module",
   "dependencies": {
+    "@fastify/websocket": "^11.3.0",
     "@uix/client": "0.0.0",
     "@uix/host": "0.0.0",
     "@uix/runtime": "0.0.0",

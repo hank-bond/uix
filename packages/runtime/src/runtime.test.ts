@@ -25,9 +25,11 @@ import {
 } from "@uix/api/resource-routes";
 import type {
   Attachment,
+  AttachmentAdmission,
   CanonicalRequest,
   CanonicalResponse,
   RuntimeEvent,
+  SessionTarget,
 } from "@uix/runtime";
 import type { WorkspaceRuntimeDependencies } from "@uix/runtime";
 import {
@@ -269,6 +271,10 @@ function loadedEventCount(events: RuntimeEvent[]): number {
     .length;
 }
 
+function admitSession(target: SessionTarget): AttachmentAdmission {
+  return { kind: "session", target };
+}
+
 async function dispatch(
   attachment: Attachment,
   request: CanonicalRequest,
@@ -293,10 +299,12 @@ describe("workspace runtime isolation", () => {
     const activation = await runtime.load();
     expect(activation.activated.map(({ id }) => id)).toEqual(["canvas"]);
 
-    const selected = (await runtime.createAttachment()).attachment;
-    const sessionA = selected.target.sessionId;
-    const peerA = (await runtime.createAttachment({ sessionId: sessionA }))
+    const selected = (await runtime.createAttachment({ kind: "fallback" }))
       .attachment;
+    const sessionA = selected.target.sessionId;
+    const peerA = (
+      await runtime.createAttachment(admitSession({ sessionId: sessionA }))
+    ).attachment;
     const read = toChannelCanonicalId("canvas", "read");
     const writeback = toChannelCanonicalId("canvas", "writeback");
     const key = "main";
@@ -415,28 +423,39 @@ describe("workspace runtime isolation", () => {
       true,
     );
 
-    // A workspace-only route resolves its fallback inside the runtime and
-    // returns an attachment with the accepted durable session identity.
-    const fallbackA = (await runtimeA.createAttachment()).attachment;
+    // A fallback admission resolves inside the runtime and returns an
+    // attachment with the accepted durable session identity.
+    const fallbackA = (await runtimeA.createAttachment({ kind: "fallback" }))
+      .attachment;
     expect(fallbackA.target.sessionId).not.toBe("");
+    const freshConnectionA = (
+      await runtimeA.createAttachment({ kind: "new-session" })
+    ).attachment;
+    expect(freshConnectionA.target.sessionId).not.toBe(
+      fallbackA.target.sessionId,
+    );
+    freshConnectionA[Symbol.dispose]();
     // A second attachment to the same durable session shares the warm primary
     // instance. A second workspace remains independent.
-    const fallbackB = (await runtimeB.createAttachment()).attachment;
+    const fallbackB = (await runtimeB.createAttachment({ kind: "fallback" }))
+      .attachment;
     const attachA = (
-      await runtimeA.createAttachment({
-        sessionId: fallbackA.target.sessionId,
-      })
+      await runtimeA.createAttachment(
+        admitSession({ sessionId: fallbackA.target.sessionId }),
+      )
     ).attachment;
     const attachB = (
-      await runtimeB.createAttachment({
-        sessionId: fallbackB.target.sessionId,
-      })
+      await runtimeB.createAttachment(
+        admitSession({ sessionId: fallbackB.target.sessionId }),
+      )
     ).attachment;
     await expect(
-      runtimeA.createAttachment({
-        sessionId: fallbackA.target.sessionId,
-        branchId: toBranchId("branch-1"),
-      }),
+      runtimeA.createAttachment(
+        admitSession({
+          sessionId: fallbackA.target.sessionId,
+          branchId: toBranchId("branch-1"),
+        }),
+      ),
     ).rejects.toThrow("Branch session targets are not supported");
     await expect(
       attachA.retarget({
@@ -512,7 +531,9 @@ describe("workspace runtime isolation", () => {
     const switchSession = toChannelCanonicalId("agent", "switch_session");
     const ping = toChannelCanonicalId("echo", "ping");
     const closingAttachment = (
-      await runtimeA.createAttachment({ sessionId: freshSessionId })
+      await runtimeA.createAttachment(
+        admitSession({ sessionId: freshSessionId }),
+      )
     ).attachment;
     using preparedPing = closingAttachment.prepareDispatch({
       channel: ping,

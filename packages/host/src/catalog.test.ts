@@ -11,7 +11,7 @@ describe("workspace catalog", () => {
           {
             id: "docs",
             name: "Documentation",
-            location: "https://uix.example/w/docs",
+            location: "https://uix.example/workspaces/docs",
           },
         ],
       }),
@@ -21,7 +21,7 @@ describe("workspace catalog", () => {
         {
           id: "docs",
           name: "Documentation",
-          location: "https://uix.example/w/docs",
+          location: "https://uix.example/workspaces/docs",
         },
       ],
     });
@@ -41,7 +41,7 @@ describe("workspace catalog", () => {
           {
             id: "private",
             name: "Private",
-            location: "https://uix.example/w/private",
+            location: "https://uix.example/workspaces/private",
             manifestPath: "/private/uix.workspace.json",
           },
         ],
@@ -50,7 +50,7 @@ describe("workspace catalog", () => {
   });
 
   it.each([
-    { id: "../private", location: "https://uix.example/w/private" },
+    { id: "../private", location: "https://uix.example/workspaces/private" },
     { id: "private", location: "file:///private/uix.workspace.json" },
   ])("rejects a non-canonical entry: $id $location", (entry) => {
     expect(() =>

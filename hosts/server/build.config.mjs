@@ -1,4 +1,4 @@
-// Builds the server process and browser launcher into one runnable output tree.
+// Builds the server process, launcher, and workspace shell into one runnable output tree.
 
 import { copyFile, mkdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -22,10 +22,15 @@ export async function buildServer() {
       resolve(repositoryRoot, "hosts/server/src/browser/launcher.html"),
       resolve(outputRoot, "public/index.html"),
     ),
+    copyFile(
+      resolve(repositoryRoot, "hosts/server/src/browser/workspace.html"),
+      resolve(outputRoot, "public/workspace.html"),
+    ),
     build({
       absWorkingDir: repositoryRoot,
       entryPoints: {
         launcher: "hosts/server/src/browser/main.ts",
+        workspace: "hosts/server/src/browser/workspace-main.ts",
       },
       outdir: resolve(outputRoot, "public/assets"),
       bundle: true,
@@ -39,7 +44,15 @@ export async function buildServer() {
       entryPoints: ["hosts/server/src/node/main.ts"],
       outfile: resolve(outputRoot, "index.mjs"),
       bundle: true,
-      external: ["fastify", "pino", "pino-pretty"],
+      external: [
+        "@earendil-works/pi-coding-agent",
+        "@fastify/websocket",
+        "esbuild",
+        "fastify",
+        "jiti",
+        "pino",
+        "pino-pretty",
+      ],
       format: "esm",
       platform: "node",
       target: "node22",

@@ -18,7 +18,7 @@ summary: "Build the Electron and web hosts over the proved workspace runtime, at
 - **H5.1** launcher extraction landed in `0e2ccdc`.
 - **H5.2** workspace extraction landed in `0780f80`.
 - **H5.3** dependency-boundary enforcement landed. H5 is complete.
-- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** is implemented and awaiting review. **W2-W9** continue the web host from that spec. H7-H8 follow with Electron rehoming and two-host conformance.
+- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** landed in `780838b`. **W2** has landed. **W3-W9** continue the web host from that spec. H7-H8 follow with Electron rehoming and two-host conformance.
 
 ## Status and intent
 
@@ -228,7 +228,7 @@ Build the read-only workspace registry loaded at boot, the versioned public cata
 
 ### W2: Stateless workspace shell and live session creation
 
-Serve `/w/:workspace` as a stateless shell that acquires no runtime. On the live-connection upgrade, acquire the workspace through the supervisor, create a new session and attachment, and return the accepted session id. The client canonicalizes its location with a history replacement. A direct `/w/:workspace/s/:session` upgrade attaches to the named durable session. No pending-attachment map or cross-request handoff exists.
+Serve `/workspaces/:workspace` as a stateless shell that acquires no runtime. On the live-connection upgrade, acquire the workspace through the supervisor, create a new session and attachment, and return the accepted session id and canonical path. The client canonicalizes its location with a history replacement. A direct `/workspaces/:workspace/sessions/:session` upgrade attaches to the named durable session. No pending-attachment map or cross-request handoff exists.
 
 **Review gate:** Two tabs opening the workspace-only URL create two independent sessions and attachments. Reloading a canonical URL reattaches to that session. Closing a connection disposes its attachment without affecting a peer.
 

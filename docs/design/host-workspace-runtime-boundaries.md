@@ -59,9 +59,9 @@ The shared browser client has separate launcher and workspace entry surfaces. Ea
 The server uses stable host-owned workspace ids rather than filesystem paths in URLs. The route model is conceptually:
 
 ```text
-/                                      launcher
-/w/:workspaceId                        workspace shell (stateless)
-/w/:workspaceId/s/:sessionId           canonical workspace-session page
+/                                                   launcher
+/workspaces/:workspaceId                            workspace shell (stateless)
+/workspaces/:workspaceId/sessions/:sessionId        canonical workspace-session page
 ```
 
 A workspace-only URL serves the workspace shell without resolving a session or acquiring a workspace. The browser's live connection to that location acquires the workspace, creates a new session and attachment, and returns the accepted session id; the client then makes its location canonical with a history replacement. A direct request or reload of a canonical URL acquires the workspace and attaches to the named durable session. The live connection owns its workspace guard and attachment from connection setup onward; the host never holds a pending attachment across separate requests. An ordinary session switch retargets the existing attachment first and pushes a history entry after the runtime confirms success; browser back and forward retarget the attachment to the location's session and preserve the previous target on failure. A workspace switch navigates to another workspace URL and rebuilds the client composition because its manifest and surfaces may differ. Browser clients persist no separate last-session preference: each tab's canonical URL is authoritative. Electron instead persists its local windows or tabs and their canonical workspace-session targets in the host profile so reopening the application restores the local chrome the user closed.

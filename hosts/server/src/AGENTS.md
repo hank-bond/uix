@@ -12,7 +12,11 @@ The process side owns configuration, private workspace resolution, public locati
 
 ### Directories
 
-- **[browser/](./browser/AGENTS.md)** Browser-side server bootstrap: validate the public catalog, adapt it to launcher capabilities, navigate canonical locations, and mount the shared launcher client.
+- **[browser/](./browser/AGENTS.md)** Browser-side server bootstraps for the catalog launcher and the stateless workspace shell's accepted live session.
 - **[node/](./node/AGENTS.md)** Node-side server composition: boot-loaded workspace registration, public locations, launcher HTTP routes, listener startup, and deterministic host disposal.
+
+### Source files
+
+- **[live.ts](./live.ts)** Defines the server live transport's accepted-connection handshake frame.
 
 <!-- INDEX:END -->

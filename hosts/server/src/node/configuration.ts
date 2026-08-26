@@ -26,6 +26,15 @@ const ServerEnvironmentSchema = Type.Object(
         minLength: 1,
       }),
     ),
+    UIX_SERVER_DATA_DIR: Type.Optional(
+      Type.String({
+        title: "PATH",
+        description:
+          "Server-owned application data; relative paths resolve from the process working directory.",
+        default: ".uix-server",
+        minLength: 1,
+      }),
+    ),
     UIX_PUBLIC_ORIGIN: Type.Optional(
       Type.String({
         title: "ORIGIN",
@@ -51,6 +60,7 @@ interface EnvironmentPropertyMetadata {
 interface ServerEnvironment {
   readonly UIX_SERVER_PORT?: string;
   readonly UIX_SERVER_REGISTRY?: string;
+  readonly UIX_SERVER_DATA_DIR?: string;
   readonly UIX_PUBLIC_ORIGIN?: string;
 }
 
@@ -63,6 +73,7 @@ interface ResolveServerConfigurationOptions {
 export interface ServerConfiguration {
   readonly port: number;
   readonly registryPath: string;
+  readonly piAppDataDir: string;
   readonly publicOrigin: string;
 }
 
@@ -90,11 +101,16 @@ export function resolveServerConfiguration(
     options.cwd,
     environment.UIX_SERVER_REGISTRY ?? "server.workspaces.json",
   );
+  const piAppDataDir = resolve(
+    options.cwd,
+    environment.UIX_SERVER_DATA_DIR ?? ".uix-server",
+    "pi",
+  );
   const publicOrigin = normalizePublicOrigin(
     environment.UIX_PUBLIC_ORIGIN ??
       `http://${options.hostAddress}:${String(port)}`,
   );
-  return { port, registryPath, publicOrigin };
+  return { port, registryPath, piAppDataDir, publicOrigin };
 }
 
 /** Render command help from the same schema metadata used for validation. */

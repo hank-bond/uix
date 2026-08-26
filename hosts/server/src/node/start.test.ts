@@ -2,7 +2,7 @@ import { join } from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
 
-import type { ServerHost } from "./server";
+import type { CreateServerHostOptions, ServerHost } from "./server";
 import { startServer } from "./start";
 
 describe("server startup", () => {
@@ -63,7 +63,9 @@ describe("server startup", () => {
   it("returns the admitted host with canonical startup configuration", async () => {
     const listen = vi.fn(() => Promise.resolve("http://127.0.0.1:4312"));
     const host = createHostFixture({ listen });
-    const createHost = vi.fn(() => Promise.resolve(host));
+    const createHost = vi.fn((_options: CreateServerHostOptions) =>
+      Promise.resolve(host),
+    );
 
     const result = await startServer({
       environment: {
@@ -82,12 +84,14 @@ describe("server startup", () => {
       address: "http://127.0.0.1:4312",
       publicOrigin: "https://uix.example",
       registryPath: join("/private/server", "config/workspaces.json"),
+      piAppDataDir: join("/private/server", ".uix-server", "pi"),
     });
-    expect(createHost).toHaveBeenCalledWith({
+    expect(createHost.mock.calls[0]?.[0]).toMatchObject({
       registryPath: join("/private/server", "config/workspaces.json"),
       publicOrigin: "https://uix.example",
       assetRoot: "/private/assets",
     });
+    expect(createHost.mock.calls[0]?.[0]?.bootWorkspace).toBeTypeOf("function");
     expect(listen).toHaveBeenCalledWith({ host: "127.0.0.1", port: 4312 });
   });
 });
