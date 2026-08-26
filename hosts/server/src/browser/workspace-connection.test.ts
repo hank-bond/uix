@@ -8,7 +8,7 @@ import {
   vi,
 } from "vitest";
 
-import { connectWorkspacePage } from "./workspace-connection";
+import { openWorkspaceConnection } from "./workspace-connection";
 
 class FakeWebSocket extends EventTarget {
   static readonly instances: FakeWebSocket[] = [];
@@ -70,7 +70,7 @@ function fixture(pathname: string): Fixture {
   });
   vi.stubGlobal("WebSocket", FakeWebSocket);
 
-  const connection = connectWorkspacePage();
+  const connection = openWorkspaceConnection();
   const socket = FakeWebSocket.instances.at(-1);
   if (!socket) throw new Error("WebSocket was not constructed");
   expect(socket.location).toBe(`wss://uix.example${pathname}`);
@@ -141,6 +141,8 @@ describe("server workspace connection", () => {
       1002,
       "Invalid ready frame",
     );
+    crossOrigin.socket.emit("close");
+    expect(crossOrigin.status.textContent).toBe("Unable to open workspace");
 
     const malformed = fixture("/workspaces/reference");
     malformed.socket.emitMessage("{}");
@@ -148,6 +150,27 @@ describe("server workspace connection", () => {
     expect(malformed.socket.close).toHaveBeenCalledWith(
       1002,
       "Invalid ready frame",
+    );
+  });
+
+  it("does not accept a target when canonical history replacement fails", () => {
+    const { socket, status, replaceState } = fixture("/workspaces/reference");
+    replaceState.mockImplementation(() => {
+      throw new Error("History is unavailable");
+    });
+
+    socket.emitMessage(
+      JSON.stringify({
+        type: "ready",
+        sessionId: "session-1",
+        canonicalPath: "/workspaces/reference/sessions/session-1",
+      }),
+    );
+
+    expect(status.textContent).toBe("Unable to open workspace");
+    expect(socket.close).toHaveBeenCalledWith(
+      1011,
+      "Unable to canonicalize workspace",
     );
   });
 });

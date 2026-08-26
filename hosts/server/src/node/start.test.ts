@@ -101,12 +101,6 @@ function createHostFixture(options: {
   readonly dispose?: () => Promise<void>;
 }): ServerHost {
   return {
-    registry: {
-      list: () => [],
-      require: (workspaceId) => {
-        throw new Error(`Unknown workspace: ${workspaceId}`);
-      },
-    },
     listen: options.listen,
     [Symbol.asyncDispose]: options.dispose ?? (() => Promise.resolve()),
   };

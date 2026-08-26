@@ -4,7 +4,7 @@ summary: "Browser-side server bootstraps for the catalog launcher and the statel
 
 # Server browser bootstrap
 
-This directory is bundled for an ordinary browser. It owns the HTTP catalog request and browser navigation effects injected into the host-neutral launcher client. The workspace shell opens its page-matched live connection, validates the accepted `ready` frame, and replaces a workspace-only location with the canonical session location. W3 will mount the shared workspace client over canonical request and event frames.
+This directory is bundled for an ordinary browser. It owns the HTTP catalog request and browser navigation effects injected into the host-neutral launcher client. The workspace shell owns its page-matched live connection, validates the accepted `ready` frame, and replaces the page location with the canonical session location. It owns handshake and canonicalization only.
 
 <!-- INDEX:START -->
 

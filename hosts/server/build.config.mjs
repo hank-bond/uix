@@ -10,7 +10,7 @@ import { build } from "esbuild";
 const repositoryRoot = resolve(import.meta.dirname, "../..");
 const outputRoot = resolve(repositoryRoot, "out/server");
 
-export const browserJsxOptions = Object.freeze({
+const browserJsxOptions = Object.freeze({
   jsx: "automatic",
 });
 

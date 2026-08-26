@@ -22,7 +22,7 @@ A registry is a boot-loaded snapshot. Relative manifest references resolve from 
 
 The host reads each catalog name from the manifest. The private registry retains the resolved workspace roots, while `GET /api/catalog` exposes only the version, opaque id, name, and canonical public location. `GET /` serves the shared launcher client. Registry or manifest edits enter the catalog after process restart.
 
-`GET /workspaces/:workspace` and `GET /workspaces/:workspace/sessions/:session` serve the same stateless workspace shell without booting a runtime. A WebSocket upgrade on the workspace-only location lazily boots its one runtime and durably records a fresh Pi session. Its `ready` frame returns the accepted session id and canonical path. An upgrade on the canonical location attaches to the named session. The browser replaces its location with that server-authored canonical route. Each socket owns its workspace guard and attachment until close. Peers remain independent. Canonical channel requests and runtime events join this connection in the next transport unit.
+`GET /workspaces/:workspace` and `GET /workspaces/:workspace/sessions/:session` serve the same stateless workspace shell without booting a runtime. A WebSocket upgrade on the workspace-only location lazily boots its one runtime and durably records a fresh Pi session. Its `ready` frame returns the accepted session id and canonical path. An upgrade on the canonical location attaches to the named session. The browser replaces its location with that server-authored canonical route. Each socket owns its workspace guard and attachment until close. Peers remain independent. Post-handshake request frames are unavailable.
 
 <!-- INDEX:START -->
 

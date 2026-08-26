@@ -4,10 +4,9 @@ import { resolve } from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
 
-import { build } from "esbuild";
 import { describe, expect, it } from "vitest";
 
-import { browserJsxOptions, buildServer } from "./build.config.mjs";
+import { buildServer } from "./build.config.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -54,30 +53,31 @@ describe("server browser build", () => {
     expect(stderr).toBe("");
   });
 
-  it("executes JSX modules that do not import an ambient React value", async () => {
-    const result = await build({
-      stdin: {
-        contents: "export const View = () => <main>Launcher</main>;",
-        loader: "tsx",
-        resolveDir: import.meta.dirname,
-      },
-      bundle: true,
-      format: "cjs",
-      platform: "node",
-      target: "node22",
-      write: false,
-      ...browserJsxOptions,
-    });
-    const output = result.outputFiles[0];
-    expect(output).toBeDefined();
+  it("builds browser JSX without ambient React runtime access", async () => {
+    await buildServer();
 
-    const module = { exports: {} };
-    Function("module", "exports", output.text)(module, module.exports);
-    const { View } = module.exports;
+    const launcherScript = await readFile(
+      resolve(
+        import.meta.dirname,
+        "../../out/server/public/assets/launcher.js",
+      ),
+      "utf8",
+    );
 
-    expect(View()).toMatchObject({
-      type: "main",
-      props: { children: "Launcher" },
-    });
+    const launcherModuleStart = launcherScript.indexOf(
+      "// packages/client/src/launcher/Launcher.tsx",
+    );
+    const launcherModuleEnd = launcherScript.indexOf(
+      "// hosts/server/src/browser/launcher-adapter.ts",
+      launcherModuleStart,
+    );
+    expect(launcherModuleStart).toBeGreaterThanOrEqual(0);
+    expect(launcherModuleEnd).toBeGreaterThan(launcherModuleStart);
+    const launcherModule = launcherScript.slice(
+      launcherModuleStart,
+      launcherModuleEnd,
+    );
+    expect(launcherModule).toContain("import_jsx_runtime");
+    expect(launcherModule).not.toContain("React.createElement");
   });
 });

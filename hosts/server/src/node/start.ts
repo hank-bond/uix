@@ -1,7 +1,7 @@
-// Starts one server host from injected environment and process-path inputs while cleaning up failed listener admission.
+// Starts one configured server host and cleans up failed listener admission.
 
 import { resolveServerConfiguration } from "./configuration";
-import { createServerHost, type ServerHost } from "./server";
+import type { CreateServerHostOptions, ServerHost } from "./server";
 import { createServerWorkspaceRuntime } from "./workspace-runtime";
 
 interface StartServerOptions {
@@ -9,7 +9,9 @@ interface StartServerOptions {
   readonly cwd: string;
   readonly assetRoot: string;
   readonly hostAddress?: string;
-  readonly createHost?: typeof createServerHost;
+  readonly createHost: (
+    options: CreateServerHostOptions,
+  ) => Promise<ServerHost>;
 }
 
 export interface StartedServer {
@@ -41,9 +43,7 @@ export async function startServer(
       cwd: options.cwd,
       hostAddress,
     });
-    const createHost = options.createHost ?? createServerHost;
-
-    host = await createHost({
+    host = await options.createHost({
       registryPath: configuration.registryPath,
       publicOrigin: configuration.publicOrigin,
       assetRoot: options.assetRoot,

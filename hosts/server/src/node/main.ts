@@ -7,6 +7,7 @@ import { AsyncDisposableBag } from "@uix/runtime/lifecycle";
 import { createLogger } from "@uix/runtime/log";
 
 import { parseServerArguments, renderServerHelp } from "./configuration";
+import { createServerHost } from "./server";
 import { startServer } from "./start";
 
 const log = createLogger("server");
@@ -30,6 +31,7 @@ async function start(): Promise<void> {
     environment: process.env,
     cwd: process.cwd(),
     assetRoot: fileURLToPath(new URL("./public/", import.meta.url)),
+    createHost: createServerHost,
   });
   if (!result.ok) {
     if (result.cleanupError) {

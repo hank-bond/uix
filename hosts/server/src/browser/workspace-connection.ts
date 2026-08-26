@@ -3,7 +3,7 @@
 import { parseLiveReadyFrame } from "../live";
 
 /** Own the concrete browser connection from shell load through accepted target. */
-export function connectWorkspacePage(): Disposable {
+export function openWorkspaceConnection(): Disposable {
   const status = document.getElementById("status");
   if (!status) throw new Error("#status not found");
 
@@ -13,14 +13,15 @@ export function connectWorkspacePage(): Disposable {
   liveLocation.hash = "";
 
   const socket = new WebSocket(liveLocation);
-  let accepted = false;
-  let disposed = false;
+  let isAccepted = false;
+  let isDisposed = false;
+  let hasFailed = false;
 
   socket.addEventListener("open", () => {
-    if (!disposed) status.textContent = "Opening workspace…";
+    if (!isDisposed) status.textContent = "Opening workspace…";
   });
   socket.addEventListener("message", (event) => {
-    if (disposed || accepted) return;
+    if (isDisposed || isAccepted) return;
     try {
       if (typeof event.data !== "string") {
         throw new Error("Live ready frame must be text");
@@ -34,25 +35,36 @@ export function connectWorkspacePage(): Disposable {
       ) {
         throw new Error("Invalid canonical workspace path");
       }
-      accepted = true;
-      window.history.replaceState(null, "", canonical);
+      try {
+        window.history.replaceState(null, "", canonical);
+      } catch {
+        hasFailed = true;
+        status.textContent = "Unable to open workspace";
+        socket.close(1011, "Unable to canonicalize workspace");
+        return;
+      }
+      isAccepted = true;
       status.textContent = "Connected";
     } catch {
+      hasFailed = true;
       status.textContent = "Unable to open workspace";
       socket.close(1002, "Invalid ready frame");
     }
   });
   socket.addEventListener("error", () => {
-    if (!disposed && !accepted) status.textContent = "Unable to open workspace";
+    if (!isDisposed && !isAccepted) {
+      hasFailed = true;
+      status.textContent = "Unable to open workspace";
+    }
   });
   socket.addEventListener("close", () => {
-    if (!disposed) status.textContent = "Disconnected";
+    if (!isDisposed && !hasFailed) status.textContent = "Disconnected";
   });
 
   return {
     [Symbol.dispose](): void {
-      if (disposed) return;
-      disposed = true;
+      if (isDisposed) return;
+      isDisposed = true;
       socket.close(1000, "Page closed");
     },
   };

@@ -1,8 +1,8 @@
 // Boots the stateless workspace shell and owns its live session connection.
 
-import { connectWorkspacePage } from "./workspace-connection";
+import { openWorkspaceConnection } from "./workspace-connection";
 
-const connection = connectWorkspacePage();
+const connection = openWorkspaceConnection();
 window.addEventListener(
   "pagehide",
   () => {

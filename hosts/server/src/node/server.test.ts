@@ -5,7 +5,13 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { parseWorkspaceCatalog } from "@uix/host/catalog";
-import type { WorkspaceRuntime } from "@uix/runtime";
+import type {
+  Attachment,
+  CreatedAttachment,
+  WorkspaceId,
+  WorkspaceRuntime,
+} from "@uix/runtime";
+import { toAttachmentId, toSessionId, toWorkspaceId } from "@uix/runtime";
 
 import type { RegisteredWorkspace } from "./registry";
 import { createServerHost } from "./server";
@@ -13,6 +19,19 @@ import { createServerWorkspaceRuntime } from "./workspace-runtime";
 import { type LiveReadyFrame, parseLiveReadyFrame } from "../live";
 
 const temporaryDirectories: string[] = [];
+
+function deferred<T = void>(): {
+  readonly promise: Promise<T>;
+  resolve(value: T): void;
+} {
+  let resolve!: (value: T) => void;
+  return {
+    promise: new Promise<T>((resolvePromise) => {
+      resolve = resolvePromise;
+    }),
+    resolve,
+  };
+}
 
 afterEach(async () => {
   await Promise.all(
@@ -36,10 +55,6 @@ describe("server host launcher", () => {
     const response = await fetch(`${privateAddress}/api/catalog`);
     const catalog = parseWorkspaceCatalog(await response.json());
 
-    expect(host.registry.require("reference").workspace).toMatchObject({
-      stateRoot: fixture.root,
-      manifestPath: join(fixture.root, "uix.workspace.json"),
-    });
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
@@ -183,6 +198,40 @@ describe("server host launcher", () => {
     expect(bootWorkspace).toHaveBeenCalledTimes(2);
     await closeLiveConnection(reopened.socket);
   });
+
+  it("retains workspace ownership until attachment creation settles after disconnect", async () => {
+    const fixture = await createFixture();
+    const attachmentStarted = deferred();
+    const attachmentCreation = deferred<CreatedAttachment>();
+    const runtimeDisposal = vi.fn(() => Promise.resolve());
+    const runtime = createDeferredWorkspaceRuntime(
+      toWorkspaceId("reference"),
+      attachmentStarted,
+      attachmentCreation,
+      runtimeDisposal,
+    );
+    await using host = await createServerHost({
+      registryPath: fixture.registryPath,
+      publicOrigin: "http://127.0.0.1:3000",
+      assetRoot: fixture.assetRoot,
+      bootWorkspace: () => Promise.resolve(runtime),
+    });
+    const address = await host.listen({ host: "127.0.0.1", port: 0 });
+    const socket = new WebSocket(
+      `${address.replace(/^http/, "ws")}/workspaces/reference`,
+    );
+
+    await attachmentStarted.promise;
+    await closeLiveConnection(socket);
+    expect(runtimeDisposal).not.toHaveBeenCalled();
+
+    const created = createAttachmentFixture(runtime.workspaceId);
+    attachmentCreation.resolve(created.value);
+    await vi.waitFor(() => {
+      expect(created.disposal).toHaveBeenCalledOnce();
+      expect(runtimeDisposal).toHaveBeenCalledOnce();
+    });
+  });
 });
 
 async function openLiveConnection(location: string): Promise<{
@@ -239,6 +288,65 @@ async function closeLiveConnection(socket: WebSocket): Promise<void> {
   });
   socket.close(1000, "Test complete");
   await closed;
+}
+
+function createDeferredWorkspaceRuntime(
+  workspaceId: WorkspaceId,
+  started: { resolve(): void },
+  creation: { readonly promise: Promise<CreatedAttachment> },
+  disposal: () => Promise<void>,
+): WorkspaceRuntime {
+  return {
+    workspaceId,
+    onEvent: () => noopDisposable(),
+    createAttachment: () => {
+      started.resolve();
+      return creation.promise;
+    },
+    load: () => Promise.reject(new Error("Unexpected runtime load")),
+    reload: () => Promise.reject(new Error("Unexpected runtime reload")),
+    [Symbol.asyncDispose]: disposal,
+  };
+}
+
+function createAttachmentFixture(workspaceId: WorkspaceId): {
+  readonly value: CreatedAttachment;
+  readonly disposal: ReturnType<typeof vi.fn>;
+} {
+  let isDisposed = false;
+  let closeListener: (() => void) | undefined;
+  const disposal = vi.fn(() => {
+    if (isDisposed) return;
+    isDisposed = true;
+    closeListener?.();
+  });
+  const attachment: Attachment = {
+    attachmentId: toAttachmentId("attachment-1"),
+    workspaceId,
+    target: { sessionId: toSessionId("session-1") },
+    prepareDispatch: () => {
+      throw new Error("Unexpected dispatch preparation");
+    },
+    retarget: () => Promise.reject(new Error("Unexpected retarget")),
+    onEvent: () => noopDisposable(),
+    onClose: (listener) => {
+      closeListener = listener;
+      return {
+        [Symbol.dispose](): void {
+          if (closeListener === listener) closeListener = undefined;
+        },
+      };
+    },
+    [Symbol.dispose]: disposal,
+  };
+  return {
+    value: { attachment, deliver: () => undefined },
+    disposal,
+  };
+}
+
+function noopDisposable(): Disposable {
+  return { [Symbol.dispose]: () => undefined };
 }
 
 function rejectWorkspaceBoot(): Promise<WorkspaceRuntime> {

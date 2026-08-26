@@ -4,7 +4,7 @@ summary: "Server-owned process and browser code implementing the HTTP host and m
 
 # Server source
 
-The process side owns configuration, private workspace resolution, public locations, HTTP routes, and listener lifetime. The browser side owns catalog transport and navigation adaptation before mounting `@uix/client`. Neither side changes workspace or feature contracts.
+The process side owns configuration, private workspace resolution, public locations, HTTP routes, and listener lifetime. The browser side mounts the shared launcher and owns workspace handshake and canonicalization. Neither side changes workspace or feature contracts.
 
 <!-- INDEX:START -->
 
