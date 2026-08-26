@@ -31,6 +31,7 @@ async function start(): Promise<void> {
     environment: process.env,
     cwd: process.cwd(),
     assetRoot: fileURLToPath(new URL("./public/", import.meta.url)),
+    apiModuleDir: fileURLToPath(new URL("./api/", import.meta.url)),
     createHost: createServerHost,
   });
   if (!result.ok) {

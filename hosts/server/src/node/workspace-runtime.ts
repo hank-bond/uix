@@ -7,7 +7,7 @@ import type { RegisteredWorkspace } from "./registry";
 interface CreateServerWorkspaceRuntimeOptions {
   readonly registered: RegisteredWorkspace;
   readonly piAppDataDir: string;
-  readonly apiModuleDir?: string;
+  readonly apiModuleDir: string;
 }
 
 /** Construct and initially activate exactly one lazily admitted server workspace. */
@@ -18,7 +18,7 @@ export async function createServerWorkspaceRuntime(
     workspaceId: options.registered.id,
     workspace: options.registered.workspace,
     piAppDataDir: options.piAppDataDir,
-    ...(options.apiModuleDir && { apiModuleDir: options.apiModuleDir }),
+    apiModuleDir: options.apiModuleDir,
     dependencies: {
       openExternal: () => {
         throw new Error(

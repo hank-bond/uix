@@ -1,7 +1,7 @@
-// Builds the server process, launcher, and workspace shell into one runnable output tree.
+// Builds one runnable server distribution from its process, browser, and author-API sources.
 
-import { copyFile, mkdir, rm } from "node:fs/promises";
-import { resolve } from "node:path";
+import { copyFile, cp, mkdir, rm } from "node:fs/promises";
+import { basename, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
@@ -18,6 +18,11 @@ export async function buildServer() {
   await rm(outputRoot, { force: true, recursive: true });
   await mkdir(resolve(outputRoot, "public"), { recursive: true });
   await Promise.all([
+    cp(
+      resolve(repositoryRoot, "packages/api/src"),
+      resolve(outputRoot, "api"),
+      { filter: isAuthorApiDistributionSource, recursive: true },
+    ),
     copyFile(
       resolve(repositoryRoot, "hosts/server/src/browser/launcher.html"),
       resolve(outputRoot, "public/index.html"),
@@ -58,6 +63,11 @@ export async function buildServer() {
       target: "node22",
     }),
   ]);
+}
+
+function isAuthorApiDistributionSource(path) {
+  const name = basename(path);
+  return name !== "AGENTS.md" && !/\.(?:test|spec)\./.test(name);
 }
 
 if (

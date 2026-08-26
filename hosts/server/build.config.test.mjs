@@ -11,7 +11,7 @@ import { buildServer } from "./build.config.mjs";
 const execFileAsync = promisify(execFile);
 
 describe("server browser build", () => {
-  it("copies the browser-owned documents into the server output", async () => {
+  it("copies browser documents and author API source into the server output", async () => {
     await buildServer();
 
     const [launcherSource, launcherOutput, workspaceSource, workspaceOutput] =
@@ -38,6 +38,24 @@ describe("server browser build", () => {
       ]);
     expect(launcherOutput).toBe(launcherSource);
     expect(workspaceOutput).toBe(workspaceSource);
+
+    const [apiSource, apiOutput] = await Promise.all([
+      readFile(
+        resolve(import.meta.dirname, "../../packages/api/src/feature.ts"),
+        "utf8",
+      ),
+      readFile(
+        resolve(import.meta.dirname, "../../out/server/api/feature.ts"),
+        "utf8",
+      ),
+    ]);
+    expect(apiOutput).toBe(apiSource);
+    await expect(
+      readFile(
+        resolve(import.meta.dirname, "../../out/server/api/feature.test.ts"),
+        "utf8",
+      ),
+    ).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("starts the ESM process output without bundled CommonJS require failures", async () => {

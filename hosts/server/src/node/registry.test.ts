@@ -17,6 +17,16 @@ afterEach(async () => {
 });
 
 describe("workspace registry", () => {
+  it("loads the repository default without local workspace files", async () => {
+    const repositoryRoot = join(__dirname, "../../../..");
+
+    const registry = await loadWorkspaceRegistry(
+      join(repositoryRoot, "server.workspaces.json"),
+    );
+
+    expect(registry.list()).toMatchObject([{ id: "uix", name: "uix" }]);
+  });
+
   it("loads manifest-backed names and resolves relative manifest files", async () => {
     const fixture = await createFixture();
     await writeManifest(fixture.root, "Reference workspace");

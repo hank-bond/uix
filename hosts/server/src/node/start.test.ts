@@ -13,6 +13,7 @@ describe("server startup", () => {
       environment: { UIX_SERVER_PORT: "invalid" },
       cwd: "/private/server",
       assetRoot: "/private/assets",
+      apiModuleDir: "/private/api",
       createHost,
     });
 
@@ -35,6 +36,7 @@ describe("server startup", () => {
       environment: {},
       cwd: "/private/server",
       assetRoot: "/private/assets",
+      apiModuleDir: "/private/api",
       createHost: vi.fn(() => Promise.resolve(host)),
     });
 
@@ -54,6 +56,7 @@ describe("server startup", () => {
       environment: {},
       cwd: "/private/server",
       assetRoot: "/private/assets",
+      apiModuleDir: "/private/api",
       createHost: vi.fn(() => Promise.resolve(host)),
     });
 
@@ -75,6 +78,7 @@ describe("server startup", () => {
       },
       cwd: "/private/server",
       assetRoot: "/private/assets",
+      apiModuleDir: "/private/api",
       createHost,
     });
 

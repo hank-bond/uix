@@ -19,6 +19,7 @@ import { createServerWorkspaceRuntime } from "./workspace-runtime";
 import { type LiveReadyFrame, parseLiveReadyFrame } from "../live";
 
 const temporaryDirectories: string[] = [];
+const apiModuleDir = join(__dirname, "../../../../packages/api/src");
 
 function deferred<T = void>(): {
   readonly promise: Promise<T>;
@@ -148,6 +149,7 @@ describe("server host launcher", () => {
       createServerWorkspaceRuntime({
         registered,
         piAppDataDir: join(fixture.root, "server-profile", "pi"),
+        apiModuleDir,
       }),
     );
     await using host = await createServerHost({

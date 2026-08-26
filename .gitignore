@@ -6,7 +6,6 @@ out/
 .vite/
 .uix/
 *.tsbuildinfo
-/uix.workspace.json
 .pi/
 
 # Generated Hugo output (website build artifacts)

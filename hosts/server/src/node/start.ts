@@ -8,6 +8,7 @@ interface StartServerOptions {
   readonly environment: Readonly<Record<string, string | undefined>>;
   readonly cwd: string;
   readonly assetRoot: string;
+  readonly apiModuleDir: string;
   readonly hostAddress?: string;
   readonly createHost: (
     options: CreateServerHostOptions,
@@ -51,6 +52,7 @@ export async function startServer(
         createServerWorkspaceRuntime({
           registered,
           piAppDataDir: configuration.piAppDataDir,
+          apiModuleDir: options.apiModuleDir,
         }),
     });
     const address = await host.listen({

@@ -1,0 +1,14 @@
+{
+  "name": "uix",
+  "features": [
+    {
+      "entry": "./src/features/chat/index.ts"
+    },
+    {
+      "entry": "./src/features/workspace-tools/index.ts"
+    },
+    {
+      "entry": "./src/features/canvas/index.ts"
+    }
+  ]
+}
