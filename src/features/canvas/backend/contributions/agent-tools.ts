@@ -19,13 +19,13 @@ import type {
 
 import { publishCanvasChanged } from "./channels";
 import { CanvasKeyDescription, CanvasKeySchema } from "../../shared/addressing";
+import type { CanvasAgentInstanceContext } from "../agent-instance-context";
 import { formatChangeHunks } from "../anchored-format";
 import {
   ANCHOR_GUTTER_DELIMITER,
   formatAnchoredText,
   parseAnchoredLine,
-} from "../anchors/wire";
-import type { CanvasContext } from "../context";
+} from "../anchors/wire-format";
 
 const keyDescription = `Canvas key (not a filesystem path): ${CanvasKeyDescription}, e.g. main or reports/security-review.`;
 const CanvasKeyToolParamSchema = {
@@ -101,7 +101,7 @@ function assertReplacementHasNoGutter(html: string): void {
 }
 
 export function createCanvasAgentToolContributions(
-  ctx: CanvasContext,
+  ctx: CanvasAgentInstanceContext,
 ): readonly AgentToolContribution[] {
   return [
     { name: "anchor_read", tool: createReadTool(ctx) },
@@ -111,7 +111,7 @@ export function createCanvasAgentToolContributions(
 }
 
 function createReadTool(
-  ctx: CanvasContext,
+  ctx: CanvasAgentInstanceContext,
 ): AgentToolDefinition<typeof readParams> {
   return {
     label: "read canvas",
@@ -137,7 +137,7 @@ function createReadTool(
 }
 
 function createWriteTool(
-  ctx: CanvasContext,
+  ctx: CanvasAgentInstanceContext,
 ): AgentToolDefinition<typeof writeParams> {
   return {
     label: "write canvas",
@@ -163,7 +163,7 @@ function createWriteTool(
 }
 
 function createEditTool(
-  ctx: CanvasContext,
+  ctx: CanvasAgentInstanceContext,
 ): AgentToolDefinition<typeof editParams> {
   return {
     label: "edit canvas",

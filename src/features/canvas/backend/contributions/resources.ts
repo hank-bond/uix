@@ -1,27 +1,27 @@
-// Serves the static Canvas frame that receives selected-viewpoint HTML from its parent.
+// Serves the static Canvas iframe that receives selected-viewpoint HTML from its parent.
 
 import type { WorkspaceFeatureContext } from "@uix/api/feature";
 import type { ResourceContribution } from "@uix/api/resources";
 
 import {
-  CanvasFrameResourceName,
-  CanvasFrameResourceRoute,
+  CanvasIframeResourceName,
+  CanvasIframeResourceRoute,
   parseCanvasKeyRouteParam,
 } from "../../shared/addressing";
-import { createCanvasFrameBootstrap } from "../shim";
+import { createCanvasIframeBootstrap } from "../iframe-bootstrap";
 
-export function createCanvasFrameResourceContributions(
+export function createCanvasIframeResourceContributions(
   ctx: WorkspaceFeatureContext,
 ): readonly ResourceContribution[] {
   return [
     {
-      name: CanvasFrameResourceName,
-      route: CanvasFrameResourceRoute,
+      name: CanvasIframeResourceName,
+      route: CanvasIframeResourceRoute,
       handler({ params }) {
         const key = parseCanvasKeyRouteParam(params["key"]);
         if (!key) return htmlResponse("Invalid Canvas key", 400);
-        ctx.log.debug({ key }, "canvas_frame_served");
-        return htmlResponse(createCanvasFrameBootstrap(key), 200);
+        ctx.log.debug({ key }, "canvas_iframe_served");
+        return htmlResponse(createCanvasIframeBootstrap(key), 200);
       },
     },
   ];

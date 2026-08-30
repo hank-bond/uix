@@ -6,14 +6,14 @@ import {
   parseCanvasDocumentResourceId,
   parseCanvasKeyFromDocumentResourceId,
 } from "../../shared/addressing";
+import type { CanvasAgentInstanceContext } from "../agent-instance-context";
 import { formatCanvasChanges } from "../anchored-format";
 import type { AnchoredChange } from "../anchors/document";
-import type { CanvasContext } from "../context";
 
 type CanvasTurnState = Record<string, string>;
 
 export function createCanvasAgentContextContributions(
-  ctx: CanvasContext,
+  ctx: CanvasAgentInstanceContext,
 ): readonly AgentContextContribution[] {
   const { buffer } = ctx;
   return [
@@ -44,7 +44,7 @@ export function createCanvasAgentContextContributions(
 }
 
 async function diffCanvasTurnStates(
-  buffer: CanvasContext["buffer"],
+  buffer: CanvasAgentInstanceContext["buffer"],
   previous: CanvasTurnState,
   current: CanvasTurnState,
 ): Promise<ReadonlyMap<string, readonly AnchoredChange[]>> {

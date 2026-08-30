@@ -1,4 +1,4 @@
-// Dispatches per-tool expanded content and derives the generic collapsed summary.
+// Derives one tool chat block presentation with shared summary policy and tool-specific expanded content.
 //
 // The collapsed summary is one renderer for every tool: the catalog label,
 // the `reason`/`description` arg styled as the primary field, and the
@@ -8,12 +8,12 @@
 
 import type { ReactNode } from "react";
 
+import type { ToolCallSummary, ToolItem, ToolState } from "./call-presentation";
+import { toToolDescription, toToolParams } from "./call-presentation";
 import { CanvasToolContent } from "./content/CanvasToolContent";
 import { CommandToolContent } from "./content/CommandToolContent";
 import { DefaultToolContent } from "./content/DefaultToolContent";
 import { FileToolContent } from "./content/FileToolContent";
-import type { ToolCallSummary, ToolItem, ToolState } from "./presentation";
-import { toToolDescription, toToolParams } from "./presentation";
 import {
   type BlockPresentationSettings,
   toolParamVisibility,

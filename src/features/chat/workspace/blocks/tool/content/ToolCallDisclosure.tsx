@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import type { JSX } from "react";
 
-import type { ToolParam, ToolState } from "../presentation";
+import type { ToolParam, ToolState } from "../call-presentation";
 
 interface ToolCallDisclosureProps {
   /** Display label for the tool (catalog label or prettified name). */

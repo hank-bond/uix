@@ -7,13 +7,13 @@ import {
   HighlightedCode,
   inferCodeLanguageFromPath,
 } from "../../content/HighlightedCode";
-import type { ToolItem } from "../presentation";
+import type { ToolItem } from "../call-presentation";
 import {
   asRecord,
   toNonEmptyString,
   toString,
   toToolTextContent,
-} from "../presentation";
+} from "../call-presentation";
 
 export function FileToolContent({ item }: { item: ToolItem }): JSX.Element {
   const args = asRecord(item.args);

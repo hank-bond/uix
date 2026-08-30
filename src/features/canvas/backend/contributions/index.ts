@@ -6,16 +6,16 @@ import { createCanvasAgentContextContributions } from "./agent-context";
 import { CanvasAgentSystemPrompt } from "./agent-system-prompt";
 import { createCanvasAgentToolContributions } from "./agent-tools";
 import { createCanvasChannelContributions } from "./channels";
-import { createCanvasFrameResourceContributions } from "./resources";
+import { createCanvasIframeResourceContributions } from "./resources";
 import { createCanvasTurnStateContributions } from "./turn-state";
 import { canvasChannels } from "../../shared/channels";
-import { createCanvasContext } from "../context";
+import { createCanvasAgentInstanceContext } from "../agent-instance-context";
 
 export const canvasFeature = defineFeature({
   id: "canvas",
   workspace(ctx) {
     return {
-      resources: createCanvasFrameResourceContributions(ctx),
+      resources: createCanvasIframeResourceContributions(ctx),
       agentChannelContracts: [canvasChannels],
       // Resolved against the feature entry file's dir (the feature root,
       // src/features/canvas), not this file's.
@@ -23,7 +23,7 @@ export const canvasFeature = defineFeature({
     };
   },
   agent(baseContext) {
-    const ctx = createCanvasContext(baseContext);
+    const ctx = createCanvasAgentInstanceContext(baseContext);
     return {
       channels: createCanvasChannelContributions(ctx),
       agentTools: createCanvasAgentToolContributions(ctx),

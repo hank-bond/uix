@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { CanvasToolContent } from "./CanvasToolContent";
-import type { ToolItem } from "../presentation";
+import type { ToolItem } from "../call-presentation";
 
 function item(overrides: Partial<ToolItem> = {}): ToolItem {
   return {

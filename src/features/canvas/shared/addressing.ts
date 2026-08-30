@@ -1,4 +1,4 @@
-// Parses Canvas keys and maps them to durable document ids and frame routes.
+// Parses Canvas keys and maps them to durable document ids and iframe routes.
 
 import { Type } from "typebox";
 import { Value } from "typebox/value";
@@ -17,7 +17,7 @@ export type CanvasDocumentResourceId = string & {
   readonly [CanvasDocumentResourceIdBrand]: true;
 };
 
-export const CanvasFrameResourceName = "frame";
+export const CanvasIframeResourceName = "iframe";
 
 const CanvasKeyPattern = /^[a-z0-9-]+(?:\/[a-z0-9-]+)*$/;
 const CanvasDocumentResourceIdPrefix = "doc://canvas/";
@@ -61,19 +61,19 @@ export function parseCanvasKeyFromDocumentResourceId(
 export const CanvasKeyDescription =
   "lowercase slug segments [a-z0-9-]+ optionally separated by /";
 
-export const CanvasFrameQuerySchema = Type.Object({
+export const CanvasIframeQuerySchema = Type.Object({
   v: Type.Optional(Type.String()),
 });
 
-const canvasFrameAddress = createResourceAddressHandle({
+const canvasIframeAddress = createResourceAddressHandle({
   featureId: "canvas",
-  name: CanvasFrameResourceName,
+  name: CanvasIframeResourceName,
   path: "/:key*",
-  query: CanvasFrameQuerySchema,
+  query: CanvasIframeQuerySchema,
   origin: "feature",
 });
 
-export const CanvasFrameResourceRoute = canvasFrameAddress.route;
+export const CanvasIframeResourceRoute = canvasIframeAddress.route;
 
 export function parseCanvasKeyRouteParam(
   value: ResourceRouteParamValue | undefined,
@@ -86,18 +86,18 @@ export function parseCanvasKeyRouteParam(
   }
 }
 
-export function toCanvasFrameUrl(
+export function toCanvasIframeUrl(
   workspaceId: string,
   key: CanvasKey,
   token: number,
 ): ResourceUrl {
-  return canvasFrameAddress.toUrl({
+  return canvasIframeAddress.toUrl({
     workspaceId,
     params: { key: key.split("/") },
     query: { v: String(token) },
   });
 }
 
-export function toCanvasFrameOrigin(workspaceId: string): string {
-  return canvasFrameAddress.toOrigin(workspaceId);
+export function toCanvasIframeOrigin(workspaceId: string): string {
+  return canvasIframeAddress.toOrigin(workspaceId);
 }

@@ -20,6 +20,6 @@ summary: "The block content subtree renders markdown, highlighted source text, a
 - **[HighlightedCode.tsx](./HighlightedCode.tsx)** Renders source text with refractor syntax highlighting.
 - **[MarkdownContent.css](./MarkdownContent.css)** Markdown-rendered chat content styles.
 - **[MarkdownContent.tsx](./MarkdownContent.tsx)** Renders markdown text with gfm tables and safe external-link handling.
-- **[text.ts](./text.ts)** Extracts and truncates text from transcript content values for display.
+- **[transcript-text.ts](./transcript-text.ts)** Extracts and truncates display text from transcript content values.
 
 <!-- INDEX:END -->

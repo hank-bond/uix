@@ -19,7 +19,7 @@ import {
   parseCanvasKeyFromDocumentResourceId,
   toCanvasDocumentResourceId,
 } from "../../shared/addressing";
-import type { CanvasContext } from "../context";
+import type { CanvasAgentInstanceContext } from "../agent-instance-context";
 
 const CanvasDocumentsStateSchema = Type.Record(
   CanvasDocumentResourceIdSchema,
@@ -27,7 +27,7 @@ const CanvasDocumentsStateSchema = Type.Record(
 );
 
 export function createCanvasTurnStateContributions(
-  ctx: CanvasContext,
+  ctx: CanvasAgentInstanceContext,
 ): TurnStateContributions {
   const { buffer } = ctx;
   return {

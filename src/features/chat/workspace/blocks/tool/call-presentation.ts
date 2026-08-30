@@ -1,8 +1,8 @@
-// Derives tool block state, display names, and payload text for chat tool rendering.
+// Derives shared call-presentation values for chat tool blocks.
 
 import type { TranscriptItem } from "@uix/api/agent-channels";
 
-import { extractTextContent, truncateText } from "../content/text";
+import { extractTextContent, truncateText } from "../content/transcript-text";
 
 export type ToolItem = Extract<TranscriptItem, { kind: "tool" }>;
 export type ToolState = "running" | "success" | "error";

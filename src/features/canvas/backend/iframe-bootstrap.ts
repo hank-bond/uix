@@ -1,7 +1,7 @@
-// Boots a feature-origin Canvas frame and injects postMessage writeback into viewpoint HTML.
+// Boots a feature-origin Canvas iframe and injects postMessage writeback into viewpoint HTML.
 //
-// The static frame receives selected-viewpoint HTML from its parent after the
-// parent reads it through the Agent channel. The frame cannot access
+// The static iframe receives selected-viewpoint HTML from its parent after the
+// parent reads it through the Agent channel. The iframe cannot access
 // `window.channels`, so it sends edits and prompt actions back through
 // postMessage. The writeback script removes itself before serialization.
 
@@ -9,7 +9,7 @@ import type { CanvasKey } from "../shared/addressing";
 
 // Embedded raw into the script via a template. The host validates the key so it
 // cannot contain quotes or break out of the string literal.
-function shimScript(key: CanvasKey): string {
+function writebackScript(key: CanvasKey): string {
   return `(function () {
   var self = document.currentScript;
   if (self) self.remove();
@@ -103,15 +103,15 @@ function shimScript(key: CanvasKey): string {
 })();`;
 }
 
-export function createCanvasFrameBootstrap(key: CanvasKey): string {
+export function createCanvasIframeBootstrap(key: CanvasKey): string {
   const serializedKey = JSON.stringify(key);
-  const serializedShim = JSON.stringify(shimScript(key));
+  const serializedWritebackScript = JSON.stringify(writebackScript(key));
   return `<!doctype html>
 <meta charset="utf-8">
 <script>
 (function () {
   var KEY = ${serializedKey};
-  var SHIM = ${serializedShim};
+  var WRITEBACK_SCRIPT = ${serializedWritebackScript};
   function load(event) {
     var data = event.data;
     if (event.source !== parent || !data || data.type !== "canvas:load") return;
@@ -119,7 +119,7 @@ export function createCanvasFrameBootstrap(key: CanvasKey): string {
     window.removeEventListener("message", load);
     document.open();
     document.write(data.html);
-    document.write("<script>" + SHIM + "<\\/script>");
+    document.write("<script>" + WRITEBACK_SCRIPT + "<\\/script>");
     document.close();
   }
   window.addEventListener("message", load);

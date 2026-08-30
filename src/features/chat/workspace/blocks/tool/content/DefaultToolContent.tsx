@@ -2,9 +2,9 @@
 
 import type { JSX } from "react";
 
-import { truncateText } from "../../content/text";
-import type { ToolItem } from "../presentation";
-import { toToolPayloadText } from "../presentation";
+import { truncateText } from "../../content/transcript-text";
+import type { ToolItem } from "../call-presentation";
+import { toToolPayloadText } from "../call-presentation";
 
 export function DefaultToolContent({ item }: { item: ToolItem }): JSX.Element {
   const payload = toToolPayloadText(item);

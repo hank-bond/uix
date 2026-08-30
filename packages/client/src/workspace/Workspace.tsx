@@ -23,14 +23,14 @@ import { ActionRegistryProvider } from "./action-context";
 import { ActionKeyboardDispatcher } from "./action-keyboard-dispatcher";
 import { ActionRegistry } from "./action-registry";
 import { KeybindingSync } from "./keybinding-sync";
+import { WorkspaceSessionActions } from "./session-actions";
+import { WorkspaceSessionControllerProvider } from "./session-context";
+import { toShortcutPlatform } from "./shortcut-platform";
 import {
   type SurfaceComposition,
   useRuntimeSurface,
   useSurfaces,
-} from "./layout";
-import { WorkspaceSessionActions } from "./session-actions";
-import { WorkspaceSessionControllerProvider } from "./session-context";
-import { toShortcutPlatform } from "./shortcut-platform";
+} from "./surface-host";
 
 const actionRegistry = new ActionRegistry({
   shortcutPlatform: toShortcutPlatform(navigator),

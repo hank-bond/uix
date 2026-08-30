@@ -52,7 +52,7 @@ Acceptance:
 
 Add a conventional `public/` directory to the Canvas feature and expose it through a Canvas-owned `/assets/` route on the same origin as Canvas documents.
 
-Transport is feasible. The scheme already serves module scripts in CORS mode (the surface pipeline). The assets route is same-origin to the frame (`uix-resource://canvas.<workspaceId>`). The frame sandbox allows scripts, and canvas responses include no CSP. The substrate deliberately grants no CORS to feature-origin consumers, so collection assets must remain on the Canvas feature origin: this route is that by construction.
+Transport is feasible. The scheme already serves module scripts in CORS mode (the surface pipeline). The assets route is same-origin to the iframe (`uix-resource://canvas.<workspaceId>`). The iframe sandbox allows scripts, and canvas responses include no CSP. The substrate deliberately grants no CORS to feature-origin consumers, so collection assets must remain on the Canvas feature origin: this route is that by construction.
 
 The initial organization is intentionally ordinary:
 
@@ -225,7 +225,7 @@ Acceptance:
 
 ## C6: Serve-time expansion (how to serve)
 
-The serve layer expands a stored document into the complete view before the frame parses it. Internals are pre-rendered (declarative shadow DOM where components use shadow). The browser then paints the final view in one pass. This is the Canvas-specific equivalent of server-side rendering, executed at serve time in the same layer that injects the writeback shim.
+The serve layer expands a stored document into the complete view before the iframe parses it. Internals are pre-rendered (declarative shadow DOM where components use shadow). The browser then paints the final view in one pass. This is the Canvas-specific equivalent of server-side rendering, executed at serve time in the same layer that injects the writeback script.
 
 - Expansion is a pure deterministic function of document content plus the current library, cached by document hash and library version.
 - The same render path the client adopts on hydration produces the expanded markup, so hydration upgrades behavior without restructuring (no second paint).
@@ -234,19 +234,19 @@ The serve layer expands a stored document into the complete view before the fram
 
 Acceptance:
 
-- The frame receives one complete document per load and paints it without a skeleton-then-content transition.
+- The iframe receives one complete document per load and paints it without a skeleton-then-content transition.
 - Hydration adopts the served shape. Served and hydrated DOM match.
 - Expansion output is reproducible for identical input and invalidated only by document or library change.
 - Documents in the store remain the thin authored form. Expansion never persists.
 
 ## C7: Versioned updates and conflict handling (how to handle updates)
 
-Every canvas document has a version. The store is authoritative, and the frame tracks the version it last applied plus a dirty flag for unflushed human edits. All writes declare the base they build on.
+Every canvas document has a version. The store is authoritative, and the iframe tracks the version it last applied plus a dirty flag for unflushed human edits. All writes declare the base they build on.
 
 - **Human writeback** is a versioned full-document flush that commits unconditionally (humans win). It includes the base version it serialized from so the ledger stays accurate and the agent can be told when its base moved.
 - **Agent edits** propose guarded anchored changes that merge onto current: hunks that apply cleanly land. The host rejects hunks that collide with human edits with the human's version and the new base.
 - **Agent writes** are conditional atomic replaces: they land only if their base is still current. Otherwise the host rejects them with the human's diff and the new base, and the agent re-reads and redoes. Writes never merge. Pure rejection is the decided v1 policy: no merge fallback. A guarded-merge upgrade is deferred unless rejections chafe in practice.
-- **Frame convergence** applies agent changes in place. Flush if dirty, then diff from the frame's applied version to the target. Send anchored patch operations to the shim, apply, and ack. A failed application falls back to a full reload.
+- **Iframe convergence** applies agent changes in place. Flush if dirty, then diff from the iframe's applied version to the target. Send anchored patch operations to the shim, apply, and ack. A failed application falls back to a full reload.
 - The agent's base comes from its turn-start snapshot rather than a tool-provided number.
 - The host limits retries to one per conflict. Repeated conflict surfaces to the human.
 
@@ -255,7 +255,7 @@ Acceptance:
 - A human edit never silently disappears, including when an agent write landed in between.
 - The host rejects an agent write against a stale base with the human's hunks and a new base the agent can redo against.
 - An agent edit disjoint from human changes applies onto current without losing either.
-- The frame converges to a newer version without a full reload when anchors apply. Reload remains the fallback.
+- The iframe converges to a newer version without a full reload when anchors apply. Reload remains the fallback.
 - Turn-start snapshots are the source of truth for agent bases.
 
 ## Open questions
@@ -271,7 +271,7 @@ Acceptance:
 
 **Pre-hydration human edits (undecided).** Whether to accept the small loss window before a component hydrates, or have the writeback shim record pre-hydration edits. Those edits target `data-*` attributes the component adopts on connect. Not formally robust for v1.
 
-**Runtime bridge scope.** Extending the frame's postMessage vocabulary with a typed request/response (`uix:canvas-request`): the canvas equivalent of channels. What the capability allowlist exposes, whether it reuses channel contracts, and when to build it (live refresh + on-demand backend. Likely after S0/C1/C6).
+**Runtime bridge scope.** Extending the iframe's postMessage vocabulary with a typed request/response (`uix:canvas-request`): the canvas equivalent of channels. What the capability allowlist exposes, whether it reuses channel contracts, and when to build it (live refresh + on-demand backend. Likely after S0/C1/C6).
 
 **Fragment refresh mechanism.** An HTMX-style attribute vs. a small shim equivalent, for invalidating derived content (the diff) when source files change. Buy vs. write.
 

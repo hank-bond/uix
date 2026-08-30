@@ -1,10 +1,10 @@
-// Validates canvas frame postMessages and forwards writeback and prompt actions.
+// Validates Canvas iframe postMessage payloads and forwards writeback and prompt actions.
 
 import { createClientMutationId } from "@uix/api/agent-channels";
 
 import type { CanvasKey } from "../shared/addressing";
 
-export type CanvasFrameMessage =
+export type CanvasIframeMessage =
   | {
       readonly type: "writeback";
       readonly key: CanvasKey;
@@ -17,7 +17,7 @@ export type CanvasFrameMessage =
       readonly prompt: string;
     };
 
-export function isCanvasFrameReady(
+export function isCanvasIframeReady(
   value: unknown,
   canvasKey: CanvasKey,
 ): boolean {
@@ -29,10 +29,10 @@ export function isCanvasFrameReady(
 }
 
 /** Validate the narrow postMessage vocabulary accepted from canvas HTML. */
-export function parseCanvasFrameMessage(
+export function parseCanvasIframeMessage(
   value: unknown,
   canvasKey: CanvasKey,
-): CanvasFrameMessage | undefined {
+): CanvasIframeMessage | undefined {
   if (!isRecord(value) || value["key"] !== canvasKey) return undefined;
 
   const html = value["html"];
@@ -57,8 +57,8 @@ export function parseCanvasFrameMessage(
  * instant the human clicked the canvas action. Recheck the viewpoint after
  * writeback so an intervening session change cannot prompt the new target.
  */
-export async function forwardCanvasFrameMessage(
-  message: CanvasFrameMessage,
+export async function forwardCanvasIframeMessage(
+  message: CanvasIframeMessage,
   isCurrentViewpoint: () => boolean,
   writeback: (req: { key: CanvasKey; html: string }) => Promise<void>,
   prompt: (req: { text: string; mutationId: string }) => Promise<unknown>,

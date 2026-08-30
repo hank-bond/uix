@@ -16,7 +16,7 @@ The anchored tool surface provides `canvas__anchor_read`, `canvas__anchor_write`
 
 Every tool result returns fresh anchored lines for the affected range. Edit boundaries include anchor and text, so stale text rejects rather than silently targeting a different line.
 
-Human interactions enter through a contained iframe shim. A static feature-origin frame receives selected-viewpoint HTML after the surface reads it through the Agent channel. The shim serializes supported form state, explicit `contenteditable` changes, and trusted prompt actions. The Canvas surface forwards writeback through the same selected channel client.
+Human interactions enter through a contained iframe writeback script. A static feature-origin iframe receives selected-viewpoint HTML after the surface reads it through the Agent channel. The script serializes supported form state, explicit `contenteditable` changes, and trusted prompt actions. The Canvas surface forwards writeback through the same selected channel client.
 
 Agent writes publish `canvas.changed` so the surface reloads the document. Human writeback does not echo a refresh because the iframe already displays that change.
 
@@ -24,7 +24,7 @@ The `canvas.documents` turn-state cell stores complete resource-to-version refer
 
 The `canvas.canvas-diff` agent-context contribution derives anchored human-edit hunks from current and prior turn-state commits. Canvas no longer maintains ambient open-key or viewed-key context.
 
-The feature-specific iframe shim is not a general channel transport. A substrate iframe adapter should wait for another contained surface and must bind origin, source window, and typed contract centrally.
+The feature-specific iframe writeback script is not a general channel transport. A substrate iframe adapter should wait for another contained surface and must bind origin, source window, and typed contract centrally.
 
 Filesystem parity, richer edit lenses, external-write ingestion, and git-backed history remain later layers. They should preserve the current store and buffer boundary rather than move filesystem paths into Canvas contracts.
 
@@ -71,11 +71,11 @@ The store remains the hosting seam. Local files or JSON objects are implementati
 
 ## Log
 
-### 2026-08-23: branch-aware immutable content references and the same-origin frame
+### 2026-08-23: branch-aware immutable content references and the same-origin iframe
 
 Canvas adopts the selected direction from [`cross-feature-interoperability.md`](./cross-feature-interoperability.md) and the [web-host specification](../specs/web-host.md). A substrate resolver interprets a Canvas key such as `main` through the selected Agent's session-branch viewpoint and returns an opaque immutable content reference naming exact bytes or a specific revision. Turn state records the committed version; on session reload or branch switch the client reads the newest committed version from that branch's turn state and fetches those bytes over HTTP. A convenience `latest` resolution may exist but resolves to an immutable reference before use and is never persisted as a durable identity. Live channel payloads carry content references, never browser transport URLs, and a content fetch never depends on a live connection.
 
-The Canvas frame is a document boundary, not a hostile-code sandbox. One web-host instance is one trust domain: Canvas HTML and manifest-selected surface code share that trust domain, so the frame may be same-origin and rely on iframe document, CSS, global-object, and lifecycle separation. Exported or frozen Canvas output must remain usable as standalone single-file HTML without host-specific transport URLs or privileges. Stronger per-content isolation belongs to a later hosted or marketplace profile.
+The Canvas iframe is a document boundary, not a hostile-code sandbox. One web-host instance is one trust domain: Canvas HTML and manifest-selected surface code share that trust domain, so the iframe may be same-origin and rely on document, CSS, global-object, and lifecycle separation. Exported or frozen Canvas output must remain usable as standalone single-file HTML without host-specific transport URLs or privileges. Stronger per-content isolation belongs to a later hosted or marketplace profile.
 
 ### 2026-07-18 — document-keyed updates replace ambient open-canvas state
 

@@ -38,7 +38,7 @@ import {
   toWorkspaceId,
 } from "@uix/runtime";
 
-import type { Workspace } from "./roots";
+import type { Workspace } from "./workspace-roots";
 
 const apiModuleDir = join(__dirname, "../../api/src");
 

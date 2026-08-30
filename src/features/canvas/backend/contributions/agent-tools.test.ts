@@ -33,7 +33,7 @@ import { createCanvasAgentContextContributions } from "./agent-context";
 import { createCanvasAgentToolContributions } from "./agent-tools";
 import { createCanvasTurnStateContributions } from "./turn-state";
 import { canvasChannels } from "../../shared/channels";
-import type { CanvasContext } from "../context";
+import type { CanvasAgentInstanceContext } from "../agent-instance-context";
 import { CanvasDocumentBuffer } from "../document-buffer";
 
 function memoryStore(): DocumentStore {
@@ -67,8 +67,8 @@ function memoryStore(): DocumentStore {
 }
 
 function fakeCanvasContext(
-  overrides: Partial<CanvasContext> = {},
-): CanvasContext {
+  overrides: Partial<CanvasAgentInstanceContext> = {},
+): CanvasAgentInstanceContext {
   const store = overrides.store ?? memoryStore();
   const base: FeatureContext = {
     documents: { createStore: () => store },

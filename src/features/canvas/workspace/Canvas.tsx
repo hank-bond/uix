@@ -13,14 +13,14 @@ import {
 } from "@uix/api/workspace";
 
 import {
-  forwardCanvasFrameMessage,
-  isCanvasFrameReady,
-  parseCanvasFrameMessage,
-} from "./frame-messages";
+  forwardCanvasIframeMessage,
+  isCanvasIframeReady,
+  parseCanvasIframeMessage,
+} from "./iframe-messages";
 import {
   type CanvasKey,
-  toCanvasFrameOrigin,
-  toCanvasFrameUrl,
+  toCanvasIframeOrigin,
+  toCanvasIframeUrl,
 } from "../shared/addressing";
 import type { canvasChannels } from "../shared/channels";
 
@@ -36,12 +36,12 @@ export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
     () => createChannelClient(workspace, agentChannels),
     [workspace],
   );
-  const frameRef = useRef<HTMLIFrameElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const htmlRef = useRef("");
   const sessionSelectionVersionRef = useRef(sessionSelectionVersion);
   sessionSelectionVersionRef.current = sessionSelectionVersion;
   const [changeVersion, setChangeVersion] = useState(0);
-  const [frameVersion, setFrameVersion] = useState(0);
+  const [iframeVersion, setIframeVersion] = useState(0);
 
   useEffect(() => {
     return client.events.changed((event) => {
@@ -59,12 +59,12 @@ export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
       .then((html) => {
         if (!current) return;
         htmlRef.current = html;
-        setFrameVersion((previous) => previous + 1);
+        setIframeVersion((previous) => previous + 1);
       })
       .catch(() => {
         if (!current) return;
         htmlRef.current = "";
-        setFrameVersion((previous) => previous + 1);
+        setIframeVersion((previous) => previous + 1);
       });
     return () => {
       current = false;
@@ -75,24 +75,24 @@ export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
     const acceptedSessionSelectionVersion = sessionSelectionVersion;
     const isCurrentViewpoint = (): boolean =>
       sessionSelectionVersionRef.current === acceptedSessionSelectionVersion;
-    const origin = resolveWorkspaceResourceUrl(
+    const iframeOrigin = resolveWorkspaceResourceUrl(
       workspace,
-      toCanvasFrameOrigin(workspace.workspaceId),
+      toCanvasIframeOrigin(workspace.workspaceId),
     );
     const onMessage = (event: MessageEvent): void => {
       if (!isCurrentViewpoint()) return;
-      if (event.origin !== origin) return;
-      if (event.source !== frameRef.current?.contentWindow) return;
-      if (isCanvasFrameReady(event.data, canvasKey)) {
-        frameRef.current.contentWindow?.postMessage(
+      if (event.origin !== iframeOrigin) return;
+      if (event.source !== iframeRef.current?.contentWindow) return;
+      if (isCanvasIframeReady(event.data, canvasKey)) {
+        iframeRef.current.contentWindow?.postMessage(
           { type: "canvas:load", key: canvasKey, html: htmlRef.current },
-          origin,
+          iframeOrigin,
         );
         return;
       }
-      const message = parseCanvasFrameMessage(event.data, canvasKey);
+      const message = parseCanvasIframeMessage(event.data, canvasKey);
       if (!message) return;
-      void forwardCanvasFrameMessage(
+      void forwardCanvasIframeMessage(
         message,
         isCurrentViewpoint,
         client.requests.writeback,
@@ -107,12 +107,12 @@ export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
 
   return (
     <iframe
-      key={`${String(sessionSelectionVersion)}:${String(frameVersion)}`}
-      ref={frameRef}
-      className="canvas-frame"
+      key={`${String(sessionSelectionVersion)}:${String(iframeVersion)}`}
+      ref={iframeRef}
+      className="canvas-iframe"
       src={resolveWorkspaceResourceUrl(
         workspace,
-        toCanvasFrameUrl(workspace.workspaceId, canvasKey, frameVersion),
+        toCanvasIframeUrl(workspace.workspaceId, canvasKey, iframeVersion),
       )}
       title={`canvas ${canvasKey}`}
       sandbox="allow-scripts allow-same-origin"

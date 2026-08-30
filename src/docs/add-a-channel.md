@@ -129,7 +129,7 @@ export const feature = defineFeature({
 });
 ```
 
-Events published from `workspace(ctx)` reach every Workspace attachment. Events published from `agent(ctx)` reach attachments on that Agent's session. Publish calls derive their types from the event schema. The client validates event payloads when it receives them. Canvas uses this pattern in [`src/features/canvas/backend/context.ts`](../../src/features/canvas/backend/context.ts) and [`src/features/canvas/backend/contributions/channels.ts`](../../src/features/canvas/backend/contributions/channels.ts).
+Events published from `workspace(ctx)` reach every Workspace attachment. Events published from `agent(ctx)` reach attachments on that Agent's session. Publish calls derive their types from the event schema. The client validates event payloads when it receives them. Canvas uses this pattern in [`src/features/canvas/backend/agent-instance-context.ts`](../../src/features/canvas/backend/agent-instance-context.ts) and [`src/features/canvas/backend/contributions/channels.ts`](../../src/features/canvas/backend/contributions/channels.ts).
 
 ## Consume the typed client from a surface
 

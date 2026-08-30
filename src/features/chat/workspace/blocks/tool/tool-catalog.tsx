@@ -18,7 +18,7 @@ import type { ToolCatalog } from "@uix/api/agent-channels";
 import type { agentChannels } from "@uix/api/agent-channels";
 import type { ChannelClient } from "@uix/api/workspace";
 
-import { toToolDisplayName } from "./presentation";
+import { toToolDisplayName } from "./call-presentation";
 
 type AgentChannelClient = ChannelClient<typeof agentChannels>;
 

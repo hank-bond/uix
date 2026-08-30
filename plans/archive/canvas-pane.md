@@ -106,7 +106,7 @@ Shim, `postMessage`, writeback, `[name]` capture, interaction, htmx, fragment/pa
 - `src/main/canvas/protocol.ts`: top-level `registerSchemesAsPrivileged`
   - `registerCanvasProtocol(): Disposable`.
 - `src/shared/ipc.ts`: `canvasChanged` channel + `{ key }` payload + bridge method (build first).
-- `src/preload/index.ts`: `onCanvasChanged`. Expose `window.uix` only in the main frame so agent-authored canvas iframes never receive the bridge.
+- `src/preload/index.ts`: `onCanvasChanged`. Expose `window.uix` only in the top-level page so agent-authored canvas iframes never receive the bridge.
 - `src/main/agent/driver.ts`: current agent driver/session lifecycle (`src/main/agent.ts` moves here).
 - `src/main/agent/bindings.ts`: internal `AgentBinding` type + aggregation for UIX-owned agent capabilities (tools in Stage 1. Prompt sections/hooks/ transforms later).
 - `src/main/canvas/agent-binding.ts`: canvas agent binding. Contributes `uix_canvas_read` / `uix_canvas_write`. Write emits `canvasChanged`.

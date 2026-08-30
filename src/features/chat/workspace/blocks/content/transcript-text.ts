@@ -1,4 +1,4 @@
-// Extracts and truncates text from transcript content values for display.
+// Extracts and truncates display text from transcript content values.
 
 export function extractTextContent(value: unknown): unknown {
   if (typeof value === "string") return value;

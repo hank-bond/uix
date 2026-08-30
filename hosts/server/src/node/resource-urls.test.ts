@@ -21,10 +21,10 @@ describe("server resource URLs", () => {
       resolveServerResourceUrl(
         "https://uix.example:9443",
         "reference",
-        "uix-resource://canvas.reference/frame/main",
+        "uix-resource://canvas.reference/iframe/main",
       ),
     ).toBe(
-      "https://uix.example:9443/workspaces/reference/resources/canvas.reference/frame/main",
+      "https://uix.example:9443/workspaces/reference/resources/canvas.reference/iframe/main",
     );
   });
 
@@ -69,22 +69,22 @@ describe("server resource URLs", () => {
   it("rejects another workspace, scheme, or credentialed authority", () => {
     expect(() =>
       parseLogicalResourceUrl(
-        "uix-resource://canvas.other/frame/main",
+        "uix-resource://canvas.other/iframe/main",
         "reference",
       ),
     ).toThrow("does not belong");
     expect(() =>
-      parseLogicalResourceUrl("https://reference/frame/main", "reference"),
+      parseLogicalResourceUrl("https://reference/iframe/main", "reference"),
     ).toThrow("logical UIX resource scheme");
     expect(() =>
       parseLogicalResourceUrl(
-        "uix-resource://user@reference/frame/main",
+        "uix-resource://user@reference/iframe/main",
         "reference",
       ),
     ).toThrow("unsupported address");
     expect(() =>
       parseLogicalResourceUrl(
-        "uix-resource://reference/frame/main#fragment",
+        "uix-resource://reference/iframe/main#fragment",
         "reference",
       ),
     ).toThrow("unsupported address");

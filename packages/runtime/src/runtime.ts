@@ -62,7 +62,6 @@ import {
   ResourceRegistry,
   type ResourceTransportRegistrar,
 } from "./resource-registry";
-import type { Workspace } from "./roots";
 import { SettingsRegistry } from "./settings-registry";
 import type {
   Attachment as AttachmentContract,
@@ -74,6 +73,7 @@ import type {
   WorkspaceRuntime as WorkspaceRuntimeContract,
 } from "./workspace";
 import { toAttachmentId, toSessionId } from "./workspace";
+import type { Workspace } from "./workspace-roots";
 import { createWorkspaceSettings } from "./workspace-settings";
 
 /** The dependencies a host provides. The runtime declares them, never imports them. */

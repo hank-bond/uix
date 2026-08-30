@@ -1,4 +1,4 @@
-// Canvas state created separately for each AgentInstance.
+// The per-Agent Canvas feature context with its document store, working buffer, and event publisher.
 
 import type { DocumentStore } from "@uix/api/documents";
 import type { AgentFeatureContext } from "@uix/api/feature";
@@ -7,13 +7,15 @@ import { CanvasDocumentBuffer } from "./document-buffer";
 import { parseCanvasKey } from "../shared/addressing";
 import { canvasChannels, type CanvasEventPublisher } from "../shared/channels";
 
-export type CanvasContext = AgentFeatureContext & {
+export type CanvasAgentInstanceContext = AgentFeatureContext & {
   store: DocumentStore;
   buffer: CanvasDocumentBuffer;
   events: CanvasEventPublisher;
 };
 
-export function createCanvasContext(ctx: AgentFeatureContext): CanvasContext {
+export function createCanvasAgentInstanceContext(
+  ctx: AgentFeatureContext,
+): CanvasAgentInstanceContext {
   const store = ctx.documents.createStore({
     namespace: "canvas",
     extension: "html",

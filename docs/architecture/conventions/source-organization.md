@@ -26,6 +26,16 @@ File length is not a criterion. A file may hold one function plus its type, or a
 
 **Sibling separation:** Reading a directory's file summaries together, it must be clear when to read each file. Overlapping summaries mean blurred boundaries: the files share one responsibility (merge them), or the summaries were not separated (resummarize). The directory `AGENTS.md` overview states the group responsibility, what the files accomplish together. The index entries show the division of labor. Do not restate each file's summary in the overview.
 
+## File names identify their responsibility
+
+A file basename identifies the stable responsibility a reader will find inside.
+
+Read the basename together with its owning directory. The directory may provide the domain, so `agent/settings.ts` need not repeat `agent`. The basename still names the owned entity and any role or operation needed to distinguish it from siblings. A reader should be able to predict why they would open the file before consulting its source summary.
+
+Do not use a modifier, lifecycle state, trigger, or current caller as the complete basename. `pending.ts` does not identify what is pending or whether the file owns state, identity, presentation, or coordination. `pending-user-identity.ts` names both the entity and the responsibility. Likewise, do not repair a vague basename with a precise source summary. Indexes aid retrieval, while paths must expose ownership without generated documentation.
+
+Short names remain correct when they name the directory's primary concept without sibling ambiguity. Files such as `workspace.ts`, `settings.ts`, or `routes.ts` do not need mechanical qualifiers merely to become longer. Apply the ambiguity test rather than a word-count rule.
+
 ## Same-name pairs identify one primary unit
 
 A directory and source file may share a name when several production owners form the support bundle for one primary unit:

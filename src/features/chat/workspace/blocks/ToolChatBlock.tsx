@@ -4,11 +4,11 @@ import type { JSX } from "react";
 
 import { useBlockPresentationSettings } from "./BlockPresentationSettings";
 import { ChatBlockFrame } from "./ChatBlockFrame";
+import type { ToolItem } from "./tool/call-presentation";
+import { toToolState } from "./tool/call-presentation";
+import { deriveToolChatBlockPresentation } from "./tool/chat-block-presentation";
 import { ToolBlockSettings } from "./tool/content/ToolBlockSettings";
 import { ToolCallDisclosure } from "./tool/content/ToolCallDisclosure";
-import type { ToolItem } from "./tool/presentation";
-import { toToolState } from "./tool/presentation";
-import { deriveToolChatBlockPresentation } from "./tool/presentations";
 import { useToolLabel } from "./tool/tool-catalog";
 
 export function ToolChatBlock({ item }: { item: ToolItem }): JSX.Element {

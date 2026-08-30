@@ -5,15 +5,18 @@ import { withHandlers } from "@uix/api/channels";
 
 import type { CanvasKey } from "../../shared/addressing";
 import { canvasChannels } from "../../shared/channels";
-import type { CanvasContext } from "../context";
+import type { CanvasAgentInstanceContext } from "../agent-instance-context";
 
-export function publishCanvasChanged(ctx: CanvasContext, key: CanvasKey): void {
+export function publishCanvasChanged(
+  ctx: CanvasAgentInstanceContext,
+  key: CanvasKey,
+): void {
   ctx.log.debug({ key }, "canvas_changed");
   ctx.events.changed({ key });
 }
 
 export function createCanvasChannelContributions(
-  ctx: CanvasContext,
+  ctx: CanvasAgentInstanceContext,
 ): readonly ChannelContribution[] {
   return [
     withHandlers(canvasChannels, {

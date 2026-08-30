@@ -14,7 +14,7 @@ import {
   type AnchoredLine,
   diffAnchoredSnapshots,
 } from "./anchors/document";
-import { canonicalizeHtml } from "./normalize";
+import { canonicalizeHtml } from "./html-canonicalization";
 
 export interface DocumentVersionMeta {
   readonly anchors: AnchoredDocumentSnapshot;

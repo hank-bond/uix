@@ -14,7 +14,7 @@ Files involved:
 - [`packages/api/src/resource-routes.ts`](../../packages/api/src/resource-routes.ts), route normalization and URL encode/decode
 - [`packages/runtime/src/resource-registry.ts`](../../packages/runtime/src/resource-registry.ts), the transport registry
 
-The Canvas static frame resource in [`src/features/canvas/backend/contributions/resources.ts`](../../src/features/canvas/backend/contributions/resources.ts) is a current example. Its Agent-viewpoint HTML still travels through a selected channel handler rather than the Workspace resource request.
+The Canvas static iframe resource in [`src/features/canvas/backend/contributions/resources.ts`](../../src/features/canvas/backend/contributions/resources.ts) is a current example. Its Agent-viewpoint HTML still travels through a selected channel handler rather than the Workspace resource request.
 
 ## Declare an address in shared code
 

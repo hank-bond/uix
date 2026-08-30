@@ -8,8 +8,8 @@ import { Value } from "typebox/value";
 
 import { assertWorkspaceCatalogId } from "@uix/host/catalog";
 import { WorkspaceManifestFileName } from "@uix/runtime/features/manifest";
-import { resolveWorkspace, type Workspace } from "@uix/runtime/roots";
 import { toWorkspaceId, type WorkspaceId } from "@uix/runtime/workspace";
+import { resolveWorkspace, type Workspace } from "@uix/runtime/workspace-roots";
 
 const WorkspaceRegistryFileSchema = Type.Object(
   {

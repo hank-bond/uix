@@ -4,7 +4,7 @@ import {
   formatAnchoredLine,
   formatAnchoredText,
   parseAnchoredLine,
-} from "./wire";
+} from "./wire-format";
 
 describe("anchor wire format", () => {
   it("renders a line as anchor + gutter + text", () => {

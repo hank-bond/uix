@@ -1,4 +1,4 @@
-// Finds stable paths for workspace state, the agent working directory, and the manifest from one startup target.
+// Resolves stable paths for workspace state, the agent working directory, and the manifest from one startup target.
 //
 // `stateRoot` anchors durable host state and remains separate from the
 // potentially movable agent cwd. The manifest path may not exist yet because

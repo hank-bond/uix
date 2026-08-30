@@ -3,8 +3,8 @@
 import type { JSX } from "react";
 import { useState } from "react";
 
-import type { ToolItem } from "../presentation";
-import { toToolTextContent } from "../presentation";
+import type { ToolItem } from "../call-presentation";
+import { toToolTextContent } from "../call-presentation";
 
 export function CanvasToolContent({ item }: { item: ToolItem }): JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);

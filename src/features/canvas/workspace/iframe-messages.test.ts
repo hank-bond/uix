@@ -1,27 +1,27 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  forwardCanvasFrameMessage,
-  isCanvasFrameReady,
-  parseCanvasFrameMessage,
-} from "./frame-messages";
+  forwardCanvasIframeMessage,
+  isCanvasIframeReady,
+  parseCanvasIframeMessage,
+} from "./iframe-messages";
 import { parseCanvasKey } from "../shared/addressing";
 
 const main = parseCanvasKey("main");
 
-describe("canvas frame messages", () => {
+describe("canvas iframe messages", () => {
   it("accepts readiness only from the current Canvas key", () => {
     expect(
-      isCanvasFrameReady({ type: "canvas:ready", key: "main" }, main),
+      isCanvasIframeReady({ type: "canvas:ready", key: "main" }, main),
     ).toBe(true);
     expect(
-      isCanvasFrameReady({ type: "canvas:ready", key: "other" }, main),
+      isCanvasIframeReady({ type: "canvas:ready", key: "other" }, main),
     ).toBe(false);
   });
 
   it("accepts a prompt carrying the current hydrated document", () => {
     expect(
-      parseCanvasFrameMessage(
+      parseCanvasIframeMessage(
         {
           type: "canvas:prompt",
           key: "main",
@@ -40,7 +40,7 @@ describe("canvas frame messages", () => {
 
   it("rejects malformed, empty, and wrong-canvas prompt messages", () => {
     expect(
-      parseCanvasFrameMessage(
+      parseCanvasIframeMessage(
         {
           type: "canvas:prompt",
           key: "other",
@@ -51,7 +51,7 @@ describe("canvas frame messages", () => {
       ),
     ).toBeUndefined();
     expect(
-      parseCanvasFrameMessage(
+      parseCanvasIframeMessage(
         {
           type: "canvas:prompt",
           key: "main",
@@ -62,7 +62,7 @@ describe("canvas frame messages", () => {
       ),
     ).toBeUndefined();
     expect(
-      parseCanvasFrameMessage(
+      parseCanvasIframeMessage(
         {
           type: "canvas:prompt",
           key: "main",
@@ -85,7 +85,7 @@ describe("canvas frame messages", () => {
       return Promise.resolve();
     });
 
-    await forwardCanvasFrameMessage(
+    await forwardCanvasIframeMessage(
       {
         type: "prompt",
         key: main,
@@ -112,7 +112,7 @@ describe("canvas frame messages", () => {
     const prompt = vi.fn(() => Promise.resolve());
 
     await expect(
-      forwardCanvasFrameMessage(
+      forwardCanvasIframeMessage(
         {
           type: "prompt",
           key: main,
@@ -132,7 +132,7 @@ describe("canvas frame messages", () => {
     const writeback = vi.fn(() => Promise.resolve());
     const prompt = vi.fn(() => Promise.resolve());
 
-    await forwardCanvasFrameMessage(
+    await forwardCanvasIframeMessage(
       {
         type: "writeback",
         key: main,
@@ -147,7 +147,7 @@ describe("canvas frame messages", () => {
     expect(prompt).not.toHaveBeenCalled();
   });
 
-  it("drops stale frame work before writeback and between writeback and prompt", async () => {
+  it("drops stale iframe work before writeback and between writeback and prompt", async () => {
     let current = false;
     const writeback = vi.fn(() => Promise.resolve());
     const prompt = vi.fn(() => Promise.resolve());
@@ -158,7 +158,7 @@ describe("canvas frame messages", () => {
       prompt: "respond",
     };
 
-    await forwardCanvasFrameMessage(message, () => current, writeback, prompt);
+    await forwardCanvasIframeMessage(message, () => current, writeback, prompt);
     expect(writeback).not.toHaveBeenCalled();
 
     current = true;
@@ -166,7 +166,7 @@ describe("canvas frame messages", () => {
       current = false;
       return Promise.resolve();
     });
-    await forwardCanvasFrameMessage(message, () => current, writeback, prompt);
+    await forwardCanvasIframeMessage(message, () => current, writeback, prompt);
 
     expect(writeback).toHaveBeenCalledOnce();
     expect(prompt).not.toHaveBeenCalled();

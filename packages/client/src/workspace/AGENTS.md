@@ -25,11 +25,11 @@ This directory contains no concrete transport, URL parser, Electron global, runt
 - **[action-resolution.ts](./action-resolution.ts)** Resolves action contributions into ids, catalog entries, and default bindings.
 - **[keybinding-sync.tsx](./keybinding-sync.tsx)** Synchronizes confirmed keybindings between the action registry and the substrate keybindings channel.
 - **[keyboard-event-shortcut.ts](./keyboard-event-shortcut.ts)** Converts a KeyboardEvent into a resolved shortcut chord for action matching.
-- **[layout.tsx](./layout.tsx)** Hosts runtime surfaces: fetches the composition, loads surface modules, and mounts them with clients, scoped styles, and error boundaries.
 - **[session-actions.tsx](./session-actions.tsx)** Registers the workspace session actions as a feature action contribution.
 - **[session-context.tsx](./session-context.tsx)** Provides the workspace session handle and agent activity feed to the workspace tree.
 - **[session-controller.ts](./session-controller.ts)** Owns the active-session projection and session mutations for the workspace renderer.
 - **[shortcut-platform.ts](./shortcut-platform.ts)** Derives the shortcut platform (macOS or other) from the browser platform.
+- **[surface-host.tsx](./surface-host.tsx)** Hosts runtime surfaces: fetches the composition, loads surface modules, and mounts them with clients, scoped styles, and error boundaries.
 - **[surface-shared-modules.ts](./surface-shared-modules.ts)** Installs page-shared module instances for runtime surfaces before workspace mount.
 - **[workspace.css](./workspace.css)** Base chrome for the shared workspace client.
 - **[Workspace.tsx](./Workspace.tsx)** Renders the workspace page: the composed surface row wrapped in action, keybinding, and session providers.

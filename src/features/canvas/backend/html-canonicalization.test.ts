@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { canonicalizeHtml } from "./normalize";
+import { canonicalizeHtml } from "./html-canonicalization";
 
 describe("canonicalizeHtml", () => {
   it("normalizes tag case, attribute quoting, and entities", () => {

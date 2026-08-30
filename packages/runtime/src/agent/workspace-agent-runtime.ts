@@ -69,8 +69,8 @@ import type { ActivatedAgentFeature } from "../features/loader";
 import { AsyncDisposableBag, DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
 import { OperationTracker } from "../operation-tracker";
-import type { Workspace } from "../roots";
 import type { SessionId, SessionTarget } from "../workspace";
+import type { Workspace } from "../workspace-roots";
 
 const MaxSessionTitleCodePoints = 4096;
 const PromptIntentCustomType = "uix.prompt-intent";

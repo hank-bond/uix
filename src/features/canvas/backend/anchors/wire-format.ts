@@ -1,4 +1,4 @@
-// Anchor wire format.
+// The anchored-line wire format exchanged with the agent.
 //
 // Renders anchored lines to the agent and parses them back. The document
 // core deals only in structured `{ anchor, text }`. The §-gutter representation

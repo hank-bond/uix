@@ -38,7 +38,7 @@ import {
 import { WorkspaceManifestFileName } from "@uix/runtime/features/manifest";
 import { installProcessHandlers } from "@uix/runtime/lifecycle";
 import { createLogger } from "@uix/runtime/log";
-import { resolveWorkspace, type Workspace } from "@uix/runtime/roots";
+import { resolveWorkspace, type Workspace } from "@uix/runtime/workspace-roots";
 
 import { bindExternalWebLinks } from "./external-links";
 import * as ipc from "./ipc";

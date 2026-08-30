@@ -15,7 +15,7 @@ import {
 
 import { createCanvasTurnStateContributions } from "./turn-state";
 import { canvasChannels } from "../../shared/channels";
-import type { CanvasContext } from "../context";
+import type { CanvasAgentInstanceContext } from "../agent-instance-context";
 import { CanvasDocumentBuffer } from "../document-buffer";
 
 function memoryStore(initial: Record<string, string> = {}): DocumentStore {
@@ -101,7 +101,7 @@ function captureCanvasState(store = memoryStore()): {
     },
   };
   const buffer = new CanvasDocumentBuffer(store);
-  const ctx: CanvasContext = {
+  const ctx: CanvasAgentInstanceContext = {
     ...base,
     store,
     buffer,

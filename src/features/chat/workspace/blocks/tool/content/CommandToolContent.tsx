@@ -6,8 +6,8 @@ import { StructuredCommand } from "./StructuredCommand";
 import { useBlockPresentationSettings } from "../../BlockPresentationSettings";
 import { CodeBlock } from "../../content/CodeBlock";
 import { HighlightedCode } from "../../content/HighlightedCode";
-import type { ToolItem } from "../presentation";
-import { asRecord, toString, toToolTextContent } from "../presentation";
+import type { ToolItem } from "../call-presentation";
+import { asRecord, toString, toToolTextContent } from "../call-presentation";
 
 export function CommandToolContent({ item }: { item: ToolItem }): JSX.Element {
   const { settings } = useBlockPresentationSettings();

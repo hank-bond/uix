@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { WorkspaceFeatureContext } from "@uix/api/feature";
 
-import { createCanvasFrameResourceContributions } from "./resources";
+import { createCanvasIframeResourceContributions } from "./resources";
 
 const context = {
   log: {
@@ -14,9 +14,9 @@ const context = {
   },
 } as unknown as WorkspaceFeatureContext;
 
-describe("Canvas frame resource", () => {
-  it("serves a static frame bootstrap for a valid key", async () => {
-    const resource = createCanvasFrameResourceContributions(context)[0];
+describe("Canvas iframe resource", () => {
+  it("serves a static iframe bootstrap for a valid key", async () => {
+    const resource = createCanvasIframeResourceContributions(context)[0];
 
     const response = await resource.handler({
       request: new Request("uix-resource://canvas.local/main"),
@@ -36,7 +36,7 @@ describe("Canvas frame resource", () => {
   });
 
   it("rejects an invalid key without reading Agent state", async () => {
-    const resource = createCanvasFrameResourceContributions(context)[0];
+    const resource = createCanvasIframeResourceContributions(context)[0];
 
     const response = await resource.handler({
       request: new Request("uix-resource://canvas.local/invalid"),

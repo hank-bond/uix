@@ -4,8 +4,8 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { resolveWorkspace } from "@uix/runtime/roots";
 import { toWorkspaceId } from "@uix/runtime/workspace";
+import { resolveWorkspace } from "@uix/runtime/workspace-roots";
 
 import { createServerWorkspaceRuntime } from "./workspace-runtime";
 

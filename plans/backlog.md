@@ -6,7 +6,7 @@ summary: "Compact seeds for planned UIX deliverables that need enough context to
 
 Compact seeds. Keep enough context that a future reader can recover the trigger, constraint, and likely shape without archaeology. Promote a seed to its own plan once it needs sections, ordered units, acceptance criteria, or design rationale that no longer fits comfortably here. Delete the seed here when it graduates.
 
-- **Surface contributions + workspace layout**: done. Features export `defineSurface` contributions from their workspace dirs. `layout.tsx` composes the flat list, and `SurfaceMount` hands each surface its typed channel client.
+- **Surface contributions + workspace layout**: done. Features export `defineSurface` contributions from their workspace dirs. `surface-host.tsx` composes the flat list, and `SurfaceMount` hands each surface its typed channel client.
 - **Typed channel events**: done: shared `ChannelContract`s drive backend handlers (`withHandlers`), typed frontend clients (`createChannelClient`), and typed event publishers (`FeatureEventPublisherFactory`). Events are schema-validated on both publish and subscribe.
 - **Iframe surface transport**, the containment mode for foreign/generated/executable surface code (shelved when the Host/Workspace iframe collapsed, see [workspace-runtime-foundation](./archive/workspace-runtime-foundation.md)). Everything in [runtime-surface-composition](./archive/runtime-surface-composition.md) is trusted first-party page-realm code, so this waits for the first untrusted surface. Related: feature-agent link metadata on surfaces, later.
 - **`uix-core` embedded-Pi config**: orientation block + doc map + smoke-test tools injected into the host's agent.

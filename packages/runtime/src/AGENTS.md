@@ -36,11 +36,11 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 - **[operation-tracker.ts](./operation-tracker.ts)** Provides lexical cancellable operations that a parent can cancel and join during shutdown.
 - **[reload.ts](./reload.ts)** Reloads idle Workspace and Agent features before Pi resources, restored state, and renderer notification.
 - **[resource-registry.ts](./resource-registry.ts)** Routes resource URLs to the active feature handlers through one validated boundary.
-- **[roots.ts](./roots.ts)** Finds stable paths for workspace state, the agent working directory, and the manifest from one startup target.
 - **[runtime.ts](./runtime.ts)** Composes the workspace substrate into one exactly-one-workspace runtime over host-provided dependencies.
 - **[settings-namespace.ts](./settings-namespace.ts)** Defines a named, schema-checked group of workspace settings.
 - **[settings-registry.ts](./settings-registry.ts)** Retains validated settings for each live scope, notifies listeners, and delegates persistence to the workspace layer.
 - **[turn-state.ts](./turn-state.ts)** Commits and restores each feature's private branch state in Pi sessions without showing it to the model.
+- **[workspace-roots.ts](./workspace-roots.ts)** Resolves stable paths for workspace state, the agent working directory, and the manifest from one startup target.
 - **[workspace-settings.ts](./workspace-settings.ts)** Validates a staged manifest's settings, makes them live together, and connects them to their persisted locations.
 - **[workspace.ts](./workspace.ts)** The workspace-runtime contract: ids, session targets, and the exactly-one-workspace runtime surface a host composes.
 

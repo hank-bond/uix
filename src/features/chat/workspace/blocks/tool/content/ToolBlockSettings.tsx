@@ -8,7 +8,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { toolParamVisibility } from "../../../../shared/settings";
 import { useBlockPresentationSettings } from "../../BlockPresentationSettings";
-import type { ToolParam } from "../presentation";
+import type { ToolParam } from "../call-presentation";
 
 interface ToolBlockSettingsProps {
   toolName: string;

@@ -1,12 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ToolCallDisclosure } from "./content/ToolCallDisclosure";
-import type { ToolItem } from "./presentation";
+import type { ToolItem } from "./call-presentation";
 import {
   deriveToolChatBlockPresentation,
   type ToolChatBlockPresentation,
-} from "./presentations";
+} from "./chat-block-presentation";
+import { ToolCallDisclosure } from "./content/ToolCallDisclosure";
 import type { BlockPresentationSettings } from "../../../shared/settings";
 
 function item(overrides: Partial<ToolItem> = {}): ToolItem {
