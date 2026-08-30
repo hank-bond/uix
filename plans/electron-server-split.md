@@ -18,7 +18,7 @@ summary: "Build the Electron and web hosts over the proved workspace runtime, at
 - **H5.1** launcher extraction landed in `0e2ccdc`.
 - **H5.2** workspace extraction landed in `0780f80`.
 - **H5.3** dependency-boundary enforcement landed. H5 is complete.
-- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** landed in `780838b`. **W2** has landed. **W3** landed in `75fd789`. **W4** is implemented and awaiting review. **W5-W9** continue the web host from that spec. H7-H8 follow with Electron rehoming and two-host conformance.
+- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** landed in `780838b`. **W2** has landed. **W3** landed in `75fd789`. **W4** has landed. **W5** is implemented and awaiting review. **W6-W9** continue the web host from that spec. H7-H8 follow with Electron rehoming and two-host conformance.
 
 ## Status and intent
 
@@ -242,13 +242,15 @@ Define the discriminated ready, request, response, error, and event frames with 
 
 ### W4: Content plane
 
-_Status: implemented and awaiting review._
+_Status: landed in `e425bdd`._
 
 Make content references host-neutral and immutable in live channel payloads, and serve the referenced bytes over HTTP. The host maps each accepted reference to a browser-fetchable URL for the workspace and session viewpoint. Each fetch retains its own workspace guard. It does not boot an Agent instance unless resolution requires one. Apply cache policy by content class. Versioned immutable content caches immutably, while pages, catalog, projections, and current-state endpoints stay no-store. Cross-origin grants derive only from the configured public-origin policy. Exported or frozen content must not require host-specific transport URLs.
 
 **Review gate:** A referenced document survives its originating socket disconnecting. Cache headers match content class. A fetch from an unauthorized origin receives no cross-origin grant. The substrate resource pipeline serves modules, styles, CSS assets, and fonts through the same content path.
 
 ### W5: Deployment profiles and public origin
+
+_Status: implemented and awaiting review._
 
 Loopback-only startup may derive the public origin from the bound address. Any non-loopback startup requires an explicit public origin. Reject request authorities and browser origins outside the configured policy without trusting client-authored headers. Support the trusted-encrypted-network plaintext profile and the TLS-or-trusted-ingress profile. Keep non-loopback binding explicit. Apply the browser security policy (CSP) over only the origins the active client needs. A failed start closes every listener, socket, and runtime it opened.
 

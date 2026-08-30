@@ -7,7 +7,15 @@ read_when: "Writing server-host code, or deciding that a capability is server di
 
 The server is a concrete host composition. It owns browser-visible routing, physical transports, listener and process lifecycle, public-origin policy, private workspace registration, and server-specific browser bootstraps. It composes `@uix/host`, `@uix/runtime`, and `@uix/client`. It never imports Electron or an app composition.
 
-The current host starts on loopback with zero active workspace runtimes. Build it with `npm run build:server`, then run `npm run start:server`. The distribution includes the author API source used to resolve `@uix/api` imports from registered workspaces outside the installation. Run `npm run start:server -- --help` for the declared environment contract. The process reads `server.workspaces.json` from its current directory unless `UIX_SERVER_REGISTRY` names another file. `UIX_SERVER_PORT` defaults to `3000`, `UIX_SERVER_DATA_DIR` defaults to `.uix-server`, and `UIX_PUBLIC_ORIGIN` defaults to the matching loopback origin. The data directory owns the server deployment's Pi profile. Registered workspaces share that profile, which remains separate from their state roots.
+The server starts on loopback with zero active workspace runtimes. Build it with `npm run build:server`, then run `npm run start:server`. The distribution includes the author API source used to resolve `@uix/api` imports from registered workspaces outside the installation. Run `npm run start:server -- --help` for the declared environment contract. The process reads `server.workspaces.json` from its current directory unless `UIX_SERVER_REGISTRY` names another file. `UIX_SERVER_HOST` defaults to `127.0.0.1`, `UIX_SERVER_PORT` defaults to `3000`, and `UIX_SERVER_DATA_DIR` defaults to `.uix-server`. The data directory owns the server deployment's Pi profile. Registered workspaces share that profile, which remains separate from their state roots.
+
+`UIX_SERVER_PROFILE` selects one explicit deployment policy:
+
+- `loopback` is the default. It requires a loopback listener and public origin. When `UIX_PUBLIC_ORIGIN` is absent, the host derives the matching HTTP origin from its listener configuration.
+- `trusted-network` uses plaintext HTTP only on a deployment-provided encrypted trusted network. It requires an explicit `UIX_PUBLIC_ORIGIN` and explicit `UIX_SERVER_HOST` for non-loopback binding.
+- `tls` requires an explicit browser-visible HTTPS origin. TLS may terminate at trusted ingress. The ingress-to-host connection must remain inside the deployment's trusted boundary.
+
+Every request authority must match `UIX_PUBLIC_ORIGIN`. A supplied browser `Origin` must match it too. The host ignores forwarding headers, so trusted ingress must preserve the public `Host` authority rather than asking UIX to infer it.
 
 A registry is a boot-loaded snapshot. Relative manifest references resolve from the registry file:
 

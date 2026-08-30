@@ -1,4 +1,7 @@
+import { Buffer } from "node:buffer";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { request as requestHttp } from "node:http";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -58,8 +61,17 @@ describe("server host launcher", () => {
     });
     const privateAddress = await host.listen({ host: "127.0.0.1", port: 0 });
 
-    const response = await fetch(`${privateAddress}/api/catalog`);
+    const response = await requestServer(
+      privateAddress,
+      "/api/catalog",
+      "https://public.example:9443",
+    );
     const catalog = parseWorkspaceCatalog(await response.json());
+    const workspacePage = await requestServer(
+      privateAddress,
+      "/workspaces/reference",
+      "https://public.example:9443",
+    );
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
@@ -76,17 +88,68 @@ describe("server host launcher", () => {
       ],
     });
     expect(JSON.stringify(catalog)).not.toContain(fixture.root);
+    expect(workspacePage.headers.get("content-security-policy")).toContain(
+      "connect-src 'self' wss://public.example:9443",
+    );
+  });
+
+  it("rejects request authorities and browser origins outside public policy", async () => {
+    const fixture = await createFixture();
+    const bootWorkspace = vi.fn(rejectWorkspaceBoot);
+    await using host = await createServerHost({
+      registryPath: fixture.registryPath,
+      publicOrigin: "https://uix.example",
+      assetRoot: fixture.assetRoot,
+      bootWorkspace,
+    });
+    const privateAddress = await host.listen({ host: "127.0.0.1", port: 0 });
+
+    const wrongAuthority = await requestServer(
+      privateAddress,
+      "/api/catalog",
+      "https://uix.example",
+      undefined,
+      "private.internal:3000",
+    );
+    expect(wrongAuthority.status).toBe(421);
+    expect(await wrongAuthority.json()).toEqual({
+      code: "public_authority_mismatch",
+      message: "Request authority does not match the configured public origin",
+    });
+
+    const wrongOrigin = await requestServer(
+      privateAddress,
+      "/api/catalog",
+      "https://uix.example",
+      "https://other.example",
+    );
+    expect(wrongOrigin.status).toBe(403);
+    expect(wrongOrigin.headers.get("cache-control")).toBe("no-store");
+    expect(await wrongOrigin.json()).toEqual({
+      code: "browser_origin_mismatch",
+      message: "Browser origin does not match the configured public origin",
+    });
+
+    const rejectedContent = await requestServer(
+      privateAddress,
+      "/workspaces/reference/resources/reference/reports/document",
+      "https://uix.example",
+      "https://other.example",
+    );
+    expect(rejectedContent.status).toBe(403);
+    expect(bootWorkspace).not.toHaveBeenCalled();
   });
 
   it("serves the shared launcher shell and its built assets", async () => {
     const fixture = await createFixture();
+    const listener = await reserveLoopbackListener();
     await using host = await createServerHost({
       registryPath: fixture.registryPath,
-      publicOrigin: "http://127.0.0.1:3000",
+      publicOrigin: listener.origin,
       assetRoot: fixture.assetRoot,
       bootWorkspace: rejectWorkspaceBoot,
     });
-    const address = await host.listen({ host: "127.0.0.1", port: 0 });
+    const address = await host.listen(listener.options);
 
     const [
       page,
@@ -147,7 +210,7 @@ describe("server host launcher", () => {
       "content-security-policy",
     );
     expect(workspaceContentSecurityPolicy).toContain(
-      "connect-src 'self' ws://127.0.0.1:3000",
+      `connect-src 'self' ${listener.origin.replace(/^http/, "ws")}`,
     );
     expect(workspaceContentSecurityPolicy).toContain("frame-src 'self'");
     expect(workspaceContentSecurityPolicy).toContain("font-src 'self'");
@@ -208,13 +271,14 @@ describe("server host launcher", () => {
           ...dependencies,
         }),
     );
+    const listener = await reserveLoopbackListener();
     await using host = await createServerHost({
       registryPath: fixture.registryPath,
-      publicOrigin: "https://uix.example",
+      publicOrigin: listener.origin,
       assetRoot: fixture.assetRoot,
       bootWorkspace,
     });
-    const address = await host.listen({ host: "127.0.0.1", port: 0 });
+    const address = await host.listen(listener.options);
     const logicalUrl = "uix-resource://reference/reports/document/weekly";
 
     const response = await fetch(
@@ -229,6 +293,7 @@ describe("server host launcher", () => {
 
   it("lazily owns one fresh or named session attachment per WebSocket connection", async () => {
     const fixture = await createFixture();
+    const listener = await reserveLoopbackListener();
     const bootWorkspace = vi.fn(
       (
         registered: RegisteredWorkspace,
@@ -243,11 +308,11 @@ describe("server host launcher", () => {
     );
     await using host = await createServerHost({
       registryPath: fixture.registryPath,
-      publicOrigin: "http://127.0.0.1:3000",
+      publicOrigin: listener.origin,
       assetRoot: fixture.assetRoot,
       bootWorkspace,
     });
-    const address = await host.listen({ host: "127.0.0.1", port: 0 });
+    const address = await host.listen(listener.options);
     const webSocketAddress = address.replace(/^http/, "ws");
 
     await fetch(`${address}/workspaces/reference`);
@@ -311,6 +376,7 @@ describe("server host launcher", () => {
 
   it("keeps an in-flight content fetch alive after its originating socket disconnects", async () => {
     const fixture = await createFixture();
+    const listener = await reserveLoopbackListener();
     const resourceStarted = createDeferred();
     const resourceRelease = createDeferred();
     const runtimeDisposal = vi.fn(() => Promise.resolve());
@@ -351,18 +417,18 @@ describe("server host launcher", () => {
     );
     await using host = await createServerHost({
       registryPath: fixture.registryPath,
-      publicOrigin: "https://uix.example",
+      publicOrigin: listener.origin,
       assetRoot: fixture.assetRoot,
       bootWorkspace,
     });
-    const address = await host.listen({ host: "127.0.0.1", port: 0 });
+    const address = await host.listen(listener.options);
     const socket = await openWorkspaceWebSocket(
       `${address.replace(/^http/, "ws")}/workspaces/reference`,
     );
     const logicalUrl = "uix-resource://reference/reports/document/weekly?v=abc";
     const fetchPromise = fetch(
       resolveServerResourceUrl(address, "reference", logicalUrl),
-      { headers: { Origin: "https://unauthorized.example" } },
+      { headers: { Origin: listener.origin } },
     );
 
     await resourceStarted.promise;
@@ -375,7 +441,9 @@ describe("server host launcher", () => {
     expect(response.headers.get("cache-control")).toBe(
       "public, max-age=31536000, immutable",
     );
-    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+    expect(response.headers.get("access-control-allow-origin")).toBe(
+      listener.origin,
+    );
     expect(response.headers.get("access-control-allow-credentials")).toBeNull();
     expect(response.headers.get("vary")).toBe("Accept-Encoding, Origin");
     await vi.waitFor(() => {
@@ -384,11 +452,11 @@ describe("server host launcher", () => {
 
     const admittedOriginResponse = await fetch(
       resolveServerResourceUrl(address, "reference", logicalUrl),
-      { headers: { Origin: "https://uix.example" } },
+      { headers: { Origin: listener.origin } },
     );
     expect(
       admittedOriginResponse.headers.get("access-control-allow-origin"),
-    ).toBe("https://uix.example");
+    ).toBe(listener.origin);
     expect(admittedOriginResponse.headers.get("vary")).toBe(
       "Accept-Encoding, Origin",
     );
@@ -396,6 +464,7 @@ describe("server host launcher", () => {
 
   it("retains workspace ownership until attachment creation settles after disconnect", async () => {
     const fixture = await createFixture();
+    const listener = await reserveLoopbackListener();
     const attachmentStarted = createDeferred();
     const attachmentCreation = createDeferred<CreatedAttachment>();
     const runtimeDisposal = vi.fn(() => Promise.resolve());
@@ -407,11 +476,11 @@ describe("server host launcher", () => {
     );
     await using host = await createServerHost({
       registryPath: fixture.registryPath,
-      publicOrigin: "http://127.0.0.1:3000",
+      publicOrigin: listener.origin,
       assetRoot: fixture.assetRoot,
       bootWorkspace: () => Promise.resolve(runtime),
     });
-    const address = await host.listen({ host: "127.0.0.1", port: 0 });
+    const address = await host.listen(listener.options);
     const socket = new WebSocket(
       `${address.replace(/^http/, "ws")}/workspaces/reference`,
     );
@@ -428,6 +497,78 @@ describe("server host launcher", () => {
     });
   });
 });
+
+async function reserveLoopbackListener(): Promise<{
+  readonly origin: string;
+  readonly options: { readonly host: string; readonly port: number };
+}> {
+  const server = createServer();
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Loopback listener did not expose a TCP port");
+  }
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+  return {
+    origin: `http://127.0.0.1:${String(address.port)}`,
+    options: { host: "127.0.0.1", port: address.port },
+  };
+}
+
+async function requestServer(
+  privateAddress: string,
+  path: string,
+  publicOrigin: string,
+  origin?: string,
+  authority?: string,
+): Promise<Response> {
+  const target = new URL(path, privateAddress);
+  const publicUrl = new URL(publicOrigin);
+  return new Promise<Response>((resolve, reject) => {
+    const request = requestHttp(
+      target,
+      {
+        headers: {
+          Host: authority ?? publicUrl.host,
+          ...(origin ? { Origin: origin } : {}),
+        },
+      },
+      (response) => {
+        const chunks: Uint8Array[] = [];
+        response.on("data", (chunk: Uint8Array) => chunks.push(chunk));
+        response.once("error", reject);
+        response.once("end", () => {
+          const headers = new Headers();
+          for (let index = 0; index < response.rawHeaders.length; index += 2) {
+            const name = response.rawHeaders[index];
+            const value = response.rawHeaders[index + 1];
+            if (name && value) headers.append(name, value);
+          }
+          resolve(
+            new Response(Buffer.concat(chunks), {
+              status: response.statusCode,
+              statusText: response.statusMessage,
+              headers,
+            }),
+          );
+        });
+      },
+    );
+    request.once("error", reject);
+    request.end();
+  });
+}
 
 async function openWorkspaceWebSocket(location: string): Promise<{
   readonly socket: WebSocket;

@@ -72,6 +72,8 @@ describe("server startup", () => {
 
     const result = await startServer({
       environment: {
+        UIX_SERVER_PROFILE: "tls",
+        UIX_SERVER_HOST: "0.0.0.0",
         UIX_SERVER_PORT: "4312",
         UIX_SERVER_REGISTRY: "config/workspaces.json",
         UIX_PUBLIC_ORIGIN: "https://uix.example",
@@ -85,6 +87,7 @@ describe("server startup", () => {
     expect(result).toEqual({
       ok: true,
       host,
+      profile: "tls",
       address: "http://127.0.0.1:4312",
       publicOrigin: "https://uix.example",
       registryPath: join("/private/server", "config/workspaces.json"),
@@ -96,7 +99,7 @@ describe("server startup", () => {
       assetRoot: "/private/assets",
     });
     expect(createHost.mock.calls[0]?.[0]?.bootWorkspace).toBeTypeOf("function");
-    expect(listen).toHaveBeenCalledWith({ host: "127.0.0.1", port: 4312 });
+    expect(listen).toHaveBeenCalledWith({ host: "0.0.0.0", port: 4312 });
   });
 });
 

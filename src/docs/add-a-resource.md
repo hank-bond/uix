@@ -71,7 +71,7 @@ export const feature = defineFeature({
 });
 ```
 
-`ResourceRequestContext` holds the original `Request`, parsed path parameters, and the parsed query value. The handler returns a standard `Response`. The registry resolves owner-scoped ids, rejects duplicate claims, and parses untrusted logical URLs before calling feature code, so your handler receives validated values. A response without an explicit cache policy defaults to `no-store` on the server. Use immutable caching only when the URL names exact bytes or a specific revision.
+`ResourceRequestContext` holds the original `Request`, parsed path parameters, and the parsed query value. The handler returns a standard `Response`. The registry resolves owner-scoped ids, rejects duplicate claims, and parses untrusted logical URLs before calling feature code, so your handler receives validated values. A response without an explicit cache policy defaults to `no-store` on the server. Use immutable caching only when the URL names exact bytes or a specific revision. The server strips feature-authored cross-origin grants and derives its grants from the configured public-origin policy.
 
 ## Create URLs and origins
 

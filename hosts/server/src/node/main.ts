@@ -1,4 +1,4 @@
-// Starts the loopback server host from environment-backed listener, registry, and public-origin configuration.
+// Starts the selected server deployment profile from environment-backed host configuration.
 
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -45,6 +45,7 @@ async function start(): Promise<void> {
 
   log.info(
     {
+      profile: result.profile,
       address: result.address,
       publicOrigin: result.publicOrigin,
       registryPath: result.registryPath,

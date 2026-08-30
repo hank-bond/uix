@@ -1,4 +1,4 @@
-// Composes one server host over Fastify routes, workspace supervision, and deterministic disposal.
+// Composes one public-origin-gated server host over Fastify routes, workspace supervision, and disposal.
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -16,7 +16,12 @@ import { createLogger } from "@uix/runtime/log";
 import type { ResourceTransportRegistrar } from "@uix/runtime/resource-registry";
 
 import { registerLauncherRoutes } from "./launcher-routes";
-import { normalizePublicOrigin, toWorkspaceLocation } from "./public-origin";
+import { setMutableResponseHeaders } from "./mutable-response";
+import {
+  derivePublicOriginRejection,
+  normalizePublicOrigin,
+  toWorkspaceLocation,
+} from "./public-origin";
 import { loadWorkspaceRegistry, type RegisteredWorkspace } from "./registry";
 import { registerWorkspaceResourceRoutes } from "./workspace-resource-routes";
 import { WorkspaceResourceTransport } from "./workspace-resource-transport";
@@ -111,6 +116,22 @@ export async function createServerHost(
   const app = Fastify({ logger: false });
 
   try {
+    app.addHook("onRequest", (request, reply, done) => {
+      const rejection = derivePublicOriginRejection(
+        publicOrigin,
+        request.headers.host,
+        request.headers.origin,
+      );
+      if (!rejection) {
+        done();
+        return;
+      }
+      setMutableResponseHeaders(reply);
+      void reply.code(rejection.status).send({
+        code: rejection.code,
+        message: rejection.message,
+      });
+    });
     await app.register(fastifyWebsocket, {
       options: { maxPayload: 1024 * 1024 },
       errorHandler(error, socket) {

@@ -14,14 +14,14 @@ A workspace content request independently acquires a workspace guard. It validat
 
 ### Source files
 
-- **[configuration.ts](./configuration.ts)** Declares, validates, normalizes, and documents the server process environment contract.
+- **[configuration.ts](./configuration.ts)** Defines the server deployment configuration and its environment contract.
 - **[launcher-routes.ts](./launcher-routes.ts)** Registers the server launcher's HTTP routes.
-- **[main.ts](./main.ts)** Starts the loopback server host from environment-backed listener, registry, and public-origin configuration.
+- **[main.ts](./main.ts)** Starts the selected server deployment profile from environment-backed host configuration.
 - **[mutable-response.ts](./mutable-response.ts)** Applies no-store and browser-hardening headers to mutable HTTP responses.
-- **[public-origin.ts](./public-origin.ts)** Normalizes deployment-authored public origins and derives canonical workspace locations from them.
+- **[public-origin.ts](./public-origin.ts)** Defines the server public-origin policy for requests and canonical locations.
 - **[registry.ts](./registry.ts)** Loads the private workspace registry and resolves its manifest-backed entries without booting workspace runtimes.
 - **[routes.ts](./routes.ts)** Defines the server host's browser-visible workspace routes and canonical path encoding.
-- **[server.ts](./server.ts)** Composes one server host over Fastify routes, workspace supervision, and deterministic disposal.
+- **[server.ts](./server.ts)** Composes one public-origin-gated server host over Fastify routes, workspace supervision, and disposal.
 - **[start.ts](./start.ts)** Starts one configured server host and cleans up failed listener admission.
 - **[websocket-wire-log.ts](./websocket-wire-log.ts)** Records server WebSocket crossings through one payload-policy boundary.
 - **[workspace-resource-routes.ts](./workspace-resource-routes.ts)** Serves logical workspace resources over HTTP with request-owned runtime authority.

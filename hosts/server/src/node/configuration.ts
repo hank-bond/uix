@@ -1,5 +1,6 @@
-// Declares, validates, normalizes, and documents the server process environment contract.
+// Defines the server deployment configuration and its environment contract.
 
+import { isIP } from "node:net";
 import { resolve } from "node:path";
 
 import { Type } from "typebox";
@@ -7,12 +8,36 @@ import { Value } from "typebox/value";
 
 import { normalizePublicOrigin } from "./public-origin";
 
+const DeploymentProfiles = ["loopback", "trusted-network", "tls"] as const;
+
+export type ServerDeploymentProfile = (typeof DeploymentProfiles)[number];
+
 const ServerEnvironmentSchema = Type.Object(
   {
+    UIX_SERVER_PROFILE: Type.Optional(
+      Type.Union(
+        DeploymentProfiles.map((profile) => Type.Literal(profile)),
+        {
+          title: "PROFILE",
+          description:
+            "Deployment profile: loopback, trusted-network plaintext, or browser-visible TLS.",
+          default: "loopback",
+        },
+      ),
+    ),
+    UIX_SERVER_HOST: Type.Optional(
+      Type.String({
+        title: "HOST",
+        description:
+          "Private listener address; non-loopback values require an explicit deployment profile and public origin.",
+        default: "127.0.0.1",
+        minLength: 1,
+      }),
+    ),
     UIX_SERVER_PORT: Type.Optional(
       Type.String({
         title: "PORT",
-        description: "Private loopback listener port.",
+        description: "Private listener port.",
         default: "3000",
         minLength: 1,
       }),
@@ -58,6 +83,8 @@ interface EnvironmentPropertyMetadata {
 }
 
 interface ServerEnvironment {
+  readonly UIX_SERVER_PROFILE?: ServerDeploymentProfile;
+  readonly UIX_SERVER_HOST?: string;
   readonly UIX_SERVER_PORT?: string;
   readonly UIX_SERVER_REGISTRY?: string;
   readonly UIX_SERVER_DATA_DIR?: string;
@@ -67,10 +94,11 @@ interface ServerEnvironment {
 interface ResolveServerConfigurationOptions {
   readonly environment: Readonly<Record<string, string | undefined>>;
   readonly cwd: string;
-  readonly hostAddress: string;
 }
 
 export interface ServerConfiguration {
+  readonly profile: ServerDeploymentProfile;
+  readonly hostAddress: string;
   readonly port: number;
   readonly registryPath: string;
   readonly piAppDataDir: string;
@@ -91,11 +119,13 @@ export function parseServerArguments(
   throw new Error(`Unknown server argument: ${arguments_.join(" ")}`);
 }
 
-/** Parse only the declared server variables and normalize their process-facing values. */
+/** Resolve the declared server variables into canonical process configuration. */
 export function resolveServerConfiguration(
   options: ResolveServerConfigurationOptions,
 ): ServerConfiguration {
   const environment = parseServerEnvironment(options.environment);
+  const profile = environment.UIX_SERVER_PROFILE ?? "loopback";
+  const hostAddress = environment.UIX_SERVER_HOST ?? "127.0.0.1";
   const port = parsePort(environment.UIX_SERVER_PORT ?? "3000");
   const registryPath = resolve(
     options.cwd,
@@ -106,11 +136,24 @@ export function resolveServerConfiguration(
     environment.UIX_SERVER_DATA_DIR ?? ".uix-server",
     "pi",
   );
+  const declaredPublicOrigin = environment.UIX_PUBLIC_ORIGIN;
   const publicOrigin = normalizePublicOrigin(
-    environment.UIX_PUBLIC_ORIGIN ??
-      `http://${options.hostAddress}:${String(port)}`,
+    declaredPublicOrigin ?? `http://${toUrlHost(hostAddress)}:${String(port)}`,
   );
-  return { port, registryPath, piAppDataDir, publicOrigin };
+  assertDeploymentProfile({
+    profile,
+    hostAddress,
+    publicOrigin,
+    hasDeclaredPublicOrigin: declaredPublicOrigin !== undefined,
+  });
+  return {
+    profile,
+    hostAddress,
+    port,
+    registryPath,
+    piAppDataDir,
+    publicOrigin,
+  };
 }
 
 /** Render command help from the same schema metadata used for validation. */
@@ -159,6 +202,57 @@ function parseServerEnvironment(
       { cause: error },
     );
   }
+}
+
+function assertDeploymentProfile(options: {
+  readonly profile: ServerDeploymentProfile;
+  readonly hostAddress: string;
+  readonly publicOrigin: string;
+  readonly hasDeclaredPublicOrigin: boolean;
+}): void {
+  const publicUrl = new URL(options.publicOrigin);
+  if (options.profile === "loopback") {
+    if (!isLoopbackHost(options.hostAddress)) {
+      throw new Error(
+        "Non-loopback binding requires UIX_SERVER_PROFILE and UIX_PUBLIC_ORIGIN",
+      );
+    }
+    if (!isLoopbackHost(publicUrl.hostname)) {
+      throw new Error(
+        "The loopback profile requires a loopback UIX_PUBLIC_ORIGIN",
+      );
+    }
+    return;
+  }
+
+  if (!options.hasDeclaredPublicOrigin) {
+    throw new Error(
+      `${options.profile} profile requires an explicit UIX_PUBLIC_ORIGIN`,
+    );
+  }
+  if (options.profile === "trusted-network") {
+    if (publicUrl.protocol !== "http:") {
+      throw new Error(
+        "The trusted-network profile requires a plaintext HTTP UIX_PUBLIC_ORIGIN",
+      );
+    }
+    return;
+  }
+  if (publicUrl.protocol !== "https:") {
+    throw new Error("The tls profile requires an HTTPS UIX_PUBLIC_ORIGIN");
+  }
+}
+
+function isLoopbackHost(host: string): boolean {
+  const normalized = host.toLowerCase().replace(/^\[|\]$/g, "");
+  if (normalized === "localhost" || normalized === "::1") return true;
+  if (isIP(normalized) !== 4) return false;
+  const firstOctet = Number(normalized.split(".")[0]);
+  return firstOctet === 127;
+}
+
+function toUrlHost(host: string): string {
+  return isIP(host) === 6 ? `[${host}]` : host;
 }
 
 function parsePort(value: string): number {

@@ -1,6 +1,9 @@
 // Starts one configured server host and cleans up failed listener admission.
 
-import { resolveServerConfiguration } from "./configuration";
+import {
+  resolveServerConfiguration,
+  type ServerDeploymentProfile,
+} from "./configuration";
 import type { CreateServerHostOptions, ServerHost } from "./server";
 import { createServerWorkspaceRuntime } from "./workspace-runtime";
 
@@ -9,7 +12,6 @@ interface StartServerOptions {
   readonly cwd: string;
   readonly assetRoot: string;
   readonly apiModuleDir: string;
-  readonly hostAddress?: string;
   readonly createHost: (
     options: CreateServerHostOptions,
   ) => Promise<ServerHost>;
@@ -18,6 +20,7 @@ interface StartServerOptions {
 export interface StartedServer {
   readonly ok: true;
   readonly host: ServerHost;
+  readonly profile: ServerDeploymentProfile;
   readonly address: string;
   readonly publicOrigin: string;
   readonly registryPath: string;
@@ -38,11 +41,9 @@ export async function startServer(
 ): Promise<ServerStartResult> {
   let host: ServerHost | undefined;
   try {
-    const hostAddress = options.hostAddress ?? "127.0.0.1";
     const configuration = resolveServerConfiguration({
       environment: options.environment,
       cwd: options.cwd,
-      hostAddress,
     });
     host = await options.createHost({
       registryPath: configuration.registryPath,
@@ -57,12 +58,13 @@ export async function startServer(
         }),
     });
     const address = await host.listen({
-      host: hostAddress,
+      host: configuration.hostAddress,
       port: configuration.port,
     });
     return {
       ok: true,
       host,
+      profile: configuration.profile,
       address,
       publicOrigin: configuration.publicOrigin,
       registryPath: configuration.registryPath,

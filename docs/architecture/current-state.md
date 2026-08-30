@@ -13,6 +13,8 @@ Electron boots one workspace per application instance. `UIX_WORKSPACE` can name 
 
 Without either target, the launcher opens recent manifests or scaffolds a workspace. Bare scaffolding copies editable passthrough Pi tools and writes an explicit manifest.
 
+The server host starts with zero active workspace runtimes and a boot-loaded read-only registry. Its default loopback profile derives a local public origin. Non-loopback binding requires either an explicit trusted-encrypted-network plaintext profile or a browser-visible TLS profile with an explicit public origin. Every HTTP and WebSocket request must use that configured public authority, and every supplied browser origin must match it. Canonical catalog locations, live CSP, content URLs, and cross-origin grants derive from the same policy without forwarding-header inference.
+
 `resolveWorkspace()` derives the state root, agent working directory, and manifest path from the workspace directory. Session and document state live under that root.
 
 ## Feature runtime
