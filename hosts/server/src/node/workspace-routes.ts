@@ -1,4 +1,4 @@
-// Binds workspace page routes and live connections to supervised workspace attachments.
+// Binds workspace page routes and WebSockets to supervised workspace attachments.
 
 import { type WebSocket } from "@fastify/websocket";
 import type { FastifyInstance, FastifyReply } from "fastify";
@@ -15,9 +15,10 @@ import {
   WorkspacePageRoute,
   WorkspaceSessionPageRoute,
 } from "./routes";
-import { createLiveReadyFrame } from "../live";
+import { bindWorkspaceWebSocket } from "./workspace-websocket";
+import { toWebSocketReadyFrame } from "../websocket-frames";
 
-const log = createLogger("server-live");
+const log = createLogger("server-websocket");
 
 interface WorkspaceRouteParams {
   readonly workspaceId: string;
@@ -30,10 +31,11 @@ export function registerWorkspaceRoutes(
   supervisor: WorkspaceSupervisor,
   workspaceHtml: string,
   workspaceScript: string,
+  workspaceStyles: string,
   publicOrigin: string,
 ): void {
   const contentSecurityPolicy =
-    createWorkspaceContentSecurityPolicy(publicOrigin);
+    deriveWorkspaceContentSecurityPolicy(publicOrigin);
   const serveWorkspace = (
     workspaceId: string,
     reply: FastifyReply,
@@ -60,7 +62,7 @@ export function registerWorkspaceRoutes(
     handler: (request, reply) =>
       serveWorkspace(request.params.workspaceId, reply),
     wsHandler: (socket, request) => {
-      acceptWorkspaceConnection(socket, request.params, registry, supervisor);
+      workspaceWebSocketHandler(socket, request.params, registry, supervisor);
     },
   });
   app.route<{ Params: WorkspaceRouteParams }>({
@@ -69,7 +71,7 @@ export function registerWorkspaceRoutes(
     handler: (request, reply) =>
       serveWorkspace(request.params.workspaceId, reply),
     wsHandler: (socket, request) => {
-      acceptWorkspaceConnection(socket, request.params, registry, supervisor);
+      workspaceWebSocketHandler(socket, request.params, registry, supervisor);
     },
   });
 
@@ -77,9 +79,13 @@ export function registerWorkspaceRoutes(
     setMutableResponseHeaders(reply);
     return reply.type("text/javascript; charset=utf-8").send(workspaceScript);
   });
+  app.get("/assets/workspace.css", (_request, reply) => {
+    setMutableResponseHeaders(reply);
+    return reply.type("text/css; charset=utf-8").send(workspaceStyles);
+  });
 }
 
-function acceptWorkspaceConnection(
+function workspaceWebSocketHandler(
   socket: WebSocket,
   params: WorkspaceRouteParams,
   registry: WorkspaceRegistry,
@@ -97,21 +103,26 @@ function acceptWorkspaceConnection(
     | Awaited<ReturnType<WorkspaceSupervisor["acquire"]>>
     | undefined;
   let connectionAttachment: Attachment | undefined;
+  let webSocketBinding: Disposable | undefined;
   let isClosed = false;
   const isConnectionClosed = (): boolean => isClosed;
+  const prematureMessageHandler = (): void => {
+    socket.close(1002, "WebSocket connection is not ready");
+  };
 
   const disposeConnectionOwnership = (): void => {
+    webSocketBinding?.[Symbol.dispose]();
+    webSocketBinding = undefined;
     connectionAttachment?.[Symbol.dispose]();
     connectionAttachment = undefined;
     connectionGuard?.[Symbol.dispose]();
     connectionGuard = undefined;
   };
+  socket.on("message", prematureMessageHandler);
   socket.once("close", () => {
     isClosed = true;
+    socket.off("message", prematureMessageHandler);
     disposeConnectionOwnership();
-  });
-  socket.on("message", () => {
-    socket.close(1003, "Live requests are unavailable");
   });
 
   void (async () => {
@@ -122,7 +133,7 @@ function acceptWorkspaceConnection(
     try {
       workspaceGuard = await supervisor.acquire(
         registered.id,
-        `server-live:${registered.id}`,
+        `server-websocket:${registered.id}`,
       );
       if (isConnectionClosed()) return;
 
@@ -142,16 +153,18 @@ function acceptWorkspaceConnection(
       workspaceGuard = undefined;
       connectionAttachment = acceptedAttachment;
       acceptedAttachment = undefined;
-      socket.send(
-        JSON.stringify(
-          createLiveReadyFrame(
-            connectionAttachment.target.sessionId,
-            toWorkspaceSessionPath(
-              registered.id,
-              connectionAttachment.target.sessionId,
-            ),
-          ),
+      const readyFrame = toWebSocketReadyFrame(
+        connectionAttachment.target.sessionId,
+        toWorkspaceSessionPath(
+          registered.id,
+          connectionAttachment.target.sessionId,
         ),
+      );
+      socket.off("message", prematureMessageHandler);
+      webSocketBinding = bindWorkspaceWebSocket(
+        socket,
+        connectionAttachment,
+        readyFrame,
       );
     } catch (error) {
       disposeConnectionOwnership();
@@ -161,7 +174,7 @@ function acceptWorkspaceConnection(
           workspaceId: registered.id,
           sessionId: params.sessionId,
         },
-        "workspace_live_open_failed",
+        "workspace_websocket_open_failed",
       );
       if (!isConnectionClosed()) {
         socket.close(1011, "Unable to open workspace");
@@ -173,12 +186,13 @@ function acceptWorkspaceConnection(
   })();
 }
 
-function createWorkspaceContentSecurityPolicy(publicOrigin: string): string {
+function deriveWorkspaceContentSecurityPolicy(publicOrigin: string): string {
   const liveOrigin = new URL(publicOrigin);
   liveOrigin.protocol = liveOrigin.protocol === "https:" ? "wss:" : "ws:";
   return [
     "default-src 'none'",
     "script-src 'self'",
+    "style-src 'self'",
     `connect-src 'self' ${liveOrigin.origin}`,
     "base-uri 'none'",
     "form-action 'none'",

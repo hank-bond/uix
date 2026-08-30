@@ -8,7 +8,7 @@ import {
   vi,
 } from "vitest";
 
-import { openWorkspaceConnection } from "./workspace-connection";
+import { openWorkspaceWebSocket } from "./workspace-websocket";
 
 class FakeWebSocket extends EventTarget {
   static readonly instances: FakeWebSocket[] = [];
@@ -39,11 +39,11 @@ type ReplaceState = (
   url?: string | URL | null,
 ) => void;
 
-interface Fixture {
+interface WorkspaceWebSocketFixture {
   readonly socket: FakeWebSocket;
   readonly status: { textContent: string };
   readonly replaceState: Mock<ReplaceState>;
-  readonly connection: Disposable;
+  readonly workspaceWebSocket: Disposable;
 }
 
 beforeEach(() => {
@@ -54,7 +54,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function fixture(pathname: string): Fixture {
+function createWorkspaceWebSocketFixture(
+  pathname: string,
+): WorkspaceWebSocketFixture {
   const status = { textContent: "Connecting…" };
   const replaceState = vi.fn<ReplaceState>();
   vi.stubGlobal("document", {
@@ -70,18 +72,17 @@ function fixture(pathname: string): Fixture {
   });
   vi.stubGlobal("WebSocket", FakeWebSocket);
 
-  const connection = openWorkspaceConnection();
+  const workspaceWebSocket = openWorkspaceWebSocket();
   const socket = FakeWebSocket.instances.at(-1);
   if (!socket) throw new Error("WebSocket was not constructed");
   expect(socket.location).toBe(`wss://uix.example${pathname}`);
-  return { socket, status, replaceState, connection };
+  return { socket, status, replaceState, workspaceWebSocket };
 }
 
-describe("server workspace connection", () => {
+describe("browser workspace WebSocket", () => {
   it("canonicalizes a workspace-only location after the server accepts a new session", () => {
-    const { socket, status, replaceState, connection } = fixture(
-      "/workspaces/reference",
-    );
+    const { socket, status, replaceState, workspaceWebSocket } =
+      createWorkspaceWebSocketFixture("/workspaces/reference");
 
     socket.emit("open");
     expect(status.textContent).toBe("Opening workspace…");
@@ -100,14 +101,14 @@ describe("server workspace connection", () => {
       "https://uix.example/workspaces/reference/sessions/session-1",
     );
 
-    connection[Symbol.dispose]();
-    connection[Symbol.dispose]();
+    workspaceWebSocket[Symbol.dispose]();
+    workspaceWebSocket[Symbol.dispose]();
     expect(socket.close).toHaveBeenCalledOnce();
     expect(socket.close).toHaveBeenCalledWith(1000, "Page closed");
   });
 
   it("uses the server's canonical route for an accepted named session", () => {
-    const { socket, status, replaceState } = fixture(
+    const { socket, status, replaceState } = createWorkspaceWebSocketFixture(
       "/workspaces/reference/sessions/session-1",
     );
 
@@ -126,7 +127,9 @@ describe("server workspace connection", () => {
   });
 
   it("rejects a cross-origin canonical path or malformed ready frame", () => {
-    const crossOrigin = fixture("/workspaces/reference/sessions/session-1");
+    const crossOrigin = createWorkspaceWebSocketFixture(
+      "/workspaces/reference/sessions/session-1",
+    );
     crossOrigin.socket.emitMessage(
       JSON.stringify({
         type: "ready",
@@ -139,22 +142,24 @@ describe("server workspace connection", () => {
     expect(crossOrigin.status.textContent).toBe("Unable to open workspace");
     expect(crossOrigin.socket.close).toHaveBeenCalledWith(
       1002,
-      "Invalid ready frame",
+      "Invalid WebSocket ready frame",
     );
     crossOrigin.socket.emit("close");
     expect(crossOrigin.status.textContent).toBe("Unable to open workspace");
 
-    const malformed = fixture("/workspaces/reference");
+    const malformed = createWorkspaceWebSocketFixture("/workspaces/reference");
     malformed.socket.emitMessage("{}");
     expect(malformed.replaceState).not.toHaveBeenCalled();
     expect(malformed.socket.close).toHaveBeenCalledWith(
       1002,
-      "Invalid ready frame",
+      "Invalid WebSocket ready frame",
     );
   });
 
   it("does not accept a target when canonical history replacement fails", () => {
-    const { socket, status, replaceState } = fixture("/workspaces/reference");
+    const { socket, status, replaceState } = createWorkspaceWebSocketFixture(
+      "/workspaces/reference",
+    );
     replaceState.mockImplementation(() => {
       throw new Error("History is unavailable");
     });

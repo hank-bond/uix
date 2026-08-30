@@ -575,7 +575,11 @@ export default tseslint.config(
     },
   },
   {
-    files: ["src/main/ipc.ts", "src/main/ipc-wire-log.ts"],
+    files: [
+      "src/main/ipc.ts",
+      "src/main/ipc-wire-log.ts",
+      "hosts/server/src/node/websocket-wire-log.ts",
+    ],
     rules: {
       "uix/structured-log-call": "off",
     },

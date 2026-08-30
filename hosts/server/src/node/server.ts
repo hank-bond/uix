@@ -19,7 +19,7 @@ import { normalizePublicOrigin, toWorkspaceLocation } from "./public-origin";
 import { loadWorkspaceRegistry, type RegisteredWorkspace } from "./registry";
 import { registerWorkspaceRoutes } from "./workspace-routes";
 
-const log = createLogger("server-live");
+const log = createLogger("server-websocket");
 
 export interface CreateServerHostOptions {
   readonly registryPath: string;
@@ -50,6 +50,7 @@ export async function createServerHost(
     launcherStyles,
     workspaceHtml,
     workspaceScript,
+    workspaceStyles,
   ] = await Promise.all([
     loadWorkspaceRegistry(options.registryPath),
     readFile(join(options.assetRoot, "index.html"), "utf8"),
@@ -57,6 +58,7 @@ export async function createServerHost(
     readFile(join(options.assetRoot, "assets/launcher.css"), "utf8"),
     readFile(join(options.assetRoot, "workspace.html"), "utf8"),
     readFile(join(options.assetRoot, "assets/workspace.js"), "utf8"),
+    readFile(join(options.assetRoot, "assets/workspace.css"), "utf8"),
   ]);
   const publicOrigin = normalizePublicOrigin(options.publicOrigin);
   const catalog: WorkspaceCatalog = Object.freeze({
@@ -80,8 +82,8 @@ export async function createServerHost(
     await app.register(fastifyWebsocket, {
       options: { maxPayload: 1024 * 1024 },
       errorHandler(error, socket) {
-        log.error({ err: error }, "live_handler_failed");
-        socket.close(1011, "Live connection failed");
+        log.error({ err: error }, "websocket_handler_failed");
+        socket.close(1011, "WebSocket connection failed");
       },
     });
     registerLauncherRoutes(
@@ -97,6 +99,7 @@ export async function createServerHost(
       supervisor,
       workspaceHtml,
       workspaceScript,
+      workspaceStyles,
       publicOrigin,
     );
   } catch (error) {

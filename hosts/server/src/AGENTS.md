@@ -1,10 +1,10 @@
 ---
-summary: "Server-owned process and browser code implementing the HTTP host and mounting shared clients over server adapters."
+summary: "Server-owned process and browser code implementing HTTP and WebSocket transport while mounting shared clients over server adapters."
 ---
 
 # Server source
 
-The process side owns configuration, private workspace resolution, public locations, HTTP routes, and listener lifetime. The browser side mounts the shared launcher and owns workspace handshake and canonicalization. Neither side changes workspace or feature contracts.
+The process side owns configuration, private workspace resolution, public locations, HTTP routes, WebSocket framing, and listener lifetime. The browser side mounts the shared launcher and workspace clients over server adapters. Neither side changes workspace or feature contracts.
 
 <!-- INDEX:START -->
 
@@ -12,11 +12,11 @@ The process side owns configuration, private workspace resolution, public locati
 
 ### Directories
 
-- **[browser/](./browser/AGENTS.md)** Browser-side server bootstraps for the catalog launcher and the stateless workspace shell's accepted live session.
-- **[node/](./node/AGENTS.md)** Node-side server composition: boot-loaded workspace registration, public locations, launcher HTTP routes, listener startup, and deterministic host disposal.
+- **[browser/](./browser/AGENTS.md)** Browser-side server bootstraps for the catalog launcher and the shared workspace client over its WebSocket adapter.
+- **[node/](./node/AGENTS.md)** Node-side server composition: boot-loaded workspace registration, HTTP routes, attachment-bound WebSocket dispatch, listener startup, and deterministic disposal.
 
 ### Source files
 
-- **[live.ts](./live.ts)** Defines the server live transport's accepted-connection handshake frame.
+- **[websocket-frames.ts](./websocket-frames.ts)** Defines and validates the server WebSocket transport's physical frames.
 
 <!-- INDEX:END -->

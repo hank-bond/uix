@@ -16,12 +16,15 @@ import { toAttachmentId, toSessionId, toWorkspaceId } from "@uix/runtime";
 import type { RegisteredWorkspace } from "./registry";
 import { createServerHost } from "./server";
 import { createServerWorkspaceRuntime } from "./workspace-runtime";
-import { type LiveReadyFrame, parseLiveReadyFrame } from "../live";
+import {
+  parseWebSocketReadyFrame,
+  type WebSocketReadyFrame,
+} from "../websocket-frames";
 
 const temporaryDirectories: string[] = [];
 const apiModuleDir = join(__dirname, "../../../../packages/api/src");
 
-function deferred<T = void>(): {
+function createDeferred<T = void>(): {
   readonly promise: Promise<T>;
   resolve(value: T): void;
 } {
@@ -90,6 +93,7 @@ describe("server host launcher", () => {
       workspace,
       canonical,
       workspaceScript,
+      workspaceStyles,
       missing,
     ] = await Promise.all([
       fetch(`${address}/`),
@@ -98,6 +102,7 @@ describe("server host launcher", () => {
       fetch(`${address}/workspaces/reference`),
       fetch(`${address}/workspaces/reference/sessions/session-1`),
       fetch(`${address}/assets/workspace.js`),
+      fetch(`${address}/assets/workspace.css`),
       fetch(`${address}/workspaces/missing`),
     ]);
 
@@ -121,6 +126,7 @@ describe("server host launcher", () => {
       workspace,
       canonical,
       workspaceScript,
+      workspaceStyles,
     ]) {
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(response.headers.get("referrer-policy")).toBe("no-referrer");
@@ -133,6 +139,8 @@ describe("server host launcher", () => {
     expect(await workspace.text()).toContain('id="status"');
     expect(await canonical.text()).toContain('id="status"');
     expect(await workspaceScript.text()).toBe("workspace-script");
+    expect(await workspaceStyles.text()).toBe("workspace-styles");
+    expect(workspaceStyles.headers.get("content-type")).toContain("text/css");
     expect(workspace.headers.get("content-security-policy")).toContain(
       "connect-src 'self' ws://127.0.0.1:3000",
     );
@@ -143,7 +151,7 @@ describe("server host launcher", () => {
     });
   });
 
-  it("lazily owns one fresh or named session attachment per live connection", async () => {
+  it("lazily owns one fresh or named session attachment per WebSocket connection", async () => {
     const fixture = await createFixture();
     const bootWorkspace = vi.fn((registered: RegisteredWorkspace) =>
       createServerWorkspaceRuntime({
@@ -159,16 +167,16 @@ describe("server host launcher", () => {
       bootWorkspace,
     });
     const address = await host.listen({ host: "127.0.0.1", port: 0 });
-    const liveAddress = address.replace(/^http/, "ws");
+    const webSocketAddress = address.replace(/^http/, "ws");
 
     await fetch(`${address}/workspaces/reference`);
     expect(bootWorkspace).not.toHaveBeenCalled();
 
-    const first = await openLiveConnection(
-      `${liveAddress}/workspaces/reference`,
+    const first = await openWorkspaceWebSocket(
+      `${webSocketAddress}/workspaces/reference`,
     );
-    const second = await openLiveConnection(
-      `${liveAddress}/workspaces/reference`,
+    const second = await openWorkspaceWebSocket(
+      `${webSocketAddress}/workspaces/reference`,
     );
     expect(first.ready.sessionId).not.toBe(second.ready.sessionId);
     expect(first.ready.canonicalPath).toBe(
@@ -179,32 +187,51 @@ describe("server host launcher", () => {
     );
     expect(bootWorkspace).toHaveBeenCalledOnce();
 
-    const peer = await openLiveConnection(
-      `${liveAddress}/workspaces/reference/sessions/${first.ready.sessionId}`,
+    await expect(
+      sendWebSocketRequest(first.socket, "request-1", "uix.surfaces"),
+    ).resolves.toMatchObject({
+      type: "response",
+      id: "request-1",
+      value: { surfaces: [] },
+    });
+    await expect(
+      sendWebSocketRequest(first.socket, "request-2", "missing.channel", {
+        secret: "not echoed",
+      }),
+    ).resolves.toEqual({
+      type: "error",
+      id: "request-2",
+      code: "unknown_channel",
+      message: "Unknown channel missing.channel",
+      isTerminal: true,
+    });
+
+    const peer = await openWorkspaceWebSocket(
+      `${webSocketAddress}/workspaces/reference/sessions/${first.ready.sessionId}`,
     );
     expect(peer.ready).toEqual(first.ready);
     expect(bootWorkspace).toHaveBeenCalledOnce();
 
-    await closeLiveConnection(first.socket);
+    await closeWebSocket(first.socket);
     expect(second.socket.readyState).toBe(WebSocket.OPEN);
     expect(peer.socket.readyState).toBe(WebSocket.OPEN);
     await Promise.all([
-      closeLiveConnection(second.socket),
-      closeLiveConnection(peer.socket),
+      closeWebSocket(second.socket),
+      closeWebSocket(peer.socket),
     ]);
 
-    const reopened = await openLiveConnection(
-      `${liveAddress}/workspaces/reference/sessions/${first.ready.sessionId}`,
+    const reopened = await openWorkspaceWebSocket(
+      `${webSocketAddress}/workspaces/reference/sessions/${first.ready.sessionId}`,
     );
     expect(reopened.ready.sessionId).toBe(first.ready.sessionId);
     expect(bootWorkspace).toHaveBeenCalledTimes(2);
-    await closeLiveConnection(reopened.socket);
+    await closeWebSocket(reopened.socket);
   });
 
   it("retains workspace ownership until attachment creation settles after disconnect", async () => {
     const fixture = await createFixture();
-    const attachmentStarted = deferred();
-    const attachmentCreation = deferred<CreatedAttachment>();
+    const attachmentStarted = createDeferred();
+    const attachmentCreation = createDeferred<CreatedAttachment>();
     const runtimeDisposal = vi.fn(() => Promise.resolve());
     const runtime = createDeferredWorkspaceRuntime(
       toWorkspaceId("reference"),
@@ -224,7 +251,7 @@ describe("server host launcher", () => {
     );
 
     await attachmentStarted.promise;
-    await closeLiveConnection(socket);
+    await closeWebSocket(socket);
     expect(runtimeDisposal).not.toHaveBeenCalled();
 
     const created = createAttachmentFixture(runtime.workspaceId);
@@ -236,50 +263,88 @@ describe("server host launcher", () => {
   });
 });
 
-async function openLiveConnection(location: string): Promise<{
+async function openWorkspaceWebSocket(location: string): Promise<{
   readonly socket: WebSocket;
-  readonly ready: LiveReadyFrame;
+  readonly ready: WebSocketReadyFrame;
 }> {
   const socket = new WebSocket(location);
-  const ready = await new Promise<LiveReadyFrame>((resolve, reject) => {
-    socket.addEventListener(
-      "message",
-      (event) => {
-        try {
-          resolve(
-            parseLiveReadyFrame(JSON.parse(String(event.data)) as unknown),
+  const readyFrame = await new Promise<WebSocketReadyFrame>(
+    (resolve, reject) => {
+      socket.addEventListener(
+        "message",
+        (event) => {
+          try {
+            resolve(
+              parseWebSocketReadyFrame(
+                JSON.parse(String(event.data)) as unknown,
+              ),
+            );
+          } catch (error) {
+            reject(error instanceof Error ? error : new Error(String(error)));
+          }
+        },
+        { once: true },
+      );
+      socket.addEventListener(
+        "error",
+        () => {
+          reject(new Error(`WebSocket connection failed: ${location}`));
+        },
+        { once: true },
+      );
+      socket.addEventListener(
+        "close",
+        (event) => {
+          reject(
+            new Error(
+              `WebSocket connection closed before ready: ${String(event.code)} ${event.reason}`,
+            ),
           );
-        } catch (error) {
-          reject(error instanceof Error ? error : new Error(String(error)));
-        }
-      },
-      { once: true },
-    );
-    socket.addEventListener(
-      "error",
-      () => {
-        reject(new Error(`Live connection failed: ${location}`));
-      },
-      { once: true },
-    );
-    socket.addEventListener(
-      "close",
-      (event) => {
-        reject(
-          new Error(
-            `Live connection closed before ready: ${String(event.code)} ${event.reason}`,
-          ),
-        );
-      },
-      { once: true },
-    );
-  });
-  return { socket, ready };
+        },
+        { once: true },
+      );
+    },
+  );
+  return { socket, ready: readyFrame };
 }
 
-async function closeLiveConnection(socket: WebSocket): Promise<void> {
+async function sendWebSocketRequest(
+  socket: WebSocket,
+  requestId: string,
+  channel: string,
+  payload?: unknown,
+): Promise<unknown> {
+  const responseFrame = new Promise<unknown>((resolve) => {
+    const onMessage = (event: MessageEvent): void => {
+      const frame = JSON.parse(String(event.data)) as {
+        readonly type?: unknown;
+        readonly id?: unknown;
+      };
+      if (
+        frame.id !== requestId ||
+        (frame.type !== "response" && frame.type !== "error")
+      ) {
+        return;
+      }
+      socket.removeEventListener("message", onMessage);
+      resolve(frame);
+    };
+    socket.addEventListener("message", onMessage);
+  });
+  socket.send(
+    JSON.stringify({
+      type: "request",
+      id: requestId,
+      channel,
+      ...(payload === undefined ? {} : { payload }),
+    }),
+  );
+  return responseFrame;
+}
+
+async function closeWebSocket(socket: WebSocket): Promise<void> {
   if (socket.readyState === WebSocket.CLOSED) return;
-  const closed = new Promise<void>((resolve) => {
+  const closePromise = new Promise<void>((resolve) => {
     socket.addEventListener(
       "close",
       () => {
@@ -289,7 +354,7 @@ async function closeLiveConnection(socket: WebSocket): Promise<void> {
     );
   });
   socket.close(1000, "Test complete");
-  await closed;
+  await closePromise;
 }
 
 function createDeferredWorkspaceRuntime(
@@ -389,6 +454,7 @@ async function createFixture(): Promise<{
       '<!doctype html><main id="status"></main>',
     ),
     writeFile(join(assetRoot, "assets/workspace.js"), "workspace-script"),
+    writeFile(join(assetRoot, "assets/workspace.css"), "workspace-styles"),
   ]);
   return {
     root,

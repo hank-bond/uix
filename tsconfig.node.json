@@ -29,7 +29,7 @@
     "packages/runtime/src/**/*.ts",
     "packages/host/src/**/*.ts",
     "hosts/electron/**/*.ts",
-    "hosts/server/src/live.ts",
+    "hosts/server/src/websocket-frames.ts",
     "hosts/server/src/node/**/*.ts",
     "apps/features/**/backend/**/*.ts",
     "src/main/**/*.ts",

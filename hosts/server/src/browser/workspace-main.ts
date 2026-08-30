@@ -1,12 +1,27 @@
-// Boots the stateless workspace shell and owns its live session connection.
+// Boots the shared workspace client over one server-owned WebSocket.
 
-import { openWorkspaceConnection } from "./workspace-connection";
+import { mountWorkspaceClient } from "@uix/client";
 
-const connection = openWorkspaceConnection();
+import { openWorkspaceWebSocket } from "./workspace-websocket";
+
+const target = document.getElementById("root");
+if (!target) throw new Error("#root not found");
+
+const workspaceWebSocket = openWorkspaceWebSocket({
+  readyHandler: ({ client, synchronizeSessionLocation }) => {
+    const status = document.getElementById("status");
+    if (status) status.hidden = true;
+    return mountWorkspaceClient({
+      target,
+      client,
+      synchronizeSessionLocation,
+    });
+  },
+});
 window.addEventListener(
   "pagehide",
   () => {
-    connection[Symbol.dispose]();
+    workspaceWebSocket[Symbol.dispose]();
   },
   { once: true },
 );
