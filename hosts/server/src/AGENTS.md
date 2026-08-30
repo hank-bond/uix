@@ -4,7 +4,7 @@ summary: "Server-owned process and browser code implementing HTTP and WebSocket 
 
 # Server source
 
-The process side owns configuration, private workspace resolution, public locations, HTTP routes, WebSocket framing, and listener lifetime. The browser side mounts the shared launcher and workspace clients over server adapters. Neither side changes workspace or feature contracts.
+The process side owns configuration, private workspace resolution, public locations, HTTP content routes, WebSocket framing, and listener lifetime. The browser side mounts the shared launcher and workspace clients over server adapters, including logical-resource URL projection. Neither side changes workspace or feature contracts.
 
 <!-- INDEX:START -->
 
@@ -17,6 +17,7 @@ The process side owns configuration, private workspace resolution, public locati
 
 ### Source files
 
+- **[resource-urls.ts](./resource-urls.ts)** Maps host-neutral logical resource addresses to the server's HTTP content plane.
 - **[websocket-frames.ts](./websocket-frames.ts)** Defines and validates the server WebSocket transport's physical frames.
 
 <!-- INDEX:END -->

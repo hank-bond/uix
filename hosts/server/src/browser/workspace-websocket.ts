@@ -6,6 +6,7 @@ import {
   createWorkspaceWebSocketAdapter,
   type WorkspaceWebSocketAdapter,
 } from "./workspace-websocket-adapter";
+import { resolveServerResourceUrl } from "../resource-urls";
 import {
   parseWebSocketReadyFrame,
   parseWebSocketServerFrame,
@@ -68,7 +69,16 @@ export function openWorkspaceWebSocket(
           socket.close(1011, "Unable to canonicalize workspace");
           return;
         }
-        webSocketAdapter = createWorkspaceWebSocketAdapter(socket, workspaceId);
+        webSocketAdapter = createWorkspaceWebSocketAdapter(
+          socket,
+          workspaceId,
+          (logicalUrl) =>
+            resolveServerResourceUrl(
+              window.location.origin,
+              workspaceId,
+              logicalUrl,
+            ),
+        );
         clientMount = options.readyHandler?.({
           client: webSocketAdapter.client,
           sessionId: readyFrame.sessionId,

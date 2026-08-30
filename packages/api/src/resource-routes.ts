@@ -1,4 +1,4 @@
-// Normalizes resource routes and encodes and decodes their transport URLs.
+// Normalizes resource routes and encodes and decodes host-neutral logical URLs.
 //
 // Resource routes describe a feature-owned browser-loadable resource location
 // independently of the transport URL used to fetch it. The same normalized
@@ -10,14 +10,15 @@
 // 2. Encode/render: workspace/runtime code provides the resource address
 //    (workspace id + feature id + resource name) plus route values
 //    (path params + query). UIX validates those values and returns a branded
-//    `ResourceUrl` string for iframe `src`, script/style links, fetch, etc.
-// 3. Decode/request: Electron/hosted transport receives an untrusted URL string.
-//    UIX parses it into URL parts, validates the transport scheme, origin host, and
+//    logical `ResourceUrl`. The active workspace client maps it for the browser.
+// 3. Decode/request: the host transport restores an untrusted logical URL string.
+//    UIX parses it into URL parts. It validates the logical scheme, origin host, and
 //    resource address, matches the remaining path against the normalized route,
 //    validates query with TypeBox, then hands params/query to the contribution.
 //
-// The Electron scheme is a transport/permission class (`uix-resource`), not the
-// semantic resource type. Origin partitioning comes from the URL host.
+// The `uix-resource` scheme is a host-neutral address and an Electron
+// transport/permission class, not the semantic resource type. Origin
+// partitioning comes from the URL host where the physical host supports it.
 
 import type { TSchema } from "typebox";
 import { Value } from "typebox/value";

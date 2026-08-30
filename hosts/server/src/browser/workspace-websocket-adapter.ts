@@ -29,6 +29,7 @@ export class WebSocketRequestError extends Error {
 export function createWorkspaceWebSocketAdapter(
   socket: WebSocket,
   workspaceId: string,
+  resolveResourceUrl: (logicalUrl: string) => string,
 ): WorkspaceWebSocketAdapter {
   let nextRequestId = 1;
   let isDisposed = false;
@@ -37,6 +38,7 @@ export function createWorkspaceWebSocketAdapter(
 
   const client: WorkspaceClient = {
     workspaceId,
+    resolveResourceUrl,
     request(channel, payload) {
       if (isDisposed || socket.readyState !== WebSocket.OPEN) {
         return Promise.reject(

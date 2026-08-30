@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ResourceProtocolScheme } from "@uix/api/resource-routes";
 import { parseWorkspaceCatalog } from "@uix/host/catalog";
 import type {
   Attachment,
@@ -14,8 +15,9 @@ import type {
 import { toAttachmentId, toSessionId, toWorkspaceId } from "@uix/runtime";
 
 import type { RegisteredWorkspace } from "./registry";
-import { createServerHost } from "./server";
+import { createServerHost, type ServerWorkspaceDependencies } from "./server";
 import { createServerWorkspaceRuntime } from "./workspace-runtime";
+import { resolveServerResourceUrl } from "../resource-urls";
 import {
   parseWebSocketReadyFrame,
   type WebSocketReadyFrame,
@@ -141,9 +143,15 @@ describe("server host launcher", () => {
     expect(await workspaceScript.text()).toBe("workspace-script");
     expect(await workspaceStyles.text()).toBe("workspace-styles");
     expect(workspaceStyles.headers.get("content-type")).toContain("text/css");
-    expect(workspace.headers.get("content-security-policy")).toContain(
+    const workspaceContentSecurityPolicy = workspace.headers.get(
+      "content-security-policy",
+    );
+    expect(workspaceContentSecurityPolicy).toContain(
       "connect-src 'self' ws://127.0.0.1:3000",
     );
+    expect(workspaceContentSecurityPolicy).toContain("frame-src 'self'");
+    expect(workspaceContentSecurityPolicy).toContain("font-src 'self'");
+    expect(workspaceContentSecurityPolicy).toContain("img-src 'self' data:");
     expect(missing.status).toBe(404);
     expect(await missing.json()).toEqual({
       code: "workspace_not_found",
@@ -151,14 +159,87 @@ describe("server host launcher", () => {
     });
   });
 
+  it("serves a feature resource over HTTP without opening a live attachment", async () => {
+    const fixture = await createFixture();
+    await Promise.all([
+      writeFile(
+        join(fixture.root, "uix.workspace.json"),
+        JSON.stringify({
+          name: "Reference workspace",
+          features: [{ entry: "./reports.ts" }],
+        }),
+      ),
+      writeFile(
+        join(fixture.root, "reports.ts"),
+        [
+          'import { defineFeature } from "@uix/api/feature";',
+          'import { createResourceAddressHandle } from "@uix/api/resources";',
+          "const address = createResourceAddressHandle({",
+          '  featureId: "reports",',
+          '  name: "document",',
+          '  path: "/:reportId",',
+          '  origin: "workspace",',
+          "});",
+          "export const feature = defineFeature({",
+          '  id: "reports",',
+          "  workspace: () => ({",
+          "    resources: [{",
+          '      name: "document",',
+          "      route: address.route,",
+          "      handler: ({ params }) =>",
+          "        new Response(`report:${String(params.reportId)}`, {",
+          '          headers: { "Content-Type": "text/plain; charset=utf-8" },',
+          "        }),",
+          "    }],",
+          "  }),",
+          "});",
+        ].join("\n"),
+      ),
+    ]);
+    const bootWorkspace = vi.fn(
+      (
+        registered: RegisteredWorkspace,
+        dependencies: ServerWorkspaceDependencies,
+      ) =>
+        createServerWorkspaceRuntime({
+          registered,
+          piAppDataDir: join(fixture.root, "server-profile", "pi"),
+          apiModuleDir,
+          ...dependencies,
+        }),
+    );
+    await using host = await createServerHost({
+      registryPath: fixture.registryPath,
+      publicOrigin: "https://uix.example",
+      assetRoot: fixture.assetRoot,
+      bootWorkspace,
+    });
+    const address = await host.listen({ host: "127.0.0.1", port: 0 });
+    const logicalUrl = "uix-resource://reference/reports/document/weekly";
+
+    const response = await fetch(
+      resolveServerResourceUrl(address, "reference", logicalUrl),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("report:weekly");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(bootWorkspace).toHaveBeenCalledOnce();
+  });
+
   it("lazily owns one fresh or named session attachment per WebSocket connection", async () => {
     const fixture = await createFixture();
-    const bootWorkspace = vi.fn((registered: RegisteredWorkspace) =>
-      createServerWorkspaceRuntime({
-        registered,
-        piAppDataDir: join(fixture.root, "server-profile", "pi"),
-        apiModuleDir,
-      }),
+    const bootWorkspace = vi.fn(
+      (
+        registered: RegisteredWorkspace,
+        dependencies: ServerWorkspaceDependencies,
+      ) =>
+        createServerWorkspaceRuntime({
+          registered,
+          piAppDataDir: join(fixture.root, "server-profile", "pi"),
+          apiModuleDir,
+          ...dependencies,
+        }),
     );
     await using host = await createServerHost({
       registryPath: fixture.registryPath,
@@ -226,6 +307,91 @@ describe("server host launcher", () => {
     expect(reopened.ready.sessionId).toBe(first.ready.sessionId);
     expect(bootWorkspace).toHaveBeenCalledTimes(2);
     await closeWebSocket(reopened.socket);
+  });
+
+  it("keeps an in-flight content fetch alive after its originating socket disconnects", async () => {
+    const fixture = await createFixture();
+    const resourceStarted = createDeferred();
+    const resourceRelease = createDeferred();
+    const runtimeDisposal = vi.fn(() => Promise.resolve());
+    const bootWorkspace = vi.fn(
+      (
+        registered: RegisteredWorkspace,
+        dependencies: ServerWorkspaceDependencies,
+      ): Promise<WorkspaceRuntime> => {
+        const transportRegistration = dependencies.resourceTransport(
+          ResourceProtocolScheme,
+          async () => {
+            resourceStarted.resolve();
+            await resourceRelease.promise;
+            return new Response("immutable report", {
+              headers: {
+                "Cache-Control": "public, max-age=31536000, immutable",
+                "Content-Type": "text/plain; charset=utf-8",
+                "Access-Control-Allow-Origin": "https://unauthorized.example",
+                "Access-Control-Allow-Credentials": "true",
+                Vary: "Accept-Encoding, Origin",
+              },
+            });
+          },
+        );
+        return Promise.resolve({
+          workspaceId: registered.id,
+          onEvent: () => noopDisposable(),
+          createAttachment: () =>
+            Promise.resolve(createAttachmentFixture(registered.id).value),
+          load: () => Promise.reject(new Error("Unexpected runtime load")),
+          reload: () => Promise.reject(new Error("Unexpected runtime reload")),
+          async [Symbol.asyncDispose]() {
+            transportRegistration[Symbol.dispose]();
+            await runtimeDisposal();
+          },
+        });
+      },
+    );
+    await using host = await createServerHost({
+      registryPath: fixture.registryPath,
+      publicOrigin: "https://uix.example",
+      assetRoot: fixture.assetRoot,
+      bootWorkspace,
+    });
+    const address = await host.listen({ host: "127.0.0.1", port: 0 });
+    const socket = await openWorkspaceWebSocket(
+      `${address.replace(/^http/, "ws")}/workspaces/reference`,
+    );
+    const logicalUrl = "uix-resource://reference/reports/document/weekly?v=abc";
+    const fetchPromise = fetch(
+      resolveServerResourceUrl(address, "reference", logicalUrl),
+      { headers: { Origin: "https://unauthorized.example" } },
+    );
+
+    await resourceStarted.promise;
+    await closeWebSocket(socket.socket);
+    expect(runtimeDisposal).not.toHaveBeenCalled();
+
+    resourceRelease.resolve();
+    const response = await fetchPromise;
+    expect(await response.text()).toBe("immutable report");
+    expect(response.headers.get("cache-control")).toBe(
+      "public, max-age=31536000, immutable",
+    );
+    expect(response.headers.get("access-control-allow-origin")).toBeNull();
+    expect(response.headers.get("access-control-allow-credentials")).toBeNull();
+    expect(response.headers.get("vary")).toBe("Accept-Encoding, Origin");
+    await vi.waitFor(() => {
+      expect(runtimeDisposal).toHaveBeenCalledOnce();
+    });
+
+    const admittedOriginResponse = await fetch(
+      resolveServerResourceUrl(address, "reference", logicalUrl),
+      { headers: { Origin: "https://uix.example" } },
+    );
+    expect(
+      admittedOriginResponse.headers.get("access-control-allow-origin"),
+    ).toBe("https://uix.example");
+    expect(admittedOriginResponse.headers.get("vary")).toBe(
+      "Accept-Encoding, Origin",
+    );
   });
 
   it("retains workspace ownership until attachment creation settles after disconnect", async () => {

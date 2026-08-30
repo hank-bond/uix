@@ -23,6 +23,15 @@ describe("workspace WebSocket adapter", () => {
     const adapter = createWorkspaceWebSocketAdapter(
       socket as unknown as WebSocket,
       "reference",
+      (url) => `https://uix.example/content?url=${encodeURIComponent(url)}`,
+    );
+
+    expect(
+      adapter.client.resolveResourceUrl?.(
+        "uix-resource://reference/reports/document",
+      ),
+    ).toBe(
+      "https://uix.example/content?url=uix-resource%3A%2F%2Freference%2Freports%2Fdocument",
     );
 
     const success = adapter.client.request("feature.read", { value: 1 });
@@ -71,6 +80,7 @@ describe("workspace WebSocket adapter", () => {
     const adapter = createWorkspaceWebSocketAdapter(
       socket as unknown as WebSocket,
       "reference",
+      (url) => url,
     );
     const handler = vi.fn();
     const unsubscribe = adapter.client.subscribe("feature.changed", handler);
@@ -109,6 +119,7 @@ describe("workspace WebSocket adapter", () => {
     const adapter = createWorkspaceWebSocketAdapter(
       socket as unknown as WebSocket,
       "reference",
+      (url) => url,
     );
     const pendingRequest = adapter.client.request("feature.wait", {});
 

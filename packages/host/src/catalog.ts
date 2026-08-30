@@ -5,7 +5,9 @@ import { Value } from "typebox/value";
 
 export const WorkspaceCatalogVersion = 1 as const;
 
-const WorkspaceCatalogIdPattern = /^[A-Za-z0-9][A-Za-z0-9._~-]*$/;
+// Workspace ids also occupy logical resource hosts, so use the lowercase
+// transport-token grammar rather than every URL-path-safe byte.
+const WorkspaceCatalogIdPattern = /^[a-z][a-z0-9-]*$/;
 
 interface WorkspaceCatalogEntry {
   readonly id: string;
@@ -37,7 +39,7 @@ const WorkspaceCatalogSchema = Type.Unsafe<WorkspaceCatalog>(
   ),
 );
 
-/** Validate an opaque workspace id for use as one canonical URL segment. */
+/** Validate an opaque workspace id for canonical paths and logical resource hosts. */
 export function assertWorkspaceCatalogId(id: string): void {
   if (!WorkspaceCatalogIdPattern.test(id)) {
     throw new Error(`Invalid workspace catalog id: ${JSON.stringify(id)}`);

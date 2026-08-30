@@ -51,6 +51,7 @@ describe("workspace catalog", () => {
 
   it.each([
     { id: "../private", location: "https://uix.example/workspaces/private" },
+    { id: "Private", location: "https://uix.example/workspaces/Private" },
     { id: "private", location: "file:///private/uix.workspace.json" },
   ])("rejects a non-canonical entry: $id $location", (entry) => {
     expect(() =>

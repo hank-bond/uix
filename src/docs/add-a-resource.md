@@ -6,7 +6,7 @@ read_when: "Read when adding a resource to a feature, or when asked to add a res
 
 # Add a resource to a feature
 
-A **resource** contributes feature-owned browser content through the substrate `uix-resource://` protocol: iframe documents, fonts, images, surface assets, or another browser-loadable response. Features declare semantic routes without registering Electron protocols.
+A **resource** contributes feature-owned browser content through a logical `uix-resource://` address: iframe documents, fonts, images, surface assets, or another browser-loadable response. Electron serves that address as a custom protocol, while the server maps it to a workspace-qualified HTTP content route. Features declare semantic routes without observing either physical transport.
 
 Files involved:
 
@@ -35,7 +35,7 @@ export const reportAddress = createResourceAddressHandle({
 - `featureId` and `name` identify the resource. The substrate derives the resource type as `${featureId}-${name}`.
 - A `:name` segment accepts one string. A terminal `:name*` segment accepts a string array.
 - An optional TypeBox `query` schema validates query values.
-- `origin: "feature"` gives the resource a feature-isolated browser origin. `origin: "workspace"` shares the workspace origin and places feature identity in the path.
+- `origin: "feature"` puts feature identity in the logical host. `origin: "workspace"` puts it in the path. Electron preserves that origin partition, while the current server maps both forms onto its configured deployment origin.
 
 The declaration normalizes without throwing. A throw means a segment name, shape, or origin value is invalid.
 
@@ -71,7 +71,7 @@ export const feature = defineFeature({
 });
 ```
 
-`ResourceRequestContext` holds the original `Request`, parsed path parameters, and the parsed query value. The handler returns a standard `Response`. The registry resolves owner-scoped ids, rejects duplicate claims, and parses untrusted URLs before calling feature code, so your handler receives validated values.
+`ResourceRequestContext` holds the original `Request`, parsed path parameters, and the parsed query value. The handler returns a standard `Response`. The registry resolves owner-scoped ids, rejects duplicate claims, and parses untrusted logical URLs before calling feature code, so your handler receives validated values. A response without an explicit cache policy defaults to `no-store` on the server. Use immutable caching only when the URL names exact bytes or a specific revision.
 
 ## Create URLs and origins
 

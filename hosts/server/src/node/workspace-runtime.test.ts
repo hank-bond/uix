@@ -53,6 +53,9 @@ describe("server workspace runtime", () => {
       },
       piAppDataDir: join(root, "server-profile", "pi"),
       apiModuleDir,
+      resourceTransport: () => ({
+        [Symbol.dispose]() {},
+      }),
     });
 
     await expect(runtime.reload()).resolves.toMatchObject({

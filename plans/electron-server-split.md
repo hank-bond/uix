@@ -18,7 +18,7 @@ summary: "Build the Electron and web hosts over the proved workspace runtime, at
 - **H5.1** launcher extraction landed in `0e2ccdc`.
 - **H5.2** workspace extraction landed in `0780f80`.
 - **H5.3** dependency-boundary enforcement landed. H5 is complete.
-- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** landed in `780838b`. **W2** has landed. **W3** is implemented and awaiting review. **W4-W9** continue the web host from that spec. H7-H8 follow with Electron rehoming and two-host conformance.
+- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** landed in `780838b`. **W2** has landed. **W3** landed in `75fd789`. **W4** is implemented and awaiting review. **W5-W9** continue the web host from that spec. H7-H8 follow with Electron rehoming and two-host conformance.
 
 ## Status and intent
 
@@ -234,13 +234,15 @@ Serve `/workspaces/:workspace` as a stateless shell that acquires no runtime. On
 
 ### W3: Live transport protocol
 
-_Status: implemented and awaiting review._
+_Status: landed in `75fd789`._
 
 Define the discriminated ready, request, response, error, and event frames with physical correlation ids. Enforce exactly one terminal response per accepted request. Reject reuse of an in-flight correlation id without disturbing the original request. Route every canonical request through the bound attachment's prepared dispatch. Record crossings through the wire-log chokepoint with contract-owned redaction. Deliver runtime events only to matching attachment targets. Malformed frames never reach dispatch and correlate only after independent id validation.
 
 **Review gate:** Success, failure, duplicate-correlation, and disconnect semantics are proven. No workspace, session, or authentication identity appears in canonical payloads. Unknown channels log under the safe payload-omitting policy.
 
 ### W4: Content plane
+
+_Status: implemented and awaiting review._
 
 Make content references host-neutral and immutable in live channel payloads, and serve the referenced bytes over HTTP. The host maps each accepted reference to a browser-fetchable URL for the workspace and session viewpoint. Each fetch retains its own workspace guard. It does not boot an Agent instance unless resolution requires one. Apply cache policy by content class. Versioned immutable content caches immutably, while pages, catalog, projections, and current-state endpoints stay no-store. Cross-origin grants derive only from the configured public-origin policy. Exported or frozen content must not require host-specific transport URLs.
 

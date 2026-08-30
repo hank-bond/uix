@@ -48,14 +48,24 @@ export const surface = defineSurface({
 
 const request = (
   params: Record<string, string | string[]>,
+  version: string,
   origin?: string,
 ): ResourceRequestContext => ({
   request: new Request("uix-resource://uix.local/test", {
     ...(origin ? { headers: { origin } } : {}),
   }),
   params,
-  query: {},
+  query: { v: version },
 });
+
+function versionFrom(url: string): string {
+  const version = new URL(
+    url,
+    "uix-resource://uix.local/surface/shiny/0.js",
+  ).searchParams.get("v");
+  if (!version) throw new Error(`Resource URL has no version: ${url}`);
+  return version;
+}
 
 describe("SurfaceModulePipeline", () => {
   it("bundles local code, virtualizes shared modules, externalizes CSS", async () => {
@@ -71,12 +81,15 @@ describe("SurfaceModulePipeline", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0]?.error).toBeUndefined();
     expect(entries[0]?.url).toMatch(
-      /^uix-resource:\/\/uix\.local\/surface\/shiny\/0\.js\?v=[0-9a-f]{12}$/,
+      /^uix-resource:\/\/uix\.local\/surface\/shiny\/0\.js\?v=[0-9a-f]{64}$/,
     );
 
     const [moduleRoute] = pipeline.createResourceContributions();
     const response = moduleRoute.handler(
-      request({ feature: "shiny", file: "0.js" }),
+      request(
+        { feature: "shiny", file: "0.js" },
+        versionFrom(String(entries[0]?.url)),
+      ),
     );
     const code = await (await response).text();
     expect(code).toContain("bundled in");
@@ -85,7 +98,7 @@ describe("SurfaceModulePipeline", () => {
     expect(code).toContain(`globalThis.__sharedModules["@uix/api/settings"]`);
     // CSS stays a native module script: external, hash-busted, attribute kept.
     expect(code).toMatch(
-      /import .* from "uix-resource:\/\/uix\.local\/surface-files\/shiny\/styles\.css\?v=[0-9a-f]{12}" with \{ type: "css" \}/,
+      /import .* from "\.\.\/\.\.\/surface-files\/shiny\/styles\.css\?v=[0-9a-f]{64}" with \{ type: "css" \}/,
     );
   });
 
@@ -105,6 +118,22 @@ describe("SurfaceModulePipeline", () => {
     expect(first[0]?.url).toBeDefined();
     expect(second[0]?.url).toBeDefined();
     expect(second[0]?.url).not.toBe(first[0]?.url);
+
+    const [moduleRoute] = pipeline.createResourceContributions();
+    const firstResponse = await moduleRoute.handler(
+      request(
+        { feature: "shiny", file: "0.js" },
+        versionFrom(String(first[0]?.url)),
+      ),
+    );
+    const secondResponse = await moduleRoute.handler(
+      request(
+        { feature: "shiny", file: "0.js" },
+        versionFrom(String(second[0]?.url)),
+      ),
+    );
+    expect(await firstResponse.text()).not.toContain("changed");
+    expect(await secondResponse.text()).toContain("changed");
   });
 
   it("isolates a broken surface as an error entry without failing the pass", async () => {
@@ -160,37 +189,60 @@ describe("SurfaceModulePipeline", () => {
       "assets/demo.woff2": "font bytes",
     });
     const pipeline = new SurfaceModulePipeline("local");
-    await pipeline.buildAll([reg]);
-    const [, filesRoute] = pipeline.createResourceContributions();
+    const entries = await pipeline.buildAll([reg]);
+    const [moduleRoute, filesRoute] = pipeline.createResourceContributions();
+    const moduleResponse = await moduleRoute.handler(
+      request(
+        { feature: "shiny", file: "0.js" },
+        versionFrom(String(entries[0]?.url)),
+      ),
+    );
+    const moduleCode = await moduleResponse.text();
+    const cssUrl =
+      /\.\.\/\.\.\/surface-files\/shiny\/styles\.css\?v=[0-9a-f]{64}/.exec(
+        moduleCode,
+      )?.[0];
+    if (!cssUrl) throw new Error("Built module has no CSS URL");
 
     const css = await filesRoute.handler(
-      request({ feature: "shiny", path: ["styles.css"] }),
+      request({ feature: "shiny", path: ["styles.css"] }, versionFrom(cssUrl)),
     );
     expect(css.status).toBe(200);
     expect(css.headers.get("Content-Type")).toBe("text/css; charset=utf-8");
+    expect(css.headers.get("Cache-Control")).toBe(
+      "public, max-age=31536000, immutable",
+    );
     const cssText = await css.text();
     expect(cssText).toContain("color: blue");
-    expect(cssText).toMatch(
-      /url\(uix-resource:\/\/uix\.local\/surface-files\/shiny\/assets\/demo\.woff2\?v=[0-9a-f]{12}\)/,
-    );
+    expect(cssText).toMatch(/url\(\.\/assets\/demo\.woff2\?v=[0-9a-f]{64}\)/);
 
+    const fontUrl = /\.\/assets\/demo\.woff2\?v=[0-9a-f]{64}/.exec(
+      cssText,
+    )?.[0];
+    if (!fontUrl) throw new Error("Built CSS has no font URL");
     const font = await filesRoute.handler(
-      request({
-        feature: "shiny",
-        path: ["assets", "demo.woff2"],
-      }),
+      request(
+        {
+          feature: "shiny",
+          path: ["assets", "demo.woff2"],
+        },
+        versionFrom(fontUrl),
+      ),
     );
     expect(font.status).toBe(200);
     expect(font.headers.get("Content-Type")).toBe("font/woff2");
+    expect(font.headers.get("Cache-Control")).toBe(
+      "public, max-age=31536000, immutable",
+    );
     expect(await font.text()).toBe("font bytes");
 
     const traversal = await filesRoute.handler(
-      request({ feature: "shiny", path: ["..", "secret.txt"] }),
+      request({ feature: "shiny", path: ["..", "secret.txt"] }, "missing"),
     );
     expect(traversal.status).toBe(404);
 
     const missing = await filesRoute.handler(
-      request({ feature: "shiny", path: ["nope.css"] }),
+      request({ feature: "shiny", path: ["nope.css"] }, "missing"),
     );
     expect(missing.status).toBe(404);
   });
@@ -203,11 +255,16 @@ describe("SurfaceModulePipeline", () => {
       "surface.tsx": `export const surface = { name: "s", render: () => null };`,
     });
     const pipeline = new SurfaceModulePipeline("local");
-    await pipeline.buildAll([reg]);
+    const entries = await pipeline.buildAll([reg]);
     const [moduleRoute] = pipeline.createResourceContributions();
+    const version = versionFrom(String(entries[0]?.url));
 
     const fromPage = await moduleRoute.handler(
-      request({ feature: "shiny", file: "0.js" }, "http://localhost:5173"),
+      request(
+        { feature: "shiny", file: "0.js" },
+        version,
+        "http://localhost:5173",
+      ),
     );
     expect(fromPage.headers.get("Access-Control-Allow-Origin")).toBe(
       "http://localhost:5173",
@@ -216,41 +273,52 @@ describe("SurfaceModulePipeline", () => {
     const fromIframe = await moduleRoute.handler(
       request(
         { feature: "shiny", file: "0.js" },
+        version,
         "uix-resource://canvas.local",
       ),
     );
     expect(fromIframe.headers.get("Access-Control-Allow-Origin")).toBeNull();
   });
 
-  it("drops previously built modules on rebuild", async () => {
+  it("keeps a published immutable module available after rebuild", async () => {
     const reg = await writeFeature({
       "surface.tsx": `export const surface = { name: "s", render: () => null };`,
     });
     const pipeline = new SurfaceModulePipeline("local");
-    await pipeline.buildAll([reg]);
+    const first = await pipeline.buildAll([reg]);
     await pipeline.buildAll([]);
 
     const [moduleRoute] = pipeline.createResourceContributions();
     const response = await moduleRoute.handler(
-      request({ feature: "shiny", file: "0.js" }),
+      request(
+        { feature: "shiny", file: "0.js" },
+        versionFrom(String(first[0]?.url)),
+      ),
     );
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe(
+      "public, max-age=31536000, immutable",
+    );
   });
 
-  it("does not let an older overlapping build replace a newer composition", async () => {
+  it("keeps references from overlapping composition requests usable", async () => {
     const reg = await writeFeature({
       "surface.tsx": `export const surface = { name: "s", render: () => null };`,
     });
     const pipeline = new SurfaceModulePipeline("local");
 
     const olderBuild = pipeline.buildAll([reg]);
-    await pipeline.buildAll([]);
-    await olderBuild;
+    const newerEntries = await pipeline.buildAll([]);
+    const olderEntries = await olderBuild;
 
+    expect(newerEntries).toEqual([]);
     const [moduleRoute] = pipeline.createResourceContributions();
     const response = await moduleRoute.handler(
-      request({ feature: "shiny", file: "0.js" }),
+      request(
+        { feature: "shiny", file: "0.js" },
+        versionFrom(String(olderEntries[0]?.url)),
+      ),
     );
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(200);
   });
 });

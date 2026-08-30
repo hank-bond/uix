@@ -1,8 +1,9 @@
 // Routes resource URLs to the active feature handlers through one validated boundary.
 //
-// Resource declarations remain transport-neutral. The host binds a concrete
-// transport (Electron's custom protocol) through the injected registrar. A malformed URL recognized by a route yields 400, while a
-// URL matching no registered route yields 404. The registry resolves
+// Resource declarations remain transport-neutral. The host binds its custom
+// protocol or HTTP content plane through the injected registrar. A malformed
+// URL recognized by a route yields 400, while a URL matching no registered
+// route yields 404. The registry resolves
 // owner-scoped ids and rejects duplicate claims. Handlers are reload-scoped
 // contributions, and disposal removes their routes without unregistering any
 // host-wide transport.

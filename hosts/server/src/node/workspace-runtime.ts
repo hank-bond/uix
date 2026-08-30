@@ -1,6 +1,7 @@
 // Boots one registered workspace runtime over server-owned dependency adapters.
 
 import { createWorkspaceRuntime, type WorkspaceRuntime } from "@uix/runtime";
+import type { ResourceTransportRegistrar } from "@uix/runtime/resource-registry";
 
 import type { RegisteredWorkspace } from "./registry";
 
@@ -8,6 +9,7 @@ interface CreateServerWorkspaceRuntimeOptions {
   readonly registered: RegisteredWorkspace;
   readonly piAppDataDir: string;
   readonly apiModuleDir: string;
+  readonly resourceTransport: ResourceTransportRegistrar;
 }
 
 /** Construct and initially activate exactly one lazily admitted server workspace. */
@@ -20,6 +22,7 @@ export async function createServerWorkspaceRuntime(
     piAppDataDir: options.piAppDataDir,
     apiModuleDir: options.apiModuleDir,
     dependencies: {
+      resourceTransport: options.resourceTransport,
       openExternal: () => {
         throw new Error(
           "The server host does not open provider links on its machine",

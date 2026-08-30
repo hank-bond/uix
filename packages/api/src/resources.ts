@@ -5,8 +5,8 @@
 // requests through the ResourceRegistry.
 //
 // ResourceAddressHandle is the substrate-provided capability for features to
-// produce transport URLs and origins from a resource route declaration without
-// importing substrate internals. Create one handle per resource contribution
+// produce host-neutral logical URLs and origins from a resource route declaration
+// without importing substrate internals. Create one handle per resource contribution
 // in shared code, pass `.route` into the ResourceContribution, and call
 // `.toUrl()` / `.toOrigin()` from workspace renderer code.
 
@@ -53,7 +53,7 @@ export interface ResourceRouteDefinition<Query extends TSchema = TSchema> {
 export interface ResourceAddressHandle<Query extends TSchema = TSchema> {
   /** The normalized route. Pass it as the `route` field on a ResourceContribution. */
   route: NormalizedResourceRoute<Query>;
-  /** Produce a transport URL for iframe src, fetch, etc. */
+  /** Produce a logical URL that the workspace client maps for browser use. */
   toUrl(input: {
     workspaceId: string;
     params?: ResourceRouteParams;

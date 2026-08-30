@@ -35,11 +35,11 @@ A shared `ChannelContract` defines request, response, and event schemas. Backend
 
 Each workspace runtime owns one `ChannelRegistry` that resolves owner-scoped ids and validates requests and responses. Workspace handlers run directly. An Agent channel contract selects a handler from the prepared dispatch's accepted Agent guard. Each Agent instance owns those handler closures. Routing values do not enter feature payloads.
 
-A runtime-created attachment prepares each canonical request with immutable guarded context and the registry entry's log policy. The Electron host records the physical crossing and invokes that prepared dispatch. Workspace clients derive typed request and event methods, and event clients validate incoming payloads.
+A runtime-created attachment prepares each canonical request with immutable guarded context and the registry entry's log policy. Each host records the physical crossing and invokes that prepared dispatch. Workspace clients derive typed request and event methods, and event clients validate incoming payloads.
 
-Electron Inter-Process Communication (IPC) is the implemented physical channel transport. Runtime events have workspace or session scope. Only matching attachments receive them. Canvas iframe writeback still uses a feature-owned `postMessage` shim before entering typed channels. A general iframe channel adapter does not exist.
+Electron IPC and the server's correlated WebSocket protocol are the implemented physical channel transports. Runtime events have workspace or session scope. Only matching attachments receive them. Canvas iframe writeback still uses a feature-owned `postMessage` shim before entering typed channels. A general iframe channel adapter does not exist.
 
-The `uix-resource://` protocol dispatches normalized feature resource routes. Surface bundles and files use a reserved substrate origin. Canvas serves a static feature-origin frame, reads selected-viewpoint HTML through its typed channel, and transfers that HTML to the frame through a narrow `postMessage` handshake.
+Logical `uix-resource://` addresses dispatch normalized feature resource routes. Electron uses the scheme as its physical protocol. The server browser adapter maps it to workspace-qualified HTTP requests that retain an independent workspace guard through response completion. Versioned surface modules, CSS, and assets retain exact bytes under immutable cache policy. Mutable resources default to `no-store`. Surface bundles and files use a reserved logical substrate origin. Canvas serves a static feature-origin frame, reads selected-viewpoint HTML through its typed channel, and transfers that HTML to the frame through a narrow `postMessage` handshake.
 
 ## Surface and workspace runtime
 

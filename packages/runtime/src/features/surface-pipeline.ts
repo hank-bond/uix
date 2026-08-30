@@ -8,7 +8,7 @@
 
 import { createHash } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
-import { extname, join, relative, resolve, sep } from "node:path";
+import { extname, posix, relative, resolve, sep } from "node:path";
 
 import type { Plugin } from "esbuild";
 import { build } from "esbuild";
@@ -34,7 +34,13 @@ const log = createLogger("surfaces");
 const ModuleRouteName = "surface";
 const FilesRouteName = "surface-files";
 
-const VersionQuery = Type.Object({ v: Type.Optional(Type.String()) });
+const VersionQuery = Type.Object({
+  v: Type.String({
+    minLength: 64,
+    maxLength: 64,
+    pattern: "^[0-9a-f]{64}$",
+  }),
+});
 
 const ModuleRoute = normalizeResourceRoute({
   path: "/:feature/:file",
@@ -47,6 +53,9 @@ const FilesRoute = normalizeResourceRoute({
   query: VersionQuery,
   origin: "feature",
 });
+
+const ImmutableCacheControl = "public, max-age=31536000, immutable";
+const PlaceholderVersion = "0".repeat(64);
 
 const FileContentTypes: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
@@ -62,13 +71,18 @@ const FileContentTypes: Record<string, string> = {
   ".woff2": "font/woff2",
 };
 
-interface BuiltModule {
-  readonly code: string;
+interface BuiltContent {
+  readonly bytes: Uint8Array;
+  readonly contentType: string;
   readonly hash: string;
 }
 
-const hashOf = (content: string | Buffer): string =>
-  createHash("sha256").update(content).digest("hex").slice(0, 12);
+interface BuiltModule extends BuiltContent {
+  readonly code: string;
+}
+
+const hashOf = (content: string | Uint8Array): string =>
+  createHash("sha256").update(content).digest("hex");
 
 const escapeForRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -96,39 +110,32 @@ const sharedModulesPlugin: Plugin = {
   },
 };
 
-/** Owns the replaceable built-module generation served to one workspace. */
+/** Owns published immutable surface content for one workspace runtime. */
 export class SurfaceModulePipeline {
   readonly #workspaceId: string;
-  readonly #resolveResourceUrl: (logicalUrl: string) => string;
-  /** `${featureId}/${file}` → last-built module, replaced per build pass. */
-  #built = new Map<string, BuiltModule>();
-  /** featureId → feature root dir, for the files route. */
-  #roots = new Map<string, string>();
-  /** `${featureId}/${file}` → CSS with browser asset URLs rebased to the files route. */
-  #styles = new Map<string, BuiltModule>();
-  #buildVersion = 0;
+  /** `${featureId}/${file}/${hash}` → immutable built module. */
+  readonly #built = new Map<string, BuiltModule>();
+  /** `${featureId}/${path}/${hash}` → immutable CSS with rebased asset URLs. */
+  readonly #styles = new Map<string, BuiltModule>();
+  /** `${featureId}/${path}/${hash}` → immutable feature-file bytes. */
+  readonly #files = new Map<string, BuiltContent>();
 
-  constructor(
-    workspaceId: string,
-    resolveResourceUrl: (logicalUrl: string) => string = (url) => url,
-  ) {
+  constructor(workspaceId: string) {
     this.#workspaceId = workspaceId;
-    this.#resolveResourceUrl = resolveResourceUrl;
   }
 
   /**
    * Bundles every registered surface and returns the list the `uix.surfaces`
-   * channel serves. Rebuilds from scratch each call (called once per load
-   * pass per window). The pipeline drops previously built modules, so it
-   * never serves a deleted surface stale.
+   * channel serves. Rebuilds the active list from scratch each call. Published
+   * content remains addressable by hash, while deleted surfaces disappear from
+   * the newly returned composition.
    */
   async buildAll(
     surfaces: readonly ResolvedSurfaceContribution[],
   ): Promise<SurfaceEntry[]> {
-    const version = ++this.#buildVersion;
     const built = new Map<string, BuiltModule>();
-    const roots = new Map<string, string>();
     const styles = new Map<string, BuiltModule>();
+    const files = new Map<string, BuiltContent>();
     const entries: SurfaceEntry[] = [];
     const perFeatureIndex = new Map<string, number>();
 
@@ -141,21 +148,26 @@ export class SurfaceModulePipeline {
         // Realpath so containment checks agree with esbuild's resolved
         // paths (macOS /tmp is a symlink, and feature dirs may be too).
         const featureRoot = await realpath(surface.featureRoot);
-        roots.set(surface.featureId, featureRoot);
-        const module = await this.#bundle(surface, featureRoot, styles);
-        built.set(`${surface.featureId}/${file}`, module);
+        const module = await this.#bundle(
+          surface,
+          featureRoot,
+          file,
+          styles,
+          files,
+        );
+        built.set(`${surface.featureId}/${file}/${module.hash}`, module);
         entries.push({
           featureId: surface.featureId,
           entry: surface.entry,
-          url: this.#resolveResourceUrl(
-            encodeResourceUrl(ModuleRoute, {
-              featureId: "uix",
-              name: ModuleRouteName,
-              workspaceId: this.#workspaceId,
-              params: { feature: surface.featureId, file },
-              query: { v: module.hash },
-            }),
-          ),
+          // Live channel payloads retain the host-neutral logical reference.
+          // The browser host adapter maps it to a physical content URL.
+          url: encodeResourceUrl(ModuleRoute, {
+            featureId: "uix",
+            name: ModuleRouteName,
+            workspaceId: this.#workspaceId,
+            params: { feature: surface.featureId, file },
+            query: { v: module.hash },
+          }),
         });
         log.debug(
           { feature: surface.featureId, entry: surface.entry },
@@ -180,13 +192,12 @@ export class SurfaceModulePipeline {
       }
     }
 
-    // Requests can overlap initial hydration and reload notifications. Only the
-    // newest requested composition may replace the modules served by routes.
-    if (version === this.#buildVersion) {
-      this.#built = built;
-      this.#roots = roots;
-      this.#styles = styles;
-    }
+    // Overlapping composition requests can each return their own references.
+    // Publishing every exact-byte artifact keeps every accepted response usable,
+    // while the caller still decides which returned composition remains current.
+    for (const [key, value] of built) this.#built.set(key, value);
+    for (const [key, value] of styles) this.#styles.set(key, value);
+    for (const [key, value] of files) this.#files.set(key, value);
     return entries;
   }
 
@@ -196,18 +207,18 @@ export class SurfaceModulePipeline {
       {
         name: ModuleRouteName,
         route: ModuleRoute,
-        handler: ({ request, params }) => {
-          const key = `${String(params["feature"])}/${String(params["file"])}`;
+        handler: ({ request, params, query }) => {
+          const key = `${String(params["feature"])}/${String(params["file"])}/${readVersion(query)}`;
           const module = this.#built.get(key);
           if (!module) {
             return textResponse(`No built surface module: ${key}`, 404);
           }
-          return new Response(module.code, {
+          return new Response(module.bytes, {
             status: 200,
             headers: {
               ...corsHeaders(request),
-              "Cache-Control": "no-store",
-              "Content-Type": "text/javascript; charset=utf-8",
+              "Cache-Control": ImmutableCacheControl,
+              "Content-Type": module.contentType,
             },
           });
         },
@@ -215,45 +226,23 @@ export class SurfaceModulePipeline {
       {
         name: FilesRouteName,
         route: FilesRoute,
-        handler: async ({ request, params }) => {
+        handler: ({ request, params, query }) => {
           const featureId = String(params["feature"]);
-          const root = this.#roots.get(featureId);
           const segments = params["path"];
-          if (!root || !isStringArray(segments) || segments.length === 0) {
+          if (!isStringArray(segments) || segments.length === 0) {
             return textResponse("Resource not found", 404);
           }
-          const filePath = resolve(join(root, ...segments));
-          if (!filePath.startsWith(root + sep)) {
-            return textResponse("Resource not found", 404);
-          }
-          const contentType =
-            FileContentTypes[extname(filePath)] ?? "application/octet-stream";
-          const builtStyle = this.#styles.get(
-            `${featureId}/${segments.join("/")}`,
-          );
-          if (builtStyle) {
-            return new Response(builtStyle.code, {
-              status: 200,
-              headers: {
-                ...corsHeaders(request),
-                "Cache-Control": "no-store",
-                "Content-Type": contentType,
-              },
-            });
-          }
-          try {
-            const content = await readFile(filePath);
-            return new Response(new Uint8Array(content), {
-              status: 200,
-              headers: {
-                ...corsHeaders(request),
-                "Cache-Control": "no-store",
-                "Content-Type": contentType,
-              },
-            });
-          } catch {
-            return textResponse("Resource not found", 404);
-          }
+          const key = `${featureId}/${segments.join("/")}/${readVersion(query)}`;
+          const content = this.#styles.get(key) ?? this.#files.get(key);
+          if (!content) return textResponse("Resource not found", 404);
+          return new Response(content.bytes, {
+            status: 200,
+            headers: {
+              ...corsHeaders(request),
+              "Cache-Control": ImmutableCacheControl,
+              "Content-Type": content.contentType,
+            },
+          });
         },
       },
     ];
@@ -262,7 +251,9 @@ export class SurfaceModulePipeline {
   async #bundle(
     surface: ResolvedSurfaceContribution,
     featureRoot: string,
+    moduleFile: string,
     styles: Map<string, BuiltModule>,
+    files: Map<string, BuiltContent>,
   ): Promise<BuiltModule> {
     const result = await build({
       entryPoints: [surface.entry],
@@ -278,11 +269,17 @@ export class SurfaceModulePipeline {
       tsconfigRaw: { compilerOptions: { jsx: "react-jsx" } },
       plugins: [
         sharedModulesPlugin,
-        this.#cssPlugin(surface.featureId, featureRoot, styles),
+        this.#cssPlugin(
+          surface.featureId,
+          featureRoot,
+          moduleFile,
+          styles,
+          files,
+        ),
       ],
     });
     const code = result.outputFiles[0]?.text ?? "";
-    return { code, hash: hashOf(code) };
+    return toBuiltModule(code, "text/javascript; charset=utf-8");
   }
 
   /**
@@ -292,9 +289,18 @@ export class SurfaceModulePipeline {
   #cssPlugin(
     featureId: string,
     featureRoot: string,
+    moduleFile: string,
     styles: Map<string, BuiltModule>,
+    files: Map<string, BuiltContent>,
   ): Plugin {
     const workspaceId = this.#workspaceId;
+    const moduleUrl = encodeResourceUrl(ModuleRoute, {
+      featureId: "uix",
+      name: ModuleRouteName,
+      workspaceId,
+      params: { feature: featureId, file: moduleFile },
+      query: { v: PlaceholderVersion },
+    });
     return {
       name: "surface-css",
       setup: (builder) => {
@@ -323,11 +329,13 @@ export class SurfaceModulePipeline {
             featureId,
             featureRoot,
             absolute,
+            files,
           );
           const path = relativePath.split(sep);
-          styles.set(`${featureId}/${path.join("/")}`, style);
+          styles.set(`${featureId}/${path.join("/")}/${style.hash}`, style);
           return {
-            path: this.#resolveResourceUrl(
+            path: toRelativeResourceUrl(
+              moduleUrl,
               encodeResourceUrl(FilesRoute, {
                 featureId: "uix",
                 name: FilesRouteName,
@@ -348,8 +356,17 @@ export class SurfaceModulePipeline {
     featureId: string,
     featureRoot: string,
     entry: string,
+    files: Map<string, BuiltContent>,
   ): Promise<BuiltModule> {
     const workspaceId = this.#workspaceId;
+    const stylePath = relative(featureRoot, entry).split(sep);
+    const styleUrl = encodeResourceUrl(FilesRoute, {
+      featureId: "uix",
+      name: FilesRouteName,
+      workspaceId,
+      params: { feature: featureId, path: stylePath },
+      query: { v: PlaceholderVersion },
+    });
     const result = await build({
       entryPoints: [entry],
       bundle: true,
@@ -391,18 +408,25 @@ export class SurfaceModulePipeline {
                   ],
                 };
               }
-              const content = await readFile(absolute);
+              const content = new Uint8Array(await readFile(absolute));
+              const hash = hashOf(content);
+              const path = relativePath.split(sep);
+              files.set(`${featureId}/${path.join("/")}/${hash}`, {
+                bytes: content,
+                contentType:
+                  FileContentTypes[extname(absolute)] ??
+                  "application/octet-stream",
+                hash,
+              });
               return {
-                path: this.#resolveResourceUrl(
+                path: toRelativeResourceUrl(
+                  styleUrl,
                   encodeResourceUrl(FilesRoute, {
                     featureId: "uix",
                     name: FilesRouteName,
                     workspaceId,
-                    params: {
-                      feature: featureId,
-                      path: relativePath.split(sep),
-                    },
-                    query: { v: hashOf(content) },
+                    params: { feature: featureId, path },
+                    query: { v: hash },
                   }),
                 ),
                 external: true,
@@ -413,8 +437,38 @@ export class SurfaceModulePipeline {
       ],
     });
     const code = result.outputFiles[0]?.text ?? "";
-    return { code, hash: hashOf(code) };
+    return toBuiltModule(code, "text/css; charset=utf-8");
   }
+}
+
+function toRelativeResourceUrl(source: string, target: string): string {
+  const sourceUrl = new URL(source);
+  const targetUrl = new URL(target);
+  if (
+    sourceUrl.protocol !== targetUrl.protocol ||
+    sourceUrl.host !== targetUrl.host
+  ) {
+    throw new Error("Relative surface resources must share one logical origin");
+  }
+  const path = posix.relative(
+    posix.dirname(sourceUrl.pathname),
+    targetUrl.pathname,
+  );
+  return `${path.startsWith(".") ? path : `./${path}`}${targetUrl.search}`;
+}
+
+function toBuiltModule(code: string, contentType: string): BuiltModule {
+  return {
+    bytes: new TextEncoder().encode(code),
+    code,
+    contentType,
+    hash: hashOf(code),
+  };
+}
+
+function readVersion(query: unknown): string {
+  if (!query || typeof query !== "object" || !("v" in query)) return "";
+  return String((query as { readonly v: unknown }).v);
 }
 
 function isExternalCssReference(path: string): boolean {

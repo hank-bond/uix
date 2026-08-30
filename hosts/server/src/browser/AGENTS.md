@@ -4,7 +4,7 @@ summary: "Browser-side server bootstraps for the catalog launcher and the shared
 
 # Server browser bootstrap
 
-This directory is bundled for an ordinary browser. It owns the HTTP catalog request and browser navigation effects injected into the host-neutral launcher client. The workspace shell owns its page-matched WebSocket, validates the accepted `ready` frame, and replaces the page location with the canonical session location. It then mounts the shared workspace client over correlated requests and canonical event subscriptions. Connection loss rejects pending browser requests locally. Reconnection remains deferred.
+This directory is bundled for an ordinary browser. It owns the HTTP catalog request and browser navigation effects injected into the host-neutral launcher client. The workspace shell owns its page-matched WebSocket, validates the accepted `ready` frame, and replaces the page location with the canonical session location. It then mounts the shared workspace client over correlated requests and canonical event subscriptions. The adapter maps logical resource addresses to this host's workspace-qualified HTTP content route. Connection loss rejects pending browser requests locally. Reconnection remains deferred.
 
 <!-- INDEX:START -->
 

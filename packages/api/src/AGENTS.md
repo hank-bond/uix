@@ -30,7 +30,7 @@ The files divide by facet. Feature and channel definitions (`feature.ts`, `chann
 - **[index.ts](./index.ts)** The `@uix/api` public facade re-exporting shared feature-author contracts.
 - **[log.ts](./log.ts)** Feature logger contract.
 - **[resource-canonical-id.ts](./resource-canonical-id.ts)** Resource canonical id brand and constructor.
-- **[resource-routes.ts](./resource-routes.ts)** Normalizes resource routes and encodes and decodes their transport URLs.
+- **[resource-routes.ts](./resource-routes.ts)** Normalizes resource routes and encodes and decodes host-neutral logical URLs.
 - **[resources.ts](./resources.ts)** Resource address capability and contribution type.
 - **[settings.ts](./settings.ts)** The settings scope contract.
 - **[shortcuts.ts](./shortcuts.ts)** Parses, normalizes, and resolves shortcuts for the platform.

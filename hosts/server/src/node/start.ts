@@ -48,11 +48,12 @@ export async function startServer(
       registryPath: configuration.registryPath,
       publicOrigin: configuration.publicOrigin,
       assetRoot: options.assetRoot,
-      bootWorkspace: (registered) =>
+      bootWorkspace: (registered, dependencies) =>
         createServerWorkspaceRuntime({
           registered,
           piAppDataDir: configuration.piAppDataDir,
           apiModuleDir: options.apiModuleDir,
+          ...dependencies,
         }),
     });
     const address = await host.listen({
