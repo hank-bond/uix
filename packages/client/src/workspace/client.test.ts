@@ -128,11 +128,11 @@ describe("channel clients", () => {
         modifiedAt: "2026-07-19T10:31:00.000Z",
       });
 
-    await agent.requests.prompt({ text: "hi" });
+    await agent.requests.prompt({ text: "hi", mutationId: "prompt-1" });
     await agent.requests.cancel_turn(undefined);
     await agent.requests.session_history({});
     await agent.requests.list_session_summaries({ limit: 10 });
-    await agent.requests.new_session(undefined);
+    await agent.requests.new_session({ mutationId: "new-session-1" });
     await agent.requests.switch_session({ sessionId: "session-1" });
     await agent.requests.set_session_title({
       sessionId: "session-1",
@@ -140,13 +140,18 @@ describe("channel clients", () => {
     });
     agent.events.event(onEvent);
 
-    expect(request).toHaveBeenCalledWith("agent.prompt", { text: "hi" });
+    expect(request).toHaveBeenCalledWith("agent.prompt", {
+      text: "hi",
+      mutationId: "prompt-1",
+    });
     expect(request).toHaveBeenCalledWith("agent.cancel_turn", undefined);
     expect(request).toHaveBeenCalledWith("agent.session_history", {});
     expect(request).toHaveBeenCalledWith("agent.list_session_summaries", {
       limit: 10,
     });
-    expect(request).toHaveBeenCalledWith("agent.new_session", undefined);
+    expect(request).toHaveBeenCalledWith("agent.new_session", {
+      mutationId: "new-session-1",
+    });
     expect(request).toHaveBeenCalledWith("agent.switch_session", {
       sessionId: "session-1",
     });

@@ -324,7 +324,10 @@ describe("workspace runtime isolation", () => {
 
     const newSession = toChannelCanonicalId("agent", "new_session");
     await expect(
-      dispatch(selected, { channel: newSession, payload: undefined }),
+      dispatch(selected, {
+        channel: newSession,
+        payload: { mutationId: "new-session-b" },
+      }),
     ).resolves.toMatchObject({ ok: true });
     const sessionB = selected.target.sessionId;
     expect(sessionB).not.toBe(sessionA);
@@ -477,7 +480,7 @@ describe("workspace runtime isolation", () => {
     expect(
       await dispatch(fallbackA, {
         channel: newSession,
-        payload: undefined,
+        payload: { mutationId: "fallback-session-a" },
       }),
     ).toMatchObject({ ok: true });
     expect(fallbackA.target.sessionId).not.toBe(previousSessionId);

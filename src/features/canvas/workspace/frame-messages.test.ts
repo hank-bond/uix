@@ -80,7 +80,7 @@ describe("canvas frame messages", () => {
       order.push("writeback");
       return Promise.resolve();
     });
-    const prompt = vi.fn(() => {
+    const prompt = vi.fn((_request: { text: string; mutationId: string }) => {
       order.push("prompt");
       return Promise.resolve();
     });
@@ -102,7 +102,10 @@ describe("canvas frame messages", () => {
       key: "main",
       html: "<html></html>",
     });
-    expect(prompt).toHaveBeenCalledWith({ text: "respond" });
+    expect(prompt).toHaveBeenCalledOnce();
+    const promptRequest = prompt.mock.calls[0][0];
+    expect(promptRequest.text).toBe("respond");
+    expect(promptRequest.mutationId).toEqual(expect.stringMatching(/.+/));
   });
 
   it("does not prompt when persisting the prompt state fails", async () => {

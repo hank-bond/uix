@@ -75,7 +75,7 @@ Current projections apply the axes as follows:
 
 | Projection | Viewpoint | Selection / correlation | Partition / reduction | Result |
 | --- | --- | --- | --- | --- |
-| Selected branch | `asOfLeaf` | Displayable messages, registered turn-state cells, tool results joined by tool-call id | Ordered transcript, latest value per cell | `SelectedBranchProjection` with `transcript` and `turnStateAsOfLeaf.latestValuePerCell` |
+| Selected branch | `asOfLeaf` | Displayable messages, model changes, registered turn-state cells, tool results joined by tool-call id | Ordered transcript, latest model, latest value per cell | `SelectedBranchProjection` with `transcript`, `model`, and `turnStateAsOfLeaf.latestValuePerCell` |
 | Action bindings | `forPlatform` | Active actions joined to confirmed bindings by action id. Inactive bindings split out as unresolved | Conflict claimants collected per resolved shortcut | `ActionBindingProjection` |
 | Provider authentication | current `ModelRuntime` | Interactive provider-owned login methods joined with non-secret connection status | Connected providers ranked before remaining provider names | `ProviderAuthCatalog` |
 | Canvas anchors | `asOfDocumentVersion` or current working content | Addressable text joined to retained anchor identity | Anchor continuity reconciled per document and line | `AnchoredDocument` working projection |

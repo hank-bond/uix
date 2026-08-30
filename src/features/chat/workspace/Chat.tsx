@@ -8,7 +8,10 @@ import type { JSX } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { AgentEvent, TranscriptItem } from "@uix/api/agent-channels";
-import type { agentChannels } from "@uix/api/agent-channels";
+import {
+  type agentChannels,
+  createClientMutationId,
+} from "@uix/api/agent-channels";
 import {
   type ChannelClient,
   useFeatureSetting,
@@ -21,7 +24,7 @@ import { ChatBlock } from "./blocks/ChatBlock";
 import { ToolCatalogProvider } from "./blocks/tool/tool-catalog";
 import { ChatComposer } from "./ChatComposer";
 import { ModelPill } from "./ModelPill";
-import { pendingUserId } from "./pending";
+import { pendingUserId } from "./pending-user-identity";
 import { ProviderLoginModal } from "./ProviderLoginModal";
 import { SessionPill } from "./SessionPill";
 import {
@@ -141,16 +144,19 @@ export function Chat({ client }: ChatProps): JSX.Element {
   const submitPrompt = async (text: string): Promise<void> => {
     if (!text || canStop || isStopping) return;
     setIsSubmitting(true);
-    // Optimistic echo: show the message instantly as an unconfirmed pending
-    // row. Main emits the authoritative born-keyed row once Pi persists it,
-    // and the reducer swaps this row out (eventual consistency: display
-    // first, confirm via the canonical record).
+    const mutationId = createClientMutationId();
+    // Show the message immediately while retaining its mutation identity.
+    // A live event or reconnect snapshot replaces this row after Pi persists
+    // the canonical user message.
     setAgentState((prev) => ({
       ...prev,
-      items: [...prev.items, { id: pendingUserId(), kind: "user", text }],
+      items: [
+        ...prev.items,
+        { id: pendingUserId(mutationId), kind: "user", text },
+      ],
     }));
     try {
-      await client.requests.prompt({ text });
+      await client.requests.prompt({ text, mutationId });
     } catch (err) {
       setIsSubmitting(false);
       setAgentState((prev) => ({

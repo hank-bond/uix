@@ -1,8 +1,8 @@
-// Derives current transcript and restorable feature state from one selected Pi branch.
+// Derives the current transcript, model, and restorable feature state from one selected Pi branch.
 
 import type { SessionEntry } from "@earendil-works/pi-coding-agent";
 
-import type { TranscriptSnapshot } from "@uix/api/agent-channels";
+import type { ModelRef, TranscriptSnapshot } from "@uix/api/agent-channels";
 
 import { createTranscriptProjector } from "./transcript";
 import {
@@ -15,9 +15,10 @@ import {
 export interface SelectedBranchProjection {
   readonly transcript: TranscriptSnapshot;
   readonly turnStateAsOfLeaf: TurnStateAsOfLeaf;
+  readonly model: ModelRef | undefined;
 }
 
-/** Derives the read models owned by the selected branch in one forward pass. */
+/** Derive the read models owned by the selected branch in one forward pass. */
 export function deriveSelectedBranchProjection(
   branch: readonly SessionEntry[],
   initialCwd: string,
@@ -29,9 +30,13 @@ export function deriveSelectedBranchProjection(
     initialCwd,
   );
   let cwd = initialCwd;
+  let model: ModelRef | undefined;
 
   for (const entry of branch) {
     cwd = asTurnStateEntryData(entry)?.cwd ?? cwd;
+    if (entry.type === "model_change") {
+      model = { provider: entry.provider, id: entry.modelId };
+    }
     transcriptProjector.projectEntry(entry, cwd);
     turnStateProjector.projectEntry(entry);
   }
@@ -39,5 +44,6 @@ export function deriveSelectedBranchProjection(
   return {
     transcript: transcriptProjector.deriveSnapshot(),
     turnStateAsOfLeaf: turnStateProjector.deriveAsOfLeaf(),
+    model,
   };
 }

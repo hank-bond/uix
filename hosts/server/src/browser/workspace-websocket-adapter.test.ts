@@ -48,24 +48,30 @@ describe("workspace WebSocket adapter", () => {
     expect(sent).not.toHaveProperty("workspaceId");
     expect(sent).not.toHaveProperty("sessionId");
 
-    adapter.frameHandler({
-      type: "response",
-      id: "request-1",
-      value: { accepted: true },
-    });
+    adapter.frameHandler(
+      {
+        type: "response",
+        id: "request-1",
+        value: { accepted: true },
+      },
+      socket as unknown as WebSocket,
+    );
     await expect(success).resolves.toEqual({ accepted: true });
 
     const failure = adapter.client.request("feature.fail", undefined);
     expect(JSON.parse(socket.send.mock.calls[1]?.[0] ?? "")).not.toHaveProperty(
       "payload",
     );
-    adapter.frameHandler({
-      type: "error",
-      id: "request-2",
-      code: "handler_error",
-      message: "Rejected",
-      isTerminal: true,
-    });
+    adapter.frameHandler(
+      {
+        type: "error",
+        id: "request-2",
+        code: "handler_error",
+        message: "Rejected",
+        isTerminal: true,
+      },
+      socket as unknown as WebSocket,
+    );
     await expect(failure).rejects.toEqual(
       expect.objectContaining<Partial<WebSocketRequestError>>({
         code: "handler_error",
@@ -86,30 +92,42 @@ describe("workspace WebSocket adapter", () => {
     const unsubscribe = adapter.client.subscribe("feature.changed", handler);
     const request = adapter.client.request("feature.wait", {});
 
-    adapter.frameHandler({
-      type: "error",
-      id: "request-1",
-      code: "correlation_in_use",
-      message: "Duplicate request",
-      isTerminal: false,
-    });
-    adapter.frameHandler({
-      type: "event",
-      id: "event-1",
-      channel: "feature.changed",
-      payload: { revision: 2 },
-    });
+    adapter.frameHandler(
+      {
+        type: "error",
+        id: "request-1",
+        code: "correlation_in_use",
+        message: "Duplicate request",
+        isTerminal: false,
+      },
+      socket as unknown as WebSocket,
+    );
+    adapter.frameHandler(
+      {
+        type: "event",
+        id: "event-1",
+        channel: "feature.changed",
+        payload: { revision: 2 },
+      },
+      socket as unknown as WebSocket,
+    );
     expect(handler).toHaveBeenCalledWith({ revision: 2 });
 
-    adapter.frameHandler({ type: "response", id: "request-1" });
+    adapter.frameHandler(
+      { type: "response", id: "request-1" },
+      socket as unknown as WebSocket,
+    );
     await expect(request).resolves.toBeUndefined();
     unsubscribe();
-    adapter.frameHandler({
-      type: "event",
-      id: "event-2",
-      channel: "feature.changed",
-      payload: { revision: 3 },
-    });
+    adapter.frameHandler(
+      {
+        type: "event",
+        id: "event-2",
+        channel: "feature.changed",
+        payload: { revision: 3 },
+      },
+      socket as unknown as WebSocket,
+    );
     expect(handler).toHaveBeenCalledOnce();
   });
 
@@ -123,7 +141,7 @@ describe("workspace WebSocket adapter", () => {
     );
     const pendingRequest = adapter.client.request("feature.wait", {});
 
-    adapter.closeHandler("Network lost");
+    adapter.disconnectHandler(socket as unknown as WebSocket, "Network lost");
     await expect(pendingRequest).rejects.toEqual(
       expect.objectContaining({
         code: "connection_closed",
@@ -137,5 +155,58 @@ describe("workspace WebSocket adapter", () => {
       code: "connection_closed",
     });
     expect(socket.send).toHaveBeenCalledOnce();
+  });
+
+  it("replaces the socket without replaying requests and publishes a connection version", async () => {
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+    const first = new FakeWebSocket();
+    const adapter = createWorkspaceWebSocketAdapter(
+      first as unknown as WebSocket,
+      "reference",
+      (url) => url,
+    );
+    const versionChanged = vi.fn();
+    const unsubscribeVersion =
+      adapter.client.connectionVersion?.subscribe(versionChanged);
+    const eventHandler = vi.fn();
+    adapter.client.subscribe("feature.changed", eventHandler);
+    const abandoned = adapter.client.request("feature.mutate", {
+      value: 1,
+    });
+
+    adapter.disconnectHandler(first as unknown as WebSocket, "Network lost");
+    await expect(abandoned).rejects.toMatchObject({
+      code: "connection_closed",
+    });
+
+    const second = new FakeWebSocket();
+    adapter.setSocket(second as unknown as WebSocket);
+    expect(adapter.client.connectionVersion?.getSnapshot()).toBe(2);
+    expect(versionChanged).toHaveBeenCalledOnce();
+    expect(second.send).not.toHaveBeenCalled();
+
+    adapter.frameHandler(
+      {
+        type: "event",
+        id: "stale-event",
+        channel: "feature.changed",
+        payload: { stale: true },
+      },
+      first as unknown as WebSocket,
+    );
+    expect(eventHandler).not.toHaveBeenCalled();
+
+    const recovered = adapter.client.request("feature.snapshot", undefined);
+    expect(JSON.parse(second.send.mock.calls[0]?.[0] ?? "")).toEqual({
+      type: "request",
+      id: "request-2",
+      channel: "feature.snapshot",
+    });
+    adapter.frameHandler(
+      { type: "response", id: "request-2", value: { revision: 2 } },
+      second as unknown as WebSocket,
+    );
+    await expect(recovered).resolves.toEqual({ revision: 2 });
+    unsubscribeVersion?.();
   });
 });

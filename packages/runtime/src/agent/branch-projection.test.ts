@@ -49,9 +49,21 @@ describe("deriveSelectedBranchProjection", () => {
           },
         }),
         entry({
+          id: "model-1",
+          type: "model_change",
+          provider: "anthropic",
+          modelId: "claude-old",
+        }),
+        entry({
           id: "assistant-1",
           type: "message",
           message: { role: "assistant", content: "Hi" },
+        }),
+        entry({
+          id: "model-2",
+          type: "model_change",
+          provider: "deepseek",
+          modelId: "deepseek-v4-flash",
         }),
         entry({
           id: "state-2",
@@ -93,6 +105,10 @@ describe("deriveSelectedBranchProjection", () => {
       ["canvas.selection", "anchor-2"],
     ]);
     expect(projection.turnStateAsOfLeaf.cwd).toBe("/current");
+    expect(projection.model).toEqual({
+      provider: "deepseek",
+      id: "deepseek-v4-flash",
+    });
   });
 
   it("keeps missing active cells absent for later undefined restoration", () => {
@@ -116,5 +132,6 @@ describe("deriveSelectedBranchProjection", () => {
       [],
     );
     expect(projection.turnStateAsOfLeaf.cwd).toBe("/workspace");
+    expect(projection.model).toBeUndefined();
   });
 });

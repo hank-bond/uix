@@ -132,4 +132,33 @@ describe("Chat transcript state", () => {
       ),
     ).toEqual({ items: [canonical], turnActive: false });
   });
+
+  it("confirms a disconnected optimistic row from the recovery snapshot", () => {
+    const old: TranscriptItem = {
+      id: "user-old",
+      kind: "user",
+      text: "repeat",
+    };
+    const accepted: TranscriptItem = {
+      id: "user-new",
+      kind: "user",
+      text: "repeat",
+    };
+    const pending: TranscriptItem = {
+      id: "local:pending:1",
+      kind: "user",
+      text: "repeat",
+    };
+
+    expect(
+      hydrateChatAgentState(
+        {
+          transcript: { items: [old, accepted] },
+          turnActive: true,
+        },
+        { items: [old, pending], turnActive: false },
+        [],
+      ),
+    ).toEqual({ items: [old, accepted], turnActive: true });
+  });
 });

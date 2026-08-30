@@ -1,11 +1,11 @@
-// Opens one explicit durable session into its own Pi manager.
+// Opens or creates one explicit, optionally caller-identified durable Pi session manager.
 
 import { writeFile } from "node:fs/promises";
 
 import type { SessionManager } from "@earendil-works/pi-coding-agent";
 
 import { resolveSessionFileById } from "./session-files";
-import { type SessionTarget, toSessionId } from "../workspace";
+import { type SessionId, type SessionTarget, toSessionId } from "../workspace";
 
 /**
  * Open an independent manager for one existing session id. Returns undefined
@@ -29,13 +29,21 @@ export interface OpenedPrimarySession {
   readonly manager: SessionManager;
 }
 
-/** Create and persist an empty session header so its accepted id is immediately reopenable. */
+/**
+ * Create and persist an empty session header so its accepted id is immediately
+ * reopenable. Use the caller-provided id when present and reject collisions.
+ */
 export async function createDurablePrimarySession(
   cwd: string,
   sessionDir: string,
+  sessionId?: SessionId,
 ): Promise<OpenedPrimarySession> {
   const sdk = await import("@earendil-works/pi-coding-agent");
-  const created = sdk.SessionManager.create(cwd, sessionDir);
+  const created = sdk.SessionManager.create(
+    cwd,
+    sessionDir,
+    sessionId ? { id: sessionId } : undefined,
+  );
   const sessionFile = created.getSessionFile();
   const header = created.getHeader();
   if (!sessionFile || header?.type !== "session") {

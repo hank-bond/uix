@@ -1,12 +1,12 @@
 ---
-summary: "Add reconnect recovery, full browser parity, explicit app ownership, local operations, safety review, and independent distribution to the minimal server."
+summary: "Complete browser parity, explicit app ownership, local operations, safety review, and independent distribution after the conforming web host."
 ---
 
 # Server browser parity and distribution
 
 ## Status and dependency
 
-This plan follows the minimal web vertical in [Electron and server hosts](./electron-server-split.md). The first web host intentionally supports a smaller product envelope. It has one visible session target per page, no running-session switch, and no background-run recovery promise. It remains loopback-only without full provider-auth parity.
+This plan follows the conforming web host in [Electron and server hosts](./electron-server-split.md). That plan now owns reconnect recovery, deployment profiles, graceful shutdown, device-based provider authentication, and Workspace reload. This plan retains the remaining full-browser parity, app ownership, local operations, safety, and distribution work.
 
 Agent feature isolation, concurrent session viewpoints, and selected-view Canvas behavior land independently in [agent feature instances and viewpoint state](./agent-feature-instances-and-viewpoint-state.md). Runtime shutdown hardening lands in [runtime operation hardening](./runtime-operation-hardening.md).
 
@@ -14,7 +14,9 @@ Agent feature isolation, concurrent session viewpoints, and selected-view Canvas
 
 ### P1: Reconnect and snapshot recovery
 
-Give the shared client a connection epoch and one reusable snapshot-recovery pattern. Classify every event stream as a durable snapshot signal, ordered live delta, or explicitly lossy notification. Pending mutations become indeterminate after connection loss and never retry automatically.
+_Status: implemented as W6 in [Electron and server hosts](./electron-server-split.md) and awaiting review._
+
+The shared client now has a connection version and one reusable snapshot-recovery pattern. Classify every event stream as a durable snapshot signal, ordered live delta, or explicitly lossy notification. Pending mutations become indeterminate after connection loss and never retry automatically.
 
 **Review gate:** Reload and reconnect recover every snapshot-backed projection without remounting the entire client or duplicating mutations.
 

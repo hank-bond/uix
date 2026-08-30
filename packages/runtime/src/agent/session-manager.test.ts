@@ -80,10 +80,13 @@ describe("createDurablePrimarySession", () => {
     sdk.open.mockReturnValue(reopened);
 
     await expect(
-      createDurablePrimarySession("/workspace", sessionDir),
+      createDurablePrimarySession("/workspace", sessionDir, "new" as never),
     ).resolves.toEqual({
       target: { sessionId: "new" },
       manager: reopened,
+    });
+    expect(sdk.create).toHaveBeenCalledWith("/workspace", sessionDir, {
+      id: "new",
     });
     expect(await readFile(sessionFile, "utf8")).toBe(
       `${JSON.stringify(header)}\n`,

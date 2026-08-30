@@ -6,7 +6,7 @@ import type {
   TranscriptItem,
 } from "@uix/api/agent-channels";
 
-import { isPendingUserId } from "./pending";
+import { isPendingUserId } from "./pending-user-identity";
 
 export interface ChatAgentState {
   readonly items: TranscriptItem[];
@@ -36,9 +36,26 @@ export function hydrateChatAgentState(
   bufferedEvents: readonly AgentEvent[],
 ): ChatAgentState {
   const snapshotItems = snapshot.transcript.items.filter(isVisible);
+  const previousCanonicalIds = new Set(
+    current.items
+      .filter((item) => !item.id.startsWith("local:"))
+      .map((item) => item.id),
+  );
   const localItems = current.items.filter((item) =>
     item.id.startsWith("local:"),
   );
+  for (const durable of snapshotItems) {
+    if (durable.kind !== "user" || previousCanonicalIds.has(durable.id)) {
+      continue;
+    }
+    const pendingIndex = localItems.findIndex(
+      (item) =>
+        item.kind === "user" &&
+        isPendingUserId(item.id) &&
+        item.text === durable.text,
+    );
+    if (pendingIndex !== -1) localItems.splice(pendingIndex, 1);
+  }
   return bufferedEvents.reduce(reduceChatAgentState, {
     items: [...snapshotItems, ...localItems],
     turnActive: snapshot.turnActive,

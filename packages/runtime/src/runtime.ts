@@ -338,12 +338,9 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
 
     const agentChannelsBag = this.#bag.add(new DisposableBag());
     agentChannelsBag.add(
-      registerAgentRequest("prompt", (context, request) => {
-        void this.#agentRuntime.prompt(
-          context.agentInstanceGuard,
-          request.text,
-        );
-      }),
+      registerAgentRequest("prompt", (context, request) =>
+        this.#agentRuntime.commitPrompt(context.agentInstanceGuard, request),
+      ),
     );
     agentChannelsBag.add(
       registerAgentRequest("cancel_turn", async (context) => ({
@@ -363,8 +360,10 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
       ),
     );
     agentChannelsBag.add(
-      registerAgentRequest("new_session", async (context) => {
-        const opened = await this.#agentRuntime.createSession();
+      registerAgentRequest("new_session", async (context, { mutationId }) => {
+        const opened = await this.#agentRuntime.createSession(
+          toSessionId(mutationId),
+        );
         using guard = await context.retarget(opened.target, opened.manager);
         return (await this.#agentRuntime.readSessionHistory(guard)).session;
       }),

@@ -17,6 +17,8 @@ import type {
   ModelCatalog,
   ModelFavoriteUpdate,
   ModelRef,
+  PromptRequest,
+  PromptResponse,
   ProviderAuthCatalog,
   ProviderAuthFlowSnapshot,
   ProviderAuthType,
@@ -71,6 +73,7 @@ import type { Workspace } from "../roots";
 import type { SessionId, SessionTarget } from "../workspace";
 
 const MaxSessionTitleCodePoints = 4096;
+const PromptIntentCustomType = "uix.prompt-intent";
 const log = createLogger("agent");
 
 export interface WorkspaceAgentRuntime extends AsyncDisposable {
@@ -79,7 +82,12 @@ export interface WorkspaceAgentRuntime extends AsyncDisposable {
     openedManager?: SessionManager,
     origin?: string,
   ): Promise<AgentInstanceGuard>;
-  createSession(): Promise<OpenedPrimarySession>;
+  createSession(sessionId?: SessionId): Promise<OpenedPrimarySession>;
+  /** Commit one idempotent prompt intent and start its turn once. */
+  commitPrompt(
+    guard: AgentInstanceGuard,
+    request: PromptRequest,
+  ): PromptResponse;
   prompt(guard: AgentInstanceGuard, text: string): Promise<void>;
   cancelTurn(guard: AgentInstanceGuard): Promise<boolean>;
   readSessionHistory(
@@ -149,6 +157,10 @@ export function createWorkspaceAgentRuntime(
   let controlServices: AgentSessionServices | undefined;
   let inFlightControlServices: Promise<AgentSessionServices> | undefined;
   let disposal: Promise<void> | undefined;
+  const inFlightSessionCreations = new Map<
+    SessionId,
+    Promise<OpenedPrimarySession>
+  >();
   const reloadAdmission = new ReloadAdmission();
   let disposed = false;
 
@@ -185,6 +197,29 @@ export function createWorkspaceAgentRuntime(
       });
     inFlightControlServices = opening;
     return opening;
+  }
+
+  function createSession(sessionId?: SessionId): Promise<OpenedPrimarySession> {
+    if (!sessionId) {
+      return createDurablePrimarySession(opts.workspace.agentCwd, sessionDir);
+    }
+    const existingCreation = inFlightSessionCreations.get(sessionId);
+    if (existingCreation) return existingCreation;
+    const creation = (async () => {
+      const existing = await openExistingSessionManager(sessionDir, sessionId);
+      if (existing) return { target: { sessionId }, manager: existing };
+      return createDurablePrimarySession(
+        opts.workspace.agentCwd,
+        sessionDir,
+        sessionId,
+      );
+    })().finally(() => {
+      if (inFlightSessionCreations.get(sessionId) === creation) {
+        inFlightSessionCreations.delete(sessionId);
+      }
+    });
+    inFlightSessionCreations.set(sessionId, creation);
+    return creation;
   }
 
   const providerAuth = bag.add(
@@ -446,6 +481,42 @@ export function createWorkspaceAgentRuntime(
     }));
   }
 
+  function commitPrompt(
+    operationGuard: AgentInstanceGuard,
+    request: PromptRequest,
+  ): PromptResponse {
+    const manager = operationGuard.value.manager;
+    let existing:
+      | { readonly id: string; readonly data: PromptIntentData }
+      | undefined;
+    for (const entry of manager.getEntries()) {
+      if (
+        entry.type === "custom" &&
+        entry.customType === PromptIntentCustomType &&
+        isPromptIntentData(entry.data) &&
+        entry.data.mutationId === request.mutationId
+      ) {
+        existing = { id: entry.id, data: entry.data };
+        break;
+      }
+    }
+    if (existing) {
+      if (existing.data.text !== request.text) {
+        throw new Error(
+          `Prompt mutation identity was reused with different content: ${request.mutationId}`,
+        );
+      }
+      return { promptId: existing.id };
+    }
+
+    const promptId = manager.appendCustomEntry(PromptIntentCustomType, {
+      mutationId: request.mutationId,
+      text: request.text,
+    });
+    void prompt(operationGuard, request.text);
+    return { promptId };
+  }
+
   async function prompt(
     operationGuard: AgentInstanceGuard,
     text: string,
@@ -557,9 +628,9 @@ export function createWorkspaceAgentRuntime(
       });
     },
 
-    createSession: () =>
-      createDurablePrimarySession(opts.workspace.agentCwd, sessionDir),
+    createSession,
 
+    commitPrompt,
     prompt,
 
     cancelTurn: (guard) =>
@@ -709,6 +780,20 @@ export function createWorkspaceAgentRuntime(
 
     [Symbol.asyncDispose]: dispose,
   };
+}
+
+interface PromptIntentData {
+  readonly mutationId: string;
+  readonly text: string;
+}
+
+function isPromptIntentData(value: unknown): value is PromptIntentData {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<PromptIntentData>;
+  return (
+    typeof candidate.mutationId === "string" &&
+    typeof candidate.text === "string"
+  );
 }
 
 function normalizeSessionTitle(title: string | null): string {

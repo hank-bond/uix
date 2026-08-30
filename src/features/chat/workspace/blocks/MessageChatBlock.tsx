@@ -6,7 +6,7 @@ import type { TranscriptItem } from "@uix/api/agent-channels";
 
 import { ChatBlockFrame } from "./ChatBlockFrame";
 import { MarkdownContent } from "./content/MarkdownContent";
-import { isPendingUserId } from "../pending";
+import { isPendingUserId } from "../pending-user-identity";
 
 export function MessageChatBlock({
   item,

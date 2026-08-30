@@ -11,11 +11,35 @@ import { type Static, Type } from "typebox";
 
 import type { ChannelContract } from "./channels";
 
-/** Schema for the `prompt` request payload. */
+/** Client-supplied identity for safely retrying one idempotent mutation. */
+export const ClientMutationIdSchema = Type.String({
+  minLength: 1,
+  maxLength: 128,
+  pattern: "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$",
+});
+
+/** Schema for one idempotent prompt mutation. */
 export const PromptRequestSchema = Type.Object({
   text: Type.String(),
+  mutationId: ClientMutationIdSchema,
 });
 export type PromptRequest = Static<typeof PromptRequestSchema>;
+
+/** Durable acknowledgement for an accepted prompt mutation. */
+export const PromptResponseSchema = Type.Object({
+  /** Durable identity of the accepted prompt mutation. */
+  promptId: Type.String({ minLength: 1 }),
+});
+export type PromptResponse = Static<typeof PromptResponseSchema>;
+
+/** Mint a page-local mutation identity that remains safe to retry after reconnect. */
+export function createClientMutationId(): string {
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
+  );
+}
 
 /** Point-in-time file location derived for a filesystem tool invocation. */
 export interface ToolFileLocation {
@@ -114,9 +138,13 @@ export const AgentSnapshotSchema = Type.Object({
 });
 export type AgentSnapshot = Static<typeof AgentSnapshotSchema>;
 
-export const SessionIdSchema = Type.String({
-  pattern: "^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$",
+export const SessionIdSchema = ClientMutationIdSchema;
+
+/** Request for one idempotently created durable session. */
+export const NewSessionRequestSchema = Type.Object({
+  mutationId: ClientMutationIdSchema,
 });
+export type NewSessionRequest = Static<typeof NewSessionRequestSchema>;
 
 /** Durable identity and lightweight metadata for one session graph. */
 export const SessionSummarySchema = Type.Object({
@@ -378,7 +406,7 @@ export const agentChannels = {
   requests: {
     prompt: {
       requestSchema: PromptRequestSchema,
-      responseSchema: Type.Void(),
+      responseSchema: PromptResponseSchema,
     },
     /** Request cancellation of the attachment's active shared turn. */
     cancel_turn: {
@@ -396,7 +424,7 @@ export const agentChannels = {
     },
     /** Retarget the requesting attachment to a fresh durable session. */
     new_session: {
-      requestSchema: Type.Void(),
+      requestSchema: NewSessionRequestSchema,
       responseSchema: SessionSummarySchema,
     },
     /** Retarget the requesting attachment to an existing durable session. */

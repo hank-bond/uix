@@ -39,7 +39,7 @@ Each workspace runtime owns one `ChannelRegistry` that resolves owner-scoped ids
 
 A runtime-created attachment prepares each canonical request with immutable guarded context and the registry entry's log policy. Each host records the physical crossing and invokes that prepared dispatch. Workspace clients derive typed request and event methods, and event clients validate incoming payloads.
 
-Electron IPC and the server's correlated WebSocket protocol are the implemented physical channel transports. Runtime events have workspace or session scope. Only matching attachments receive them. Canvas iframe writeback still uses a feature-owned `postMessage` shim before entering typed channels. A general iframe channel adapter does not exist.
+Electron IPC and the server's correlated WebSocket protocol are the implemented physical channel transports. The server detects dead sockets with ping/pong. Its browser adapter reconnects to the canonical session with capped backoff and rejects disconnected requests without replay. An accepted-connection version makes mounted snapshot consumers resubscribe and rehydrate. Runtime events have workspace or session scope. Only matching attachments receive them. Canvas iframe writeback still uses a feature-owned `postMessage` shim before entering typed channels. A general iframe channel adapter does not exist.
 
 Logical `uix-resource://` addresses dispatch normalized feature resource routes. Electron uses the scheme as its physical protocol. The server browser adapter maps it to workspace-qualified HTTP requests that retain an independent workspace guard through response completion. Versioned surface modules, CSS, and assets retain exact bytes under immutable cache policy. Mutable resources default to `no-store`. Surface bundles and files use a reserved logical substrate origin. Canvas serves a static feature-origin frame, reads selected-viewpoint HTML through its typed channel, and transfers that HTML to the frame through a narrow `postMessage` handshake.
 
@@ -81,7 +81,7 @@ UIX stores sessions under the workspace state root. One application-owned Pi app
 
 Each instance owns its Agent facet registries and creates Pi with built-in tools inactive. Manifest features therefore define the complete UIX-selected tool surface. Internal installers adapt that instance's registries into Pi.
 
-The substrate agent contract handles prompts, history, recent summaries, attachment retargeting, titles, model selection, favorites, provider authentication, and session-scoped live events. Chat consumes that contract as an ordinary feature.
+The substrate agent contract handles prompts, history, recent summaries, attachment retargeting, titles, model selection, favorites, provider authentication, and session-scoped live events. Prompt and New Session mutations include client-supplied identities. Accepted prompts write a durable idempotency intent before execution. New Session uses its mutation identity as the durable session id. Reconnect therefore never requires automatic mutation replay. Chat consumes that contract as an ordinary feature.
 
 Pi's `ModelRuntime` remains authoritative for providers, models, and authentication interactions. UIX projects available models and provider-owned login methods without persisting credentials itself.
 

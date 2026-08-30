@@ -1,5 +1,7 @@
 // Validates canvas frame postMessages and forwards writeback and prompt actions.
 
+import { createClientMutationId } from "@uix/api/agent-channels";
+
 import type { CanvasKey } from "../shared/addressing";
 
 export type CanvasFrameMessage =
@@ -59,12 +61,15 @@ export async function forwardCanvasFrameMessage(
   message: CanvasFrameMessage,
   isCurrentViewpoint: () => boolean,
   writeback: (req: { key: CanvasKey; html: string }) => Promise<void>,
-  prompt: (req: { text: string }) => Promise<void>,
+  prompt: (req: { text: string; mutationId: string }) => Promise<unknown>,
 ): Promise<void> {
   if (!isCurrentViewpoint()) return;
   await writeback({ key: message.key, html: message.html });
   if (message.type === "prompt" && isCurrentViewpoint()) {
-    await prompt({ text: message.prompt });
+    await prompt({
+      text: message.prompt,
+      mutationId: createClientMutationId(),
+    });
   }
 }
 

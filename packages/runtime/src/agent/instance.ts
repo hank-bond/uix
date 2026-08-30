@@ -66,7 +66,7 @@ export interface AgentInstanceOptions {
   ) => Promise<void>;
   readonly state: Omit<
     AgentInstanceStateOptions,
-    "initialTranscript" | "turnState"
+    "initialTranscript" | "initialModel" | "turnState"
   >;
 }
 
@@ -87,13 +87,15 @@ export async function createAgentInstance(
   let state: AgentInstanceState & Disposable;
   try {
     await opts.activateFeatures(features, featuresBag);
+    const branch = deriveSelectedBranchProjection(
+      opts.manager.getBranch(),
+      opts.manager.getHeader()?.cwd || opts.manager.getCwd(),
+    );
     state = instanceBag.add(
       createAgentInstanceState({
         ...opts.state,
-        initialTranscript: deriveSelectedBranchProjection(
-          opts.manager.getBranch(),
-          opts.manager.getHeader()?.cwd || opts.manager.getCwd(),
-        ).transcript,
+        initialTranscript: branch.transcript,
+        ...(branch.model && { initialModel: branch.model }),
         turnState: features.turnState,
       }),
     );

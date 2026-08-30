@@ -41,6 +41,7 @@ export type AgentInstanceStateOwnership = AgentInstanceState & Disposable;
 export interface AgentInstanceStateOptions {
   readonly emit: (event: AgentEvent) => void;
   readonly initialTranscript: TranscriptSnapshot;
+  readonly initialModel?: ModelRef;
   readonly turnState?: TurnStateRegistry;
   readonly cwd: string;
   readonly onCurrentModelChange?: () => void;
@@ -71,7 +72,7 @@ export function createAgentInstanceState(
         }),
       )
     : undefined;
-  let currentModel: ModelRef | undefined;
+  let currentModel = opts.initialModel;
   let disposed = false;
 
   function setCurrentModel(model: ModelRef | undefined): void {

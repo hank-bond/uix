@@ -112,7 +112,18 @@ const sdk = vi.hoisted(() => {
       state.sessionTitle = title.trim() || undefined;
       return "session-info-id";
     }),
-    appendCustomEntry: vi.fn(() => "entry-id"),
+    appendCustomEntry: vi.fn((customType: string, data?: unknown) => {
+      const id = `custom-${String(state.branch.length + 1)}`;
+      state.branch.push({
+        type: "custom",
+        id,
+        parentId: state.branch.at(-1)?.["id"] ?? null,
+        timestamp: "2026-07-19T10:00:00.000Z",
+        customType,
+        data,
+      });
+      return id;
+    }),
     appendCustomMessageEntry: () => "entry-id",
   };
 
@@ -735,6 +746,41 @@ describe("workspace agent instances", () => {
     await agentRuntime[Symbol.asyncDispose]();
   });
 
+  it("durably deduplicates a retried prompt mutation", async () => {
+    const gate = deferred();
+    sdk.state.promptPromise = gate.promise;
+    const { agentRuntime } = createHarness();
+    const guard = await agentRuntime.acquire(
+      { sessionId: "session-id" as never },
+      sdk.manager as never,
+    );
+    const request = { text: "once", mutationId: "mutation-1" };
+
+    const accepted = agentRuntime.commitPrompt(guard, request);
+    const retried = agentRuntime.commitPrompt(guard, request);
+
+    expect(accepted).toEqual({ promptId: "custom-1" });
+    expect(retried).toEqual(accepted);
+    expect(sdk.manager.appendCustomEntry).toHaveBeenCalledOnce();
+    expect(sdk.manager.appendCustomEntry).toHaveBeenCalledWith(
+      "uix.prompt-intent",
+      request,
+    );
+    expect(() =>
+      agentRuntime.commitPrompt(guard, {
+        text: "different",
+        mutationId: request.mutationId,
+      }),
+    ).toThrow("reused with different content");
+    await vi.waitFor(() => {
+      expect(sdk.state.session?.["prompt"] as Mock).toHaveBeenCalledOnce();
+    });
+
+    gate.resolve();
+    guard[Symbol.dispose]();
+    await agentRuntime[Symbol.asyncDispose]();
+  });
+
   it("rejects a competing prompt before it enters Pi", async () => {
     const gate = deferred();
     sdk.state.promptPromise = gate.promise;
@@ -1298,6 +1344,9 @@ describe("workspace agent instances", () => {
       sdk.manager as never,
     );
 
+    expect(agentRuntime.getStatus(guard)).toMatchObject({
+      model: { provider: "anthropic", id: "claude-sonnet-4-5" },
+    });
     await agentRuntime.prompt(guard, "hello");
 
     expect(sdk.state.lastCreateOptions?.["model"]).toBeUndefined();

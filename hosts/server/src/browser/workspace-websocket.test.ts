@@ -8,13 +8,18 @@ import {
   vi,
 } from "vitest";
 
+import type { WorkspaceClient } from "@uix/api/workspace";
+
 import { openWorkspaceWebSocket } from "./workspace-websocket";
 
 class FakeWebSocket extends EventTarget {
+  static readonly OPEN = 1;
   static readonly instances: FakeWebSocket[] = [];
 
   readonly location: string;
   readonly close = vi.fn<(code?: number, reason?: string) => void>();
+  readonly send = vi.fn<(data: string) => void>();
+  readyState = FakeWebSocket.OPEN;
 
   constructor(location: string | URL) {
     super();
@@ -41,8 +46,9 @@ type ReplaceState = (
 
 interface WorkspaceWebSocketFixture {
   readonly socket: FakeWebSocket;
-  readonly status: { textContent: string };
+  readonly status: { hidden: boolean; textContent: string };
   readonly replaceState: Mock<ReplaceState>;
+  readonly pushState: Mock<ReplaceState>;
   readonly workspaceWebSocket: Disposable;
 }
 
@@ -51,16 +57,25 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
 function createWorkspaceWebSocketFixture(
   pathname: string,
+  options: Parameters<typeof openWorkspaceWebSocket>[0] = {},
 ): WorkspaceWebSocketFixture {
-  const status = { textContent: "Connecting…" };
+  const status = { hidden: false, textContent: "Connecting…" };
   const replaceState = vi.fn<ReplaceState>();
+  const pushState = vi.fn<ReplaceState>();
+  const documentEvents = new EventTarget();
+  const windowEvents = new EventTarget();
   vi.stubGlobal("document", {
+    visibilityState: "visible",
     getElementById: vi.fn((id: string) => (id === "status" ? status : null)),
+    addEventListener: documentEvents.addEventListener.bind(documentEvents),
+    removeEventListener:
+      documentEvents.removeEventListener.bind(documentEvents),
   });
   vi.stubGlobal("window", {
     location: {
@@ -68,15 +83,23 @@ function createWorkspaceWebSocketFixture(
       origin: "https://uix.example",
       pathname,
     },
-    history: { replaceState },
+    history: { replaceState, pushState },
+    addEventListener: windowEvents.addEventListener.bind(windowEvents),
+    removeEventListener: windowEvents.removeEventListener.bind(windowEvents),
   });
   vi.stubGlobal("WebSocket", FakeWebSocket);
 
-  const workspaceWebSocket = openWorkspaceWebSocket();
+  const workspaceWebSocket = openWorkspaceWebSocket(options);
   const socket = FakeWebSocket.instances.at(-1);
   if (!socket) throw new Error("WebSocket was not constructed");
   expect(socket.location).toBe(`wss://uix.example${pathname}`);
-  return { socket, status, replaceState, workspaceWebSocket };
+  return {
+    socket,
+    status,
+    replaceState,
+    pushState,
+    workspaceWebSocket,
+  };
 }
 
 describe("browser workspace WebSocket", () => {
@@ -151,6 +174,93 @@ describe("browser workspace WebSocket", () => {
     malformed.socket.emitMessage("{}");
     expect(malformed.replaceState).not.toHaveBeenCalled();
     expect(malformed.socket.close).toHaveBeenCalledWith(
+      1002,
+      "Invalid WebSocket ready frame",
+    );
+  });
+
+  it("reconnects to the canonical session, rejects pending work, and retains the mounted client", async () => {
+    vi.useFakeTimers();
+    let acceptedClient: WorkspaceClient | undefined;
+    const readyHandler = vi.fn(
+      (ready: { readonly client: WorkspaceClient }) => {
+        acceptedClient = ready.client;
+        return { [Symbol.dispose]: vi.fn() };
+      },
+    );
+    const fixture = createWorkspaceWebSocketFixture("/workspaces/reference", {
+      readyHandler,
+    });
+    fixture.socket.emitMessage(
+      JSON.stringify({
+        type: "ready",
+        sessionId: "session-1",
+        canonicalPath: "/workspaces/reference/sessions/session-1",
+      }),
+    );
+    const accepted = acceptedClient;
+    if (!accepted) throw new Error("Workspace client was not accepted");
+    const versionChanged = vi.fn();
+    accepted.connectionVersion?.subscribe(versionChanged);
+    const pending = accepted.request("feature.mutate", { value: 1 });
+
+    fixture.socket.emit("close");
+    await expect(pending).rejects.toMatchObject({
+      code: "connection_closed",
+    });
+    expect(fixture.status.textContent).toBe("Disconnected; reconnecting…");
+
+    await vi.advanceTimersByTimeAsync(250);
+    const replacement = FakeWebSocket.instances.at(-1);
+    if (!replacement || replacement === fixture.socket) {
+      throw new Error("Replacement WebSocket was not constructed");
+    }
+    expect(replacement.location).toBe(
+      "wss://uix.example/workspaces/reference/sessions/session-1",
+    );
+    replacement.emitMessage(
+      JSON.stringify({
+        type: "ready",
+        sessionId: "session-1",
+        canonicalPath: "/workspaces/reference/sessions/session-1",
+      }),
+    );
+
+    expect(readyHandler).toHaveBeenCalledOnce();
+    expect(versionChanged).toHaveBeenCalledOnce();
+    expect(accepted.connectionVersion?.getSnapshot()).toBe(2);
+    expect(replacement.send).not.toHaveBeenCalled();
+    expect(fixture.status.textContent).toBe("Connected");
+    expect(fixture.status.hidden).toBe(true);
+  });
+
+  it("rejects a replacement connection that changes the canonical session", async () => {
+    vi.useFakeTimers();
+    const fixture = createWorkspaceWebSocketFixture("/workspaces/reference");
+    fixture.socket.emitMessage(
+      JSON.stringify({
+        type: "ready",
+        sessionId: "session-1",
+        canonicalPath: "/workspaces/reference/sessions/session-1",
+      }),
+    );
+    fixture.socket.emit("close");
+
+    await vi.advanceTimersByTimeAsync(250);
+    const replacement = FakeWebSocket.instances.at(-1);
+    if (!replacement || replacement === fixture.socket) {
+      throw new Error("Replacement WebSocket was not constructed");
+    }
+    replacement.emitMessage(
+      JSON.stringify({
+        type: "ready",
+        sessionId: "session-2",
+        canonicalPath: "/workspaces/reference/sessions/session-2",
+      }),
+    );
+
+    expect(fixture.status.textContent).toBe("Unable to open workspace");
+    expect(replacement.close).toHaveBeenCalledWith(
       1002,
       "Invalid WebSocket ready frame",
     );

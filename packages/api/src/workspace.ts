@@ -202,6 +202,14 @@ export function useInvokeAction(): (
 }
 
 // Section: Workspace client
+/** Observable connection version used to restart snapshot consumers after replacement. */
+export interface WorkspaceConnectionVersion {
+  /** Return the current monotonic connection version. */
+  readonly getSnapshot: () => number;
+  /** Observe version changes and return the matching cleanup operation. */
+  readonly subscribe: (listener: () => void) => () => void;
+}
+
 export interface WorkspaceClient {
   readonly workspaceId: string;
   readonly request: (channel: string, req: unknown) => Promise<unknown>;
@@ -211,6 +219,8 @@ export interface WorkspaceClient {
   ) => () => void;
   /** Map a logical UIX resource URL or origin to this host's browser transport. */
   readonly resolveResourceUrl?: (logicalUrl: string) => string;
+  /** Optional host-neutral recovery signal for replaceable physical connections. */
+  readonly connectionVersion?: WorkspaceConnectionVersion;
 }
 
 /** Resolve a logical resource address without making Electron callers provide an identity adapter. */
@@ -234,13 +244,29 @@ export interface WorkspaceClientProviderProps {
   children: ReactNode;
 }
 
+const getStaticConnectionVersion = (): number => 0;
+const subscribeStaticConnectionVersion = (): (() => void) => () => undefined;
+
 export function WorkspaceClientProvider({
   client,
   children,
 }: WorkspaceClientProviderProps): ReactNode {
+  const connectionVersion = client.connectionVersion;
+  const version = useSyncExternalStore(
+    connectionVersion?.subscribe ?? subscribeStaticConnectionVersion,
+    connectionVersion?.getSnapshot ?? getStaticConnectionVersion,
+    connectionVersion?.getSnapshot ?? getStaticConnectionVersion,
+  );
+  // Preserve the mounted workspace while changing the context value identity.
+  // Snapshot-backed effects key on this value, so an accepted replacement
+  // connection resubscribes first and then re-reads current authoritative state.
+  const clientAtConnectionVersion = useMemo<WorkspaceClient>(
+    () => ({ ...client }),
+    [client, version],
+  );
   return createElement(
     WorkspaceClientContext.Provider,
-    { value: client },
+    { value: clientAtConnectionVersion },
     children,
   );
 }

@@ -1,4 +1,4 @@
-// Binds one accepted workspace attachment to its server WebSocket protocol.
+// Binds one accepted workspace attachment to correlated frames, scoped events, and heartbeat liveness.
 
 import type { WebSocket } from "@fastify/websocket";
 
@@ -26,6 +26,7 @@ import {
 } from "../websocket-frames";
 
 const log = createLogger("server-websocket-wire");
+const HeartbeatIntervalMs = 30_000;
 
 /** Bind post-handshake protocol processing to one attachment-owned connection. */
 export function bindWorkspaceWebSocket(
@@ -53,10 +54,12 @@ export function bindWorkspaceWebSocket(
     acceptWebSocketRequest(socket, attachment, inFlightRequestIds, data);
   };
   socket.on("message", messageHandler);
+  const heartbeat = bindHeartbeat(socket);
 
   try {
     sendFrame(socket, readyFrame, "out:ready", readyFrame);
   } catch (error) {
+    heartbeat[Symbol.dispose]();
     socket.off("message", messageHandler);
     eventSubscription[Symbol.dispose]();
     throw error;
@@ -66,10 +69,43 @@ export function bindWorkspaceWebSocket(
     [Symbol.dispose](): void {
       if (isDisposed) return;
       isDisposed = true;
+      heartbeat[Symbol.dispose]();
       socket.off("message", messageHandler);
       eventSubscription[Symbol.dispose]();
     },
   };
+}
+
+function bindHeartbeat(socket: WebSocket): Disposable {
+  let stopped = false;
+  let awaitingPong = false;
+  const pongHandler = (): void => {
+    awaitingPong = false;
+  };
+  const stop = (): void => {
+    if (stopped) return;
+    stopped = true;
+    clearInterval(timer);
+    socket.off("pong", pongHandler);
+  };
+  const timer = setInterval(() => {
+    if (socket.readyState !== socket.OPEN) return;
+    if (awaitingPong) {
+      stop();
+      socket.terminate();
+      return;
+    }
+    awaitingPong = true;
+    try {
+      socket.ping();
+    } catch {
+      stop();
+      socket.terminate();
+    }
+  }, HeartbeatIntervalMs);
+  timer.unref();
+  socket.on("pong", pongHandler);
+  return { [Symbol.dispose]: stop };
 }
 
 function acceptWebSocketRequest(

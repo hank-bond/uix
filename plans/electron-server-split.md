@@ -18,7 +18,7 @@ summary: "Build the Electron and web hosts over the proved workspace runtime, at
 - **H5.1** launcher extraction landed in `0e2ccdc`.
 - **H5.2** workspace extraction landed in `0780f80`.
 - **H5.3** dependency-boundary enforcement landed. H5 is complete.
-- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** landed in `780838b`. **W2** has landed. **W3** landed in `75fd789`. **W4** has landed. **W5** is implemented and awaiting review. **W6-W9** continue the web host from that spec. H7-H8 follow with Electron rehoming and two-host conformance.
+- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** landed in `780838b`. **W2** has landed. **W3** landed in `75fd789`. **W4** has landed. **W5** landed in `d8ca763`. **W6** is implemented and awaiting review. **W7-W9** continue the web host from that spec. H7-H8 follow with Electron rehoming and two-host conformance.
 
 ## Status and intent
 
@@ -196,7 +196,7 @@ Prepared dispatch, provider authentication, model refresh, single-flight boots, 
 
 Agent feature lifetimes, per-session Canvas state, selected-view routing, reload, and concurrent-session tests moved to [agent feature instances and viewpoint state](./agent-feature-instances-and-viewpoint-state.md). R0 reverted the unused state-builder and composition code. A1 moved feature state into the production `AgentInstance`. A2 completed the concurrent-session gate before H6.
 
-Full reconnect recovery, provider-auth browser parity, app-source rehoming, discovery, security review, and packaging moved to [server browser parity and distribution](./server-browser-parity-and-distribution.md).
+Provider-auth browser parity, app-source rehoming, discovery, security review, and packaging moved to [server browser parity and distribution](./server-browser-parity-and-distribution.md). Reconnect recovery returned here as W6 when the accepted web-host specification replaced the discarded minimal server.
 
 The deferred multi-branch Agent architecture is recorded in the Agent feature plan. Session-branch Git state remains in [session worktrees and turn checkpoints](./session-worktrees-and-turn-checkpoints.md).
 
@@ -204,7 +204,7 @@ The deferred multi-branch Agent architecture is recorded in the Agent feature pl
 
 Move browser-compatible launcher and workspace UI into `packages/client`. Each entry receives a constructed adapter from its host bootstrap. Remove ambient Electron detection from shared code. Move the page-shared React, TypeBox, and `@uix/api` module mechanism with the workspace client.
 
-Preserve the current single-target product envelope. One page owns one attachment and one selected primary session. Session switching remains unavailable while its Agent runs. The browser needs canonical workspace-session URLs, but reconnect epochs and complete snapshot recovery move to the parity plan.
+Preserve the current single-target product envelope. One page owns one attachment and one selected primary session. Session switching remains unavailable while its Agent runs. The browser needs canonical workspace-session URLs, but connection versions and complete snapshot recovery move to the parity plan.
 
 The workspace mount receives the existing `WorkspaceClient` rather than a second transport abstraction. It may also receive one synchronous, idempotent `synchronizeSessionLocation(sessionId)` callback. Invoke it only after the client establishes an accepted active session, including initial hydration, New Session, and successful switching. Electron omits it. The server uses it to replace the canonical browser URL. It never participates in session mutation or teaches the client how host URLs are encoded.
 
@@ -250,13 +250,15 @@ Make content references host-neutral and immutable in live channel payloads, and
 
 ### W5: Deployment profiles and public origin
 
-_Status: implemented and awaiting review._
+_Status: landed in `d8ca763`._
 
 Loopback-only startup may derive the public origin from the bound address. Any non-loopback startup requires an explicit public origin. Reject request authorities and browser origins outside the configured policy without trusting client-authored headers. Support the trusted-encrypted-network plaintext profile and the TLS-or-trusted-ingress profile. Keep non-loopback binding explicit. Apply the browser security policy (CSP) over only the origins the active client needs. A failed start closes every listener, socket, and runtime it opened.
 
 **Review gate:** Wrong-host and wrong-origin requests are rejected. Configured public origins produce correct absolute catalog, live, and content locations. The two deployment profiles satisfy the same contracts.
 
 ### W6: Reconnect, heartbeat, and request semantics
+
+_Status: implemented and awaiting review._
 
 Add server-side dead-connection detection with periodic ping/pong (approximately 30 seconds) so a dead socket releases its attachment. Implement client-owned reconnection with capped backoff, triggered by close, error, network recovery, or visibility return, attaching to the session named by the canonical location. Rehydrate authoritative snapshots rather than replaying events. Reject pending client requests locally on disconnect and never auto-resent them. Mutating requests return the durable identity of the record they created. Safe retries reuse a client-supplied idempotency identity.
 

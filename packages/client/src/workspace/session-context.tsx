@@ -11,7 +11,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import { agentChannels } from "@uix/api/agent-channels";
+import { agentChannels, createClientMutationId } from "@uix/api/agent-channels";
 import {
   createChannelClient,
   useWorkspaceClient,
@@ -44,7 +44,8 @@ export function WorkspaceSessionControllerProvider({
         requestActiveHistory: () => agent.requests.session_history({}),
         requestRecentSessions: () =>
           agent.requests.list_session_summaries({ limit: RecentSessionLimit }),
-        requestNewSession: () => agent.requests.new_session(undefined),
+        requestNewSession: () =>
+          agent.requests.new_session({ mutationId: createClientMutationId() }),
         requestSwitchSession: (sessionId) =>
           agent.requests.switch_session({ sessionId }),
         requestSetSessionTitle: (sessionId, title) =>

@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const wireLog = vi.hoisted(() => ({
   debug: vi.fn(),
@@ -24,6 +24,8 @@ import { bindWorkspaceWebSocket } from "./workspace-websocket";
 class FakeSocket extends EventEmitter {
   readonly OPEN = 1;
   readonly send = vi.fn<(data: string) => void>();
+  readonly ping = vi.fn<() => void>();
+  readonly terminate = vi.fn<() => void>();
   readyState = this.OPEN;
 
   emitMessage(value: unknown): void {
@@ -100,6 +102,35 @@ describe("server workspace WebSocket binding", () => {
   beforeEach(() => {
     wireLog.debug.mockClear();
     wireLog.error.mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("pings live connections and terminates one that stops answering", () => {
+    vi.useFakeTimers();
+    const fixture = createAttachmentFixture(() => {
+      throw new Error("Unexpected dispatch");
+    });
+    const socket = new FakeSocket();
+    using _binding = bindWorkspaceWebSocket(
+      socket as never,
+      fixture.attachment,
+      {
+        type: "ready",
+        sessionId: "session-1",
+        canonicalPath: "/workspaces/reference/sessions/session-1",
+      },
+    );
+
+    vi.advanceTimersByTime(30_000);
+    expect(socket.ping).toHaveBeenCalledOnce();
+    socket.emit("pong");
+    vi.advanceTimersByTime(30_000);
+    expect(socket.ping).toHaveBeenCalledTimes(2);
+    vi.advanceTimersByTime(30_000);
+    expect(socket.terminate).toHaveBeenCalledOnce();
   });
 
   it("prepares canonical requests and returns one correlated terminal frame", async () => {

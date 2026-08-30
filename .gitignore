@@ -5,6 +5,7 @@ out/
 *.log
 .vite/
 .uix/
+.uix-server/
 *.tsbuildinfo
 .pi/
 

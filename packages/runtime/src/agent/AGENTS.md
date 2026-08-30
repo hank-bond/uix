@@ -6,7 +6,7 @@ summary: "The agent runtime opens Pi sessions, handles models and provider sign-
 
 One workspace agent runtime owns shared provider and model services plus an agent instance supervisor. The supervisor retains session-keyed `AgentInstanceOwnership`s and issues guards that provide operational `AgentInstance` values. Each instance owns its session manager, Agent feature factories, facet registries, restored state, and lazily booted Pi runtime. Ordered installers read that instance's registries when Pi starts or reloads.
 
-Each instance's branch is the shared source for its persisted transcript and restored feature state. Historical projection and live observation must produce the same renderer transcript shape. Live rows begin with temporary IDs when necessary, then adopt Pi's durable entry IDs when Pi persists their messages.
+Each instance's branch is the shared source for its persisted transcript, selected model, and restored feature state. Historical projection and live observation must produce the same renderer transcript shape. Live rows begin with temporary IDs when necessary, then adopt Pi's durable entry IDs when Pi persists their messages.
 
 Bulk maintenance visits a stable live-instance snapshot under supervisor-owned temporary guards and passes only operational instance values to visitors. Workspace settings record the default model and favorites. Session-file readers provide history and summaries without opening a Pi runtime. Instance-specific operations use the operational value carried by a live guard, and running turns retain their own guards through the final safe boundary.
 
@@ -21,7 +21,7 @@ Provider discovery and interactive sign-in share Pi's authentication state. A co
 ### Source files
 
 - **[auth-providers.ts](./auth-providers.ts)** Derives the provider sign-in list from Pi's available login methods and current connection state.
-- **[branch-projection.ts](./branch-projection.ts)** Derives current transcript and restorable feature state from one selected Pi branch.
+- **[branch-projection.ts](./branch-projection.ts)** Derives the current transcript, model, and restorable feature state from one selected Pi branch.
 - **[current-transcript.ts](./current-transcript.ts)** Materializes one Agent instance's durable transcript seed plus live transcript updates.
 - **[installers.ts](./installers.ts)** Assembles UIX's ordered Pi setup hooks into the single in-process extension used by each runtime.
 - **[instance-state.ts](./instance-state.ts)** Owns the mutable collaborators and projections scoped to one live agent instance.
@@ -30,7 +30,7 @@ Provider discovery and interactive sign-in share Pi's authentication state. A co
 - **[provider-auth-flow.ts](./provider-auth-flow.ts)** Runs one interactive provider sign-in at a time and exposes its prompts, links, progress, and result to the renderer.
 - **[reload-admission.ts](./reload-admission.ts)** Keeps Agent operations and Workspace feature reload outside each other's lexical scopes.
 - **[session-files.ts](./session-files.ts)** Finds recent Pi session files and resolves a session ID to its JSONL file.
-- **[session-manager.ts](./session-manager.ts)** Opens one explicit durable session into its own Pi manager.
+- **[session-manager.ts](./session-manager.ts)** Opens or creates one explicit, optionally caller-identified durable Pi session manager.
 - **[session-summary.ts](./session-summary.ts)** Reads session titles, first user-message previews, and timestamps without opening each Pi session.
 - **[settings.ts](./settings.ts)** Defines workspace settings for the default model and favorite models.
 - **[system-prompt.ts](./system-prompt.ts)** Assembles UIX and feature prompt sections and appends them to Pi's system prompt before each run.
