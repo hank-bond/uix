@@ -7,6 +7,11 @@ import type {
 
 import type { WebSocketServerMessage } from "../websocket-messages";
 
+type WorkspaceWebSocketAdapterMessage = Extract<
+  WebSocketServerMessage,
+  { readonly type: "response" | "error" | "event" }
+>;
+
 interface PendingRequest {
   readonly socket: WebSocket;
   readonly resolve: (value: unknown) => void;
@@ -17,7 +22,7 @@ export interface WorkspaceWebSocketAdapter extends Disposable {
   readonly client: WorkspaceClient;
   readonly setSocket: (socket: WebSocket) => void;
   readonly messageHandler: (
-    message: WebSocketServerMessage,
+    message: WorkspaceWebSocketAdapterMessage,
     socket: WebSocket,
   ) => void;
   readonly disconnectHandler: (socket: WebSocket, message?: string) => void;
@@ -161,8 +166,6 @@ export function createWorkspaceWebSocketAdapter(
     messageHandler(message, sourceSocket): void {
       if (isDisposed || sourceSocket !== activeSocket) return;
       switch (message.type) {
-        case "ready":
-          throw new Error("Received a second WebSocket ready message");
         case "response": {
           const request = pendingRequests.get(message.id);
           if (!request || request.socket !== sourceSocket) return;

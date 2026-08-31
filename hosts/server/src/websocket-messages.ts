@@ -57,11 +57,20 @@ const WebSocketEventMessageSchema = Type.Object(
   { additionalProperties: false },
 );
 
+const WebSocketShutdownMessageSchema = Type.Object(
+  {
+    type: Type.Literal("shutdown"),
+    message: Type.String({ minLength: 1 }),
+  },
+  { additionalProperties: false },
+);
+
 const WebSocketServerMessageSchema = Type.Union([
   WebSocketReadyMessageSchema,
   WebSocketResponseMessageSchema,
   WebSocketErrorMessageSchema,
   WebSocketEventMessageSchema,
+  WebSocketShutdownMessageSchema,
 ]);
 
 export interface WebSocketReadyMessage {
@@ -99,11 +108,17 @@ export interface WebSocketEventMessage {
   readonly payload?: unknown;
 }
 
+export interface WebSocketShutdownMessage {
+  readonly type: "shutdown";
+  readonly message: string;
+}
+
 export type WebSocketServerMessage =
   | WebSocketReadyMessage
   | WebSocketResponseMessage
   | WebSocketErrorMessage
-  | WebSocketEventMessage;
+  | WebSocketEventMessage
+  | WebSocketShutdownMessage;
 
 /** Validate the first server message that accepts a session target. */
 export function parseWebSocketReadyMessage(

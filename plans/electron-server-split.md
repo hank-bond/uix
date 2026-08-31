@@ -18,7 +18,7 @@ summary: "Build the Electron and web hosts over the proved workspace runtime, at
 - **H5.1** launcher extraction landed in `0e2ccdc`.
 - **H5.2** workspace extraction landed in `0780f80`.
 - **H5.3** dependency-boundary enforcement landed. H5 is complete.
-- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** landed in `780838b`. **W2** has landed. **W3** landed in `75fd789`. **W4** has landed. **W5** landed in `d8ca763`. **W6** is implemented and awaiting review. **W7-W9** continue the web host from that spec. H7-H8 follow with Electron rehoming and two-host conformance.
+- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** landed in `780838b`. **W2** has landed. **W3** landed in `75fd789`. **W4** has landed. **W5** landed in `d8ca763`. **W6** landed in `ac412f1`. **W7** has landed. **W8-W9** continue the web host from that spec. H7-H8 follow with Electron rehoming and two-host conformance.
 
 ## Status and intent
 
@@ -258,13 +258,15 @@ Loopback-only startup may derive the public origin from the bound address. Any n
 
 ### W6: Reconnect, heartbeat, and request semantics
 
-_Status: implemented and awaiting review._
+_Status: landed in `ac412f1`._
 
 Add server-side dead-connection detection with periodic ping/pong (approximately 30 seconds) so a dead socket releases its attachment. Implement client-owned reconnection with capped backoff, triggered by close, error, network recovery, or visibility return, attaching to the session named by the canonical location. Rehydrate authoritative snapshots rather than replaying events. Reject pending client requests locally on disconnect and never auto-resent them. Mutating requests return the durable identity of the record they created. Safe retries reuse a client-supplied idempotency identity.
 
 **Review gate:** Laptop sleep/wake, network change, and server restart scenarios recover through snapshots without duplicate prompts. A prompt confirmed before disconnect is not re-run. Optimistic user rows confirm from the reconnect snapshot.
 
 ### W7: Graceful shutdown and startup failure
+
+_Status: landed._
 
 On termination, stop admission and notify live connections with a shutdown message. Cancel active Agent runs through native cancellation. Close connections and dispose pending and live attachment ownership. Stop HTTP service and await workspace-supervisor teardown before exiting. The host never waits for an Agent run to complete. A failed start closes everything it opened.
 

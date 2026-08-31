@@ -234,6 +234,57 @@ describe("browser workspace WebSocket", () => {
     expect(fixture.status.hidden).toBe(true);
   });
 
+  it("presents server shutdown and reconnects to the accepted session after close", async () => {
+    vi.useFakeTimers();
+    const fixture = createWorkspaceWebSocketFixture("/workspaces/reference");
+    fixture.socket.emitMessage(
+      JSON.stringify({
+        type: "ready",
+        sessionId: "session-1",
+        canonicalPath: "/workspaces/reference/sessions/session-1",
+      }),
+    );
+
+    fixture.socket.emitMessage(
+      JSON.stringify({
+        type: "shutdown",
+        message: "Server is shutting down; reconnecting…",
+      }),
+    );
+    expect(fixture.status.hidden).toBe(false);
+    expect(fixture.status.textContent).toBe(
+      "Server is shutting down; reconnecting…",
+    );
+
+    fixture.socket.emit("close");
+    await vi.advanceTimersByTimeAsync(250);
+    const replacement = FakeWebSocket.instances.at(-1);
+    if (!replacement || replacement === fixture.socket) {
+      throw new Error("Replacement WebSocket was not constructed");
+    }
+    expect(replacement.location).toBe(
+      "wss://uix.example/workspaces/reference/sessions/session-1",
+    );
+  });
+
+  it("rejects a second ready message on one accepted connection", () => {
+    const fixture = createWorkspaceWebSocketFixture("/workspaces/reference");
+    const readyMessage = JSON.stringify({
+      type: "ready",
+      sessionId: "session-1",
+      canonicalPath: "/workspaces/reference/sessions/session-1",
+    });
+    fixture.socket.emitMessage(readyMessage);
+
+    fixture.socket.emitMessage(readyMessage);
+
+    expect(fixture.status.textContent).toBe("Unable to open workspace");
+    expect(fixture.socket.close).toHaveBeenCalledWith(
+      1002,
+      "Invalid WebSocket message",
+    );
+  });
+
   it("rejects a replacement connection that changes the canonical session", async () => {
     vi.useFakeTimers();
     const fixture = createWorkspaceWebSocketFixture("/workspaces/reference");

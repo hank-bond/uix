@@ -1,17 +1,29 @@
-// Starts the selected server deployment profile from environment-backed host configuration.
+// Starts the selected server profile and drains it on SIGINT or SIGTERM.
 
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { AsyncDisposableBag } from "@uix/runtime/lifecycle";
+import { DisposableBag, installProcessHandlers } from "@uix/runtime/lifecycle";
 import { createLogger } from "@uix/runtime/log";
 
 import { parseServerArguments, renderServerHelp } from "./configuration";
+import { ServerProcessLifetime } from "./process-lifetime";
 import { createServerHost } from "./server";
 import { startServer } from "./start";
 
 const log = createLogger("server");
-const processBag = new AsyncDisposableBag();
+const processLifetime = new ServerProcessLifetime();
+const processBag = new DisposableBag();
+
+function terminationSignalHandler(signal: "SIGINT" | "SIGTERM"): void {
+  log.info({ signal }, "server_shutdown_started");
+  void processLifetime[Symbol.asyncDispose]().catch((error: unknown) => {
+    log.error({ err: toError(error) }, "server_shutdown_failed");
+    process.exitCode = 1;
+  });
+}
+
+processBag.add(installProcessHandlers(log, { terminationSignalHandler }));
 
 async function start(): Promise<void> {
   let command: "help" | "start";
@@ -43,6 +55,8 @@ async function start(): Promise<void> {
     return;
   }
 
+  const didCommitHost = await processLifetime.commit(result.host);
+  if (!didCommitHost) return;
   log.info(
     {
       profile: result.profile,
@@ -52,7 +66,6 @@ async function start(): Promise<void> {
     },
     "server_started",
   );
-  processBag.add(result.host);
 }
 
 function toError(error: unknown): Error {

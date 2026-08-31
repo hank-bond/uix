@@ -1,4 +1,4 @@
-// Composes one public-origin-gated server host over Fastify routes, workspace supervision, and disposal.
+// Composes one public-origin-gated server with graceful live-connection and workspace teardown.
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -23,11 +23,14 @@ import {
   toWorkspaceLocation,
 } from "./public-origin";
 import { loadWorkspaceRegistry, type RegisteredWorkspace } from "./registry";
+import { recordWebSocketCrossing } from "./websocket-wire-log";
 import { registerWorkspaceResourceRoutes } from "./workspace-resource-routes";
 import { WorkspaceResourceTransport } from "./workspace-resource-transport";
 import { registerWorkspaceRoutes } from "./workspace-routes";
+import type { WebSocketShutdownMessage } from "../websocket-messages";
 
 const log = createLogger("server-websocket");
+const ShutdownMessage = "Server is shutting down; reconnecting…";
 
 export interface ServerWorkspaceDependencies {
   readonly resourceTransport: ResourceTransportRegistrar;
@@ -114,9 +117,18 @@ export async function createServerHost(
     },
   });
   const app = Fastify({ logger: false });
+  let isAdmissionOpen = true;
 
   try {
     app.addHook("onRequest", (request, reply, done) => {
+      if (!isAdmissionOpen) {
+        setMutableResponseHeaders(reply);
+        void reply.code(503).send({
+          code: "server_shutting_down",
+          message: "Server is shutting down",
+        });
+        return;
+      }
       const rejection = derivePublicOriginRejection(
         publicOrigin,
         request.headers.host,
@@ -179,10 +191,31 @@ export async function createServerHost(
   return {
     listen: (listenOptions) => app.listen(listenOptions),
     [Symbol.asyncDispose](): Promise<void> {
-      disposal ??= disposeServer(app, supervisor);
+      if (!disposal) {
+        isAdmissionOpen = false;
+        sendServerShutdownMessages(app);
+        disposal = disposeServer(app, supervisor);
+      }
       return disposal;
     },
   };
+}
+
+function sendServerShutdownMessages(app: FastifyInstance): void {
+  const message: WebSocketShutdownMessage = {
+    type: "shutdown",
+    message: ShutdownMessage,
+  };
+  const encodedMessage = JSON.stringify(message);
+  for (const socket of app.websocketServer.clients) {
+    if (socket.readyState !== socket.OPEN) continue;
+    try {
+      recordWebSocketCrossing(log, "out:shutdown", message);
+      socket.send(encodedMessage);
+    } catch (error) {
+      log.warn({ err: error }, "websocket_shutdown_notification_failed");
+    }
+  }
 }
 
 async function disposeServer(

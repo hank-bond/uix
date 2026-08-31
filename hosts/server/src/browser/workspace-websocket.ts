@@ -1,4 +1,4 @@
-// Owns one reconnecting workspace connection and adapts accepted sockets to a stable client.
+// Owns one reconnecting workspace connection, shutdown notices, and its stable client.
 
 import type { WorkspaceClient } from "@uix/api/workspace";
 
@@ -7,10 +7,7 @@ import {
   type WorkspaceWebSocketAdapter,
 } from "./workspace-websocket-adapter";
 import { resolveServerResourceUrl } from "../resource-urls";
-import {
-  parseWebSocketReadyMessage,
-  parseWebSocketServerMessage,
-} from "../websocket-messages";
+import { parseWebSocketServerMessage } from "../websocket-messages";
 
 interface WorkspaceWebSocketReady {
   readonly client: WorkspaceClient;
@@ -113,8 +110,17 @@ export function openWorkspaceWebSocket(
             throw new Error("WebSocket messages must be text");
           }
           const decodedMessage = JSON.parse(event.data) as unknown;
-          if (!isAccepted) {
-            const readyMessage = parseWebSocketReadyMessage(decodedMessage);
+          const serverMessage = parseWebSocketServerMessage(decodedMessage);
+          if (serverMessage.type === "shutdown") {
+            status.hidden = false;
+            status.textContent = serverMessage.message;
+            return;
+          }
+          if (serverMessage.type === "ready") {
+            if (isAccepted) {
+              throw new Error("Received a second WebSocket ready message");
+            }
+            const readyMessage = serverMessage;
             const canonicalLocation = parseCanonicalSessionLocation(
               readyMessage.canonicalPath,
               workspaceId,
@@ -174,10 +180,10 @@ export function openWorkspaceWebSocket(
             if (clientMount) status.hidden = true;
             return;
           }
-          webSocketAdapter?.messageHandler(
-            parseWebSocketServerMessage(decodedMessage),
-            socket,
-          );
+          if (!isAccepted) {
+            throw new Error("First WebSocket message did not accept a session");
+          }
+          webSocketAdapter?.messageHandler(serverMessage, socket);
         } catch {
           hasFatalFailure = true;
           status.hidden = false;

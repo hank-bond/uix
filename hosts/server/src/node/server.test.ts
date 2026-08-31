@@ -374,6 +374,58 @@ describe("server host launcher", () => {
     await closeWebSocket(reopened.socket);
   });
 
+  it("notifies live connections, closes their ownership, and tears down runtimes on shutdown", async () => {
+    const fixture = await createFixture();
+    const listener = await reserveLoopbackListener();
+    const created = createAttachmentFixture(toWorkspaceId("reference"));
+    const runtimeDisposal = vi.fn(() => Promise.resolve());
+    await using host = await createServerHost({
+      registryPath: fixture.registryPath,
+      publicOrigin: listener.origin,
+      assetRoot: fixture.assetRoot,
+      bootWorkspace: () =>
+        Promise.resolve({
+          workspaceId: toWorkspaceId("reference"),
+          onEvent: () => noopDisposable(),
+          createAttachment: () => Promise.resolve(created.value),
+          load: () => Promise.reject(new Error("Unexpected runtime load")),
+          reload: () => Promise.reject(new Error("Unexpected runtime reload")),
+          [Symbol.asyncDispose]: runtimeDisposal,
+        }),
+    });
+    const address = await host.listen(listener.options);
+    const connection = await openWorkspaceWebSocket(
+      `${address.replace(/^http/, "ws")}/workspaces/reference`,
+    );
+    const shutdownMessage = new Promise<unknown>((resolve) => {
+      connection.socket.addEventListener("message", (event) => {
+        const message = JSON.parse(String(event.data)) as { type?: unknown };
+        if (message.type === "shutdown") resolve(message);
+      });
+    });
+    const connectionClosed = new Promise<void>((resolve) => {
+      connection.socket.addEventListener(
+        "close",
+        () => {
+          resolve();
+        },
+        { once: true },
+      );
+    });
+
+    const shutdown = host[Symbol.asyncDispose]();
+    await expect(shutdownMessage).resolves.toEqual({
+      type: "shutdown",
+      message: "Server is shutting down; reconnecting…",
+    });
+    await connectionClosed;
+    await shutdown;
+
+    expect(created.disposal).toHaveBeenCalledOnce();
+    expect(runtimeDisposal).toHaveBeenCalledOnce();
+    await expect(fetch(`${address}/api/catalog`)).rejects.toThrow();
+  });
+
   it("keeps an in-flight content fetch alive after its originating socket disconnects", async () => {
     const fixture = await createFixture();
     const listener = await reserveLoopbackListener();

@@ -1,6 +1,8 @@
+import process from "node:process";
+
 import { describe, expect, it, vi } from "vitest";
 
-import { AsyncDisposableBag } from "./lifecycle";
+import { AsyncDisposableBag, installProcessHandlers } from "./lifecycle";
 
 describe("AsyncDisposableBag", () => {
   it("disposes mixed lifetimes in reverse acquisition order", async () => {
@@ -69,5 +71,32 @@ describe("AsyncDisposableBag", () => {
       "Async disposable bag disposal failed",
     );
     expect(finalDispose).toHaveBeenCalledOnce();
+  });
+});
+
+describe("process handlers", () => {
+  it("reports only the first termination signal and unregisters both bindings", () => {
+    const previousSigint = new Set(process.listeners("SIGINT"));
+    const previousSigterm = new Set(process.listeners("SIGTERM"));
+    const terminationSignalHandler = vi.fn();
+    const handlers = installProcessHandlers({ error: vi.fn() } as never, {
+      terminationSignalHandler,
+    });
+    const sigint = process
+      .listeners("SIGINT")
+      .find((listener) => !previousSigint.has(listener));
+    const sigterm = process
+      .listeners("SIGTERM")
+      .find((listener) => !previousSigterm.has(listener));
+    if (!sigint || !sigterm) throw new Error("Signal handlers were not added");
+
+    (sigterm as () => void)();
+    (sigint as () => void)();
+    expect(terminationSignalHandler).toHaveBeenCalledOnce();
+    expect(terminationSignalHandler).toHaveBeenCalledWith("SIGTERM");
+
+    handlers[Symbol.dispose]();
+    expect(process.listeners("SIGINT")).not.toContain(sigint);
+    expect(process.listeners("SIGTERM")).not.toContain(sigterm);
   });
 });

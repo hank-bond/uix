@@ -17,7 +17,7 @@ This directory is bundled for an ordinary browser. It owns the HTTP catalog requ
 - **[main.ts](./main.ts)** Boots the shared launcher client over the server catalog and browser navigation adapter.
 - **[workspace-main.ts](./workspace-main.ts)** Boots the shared workspace client over one server-owned WebSocket.
 - **[workspace-websocket-adapter.ts](./workspace-websocket-adapter.ts)** Adapts replaceable accepted browser WebSockets to one host-neutral workspace client.
-- **[workspace-websocket.ts](./workspace-websocket.ts)** Owns one reconnecting workspace connection and adapts accepted sockets to a stable client.
+- **[workspace-websocket.ts](./workspace-websocket.ts)** Owns one reconnecting workspace connection, shutdown notices, and its stable client.
 - **[workspace.html](./workspace.html)** Defines the stateless server workspace document that opens one live attachment.
 
 <!-- INDEX:END -->

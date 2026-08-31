@@ -176,8 +176,13 @@ export function subscribe<E>(
   return disposable(unsubscribe);
 }
 
+interface ProcessHandlerOptions {
+  /** Handles the first termination signal received by this binding. */
+  readonly terminationSignalHandler?: (signal: "SIGINT" | "SIGTERM") => void;
+}
+
 /**
- * Install global process-level error handlers.
+ * Install global process-level error handlers and optional termination signals.
  *
  * `uncaughtException` and `unhandledRejection` cover errors that
  * escape the synchronous and asynchronous call stacks respectively.
@@ -194,27 +199,51 @@ export function subscribe<E>(
  * you pass in. If we ever need real attribution, we'll layer it
  * on top of these handlers, not redesign them.
  *
- * Returns a Disposable that unregisters the handlers. In practice
- * the bag lives for the whole host, so the unregister path mostly
- * matters for tests.
+ * A supplied termination callback runs once for the first SIGINT or SIGTERM.
+ * Returns a Disposable that unregisters every handler. In practice the bag
+ * lives for the whole host, so the unregister path mostly matters for tests.
  */
-export function installProcessHandlers(log: Logger): Disposable {
+export function installProcessHandlers(
+  log: Logger,
+  options: ProcessHandlerOptions = {},
+): Disposable {
   const normalize = (thrown: unknown): Error =>
     thrown instanceof Error ? thrown : new Error(String(thrown));
 
-  const onException = (err: unknown): void => {
+  const exceptionHandler = (err: unknown): void => {
     const e = normalize(err);
     log.error({ err: e.message, stack: e.stack }, "unhandled_exception");
   };
-  const onRejection = (reason: unknown): void => {
+  const rejectionHandler = (reason: unknown): void => {
     const e = normalize(reason);
     log.error({ err: e.message, stack: e.stack }, "unhandled_rejection");
   };
 
-  process.on("uncaughtException", onException);
-  process.on("unhandledRejection", onRejection);
+  let hasReceivedTerminationSignal = false;
+  const terminationSignalHandler = (signal: "SIGINT" | "SIGTERM"): void => {
+    if (hasReceivedTerminationSignal) return;
+    hasReceivedTerminationSignal = true;
+    process.off("SIGINT", sigintListener);
+    process.off("SIGTERM", sigtermListener);
+    options.terminationSignalHandler?.(signal);
+  };
+  const sigintListener = (): void => {
+    terminationSignalHandler("SIGINT");
+  };
+  const sigtermListener = (): void => {
+    terminationSignalHandler("SIGTERM");
+  };
+
+  process.on("uncaughtException", exceptionHandler);
+  process.on("unhandledRejection", rejectionHandler);
+  if (options.terminationSignalHandler) {
+    process.once("SIGINT", sigintListener);
+    process.once("SIGTERM", sigtermListener);
+  }
   return disposable(() => {
-    process.off("uncaughtException", onException);
-    process.off("unhandledRejection", onRejection);
+    process.off("uncaughtException", exceptionHandler);
+    process.off("unhandledRejection", rejectionHandler);
+    process.off("SIGINT", sigintListener);
+    process.off("SIGTERM", sigtermListener);
   });
 }
