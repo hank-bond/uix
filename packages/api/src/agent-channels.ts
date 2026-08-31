@@ -385,11 +385,6 @@ export const ProviderAuthFlowAnswerSchema = Type.Object({
   value: Type.String(),
 });
 
-const ProviderAuthLinkRequestSchema = Type.Object({
-  flowId: Type.String(),
-  linkId: Type.String(),
-});
-
 const describeProviderAuthenticationPayload = (): { redacted: string } => ({
   redacted: "provider authentication payload",
 });
@@ -479,11 +474,6 @@ export const agentChannels = {
     },
     answer_provider_auth_flow: {
       requestSchema: ProviderAuthFlowAnswerSchema,
-      responseSchema: Type.Void(),
-      log: { describeRequest: describeProviderAuthenticationPayload },
-    },
-    open_provider_auth_link: {
-      requestSchema: ProviderAuthLinkRequestSchema,
       responseSchema: Type.Void(),
       log: { describeRequest: describeProviderAuthenticationPayload },
     },

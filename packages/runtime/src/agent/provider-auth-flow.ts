@@ -45,13 +45,12 @@ interface ActiveProviderAuthFlow {
   authType: ProviderAuthType;
   abortController: AbortController;
   snapshot: ProviderAuthFlowSnapshot;
-  linksById: Map<string, string>;
   pendingPrompt?: PendingProviderAuthPrompt;
 }
 
 interface CreateProviderAuthFlowCoordinatorOptions {
   getModelRuntime: () => Promise<ProviderAuthRuntime>;
-  openExternal: (url: string) => void | Promise<void>;
+  launchProviderAuthLink?: (url: string) => void;
   onSnapshot: (snapshot: ProviderAuthFlowSnapshot) => void;
   onAvailabilityChange: () => void;
 }
@@ -63,7 +62,6 @@ export interface ProviderAuthFlowCoordinator {
     authType: ProviderAuthType,
   ): ProviderAuthFlowSnapshot;
   answer(flowId: string, promptId: string, value: string): void;
-  openLink(flowId: string, linkId: string): Promise<void>;
   cancel(flowId: string): void;
   getCurrentSnapshot(): ProviderAuthFlowSnapshot | undefined;
   [Symbol.dispose](): void;
@@ -98,14 +96,18 @@ export function createProviderAuthFlowCoordinator(
     opts.onSnapshot(flow.snapshot);
   }
 
-  function registerLink(
-    flow: ActiveProviderAuthFlow,
-    url: string,
-    label?: string,
-  ): ProviderAuthLink {
+  function registerLink(url: string, label?: string): ProviderAuthLink {
+    let externalUrl: URL;
+    try {
+      externalUrl = new URL(url);
+    } catch {
+      throw new Error("Provider auth link is not a valid URL");
+    }
+    if (externalUrl.protocol !== "http:" && externalUrl.protocol !== "https:") {
+      throw new Error("Provider auth links must use HTTP or HTTPS");
+    }
     const linkId = `link-${String(nextLinkId++)}`;
-    flow.linksById.set(linkId, url);
-    return { linkId, url, ...(label && { label }) };
+    return { linkId, url: externalUrl.href, ...(label && { label }) };
   }
 
   function appendNotice(
@@ -200,18 +202,18 @@ export function createProviderAuthFlowCoordinator(
     if (!isActiveFlow(flow)) return;
 
     if (event.type === "auth_url") {
-      const link = registerLink(flow, event.url);
+      const link = registerLink(event.url);
       appendNotice(flow, {
         type: "authorization",
         link,
         ...(event.instructions && { instructions: event.instructions }),
       });
-      void Promise.resolve(opts.openExternal(event.url)).catch(() => {});
+      opts.launchProviderAuthLink?.(link.url);
       return;
     }
 
     if (event.type === "device_code") {
-      const link = registerLink(flow, event.verificationUri);
+      const link = registerLink(event.verificationUri);
       appendNotice(flow, {
         type: "device_code",
         link,
@@ -223,9 +225,7 @@ export function createProviderAuthFlowCoordinator(
           expiresInSeconds: event.expiresInSeconds,
         }),
       });
-      void Promise.resolve(opts.openExternal(event.verificationUri)).catch(
-        () => {},
-      );
+      opts.launchProviderAuthLink?.(link.url);
       return;
     }
 
@@ -234,7 +234,7 @@ export function createProviderAuthFlowCoordinator(
         type: "info",
         message: event.message,
         links: (event.links ?? []).map((link) =>
-          registerLink(flow, link.url, link.label),
+          registerLink(link.url, link.label),
         ),
       });
       return;
@@ -322,7 +322,6 @@ export function createProviderAuthFlowCoordinator(
         authType,
         abortController: new AbortController(),
         snapshot,
-        linksById: new Map(),
       };
       activeFlow = flow;
       opts.onSnapshot(snapshot);
@@ -344,15 +343,6 @@ export function createProviderAuthFlowCoordinator(
         prompt: undefined,
       }));
       pendingPrompt.resolve(value);
-    },
-
-    async openLink(flowId: string, linkId: string): Promise<void> {
-      const flow = requireActiveFlow(flowId);
-      const url = flow.linksById.get(linkId);
-      if (!url) {
-        throw new Error(`Provider auth link is not active: ${linkId}`);
-      }
-      await opts.openExternal(url);
     },
 
     cancel(flowId: string): void {

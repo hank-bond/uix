@@ -56,7 +56,6 @@ export function useAgentControls(client: AgentChannelClient): {
     promptId: string,
     value: string,
   ) => Promise<void>;
-  openProviderAuthLink: (flowId: string, linkId: string) => Promise<void>;
   cancelProviderAuthFlow: () => Promise<void>;
   chooseModelForProvider: (providerId: string) => void;
 } {
@@ -367,18 +366,6 @@ export function useAgentControls(client: AgentChannelClient): {
     [client],
   );
 
-  const openProviderAuthLink = useCallback(
-    async (flowId: string, linkId: string) => {
-      setProviderAuthError(undefined);
-      try {
-        await client.requests.open_provider_auth_link({ flowId, linkId });
-      } catch (error) {
-        setProviderAuthError(String(error));
-      }
-    },
-    [client],
-  );
-
   const cancelProviderAuthFlow = useCallback(async () => {
     providerAuthSelectionVersion.current += 1;
     let flow = providerAuthFlowRef.current;
@@ -422,7 +409,6 @@ export function useAgentControls(client: AgentChannelClient): {
     providerAuthError,
     selectProviderAuthMethod,
     answerProviderAuthPrompt,
-    openProviderAuthLink,
     cancelProviderAuthFlow,
     chooseModelForProvider,
   };

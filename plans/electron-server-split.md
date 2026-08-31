@@ -274,9 +274,11 @@ On termination, stop admission and notify live connections with a shutdown messa
 
 ### W8: Provider authentication on the browser device
 
-The web host does not open provider links on the server machine. The browser opens retained provider links and device codes on the user's device, so the Codex headless/device-code flow completes from an unconfigured Pi profile. API-key and manual prompt flows continue over the existing provider-auth channels. No callback or redirect endpoint exists in this version. Full OAuth callback parity is deferred.
+_Status: landed._
 
-**Review gate:** A device-code flow completes from a fresh profile. Links and codes render and open on the client device. No server-side browser or callback is required.
+The loopback web host may open provider links on its local machine. Nonlocal profiles do not open links on the server machine. The browser always exposes retained provider links and device codes, so the Codex headless/device-code flow completes from an unconfigured Pi profile. API-key and manual prompt flows continue over the existing provider-auth channels. No callback or redirect endpoint exists in this version. Full OAuth callback parity is deferred.
+
+**Review gate:** A device-code flow completes from a fresh profile. Links and codes render and open on the client device. Loopback launch is best-effort, while nonlocal profiles require no server-side browser or callback.
 
 ### W9: Workspace reload as a substrate channel
 

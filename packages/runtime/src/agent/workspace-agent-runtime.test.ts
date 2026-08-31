@@ -466,7 +466,7 @@ function createHarness(
     ...(settings && { agentSettings: settings }),
     onFeatureEvent: () => undefined,
     onStatusChange: (_sessionId, status) => statuses.push(status),
-    openExternal: () => undefined,
+    launchProviderAuthLink: () => undefined,
     onProviderAuthFlowSnapshot: () => undefined,
     onModelAvailabilityChange: () => undefined,
   });

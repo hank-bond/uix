@@ -40,7 +40,10 @@ import { installProcessHandlers } from "@uix/runtime/lifecycle";
 import { createLogger } from "@uix/runtime/log";
 import { resolveWorkspace, type Workspace } from "@uix/runtime/workspace-roots";
 
-import { bindExternalWebLinks } from "./external-links";
+import {
+  bindExternalWebLinks,
+  createExternalWebLinkLauncher,
+} from "./external-links";
 import * as ipc from "./ipc";
 import {
   AsyncDisposableBag,
@@ -147,7 +150,9 @@ async function openWorkspace(
       ...(fs.existsSync(apiModuleDir) && { apiModuleDir }),
       dependencies: {
         resourceTransport: createElectronResourceTransport(),
-        openExternal: (url) => shell.openExternal(url),
+        launchProviderAuthLink: createExternalWebLinkLauncher((url) =>
+          shell.openExternal(url),
+        ),
       },
     }),
   );

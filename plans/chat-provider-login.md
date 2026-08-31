@@ -40,7 +40,7 @@ Selecting a method opens the same generic flow panel. Starting it calls Pi's pro
 - progress and informational notifications.
 - success, failure, retry, and explicit cancellation.
 
-Authorization and device-code URLs automatically open through the Electron-injected system-browser capability and retain `Open browser again`. Informational links use the same active-flow validation. Chat cannot open arbitrary URLs. Light-dismiss does not cancel a flow, and reopening the modal restores its snapshot. Only one flow may run at once: selecting it again cancels it, while selecting another method cancels successfully before starting the replacement.
+Authorization and device-code URLs automatically open through a local-host browser launcher in Electron and the loopback server, and retain `Open browser again`. In nonlocal web-host profiles, retained HTTP(S) links render as external anchors and open only on the browser device. Chat cannot open provider-supplied non-web URLs. Light-dismiss does not cancel a flow, and reopening the modal restores its snapshot. Only one flow may run at once: selecting it again cancels it, while selecting another method cancels successfully before starting the replacement.
 
 Flow answers are transient renderer-to-main signals. The driver correlates flow and prompt ids, passes each answer to the pending Pi prompt, honors prompt-level and flow-level abort signals, and rejects stale answers. Pi persists the resulting credential in UIX's app-owned profile. Complete credential values never return to UIX and appear in neither settings nor session history.
 
@@ -51,7 +51,6 @@ The substrate-owned agent contract provides:
 - `list_auth_providers`: provider-owned auth methods plus non-secret connection status.
 - `begin_provider_auth_flow`: start one `api_key` or `oauth` login.
 - `answer_provider_auth_flow`: answer the currently pending prompt.
-- `open_provider_auth_link`: open a link retained from Pi's active flow snapshot.
 - `cancel_provider_auth_flow`: abort the active login.
 - `current_provider_auth_flow`: restore an active modal.
 - `provider_auth_flow_changed` snapshots and `model_availability_changed` events.

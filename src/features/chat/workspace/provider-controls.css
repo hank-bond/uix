@@ -24,6 +24,10 @@
   border-color: var(--fg-faint);
 }
 
+a.chat-button {
+  text-decoration: none;
+}
+
 .chat-button:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;

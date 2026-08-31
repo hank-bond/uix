@@ -44,6 +44,7 @@ async function start(): Promise<void> {
     cwd: process.cwd(),
     assetRoot: fileURLToPath(new URL("./public/", import.meta.url)),
     apiModuleDir: fileURLToPath(new URL("./api/", import.meta.url)),
+    platform: process.platform,
     createHost: createServerHost,
   });
   if (!result.ok) {

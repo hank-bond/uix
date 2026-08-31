@@ -1,4 +1,4 @@
-// Renders one provider auth flow: notices, prompts, links, and retry or success actions.
+// Renders one provider auth flow with retained web links for the current browser device.
 
 import type { JSX } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -41,9 +41,7 @@ export function ProviderAuthFlowPanel({
           <ProviderAuthNoticeView
             key={`${notice.type}-${String(index)}`}
             notice={notice}
-            flowId={flow.flowId}
             providerName={providerName}
-            controls={controls}
           />
         ))}
 
@@ -131,26 +129,17 @@ export function ProviderAuthFlowPanel({
 
 function ProviderAuthNoticeView({
   notice,
-  flowId,
   providerName,
-  controls,
 }: {
   notice: ProviderAuthNotice;
-  flowId: string;
   providerName: string;
-  controls: AgentControls;
 }): JSX.Element {
   if (notice.type === "info") {
     return (
       <div className="provider-auth__notice">
         <p className="provider-auth__status">{notice.message}</p>
         {notice.links.map((link) => (
-          <ProviderAuthLinkButton
-            key={link.linkId}
-            link={link}
-            flowId={flowId}
-            controls={controls}
-          />
+          <ProviderAuthLinkAnchor key={link.linkId} link={link} />
         ))}
       </div>
     );
@@ -164,10 +153,8 @@ function ProviderAuthNoticeView({
             `Continue signing in to ${providerName} in your browser.`}
         </p>
         <p className="provider-auth__url">{notice.link.url}</p>
-        <ProviderAuthLinkButton
+        <ProviderAuthLinkAnchor
           link={notice.link}
-          flowId={flowId}
-          controls={controls}
           fallbackLabel="Open browser again"
         />
       </div>
@@ -182,10 +169,8 @@ function ProviderAuthNoticeView({
         </p>
         <output className="provider-auth__code">{notice.userCode}</output>
         <p className="provider-auth__url">{notice.link.url}</p>
-        <ProviderAuthLinkButton
+        <ProviderAuthLinkAnchor
           link={notice.link}
-          flowId={flowId}
-          controls={controls}
           fallbackLabel="Open browser again"
         />
       </div>
@@ -199,26 +184,23 @@ function ProviderAuthNoticeView({
   );
 }
 
-function ProviderAuthLinkButton({
+function ProviderAuthLinkAnchor({
   link,
-  flowId,
-  controls,
   fallbackLabel = "Open link",
 }: {
   link: ProviderAuthLink;
-  flowId: string;
-  controls: AgentControls;
   fallbackLabel?: string;
 }): JSX.Element {
   return (
     <div className="provider-auth__actions">
-      <button
-        type="button"
+      <a
         className="chat-button"
-        onClick={() => void controls.openProviderAuthLink(flowId, link.linkId)}
+        href={link.url}
+        target="_blank"
+        rel="noopener noreferrer"
       >
         {link.label ?? fallbackLabel}
-      </button>
+      </a>
     </div>
   );
 }

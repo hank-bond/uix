@@ -11,11 +11,13 @@ The server starts on loopback with zero active workspace runtimes. Build it with
 
 `UIX_SERVER_PROFILE` selects one explicit deployment policy:
 
-- `loopback` is the default. It requires a loopback listener and public origin. When `UIX_PUBLIC_ORIGIN` is absent, the host derives the matching HTTP origin from its listener configuration.
+- `loopback` is the default. It requires a loopback listener and public origin. When `UIX_PUBLIC_ORIGIN` is absent, the host derives the matching HTTP origin from its listener configuration. Provider-auth links may launch in the server machine's default browser.
 - `trusted-network` uses plaintext HTTP only on a deployment-provided encrypted trusted network. It requires an explicit `UIX_PUBLIC_ORIGIN` and explicit `UIX_SERVER_HOST` for non-loopback binding.
 - `tls` requires an explicit browser-visible HTTPS origin. TLS may terminate at trusted ingress. The ingress-to-host connection must remain inside the deployment's trusted boundary.
 
 Every request authority must match `UIX_PUBLIC_ORIGIN`. A supplied browser `Origin` must match it too. The host ignores forwarding headers, so trusted ingress must preserve the public `Host` authority rather than asking UIX to infer it.
+
+Nonlocal profiles never launch provider-auth links on the server machine. Chat retains those links for explicit opening on the browser device.
 
 A registry is a boot-loaded snapshot. Relative manifest references resolve from the registry file:
 

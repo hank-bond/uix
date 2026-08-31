@@ -4,6 +4,7 @@ import {
   resolveServerConfiguration,
   type ServerDeploymentProfile,
 } from "./configuration";
+import { createServerExternalWebLinkLauncher } from "./external-links";
 import type { CreateServerHostOptions, ServerHost } from "./server";
 import { createServerWorkspaceRuntime } from "./workspace-runtime";
 
@@ -12,6 +13,7 @@ interface StartServerOptions {
   readonly cwd: string;
   readonly assetRoot: string;
   readonly apiModuleDir: string;
+  readonly platform: NodeJS.Platform;
   readonly createHost: (
     options: CreateServerHostOptions,
   ) => Promise<ServerHost>;
@@ -45,6 +47,10 @@ export async function startServer(
       environment: options.environment,
       cwd: options.cwd,
     });
+    const launchProviderAuthLink =
+      configuration.profile === "loopback"
+        ? createServerExternalWebLinkLauncher(options.platform)
+        : undefined;
     host = await options.createHost({
       registryPath: configuration.registryPath,
       publicOrigin: configuration.publicOrigin,
@@ -55,6 +61,7 @@ export async function startServer(
           piAppDataDir: configuration.piAppDataDir,
           apiModuleDir: options.apiModuleDir,
           ...dependencies,
+          ...(launchProviderAuthLink && { launchProviderAuthLink }),
         }),
     });
     const address = await host.listen({

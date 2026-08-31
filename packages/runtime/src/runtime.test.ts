@@ -197,7 +197,7 @@ function fakeTransports(): FakeTransports {
           },
         };
       },
-      openExternal: () => {},
+      launchProviderAuthLink: () => {},
     },
     resourceHandlers,
   };

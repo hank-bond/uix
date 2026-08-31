@@ -110,7 +110,6 @@ export interface WorkspaceAgentRuntime extends AsyncDisposable {
     authType: ProviderAuthType,
   ): ProviderAuthFlowSnapshot;
   answerProviderAuthFlow(flowId: string, promptId: string, value: string): void;
-  openProviderAuthLink(flowId: string, linkId: string): Promise<void>;
   cancelProviderAuthFlow(flowId: string): void;
   /** Invoke one per-Agent handler outside the feature replacement boundary. */
   invokeFeatureChannel(
@@ -140,7 +139,7 @@ export interface WorkspaceAgentRuntimeOptions {
     logOptions?: ChannelEventLogOptions<unknown>,
   ) => void;
   readonly onStatusChange?: (sessionId: SessionId, status: AgentStatus) => void;
-  readonly openExternal: (url: string) => void | Promise<void>;
+  readonly launchProviderAuthLink?: (url: string) => void;
   readonly onProviderAuthFlowSnapshot: (
     snapshot: ProviderAuthFlowSnapshot,
   ) => void;
@@ -225,7 +224,9 @@ export function createWorkspaceAgentRuntime(
   const providerAuth = bag.add(
     createProviderAuthFlowCoordinator({
       getModelRuntime: async () => (await getControlServices()).modelRuntime,
-      openExternal: opts.openExternal,
+      ...(opts.launchProviderAuthLink && {
+        launchProviderAuthLink: opts.launchProviderAuthLink,
+      }),
       onSnapshot: opts.onProviderAuthFlowSnapshot,
       onAvailabilityChange: opts.onModelAvailabilityChange,
     }),
@@ -719,8 +720,6 @@ export function createWorkspaceAgentRuntime(
     answerProviderAuthFlow: (flowId, promptId, value) => {
       providerAuth.answer(flowId, promptId, value);
     },
-    openProviderAuthLink: (flowId, linkId) =>
-      providerAuth.openLink(flowId, linkId),
     cancelProviderAuthFlow: (flowId) => {
       providerAuth.cancel(flowId);
     },

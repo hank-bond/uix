@@ -15,6 +15,7 @@ Accepted WebSockets use periodic ping/pong and terminate after a missed heartbea
 ### Source files
 
 - **[configuration.ts](./configuration.ts)** Defines the server deployment configuration and its environment contract.
+- **[external-links.ts](./external-links.ts)** Launches approved web links on the loopback server's local machine without exposing a shell.
 - **[launcher-routes.ts](./launcher-routes.ts)** Registers the server launcher's HTTP routes.
 - **[main.ts](./main.ts)** Starts the selected server profile and drains it on SIGINT or SIGTERM.
 - **[mutable-response.ts](./mutable-response.ts)** Applies no-store and browser-hardening headers to mutable HTTP responses.

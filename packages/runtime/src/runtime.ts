@@ -83,8 +83,11 @@ export interface WorkspaceRuntimeDependencies {
    * does not serve resources (the registry still owns routes, unbound).
    */
   resourceTransport?: ResourceTransportRegistrar;
-  /** Opens only URLs provided by the active Pi auth provider. */
-  openExternal: (url: string) => void | Promise<void>;
+  /**
+   * Optionally launch retained Pi provider-auth links.
+   * The host owns failure logging and must not throw.
+   */
+  launchProviderAuthLink?: (url: string) => void;
 }
 
 export interface WorkspaceRuntimeOptions {
@@ -231,7 +234,9 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
           sessionId,
         }).status_changed(status);
       },
-      openExternal: dependencies.openExternal,
+      ...(dependencies.launchProviderAuthLink && {
+        launchProviderAuthLink: dependencies.launchProviderAuthLink,
+      }),
       onProviderAuthFlowSnapshot: (snapshot) => {
         workspaceAgentPublisher.provider_auth_flow_changed(snapshot);
       },
@@ -441,13 +446,6 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
         (_context, { flowId, promptId, value }) => {
           this.#agentRuntime.answerProviderAuthFlow(flowId, promptId, value);
         },
-      ),
-    );
-    agentChannelsBag.add(
-      registerAgentRequest(
-        "open_provider_auth_link",
-        (_context, { flowId, linkId }) =>
-          this.#agentRuntime.openProviderAuthLink(flowId, linkId),
       ),
     );
     agentChannelsBag.add(

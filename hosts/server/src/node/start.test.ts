@@ -14,6 +14,7 @@ describe("server startup", () => {
       cwd: "/private/server",
       assetRoot: "/private/assets",
       apiModuleDir: "/private/api",
+      platform: "linux",
       createHost,
     });
 
@@ -37,6 +38,7 @@ describe("server startup", () => {
       cwd: "/private/server",
       assetRoot: "/private/assets",
       apiModuleDir: "/private/api",
+      platform: "linux",
       createHost: vi.fn(() => Promise.resolve(host)),
     });
 
@@ -57,6 +59,7 @@ describe("server startup", () => {
       cwd: "/private/server",
       assetRoot: "/private/assets",
       apiModuleDir: "/private/api",
+      platform: "linux",
       createHost: vi.fn(() => Promise.resolve(host)),
     });
 
@@ -81,6 +84,7 @@ describe("server startup", () => {
       cwd: "/private/server",
       assetRoot: "/private/assets",
       apiModuleDir: "/private/api",
+      platform: "linux",
       createHost,
     });
 

@@ -228,10 +228,6 @@ describe("channel clients", () => {
       promptId: "prompt-1",
       value: "secret-code",
     });
-    await agent.requests.open_provider_auth_link({
-      flowId: "flow-1",
-      linkId: "link-1",
-    });
     agent.events.provider_auth_flow_changed(onFlow);
 
     expect(request).toHaveBeenCalledWith(

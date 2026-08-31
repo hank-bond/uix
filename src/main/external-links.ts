@@ -21,23 +21,30 @@ export function isExternalWebUrl(value: string): boolean {
   }
 }
 
+/** Adapt Electron's external opener into a validated, non-throwing host capability. */
+export function createExternalWebLinkLauncher(
+  openExternal: (url: string) => void | Promise<void>,
+): (url: string) => void {
+  return (url) => {
+    if (!isExternalWebUrl(url)) return;
+    try {
+      void Promise.resolve(openExternal(url)).catch(logOpenFailure);
+    } catch (thrown) {
+      logOpenFailure(thrown);
+    }
+  };
+}
+
 export function bindExternalWebLinks(
   webContents: WebContents,
   openExternal: (url: string) => void | Promise<void>,
 ): Disposable {
   const bag = new DisposableBag();
+  const launchExternalWebLink = createExternalWebLinkLauncher(openExternal);
 
   bag.add(
     setWindowOpenHandler(webContents, ({ url }) => {
-      if (isExternalWebUrl(url)) {
-        try {
-          void Promise.resolve(openExternal(url)).catch((thrown: unknown) => {
-            logOpenFailure(thrown);
-          });
-        } catch (thrown) {
-          logOpenFailure(thrown);
-        }
-      }
+      launchExternalWebLink(url);
       return { action: "deny" };
     }),
   );

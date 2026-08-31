@@ -37,7 +37,7 @@ The status bar composes the session and model pills. The model pill opens the mo
 - **[provider-auth-presentation.ts](./provider-auth-presentation.ts)** Derives the provider rows for the login modal, grouping OpenAI methods.
 - **[provider-controls.css](./provider-controls.css)** Provider auth controls and chat button styles.
 - **[ProviderAuthFlowPanel.css](./ProviderAuthFlowPanel.css)** Provider auth flow panel styles.
-- **[ProviderAuthFlowPanel.tsx](./ProviderAuthFlowPanel.tsx)** Renders one provider auth flow: notices, prompts, links, and retry or success actions.
+- **[ProviderAuthFlowPanel.tsx](./ProviderAuthFlowPanel.tsx)** Renders one provider auth flow with retained web links for the current browser device.
 - **[ProviderLoginModal.css](./ProviderLoginModal.css)** Provider login modal styles.
 - **[ProviderLoginModal.tsx](./ProviderLoginModal.tsx)** Renders the provider login modal: provider rows and auth method selection.
 - **[SessionPill.css](./SessionPill.css)** Session pill and session picker styles.

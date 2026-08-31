@@ -6,7 +6,11 @@ import type {
 } from "electron";
 import { describe, expect, it, vi } from "vitest";
 
-import { bindExternalWebLinks, isExternalWebUrl } from "./external-links";
+import {
+  bindExternalWebLinks,
+  createExternalWebLinkLauncher,
+  isExternalWebUrl,
+} from "./external-links";
 
 type WindowOpenHandler = Parameters<WebContents["setWindowOpenHandler"]>[0];
 type WillNavigateListener = (
@@ -53,6 +57,23 @@ describe("external web links", () => {
     expect(isExternalWebUrl("mailto:user@example.com")).toBe(false);
     expect(isExternalWebUrl("file:///Users/work/secret.txt")).toBe(false);
     expect(isExternalWebUrl("javascript:alert(1)")).toBe(false);
+  });
+
+  it("keeps host opener failures outside callers", async () => {
+    const synchronous = createExternalWebLinkLauncher(() => {
+      throw new Error("synchronous failure");
+    });
+    const asynchronous = createExternalWebLinkLauncher(() =>
+      Promise.reject(new Error("asynchronous failure")),
+    );
+
+    expect(() => {
+      synchronous("https://uix.sh/docs");
+    }).not.toThrow();
+    expect(() => {
+      asynchronous("https://uix.sh/docs");
+    }).not.toThrow();
+    await Promise.resolve();
   });
 
   it("opens approved new contexts externally and denies Electron windows", async () => {

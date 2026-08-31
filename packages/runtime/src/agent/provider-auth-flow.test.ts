@@ -41,9 +41,8 @@ function createHarness(options: {
   const coordinator = createProviderAuthFlowCoordinator({
     getModelRuntime:
       options.getModelRuntime ?? (() => Promise.resolve(runtime)),
-    openExternal: (url) => {
+    launchProviderAuthLink: (url) => {
       opened.push(url);
-      return Promise.resolve();
     },
     onSnapshot: (snapshot) => snapshots.push(snapshot),
     onAvailabilityChange: availabilityChanged,
@@ -146,11 +145,13 @@ describe("provider auth flow coordinator", () => {
     });
     const helpLink = manualCode?.notices[0];
     if (helpLink?.type !== "info") throw new Error("Expected info notice");
-    const firstLink = helpLink.links[0];
+    expect(helpLink.links[0]).toMatchObject({
+      url: "https://provider.example/help",
+      label: "Account help",
+    });
     if (!manualCode?.prompt) {
       throw new Error("Expected retained link and prompt");
     }
-    await harness.coordinator.openLink(started.flowId, firstLink.linkId);
 
     harness.coordinator.answer(
       started.flowId,
@@ -172,11 +173,65 @@ describe("provider auth flow coordinator", () => {
 
     expect(answers).toEqual(["callback-code", "work"]);
     expect(harness.snapshots.at(-1)?.phase).toEqual({ type: "success" });
-    expect(harness.opened).toEqual([
-      "https://provider.example/authorize",
-      "https://provider.example/help",
-    ]);
+    expect(harness.opened).toEqual(["https://provider.example/authorize"]);
     expect(harness.availabilityChanged).toHaveBeenCalledOnce();
+  });
+
+  it("retains device-code links when the host has no automatic opener", async () => {
+    const loginFinished = deferred<undefined>();
+    const snapshots: ProviderAuthFlowSnapshot[] = [];
+    const runtime = createRuntime(async (_authType, interaction) => {
+      interaction.notify({
+        type: "device_code",
+        verificationUri: "https://provider.example/device",
+        userCode: "ABCD-EFGH",
+      });
+      await loginFinished.promise;
+    });
+    using coordinator = createProviderAuthFlowCoordinator({
+      getModelRuntime: () => Promise.resolve(runtime),
+      onSnapshot: (snapshot) => snapshots.push(snapshot),
+      onAvailabilityChange: vi.fn(),
+    });
+
+    coordinator.begin("fake", "oauth");
+    await settle();
+
+    expect(coordinator.getCurrentSnapshot()).toMatchObject({
+      phase: { type: "active" },
+      notices: [
+        {
+          type: "device_code",
+          link: { url: "https://provider.example/device" },
+          userCode: "ABCD-EFGH",
+        },
+      ],
+    });
+    expect(snapshots.at(-1)?.phase.type).toBe("active");
+
+    loginFinished.resolve(undefined);
+    await settle();
+  });
+
+  it("rejects non-web provider links", async () => {
+    const harness = createHarness({
+      login: (_authType, interaction) => {
+        interaction.notify({
+          type: "auth_url",
+          url: "file:///tmp/provider-credentials",
+        });
+        return Promise.resolve();
+      },
+    });
+
+    harness.coordinator.begin("fake", "oauth");
+    await settle();
+
+    expect(harness.opened).toEqual([]);
+    expect(harness.snapshots.at(-1)?.phase).toEqual({
+      type: "failure",
+      message: "Provider auth links must use HTTP or HTTPS",
+    });
   });
 
   it("passes empty answers through when Pi does not require a value", async () => {
