@@ -16,7 +16,7 @@ import {
   WorkspaceSessionPageRoute,
 } from "./routes";
 import { bindWorkspaceWebSocket } from "./workspace-websocket";
-import { toWebSocketReadyFrame } from "../websocket-frames";
+import { toWebSocketReadyMessage } from "../websocket-messages";
 
 const log = createLogger("server-websocket");
 
@@ -153,7 +153,7 @@ function workspaceWebSocketHandler(
       workspaceGuard = undefined;
       connectionAttachment = acceptedAttachment;
       acceptedAttachment = undefined;
-      const readyFrame = toWebSocketReadyFrame(
+      const readyMessage = toWebSocketReadyMessage(
         connectionAttachment.target.sessionId,
         toWorkspaceSessionPath(
           registered.id,
@@ -164,7 +164,7 @@ function workspaceWebSocketHandler(
       webSocketBinding = bindWorkspaceWebSocket(
         socket,
         connectionAttachment,
-        readyFrame,
+        readyMessage,
       );
     } catch (error) {
       disposeConnectionOwnership();

@@ -188,7 +188,7 @@ export function subscribe<E>(
  *
  * We don't try to attribute errors to a specific extension here;
  * that would require parsing stack traces for entry-file URLs,
- * which is fragile (paths get transformed, third-party frames
+ * which is fragile (paths get transformed, third-party stack frames
  * dominate the top of the stack). Logs go out as
  * `unhandled_exception` / `unhandled_rejection` from the logger
  * you pass in. If we ever need real attribution, we'll layer it

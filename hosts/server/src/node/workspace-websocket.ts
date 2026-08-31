@@ -1,4 +1,4 @@
-// Binds one accepted workspace attachment to correlated frames, scoped events, and heartbeat liveness.
+// Binds one accepted workspace attachment to correlated messages, scoped events, and heartbeat liveness.
 
 import type { WebSocket } from "@fastify/websocket";
 
@@ -16,14 +16,14 @@ import { createLogger } from "@uix/runtime/log";
 
 import { recordWebSocketCrossing } from "./websocket-wire-log";
 import {
-  parseWebSocketRequestFrame,
+  parseWebSocketRequestMessage,
   tryParseWebSocketCorrelationId,
-  type WebSocketErrorFrame,
-  type WebSocketEventFrame,
-  type WebSocketReadyFrame,
-  type WebSocketRequestFrame,
-  type WebSocketResponseFrame,
-} from "../websocket-frames";
+  type WebSocketErrorMessage,
+  type WebSocketEventMessage,
+  type WebSocketReadyMessage,
+  type WebSocketRequestMessage,
+  type WebSocketResponseMessage,
+} from "../websocket-messages";
 
 const log = createLogger("server-websocket-wire");
 const HeartbeatIntervalMs = 30_000;
@@ -32,22 +32,22 @@ const HeartbeatIntervalMs = 30_000;
 export function bindWorkspaceWebSocket(
   socket: WebSocket,
   attachment: Attachment,
-  readyFrame: WebSocketReadyFrame,
+  readyMessage: WebSocketReadyMessage,
 ): Disposable {
   const inFlightRequestIds = new Set<string>();
   let isDisposed = false;
 
   const eventSubscription = attachment.onEvent((event) => {
-    if (!isDisposed) sendEventFrame(socket, event);
+    if (!isDisposed) sendEventMessage(socket, event);
   });
   const messageHandler = (data: unknown, isBinary: boolean): void => {
     if (isDisposed) return;
     if (isBinary) {
-      sendProtocolErrorFrame(
+      sendProtocolErrorMessage(
         socket,
         undefined,
-        "malformed_frame",
-        "WebSocket frames must be JSON text",
+        "malformed_message",
+        "WebSocket messages must be JSON text",
       );
       return;
     }
@@ -57,7 +57,7 @@ export function bindWorkspaceWebSocket(
   const heartbeat = bindHeartbeat(socket);
 
   try {
-    sendFrame(socket, readyFrame, "out:ready", readyFrame);
+    sendMessage(socket, readyMessage, "out:ready", readyMessage);
   } catch (error) {
     heartbeat[Symbol.dispose]();
     socket.off("message", messageHandler);
@@ -114,71 +114,71 @@ function acceptWebSocketRequest(
   inFlightRequestIds: Set<string>,
   rawData: unknown,
 ): void {
-  let decodedFrame: unknown;
+  let decodedMessage: unknown;
   try {
-    decodedFrame = JSON.parse(String(rawData)) as unknown;
+    decodedMessage = JSON.parse(String(rawData)) as unknown;
   } catch {
-    recordMalformedRequestFrame(undefined);
-    sendProtocolErrorFrame(
+    recordMalformedRequestMessage(undefined);
+    sendProtocolErrorMessage(
       socket,
       undefined,
-      "malformed_frame",
-      "WebSocket frame is not valid JSON",
+      "malformed_message",
+      "WebSocket message is not valid JSON",
     );
     return;
   }
 
-  let frame: WebSocketRequestFrame;
+  let message: WebSocketRequestMessage;
   try {
-    frame = parseWebSocketRequestFrame(decodedFrame);
+    message = parseWebSocketRequestMessage(decodedMessage);
   } catch {
-    const correlationId = tryParseWebSocketCorrelationId(decodedFrame);
-    recordMalformedRequestFrame(correlationId);
-    sendProtocolErrorFrame(
+    const correlationId = tryParseWebSocketCorrelationId(decodedMessage);
+    recordMalformedRequestMessage(correlationId);
+    sendProtocolErrorMessage(
       socket,
       correlationId,
-      "malformed_frame",
-      "Invalid WebSocket request frame",
+      "malformed_message",
+      "Invalid WebSocket request message",
     );
     return;
   }
 
-  if (inFlightRequestIds.has(frame.id)) {
-    recordMalformedRequestFrame(frame.id);
-    sendProtocolErrorFrame(
+  if (inFlightRequestIds.has(message.id)) {
+    recordMalformedRequestMessage(message.id);
+    sendProtocolErrorMessage(
       socket,
-      frame.id,
+      message.id,
       "correlation_in_use",
-      `Correlation id is already in use: ${frame.id}`,
+      `Correlation id is already in use: ${message.id}`,
     );
     return;
   }
 
-  inFlightRequestIds.add(frame.id);
-  void sendRequestResponse(socket, attachment, frame).finally(() => {
-    inFlightRequestIds.delete(frame.id);
+  inFlightRequestIds.add(message.id);
+  void sendRequestResponse(socket, attachment, message).finally(() => {
+    inFlightRequestIds.delete(message.id);
   });
 }
 
 async function sendRequestResponse(
   socket: WebSocket,
   attachment: Attachment,
-  frame: WebSocketRequestFrame,
+  message: WebSocketRequestMessage,
 ): Promise<void> {
   let preparedDispatch: PreparedDispatch;
   try {
     preparedDispatch = attachment.prepareDispatch({
-      channel: parseChannelCanonicalId(frame.channel),
-      payload: frame.payload,
+      channel: parseChannelCanonicalId(message.channel),
+      payload: message.payload,
     });
   } catch (error) {
-    recordMalformedRequestFrame(frame.id, frame.channel);
-    sendTerminalErrorFrame(
+    recordMalformedRequestMessage(message.id, message.channel);
+    sendTerminalErrorMessage(
       socket,
-      frame.id,
+      message.id,
       "dispatch_unavailable",
       error instanceof Error ? error.message : String(error),
-      frame.channel,
+      message.channel,
     );
     return;
   }
@@ -191,7 +191,7 @@ async function sendRequestResponse(
     { describe: prepared.logOptions.describeRequest },
   );
   const response = await prepared.invoke();
-  sendCanonicalResponse(socket, frame.id, prepared, response);
+  sendCanonicalResponse(socket, message.id, prepared, response);
 }
 
 function sendCanonicalResponse(
@@ -201,7 +201,7 @@ function sendCanonicalResponse(
   response: CanonicalResponse,
 ): void {
   if (!response.ok) {
-    sendTerminalErrorFrame(
+    sendTerminalErrorMessage(
       socket,
       requestId,
       response.error.code,
@@ -211,21 +211,21 @@ function sendCanonicalResponse(
     return;
   }
 
-  const responseFrame: WebSocketResponseFrame = {
+  const responseMessage: WebSocketResponseMessage = {
     type: "response",
     id: requestId,
     ...(response.value === undefined ? {} : { value: response.value }),
   };
   try {
-    sendFrame(
+    sendMessage(
       socket,
-      responseFrame,
+      responseMessage,
       `result:${preparedDispatch.request.channel}`,
       response.value,
       preparedDispatch.logOptions.describeResponse,
     );
   } catch (error) {
-    sendTerminalErrorFrame(
+    sendTerminalErrorMessage(
       socket,
       requestId,
       "response_encoding_failed",
@@ -235,17 +235,17 @@ function sendCanonicalResponse(
   }
 }
 
-function sendEventFrame(socket: WebSocket, event: RuntimeEvent): void {
-  const eventFrame: WebSocketEventFrame = {
+function sendEventMessage(socket: WebSocket, event: RuntimeEvent): void {
+  const eventMessage: WebSocketEventMessage = {
     type: "event",
     id: event.id,
     channel: event.channel,
     ...(event.payload === undefined ? {} : { payload: event.payload }),
   };
   try {
-    sendFrame(
+    sendMessage(
       socket,
-      eventFrame,
+      eventMessage,
       `out:${event.channel}`,
       event.payload,
       event.logOptions?.describeEvent,
@@ -262,61 +262,61 @@ function sendEventFrame(socket: WebSocket, event: RuntimeEvent): void {
   }
 }
 
-function sendTerminalErrorFrame(
+function sendTerminalErrorMessage(
   socket: WebSocket,
   requestId: string,
   code: string,
   message: string,
   channel: string,
 ): void {
-  const errorFrame: WebSocketErrorFrame = {
+  const errorMessage: WebSocketErrorMessage = {
     type: "error",
     id: requestId,
     code,
     message,
     isTerminal: true,
   };
-  sendFrame(socket, errorFrame, `error:${channel}`, { code, message });
+  sendMessage(socket, errorMessage, `error:${channel}`, { code, message });
 }
 
-function sendProtocolErrorFrame(
+function sendProtocolErrorMessage(
   socket: WebSocket,
   correlationId: string | undefined,
   code: string,
   message: string,
 ): void {
-  const errorFrame: WebSocketErrorFrame = {
+  const errorMessage: WebSocketErrorMessage = {
     type: "error",
     ...(correlationId === undefined ? {} : { id: correlationId }),
     code,
     message,
     isTerminal: false,
   };
-  sendFrame(socket, errorFrame, "out:protocol_error", {
+  sendMessage(socket, errorMessage, "out:protocol_error", {
     correlationId,
     code,
     message,
   });
 }
 
-function sendFrame<Payload>(
+function sendMessage<Payload>(
   socket: WebSocket,
-  frame:
-    | WebSocketReadyFrame
-    | WebSocketResponseFrame
-    | WebSocketErrorFrame
-    | WebSocketEventFrame,
-  message: string,
+  message:
+    | WebSocketReadyMessage
+    | WebSocketResponseMessage
+    | WebSocketErrorMessage
+    | WebSocketEventMessage,
+  logLabel: string,
   payload: Payload,
   describe?: (payload: Payload) => unknown,
 ): void {
-  const encodedFrame = JSON.stringify(frame);
+  const encodedMessage = JSON.stringify(message);
   if (socket.readyState !== socket.OPEN) return;
-  recordWebSocketCrossing(log, message, payload, { describe });
-  socket.send(encodedFrame);
+  recordWebSocketCrossing(log, logLabel, payload, { describe });
+  socket.send(encodedMessage);
 }
 
-function recordMalformedRequestFrame(
+function recordMalformedRequestMessage(
   correlationId?: string,
   channel?: string,
 ): void {

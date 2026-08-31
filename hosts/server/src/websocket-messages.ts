@@ -1,4 +1,4 @@
-// Defines and validates the server WebSocket transport's physical frames.
+// Defines and validates the server WebSocket transport's application messages.
 
 import { Type } from "typebox";
 import { Value } from "typebox/value";
@@ -8,7 +8,7 @@ const CanonicalChannelSchema = Type.String({
   pattern: "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
 });
 
-const WebSocketReadyFrameSchema = Type.Object(
+const WebSocketReadyMessageSchema = Type.Object(
   {
     type: Type.Literal("ready"),
     sessionId: Type.String({ minLength: 1 }),
@@ -17,7 +17,7 @@ const WebSocketReadyFrameSchema = Type.Object(
   { additionalProperties: false },
 );
 
-const WebSocketRequestFrameSchema = Type.Object(
+const WebSocketRequestMessageSchema = Type.Object(
   {
     type: Type.Literal("request"),
     id: CorrelationIdSchema,
@@ -27,7 +27,7 @@ const WebSocketRequestFrameSchema = Type.Object(
   { additionalProperties: false },
 );
 
-const WebSocketResponseFrameSchema = Type.Object(
+const WebSocketResponseMessageSchema = Type.Object(
   {
     type: Type.Literal("response"),
     id: CorrelationIdSchema,
@@ -36,7 +36,7 @@ const WebSocketResponseFrameSchema = Type.Object(
   { additionalProperties: false },
 );
 
-const WebSocketErrorFrameSchema = Type.Object(
+const WebSocketErrorMessageSchema = Type.Object(
   {
     type: Type.Literal("error"),
     id: Type.Optional(CorrelationIdSchema),
@@ -47,7 +47,7 @@ const WebSocketErrorFrameSchema = Type.Object(
   { additionalProperties: false },
 );
 
-const WebSocketEventFrameSchema = Type.Object(
+const WebSocketEventMessageSchema = Type.Object(
   {
     type: Type.Literal("event"),
     id: Type.String({ minLength: 1 }),
@@ -57,33 +57,33 @@ const WebSocketEventFrameSchema = Type.Object(
   { additionalProperties: false },
 );
 
-const WebSocketServerFrameSchema = Type.Union([
-  WebSocketReadyFrameSchema,
-  WebSocketResponseFrameSchema,
-  WebSocketErrorFrameSchema,
-  WebSocketEventFrameSchema,
+const WebSocketServerMessageSchema = Type.Union([
+  WebSocketReadyMessageSchema,
+  WebSocketResponseMessageSchema,
+  WebSocketErrorMessageSchema,
+  WebSocketEventMessageSchema,
 ]);
 
-export interface WebSocketReadyFrame {
+export interface WebSocketReadyMessage {
   readonly type: "ready";
   readonly sessionId: string;
   readonly canonicalPath: string;
 }
 
-export interface WebSocketRequestFrame {
+export interface WebSocketRequestMessage {
   readonly type: "request";
   readonly id: string;
   readonly channel: string;
   readonly payload?: unknown;
 }
 
-export interface WebSocketResponseFrame {
+export interface WebSocketResponseMessage {
   readonly type: "response";
   readonly id: string;
   readonly value?: unknown;
 }
 
-export interface WebSocketErrorFrame {
+export interface WebSocketErrorMessage {
   readonly type: "error";
   readonly id?: string;
   readonly code: string;
@@ -92,36 +92,38 @@ export interface WebSocketErrorFrame {
   readonly isTerminal: boolean;
 }
 
-export interface WebSocketEventFrame {
+export interface WebSocketEventMessage {
   readonly type: "event";
   readonly id: string;
   readonly channel: string;
   readonly payload?: unknown;
 }
 
-export type WebSocketServerFrame =
-  | WebSocketReadyFrame
-  | WebSocketResponseFrame
-  | WebSocketErrorFrame
-  | WebSocketEventFrame;
+export type WebSocketServerMessage =
+  | WebSocketReadyMessage
+  | WebSocketResponseMessage
+  | WebSocketErrorMessage
+  | WebSocketEventMessage;
 
-/** Validate the first server frame that accepts a session target. */
-export function parseWebSocketReadyFrame(value: unknown): WebSocketReadyFrame {
-  return Value.Parse(WebSocketReadyFrameSchema, value);
+/** Validate the first server message that accepts a session target. */
+export function parseWebSocketReadyMessage(
+  value: unknown,
+): WebSocketReadyMessage {
+  return Value.Parse(WebSocketReadyMessageSchema, value);
 }
 
-/** Validate one canonical client request frame. */
-export function parseWebSocketRequestFrame(
+/** Validate one canonical client request message. */
+export function parseWebSocketRequestMessage(
   value: unknown,
-): WebSocketRequestFrame {
-  return Value.Parse(WebSocketRequestFrameSchema, value);
+): WebSocketRequestMessage {
+  return Value.Parse(WebSocketRequestMessageSchema, value);
 }
 
-/** Validate one server-to-browser WebSocket frame. */
-export function parseWebSocketServerFrame(
+/** Validate one server-to-browser WebSocket message. */
+export function parseWebSocketServerMessage(
   value: unknown,
-): WebSocketServerFrame {
-  return Value.Parse(WebSocketServerFrameSchema, value);
+): WebSocketServerMessage {
+  return Value.Parse(WebSocketServerMessageSchema, value);
 }
 
 /** Read a correlation id without trusting any other client-authored field. */
@@ -133,12 +135,12 @@ export function tryParseWebSocketCorrelationId(
   return Value.Check(CorrelationIdSchema, id) ? id : undefined;
 }
 
-/** Produce one accepted target's WebSocket frame and canonical browser path. */
-export function toWebSocketReadyFrame(
+/** Produce one accepted target's WebSocket message and canonical browser path. */
+export function toWebSocketReadyMessage(
   sessionId: string,
   canonicalPath: string,
-): WebSocketReadyFrame {
-  return Value.Parse(WebSocketReadyFrameSchema, {
+): WebSocketReadyMessage {
+  return Value.Parse(WebSocketReadyMessageSchema, {
     type: "ready",
     sessionId,
     canonicalPath,

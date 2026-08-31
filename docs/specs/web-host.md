@@ -86,7 +86,7 @@ The web host does not own feature channel semantics, workspace behavior, or app 
 - The host **must not** create or hold a pending attachment across separate physical requests.
 - No cross-request capability handoff is required.
 - The live connection acquires and owns its attachment from connection setup onward.
-- Ordinary live request frames **must** include only physical correlation, canonical channel identity, and canonical payload.
+- Ordinary live request messages **must** include only physical correlation, canonical channel identity, and canonical payload.
 - They **must not** repeat workspace, session, attachment, tenancy, or authentication identity after the host binds the connection.
 - The host **must** ask the bound attachment to prepare each accepted canonical request before it records or invokes the crossing.
 - It **must** use the prepared channel policy for logging, invoke the prepared dispatch, and correlate exactly one terminal response to the request.
@@ -118,7 +118,7 @@ The web host does not own feature channel semantics, workspace behavior, or app 
 
 - The web host **must** deliver each runtime event only to live attachments whose accepted target matches the event scope.
 - Physical broadcast **must not** define delivery semantics.
-- A live event frame **must** include canonical channel identity and payload without adding workspace, session, tenancy, or authentication fields to the canonical payload.
+- A live event message **must** include canonical channel identity and payload without adding workspace, session, tenancy, or authentication fields to the canonical payload.
 - A connection loss may discard unacknowledged live events.
 - The host **must not** claim recovery unless the client can re-establish the affected projection from an authoritative snapshot or ordered replay.
 
@@ -145,7 +145,7 @@ The web host does not own feature channel semantics, workspace behavior, or app 
 
 - An unknown or inadmissible target **must not** create a usable attachment.
 - The host **must not** reveal the target's existence beyond its admission policy.
-- A malformed physical frame **must not** reach canonical dispatch.
+- A malformed physical message **must not** reach canonical dispatch.
 - The host **may** correlate a safe protocol error only after it validates the client-authored correlation id independently.
 - Expected rejections **must** include a stable machine-readable code and a useful message.
 - Unexpected internal failures **may** include diagnostic detail in this trust model.
@@ -164,14 +164,14 @@ A conforming web host demonstrates these outcomes:
 4. A workspace-only location creates a new session through its live connection and then canonicalizes. Several tabs can target the same or different sessions. Session changes and browser back/forward retarget the attachment before canonicalization and preserve the previous target on failure.
 5. Content references are host-neutral and versioned. The browser fetches referenced content over HTTP. Content requests retain independent workspace authority and do not depend on any live connection. Versioned content caches immutably while mutable pages and projections do not. The served catalog contains no storage locations.
 6. Reconnection with dead-connection detection rehydrates snapshots without replay. Pending requests are not resent. A mutating request returns the durable identity of its created record when accepted. A reused in-flight correlation identity is rejected while the original request is undisturbed. Every accepted request produces exactly one terminal response.
-7. Boot failure, malformed frames, connection loss, and host shutdown leave no host-owned attachment or guard alive. They do not start teardown for an independently guarded peer.
+7. Boot failure, malformed messages, connection loss, and host shutdown leave no host-owned attachment or guard alive. They do not start teardown for an independently guarded peer.
 8. Loopback and non-loopback profiles satisfy the same canonical channel, attachment, content-dispatch, and client contracts without feature-specific host branches.
 
 ## Degrees of freedom
 
 A conforming implementation may choose:
 
-- The HTTP library, browser live-transport mechanism, frame encoding, and internal routing structure.
+- The HTTP library, browser live-transport mechanism, message encoding, and internal routing structure.
 - Exact launcher, workspace, session, live, asset, and content pathnames.
 - The browser-origin set. That set covers hosts, ports, and subdomains. It also covers whether resource content shares the workspace origin or uses separate origins in a multi-origin deployment.
 - Direct TLS or trusted-ingress TLS termination, and the trusted-network definition for a plaintext profile.

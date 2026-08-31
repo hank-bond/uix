@@ -8,9 +8,9 @@ import {
 } from "./workspace-websocket-adapter";
 import { resolveServerResourceUrl } from "../resource-urls";
 import {
-  parseWebSocketReadyFrame,
-  parseWebSocketServerFrame,
-} from "../websocket-frames";
+  parseWebSocketReadyMessage,
+  parseWebSocketServerMessage,
+} from "../websocket-messages";
 
 interface WorkspaceWebSocketReady {
   readonly client: WorkspaceClient;
@@ -110,19 +110,19 @@ export function openWorkspaceWebSocket(
         if (isDisposed || socket !== activeSocket) return;
         try {
           if (typeof event.data !== "string") {
-            throw new Error("WebSocket frames must be text");
+            throw new Error("WebSocket messages must be text");
           }
-          const decodedFrame = JSON.parse(event.data) as unknown;
+          const decodedMessage = JSON.parse(event.data) as unknown;
           if (!isAccepted) {
-            const readyFrame = parseWebSocketReadyFrame(decodedFrame);
+            const readyMessage = parseWebSocketReadyMessage(decodedMessage);
             const canonicalLocation = parseCanonicalSessionLocation(
-              readyFrame.canonicalPath,
+              readyMessage.canonicalPath,
               workspaceId,
-              readyFrame.sessionId,
+              readyMessage.sessionId,
             );
             if (
               acceptedSessionId &&
-              readyFrame.sessionId !== acceptedSessionId
+              readyMessage.sessionId !== acceptedSessionId
             ) {
               throw new Error(
                 "Replacement connection changed the session target",
@@ -140,7 +140,7 @@ export function openWorkspaceWebSocket(
               return;
             }
 
-            acceptedSessionId = readyFrame.sessionId;
+            acceptedSessionId = readyMessage.sessionId;
             isAccepted = true;
             reconnectAttempt = 0;
             if (!webSocketAdapter) {
@@ -156,7 +156,7 @@ export function openWorkspaceWebSocket(
               );
               clientMount = options.readyHandler?.({
                 client: webSocketAdapter.client,
-                sessionId: readyFrame.sessionId,
+                sessionId: readyMessage.sessionId,
                 synchronizeSessionLocation: (sessionId) => {
                   if (sessionId === acceptedSessionId) return;
                   acceptedSessionId = sessionId;
@@ -174,8 +174,8 @@ export function openWorkspaceWebSocket(
             if (clientMount) status.hidden = true;
             return;
           }
-          webSocketAdapter?.frameHandler(
-            parseWebSocketServerFrame(decodedFrame),
+          webSocketAdapter?.messageHandler(
+            parseWebSocketServerMessage(decodedMessage),
             socket,
           );
         } catch {
@@ -185,8 +185,8 @@ export function openWorkspaceWebSocket(
           socket.close(
             1002,
             isAccepted
-              ? "Invalid WebSocket frame"
-              : "Invalid WebSocket ready frame",
+              ? "Invalid WebSocket message"
+              : "Invalid WebSocket ready message",
           );
         }
       },
@@ -269,7 +269,7 @@ function parseCanonicalSessionLocation(
     target.sessionId !== expectedSessionId
   ) {
     throw new Error(
-      "Canonical workspace target does not match the ready frame",
+      "Canonical workspace target does not match the ready message",
     );
   }
   return canonical;

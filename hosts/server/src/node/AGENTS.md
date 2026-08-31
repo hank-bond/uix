@@ -4,7 +4,7 @@ summary: "Node-side server composition: boot-loaded workspace registration, HTTP
 
 # Server process
 
-This directory runs only in Node. It snapshots private workspace configuration before listening. It serves the public catalog, launcher, and workspace shell without acquiring a workspace guard or booting a runtime. A workspace-page WebSocket lazily acquires one supervised runtime and creates or opens its session attachment. It sends the accepted target, dispatches correlated canonical requests, and sends only attachment-selected event frames. The WebSocket wire boundary applies contract-owned logging policy. Connection close disposes the attachment and guard without revoking already accepted work.
+This directory runs only in Node. It snapshots private workspace configuration before listening. It serves the public catalog, launcher, and workspace shell without acquiring a workspace guard or booting a runtime. A workspace-page WebSocket lazily acquires one supervised runtime and creates or opens its session attachment. It sends the accepted target, dispatches correlated canonical requests, and sends only attachment-selected event messages. The WebSocket wire boundary applies contract-owned logging policy. Connection close disposes the attachment and guard without revoking already accepted work.
 
 Accepted WebSockets use periodic ping/pong and terminate after a missed heartbeat so dead browser connections release their attachment and guard. A workspace content request independently acquires a workspace guard. It validates and dispatches its logical resource URL through that runtime's registered resource handler. The request retains the guard until the HTTP response completes and never creates an attachment. The HTTP boundary owns physical URL encoding, cache defaults, hardening headers, and configured-origin CORS policy.
 
@@ -28,6 +28,6 @@ Accepted WebSockets use periodic ping/pong and terminate after a missed heartbea
 - **[workspace-resource-transport.ts](./workspace-resource-transport.ts)** Binds each supervised runtime's logical resource dispatcher to server HTTP requests.
 - **[workspace-routes.ts](./workspace-routes.ts)** Binds workspace page routes and WebSockets to supervised workspace attachments.
 - **[workspace-runtime.ts](./workspace-runtime.ts)** Boots one registered workspace runtime over server-owned dependency adapters.
-- **[workspace-websocket.ts](./workspace-websocket.ts)** Binds one accepted workspace attachment to correlated frames, scoped events, and heartbeat liveness.
+- **[workspace-websocket.ts](./workspace-websocket.ts)** Binds one accepted workspace attachment to correlated messages, scoped events, and heartbeat liveness.
 
 <!-- INDEX:END -->

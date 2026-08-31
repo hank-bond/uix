@@ -33,7 +33,7 @@
     "apps/features/**/workspace/**/*.ts",
     "hosts/server/src/browser/**/*.ts",
     "hosts/server/src/resource-urls.ts",
-    "hosts/server/src/websocket-frames.ts",
+    "hosts/server/src/websocket-messages.ts",
     "src/renderer/**/*.ts",
     "src/renderer/**/*.tsx",
     "src/features/**/workspace/**/*.ts",

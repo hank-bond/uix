@@ -22,9 +22,9 @@ import { createServerHost, type ServerWorkspaceDependencies } from "./server";
 import { createServerWorkspaceRuntime } from "./workspace-runtime";
 import { resolveServerResourceUrl } from "../resource-urls";
 import {
-  parseWebSocketReadyFrame,
-  type WebSocketReadyFrame,
-} from "../websocket-frames";
+  parseWebSocketReadyMessage,
+  type WebSocketReadyMessage,
+} from "../websocket-messages";
 
 const temporaryDirectories: string[] = [];
 const apiModuleDir = join(__dirname, "../../../../packages/api/src");
@@ -572,17 +572,17 @@ async function requestServer(
 
 async function openWorkspaceWebSocket(location: string): Promise<{
   readonly socket: WebSocket;
-  readonly ready: WebSocketReadyFrame;
+  readonly ready: WebSocketReadyMessage;
 }> {
   const socket = new WebSocket(location);
-  const readyFrame = await new Promise<WebSocketReadyFrame>(
+  const readyMessage = await new Promise<WebSocketReadyMessage>(
     (resolve, reject) => {
       socket.addEventListener(
         "message",
         (event) => {
           try {
             resolve(
-              parseWebSocketReadyFrame(
+              parseWebSocketReadyMessage(
                 JSON.parse(String(event.data)) as unknown,
               ),
             );
@@ -612,7 +612,7 @@ async function openWorkspaceWebSocket(location: string): Promise<{
       );
     },
   );
-  return { socket, ready: readyFrame };
+  return { socket, ready: readyMessage };
 }
 
 async function sendWebSocketRequest(
@@ -621,20 +621,20 @@ async function sendWebSocketRequest(
   channel: string,
   payload?: unknown,
 ): Promise<unknown> {
-  const responseFrame = new Promise<unknown>((resolve) => {
+  const responseMessage = new Promise<unknown>((resolve) => {
     const onMessage = (event: MessageEvent): void => {
-      const frame = JSON.parse(String(event.data)) as {
+      const message = JSON.parse(String(event.data)) as {
         readonly type?: unknown;
         readonly id?: unknown;
       };
       if (
-        frame.id !== requestId ||
-        (frame.type !== "response" && frame.type !== "error")
+        message.id !== requestId ||
+        (message.type !== "response" && message.type !== "error")
       ) {
         return;
       }
       socket.removeEventListener("message", onMessage);
-      resolve(frame);
+      resolve(message);
     };
     socket.addEventListener("message", onMessage);
   });
@@ -646,7 +646,7 @@ async function sendWebSocketRequest(
       ...(payload === undefined ? {} : { payload }),
     }),
   );
-  return responseFrame;
+  return responseMessage;
 }
 
 async function closeWebSocket(socket: WebSocket): Promise<void> {

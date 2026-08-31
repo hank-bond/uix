@@ -5,7 +5,7 @@ import type {
   WorkspaceConnectionVersion,
 } from "@uix/api/workspace";
 
-import type { WebSocketServerFrame } from "../websocket-frames";
+import type { WebSocketServerMessage } from "../websocket-messages";
 
 interface PendingRequest {
   readonly socket: WebSocket;
@@ -16,8 +16,8 @@ interface PendingRequest {
 export interface WorkspaceWebSocketAdapter extends Disposable {
   readonly client: WorkspaceClient;
   readonly setSocket: (socket: WebSocket) => void;
-  readonly frameHandler: (
-    frame: WebSocketServerFrame,
+  readonly messageHandler: (
+    message: WebSocketServerMessage,
     socket: WebSocket,
   ) => void;
   readonly disconnectHandler: (socket: WebSocket, message?: string) => void;
@@ -77,9 +77,9 @@ export function createWorkspaceWebSocketAdapter(
       }
       const requestId = `request-${String(nextRequestId)}`;
       nextRequestId += 1;
-      let encodedFrame: string;
+      let encodedMessage: string;
       try {
-        encodedFrame = JSON.stringify({
+        encodedMessage = JSON.stringify({
           type: "request",
           id: requestId,
           channel,
@@ -97,7 +97,7 @@ export function createWorkspaceWebSocketAdapter(
           reject,
         });
         try {
-          acceptedSocket.send(encodedFrame);
+          acceptedSocket.send(encodedMessage);
         } catch (error) {
           pendingRequests.delete(requestId);
           reject(error instanceof Error ? error : new Error(String(error)));
@@ -158,29 +158,31 @@ export function createWorkspaceWebSocketAdapter(
   return {
     client,
     setSocket,
-    frameHandler(frame, sourceSocket): void {
+    messageHandler(message, sourceSocket): void {
       if (isDisposed || sourceSocket !== activeSocket) return;
-      switch (frame.type) {
+      switch (message.type) {
         case "ready":
-          throw new Error("Received a second WebSocket ready frame");
+          throw new Error("Received a second WebSocket ready message");
         case "response": {
-          const request = pendingRequests.get(frame.id);
+          const request = pendingRequests.get(message.id);
           if (!request || request.socket !== sourceSocket) return;
-          pendingRequests.delete(frame.id);
-          request.resolve(frame.value);
+          pendingRequests.delete(message.id);
+          request.resolve(message.value);
           return;
         }
         case "error": {
-          if (!frame.isTerminal || !frame.id) return;
-          const request = pendingRequests.get(frame.id);
+          if (!message.isTerminal || !message.id) return;
+          const request = pendingRequests.get(message.id);
           if (!request || request.socket !== sourceSocket) return;
-          pendingRequests.delete(frame.id);
-          request.reject(new WebSocketRequestError(frame.code, frame.message));
+          pendingRequests.delete(message.id);
+          request.reject(
+            new WebSocketRequestError(message.code, message.message),
+          );
           return;
         }
         case "event":
-          for (const handler of handlersByChannel.get(frame.channel) ?? []) {
-            handler(frame.payload);
+          for (const handler of handlersByChannel.get(message.channel) ?? []) {
+            handler(message.payload);
           }
           return;
       }

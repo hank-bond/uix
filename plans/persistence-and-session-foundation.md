@@ -4,7 +4,7 @@ summary: "Build spec for persistence on Pi's session file. Branch projection and
 
 # Spec: persistence + session foundation (C0–C5)
 
-Persistence is the phase that ties the conversation tree, canvas versions, and anchor state together. Frame and rationale: [session-file-as-state-substrate](../docs/decisions/2026-06-06-session-file-as-state-substrate.md) (Pi's session file is the substrate). Versioning mechanics behind the document-store seam: [pane-and-file-versioning](../docs/design/pane-and-file-versioning.md). The conversation-render work this unblocks: [conversation-render-primitives](../docs/design/conversation-render-primitives.md).
+Persistence is the phase that ties the conversation tree, canvas versions, and anchor state together. Rationale: [session-file-as-state-substrate](../docs/decisions/2026-06-06-session-file-as-state-substrate.md) (Pi's session file is the substrate). Versioning mechanics behind the document-store seam: [pane-and-file-versioning](../docs/design/pane-and-file-versioning.md). The conversation-render work this unblocks: [conversation-render-primitives](../docs/design/conversation-render-primitives.md).
 
 > **H4 update:** Each `AgentInstance` now owns its Agent feature factories, facet registries, Canvas buffer, and turn-state coordinator. Attachments on one session share that viewpoint. Different sessions do not share mutable Canvas state.
 

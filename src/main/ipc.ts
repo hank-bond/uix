@@ -39,10 +39,10 @@ let fileLog: pino.Logger | undefined;
 
 const CanonicalChannelPattern = /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/;
 
-/** Read only a log-safe canonical id from an unprepared physical frame. */
-function tryParseCanonicalRequestChannel(frame: unknown): string | undefined {
-  if (!frame || typeof frame !== "object") return undefined;
-  const channel: unknown = (frame as { readonly channel?: unknown }).channel;
+/** Read only a log-safe canonical id from an unprepared physical request. */
+function tryParseCanonicalRequestChannel(request: unknown): string | undefined {
+  if (!request || typeof request !== "object") return undefined;
+  const channel: unknown = (request as { readonly channel?: unknown }).channel;
   return typeof channel === "string" && CanonicalChannelPattern.test(channel)
     ? channel
     : undefined;
@@ -120,18 +120,18 @@ export function handleCanonicalRequest(
   physicalChannel: string,
   prepare: (request: CanonicalRequest) => PreparedDispatch,
 ): Disposable {
-  ipcMain.handle(physicalChannel, async (_event, frame: unknown) => {
-    const requestChannel = tryParseCanonicalRequestChannel(frame);
+  ipcMain.handle(physicalChannel, async (_event, rawRequest: unknown) => {
+    const requestChannel = tryParseCanonicalRequestChannel(rawRequest);
     let dispatch: PreparedDispatch;
     try {
-      dispatch = prepare(frame as CanonicalRequest);
+      dispatch = prepare(rawRequest as CanonicalRequest);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const logChannel = requestChannel ?? `${physicalChannel}:invalid`;
       recordWireCrossing(
         { terminal: log, file: fileLog },
         `in:${logChannel}`,
-        frame,
+        rawRequest,
         {
           describe: () => ({
             channel: requestChannel ?? "invalid",

@@ -48,7 +48,7 @@ describe("workspace WebSocket adapter", () => {
     expect(sent).not.toHaveProperty("workspaceId");
     expect(sent).not.toHaveProperty("sessionId");
 
-    adapter.frameHandler(
+    adapter.messageHandler(
       {
         type: "response",
         id: "request-1",
@@ -62,7 +62,7 @@ describe("workspace WebSocket adapter", () => {
     expect(JSON.parse(socket.send.mock.calls[1]?.[0] ?? "")).not.toHaveProperty(
       "payload",
     );
-    adapter.frameHandler(
+    adapter.messageHandler(
       {
         type: "error",
         id: "request-2",
@@ -92,7 +92,7 @@ describe("workspace WebSocket adapter", () => {
     const unsubscribe = adapter.client.subscribe("feature.changed", handler);
     const request = adapter.client.request("feature.wait", {});
 
-    adapter.frameHandler(
+    adapter.messageHandler(
       {
         type: "error",
         id: "request-1",
@@ -102,7 +102,7 @@ describe("workspace WebSocket adapter", () => {
       },
       socket as unknown as WebSocket,
     );
-    adapter.frameHandler(
+    adapter.messageHandler(
       {
         type: "event",
         id: "event-1",
@@ -113,13 +113,13 @@ describe("workspace WebSocket adapter", () => {
     );
     expect(handler).toHaveBeenCalledWith({ revision: 2 });
 
-    adapter.frameHandler(
+    adapter.messageHandler(
       { type: "response", id: "request-1" },
       socket as unknown as WebSocket,
     );
     await expect(request).resolves.toBeUndefined();
     unsubscribe();
-    adapter.frameHandler(
+    adapter.messageHandler(
       {
         type: "event",
         id: "event-2",
@@ -185,7 +185,7 @@ describe("workspace WebSocket adapter", () => {
     expect(versionChanged).toHaveBeenCalledOnce();
     expect(second.send).not.toHaveBeenCalled();
 
-    adapter.frameHandler(
+    adapter.messageHandler(
       {
         type: "event",
         id: "stale-event",
@@ -202,7 +202,7 @@ describe("workspace WebSocket adapter", () => {
       id: "request-2",
       channel: "feature.snapshot",
     });
-    adapter.frameHandler(
+    adapter.messageHandler(
       { type: "response", id: "request-2", value: { revision: 2 } },
       second as unknown as WebSocket,
     );

@@ -10,7 +10,7 @@ import type {
 const electronMock = vi.hoisted(() => ({
   handlers: new Map<
     string,
-    (event: unknown, frame: unknown) => Promise<unknown>
+    (event: unknown, request: unknown) => Promise<unknown>
   >(),
   handle: vi.fn(),
   removeHandler: vi.fn(),
@@ -21,7 +21,7 @@ vi.mock("electron", () => ({
     handle: electronMock.handle.mockImplementation(
       (
         channel: string,
-        handler: (event: unknown, frame: unknown) => Promise<unknown>,
+        handler: (event: unknown, request: unknown) => Promise<unknown>,
       ) => {
         electronMock.handlers.set(channel, handler);
       },
@@ -87,7 +87,7 @@ describe("canonical IPC request logging", () => {
 
   it("records a redacted inbound crossing when preparation fails", async () => {
     const secret = "secret-before-preparation";
-    const frame = {
+    const request = {
       channel: "agent.prompt",
       payload: { text: secret },
     };
@@ -97,7 +97,7 @@ describe("canonical IPC request logging", () => {
     const handler = electronMock.handlers.get(PhysicalChannel);
     if (!handler) throw new Error("Canonical IPC handler was not registered");
 
-    await expect(handler(undefined, frame)).rejects.toThrow(
+    await expect(handler(undefined, request)).rejects.toThrow(
       "Attachment is disposed",
     );
 
@@ -107,7 +107,7 @@ describe("canonical IPC request logging", () => {
     const options = crossing[3] as {
       describe: (payload: unknown) => unknown;
     };
-    const description = options.describe(frame);
+    const description = options.describe(request);
     expect(description).toEqual({
       channel: "agent.prompt",
       redacted: "request payload unavailable before dispatch preparation",
@@ -117,7 +117,7 @@ describe("canonical IPC request logging", () => {
   });
 
   it("keeps malformed channel text out of the wire-log label", async () => {
-    const frame = {
+    const request = {
       channel: "agent.prompt\nspoofed-log-line",
       payload: { text: "secret" },
     };
@@ -127,7 +127,7 @@ describe("canonical IPC request logging", () => {
     const handler = electronMock.handlers.get(PhysicalChannel);
     if (!handler) throw new Error("Canonical IPC handler was not registered");
 
-    await expect(handler(undefined, frame)).rejects.toThrow(
+    await expect(handler(undefined, request)).rejects.toThrow(
       "Malformed request",
     );
 
@@ -136,7 +136,7 @@ describe("canonical IPC request logging", () => {
     const options = crossing[3] as {
       describe: (payload: unknown) => unknown;
     };
-    expect(options.describe(frame)).toEqual({
+    expect(options.describe(request)).toEqual({
       channel: "invalid",
       redacted: "request payload unavailable before dispatch preparation",
     });

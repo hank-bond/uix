@@ -90,7 +90,7 @@ function createPreparedDispatch(
   };
 }
 
-function parseSentFrames(socket: FakeSocket): unknown[] {
+function parseSentMessages(socket: FakeSocket): unknown[] {
   return socket.send.mock.calls.map(([value]) => JSON.parse(value) as unknown);
 }
 
@@ -133,7 +133,7 @@ describe("server workspace WebSocket binding", () => {
     expect(socket.terminate).toHaveBeenCalledOnce();
   });
 
-  it("prepares canonical requests and returns one correlated terminal frame", async () => {
+  it("prepares canonical requests and returns one correlated terminal message", async () => {
     const prepare = vi.fn((request: CanonicalRequest) =>
       createPreparedDispatch(request, () =>
         Promise.resolve({ ok: true, value: { echoed: request.payload } }),
@@ -163,7 +163,7 @@ describe("server workspace WebSocket binding", () => {
       channel: "feature.echo",
       payload: { value: 1 },
     });
-    expect(parseSentFrames(socket)).toEqual([
+    expect(parseSentMessages(socket)).toEqual([
       {
         type: "ready",
         sessionId: "session-1",
@@ -204,7 +204,7 @@ describe("server workspace WebSocket binding", () => {
     socket.emitMessage(request);
     socket.emitMessage(request);
     expect(prepare).toHaveBeenCalledOnce();
-    expect(parseSentFrames(socket).at(-1)).toEqual({
+    expect(parseSentMessages(socket).at(-1)).toEqual({
       type: "error",
       id: "same-id",
       code: "correlation_in_use",
@@ -214,7 +214,7 @@ describe("server workspace WebSocket binding", () => {
 
     result.resolve({ ok: true, value: "original-result" });
     await waitForTasks();
-    expect(parseSentFrames(socket).at(-1)).toEqual({
+    expect(parseSentMessages(socket).at(-1)).toEqual({
       type: "response",
       id: "same-id",
       value: "original-result",
@@ -222,7 +222,7 @@ describe("server workspace WebSocket binding", () => {
     expect(disposal).toHaveBeenCalledOnce();
   });
 
-  it("keeps malformed frames out of dispatch and omits invalid payloads from errors", () => {
+  it("keeps malformed messages out of dispatch and omits invalid payloads from errors", () => {
     const prepare = vi.fn();
     const fixture = createAttachmentFixture(prepare);
     const socket = new FakeSocket();
@@ -244,14 +244,14 @@ describe("server workspace WebSocket binding", () => {
     });
 
     expect(prepare).not.toHaveBeenCalled();
-    expect(parseSentFrames(socket).at(-1)).toEqual({
+    expect(parseSentMessages(socket).at(-1)).toEqual({
       type: "error",
       id: "safe-id",
-      code: "malformed_frame",
-      message: "Invalid WebSocket request frame",
+      code: "malformed_message",
+      message: "Invalid WebSocket request message",
       isTerminal: false,
     });
-    expect(JSON.stringify(parseSentFrames(socket).at(-1))).not.toContain(
+    expect(JSON.stringify(parseSentMessages(socket).at(-1))).not.toContain(
       "must-not-echo",
     );
   });
@@ -322,14 +322,14 @@ describe("server workspace WebSocket binding", () => {
       payload: { revision: 3 },
     });
 
-    expect(parseSentFrames(socket).at(-1)).toEqual({
+    expect(parseSentMessages(socket).at(-1)).toEqual({
       type: "event",
       id: "event-1",
       channel: "feature.changed",
       payload: { revision: 3 },
     });
-    expect(parseSentFrames(socket).at(-1)).not.toHaveProperty("scope");
-    expect(parseSentFrames(socket).at(-1)).not.toHaveProperty("sessionId");
+    expect(parseSentMessages(socket).at(-1)).not.toHaveProperty("scope");
+    expect(parseSentMessages(socket).at(-1)).not.toHaveProperty("sessionId");
   });
 
   it("lets accepted work finish after physical disconnect", async () => {

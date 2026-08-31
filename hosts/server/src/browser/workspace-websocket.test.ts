@@ -149,7 +149,7 @@ describe("browser workspace WebSocket", () => {
     expect(status.textContent).toBe("Connected");
   });
 
-  it("rejects a cross-origin canonical path or malformed ready frame", () => {
+  it("rejects a cross-origin canonical path or malformed ready message", () => {
     const crossOrigin = createWorkspaceWebSocketFixture(
       "/workspaces/reference/sessions/session-1",
     );
@@ -165,7 +165,7 @@ describe("browser workspace WebSocket", () => {
     expect(crossOrigin.status.textContent).toBe("Unable to open workspace");
     expect(crossOrigin.socket.close).toHaveBeenCalledWith(
       1002,
-      "Invalid WebSocket ready frame",
+      "Invalid WebSocket ready message",
     );
     crossOrigin.socket.emit("close");
     expect(crossOrigin.status.textContent).toBe("Unable to open workspace");
@@ -175,7 +175,7 @@ describe("browser workspace WebSocket", () => {
     expect(malformed.replaceState).not.toHaveBeenCalled();
     expect(malformed.socket.close).toHaveBeenCalledWith(
       1002,
-      "Invalid WebSocket ready frame",
+      "Invalid WebSocket ready message",
     );
   });
 
@@ -262,7 +262,7 @@ describe("browser workspace WebSocket", () => {
     expect(fixture.status.textContent).toBe("Unable to open workspace");
     expect(replacement.close).toHaveBeenCalledWith(
       1002,
-      "Invalid WebSocket ready frame",
+      "Invalid WebSocket ready message",
     );
   });
 
