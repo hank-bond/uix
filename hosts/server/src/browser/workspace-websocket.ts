@@ -1,6 +1,7 @@
 // Owns one reconnecting workspace connection, shutdown notices, and its stable client.
 
 import type { WorkspaceClient } from "@uix/api/workspace";
+import type { SessionLocationAdapter } from "@uix/client/workspace";
 
 import {
   createWorkspaceWebSocketAdapter,
@@ -12,7 +13,7 @@ import { parseWebSocketServerMessage } from "../websocket-messages";
 interface WorkspaceWebSocketReady {
   readonly client: WorkspaceClient;
   readonly sessionId: string;
-  readonly synchronizeSessionLocation: (sessionId: string) => void;
+  readonly sessionLocationAdapter: SessionLocationAdapter;
 }
 
 interface OpenWorkspaceWebSocketOptions {
@@ -39,6 +40,11 @@ export function openWorkspaceWebSocket(
   let reconnectAttempt = 0;
   let isDisposed = false;
   let hasFatalFailure = false;
+  let historyNavigationTarget: string | undefined;
+  let historyNavigation: Promise<void> | undefined;
+  let sessionNavigationHandler:
+    | ((sessionId: string) => Promise<void>)
+    | undefined;
 
   const getConnectionPath = (): string =>
     acceptedSessionId
@@ -49,6 +55,106 @@ export function openWorkspaceWebSocket(
     const location = new URL(getConnectionPath(), window.location.origin);
     location.protocol = location.protocol === "https:" ? "wss:" : "ws:";
     return location;
+  };
+
+  const failLocationSynchronization = (): void => {
+    hasFatalFailure = true;
+    status.hidden = false;
+    status.textContent = "Unable to synchronize session location";
+    activeSocket?.close(1011, "Unable to synchronize session location");
+  };
+
+  const restoreAcceptedLocation = (sessionId: string): void => {
+    try {
+      window.history.replaceState(
+        null,
+        "",
+        toWorkspaceSessionPath(workspaceId, sessionId),
+      );
+    } catch {
+      failLocationSynchronization();
+    }
+  };
+
+  const reconcileHistoryLocation = (): void => {
+    const previousSessionId = acceptedSessionId;
+    if (
+      isDisposed ||
+      hasFatalFailure ||
+      !previousSessionId ||
+      historyNavigation
+    ) {
+      return;
+    }
+
+    let requestedSessionId: string;
+    try {
+      const requested = parseWorkspaceSessionPath(window.location.pathname);
+      if (requested.workspaceId !== workspaceId) {
+        throw new Error("History location changed the workspace target");
+      }
+      requestedSessionId = requested.sessionId;
+    } catch {
+      restoreAcceptedLocation(previousSessionId);
+      return;
+    }
+    if (requestedSessionId === previousSessionId) return;
+
+    const navigate = sessionNavigationHandler;
+    if (!navigate) {
+      restoreAcceptedLocation(previousSessionId);
+      return;
+    }
+
+    historyNavigationTarget = requestedSessionId;
+    const navigation = navigate(requestedSessionId)
+      .then(() => {
+        if (acceptedSessionId !== requestedSessionId) {
+          throw new Error("Session navigation did not synchronize location");
+        }
+      })
+      .catch(() => {
+        acceptedSessionId = previousSessionId;
+        restoreAcceptedLocation(previousSessionId);
+      })
+      .finally(() => {
+        if (historyNavigation !== navigation) return;
+        historyNavigation = undefined;
+        historyNavigationTarget = undefined;
+        // A second traversal may have changed the URL while this retarget was
+        // pending. Reconcile that location after the accepted result settles.
+        reconcileHistoryLocation();
+      });
+    historyNavigation = navigation;
+  };
+
+  const sessionLocationAdapter: SessionLocationAdapter = {
+    synchronize(sessionId): void {
+      if (sessionId === acceptedSessionId) return;
+      acceptedSessionId = sessionId;
+      if (sessionId === historyNavigationTarget) return;
+      try {
+        window.history.pushState(
+          null,
+          "",
+          toWorkspaceSessionPath(workspaceId, sessionId),
+        );
+      } catch (error) {
+        failLocationSynchronization();
+        throw error;
+      }
+    },
+    subscribe(navigate): () => void {
+      if (sessionNavigationHandler) {
+        throw new Error("Session location adapter already has a subscriber");
+      }
+      sessionNavigationHandler = navigate;
+      return () => {
+        if (sessionNavigationHandler === navigate) {
+          sessionNavigationHandler = undefined;
+        }
+      };
+    },
   };
 
   const clearReconnectTimer = (): void => {
@@ -163,15 +269,7 @@ export function openWorkspaceWebSocket(
               clientMount = options.readyHandler?.({
                 client: webSocketAdapter.client,
                 sessionId: readyMessage.sessionId,
-                synchronizeSessionLocation: (sessionId) => {
-                  if (sessionId === acceptedSessionId) return;
-                  acceptedSessionId = sessionId;
-                  window.history.pushState(
-                    null,
-                    "",
-                    toWorkspaceSessionPath(workspaceId, sessionId),
-                  );
-                },
+                sessionLocationAdapter,
               });
             } else {
               webSocketAdapter.setSocket(socket);
@@ -231,6 +329,7 @@ export function openWorkspaceWebSocket(
     if (document.visibilityState === "visible") openSocketNow();
   };
   window.addEventListener("online", onlineHandler);
+  window.addEventListener("popstate", reconcileHistoryLocation);
   document.addEventListener("visibilitychange", visibilityHandler);
   openSocket();
 
@@ -240,7 +339,9 @@ export function openWorkspaceWebSocket(
       isDisposed = true;
       clearReconnectTimer();
       window.removeEventListener("online", onlineHandler);
+      window.removeEventListener("popstate", reconcileHistoryLocation);
       document.removeEventListener("visibilitychange", visibilityHandler);
+      sessionNavigationHandler = undefined;
       activeSocketListeners?.abort();
       activeSocketListeners = undefined;
       clientMount?.[Symbol.dispose]();

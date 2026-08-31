@@ -18,7 +18,7 @@ summary: "Build the Electron and web hosts over the proved workspace runtime, at
 - **H5.1** launcher extraction landed in `0e2ccdc`.
 - **H5.2** workspace extraction landed in `0780f80`.
 - **H5.3** dependency-boundary enforcement landed. H5 is complete.
-- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** landed in `780838b`. **W2** has landed. **W3** landed in `75fd789`. **W4** has landed. **W5** landed in `d8ca763`. **W6** landed in `ac412f1`. **W7** has landed. **W8-W9** have landed. H7-H8 follow with Electron rehoming and two-host conformance.
+- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** landed in `780838b`. **W2** has landed. **W3** landed in `75fd789`. **W4** has landed. **W5** landed in `d8ca763`. **W6** landed in `ac412f1`. **W7** has landed. **W8-W9** have landed. **W10.1** is complete in the current review. **W10.2-W10.4** remain as web-host conformance follow-through. H7-H8 then cover Electron rehoming and two-host conformance.
 
 ## Status and intent
 
@@ -206,7 +206,7 @@ Move browser-compatible launcher and workspace UI into `packages/client`. Each e
 
 Preserve the current single-target product envelope. One page owns one attachment and one selected primary session. Session switching remains unavailable while its Agent runs. The browser needs canonical workspace-session URLs, but connection versions and complete snapshot recovery move to the parity plan.
 
-The workspace mount receives the existing `WorkspaceClient` rather than a second transport abstraction. It may also receive one synchronous, idempotent `synchronizeSessionLocation(sessionId)` callback. Invoke it only after the client establishes an accepted active session, including initial hydration, New Session, and successful switching. Electron omits it. The server uses it to replace the canonical browser URL. It never participates in session mutation or teaches the client how host URLs are encoded.
+The workspace mount receives the existing `WorkspaceClient` rather than a second transport abstraction. It may also receive one bidirectional `SessionLocationAdapter`. The shared session controller invokes its synchronous, idempotent `synchronize(sessionId)` operation only after establishing an accepted active session. This includes initial hydration, New Session, successful switching, and host-history retargeting. The adapter's subscription routes host-owned location navigation back through that controller. Electron omits it. The server implementation owns canonical URL encoding, push/replace history effects, failed-retarget restoration, and `popstate`. It never teaches the client how host URLs are encoded.
 
 The launcher consumes a host-neutral adapter over the host-level catalog. Workspace ids remain opaque. Listing and opening are required. Creation is optional so the initial server catalog may be read-only. Host errors reject, while native-dialog cancellation is an ordinary result. The launcher does not require an active workspace runtime.
 
@@ -287,6 +287,17 @@ _Status: landed._
 Add a reload request to the substrate `uix` channel contract with the runtime's `ReloadResult` shape. Expose it as a shared workspace action with a non-reserved default binding and a palette entry. Reload is rejected while an Agent operation is active. A successful reload replaces the composition once and fans a composition-changed event to every attached tab without a page reload. Failures return structured diagnostics while the previous composition remains active. Electron's `CmdOrCtrl+R` menu item rehomes to the same substrate path.
 
 **Review gate:** Browser-triggered reload activates edited feature source and manifests. Every attached tab updates its surfaces, and Electron behavior is preserved.
+
+### W10: Web-host conformance follow-through
+
+A code-and-test review against the accepted web-host specification found four bounded follow-up slices. Keep them independently reviewable. Browser behavior belongs in a real browser suite, while process lifecycle, guarded cancellation, and malformed wire traffic remain deterministic Node/Vitest responsibilities.
+
+- [x] **W10.1: Browser history retargeting.** Replace the one-way location callback with a host-neutral `SessionLocationAdapter`. Accepted client selection updates host history. Browser Back and Forward route through the shared session controller. Failed retargeting restores the previous accepted location. Unit coverage proves successful traversal, failed restoration, and fatal History API failure.
+- [ ] **W10.2: Prepared-dispatch shutdown cancellation.** Give each accepted dispatch a workspace-owned cancellation signal and completion boundary beside its retained Agent-instance guard. Ordinary attachment close and retarget leave accepted work alive. Workspace or host shutdown requests cancellation before waiting for dispatch completion and guarded teardown. A cooperative never-settling handler must observe cancellation, settle its lexical scope, release its guard, and let shutdown finish. This slice promotes O1 from [`runtime-operation-hardening.md`](./runtime-operation-hardening.md). Provider auth, model refresh, boots, and external calls remain there.
+- [ ] **W10.3: Complete malformed wire logging.** Route binary and pre-ready malformed application messages through the same safe payload-omitting inbound wire-log boundary as malformed JSON. Preserve the correlated protocol-error behavior where a correlation id can be validated independently. Tests must prove malformed bytes and payload fields never enter logs or canonical dispatch.
+- [ ] **W10.4: Real browser behavioral suite.** Add a server integration harness that starts an isolated workspace and runs deterministic PandaScript with the installed Lightpanda binary. Cover workspace-only canonicalization, in-page session creation and switching, Back and Forward retargeting, and failed-history restoration. Also cover controllable reconnect snapshot behavior and a basic Chat/Canvas browser flow without adding test-only production endpoints. PandaScript owns browser interactions and assertions. Node owns fixture creation, server lifecycle, process output, protocol-level traffic, and cleanup. Keep unit tests for structural edge cases rather than replacing them with browser tests.
+
+**Review gate:** W10 closes the concrete gaps found by the web-host specification review. Every slice passes independently. The browser suite drives production pages and routes without adding test-only host or runtime capabilities.
 
 ### H7: Reconstitute Electron as a discrete host
 

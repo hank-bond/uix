@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { WorkspaceClient } from "@uix/api/workspace";
 
 import type { ActionInvocationSource } from "./workspace/action-invocation-source";
+import type { SessionLocationAdapter } from "./workspace/session-location";
 
 const fakes = vi.hoisted(() => ({
   createRoot: vi.fn(),
@@ -39,10 +40,15 @@ describe("mountWorkspaceClient", () => {
     const actionInvocationSource: ActionInvocationSource = {
       subscribe: vi.fn(() => () => undefined),
     };
+    const sessionLocationAdapter: SessionLocationAdapter = {
+      synchronize: vi.fn(),
+      subscribe: vi.fn(() => () => undefined),
+    };
 
     const mounted = mountWorkspaceClient({
       target,
       client,
+      sessionLocationAdapter,
       actionInvocationSource,
     });
 
@@ -53,6 +59,7 @@ describe("mountWorkspaceClient", () => {
       children: ReactElement<{ children: ReactElement }>;
     }>;
     expect(strictMode.props.children.props.children.props).toMatchObject({
+      sessionLocationAdapter,
       actionInvocationSource,
     });
 

@@ -8,13 +8,13 @@ const target = document.getElementById("root");
 if (!target) throw new Error("#root not found");
 
 const workspaceWebSocket = openWorkspaceWebSocket({
-  readyHandler: ({ client, synchronizeSessionLocation }) => {
+  readyHandler: ({ client, sessionLocationAdapter }) => {
     const status = document.getElementById("status");
     if (status) status.hidden = true;
     return mountWorkspaceClient({
       target,
       client,
-      synchronizeSessionLocation,
+      sessionLocationAdapter,
     });
   },
 });

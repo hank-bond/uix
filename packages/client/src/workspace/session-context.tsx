@@ -19,6 +19,7 @@ import {
 } from "@uix/api/workspace";
 
 import { WorkspaceSessionController } from "./session-controller";
+import type { SessionLocationAdapter } from "./session-location";
 
 const RecentSessionLimit = 10;
 
@@ -28,10 +29,10 @@ const WorkspaceSessionControllerContext = createContext<
 
 export function WorkspaceSessionControllerProvider({
   children,
-  synchronizeSessionLocation,
+  sessionLocationAdapter,
 }: {
   children: ReactNode;
-  synchronizeSessionLocation?: (sessionId: string) => void;
+  sessionLocationAdapter?: SessionLocationAdapter;
 }): JSX.Element {
   const workspace = useWorkspaceClient();
   const agent = useMemo(
@@ -50,9 +51,9 @@ export function WorkspaceSessionControllerProvider({
           agent.requests.switch_session({ sessionId }),
         requestSetSessionTitle: (sessionId, title) =>
           agent.requests.set_session_title({ sessionId, title }),
-        synchronizeSessionLocation,
+        synchronizeSessionLocation: sessionLocationAdapter?.synchronize,
       }),
-    [agent, synchronizeSessionLocation],
+    [agent, sessionLocationAdapter],
   );
   const snapshot = useSyncExternalStore(
     controller.subscribe,
@@ -70,6 +71,15 @@ export function WorkspaceSessionControllerProvider({
   useEffect(() => {
     void controller.loadRecentSessions().catch(() => {});
   }, [controller]);
+  useEffect(() => {
+    if (!sessionLocationAdapter) return;
+    return sessionLocationAdapter.subscribe(async (sessionId) => {
+      const selected = await controller.switchSession(sessionId);
+      if (selected?.sessionId !== sessionId) {
+        throw new Error(`Unable to navigate to session: ${sessionId}`);
+      }
+    });
+  }, [controller, sessionLocationAdapter]);
 
   const loadActiveHistory = useCallback(
     () => controller.loadActiveHistory(),

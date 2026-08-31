@@ -30,6 +30,7 @@ import { KeybindingSync } from "./keybinding-sync";
 import { WorkspaceReloadAction } from "./reload-action";
 import { WorkspaceSessionActions } from "./session-actions";
 import { WorkspaceSessionControllerProvider } from "./session-context";
+import type { SessionLocationAdapter } from "./session-location";
 import { toShortcutPlatform } from "./shortcut-platform";
 import {
   type SurfaceComposition,
@@ -43,17 +44,17 @@ const actionRegistry = new ActionRegistry({
 const registerWorkspaceActions = actionRegistry.forFeature("uix");
 
 export function Workspace({
-  synchronizeSessionLocation,
+  sessionLocationAdapter,
   actionInvocationSource,
 }: {
-  synchronizeSessionLocation?: (sessionId: string) => void;
+  sessionLocationAdapter?: SessionLocationAdapter;
   actionInvocationSource?: ActionInvocationSource;
 }): JSX.Element {
   return (
     <ActionRegistryProvider registry={actionRegistry}>
       <FeatureActionsProvider register={registerWorkspaceActions}>
         <WorkspaceSessionControllerProvider
-          synchronizeSessionLocation={synchronizeSessionLocation}
+          sessionLocationAdapter={sessionLocationAdapter}
         >
           <WorkspaceSessionActions />
           <WorkspaceReloadAction />

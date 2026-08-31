@@ -9,6 +9,7 @@ import {
 } from "vitest";
 
 import type { WorkspaceClient } from "@uix/api/workspace";
+import type { SessionLocationAdapter } from "@uix/client/workspace";
 
 import { openWorkspaceWebSocket } from "./workspace-websocket";
 
@@ -49,6 +50,7 @@ interface WorkspaceWebSocketFixture {
   readonly status: { hidden: boolean; textContent: string };
   readonly replaceState: Mock<ReplaceState>;
   readonly pushState: Mock<ReplaceState>;
+  readonly navigateHistory: (pathname: string) => void;
   readonly workspaceWebSocket: Disposable;
 }
 
@@ -66,8 +68,19 @@ function createWorkspaceWebSocketFixture(
   options: Parameters<typeof openWorkspaceWebSocket>[0] = {},
 ): WorkspaceWebSocketFixture {
   const status = { hidden: false, textContent: "Connecting…" };
-  const replaceState = vi.fn<ReplaceState>();
-  const pushState = vi.fn<ReplaceState>();
+  const location = {
+    href: `https://uix.example${pathname}?ignored=yes#fragment`,
+    origin: "https://uix.example",
+    pathname,
+  };
+  const applyHistoryLocation: ReplaceState = (_data, _unused, url) => {
+    if (url === undefined || url === null) return;
+    const next = new URL(url, location.origin);
+    location.href = next.href;
+    location.pathname = next.pathname;
+  };
+  const replaceState = vi.fn<ReplaceState>(applyHistoryLocation);
+  const pushState = vi.fn<ReplaceState>(applyHistoryLocation);
   const documentEvents = new EventTarget();
   const windowEvents = new EventTarget();
   vi.stubGlobal("document", {
@@ -78,11 +91,7 @@ function createWorkspaceWebSocketFixture(
       documentEvents.removeEventListener.bind(documentEvents),
   });
   vi.stubGlobal("window", {
-    location: {
-      href: `https://uix.example${pathname}?ignored=yes#fragment`,
-      origin: "https://uix.example",
-      pathname,
-    },
+    location,
     history: { replaceState, pushState },
     addEventListener: windowEvents.addEventListener.bind(windowEvents),
     removeEventListener: windowEvents.removeEventListener.bind(windowEvents),
@@ -98,6 +107,10 @@ function createWorkspaceWebSocketFixture(
     status,
     replaceState,
     pushState,
+    navigateHistory(nextPathname): void {
+      location.pathname = nextPathname;
+      windowEvents.dispatchEvent(new Event("popstate"));
+    },
     workspaceWebSocket,
   };
 }
@@ -147,6 +160,87 @@ describe("browser workspace WebSocket", () => {
       "https://uix.example/workspaces/reference/sessions/session-1",
     );
     expect(status.textContent).toBe("Connected");
+  });
+
+  it("retargets browser back and forward before accepting their locations", async () => {
+    let sessionLocation: SessionLocationAdapter | undefined;
+    const navigate = vi.fn((sessionId: string) => {
+      sessionLocation?.synchronize(sessionId);
+      return Promise.resolve();
+    });
+    const fixture = createWorkspaceWebSocketFixture(
+      "/workspaces/reference/sessions/session-1",
+      {
+        readyHandler: ({ sessionLocationAdapter }) => {
+          sessionLocation = sessionLocationAdapter;
+          const unsubscribe = sessionLocationAdapter.subscribe(navigate);
+          return { [Symbol.dispose]: unsubscribe };
+        },
+      },
+    );
+    fixture.socket.emitMessage(
+      JSON.stringify({
+        type: "ready",
+        sessionId: "session-1",
+        canonicalPath: "/workspaces/reference/sessions/session-1",
+      }),
+    );
+    if (!sessionLocation) throw new Error("Session location was not accepted");
+
+    sessionLocation.synchronize("session-2");
+    expect(fixture.pushState).toHaveBeenCalledWith(
+      null,
+      "",
+      "/workspaces/reference/sessions/session-2",
+    );
+
+    fixture.navigateHistory("/workspaces/reference/sessions/session-1");
+    await vi.waitFor(() => {
+      expect(navigate).toHaveBeenLastCalledWith("session-1");
+    });
+    fixture.navigateHistory("/workspaces/reference/sessions/session-2");
+    await vi.waitFor(() => {
+      expect(navigate).toHaveBeenLastCalledWith("session-2");
+    });
+
+    expect(navigate).toHaveBeenCalledTimes(2);
+    expect(fixture.pushState).toHaveBeenCalledOnce();
+  });
+
+  it("restores the accepted location when history retargeting fails", async () => {
+    let sessionLocation: SessionLocationAdapter | undefined;
+    const navigate = vi.fn(() => Promise.reject(new Error("Unknown session")));
+    const fixture = createWorkspaceWebSocketFixture(
+      "/workspaces/reference/sessions/session-1",
+      {
+        readyHandler: ({ sessionLocationAdapter }) => {
+          sessionLocation = sessionLocationAdapter;
+          const unsubscribe = sessionLocationAdapter.subscribe(navigate);
+          return { [Symbol.dispose]: unsubscribe };
+        },
+      },
+    );
+    fixture.socket.emitMessage(
+      JSON.stringify({
+        type: "ready",
+        sessionId: "session-1",
+        canonicalPath: "/workspaces/reference/sessions/session-1",
+      }),
+    );
+    if (!sessionLocation) throw new Error("Session location was not accepted");
+    sessionLocation.synchronize("session-2");
+
+    fixture.navigateHistory("/workspaces/reference/sessions/session-1");
+    await vi.waitFor(() => {
+      expect(fixture.replaceState).toHaveBeenLastCalledWith(
+        null,
+        "",
+        "/workspaces/reference/sessions/session-2",
+      );
+    });
+
+    expect(navigate).toHaveBeenCalledWith("session-1");
+    expect(fixture.status.textContent).toBe("Connected");
   });
 
   it("rejects a cross-origin canonical path or malformed ready message", () => {
@@ -314,6 +408,44 @@ describe("browser workspace WebSocket", () => {
     expect(replacement.close).toHaveBeenCalledWith(
       1002,
       "Invalid WebSocket ready message",
+    );
+  });
+
+  it("closes the connection when an accepted session cannot enter history", () => {
+    let sessionLocation: SessionLocationAdapter | undefined;
+    const fixture = createWorkspaceWebSocketFixture(
+      "/workspaces/reference/sessions/session-1",
+      {
+        readyHandler: ({ sessionLocationAdapter }) => {
+          sessionLocation = sessionLocationAdapter;
+          return undefined;
+        },
+      },
+    );
+    fixture.socket.emitMessage(
+      JSON.stringify({
+        type: "ready",
+        sessionId: "session-1",
+        canonicalPath: "/workspaces/reference/sessions/session-1",
+      }),
+    );
+    const acceptedLocation = sessionLocation;
+    if (!acceptedLocation) {
+      throw new Error("Session location was not accepted");
+    }
+    fixture.pushState.mockImplementation(() => {
+      throw new Error("History is unavailable");
+    });
+
+    expect(() => {
+      acceptedLocation.synchronize("session-2");
+    }).toThrow("History is unavailable");
+    expect(fixture.status.textContent).toBe(
+      "Unable to synchronize session location",
+    );
+    expect(fixture.socket.close).toHaveBeenCalledWith(
+      1011,
+      "Unable to synchronize session location",
     );
   });
 

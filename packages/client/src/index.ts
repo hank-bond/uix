@@ -9,5 +9,6 @@ export {
 } from "./launcher";
 export {
   mountWorkspaceClient,
+  type SessionLocationAdapter,
   type WorkspaceClientMountOptions,
 } from "./workspace";

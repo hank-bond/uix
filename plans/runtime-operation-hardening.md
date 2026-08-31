@@ -1,5 +1,5 @@
 ---
-summary: "Finish cancellable operation ownership after the basic web vertical: prepared dispatch, provider authentication, model refresh, single-flight boots, external calls, and bounded shutdown."
+summary: "Finish cancellable operation ownership after web-host dispatch conformance: provider authentication, model refresh, single-flight boots, external calls, and bounded shutdown."
 ---
 
 # Runtime operation hardening
@@ -8,7 +8,7 @@ summary: "Finish cancellable operation ownership after the basic web vertical: p
 
 The active-turn vertical landed in `773918f`, `385edaf`, and `370003e`. It provides lexical tracked operations, targeted Pi abort, shutdown quiescence, discrete activity events, Chat Stop/Escape controls, and late-attachment activity recovery.
 
-The remaining work moved out of the host split so a basic loopback web host can land first. Resume it after the selected-view Canvas path in [agent feature instances and viewpoint state](./agent-feature-instances-and-viewpoint-state.md), when the final operation boundaries exist.
+Prepared-dispatch cancellation moved back into W10.2 of [Electron and server hosts](./electron-server-split.md) because it is required for web-host shutdown conformance. The remaining provider-authentication, model-refresh, boot, external-call, and bounded-shutdown work stays here. Resume it after the selected-view Canvas path in [agent feature instances and viewpoint state](./agent-feature-instances-and-viewpoint-state.md), when the final operation boundaries exist.
 
 ## Invariant
 
@@ -21,12 +21,6 @@ Keep cancellation orthogonal to guarded authority. A potentially unbounded opera
 Parent disposal stops admission and requests cancellation before waiting for guards. A timeout that only stops awaiting work is not cancellation. Non-cooperative integrations need an explicit force-stop, isolation, deadline, or bounded-detachment policy.
 
 ## Review units
-
-### O1: Prepared dispatch
-
-Give each accepted dispatch owned cancellation and completion beside its operation guard. Workspace or host shutdown cancels accepted dispatches before supervisor drain. Retarget and ordinary attachment closure leave accepted work alive.
-
-**Review gate:** A deterministic hanging handler observes cancellation, reaches its safe boundary, releases its guard, and lets workspace disposal finish.
 
 ### O2: Provider authentication and model refresh
 

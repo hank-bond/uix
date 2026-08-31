@@ -11,17 +11,19 @@ import {
 } from "@uix/api/workspace";
 
 import type { ActionInvocationSource } from "./workspace/action-invocation-source";
+import type { SessionLocationAdapter } from "./workspace/session-location";
 import { installSurfaceSharedModules } from "./workspace/surface-shared-modules";
 import { Workspace } from "./workspace/Workspace";
 
 export type { ActionInvocationSource } from "./workspace/action-invocation-source";
+export type { SessionLocationAdapter } from "./workspace/session-location";
 
 export interface WorkspaceClientMountOptions {
   /** Dedicated, initially empty page element owned by this mount. */
   readonly target: HTMLElement;
   readonly client: WorkspaceClient;
-  /** Idempotently reflects an accepted session in the host's location. */
-  readonly synchronizeSessionLocation?: (sessionId: string) => void;
+  /** Optional bidirectional bridge to host-owned session locations. */
+  readonly sessionLocationAdapter?: SessionLocationAdapter;
   /** Routes host-owned native UI selections through the renderer action registry. */
   readonly actionInvocationSource?: ActionInvocationSource;
 }
@@ -30,7 +32,7 @@ export interface WorkspaceClientMountOptions {
 export function mountWorkspaceClient({
   target,
   client,
-  synchronizeSessionLocation,
+  sessionLocationAdapter,
   actionInvocationSource,
 }: WorkspaceClientMountOptions): Disposable {
   installSurfaceSharedModules();
@@ -42,7 +44,7 @@ export function mountWorkspaceClient({
       createElement(WorkspaceClientProvider, {
         client,
         children: createElement(Workspace, {
-          synchronizeSessionLocation,
+          sessionLocationAdapter,
           actionInvocationSource,
         }),
       }),
