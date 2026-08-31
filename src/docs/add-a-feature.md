@@ -54,11 +54,7 @@ Add an ordered entry reference to `uix.workspace.json`. Manifest order is activa
 }
 ```
 
-`entry` resolves relative to `uix.workspace.json` unless it is absolute. Then reload. The loader loads entries as `.ts`/`.js` from disk, so no Electron rebuild is needed:
-
-```ts
-await window.channels.reload();
-```
+`entry` resolves relative to `uix.workspace.json` unless it is absolute. Then run **Reload Workspace** (`CmdOrCtrl+R`). The action sends the canonical `uix.reload` request in both Electron and a browser. The loader reads `.ts`/`.js` entries from disk, so no Electron rebuild or page reload is needed.
 
 ## Workspace and Agent contributions
 

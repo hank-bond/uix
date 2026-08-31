@@ -23,7 +23,6 @@ const transport: ChannelTransport = {
       ipcRenderer.off(channel, listener);
     };
   },
-  reload: () => ipcRenderer.invoke(Channels.reload),
 };
 
 // BrowserWindow preload is for the host shell only. Agent-authored canvas

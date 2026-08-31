@@ -32,4 +32,3 @@ export {
   toSessionId,
   toWorkspaceId,
 } from "./workspace";
-export type { ReloadResult } from "@uix/api/substrate-channels";

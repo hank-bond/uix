@@ -15,7 +15,6 @@ function createTransport(
   return {
     request,
     subscribe: vi.fn(),
-    reload: vi.fn(),
   };
 }
 

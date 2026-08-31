@@ -13,7 +13,6 @@ import type {
   CreatedAttachment,
   EventScope,
   PreparedDispatch,
-  ReloadResult,
   RuntimeEvent,
   SessionId,
   SessionTarget,
@@ -298,15 +297,6 @@ class FakeRuntime implements WorkspaceRuntime {
 
   load(): Promise<ActivationResult> {
     return Promise.resolve({ activated: [], failed: [] });
-  }
-
-  reload(): Promise<ReloadResult> {
-    return Promise.resolve({
-      featuresActivated: 0,
-      featuresFailed: 0,
-      failures: [],
-      piResourcesReloaded: false,
-    });
   }
 
   async createAttachment(

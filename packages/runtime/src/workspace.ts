@@ -3,8 +3,6 @@
 // A host never assumes one workspace per process or one globally selected
 // session. Session choice lives on each attachment.
 
-import type { ReloadResult } from "@uix/api/substrate-channels";
-
 import type { CanonicalRequest, PreparedDispatch } from "./dispatch";
 import type { RuntimeEvent } from "./events";
 import type { ActivationResult } from "./features/loader";
@@ -80,8 +78,6 @@ export interface WorkspaceRuntime extends AsyncDisposable {
   createAttachment(admission: AttachmentAdmission): Promise<CreatedAttachment>;
   /** Activate the initial feature composition. A bad manifest logs and boots with no features. */
   load(): Promise<ActivationResult>;
-  /** Replace the active feature composition and Pi resource tier, then notify the renderer. */
-  reload(): Promise<ReloadResult>;
 }
 
 /** One connection's runtime-created request, target, event, and lifetime capability. */

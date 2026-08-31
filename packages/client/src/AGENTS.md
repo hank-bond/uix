@@ -17,12 +17,12 @@ The launcher and workspace mounts are live.
 ### Directories
 
 - **[launcher/](./launcher/AGENTS.md)** The shared launcher renders host-known workspaces and optional creation through an opaque capability adapter.
-- **[workspace/](./workspace/AGENTS.md)** The shared workspace client hosts runtime surfaces and owns session, action, and keybinding projections over a host-constructed channel client.
+- **[workspace/](./workspace/AGENTS.md)** The shared workspace client hosts runtime surfaces and owns session, action, and keybinding projections over host-constructed capabilities.
 
 ### Source files
 
 - **[index.ts](./index.ts)** Public browser-client entrypoints and host adapter contracts.
 - **[launcher.ts](./launcher.ts)** Mounts the shared launcher page over host-provided catalog capabilities.
-- **[workspace.ts](./workspace.ts)** Mounts the shared workspace page over a host-constructed channel client.
+- **[workspace.ts](./workspace.ts)** Mounts the shared workspace page over host-constructed client capabilities.
 
 <!-- INDEX:END -->

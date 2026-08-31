@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { toChannelCanonicalId } from "@uix/api/channel-resolution";
 import { toWorkspaceId } from "@uix/runtime/workspace";
 import { resolveWorkspace } from "@uix/runtime/workspace-roots";
 
@@ -58,10 +59,19 @@ describe("server workspace runtime", () => {
       }),
     });
 
-    await expect(runtime.reload()).resolves.toMatchObject({
-      featuresActivated: 1,
-      featuresFailed: 0,
-      failures: [],
+    using attachment = (await runtime.createAttachment({ kind: "fallback" }))
+      .attachment;
+    using reload = attachment.prepareDispatch({
+      channel: toChannelCanonicalId("uix", "reload"),
+      payload: undefined,
+    });
+    await expect(reload.invoke()).resolves.toMatchObject({
+      ok: true,
+      value: {
+        featuresActivated: 1,
+        featuresFailed: 0,
+        failures: [],
+      },
     });
   });
 });

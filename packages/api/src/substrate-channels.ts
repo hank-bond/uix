@@ -4,9 +4,8 @@
 // collide with feature channels. The runtime registers these handlers, the
 // renderer consumes the contract through the same channel-client path as
 // feature contracts, and the surface composition it serves is the workspace
-// page's mount list. Reload results cross the host reload channel but are
-// produced by the runtime, so their shape lives here beside the surfaces
-// contract.
+// page's mount list. Workspace reload crosses this same canonical substrate
+// channel so browser and native hosts share one runtime operation.
 
 import { type Static, Type } from "typebox";
 
@@ -32,30 +31,36 @@ export const SurfaceEntrySchema = Type.Object({
 export type SurfaceEntry = Static<typeof SurfaceEntrySchema>;
 
 /** One feature that failed to activate during a load pass. */
-export interface ReloadFailure {
+export const ReloadFailureSchema = Type.Object({
   /** The manifest ref as written: the human/agent-facing label. */
-  feature: string;
+  feature: Type.String(),
   /** Absolute entry-file path. */
-  entry: string;
+  entry: Type.String(),
   /** The activation error message (e.g. names a missing module to install). */
-  error: string;
-}
+  error: Type.String(),
+});
+export type ReloadFailure = Static<typeof ReloadFailureSchema>;
 
-/** The runtime's reload outcome, delivered over the host's reload channel. */
-export interface ReloadResult {
-  featuresActivated: number;
-  featuresFailed: number;
+/** The runtime's validated reload outcome. */
+export const ReloadResultSchema = Type.Object({
+  featuresActivated: Type.Integer({ minimum: 0 }),
+  featuresFailed: Type.Integer({ minimum: 0 }),
   /** Per-feature failure detail, so the caller can act rather than count. */
-  failures: ReloadFailure[];
-  /** True when a Pi session already existed and Pi's reload path ran. */
-  piResourcesReloaded: boolean;
-}
+  failures: Type.Array(ReloadFailureSchema),
+  /** True when an initialized Pi runtime existed and its reload path ran. */
+  piResourcesReloaded: Type.Boolean(),
+});
+export type ReloadResult = Static<typeof ReloadResultSchema>;
 
 // Substrate page channels under the reserved `uix` id: the surface
 // composition the renderer mounts. Same contract discipline as agentChannels.
 export const substrateChannels = {
   feature: "uix",
   requests: {
+    reload: {
+      requestSchema: Type.Void(),
+      responseSchema: ReloadResultSchema,
+    },
     surfaces: {
       requestSchema: Type.Void(),
       responseSchema: Type.Object({

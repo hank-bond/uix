@@ -2,6 +2,7 @@
 
 import { mountWorkspaceClient } from "@uix/client/workspace";
 
+import { createElectronActionInvocationSource } from "./electron-action-invocation-source";
 import { createElectronWorkspaceClient } from "./electron-workspace-client";
 
 const target = document.getElementById("root");
@@ -10,6 +11,7 @@ if (!target) throw new Error("#root not found");
 const mounted = mountWorkspaceClient({
   target,
   client: createElectronWorkspaceClient(window.channels),
+  actionInvocationSource: createElectronActionInvocationSource(window.channels),
 });
 window.addEventListener(
   "pagehide",

@@ -20,6 +20,7 @@ The renderer contains Electron's two browser-page bootstraps. The launcher and w
 
 ### Source files
 
+- **[electron-action-invocation-source.ts](./electron-action-invocation-source.ts)** Adapts Electron menu selections into validated renderer action invocations.
 - **[electron-workspace-client.ts](./electron-workspace-client.ts)** Adapts the Electron preload transport to the shared workspace client contract.
 - **[index.html](./index.html)** The workspace page: boots over the preload transport and renders the composed surface row.
 - **[launcher.html](./launcher.html)** The launcher page: opens or creates a workspace before any workspace window exists.

@@ -29,7 +29,7 @@ Each Workspace activation owns one async-disposable feature bag. Each `AgentInst
 
 Manifest and workspace-setting candidates validate before replacing the live generation. A malformed reload preserves the active composition. A malformed startup candidate logs an error and opens without features.
 
-Reload rejects while an Agent turn or feature-channel operation is active. An idle reload commits settled turn state, replaces Workspace features, rebuilds every live Agent feature bag, reloads initialized Pi runtimes, and restores each viewpoint. Cleanup failures do not stop forward replacement after the old generation clears. Surface publication follows restoration, then reload reports collected failures. Requests serialize through `WorkspaceReloadCoordinator`.
+Reload is the canonical `uix.reload` substrate request. It rejects while an Agent turn or feature-channel operation is active. An idle reload commits settled turn state, replaces Workspace features, rebuilds every live Agent feature bag, reloads initialized Pi runtimes, and restores each viewpoint. Cleanup failures do not stop forward replacement after the old generation clears. Workspace-scoped surface publication follows restoration, so every attached client refreshes its composition before reload reports collected failures. Requests serialize through `WorkspaceReloadCoordinator`.
 
 ## Channels and resources
 
@@ -53,7 +53,7 @@ The mount path adopts each surface stylesheet inside a structural `@scope`. Name
 
 The workspace renderer also owns actions, keybinding synchronization, and the active attachment-target session projection. Feature surfaces register action trees through scoped React context. Consumers receive a serializable flat catalog and id-based invocation.
 
-Main persists portable keybindings under `settings.keybindings`. The renderer resolves platform gestures, identifies conflicts, and dispatches only confirmed unique bindings. A default command-palette feature has not landed.
+Main persists portable keybindings under `settings.keybindings`. The renderer resolves platform gestures, identifies conflicts, and dispatches only confirmed unique bindings. The substrate contributes `uix.reload` with `mod+r`. Electron's native menu routes through the focused renderer action registry, so native selection and browser keybindings reach the same canonical request. The action appears in the public catalog, though a default command-palette feature has not landed.
 
 ## Settings and durable state
 
@@ -105,7 +105,7 @@ The active plans track work that is not architecture yet:
 
 - [`chat-rendering-polish.md`](../../plans/chat-rendering-polish.md) continues thinking rendering, thinking controls, performance, and final documentation.
 - [`chat-provider-login.md`](../../plans/chat-provider-login.md) continues no-model onboarding and model-picker connection entry points.
-- [`workspace-actions-and-command-palette.md`](../../plans/workspace-actions-and-command-palette.md) continues reload shortcuts, ambient surfaces, palette UI, and customization.
+- [`workspace-actions-and-command-palette.md`](../../plans/workspace-actions-and-command-palette.md) continues ambient surfaces, palette UI, and customization.
 - [`session-history-and-switching.md`](../../plans/session-history-and-switching.md) retains defensive hardening and final verification.
 - [`durable-transcript-identity.md`](../../plans/durable-transcript-identity.md) retains durable low-frequency block state.
 - [`electron-server-split.md`](../../plans/electron-server-split.md) splits UIX into hosts, a workspace supervisor, one-workspace runtimes, and a shared browser client.

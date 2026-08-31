@@ -1,6 +1,9 @@
+import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { WorkspaceClient } from "@uix/api/workspace";
+
+import type { ActionInvocationSource } from "./workspace/action-invocation-source";
 
 const fakes = vi.hoisted(() => ({
   createRoot: vi.fn(),
@@ -33,12 +36,25 @@ describe("mountWorkspaceClient", () => {
       request: vi.fn(),
       subscribe: vi.fn(),
     };
+    const actionInvocationSource: ActionInvocationSource = {
+      subscribe: vi.fn(() => () => undefined),
+    };
 
-    const mounted = mountWorkspaceClient({ target, client });
+    const mounted = mountWorkspaceClient({
+      target,
+      client,
+      actionInvocationSource,
+    });
 
     expect(fakes.installSurfaceSharedModules).toHaveBeenCalledOnce();
     expect(fakes.createRoot).toHaveBeenCalledWith(target);
     expect(fakes.render).toHaveBeenCalledOnce();
+    const strictMode = fakes.render.mock.calls[0]?.[0] as ReactElement<{
+      children: ReactElement<{ children: ReactElement }>;
+    }>;
+    expect(strictMode.props.children.props.children.props).toMatchObject({
+      actionInvocationSource,
+    });
 
     mounted[Symbol.dispose]();
     mounted[Symbol.dispose]();

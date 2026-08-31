@@ -114,9 +114,13 @@ Register `uix.reload` through the same renderer registry. Remove or redirect Ele
 
 The workspace page now owns one bubble-phase dispatcher gated on the registry's confirmed binding snapshot. Browser events normalize logical/named keys plus Shift/Option-produced characters into resolved gestures. Local handlers, composition, and AltGraph retain first refusal. Unique claimants invoke through the registry with a keyboard source, while conflicts, repeats, disabled actions, and running actions fail closed under one browser-default suppression policy. Ctrl/Command/Alt bindings remain global in editable controls, while Shift-only bindings do not. Callback failures publish an observable registry diagnostic. Disposing the workspace binding removes its listener.
 
+### Landed reload integration
+
+The substrate registers `uix.reload` with `mod+r`. Browser and Electron keyboard input enters through the workspace dispatcher, while Electron menu selection routes through the focused renderer registry. The action callback sends the canonical reload request, and no parallel host reload operation remains.
+
 ### Remaining implementation
 
-Register the substrate reload action and transfer reload-accelerator ownership from Electron to the workspace dispatcher while retaining a development hard-refresh command.
+Add a separate development hard-refresh escape hatch without reclaiming `mod+r` from the workspace dispatcher.
 
 Acceptance:
 

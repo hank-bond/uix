@@ -9,7 +9,7 @@
 // constructs one workspace runtime with resource and external-link
 // dependencies. Canonical IPC requests enter through the window attachment.
 // This file keeps host chrome and physical transport: the window, menu,
-// launcher, recents, wire logging, and reload IPC channel.
+// launcher, recents, and wire logging.
 //
 // Cleanup-requiring bindings flow through src/main/ipc.ts and lifecycle.ts.
 // Synchronous host bindings enter `hostBag`. Asynchronous workspace ownerships
@@ -29,7 +29,6 @@ import {
   shell,
 } from "electron";
 
-import type { ReloadResult } from "@uix/api/substrate-channels";
 import {
   type Attachment,
   createWorkspaceRuntime,
@@ -205,7 +204,7 @@ async function openWorkspace(
         attachmentBag[Symbol.dispose]();
       },
     });
-    applyWorkspaceMenu(mainWindow, () => runtime.reload());
+    applyWorkspaceMenu(mainWindow);
   };
   await openWorkspaceWindow();
 
@@ -217,10 +216,6 @@ async function openWorkspace(
       name: initialActivation.workspaceName ?? basename(workspace.stateRoot),
     });
   }
-
-  hostBag.add(
-    ipc.handle<unknown, ReloadResult>(Channels.reload, () => runtime.reload()),
-  );
 
   hostBag.add(
     onApp("activate", () => {
@@ -237,19 +232,12 @@ async function openWorkspace(
 }
 
 /**
- * Electron-host chrome: the workspace window menu binds CmdOrCtrl+R to the
- * workspace reload. The default menu's reload role would page-reload the
- * renderer instead, which skips feature and Pi resource replacement. The
- * workspace reload re-reads manifests and rebuilds surface modules from disk
- * every pass, so it needs no cache-busting sibling and leaves no page-reload
- * escape hatch. Host-specific by design so the future Electron/web host
- * split can hoist or replace it. The launcher window keeps the default menu
- * (CmdOrCtrl+R is a page reload there, useful in dev).
+ * Electron-host chrome routes menu selection through the renderer's Workspace
+ * action registry. Omitting a native reload accelerator lets the confirmed
+ * renderer binding own keyboard dispatch and conflict policy. The launcher
+ * keeps the default menu, where CmdOrCtrl+R remains a development page reload.
  */
-function applyWorkspaceMenu(
-  win: BrowserWindow,
-  runWorkspaceReload: () => Promise<ReloadResult>,
-): void {
+function applyWorkspaceMenu(win: BrowserWindow): void {
   const template: MenuItemConstructorOptions[] = [
     ...(process.platform === "darwin" ? [{ role: "appMenu" as const }] : []),
     { role: "fileMenu" },
@@ -259,9 +247,8 @@ function applyWorkspaceMenu(
       submenu: [
         {
           label: "Reload Workspace",
-          accelerator: "CmdOrCtrl+R",
           click: () => {
-            void runWorkspaceReload();
+            ipc.send(win, Channels.actionInvocation, "uix.reload");
           },
         },
         { type: "separator" },

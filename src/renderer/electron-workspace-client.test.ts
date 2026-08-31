@@ -12,7 +12,6 @@ describe("createElectronWorkspaceClient", () => {
     const transport: ChannelTransport = {
       request,
       subscribe,
-      reload: vi.fn(),
     };
     const client = createElectronWorkspaceClient(transport);
     const handler = vi.fn();

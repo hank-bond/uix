@@ -18,7 +18,7 @@ summary: "Build the Electron and web hosts over the proved workspace runtime, at
 - **H5.1** launcher extraction landed in `0e2ccdc`.
 - **H5.2** workspace extraction landed in `0780f80`.
 - **H5.3** dependency-boundary enforcement landed. H5 is complete.
-- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** landed in `780838b`. **W2** has landed. **W3** landed in `75fd789`. **W4** has landed. **W5** landed in `d8ca763`. **W6** landed in `ac412f1`. **W7** has landed. **W8-W9** continue the web host from that spec. H7-H8 follow with Electron rehoming and two-host conformance.
+- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** landed in `780838b`. **W2** has landed. **W3** landed in `75fd789`. **W4** has landed. **W5** landed in `d8ca763`. **W6** landed in `ac412f1`. **W7** has landed. **W8-W9** have landed. H7-H8 follow with Electron rehoming and two-host conformance.
 
 ## Status and intent
 
@@ -281,6 +281,8 @@ The loopback web host may open provider links on its local machine. Nonlocal pro
 **Review gate:** A device-code flow completes from a fresh profile. Links and codes render and open on the client device. Loopback launch is best-effort, while nonlocal profiles require no server-side browser or callback.
 
 ### W9: Workspace reload as a substrate channel
+
+_Status: landed._
 
 Add a reload request to the substrate `uix` channel contract with the runtime's `ReloadResult` shape. Expose it as a shared workspace action with a non-reserved default binding and a palette entry. Reload is rejected while an Agent operation is active. A successful reload replaces the composition once and fans a composition-changed event to every attached tab without a page reload. Failures return structured diagnostics while the previous composition remains active. Electron's `CmdOrCtrl+R` menu item rehomes to the same substrate path.
 

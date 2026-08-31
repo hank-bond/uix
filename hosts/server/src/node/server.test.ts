@@ -389,7 +389,6 @@ describe("server host launcher", () => {
           onEvent: () => noopDisposable(),
           createAttachment: () => Promise.resolve(created.value),
           load: () => Promise.reject(new Error("Unexpected runtime load")),
-          reload: () => Promise.reject(new Error("Unexpected runtime reload")),
           [Symbol.asyncDispose]: runtimeDisposal,
         }),
     });
@@ -459,7 +458,6 @@ describe("server host launcher", () => {
           createAttachment: () =>
             Promise.resolve(createAttachmentFixture(registered.id).value),
           load: () => Promise.reject(new Error("Unexpected runtime load")),
-          reload: () => Promise.reject(new Error("Unexpected runtime reload")),
           async [Symbol.asyncDispose]() {
             transportRegistration[Symbol.dispose]();
             await runtimeDisposal();
@@ -730,7 +728,6 @@ function createDeferredWorkspaceRuntime(
       return creation.promise;
     },
     load: () => Promise.reject(new Error("Unexpected runtime load")),
-    reload: () => Promise.reject(new Error("Unexpected runtime reload")),
     [Symbol.asyncDispose]: disposal,
   };
 }

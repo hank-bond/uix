@@ -1,21 +1,18 @@
 // Shared IPC contract for the Electron host shell.
 //
 // Host-level invoke channels and the preload transport surface. The substrate
-// channel contract (the `uix` feature channels), surface entries, and reload
-// results live in `@uix/api/substrate-channels`: they are produced by the
-// workspace runtime and consumed by the renderer through the same channel
-// path as feature contracts. Renderer never imports `electron`. It only sees
-// the surface exposed by the preload via contextBridge. These types describe
-// that contract so both sides stay in sync.
-
-import type { ReloadResult } from "@uix/api/substrate-channels";
+// channel contract (including Workspace reload) lives in
+// `@uix/api/substrate-channels` and crosses the generic canonical request path.
+// Renderer never imports `electron`. It only sees the surface exposed by the
+// preload via contextBridge. These types describe that contract so both sides
+// stay in sync.
 
 /** Host channel names. Keep this list small. Features register their own. */
 export const Channels = {
   /** Renderer → main. Generic canonical workspace request. */
   request: "uix:request",
-  /** Renderer → main. invoke-style. Reloads host resources in place. */
-  reload: "uix:reload",
+  /** Electron menu → focused renderer. Requests one action by canonical id. */
+  actionInvocation: "uix:action:invoke",
   /** Launcher → main. invoke-style. Reads the known workspace catalog. */
   launcherState: "uix:launcher:state",
   /** Launcher → main. invoke-style. Open an existing workspace by manifest path. */
@@ -62,6 +59,4 @@ export interface ChannelTransport {
   request(channel: string, payload: unknown): Promise<unknown>;
   /** Generic event subscription over IPC. Returns an unsubscribe function. */
   subscribe(channel: string, handler: (payload: unknown) => void): () => void;
-  /** Programmatic hook for future command palette/menu/chat /reload. */
-  reload: () => Promise<ReloadResult>;
 }

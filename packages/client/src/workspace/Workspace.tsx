@@ -20,9 +20,14 @@ import type { SurfaceEntry } from "@uix/api/substrate-channels";
 import { FeatureActionsProvider } from "@uix/api/workspace";
 
 import { ActionRegistryProvider } from "./action-context";
+import {
+  ActionInvocationListener,
+  type ActionInvocationSource,
+} from "./action-invocation-source";
 import { ActionKeyboardDispatcher } from "./action-keyboard-dispatcher";
 import { ActionRegistry } from "./action-registry";
 import { KeybindingSync } from "./keybinding-sync";
+import { WorkspaceReloadAction } from "./reload-action";
 import { WorkspaceSessionActions } from "./session-actions";
 import { WorkspaceSessionControllerProvider } from "./session-context";
 import { toShortcutPlatform } from "./shortcut-platform";
@@ -39,8 +44,10 @@ const registerWorkspaceActions = actionRegistry.forFeature("uix");
 
 export function Workspace({
   synchronizeSessionLocation,
+  actionInvocationSource,
 }: {
   synchronizeSessionLocation?: (sessionId: string) => void;
+  actionInvocationSource?: ActionInvocationSource;
 }): JSX.Element {
   return (
     <ActionRegistryProvider registry={actionRegistry}>
@@ -49,6 +56,10 @@ export function Workspace({
           synchronizeSessionLocation={synchronizeSessionLocation}
         >
           <WorkspaceSessionActions />
+          <WorkspaceReloadAction />
+          {actionInvocationSource ? (
+            <ActionInvocationListener source={actionInvocationSource} />
+          ) : null}
           <ActionKeyboardDispatcher />
           <KeybindingSync />
           <WorkspaceContent />

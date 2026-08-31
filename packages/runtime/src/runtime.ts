@@ -287,6 +287,9 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     this.#bag.add(
       registerChannelContributions(this.#channels, "uix", [
         withHandlers(substrateChannels, {
+          reload: {
+            handler: () => this.#reload(),
+          },
           surfaces: {
             handler: async () => ({
               surfaces: await this.#surfacePipeline.buildAll(
@@ -539,7 +542,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
    * state, re-activate features, reload Pi resources, restore turn state, then
    * publish surfaces_changed for the renderer. Serialized by the coordinator.
    */
-  async reload(): Promise<ReloadResult> {
+  async #reload(): Promise<ReloadResult> {
     const reloadLog = createLogger("workspace");
     reloadLog.debug({}, "reload_started");
     try {

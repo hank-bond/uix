@@ -351,9 +351,14 @@ describe("workspace runtime isolation", () => {
     ).resolves.toEqual({ ok: true, value: canonicalB });
 
     events.length = 0;
-    await expect(runtime.reload()).resolves.toMatchObject({
-      featuresActivated: 1,
-      featuresFailed: 0,
+    await expect(
+      dispatch(selected, {
+        channel: toChannelCanonicalId("uix", "reload"),
+        payload: undefined,
+      }),
+    ).resolves.toMatchObject({
+      ok: true,
+      value: { featuresActivated: 1, featuresFailed: 0 },
     });
     const changedScopes = events
       .filter(({ channel }) => channel === "canvas.changed")
@@ -676,9 +681,21 @@ describe("workspace runtime isolation", () => {
         2,
       ),
     );
-    const reloadA = await runtimeA.reload();
-    expect(reloadA.featuresActivated).toBe(1);
-    expect(reloadA.featuresFailed).toBe(0);
+    eventsA.length = 0;
+    const reloadA = await dispatch(attachA, {
+      channel: toChannelCanonicalId("uix", "reload"),
+      payload: undefined,
+    });
+    expect(reloadA).toMatchObject({
+      ok: true,
+      value: { featuresActivated: 1, featuresFailed: 0 },
+    });
+    expect(eventsA).toContainEqual(
+      expect.objectContaining({
+        channel: "uix.surfaces_changed",
+        scope: { kind: "workspace" },
+      }),
+    );
     expect(await dispatch(attachA, { channel: ping, payload: {} })).toEqual({
       ok: true,
       value: "hello-A2",
@@ -693,6 +710,23 @@ describe("workspace runtime isolation", () => {
     expect(
       await dispatch(attachA, { channel: increment, payload: undefined }),
     ).toEqual({ ok: true, value: 1 });
+
+    // A malformed candidate returns a structured canonical error and leaves
+    // the accepted composition active.
+    await writeFile(workspaceA.manifestPath, "{ invalid");
+    expect(
+      await dispatch(attachA, {
+        channel: toChannelCanonicalId("uix", "reload"),
+        payload: undefined,
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { code: "handler_error" },
+    });
+    expect(await dispatch(attachA, { channel: ping, payload: {} })).toEqual({
+      ok: true,
+      value: "hello-A2",
+    });
 
     // Disposing one runtime removes only its state and routes. Concurrent
     // callers share the same drain rather than observing early completion.
