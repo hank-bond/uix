@@ -4,7 +4,7 @@ summary: "The tool block subtree derives per-tool chat presentations and renders
 
 # Tool blocks
 
-`presentation.ts` derives the shared tool facts: state, display name, and payload text. `presentations.tsx` maps known tool names to label and content policies. The `content/` subtree holds the per-tool content components, and `tool-content.css` the shared tool block chrome.
+`call-presentation.ts` derives shared tool facts: state, display name, and payload text. `chat-block-presentation.tsx` maps known tool names to label and content policies. The `content/` subtree holds the per-tool content components, and `tool-content.css` their shared block styles.
 
 ## Contents
 
@@ -21,6 +21,6 @@ summary: "The tool block subtree derives per-tool chat presentations and renders
 - **[call-presentation.ts](./call-presentation.ts)** Derives shared call-presentation values for chat tool blocks.
 - **[chat-block-presentation.tsx](./chat-block-presentation.tsx)** Derives one tool chat block presentation with shared summary policy and tool-specific expanded content.
 - **[tool-catalog.tsx](./tool-catalog.tsx)** Provides the workspace tool label catalog to transcript renderers.
-- **[tool-content.css](./tool-content.css)** Shared tool block chrome: summary rows, expanded details, and payloads.
+- **[tool-content.css](./tool-content.css)** Shared tool block styles: summary rows, expanded details, and payloads.
 
 <!-- INDEX:END -->

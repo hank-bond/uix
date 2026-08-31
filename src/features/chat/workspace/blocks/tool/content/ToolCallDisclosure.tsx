@@ -1,4 +1,4 @@
-// Renders the shared clickable summary and expanded-detail frame for tool calls.
+// Renders the shared clickable summary and expanded-detail container for tool calls.
 
 import type { ReactNode } from "react";
 import type { JSX } from "react";
@@ -32,7 +32,7 @@ export function ToolCallDisclosure({
 }: ToolCallDisclosureProps): JSX.Element {
   return (
     <div
-      className="tool-call-frame"
+      className="tool-call-container"
       data-has-actions={actions ? "" : undefined}
     >
       <details className="tool-call" data-block-part={part}>

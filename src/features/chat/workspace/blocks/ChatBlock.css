@@ -1,4 +1,4 @@
-/* Chat block frame chrome: message label, running track, and body. */
+/* Shared chat block structure: message label, running track, and body. */
 
 .msg {
   display: grid;

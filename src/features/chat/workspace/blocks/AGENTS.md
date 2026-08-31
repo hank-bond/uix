@@ -1,12 +1,12 @@
 ---
-summary: "The chat block tree renders transcript items by kind inside one shared frame, with content and tool subtrees."
+summary: "The chat block tree renders each transcript item through one shared block structure with kind-specific body content."
 ---
 
 # Chat blocks
 
-One transcript item renders as one block: `ChatBlock.tsx` dispatches by item kind to the message, tool, custom, and error variants. Every variant composes its content inside the shared `ChatBlockFrame.tsx` chrome (label, running track, and body).
+One transcript item renders as one block: `ChatBlock.tsx` owns the root structure, state and accessibility metadata, status feedback, and body placement. It selects a message, tool, custom-message, or error body component from the item's kind.
 
-The `content/` subtree renders block bodies: markdown, highlighted source, and plain code. The `tool/` subtree derives a presentation per tool name and renders it through tool-specific content components.
+The `content/` subtree renders reusable body material: markdown, highlighted source, and plain code. The `tool/` subtree derives a presentation per tool name and renders it through tool-specific content components.
 
 ## Contents
 
@@ -22,15 +22,14 @@ The `content/` subtree renders block bodies: markdown, highlighted source, and p
 ### Source files
 
 - **[BlockPresentationSettings.tsx](./BlockPresentationSettings.tsx)** Provides the chat feature's durable block-presentation preferences to transcript renderers.
-- **[BlockStatusRow.css](./BlockStatusRow.css)** Compact status-row chrome shared by tool calls and agent failures.
-- **[ChatBlock.tsx](./ChatBlock.tsx)** Renders one transcript item as its kind-specific chat block.
-- **[ChatBlockFrame.css](./ChatBlockFrame.css)** Chat block frame chrome: message label, running track, and body.
-- **[ChatBlockFrame.tsx](./ChatBlockFrame.tsx)** Renders the shared chat block chrome: label, running track, and body frame.
-- **[CustomMessageChatBlock.tsx](./CustomMessageChatBlock.tsx)** Renders a custom chat block from its content or details text.
-- **[ErrorChatBlock.css](./ErrorChatBlock.css)** Non-interactive agent failure row using the shared compact status chrome.
-- **[ErrorChatBlock.tsx](./ErrorChatBlock.tsx)** Renders an error chat block with the failure message.
+- **[BlockStatusRow.css](./BlockStatusRow.css)** Compact status-row styles shared by tool calls and agent failures.
+- **[ChatBlock.css](./ChatBlock.css)** Shared chat block structure: message label, running track, and body.
+- **[ChatBlock.tsx](./ChatBlock.tsx)** Renders one transcript item with shared block structure and kind-specific body content.
+- **[CustomMessageChatBlockBody.tsx](./CustomMessageChatBlockBody.tsx)** Renders a custom-message chat block body from its content or details text.
+- **[ErrorChatBlock.css](./ErrorChatBlock.css)** Non-interactive agent failure row using the shared compact status styles.
+- **[ErrorChatBlockBody.tsx](./ErrorChatBlockBody.tsx)** Renders an agent-error chat block body as a compact status row.
 - **[MessageChatBlock.css](./MessageChatBlock.css)** User and assistant message block variants.
-- **[MessageChatBlock.tsx](./MessageChatBlock.tsx)** Renders a user or assistant message block with markdown content.
-- **[ToolChatBlock.tsx](./ToolChatBlock.tsx)** Renders a tool chat block from its tool-state presentation.
+- **[MessageChatBlockBody.tsx](./MessageChatBlockBody.tsx)** Renders a user or assistant chat block body as Markdown.
+- **[ToolChatBlockBody.tsx](./ToolChatBlockBody.tsx)** Renders a tool chat block body from its tool-state presentation.
 
 <!-- INDEX:END -->

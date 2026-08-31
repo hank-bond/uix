@@ -1,5 +1,5 @@
 ---
-summary: "Improve Chat in seven review-gated units: block framing, Markdown and syntax highlighting, file-tool rendering, command tools, streamed thinking, thinking-effort control, performance, and documentation."
+summary: "Improve Chat in seven review-gated units: block rendering, Markdown and syntax highlighting, file-tool rendering, command tools, streamed thinking, thinking-effort control, performance, and documentation."
 ---
 
 # Chat rendering polish
@@ -8,7 +8,7 @@ Improve the appearance and rendering of the Chat surface in small units. Plan ea
 
 This plan builds on the transcript projection and chat-block model described in [`conversation-render-primitives`](../docs/design/conversation-render-primitives.md) and the existing model-control path described in [`agent controls`](./archive/agent-controls.md).
 
-## C1: Block framing and visual polish · **landed 2026-07-24**
+## C1: Block rendering and visual polish · **landed 2026-07-24**
 
 - Remove the persistent role rail and recover its width for message content.
 - Render user and agent messages as oppositely inset cards with distinct backgrounds and accessible article names.
@@ -83,7 +83,7 @@ Apply the measured work in review-gated slices:
 
 1. **Render containment.** Move draft ownership into a dedicated composer so keystrokes cannot render transcript siblings. Memoize transcript rows against the existing reducer invariant that unchanged items preserve object identity. Keep the identity invariant covered directly rather than adding a custom prop comparator. Stop for review.
 2. **Closed-disclosure containment.** Do not mount large tool detail bodies until their disclosure is opened. Preserve ordinary native disclosure behavior and decide from profiling whether opened content stays mounted after close. Stop for review.
-3. **Streaming containment.** Measure the remaining active-row path. Coalesce partial events to a browser frame. Avoid reparsing or highlighting a complete accumulated message more often than presentation requires. Prefer a simple active-message policy over an incremental Markdown parser unless the measured result requires one. Stop for review.
+3. **Streaming containment.** Measure the remaining active-row path. Coalesce partial events to a browser animation frame. Avoid reparsing or highlighting a complete accumulated message more often than presentation requires. Prefer a simple active-message policy over an incremental Markdown parser unless the measured result requires one. Stop for review.
 4. **Transcript scale.** Measure initial hydration, long-session scrolling, DOM size, and layout after the first three slices. Add viewport-bounded rendering only when those measurements justify its variable-height and scroll-anchor complexity. Coordinate scroll work with [`chat-scroll-director.md`](./chat-scroll-director.md) instead of creating a second positioning owner.
 
 Defer the permanent benchmark loop until the browser host provides the cheaper automation boundary. Complete focused correctness tests and update the architecture record after the implementation shape settles.

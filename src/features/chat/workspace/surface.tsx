@@ -4,7 +4,7 @@ import { agentChannels } from "@uix/api/agent-channels";
 import { defineSurface } from "@uix/api/workspace";
 
 import blockStatusRowSheet from "./blocks/BlockStatusRow.css" with { type: "css" };
-import chatBlockFrameSheet from "./blocks/ChatBlockFrame.css" with { type: "css" };
+import chatBlockSheet from "./blocks/ChatBlock.css" with { type: "css" };
 import codeBlockSheet from "./blocks/content/CodeBlock.css" with { type: "css" };
 import highlightedCodeSheet from "./blocks/content/HighlightedCode.css" with { type: "css" };
 import markdownContentSheet from "./blocks/content/MarkdownContent.css" with { type: "css" };
@@ -29,7 +29,7 @@ export const surface = defineSurface({
   contract: agentChannels,
   styles: [
     chatSheet,
-    chatBlockFrameSheet,
+    chatBlockSheet,
     blockStatusRowSheet,
     errorChatBlockSheet,
     messageChatBlockSheet,

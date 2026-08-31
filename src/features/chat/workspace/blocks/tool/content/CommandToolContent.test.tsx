@@ -5,7 +5,7 @@ import { FeatureSettingsProvider } from "@uix/api/workspace";
 
 import { StructuredCommand } from "./StructuredCommand";
 import { BlockPresentationSettingsProvider } from "../../BlockPresentationSettings";
-import { ToolChatBlock } from "../../ToolChatBlock";
+import { ChatBlock } from "../../ChatBlock";
 import type { ToolItem } from "../call-presentation";
 import { ToolLabelProvider } from "../tool-catalog";
 
@@ -37,7 +37,7 @@ function renderCommandItem(value: ToolItem): string {
     >
       <ToolLabelProvider labelByToolName={new Map()}>
         <BlockPresentationSettingsProvider>
-          <ToolChatBlock item={value} />
+          <ChatBlock item={value} />
         </BlockPresentationSettingsProvider>
       </ToolLabelProvider>
     </FeatureSettingsProvider>,

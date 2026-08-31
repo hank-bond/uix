@@ -1,4 +1,4 @@
-/* Shared tool block chrome: summary rows, expanded details, and payloads. */
+/* Shared tool block styles: summary rows, expanded details, and payloads. */
 
 .tool-block {
   display: grid;
@@ -30,7 +30,7 @@
   font-size: var(--chat-text-meta);
 }
 
-.tool-call-frame {
+.tool-call-container {
   position: relative;
   min-width: 0;
   max-width: 100%;
@@ -41,7 +41,7 @@
   max-width: 100%;
 }
 
-.tool-call-frame[data-has-actions] .tool-call__summary {
+.tool-call-container[data-has-actions] .tool-call__summary {
   padding-inline-end: 2.2rem;
 }
 
@@ -55,8 +55,8 @@
   transition: opacity 120ms ease;
 }
 
-.tool-call-frame:hover > .tool-call__actions,
-.tool-call-frame:focus-within > .tool-call__actions {
+.tool-call-container:hover > .tool-call__actions,
+.tool-call-container:focus-within > .tool-call__actions {
   opacity: 1;
   pointer-events: auto;
 }

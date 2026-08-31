@@ -1,12 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ErrorChatBlock } from "./ErrorChatBlock";
+import { ChatBlock } from "./ChatBlock";
 
 describe("agent error chat rendering", () => {
   it("uses the compact tool-error summary language without a disclosure", () => {
     const html = renderToStaticMarkup(
-      <ErrorChatBlock
+      <ChatBlock
         item={{
           id: "entry:error",
           kind: "error",

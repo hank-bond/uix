@@ -33,7 +33,7 @@ export interface ToolChatBlockPresentation {
 }
 
 // Every known tool family renders its expanded content through the shared
-// disclosure frame (owned by ToolChatBlock). Only the content is custom.
+// disclosure container (owned by ToolChatBlockBody). Only the content is custom.
 const contentPolicyByToolName: ReadonlyMap<string, ToolContentPolicy> = new Map(
   [
     [

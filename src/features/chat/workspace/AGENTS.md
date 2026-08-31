@@ -6,7 +6,7 @@ summary: "The chat workspace renders the agent transcript, composer, and status 
 
 The chat workspace is one surface: `surface.tsx` declares it over the agent channels. `Chat.tsx` renders the transcript, composer, and status bar, while `agent-controls.ts` owns the model picker and provider-auth state behind those controls. The feature's settings scope lives in `shared/settings.ts`.
 
-Transcript items render through the block tree in `blocks/`: `ChatBlock.tsx` dispatches by item kind to message, tool, custom, and error blocks, all framed by `ChatBlockFrame.tsx`. Content helpers render markdown and highlighted source text, and the tool subtree derives a per-tool presentation and renders it through tool-specific content components.
+Transcript items render through the block tree in `blocks/`. `ChatBlock.tsx` owns the shared structure and selects message, tool, custom-message, or error body content by item kind. Content helpers render markdown and highlighted source text, and the tool subtree derives a per-tool presentation and renders it through tool-specific content components.
 
 The status bar composes the session and model pills. The model pill opens the model picker over the registered model actions. The provider login modal and auth flow panel drive provider sign-in through the agent controls.
 
@@ -18,7 +18,7 @@ The status bar composes the session and model pills. The model pill opens the mo
 
 ### Directories
 
-- **[blocks/](./blocks/AGENTS.md)** The chat block tree renders transcript items by kind inside one shared frame, with content and tool subtrees.
+- **[blocks/](./blocks/AGENTS.md)** The chat block tree renders each transcript item through one shared block structure with kind-specific body content.
 
 ### Source files
 

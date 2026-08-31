@@ -4,7 +4,7 @@ summary: "The tool content components render each known tool's payload: canvas, 
 
 # Tool content
 
-Each component renders one tool family's row inside the shared tool block chrome. `CanvasToolContent.tsx` shows anchored canvas payload text with a show-more toggle. `CommandToolContent.tsx` renders a highlighted command and result disclosure. `FileToolContent.tsx` shows a path summary with content or result. `DefaultToolContent.tsx` is the fallback for unrecognized tools.
+Each component renders one tool family's row inside the shared tool block structure. `CanvasToolContent.tsx` shows anchored canvas payload text with a show-more toggle. `CommandToolContent.tsx` renders a highlighted command and result disclosure. `FileToolContent.tsx` shows a path summary with content or result. `DefaultToolContent.tsx` is the fallback for unrecognized tools.
 
 ## Contents
 
@@ -24,6 +24,6 @@ Each component renders one tool family's row inside the shared tool block chrome
 - **[StructuredCommand.tsx](./StructuredCommand.tsx)** Adds visual structure to conservative top-level shell operators without changing their source text.
 - **[ToolBlockSettings.css](./ToolBlockSettings.css)** Tool block settings popover and trigger styles.
 - **[ToolBlockSettings.tsx](./ToolBlockSettings.tsx)** Opens per-tool block presentation settings from a hover-revealed row action.
-- **[ToolCallDisclosure.tsx](./ToolCallDisclosure.tsx)** Renders the shared clickable summary and expanded-detail frame for tool calls.
+- **[ToolCallDisclosure.tsx](./ToolCallDisclosure.tsx)** Renders the shared clickable summary and expanded-detail container for tool calls.
 
 <!-- INDEX:END -->

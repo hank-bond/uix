@@ -40,7 +40,7 @@ Tool calls are born keyed. A streaming assistant row can rekey once. Migrate any
 
 ## S1: Controller core and layout-mutation preservation
 
-- Add stable row identity/ref registration to `ChatBlockFrame`.
+- Add stable row identity/ref registration to `ChatBlock`.
 - Replace the current item-change bottom-scroll effect in `Chat.tsx` with a `TranscriptScrollDirector` owned by the Chat surface.
 - Track programmatic versus user scroll so manual reading always wins.
 - Add a layout-mutation transaction: capture the active anchor before a tool display-setting write. After the confirmed setting render, measure the same row in a layout effect and compensate its `scrollTop` offset delta.
