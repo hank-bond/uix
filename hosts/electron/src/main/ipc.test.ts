@@ -45,6 +45,7 @@ vi.mock("./ipc-wire-log", () => ({
 import { handleCanonicalRequest } from "./ipc";
 
 const PhysicalChannel = "uix:request";
+const ipcEvent = { sender: { id: 42 } };
 
 beforeEach(() => {
   electronMock.handlers.clear();
@@ -72,12 +73,14 @@ describe("canonical IPC request logging", () => {
         return Promise.resolve();
       },
     };
-    const lifetime = handleCanonicalRequest(PhysicalChannel, () => dispatch);
+    const prepare = vi.fn(() => dispatch);
+    const lifetime = handleCanonicalRequest(PhysicalChannel, prepare);
     const handler = electronMock.handlers.get(PhysicalChannel);
     if (!handler) throw new Error("Canonical IPC handler was not registered");
 
-    await expect(handler(undefined, request)).resolves.toBeUndefined();
+    await expect(handler(ipcEvent, request)).resolves.toBeUndefined();
 
+    expect(prepare).toHaveBeenCalledWith(42, request);
     expect(wireLogMock.record).toHaveBeenCalledTimes(2);
     expect(wireLogMock.record.mock.calls[0]?.[1]).toBe("in:agent.prompt");
     expect(wireLogMock.record.mock.calls[0]?.[2]).toBe(request.payload);
@@ -100,7 +103,7 @@ describe("canonical IPC request logging", () => {
     const handler = electronMock.handlers.get(PhysicalChannel);
     if (!handler) throw new Error("Canonical IPC handler was not registered");
 
-    await expect(handler(undefined, request)).rejects.toThrow(
+    await expect(handler(ipcEvent, request)).rejects.toThrow(
       "Attachment is disposed",
     );
 
@@ -130,7 +133,7 @@ describe("canonical IPC request logging", () => {
     const handler = electronMock.handlers.get(PhysicalChannel);
     if (!handler) throw new Error("Canonical IPC handler was not registered");
 
-    await expect(handler(undefined, request)).rejects.toThrow(
+    await expect(handler(ipcEvent, request)).rejects.toThrow(
       "Malformed request",
     );
 

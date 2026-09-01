@@ -18,7 +18,7 @@ summary: "Build the Electron and web hosts over the proved workspace runtime, at
 - **H5.1** launcher extraction landed in `0e2ccdc`.
 - **H5.2** workspace extraction landed in `0780f80`.
 - **H5.3** dependency-boundary enforcement landed. H5 is complete.
-- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** landed in `780838b`. **W2** has landed. **W3** landed in `75fd789`. **W4** has landed. **W5** landed in `d8ca763`. **W6** landed in `ac412f1`. **W7** has landed. **W8-W9** have landed. **W10.1** landed in `97f63b2`. **W10.2** landed in `38c7424`. **W10.3** landed in `d8307f5`. **W10.4** is complete in the current review. H7-H8 then cover Electron rehoming and two-host conformance.
+- **R0-A3** in [`agent-feature-instances-and-viewpoint-state.md`](./agent-feature-instances-and-viewpoint-state.md) have landed. **H6** (the minimal loopback server) was **discarded** as attempt 1 on 2026-08-23. The accepted [web-host specification](../docs/specs/web-host.md) replaces its requirements. **W1** landed in `780838b`. **W2** has landed. **W3** landed in `75fd789`. **W4** has landed. **W5** landed in `d8ca763`. **W6** landed in `ac412f1`. **W7** has landed. **W8-W9** have landed. **W10.1** landed in `97f63b2`. **W10.2** landed in `38c7424`. **W10.3** landed in `d8307f5`. **W10.4** is complete in the current review. **H7** is complete in the current review. H8 now covers the final two-host conformance gate.
 
 ## Status and intent
 
@@ -302,6 +302,8 @@ A code-and-test review against the accepted web-host specification found four bo
 **Review gate:** W10 closes the concrete gaps found by the web-host specification review. Every slice passes independently. The browser suite drives production pages and routes without adding test-only host or runtime capabilities.
 
 ### H7: Reconstitute Electron as a discrete host
+
+_Status: complete in the current review._ Electron main, preload, renderer bootstraps, native assets, IPC, protocol dispatch, recents, dialogs, and electron-vite configuration now live under `hosts/electron`. The concrete host composes `WorkspaceSupervisor`. Each workspace `webContents` owns one guard and attachment. Canonical dispatch resolves by that physical connection id. Every content request retains an independent workspace guard through a host-wide workspace-qualified resource transport. Import enforcement rejects Electron from host-neutral packages, the server host, and app features.
 
 Move Electron main, preload, launcher bootstrap, native chrome, IPC, protocol, recents, dialogs, and packaging assumptions under `hosts/electron`. Compose the shared supervisor, runtime, launcher client, and workspace client through Electron adapters.
 

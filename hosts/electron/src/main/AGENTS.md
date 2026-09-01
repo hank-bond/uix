@@ -1,14 +1,12 @@
 ---
-summary: "The Electron host composition opens one workspace runtime over Electron transports and owns windows, menu, launcher, recents, and the transports."
+summary: "The Electron main process composes supervised workspace runtimes over native windows, IPC, the resource protocol, launcher operations, and awaited process teardown."
 ---
 
-# Main process (Electron host)
+# Electron main process
 
-`index.ts` is the host composition root. It constructs exactly one workspace runtime from `@uix/runtime` with the `uix-resource` protocol adapter and `shell.openExternal` dependency. It owns the shell chrome around that runtime: windows, the workspace menu, the launcher, recents, and Electron IPC. Canonical requests enter through the window's attachment, while scoped runtime events leave through its event subscription. The workspace substrate itself lives in `@uix/runtime`.
+`index.ts` is the Electron composition root. It creates the shared `WorkspaceSupervisor`, provides Electron resource and provider-link adapters to `@uix/runtime`, and binds each workspace window's `webContents` to one guard and attachment. Main-process code owns windows, menus, launcher transitions, recents, dialogs, IPC wire logging, and the privileged resource protocol.
 
-Explicit host, window, and launcher lifetimes own cleanup-producing bindings through `lifecycle.ts` (the host-neutral helpers re-exported from `@uix/runtime/lifecycle`). Synchronous host bindings enter `DisposableBag`. Workspace runtimes enter `AsyncDisposableBag`. The host prevents the first `before-quit`, drains both, and resumes Electron shutdown only after asynchronous workspace teardown settles. `ipc.ts` records every physical crossing. This one-window composition creates its fallback attachment directly from the runtime and does not use the shared `WorkspaceSupervisor`.
-
-## Contents
+Explicit host, window, launcher, and connection lifetimes own cleanup-producing bindings through `lifecycle.ts`. Synchronous host bindings enter `DisposableBag`, while the workspace supervisor enters `AsyncDisposableBag`. The host prevents the first `before-quit`, drains both, and resumes Electron shutdown only after supervised runtime teardown settles.
 
 <!-- INDEX:START -->
 
@@ -17,7 +15,7 @@ Explicit host, window, and launcher lifetimes own cleanup-producing bindings thr
 ### Source files
 
 - **[external-links.ts](./external-links.ts)** Contains renderer navigation while delegating approved web URLs to the operating system.
-- **[index.ts](./index.ts)** Starts the Electron host, opens a workspace, and owns the lifetimes of its windows and host chrome.
+- **[index.ts](./index.ts)** Starts the discrete Electron host over shared supervision, runtime, and browser clients.
 - **[ipc-wire-log.ts](./ipc-wire-log.ts)** Writes each IPC request or event to the terminal log and, when enabled, a raw file log.
 - **[ipc.ts](./ipc.ts)** Relays requests from the renderer to main and sends events back through one logged IPC boundary.
 - **[lifecycle.ts](./lifecycle.ts)** Electron-side lifetime helpers.

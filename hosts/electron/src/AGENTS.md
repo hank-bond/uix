@@ -4,7 +4,7 @@ summary: "Electron-owned process and browser code implementing native lifecycle,
 
 # Electron source
 
-The main process owns windows, menus, dialogs, recents, IPC, the resource protocol, and process lifecycle. Its workspace window owns one direct runtime attachment. `preload.ts` exposes only `channel-transport.ts`, and the renderer entries adapt that transport into shared launcher and workspace clients.
+The main process owns windows, menus, dialogs, recents, IPC, the resource protocol, and process lifecycle. Each workspace window binds its `webContents` identity to one supervised workspace guard and attachment. `preload.ts` exposes only `channel-transport.ts`, and the renderer entries adapt that transport into shared launcher and workspace clients.
 
 <!-- INDEX:START -->
 
@@ -12,7 +12,7 @@ The main process owns windows, menus, dialogs, recents, IPC, the resource protoc
 
 ### Directories
 
-- **[main/](./main/AGENTS.md)** The Electron host composition opens one workspace runtime over Electron transports and owns windows, menu, launcher, recents, and the transports.
+- **[main/](./main/AGENTS.md)** The Electron main process composes supervised workspace runtimes over native windows, IPC, the resource protocol, launcher operations, and awaited process teardown.
 - **[renderer/](./renderer/AGENTS.md)** The renderer runs workspace and launcher shell pages over the Electron preload channel transport.
 
 ### Source files

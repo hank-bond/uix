@@ -1,20 +1,9 @@
-// Starts the Electron host, opens a workspace, and owns the lifetimes of its windows and host chrome.
+// Starts the discrete Electron host over shared supervision, runtime, and browser clients.
 //
-// Owns the host lifecycle: the shell boots, then either opens a workspace
-// directly (explicit UIX_WORKSPACE target, or a cwd that holds a manifest)
-// or shows the launcher, which provides the workspace to open. One
-// open workspace per host instance (v1).
-//
-// The workspace substrate itself lives in `@uix/runtime`: openWorkspace()
-// constructs one workspace runtime with resource and external-link
-// dependencies. Canonical IPC requests enter through the window attachment.
-// This file keeps host chrome and physical transport: the window, menu,
-// launcher, recents, and wire logging.
-//
-// Cleanup-requiring bindings flow through src/main/ipc.ts and lifecycle.ts.
-// Synchronous host bindings enter `hostBag`. Asynchronous workspace ownerships
-// enter `workspaceBag`. The `before-quit` coordinator drains both before
-// Electron resumes shutdown. See docs/architecture/conventions/lifetimes.md.
+// The host opens one selected workspace or its launcher. Each workspace window
+// binds its webContents identity to one supervisor guard and attachment, while
+// the host owns physical IPC and resource transport. Disposable bags
+// pair synchronous bindings and supervised teardown with Electron shutdown.
 
 import fs from "node:fs";
 import { basename, join } from "node:path";
@@ -29,6 +18,7 @@ import {
   shell,
 } from "electron";
 
+import { WorkspaceSupervisor } from "@uix/host";
 import {
   type Attachment,
   createWorkspaceRuntime,
@@ -46,13 +36,15 @@ import {
 import * as ipc from "./ipc";
 import {
   AsyncDisposableBag,
+  disposable,
   DisposableBag,
   onApp,
   onWindow,
 } from "./lifecycle";
 import { createRecentsStore, type RecentsStore } from "./recents";
 import {
-  createElectronResourceTransport,
+  bindResourceProtocol,
+  ElectronResourceTransport,
   registerResourceProtocol,
 } from "./resource-transport";
 import { scaffoldWorkspace } from "./scaffold";
@@ -67,9 +59,8 @@ import {
 const isDev = !app.isPackaged;
 const LocalWorkspaceId = "local";
 
-// Preflight declarations must land before app ready. Today that's just the
-// substrate resource protocol (the loader loads no feature this early. Manifest
-// features are runtime contributions by definition).
+// Electron requires privileged scheme declarations before app ready. Manifest
+// feature resources register only after their workspace runtime boots.
 registerResourceProtocol();
 
 interface OpenShellWindowOptions {
@@ -121,11 +112,13 @@ function openShellWindow(
   return win;
 }
 
+// Section: Workspace
+
 /**
  * Boot the substrate against a workspace and open its window. Everything
  * workspace-bound (state root, feature composition, agent sessions, reload
  * coordination) lives in the workspace runtime constructed here. The shell
- * above it only decides *which* workspace to open and supplies the dependencies.
+ * above it only decides *which* workspace to open and provides the dependencies.
  */
 async function openWorkspace(
   hostBag: DisposableBag,
@@ -133,78 +126,116 @@ async function openWorkspace(
   recents: RecentsStore,
   workspace: Workspace,
   piAppDataDir: string,
+  resourceTransport: ElectronResourceTransport,
 ): Promise<void> {
   // Raw IPC payloads spill to a per-run file under the state root. Path is
   // logged as `ipc_log_file` when armed.
   ipc.initLogFile(workspace.stateRoot);
 
+  const workspaceId = toWorkspaceId(LocalWorkspaceId);
   const apiModuleDir = join(app.getAppPath(), "packages/api/src");
-  let attachment: Attachment | undefined;
+  const attachmentByWebContentsId = new Map<number, Attachment>();
+  let workspaceName: string | undefined;
   let mainWindow: BrowserWindow | null = null;
-  const runtime = workspaceBag.add(
-    createWorkspaceRuntime({
-      workspaceId: toWorkspaceId(LocalWorkspaceId),
-      workspace,
-      piAppDataDir,
-      ...(fs.existsSync(apiModuleDir) && { apiModuleDir }),
-      dependencies: {
-        resourceTransport: createElectronResourceTransport(),
-        launchProviderAuthLink: createExternalWebLinkLauncher((url) =>
-          shell.openExternal(url),
-        ),
+  const supervisor = workspaceBag.add(
+    new WorkspaceSupervisor({
+      boot: async (requestedWorkspaceId) => {
+        if (requestedWorkspaceId !== workspaceId) {
+          throw new Error(
+            `Electron workspace is not registered: ${requestedWorkspaceId as string}`,
+          );
+        }
+        const runtime = createWorkspaceRuntime({
+          workspaceId,
+          workspace,
+          piAppDataDir,
+          ...(fs.existsSync(apiModuleDir) && { apiModuleDir }),
+          dependencies: {
+            resourceTransport: resourceTransport.createRegistrar(workspaceId),
+            launchProviderAuthLink: createExternalWebLinkLauncher((url) =>
+              shell.openExternal(url),
+            ),
+          },
+        });
+        try {
+          // One load pass activates the manifest composition in order. Invalid
+          // feature entries remain structured activation failures so the host
+          // can still open and the user can reload after fixing them.
+          const activation = await runtime.load();
+          workspaceName = activation.workspaceName;
+          return runtime;
+        } catch (error) {
+          try {
+            await runtime[Symbol.asyncDispose]();
+          } catch (cleanupError) {
+            throw new AggregateError(
+              [error, cleanupError],
+              "Electron workspace failed to boot and clean up",
+              { cause: cleanupError },
+            );
+          }
+          throw error;
+        }
       },
     }),
   );
   hostBag.add(
-    ipc.handleCanonicalRequest(Channels.request, (request) => {
-      if (!attachment) throw new Error("Workspace is not attached");
+    resourceTransport.registerWorkspace(workspaceId, (origin) =>
+      supervisor.acquire(workspaceId, origin),
+    ),
+  );
+  hostBag.add(
+    ipc.handleCanonicalRequest(Channels.request, (webContentsId, request) => {
+      const attachment = attachmentByWebContentsId.get(webContentsId);
+      if (!attachment) throw new Error("Workspace window is not attached");
       return attachment.prepareDispatch(request);
     }),
   );
 
-  // One load pass activates the whole composition, the manifest's entries,
-  // in manifest order. A bad manifest must not brick the host: the runtime
-  // logs it loudly and boots with no features. The user can then fix the
-  // manifest and reload.
-  const initialActivation = await runtime.load();
-
-  // This one-window composition resolves its fallback session directly through
-  // the runtime. It owns exactly one workspace window and one attachment and
-  // does not route this path through the shared workspace supervisor.
+  // Each BrowserWindow is one physical connection. Its lifetime owns an
+  // independent workspace guard and one runtime attachment. Closing the window
+  // removes only that connection. The supervisor owns runtime teardown policy.
   const openWorkspaceWindow = async (): Promise<void> => {
     if (mainWindow) return;
-    const created = await runtime.createAttachment({ kind: "fallback" });
-    const windowAttachment = created.attachment;
     const attachmentBag = hostBag.add(new DisposableBag());
-    attachmentBag.add(windowAttachment);
-    attachment = windowAttachment;
-    attachmentBag.add(
-      runtime.onEvent((event) => {
-        if (
-          event.scope.kind === "workspace" ||
-          event.scope.sessionId === windowAttachment.target.sessionId
-        ) {
-          created.deliver(event);
-        }
-      }),
-    );
-    attachmentBag.add(
-      windowAttachment.onEvent((event) => {
-        if (!mainWindow) return;
-        ipc.send(mainWindow, event.channel, event.payload, {
-          describePayload: event.logOptions?.describeEvent,
-        });
-      }),
-    );
-    mainWindow = openShellWindow(hostBag, {
-      page: "index",
-      onClosed: () => {
-        mainWindow = null;
-        if (attachment === windowAttachment) attachment = undefined;
-        attachmentBag[Symbol.dispose]();
-      },
-    });
-    applyWorkspaceMenu(mainWindow);
+    try {
+      const workspaceGuard = attachmentBag.add(
+        await supervisor.acquire(workspaceId, "electron-window"),
+      );
+      const windowAttachment = attachmentBag.add(
+        await workspaceGuard.value.createAttachment({ kind: "fallback" }),
+      );
+      const win = openShellWindow(hostBag, {
+        page: "index",
+        onClosed: () => {
+          mainWindow = null;
+          attachmentBag[Symbol.dispose]();
+        },
+      });
+      mainWindow = win;
+      attachmentByWebContentsId.set(win.webContents.id, windowAttachment);
+      attachmentBag.add(
+        disposable(() => {
+          if (
+            attachmentByWebContentsId.get(win.webContents.id) ===
+            windowAttachment
+          ) {
+            attachmentByWebContentsId.delete(win.webContents.id);
+          }
+        }),
+      );
+      attachmentBag.add(
+        windowAttachment.onEvent((event) => {
+          ipc.send(win, event.channel, event.payload, {
+            describePayload: event.logOptions?.describeEvent,
+          });
+        }),
+      );
+      applyWorkspaceMenu(win);
+    } catch (error) {
+      attachmentBag[Symbol.dispose]();
+      throw error;
+    }
   };
   await openWorkspaceWindow();
 
@@ -213,7 +244,7 @@ async function openWorkspace(
   if (fs.existsSync(workspace.manifestPath)) {
     recents.record({
       manifestPath: workspace.manifestPath,
-      name: initialActivation.workspaceName ?? basename(workspace.stateRoot),
+      name: workspaceName ?? basename(workspace.stateRoot),
     });
   }
 
@@ -231,10 +262,12 @@ async function openWorkspace(
   );
 }
 
+// Section: Workspace menu
+
 /**
- * Electron-host chrome routes menu selection through the renderer's Workspace
- * action registry. Omitting a native reload accelerator lets the confirmed
- * renderer binding own keyboard dispatch and conflict policy. The launcher
+ * Route Electron menu selection through the renderer's Workspace action
+ * registry. Omitting a native reload accelerator lets the confirmed
+ * renderer binding own keyboard invocation and conflict policy. The launcher
  * keeps the default menu, where CmdOrCtrl+R remains a development page reload.
  */
 function applyWorkspaceMenu(win: BrowserWindow): void {
@@ -266,17 +299,16 @@ function applyWorkspaceMenu(win: BrowserWindow): void {
   win.setMenu(Menu.buildFromTemplate(template));
 }
 
-/**
- * The launcher: a small shell window (not a feature, not a workspace
- * page) offering recents and create-new. Its IPC handlers live in a child
- * bag disposed on transition, so the workspace boot starts clean.
- */
 // Section: Launcher
+
+// The launcher owns a child lifetime because its IPC handlers must stop before
+// the selected workspace boots.
 function openLauncher(
   hostBag: DisposableBag,
   workspaceBag: AsyncDisposableBag,
   recents: RecentsStore,
   piAppDataDir: string,
+  resourceTransport: ElectronResourceTransport,
 ): void {
   const launcherBag = hostBag.add(new DisposableBag());
   const win = openShellWindow(launcherBag, {
@@ -299,6 +331,7 @@ function openLauncher(
         recents,
         resolveWorkspace(target),
         piAppDataDir,
+        resourceTransport,
       ).catch((thrown: unknown) => {
         const error =
           thrown instanceof Error ? thrown : new Error(String(thrown));
@@ -381,11 +414,15 @@ function openLauncher(
   );
 }
 
+// Section: Application lifecycle
+
 void app.whenReady().then(async () => {
   // Synchronous host bindings stop first during shutdown. Workspace runtimes
   // then finish their asynchronous teardown before Electron resumes quitting.
   const hostBag = new DisposableBag();
   const workspaceBag = new AsyncDisposableBag();
+  const resourceTransport = new ElectronResourceTransport();
+  hostBag.add(bindResourceProtocol(resourceTransport));
 
   app.setName("UIX");
 
@@ -451,6 +488,7 @@ void app.whenReady().then(async () => {
       recents,
       resolveWorkspace(envTarget),
       piAppDataDir,
+      resourceTransport,
     );
     return;
   }
@@ -462,8 +500,9 @@ void app.whenReady().then(async () => {
       recents,
       cwdWorkspace,
       piAppDataDir,
+      resourceTransport,
     );
     return;
   }
-  openLauncher(hostBag, workspaceBag, recents, piAppDataDir);
+  openLauncher(hostBag, workspaceBag, recents, piAppDataDir, resourceTransport);
 });

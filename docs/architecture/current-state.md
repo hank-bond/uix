@@ -9,7 +9,7 @@ This document records the implemented system at HEAD. The root [`AGENTS.md`](../
 
 ## Application shell and workspaces
 
-Electron boots one workspace per application instance. `UIX_WORKSPACE` can name a manifest or workspace directory. Development also opens a manifest in the current working directory.
+The discrete Electron host under `hosts/electron` boots one workspace per application instance. `UIX_WORKSPACE` can name a manifest or workspace directory. Development also opens a manifest in the current working directory. Each workspace window owns one supervisor-issued workspace guard and attachment, bound to its `webContents` identity.
 
 Without either target, the launcher opens recent manifests or scaffolds a workspace. Bare scaffolding copies editable passthrough Pi tools and writes an explicit manifest.
 
@@ -41,7 +41,7 @@ A runtime-created attachment prepares each canonical request with immutable guar
 
 Electron IPC and the server's correlated WebSocket protocol are the implemented physical channel transports. The server detects dead sockets with ping/pong. Its browser adapter reconnects to the canonical session with capped backoff and rejects disconnected requests without replay. An accepted-connection version makes mounted snapshot consumers resubscribe and rehydrate. Runtime events have workspace or session scope. Only matching attachments receive them. Canvas iframe writeback still uses a feature-owned `postMessage` shim before entering typed channels. A general iframe channel adapter does not exist.
 
-Logical `uix-resource://` addresses dispatch normalized feature resource routes. Electron uses the scheme as its physical protocol. The server browser adapter maps it to workspace-qualified HTTP requests that retain an independent workspace guard through response completion. Versioned surface modules, CSS, and assets retain exact bytes under immutable cache policy. Mutable resources default to `no-store`. Surface bundles and files use a reserved logical substrate origin. Canvas serves a static feature-origin iframe, reads selected-viewpoint HTML through its typed channel, and transfers that HTML to the iframe through a narrow `postMessage` handshake.
+Logical `uix-resource://` addresses dispatch normalized feature resource routes. Electron registers the physical protocol once and selects a workspace-qualified runtime handler. Each Electron protocol request retains an independent workspace guard through response completion. The server browser adapter maps the same address to workspace-qualified HTTP with the same guard lifetime. Versioned surface modules, CSS, and assets retain exact bytes under immutable cache policy. Mutable resources default to `no-store`. Surface bundles and files use a reserved logical substrate origin. Canvas serves a static feature-origin iframe, reads selected-viewpoint HTML through its typed channel, and transfers that HTML to the iframe through a narrow `postMessage` handshake.
 
 ## Surface and workspace runtime
 

@@ -118,13 +118,16 @@ export function handle<Req, Res>(
  */
 export function handleCanonicalRequest(
   physicalChannel: string,
-  prepare: (request: CanonicalRequest) => PreparedDispatch,
+  prepare: (
+    webContentsId: number,
+    request: CanonicalRequest,
+  ) => PreparedDispatch,
 ): Disposable {
-  ipcMain.handle(physicalChannel, async (_event, rawRequest: unknown) => {
+  ipcMain.handle(physicalChannel, async (event, rawRequest: unknown) => {
     const requestChannel = tryParseCanonicalRequestChannel(rawRequest);
     let dispatch: PreparedDispatch;
     try {
-      dispatch = prepare(rawRequest as CanonicalRequest);
+      dispatch = prepare(event.sender.id, rawRequest as CanonicalRequest);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const logChannel = requestChannel ?? `${physicalChannel}:invalid`;
