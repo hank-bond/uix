@@ -67,7 +67,10 @@ describe("canonical IPC request logging", () => {
       invoke: vi.fn<() => Promise<CanonicalResponse>>(() =>
         Promise.resolve({ ok: true, value: undefined }),
       ),
-      [Symbol.dispose]: release,
+      [Symbol.asyncDispose]: () => {
+        release();
+        return Promise.resolve();
+      },
     };
     const lifetime = handleCanonicalRequest(PhysicalChannel, () => dispatch);
     const handler = electronMock.handlers.get(PhysicalChannel);

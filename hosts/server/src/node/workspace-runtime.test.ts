@@ -61,7 +61,7 @@ describe("server workspace runtime", () => {
 
     using attachment = (await runtime.createAttachment({ kind: "fallback" }))
       .attachment;
-    using reload = attachment.prepareDispatch({
+    await using reload = attachment.prepareDispatch({
       channel: toChannelCanonicalId("uix", "reload"),
       payload: undefined,
     });

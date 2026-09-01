@@ -163,10 +163,12 @@ class FakeAttachment implements Attachment {
     const operationGuard = this.#targetGuard.retain();
     let invoked = false;
     let disposed = false;
-    const dispose = (): void => {
-      if (disposed) return;
-      disposed = true;
-      operationGuard[Symbol.dispose]();
+    const dispose = (): Promise<void> => {
+      if (!disposed) {
+        disposed = true;
+        operationGuard[Symbol.dispose]();
+      }
+      return Promise.resolve();
     };
     return {
       request,
@@ -214,10 +216,10 @@ class FakeAttachment implements Attachment {
             },
           };
         } finally {
-          dispose();
+          await dispose();
         }
       },
-      [Symbol.dispose]: dispose,
+      [Symbol.asyncDispose]: dispose,
     };
   }
 
@@ -352,7 +354,7 @@ async function dispatch(
   request: CanonicalRequest,
 ): Promise<CanonicalResponse> {
   using _workspaceOperationGuard = workspaceGuard.retain("dispatch");
-  using prepared = attachment.prepareDispatch(request);
+  await using prepared = attachment.prepareDispatch(request);
   return await prepared.invoke();
 }
 
@@ -671,7 +673,7 @@ describe("unified attachments", () => {
     const attachment = await workspace.value.createAttachment(admitSession(s1));
     const contextChannel = toChannelCanonicalId("chat", "context");
     runtime.register(contextChannel, (_payload, context) => context.target);
-    using prepared = attachment.prepareDispatch({
+    await using prepared = attachment.prepareDispatch({
       channel: contextChannel,
       payload: {},
     });
@@ -698,7 +700,7 @@ describe("unified attachments", () => {
 
     const response = (async () => {
       using _workspaceOperationGuard = workspace.retain("dispatch");
-      using prepared = attachment.prepareDispatch({
+      await using prepared = attachment.prepareDispatch({
         channel: ping,
         payload: {},
       });

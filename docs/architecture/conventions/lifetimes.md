@@ -36,6 +36,16 @@ Asynchronous ownerships implement `AsyncDisposable` and enter an `AsyncDisposabl
 
 Hot replacement validates candidates before clearing the active bag. A scoped reload-admission capability keeps Agent turns and feature-channel operations outside the replacement scope. Once clearing starts, the old generation cannot resume. The owner records cleanup failures, activates the replacement, completes restoration and publication, and then reports the collected errors.
 
+## Composed cleanup
+
+Ordered cleanup belongs in one disposal container rather than handwritten rollback or nested `finally` chains. The [lifetimes.composed-cleanup](./rules/lifetimes.composed-cleanup.md) rule governs this boundary.
+
+Use `DisposableStack` or `AsyncDisposableStack` when several capabilities form one short acquisition, rollback, or completion scope. Register cleanup as each capability is accepted, and transfer the stack only when the resulting capability owns that complete scope.
+
+Use `DisposableBag` or `AsyncDisposableBag` for a persistent owner or a replaceable collection. Add dependencies before dependents so reverse disposal stops dependents first. Choose the synchronous form unless any owned cleanup is genuinely asynchronous.
+
+Keep domain transitions outside the container. Stopping admission, notifying clients, and requesting cancellation are operations. Disposing the capabilities that remain after those transitions is ownership cleanup.
+
 ## Scoped reversible state
 
 A lexical state change returns an idempotent `Disposable` that reverses the change. The caller holds that capability with `using` for the complete scope.
@@ -90,7 +100,7 @@ using attachment = await workspaceGuard.value.createAttachment({
 
 await handleCanonicalRequest(async (request) => {
   using _requestGuard = workspaceGuard.retain("request");
-  using prepared = attachment.prepareDispatch(request);
+  await using prepared = attachment.prepareDispatch(request);
   return await prepared.invoke();
 });
 ```

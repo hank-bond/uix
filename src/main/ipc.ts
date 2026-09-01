@@ -144,7 +144,7 @@ export function handleCanonicalRequest(
       throw error;
     }
 
-    using prepared = dispatch;
+    await using prepared = dispatch;
     const request = prepared.request;
     const logOptions = prepared.logOptions;
     recordWireCrossing(

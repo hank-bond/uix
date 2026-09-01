@@ -36,6 +36,7 @@ function fakeAttachmentDispatchContext(): AttachmentDispatchContext {
 
       [Symbol.dispose]() {},
     },
+    signal: new AbortController().signal,
     retarget: () => Promise.reject(new Error("unused")),
   };
 }
@@ -43,7 +44,7 @@ function fakeAttachmentDispatchContext(): AttachmentDispatchContext {
 async function invoke(
   registry: ChannelRegistry,
   request: CanonicalRequest,
-  onDispose = vi.fn(),
+  onDispose = vi.fn(() => Promise.resolve()),
 ): Promise<{
   prepared: PreparedDispatch;
   response: CanonicalResponse;
@@ -108,15 +109,15 @@ describe("ChannelRegistry", () => {
       responseSchema: Type.String(),
       handler,
     });
-    const onDispose = vi.fn();
+    const onDispose = vi.fn(() => Promise.resolve());
     const prepared = registry.prepare(
       fakeAttachmentDispatchContext(),
       { channel: canonicalId, payload: {} },
       onDispose,
     );
 
-    prepared[Symbol.dispose]();
-    prepared[Symbol.dispose]();
+    await prepared[Symbol.asyncDispose]();
+    await prepared[Symbol.asyncDispose]();
 
     await expect(prepared.invoke()).resolves.toMatchObject({
       ok: false,

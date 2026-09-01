@@ -8,7 +8,7 @@ summary: "Finish cancellable operation ownership after web-host dispatch conform
 
 The active-turn vertical landed in `773918f`, `385edaf`, and `370003e`. It provides lexical tracked operations, targeted Pi abort, shutdown quiescence, discrete activity events, Chat Stop/Escape controls, and late-attachment activity recovery.
 
-Prepared-dispatch cancellation moved back into W10.2 of [Electron and server hosts](./electron-server-split.md) because it is required for web-host shutdown conformance. The remaining provider-authentication, model-refresh, boot, external-call, and bounded-shutdown work stays here. Resume it after the selected-view Canvas path in [agent feature instances and viewpoint state](./agent-feature-instances-and-viewpoint-state.md), when the final operation boundaries exist.
+Prepared-dispatch cancellation landed through W10.2 of [Electron and server hosts](./electron-server-split.md), where web-host shutdown conformance required it. The remaining provider-authentication, model-refresh, boot, external-call, and bounded-shutdown work stays here. Resume it after the selected-view Canvas path in [agent feature instances and viewpoint state](./agent-feature-instances-and-viewpoint-state.md), when the final operation boundaries exist.
 
 ## Invariant
 

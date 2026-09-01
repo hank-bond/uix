@@ -30,6 +30,8 @@ export interface AttachmentDispatchContext {
   readonly attachmentId: AttachmentId;
   readonly target: SessionTarget;
   readonly agentInstanceGuard: AgentInstanceGuard;
+  /** Workspace-owned cancellation for this accepted dispatch. */
+  readonly signal: AbortSignal;
   /** Retarget the authorizing attachment and guard the accepted new target. */
   retarget(
     target: SessionTarget,
@@ -37,10 +39,10 @@ export interface AttachmentDispatchContext {
   ): Promise<AgentInstanceGuard>;
 }
 
-/** One accepted request with resolved channel policy and an operation guard. */
-export interface PreparedDispatch extends Disposable {
+/** One accepted request with resolved policy, guarded authority, and cancellable completion. */
+export interface PreparedDispatch extends AsyncDisposable {
   readonly request: CanonicalRequest;
   readonly logOptions: ChannelRequestLogOptions<unknown, unknown>;
-  /** Invoke the resolved handler once and dispose the operation guard. */
+  /** Invoke the resolved handler once and complete its guarded operation. */
   invoke(): Promise<CanonicalResponse>;
 }

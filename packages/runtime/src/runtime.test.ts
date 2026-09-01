@@ -63,6 +63,10 @@ const contract = {
       requestSchema: Type.Object({ content: Type.String() }),
       responseSchema: Type.Void(),
     },
+    wait_for_shutdown: {
+      requestSchema: Type.Object({}),
+      responseSchema: Type.String(),
+    },
   },
   events: {},
 } as const satisfies ChannelContract;
@@ -122,6 +126,24 @@ export const feature = defineFeature({
               handler: async ({ content }) => {
                 await docs.setCurrent("notes", content);
               },
+            },
+            wait_for_shutdown: {
+              requestSchema: Type.Object({}),
+              responseSchema: Type.String(),
+              handler: (_request, operation) =>
+                new Promise((resolve, reject) => {
+                  const rejectCancellation = () =>
+                    reject(operation.signal.reason);
+                  if (operation.signal.aborted) {
+                    rejectCancellation();
+                    return;
+                  }
+                  operation.signal.addEventListener(
+                    "abort",
+                    rejectCancellation,
+                    { once: true },
+                  );
+                }),
             },
           },
           events: {},
@@ -279,11 +301,61 @@ async function dispatch(
   attachment: Attachment,
   request: CanonicalRequest,
 ): Promise<CanonicalResponse> {
-  using prepared = attachment.prepareDispatch(request);
+  await using prepared = attachment.prepareDispatch(request);
   return await prepared.invoke();
 }
 
 describe("workspace runtime isolation", () => {
+  it("cancels accepted dispatches before guarded workspace teardown", async () => {
+    const fixtureDir = await writeFixture();
+    const workspace = await makeWorkspace(
+      "dispatch-cancellation",
+      fixtureDir,
+      "hello",
+    );
+    const runtime = createWorkspaceRuntime({
+      workspaceId: toWorkspaceId("dispatch-cancellation"),
+      workspace,
+      piAppDataDir: join(workspace.stateRoot, ".pi"),
+      apiModuleDir,
+      dependencies: fakeTransports().dependencies,
+    });
+    await runtime.load();
+    const attachment = (await runtime.createAttachment({ kind: "new-session" }))
+      .attachment;
+    const retargetDestination = (
+      await runtime.createAttachment({ kind: "new-session" })
+    ).attachment;
+    const prepared = attachment.prepareDispatch({
+      channel: toChannelCanonicalId("echo", "wait_for_shutdown"),
+      payload: {},
+    });
+    let responseSettled = false;
+    const response = prepared.invoke().then((result) => {
+      responseSettled = true;
+      return result;
+    });
+
+    await attachment.retarget(retargetDestination.target);
+    retargetDestination[Symbol.dispose]();
+    await Promise.resolve();
+    expect(responseSettled).toBe(false);
+
+    attachment[Symbol.dispose]();
+    await Promise.resolve();
+    expect(responseSettled).toBe(false);
+
+    const disposal = runtime[Symbol.asyncDispose]();
+    await expect(response).resolves.toMatchObject({
+      ok: false,
+      error: {
+        code: "handler_error",
+        message: "Operation owner is shutting down",
+      },
+    });
+    await expect(disposal).resolves.toBeUndefined();
+  });
+
   it("keeps the production Canvas on the selected concurrent-session viewpoint", async () => {
     const workspace = await makeCanvasWorkspace();
     const runtime = createWorkspaceRuntime({
@@ -543,11 +615,11 @@ describe("workspace runtime isolation", () => {
         admitSession({ sessionId: freshSessionId }),
       )
     ).attachment;
-    using preparedPing = closingAttachment.prepareDispatch({
+    await using preparedPing = closingAttachment.prepareDispatch({
       channel: ping,
       payload: {},
     });
-    using acceptedSwitch = closingAttachment.prepareDispatch({
+    await using acceptedSwitch = closingAttachment.prepareDispatch({
       channel: switchSession,
       payload: { sessionId: freshSessionId },
     });

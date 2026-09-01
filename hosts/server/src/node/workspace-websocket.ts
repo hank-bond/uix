@@ -183,7 +183,7 @@ async function sendRequestResponse(
     return;
   }
 
-  using prepared = preparedDispatch;
+  await using prepared = preparedDispatch;
   recordWebSocketCrossing(
     log,
     `in:${prepared.request.channel}`,

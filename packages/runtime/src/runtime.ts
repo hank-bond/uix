@@ -56,6 +56,7 @@ import { keybindingsWorkspaceSettings } from "./keybindings/settings";
 import { AsyncDisposableBag, disposable, DisposableBag } from "./lifecycle";
 import { createLogger } from "./log";
 import { WorkspaceManifestStore } from "./manifest-store";
+import { OperationTracker } from "./operation-tracker";
 import { createWorkspaceReloadCoordinator } from "./reload";
 import {
   registerResourceContributions,
@@ -114,7 +115,7 @@ interface AttachmentOwner {
     origin?: string,
   ): Promise<AgentInstanceGuard>;
   prepareDispatch(
-    context: AttachmentDispatchContext,
+    context: Omit<AttachmentDispatchContext, "signal">,
     request: CanonicalRequest,
     disposeOperationGuard: () => void,
   ): PreparedDispatch;
@@ -149,6 +150,8 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   };
   readonly #attachments = new Set<Attachment>();
   readonly #listeners = new Set<(event: RuntimeEvent) => void>();
+  readonly #dispatchOperations = new OperationTracker();
+  readonly #lifetime = new AsyncDisposableBag();
   readonly #workspace: Workspace;
   #agentFeatures: readonly ActivatedAgentFeature[] = [];
   #nextAttachment = 0;
@@ -160,6 +163,8 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     this.#workspaceId = opts.workspaceId;
     this.#workspace = opts.workspace;
     const { workspace, piAppDataDir, dependencies } = opts;
+    this.#lifetime.add(this.#bag);
+    this.#lifetime.add(this.#featuresBag);
 
     const documents = createLocalDocumentStoreFactory(workspace.stateRoot);
     const workspaceManifest = this.#bag.add(
@@ -244,6 +249,8 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
         workspaceAgentPublisher.model_availability_changed();
       },
     });
+    this.#lifetime.add(this.#agentRuntime);
+    this.#lifetime.add(this.#dispatchOperations);
 
     // Substrate workspace channels under the reserved `uix` id: the surface
     // composition the renderer mounts, plus the changed signal fired after
@@ -650,7 +657,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   }
 
   prepareDispatch(
-    context: AttachmentDispatchContext,
+    context: Omit<AttachmentDispatchContext, "signal">,
     request: CanonicalRequest,
     disposeOperationGuard: () => void,
   ): PreparedDispatch {
@@ -658,7 +665,20 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
       disposeOperationGuard();
       throw new Error("Workspace runtime is disposed");
     }
-    return this.#channels.prepare(context, request, disposeOperationGuard);
+
+    const lifetime = new AsyncDisposableStack();
+    lifetime.defer(disposeOperationGuard);
+    try {
+      const operation = lifetime.use(this.#dispatchOperations.acquire());
+      return this.#channels.prepare(
+        { ...context, signal: operation.signal },
+        request,
+        () => lifetime.disposeAsync(),
+      );
+    } catch (error) {
+      void lifetime.disposeAsync().catch(() => undefined);
+      throw error;
+    }
   }
 
   dropAttachment(attachment: Attachment): void {
@@ -674,15 +694,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
       }
       this.#attachments.clear();
       this.#listeners.clear();
-      try {
-        await this.#agentRuntime[Symbol.asyncDispose]();
-      } finally {
-        try {
-          await this.#featuresBag[Symbol.asyncDispose]();
-        } finally {
-          this.#bag[Symbol.dispose]();
-        }
-      }
+      await this.#lifetime[Symbol.asyncDispose]();
     })();
     return this.#disposal;
   }

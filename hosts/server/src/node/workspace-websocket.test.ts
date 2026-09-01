@@ -86,7 +86,10 @@ function createPreparedDispatch(
     request,
     logOptions: {},
     invoke,
-    [Symbol.dispose]: disposal,
+    [Symbol.asyncDispose]: () => {
+      disposal();
+      return Promise.resolve();
+    },
   };
 }
 
@@ -270,7 +273,7 @@ describe("server workspace WebSocket binding", () => {
             message: `Unknown channel ${request.channel}`,
           },
         }),
-      [Symbol.dispose]: () => undefined,
+      [Symbol.asyncDispose]: () => Promise.resolve(),
     }));
     const socket = new FakeSocket();
     using _binding = bindWorkspaceWebSocket(
