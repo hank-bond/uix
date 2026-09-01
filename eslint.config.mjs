@@ -732,6 +732,7 @@ export default tseslint.config(
       "**/*.config.js",
       "**/*.test.mjs",
       "**/*.test.js",
+      "**/*.panda.js",
       "scripts/**/*.mjs",
       "scripts/**/*.js",
     ],

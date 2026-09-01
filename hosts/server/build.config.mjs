@@ -8,13 +8,13 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
 const repositoryRoot = resolve(import.meta.dirname, "../..");
-const outputRoot = resolve(repositoryRoot, "out/server");
+const defaultOutputRoot = resolve(repositoryRoot, "out/server");
 
 const browserJsxOptions = Object.freeze({
   jsx: "automatic",
 });
 
-export async function buildServer() {
+export async function buildServer(outputRoot = defaultOutputRoot) {
   await rm(outputRoot, { force: true, recursive: true });
   await mkdir(resolve(outputRoot, "public"), { recursive: true });
   await Promise.all([
