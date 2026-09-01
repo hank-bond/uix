@@ -15,7 +15,10 @@ import {
   WorkspacePageRoute,
   WorkspaceSessionPageRoute,
 } from "./routes";
-import { bindWorkspaceWebSocket } from "./workspace-websocket";
+import {
+  bindWorkspaceWebSocket,
+  bindWorkspaceWebSocketMessageRejection,
+} from "./workspace-websocket";
 import { toWebSocketReadyMessage } from "../websocket-messages";
 
 const log = createLogger("server-websocket");
@@ -106,11 +109,10 @@ function workspaceWebSocketHandler(
   let webSocketBinding: Disposable | undefined;
   let isClosed = false;
   const isConnectionClosed = (): boolean => isClosed;
-  const prematureMessageHandler = (): void => {
-    socket.close(1002, "WebSocket connection is not ready");
-  };
+  const messageRejection = bindWorkspaceWebSocketMessageRejection(socket);
 
   const disposeConnectionOwnership = (): void => {
+    messageRejection[Symbol.dispose]();
     webSocketBinding?.[Symbol.dispose]();
     webSocketBinding = undefined;
     connectionAttachment?.[Symbol.dispose]();
@@ -118,10 +120,8 @@ function workspaceWebSocketHandler(
     connectionGuard?.[Symbol.dispose]();
     connectionGuard = undefined;
   };
-  socket.on("message", prematureMessageHandler);
   socket.once("close", () => {
     isClosed = true;
-    socket.off("message", prematureMessageHandler);
     disposeConnectionOwnership();
   });
 
@@ -160,7 +160,7 @@ function workspaceWebSocketHandler(
           connectionAttachment.target.sessionId,
         ),
       );
-      socket.off("message", prematureMessageHandler);
+      messageRejection[Symbol.dispose]();
       webSocketBinding = bindWorkspaceWebSocket(
         socket,
         connectionAttachment,

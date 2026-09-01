@@ -1,4 +1,4 @@
-// Binds one accepted workspace attachment to correlated messages, scoped events, and heartbeat liveness.
+// Enforces the workspace WebSocket protocol across attachment acceptance, request dispatch, event delivery, and heartbeat liveness.
 
 import type { WebSocket } from "@fastify/websocket";
 
@@ -14,7 +14,10 @@ import type {
 } from "@uix/runtime";
 import { createLogger } from "@uix/runtime/log";
 
-import { recordWebSocketCrossing } from "./websocket-wire-log";
+import {
+  recordMalformedInboundWebSocketCrossing,
+  recordWebSocketCrossing,
+} from "./websocket-wire-log";
 import {
   parseWebSocketRequestMessage,
   tryParseWebSocketCorrelationId,
@@ -27,6 +30,28 @@ import {
 
 const log = createLogger("server-websocket-wire");
 const HeartbeatIntervalMs = 30_000;
+
+/** Bind payload-omitting rejection for messages received before attachment acceptance. */
+export function bindWorkspaceWebSocketMessageRejection(
+  socket: WebSocket,
+): Disposable {
+  let isDisposed = false;
+  const messageHandler = (data: unknown, isBinary: boolean): void => {
+    if (isDisposed) return;
+    recordMalformedInboundMessage(
+      isBinary ? undefined : tryParseEncodedWebSocketCorrelationId(data),
+    );
+    socket.close(1002, "WebSocket connection is not ready");
+  };
+  socket.on("message", messageHandler);
+  return {
+    [Symbol.dispose](): void {
+      if (isDisposed) return;
+      isDisposed = true;
+      socket.off("message", messageHandler);
+    },
+  };
+}
 
 /** Bind post-handshake protocol processing to one attachment-owned connection. */
 export function bindWorkspaceWebSocket(
@@ -43,6 +68,7 @@ export function bindWorkspaceWebSocket(
   const messageHandler = (data: unknown, isBinary: boolean): void => {
     if (isDisposed) return;
     if (isBinary) {
+      recordMalformedInboundMessage();
       sendProtocolErrorMessage(
         socket,
         undefined,
@@ -118,7 +144,7 @@ function acceptWebSocketRequest(
   try {
     decodedMessage = JSON.parse(String(rawData)) as unknown;
   } catch {
-    recordMalformedRequestMessage(undefined);
+    recordMalformedInboundMessage();
     sendProtocolErrorMessage(
       socket,
       undefined,
@@ -133,7 +159,7 @@ function acceptWebSocketRequest(
     message = parseWebSocketRequestMessage(decodedMessage);
   } catch {
     const correlationId = tryParseWebSocketCorrelationId(decodedMessage);
-    recordMalformedRequestMessage(correlationId);
+    recordMalformedInboundMessage(correlationId);
     sendProtocolErrorMessage(
       socket,
       correlationId,
@@ -144,7 +170,7 @@ function acceptWebSocketRequest(
   }
 
   if (inFlightRequestIds.has(message.id)) {
-    recordMalformedRequestMessage(message.id);
+    recordMalformedInboundMessage(message.id);
     sendProtocolErrorMessage(
       socket,
       message.id,
@@ -172,7 +198,7 @@ async function sendRequestResponse(
       payload: message.payload,
     });
   } catch (error) {
-    recordMalformedRequestMessage(message.id, message.channel);
+    recordMalformedInboundMessage(message.id);
     sendTerminalErrorMessage(
       socket,
       message.id,
@@ -316,15 +342,20 @@ function sendMessage<Payload>(
   socket.send(encodedMessage);
 }
 
-function recordMalformedRequestMessage(
-  correlationId?: string,
-  channel?: string,
-): void {
-  recordWebSocketCrossing(log, "in:invalid", {
-    ...(correlationId === undefined ? {} : { correlationId }),
-    ...(channel === undefined ? {} : { channel }),
-    redacted: "payload unavailable before dispatch preparation",
-  });
+function recordMalformedInboundMessage(correlationId?: string): void {
+  recordMalformedInboundWebSocketCrossing(log, correlationId);
+}
+
+function tryParseEncodedWebSocketCorrelationId(
+  encodedData: unknown,
+): string | undefined {
+  try {
+    return tryParseWebSocketCorrelationId(
+      JSON.parse(String(encodedData)) as unknown,
+    );
+  } catch {
+    return undefined;
+  }
 }
 
 function parseChannelCanonicalId(channel: string): ChannelCanonicalId {

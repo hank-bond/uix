@@ -20,3 +20,14 @@ export function recordWebSocketCrossing<T>(
     message,
   );
 }
+
+/** Record one malformed inbound crossing without accepting its message payload. */
+export function recordMalformedInboundWebSocketCrossing(
+  logger: Logger,
+  correlationId?: string,
+): void {
+  recordWebSocketCrossing(logger, "in:invalid", {
+    ...(correlationId === undefined ? {} : { correlationId }),
+    redacted: "payload omitted before dispatch preparation",
+  });
+}

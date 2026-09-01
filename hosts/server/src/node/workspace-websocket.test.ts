@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { EventEmitter } from "node:events";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,17 +20,25 @@ import type {
 } from "@uix/runtime";
 import { toAttachmentId, toSessionId, toWorkspaceId } from "@uix/runtime";
 
-import { bindWorkspaceWebSocket } from "./workspace-websocket";
+import {
+  bindWorkspaceWebSocket,
+  bindWorkspaceWebSocketMessageRejection,
+} from "./workspace-websocket";
 
 class FakeSocket extends EventEmitter {
   readonly OPEN = 1;
   readonly send = vi.fn<(data: string) => void>();
+  readonly close = vi.fn<(code: number, reason: string) => void>();
   readonly ping = vi.fn<() => void>();
   readonly terminate = vi.fn<() => void>();
   readyState = this.OPEN;
 
   emitMessage(value: unknown): void {
     this.emit("message", JSON.stringify(value), false);
+  }
+
+  emitEncodedMessage(value: unknown, isBinary: boolean): void {
+    this.emit("message", value, isBinary);
   }
 }
 
@@ -225,7 +234,7 @@ describe("server workspace WebSocket binding", () => {
     expect(disposal).toHaveBeenCalledOnce();
   });
 
-  it("keeps malformed messages out of dispatch and omits invalid payloads from errors", () => {
+  it("keeps malformed messages out of dispatch and logs only an independently valid id", () => {
     const prepare = vi.fn();
     const fixture = createAttachmentFixture(prepare);
     const socket = new FakeSocket();
@@ -243,7 +252,7 @@ describe("server workspace WebSocket binding", () => {
       type: "request",
       id: "safe-id",
       channel: "not canonical",
-      payload: { secret: "must-not-echo" },
+      payload: { secret: "must-not-echo-or-log" },
     });
 
     expect(prepare).not.toHaveBeenCalled();
@@ -254,8 +263,96 @@ describe("server workspace WebSocket binding", () => {
       message: "Invalid WebSocket request message",
       isTerminal: false,
     });
-    expect(JSON.stringify(parseSentMessages(socket).at(-1))).not.toContain(
-      "must-not-echo",
+    expect(wireLog.debug).toHaveBeenCalledWith(
+      {
+        payload: {
+          correlationId: "safe-id",
+          redacted: "payload omitted before dispatch preparation",
+        },
+      },
+      "in:invalid",
+    );
+    expect(JSON.stringify(wireLog.debug.mock.calls)).not.toContain(
+      "must-not-echo-or-log",
+    );
+  });
+
+  it("logs binary messages through the malformed payload-omitting boundary", () => {
+    const prepare = vi.fn();
+    const fixture = createAttachmentFixture(prepare);
+    const socket = new FakeSocket();
+    using _binding = bindWorkspaceWebSocket(
+      socket as never,
+      fixture.attachment,
+      {
+        type: "ready",
+        sessionId: "session-1",
+        canonicalPath: "/workspaces/reference/sessions/session-1",
+      },
+    );
+
+    socket.emitEncodedMessage(
+      Buffer.from('{"id":"unsafe-id","payload":"binary-secret"}'),
+      true,
+    );
+
+    expect(prepare).not.toHaveBeenCalled();
+    expect(parseSentMessages(socket).at(-1)).toEqual({
+      type: "error",
+      code: "malformed_message",
+      message: "WebSocket messages must be JSON text",
+      isTerminal: false,
+    });
+    expect(wireLog.debug).toHaveBeenCalledWith(
+      {
+        payload: {
+          redacted: "payload omitted before dispatch preparation",
+        },
+      },
+      "in:invalid",
+    );
+    expect(JSON.stringify(wireLog.debug.mock.calls)).not.toContain(
+      "binary-secret",
+    );
+    expect(JSON.stringify(wireLog.debug.mock.calls)).not.toContain("unsafe-id");
+  });
+
+  it("logs and rejects pre-ready messages without accepting their payload", () => {
+    const socket = new FakeSocket();
+    using _messageRejection = bindWorkspaceWebSocketMessageRejection(
+      socket as never,
+    );
+
+    socket.emitEncodedMessage(
+      Buffer.from(
+        JSON.stringify({
+          type: "request",
+          id: "safe-id",
+          channel: "feature.echo",
+          payload: { secret: "pre-ready-secret" },
+        }),
+      ),
+      false,
+    );
+
+    expect(socket.close).toHaveBeenCalledWith(
+      1002,
+      "WebSocket connection is not ready",
+    );
+    expect(wireLog.debug).toHaveBeenCalledWith(
+      {
+        payload: {
+          correlationId: "safe-id",
+          redacted: "payload omitted before dispatch preparation",
+        },
+      },
+      "in:invalid",
+    );
+    expect(JSON.stringify(wireLog.debug.mock.calls)).not.toContain(
+      "pre-ready-secret",
+    );
+    expect(JSON.stringify(wireLog.debug.mock.calls)).not.toContain(
+      "feature.echo",
     );
   });
 

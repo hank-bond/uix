@@ -30,6 +30,6 @@ Accepted WebSockets use periodic ping/pong and terminate after a missed heartbea
 - **[workspace-resource-transport.ts](./workspace-resource-transport.ts)** Binds each supervised runtime's logical resource dispatcher to server HTTP requests.
 - **[workspace-routes.ts](./workspace-routes.ts)** Binds workspace page routes and WebSockets to supervised workspace attachments.
 - **[workspace-runtime.ts](./workspace-runtime.ts)** Boots one registered workspace runtime over server-owned dependency adapters.
-- **[workspace-websocket.ts](./workspace-websocket.ts)** Binds one accepted workspace attachment to correlated messages, scoped events, and heartbeat liveness.
+- **[workspace-websocket.ts](./workspace-websocket.ts)** Enforces the workspace WebSocket protocol across attachment acceptance, request dispatch, event delivery, and heartbeat liveness.
 
 <!-- INDEX:END -->
