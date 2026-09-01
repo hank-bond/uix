@@ -2,11 +2,11 @@
 //
 // Sandboxed + contextIsolated. The renderer never sees `ipcRenderer`
 // directly. It gets a typed surface on `window.channels` mirroring the
-// contract in src/shared/ipc.ts.
+// contract in the Electron host channel-transport.ts.
 
 import { contextBridge, ipcRenderer } from "electron";
 
-import { Channels, type ChannelTransport } from "../shared/ipc";
+import { Channels, type ChannelTransport } from "./channel-transport";
 
 const transport: ChannelTransport = {
   request: (channel, payload) =>

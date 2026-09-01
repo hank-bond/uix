@@ -4,7 +4,8 @@ import { Value } from "typebox/value";
 
 import { ActionIdSchema } from "@uix/api/actions";
 import type { ActionInvocationSource } from "@uix/client/workspace";
-import { Channels, type ChannelTransport } from "#shared/ipc";
+
+import { Channels, type ChannelTransport } from "../channel-transport";
 
 export function createElectronActionInvocationSource(
   transport: ChannelTransport,

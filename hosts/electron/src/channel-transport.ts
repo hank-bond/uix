@@ -1,4 +1,4 @@
-// Shared IPC contract for the Electron host shell.
+// Defines the Electron host channel transport shared by main, preload, and renderer code.
 //
 // Host-level invoke channels and the preload transport surface. The substrate
 // channel contract (including Workspace reload) lives in

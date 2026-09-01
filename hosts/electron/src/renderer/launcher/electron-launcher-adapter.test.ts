@@ -1,13 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { createElectronLauncherAdapter } from "./electron-launcher-adapter";
 import {
   Channels,
   type ChannelTransport,
   type LauncherActionResult,
   type LauncherState,
-} from "#shared/ipc";
-
-import { createElectronLauncherAdapter } from "./electron-launcher-adapter";
+} from "../../channel-transport";
 
 function createTransport(
   request: (channel: string, payload: unknown) => Promise<unknown>,

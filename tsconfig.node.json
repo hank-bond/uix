@@ -18,28 +18,24 @@
       "@uix/runtime": ["./packages/runtime/src/index.ts"],
       "@uix/runtime/*": ["./packages/runtime/src/*.ts"],
       "@uix/host": ["./packages/host/src/index.ts"],
-      "@uix/host/*": ["./packages/host/src/*.ts"],
-      "#backend/*": ["./src/main/*"],
-      "#features/*": ["./src/features/*"],
-      "#shared/*": ["./src/shared/*"]
+      "@uix/host/*": ["./packages/host/src/*.ts"]
     }
   },
   "include": [
     "packages/api/src/**/*.ts",
     "packages/runtime/src/**/*.ts",
     "packages/host/src/**/*.ts",
-    "hosts/electron/**/*.ts",
+    "hosts/electron/src/main/**/*.ts",
+    "hosts/electron/src/preload.ts",
+    "hosts/electron/src/channel-transport.ts",
     "hosts/server/src/*.ts",
     "hosts/server/src/node/**/*.ts",
     "apps/features/**/backend/**/*.ts",
-    "src/main/**/*.ts",
     "src/features/*/index.ts",
     "src/features/**/backend/**/*.ts",
     "src/features/**/shared/**/*.ts",
-    "src/preload/**/*.ts",
-    "src/shared/**/*.ts",
     "templates/workspace/**/*.ts",
-    "electron.vite.config.ts",
+    "hosts/electron/electron.vite.config.ts",
     "vitest.config.mts"
   ],
   // workspace.ts is the web-only half of @uix/api (React surfaces,

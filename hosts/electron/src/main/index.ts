@@ -62,7 +62,7 @@ import {
   type LauncherCreateRequest,
   type LauncherOpenRequest,
   type LauncherState,
-} from "../shared/ipc";
+} from "../channel-transport";
 
 const isDev = !app.isPackaged;
 const LocalWorkspaceId = "local";
@@ -89,7 +89,7 @@ function openShellWindow(
   const win = new BrowserWindow({
     ...size,
     title: "UIX",
-    icon: join(__dirname, "../../src/shared/assets/icon-black-large.png"),
+    icon: join(__dirname, "../../hosts/electron/assets/icon-black-large.png"),
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       sandbox: true,
@@ -391,7 +391,7 @@ void app.whenReady().then(async () => {
 
   if (process.platform === "darwin") {
     app.dock?.setIcon(
-      join(__dirname, "../../src/shared/assets/icon-black-large.png"),
+      join(__dirname, "../../hosts/electron/assets/icon-black-large.png"),
     );
   }
 

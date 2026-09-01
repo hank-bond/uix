@@ -2,6 +2,12 @@
   "name": "@uix/host-electron",
   "version": "0.0.0",
   "private": true,
-  "description": "Electron composition root and adapters: native chrome, IPC, protocol, windows, and client bootstraps over the shared supervisor, runtime, and clients. Empty.",
-  "type": "module"
+  "description": "Electron composition root and adapters: native chrome, IPC, protocol, windows, and client bootstraps over the shared supervisor, runtime, and clients.",
+  "type": "module",
+  "dependencies": {
+    "@uix/api": "0.0.0",
+    "@uix/client": "0.0.0",
+    "@uix/host": "0.0.0",
+    "@uix/runtime": "0.0.0"
+  }
 }

@@ -4,7 +4,8 @@
 // Multi-workspace isolation comes from separate BrowserWindows.
 
 import type { WorkspaceClient } from "@uix/api/workspace";
-import type { ChannelTransport } from "#shared/ipc";
+
+import type { ChannelTransport } from "../channel-transport";
 
 const LocalWorkspaceId = "local";
 

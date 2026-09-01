@@ -19,10 +19,7 @@
       "@uix/client": ["./packages/client/src/index.ts"],
       "@uix/client/*": ["./packages/client/src/*.ts"],
       "@uix/host": ["./packages/host/src/index.ts"],
-      "@uix/host/*": ["./packages/host/src/*.ts"],
-      "#backend/*": ["./src/main/*"],
-      "#features/*": ["./src/features/*"],
-      "#shared/*": ["./src/shared/*"]
+      "@uix/host/*": ["./packages/host/src/*.ts"]
     }
   },
   "include": [
@@ -34,11 +31,11 @@
     "hosts/server/src/browser/**/*.ts",
     "hosts/server/src/resource-urls.ts",
     "hosts/server/src/websocket-messages.ts",
-    "src/renderer/**/*.ts",
-    "src/renderer/**/*.tsx",
+    "hosts/electron/src/renderer/**/*.ts",
+    "hosts/electron/src/renderer/**/*.tsx",
+    "hosts/electron/src/channel-transport.ts",
     "src/features/**/workspace/**/*.ts",
     "src/features/**/workspace/**/*.tsx",
-    "src/features/**/shared/**/*.ts",
-    "src/shared/**/*.ts"
+    "src/features/**/shared/**/*.ts"
   ]
 }

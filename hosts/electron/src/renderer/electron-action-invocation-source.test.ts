@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { ChannelTransport } from "#shared/ipc";
-
 import { createElectronActionInvocationSource } from "./electron-action-invocation-source";
+import type { ChannelTransport } from "../channel-transport";
 
 describe("createElectronActionInvocationSource", () => {
   it("validates Electron menu action ids before forwarding them", () => {

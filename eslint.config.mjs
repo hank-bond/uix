@@ -43,19 +43,19 @@ const appEventRestriction = {
   selector:
     "CallExpression[callee.object.name='app'][callee.property.name=/^(on|off|once|addListener|removeListener|prependListener|prependOnceListener)$/]",
   message:
-    "Use onApp() from src/main/lifecycle.ts instead of app.on / app.off. See docs/architecture/conventions/lifetimes.md.",
+    "Use onApp() from hosts/electron/src/main/lifecycle.ts instead of app.on / app.off. See docs/architecture/conventions/lifetimes.md.",
 };
 const ipcMainRestriction = {
   selector:
     "CallExpression[callee.object.name='ipcMain'][callee.property.name=/^(handle|handleOnce|on|once|removeHandler|removeListener)$/]",
   message:
-    "Use handle() from src/main/ipc.ts instead of ipcMain.handle / ipcMain.on. See docs/architecture/conventions/lifetimes.md.",
+    "Use handle() from hosts/electron/src/main/ipc.ts instead of ipcMain.handle / ipcMain.on. See docs/architecture/conventions/lifetimes.md.",
 };
 const webContentsSendRestriction = {
   selector:
     "CallExpression[callee.object.property.name='webContents'][callee.property.name=/^(send|postMessage)$/]",
   message:
-    "Use send() from src/main/ipc.ts instead of webContents.send, so the crossing lands in the wire log. See docs/architecture/conventions/lifetimes.md.",
+    "Use send() from hosts/electron/src/main/ipc.ts instead of webContents.send, so the crossing lands in the wire log. See docs/architecture/conventions/lifetimes.md.",
 };
 const processEventRestriction = {
   selector:
@@ -302,20 +302,27 @@ const uixLintPlugin = {
 // replacing the global no-restricted-imports rule for these files does not lose
 // the node: prefix enforcement.
 const ownershipBoundaryForbidden = {
+  "packages/api/**/*.{ts,tsx}": [
+    "@uix/runtime",
+    "@uix/client",
+    "@uix/host*",
+    "electron",
+    "**/hosts/**",
+    "**/apps/**",
+  ],
   "packages/runtime/**/*.{ts,tsx}": [
     "@uix/client",
     "@uix/host*",
+    "electron",
     "**/hosts/**",
     "**/apps/**",
   ],
   "packages/client/**/*.{ts,tsx}": [
     "@uix/runtime",
     "@uix/host*",
+    "electron",
     "**/hosts/**",
     "**/apps/**",
-    "**/src/main/**",
-    "**/src/preload/**",
-    "**/src/renderer/**",
     "**/src/features/**",
     "**/src/shared/**",
   ],
@@ -323,6 +330,7 @@ const ownershipBoundaryForbidden = {
     "@uix/client",
     "@uix/host-electron",
     "@uix/host-server",
+    "electron",
     "**/hosts/**",
     "**/apps/**",
   ],
@@ -330,6 +338,7 @@ const ownershipBoundaryForbidden = {
     "@uix/runtime",
     "@uix/client",
     "@uix/host*",
+    "electron",
     "**/hosts/**",
     "**/apps/**",
   ],
@@ -340,6 +349,7 @@ const ownershipBoundaryForbidden = {
   ],
   "hosts/server/**/*.{ts,tsx}": [
     "@uix/host-electron*",
+    "electron",
     "**/hosts/electron/**",
     "**/apps/**",
   ],
@@ -568,7 +578,7 @@ export default tseslint.config(
   // in a main process; hosts/ roots are registered before they hold source so
   // the rule cannot silently rot when later host code lands there.
   {
-    files: ["src/main/**/*.ts", "packages/runtime/**/*.ts", "hosts/**/*.ts"],
+    files: ["packages/runtime/**/*.ts", "hosts/**/*.ts"],
     plugins: { uix: uixLintPlugin },
     rules: {
       "uix/structured-log-call": "error",
@@ -576,8 +586,8 @@ export default tseslint.config(
   },
   {
     files: [
-      "src/main/ipc.ts",
-      "src/main/ipc-wire-log.ts",
+      "hosts/electron/src/main/ipc.ts",
+      "hosts/electron/src/main/ipc-wire-log.ts",
       "hosts/server/src/node/websocket-wire-log.ts",
     ],
     rules: {
@@ -588,7 +598,10 @@ export default tseslint.config(
   // Boundary modules may call only the raw APIs they encapsulate. Keep the
   // other restrictions active so one helper layer cannot absorb another's role.
   {
-    files: ["src/main/lifecycle.ts", "packages/runtime/src/lifecycle.ts"],
+    files: [
+      "hosts/electron/src/main/lifecycle.ts",
+      "packages/runtime/src/lifecycle.ts",
+    ],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -598,7 +611,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["src/main/ipc.ts"],
+    files: ["hosts/electron/src/main/ipc.ts"],
     rules: {
       "no-restricted-syntax": [
         "error",
@@ -612,7 +625,10 @@ export default tseslint.config(
   // White-box integration tests are outside the loadable feature boundary and
   // retain explicit access to the subsystem they exercise.
   {
-    files: ["src/features/**/*.{ts,tsx}"],
+    files: [
+      "src/features/**/*.{ts,tsx}",
+      "templates/workspace/features/**/*.{ts,tsx}",
+    ],
     ignores: ["src/features/**/*.test.{ts,tsx}"],
     rules: {
       "no-restricted-imports": [
@@ -620,6 +636,11 @@ export default tseslint.config(
         {
           paths: [
             ...bareNodeBuiltinImports,
+            {
+              name: "electron",
+              message:
+                "Features must use @uix/api and injected context instead of Electron.",
+            },
             {
               name: "node:process",
               message:
@@ -712,7 +733,7 @@ export default tseslint.config(
   // Renderer + preload don't have a logging story yet, and they run
   // in the browser context (no `process` etc.). Keep them light.
   {
-    files: ["src/renderer/**", "src/preload/**"],
+    files: ["hosts/electron/src/renderer/**", "hosts/electron/src/preload.ts"],
     rules: {
       "no-console": "off",
       "no-restricted-globals": "off",

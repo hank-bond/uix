@@ -12,7 +12,8 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { createLogger } from "@uix/runtime/log";
-import type { RecentWorkspace } from "#shared/ipc";
+
+import type { RecentWorkspace } from "../channel-transport";
 
 const log = createLogger("recents");
 

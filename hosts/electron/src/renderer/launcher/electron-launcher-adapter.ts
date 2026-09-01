@@ -4,12 +4,13 @@ import type {
   LauncherActionOutcome,
   LauncherAdapter,
 } from "@uix/client/launcher";
+
 import {
   Channels,
   type ChannelTransport,
   type LauncherActionResult,
   type LauncherState,
-} from "#shared/ipc";
+} from "../../channel-transport";
 
 /** Construct the launcher adapter exposed by the Electron preload transport. */
 export function createElectronLauncherAdapter(

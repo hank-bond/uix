@@ -10,9 +10,9 @@ The [lifetimes.paired-cleanup](./rules/lifetimes.paired-cleanup.md) rule require
 
 ## Lifetime management in the main process
 
-IPC crossings use `src/main/ipc.ts`: `handle()` for invoke endpoints and `send()` for window pushes. This path records every crossing in the wire log.
+IPC crossings use `hosts/electron/src/main/ipc.ts`: `handle()` for invoke endpoints and `send()` for window pushes. This path records every crossing in the wire log.
 
-Other attachments use the lifetime helpers: the Electron app/window bindings in `src/main/lifecycle.ts`, and the host-neutral helpers (`DisposableBag`, `disposable`, `subscribe`, `installProcessHandlers`) in `@uix/runtime/lifecycle`. Each returned `Disposable` goes into the bag matching the behavior's lifetime. Disposing the lifetime disposes every owned capability in reverse acquisition order.
+Other attachments use the lifetime helpers: the Electron app/window bindings in `hosts/electron/src/main/lifecycle.ts`, and the host-neutral helpers (`DisposableBag`, `disposable`, `subscribe`, `installProcessHandlers`) in `@uix/runtime/lifecycle`. Each returned `Disposable` goes into the bag matching the behavior's lifetime. Disposing the lifetime disposes every owned capability in reverse acquisition order.
 
 ```ts
 import * as ipc from "./ipc";

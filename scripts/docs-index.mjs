@@ -26,7 +26,6 @@ const layers = [
     dir: ".",
     kind: "container",
     children: [
-      "src/main",
       "src/docs",
       "docs",
       "plans",
@@ -64,7 +63,6 @@ const SOURCE_EXCLUDED_DIRECTORIES = new Set([
   "packages/client",
   "packages/host",
   "hosts",
-  "hosts/electron",
 ]);
 
 const START = "<!-- INDEX:START -->";

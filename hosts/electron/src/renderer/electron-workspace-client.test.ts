@@ -1,8 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { ChannelTransport } from "#shared/ipc";
-
 import { createElectronWorkspaceClient } from "./electron-workspace-client";
+import type { ChannelTransport } from "../channel-transport";
 
 describe("createElectronWorkspaceClient", () => {
   it("adapts preload requests and subscriptions", async () => {

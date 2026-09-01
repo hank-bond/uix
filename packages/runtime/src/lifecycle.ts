@@ -24,7 +24,7 @@
 //     asynchronous bag and disposes that bag when the owner ends.
 //
 // The Electron-specific lifetime helpers (window listeners, app events)
-// stay in the Electron host under src/main/lifecycle.ts.
+// stay in the Electron host under hosts/electron/src/main/lifecycle.ts.
 
 import process from "node:process";
 

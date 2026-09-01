@@ -33,33 +33,43 @@ async function lintImport(filePath, specifier) {
 // file -> forbidden specifiers. Each pair must report a no-restricted-imports
 // violation.
 const forbidden = [
+  ["packages/api/src/index.ts", "electron"],
   ["packages/runtime/src/index.ts", "@uix/client"],
   ["packages/runtime/src/index.ts", "@uix/host"],
   ["packages/runtime/src/index.ts", "@uix/host-electron"],
+  ["packages/runtime/src/index.ts", "electron"],
   ["packages/runtime/src/index.ts", "../../hosts/electron/index.ts"],
   ["packages/client/src/index.ts", "@uix/runtime"],
   ["packages/client/src/index.ts", "@uix/host"],
+  ["packages/client/src/index.ts", "electron"],
   ["packages/client/src/index.ts", "#shared/ipc"],
   ["packages/client/src/index.ts", "../../hosts/server/index.ts"],
-  ["packages/client/src/index.ts", "../../../src/renderer/main.ts"],
+  [
+    "packages/client/src/index.ts",
+    "../../../hosts/electron/src/renderer/main.ts",
+  ],
   ["packages/client/src/index.ts", "../../../src/features/chat/index.ts"],
   ["packages/host/src/index.ts", "@uix/client"],
   ["packages/host/src/index.ts", "@uix/host-electron"],
+  ["packages/host/src/index.ts", "electron"],
   ["packages/host/src/index.ts", "../../apps/features/chat/index.ts"],
   ["apps/features/chat/src/index.ts", "@uix/runtime"],
   ["apps/features/chat/src/index.ts", "@uix/client"],
   ["apps/features/chat/src/index.ts", "@uix/host"],
   ["apps/features/chat/src/index.ts", "@uix/host-server"],
+  ["apps/features/chat/src/index.ts", "electron"],
   ["apps/features/chat/src/index.ts", "../../../hosts/server/index.ts"],
   ["apps/workspaces/default/features/tools/src/index.ts", "@uix/runtime"],
   ["hosts/electron/src/index.ts", "@uix/host-server"],
   ["hosts/electron/src/index.ts", "@uix/host-server/session.ts"],
   ["hosts/server/src/index.ts", "@uix/host-electron"],
+  ["hosts/server/src/index.ts", "electron"],
   ["hosts/server/src/index.ts", "../../apps/features/chat/index.ts"],
 ];
 
 // file -> allowed specifiers. Each pair must lint clean.
 const allowed = [
+  ["packages/api/src/index.ts", "typebox"],
   ["packages/runtime/src/index.ts", "@uix/api"],
   ["packages/runtime/src/index.ts", "node:fs"],
   ["packages/client/src/index.ts", "@uix/api"],
@@ -72,6 +82,7 @@ const allowed = [
   ["hosts/electron/src/index.ts", "@uix/host"],
   ["hosts/electron/src/index.ts", "@uix/runtime"],
   ["hosts/electron/src/index.ts", "@uix/client"],
+  ["hosts/electron/src/index.ts", "electron"],
   ["hosts/server/src/index.ts", "@uix/client"],
   ["hosts/server/src/index.ts", "@uix/host"],
   ["hosts/server/src/index.ts", "@uix/runtime"],

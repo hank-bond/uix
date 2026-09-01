@@ -12,11 +12,11 @@
     "hosts/*"
   ],
   "scripts": {
-    "dev": "electron-vite dev",
-    "dev:fast": "electron-vite dev --rendererOnly",
-    "build": "electron-vite build",
+    "dev": "electron-vite dev --config hosts/electron/electron.vite.config.ts",
+    "dev:fast": "electron-vite dev --rendererOnly --config hosts/electron/electron.vite.config.ts",
+    "build": "electron-vite build --config hosts/electron/electron.vite.config.ts",
     "build:server": "node hosts/server/build.config.mjs",
-    "start": "electron-vite preview",
+    "start": "electron-vite preview --config hosts/electron/electron.vite.config.ts",
     "start:server": "node out/server/index.mjs",
     "typecheck": "node_modules/tsc7/bin/tsc -p tsconfig.node.json --noEmit && node_modules/tsc7/bin/tsc -p tsconfig.web.json --noEmit",
     "lint": "eslint .",
