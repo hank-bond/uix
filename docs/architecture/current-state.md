@@ -108,7 +108,6 @@ The active plans track work that is not architecture yet:
 - [`workspace-actions-and-command-palette.md`](../../plans/workspace-actions-and-command-palette.md) continues ambient surfaces, palette UI, and customization.
 - [`session-history-and-switching.md`](../../plans/session-history-and-switching.md) retains defensive hardening and final verification.
 - [`durable-transcript-identity.md`](../../plans/durable-transcript-identity.md) retains durable low-frequency block state.
-- [`electron-server-split.md`](../../plans/electron-server-split.md) splits UIX into hosts, a workspace supervisor, one-workspace runtimes, and a shared browser client.
 - [`canvas-reusable-assets.md`](../../plans/canvas-reusable-assets.md) gives Canvas a reusable local web-asset library in eight reviewable units.
 - [`cross-feature-capabilities-and-resource-viewing.md`](../../plans/cross-feature-capabilities-and-resource-viewing.md) establishes publisher-qualified public protocols, document resources, and resource viewers after identity and selection details settle.
 - [`framework-neutral-surfaces-and-shell.md`](../../plans/framework-neutral-surfaces-and-shell.md) moves frontend frameworks into feature ownership in post-alpha stages.

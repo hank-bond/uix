@@ -32,4 +32,4 @@ The shared Pi profile conclusion from [`2026-07-11-app-owned-pi-profile.md`](./2
 
 ## Distilled from
 
-[`host-workspace-runtime-boundaries.md`](../design/host-workspace-runtime-boundaries.md) and [`product-and-distribution.md`](../design/product-and-distribution.md). Built by [`electron-server-split.md`](../../plans/electron-server-split.md).
+[`host-workspace-runtime-boundaries.md`](../design/host-workspace-runtime-boundaries.md) and [`product-and-distribution.md`](../design/product-and-distribution.md). Built by [`electron-server-split.md`](../../plans/archive/electron-server-split.md).

@@ -8,7 +8,7 @@ summary: "New Session, global session switching, titles, and branch restoration 
 
 S0-S4 landed under the implemented selected-session model. The host/runtime split now replaces that global selection with per-attachment targets and concurrent agent instances. Terms such as _selected_, _active_, and `session.selected` below describe the landed implementation and its historical build units, not the target contract.
 
-Pause S5-S6 until H4-H5 of [`electron-server-split.md`](./electron-server-split.md) settle the agent-instance vocabulary, branch-scoped feature state, and the fallback-session contract. Rebase the still-valid diagnostic and hardening work onto those scopes rather than extending the global controller.
+Pause S5-S6 until H4-H5 of [`electron-server-split.md`](./archive/electron-server-split.md) settle the agent-instance vocabulary, branch-scoped feature state, and the fallback-session contract. Rebase the still-valid diagnostic and hardening work onto those scopes rather than extending the global controller.
 
 ## Settled model
 

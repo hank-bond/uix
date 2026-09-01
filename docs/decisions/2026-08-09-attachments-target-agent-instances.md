@@ -36,4 +36,4 @@ Configurable warm retention, always-on instances, host-authored background reten
 
 ## Distilled from
 
-[`agent-session-routing.md`](../design/agent-session-routing.md) and [`agent-instance-state.md`](../design/agent-instance-state.md). Built by [`electron-server-split.md`](../../plans/electron-server-split.md).
+[`agent-session-routing.md`](../design/agent-session-routing.md) and [`agent-instance-state.md`](../design/agent-instance-state.md). Built by [`electron-server-split.md`](../../plans/archive/electron-server-split.md).

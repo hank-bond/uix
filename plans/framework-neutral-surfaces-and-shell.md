@@ -12,7 +12,7 @@ The goal is framework neutrality, not dependency minimalism. React remains a str
 
 The governing line is: **UIX standardizes what happens between surfaces, not how a surface renders internally.** UIX owns the integration points that need to work cohesively. These are feature loading and reload, surface composition, typed channels, settings, agent sessions, actions, resources, state, lifetimes, delivery, and containment. A feature owns its renderer, reactive model, components, local presentation state, design system, and framework versions.
 
-This plan builds on [features are the loadable unit](../docs/decisions/2026-07-01-features-are-the-loadable-unit.md), [workspace manifest, not discovery](../docs/decisions/2026-07-02-workspace-manifest-not-discovery.md), and the current [runtime surface pipeline](../docs/decisions/2026-07-02-runtime-surface-pipeline.md). It also builds on the [workspace composition thread](../docs/design/workspace-feature-composition.md) and the host/runtime boundaries established by the [Electron/server split](./electron-server-split.md). H5 of that plan first separates the shared launcher and workspace clients from concrete hosts. Before this plan starts, N0 must replace the current surface decision's React-specific conclusions without discarding its manifest, trust, origin, CSS-lifetime, no-builtin, reload, and failure-isolation conclusions.
+This plan builds on [features are the loadable unit](../docs/decisions/2026-07-01-features-are-the-loadable-unit.md), [workspace manifest, not discovery](../docs/decisions/2026-07-02-workspace-manifest-not-discovery.md), and the current [runtime surface pipeline](../docs/decisions/2026-07-02-runtime-surface-pipeline.md). It also builds on the [workspace composition thread](../docs/design/workspace-feature-composition.md) and the host/runtime boundaries established by the [Electron/server split](./archive/electron-server-split.md). H5 of that plan first separates the shared launcher and workspace clients from concrete hosts. Before this plan starts, N0 must replace the current surface decision's React-specific conclusions without discarding its manifest, trust, origin, CSS-lifetime, no-builtin, reload, and failure-isolation conclusions.
 
 Implementation follows the [human-paced loop](../docs/architecture/human-paced-implementation.md). Each unit is a separately reviewable landing. This plan is not permission to implement the whole arc at once.
 
@@ -227,7 +227,7 @@ The questions are intentionally more exhaustive than the decisions above. They a
 - At what physical package boundary can React disappear from the substrate install while first-party React feature templates remain in the repository or product distribution?
 - How do scaffolded feature `package.json` files declare renderer dependencies, and where does the opinionated app template declare shared conventions such as Mantine?
 - Does removing the renderer Vite React plugin wait for both shell pages, or do feature build paths remain independently configured?
-- How does this plan sequence with the [Electron/server split](./electron-server-split.md) so neither arc creates temporary package boundaries the other immediately removes?
+- How does this plan sequence with the [Electron/server split](./archive/electron-server-split.md) so neither arc creates temporary package boundaries the other immediately removes?
 
 ## Whole-plan acceptance
 
