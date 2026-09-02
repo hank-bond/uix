@@ -198,7 +198,7 @@ Prepared dispatch, provider authentication, model refresh, single-flight boots, 
 
 Agent feature lifetimes, per-session Canvas state, selected-view routing, reload, and concurrent-session tests moved to [agent feature instances and viewpoint state](../agent-feature-instances-and-viewpoint-state.md). R0 reverted the unused state-builder and composition code. A1 moved feature state into the production `AgentInstance`. A2 completed the concurrent-session gate before H6.
 
-Provider-auth browser parity, app-source rehoming, discovery, security review, and packaging moved to [server browser parity and distribution](../server-browser-parity-and-distribution.md). Reconnect recovery returned here as W6 when the accepted web-host specification replaced the discarded minimal server.
+Provider-auth browser parity, app-source rehoming, discovery, security review, and packaging originally moved to [server browser parity and distribution](./server-browser-parity-and-distribution.md). That umbrella plan was later retired. Real-host behavioral testing and app ownership became focused plans. Unprioritized discovery, safety, and packaging work returned to the backlog. Reconnect recovery returned here as W6 when the accepted web-host specification replaced the discarded minimal server.
 
 The deferred multi-branch Agent architecture is recorded in the Agent feature plan. Session-branch Git state remains in [session worktrees and turn checkpoints](../session-worktrees-and-turn-checkpoints.md).
 

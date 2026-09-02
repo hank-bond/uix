@@ -103,6 +103,8 @@ None of these features is a compiled-in substrate default. Bare workspaces start
 
 The active plans track work that is not architecture yet:
 
+- [`two-host-behavioral-conformance.md`](../../plans/two-host-behavioral-conformance.md) drives shared scenarios through the real Electron and server hosts before declaring parity gaps.
+- [`explicit-app-and-workspace-ownership.md`](../../plans/explicit-app-and-workspace-ownership.md) moves the reference features and dogfood manifest into explicit app-owned roots.
 - [`chat-rendering-polish.md`](../../plans/chat-rendering-polish.md) continues thinking rendering, thinking controls, performance, and final documentation.
 - [`chat-provider-login.md`](../../plans/chat-provider-login.md) continues no-model onboarding and model-picker connection entry points.
 - [`workspace-actions-and-command-palette.md`](../../plans/workspace-actions-and-command-palette.md) continues ambient surfaces, palette UI, and customization.
