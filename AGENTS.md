@@ -5,7 +5,7 @@ read_when: "Read first when entering the repo or deciding whether a change belon
 
 # UIX
 
-UIX is a local Electron framework for building bidirectional human-agent surfaces on Pi. Pi provides sessions, tools, prompts, skills, providers, extensions, and agent events. UIX provides surfaces, channels, feature facets, and the bridge between agent activity and frontend state.
+UIX is a framework for building bidirectional human-agent applications on Pi. Pi provides individual agent loops through sessions, tools, prompts, skills, providers, extensions, and agent events. UIX coherently manages state and interactions among agents, humans, and application code through branch-aware viewpoints, surfaces, channels, and feature facets.
 
 The project provides wiring for many local agent-facing applications, not one fixed application. Examples include reports, dashboards, knowledge tools, design-system deliverables, and interactive canvases.
 
@@ -35,6 +35,8 @@ The project uses on-demand traversal. Broad summary preloading remains a possibl
 A _feature_ is UIX's loadable unit. It can contribute resources, typed channels, agent facets, turn state, agent context, settings, and visible surfaces.
 
 A _workspace_ is a directory defined by `uix.workspace.json`. Its ordered feature entry references are the complete composition. UIX performs no feature auto-discovery. One workspace page composes the active feature surfaces over one selected Pi session graph.
+
+UIX coordinates application authorities around Agent viewpoints. One selected Agent is implemented today. Future orchestration may create Agent and subagent viewpoints, route durable messages among them, and grant explicit read-only access to one another's artifacts. Applications choose their roles and workflows. The substrate owns coherent branch state and lifetimes around the individual loops Pi executes.
 
 Channels connect surfaces to feature backends and substrate services. A feature can also publish a contract that another feature imports deliberately. Chat consumes the substrate agent contract through this same path.
 
@@ -103,4 +105,4 @@ The framework injects this orientation and routing map through its owned agent i
 
 ## Non-goals
 
-UIX is not a marketplace, hostile-code sandbox, web-only deployment, or multi-agent orchestrator. Design systems, rendering libraries, editors, and opinionated workflows remain feature territory.
+UIX is not a marketplace, hostile-code sandbox, web-only deployment, or opinionated multi-agent product. General Agent orchestration and cross-Agent state capabilities belong to the substrate. Application-specific roles and workflows remain feature territory alongside design systems, rendering libraries, and editors.
