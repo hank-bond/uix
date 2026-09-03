@@ -2,13 +2,48 @@
   "name": "uix",
   "features": [
     {
-      "entry": "./src/features/chat/index.ts"
+      "entry": "./src/features/chat/index.ts",
+      "settings": {
+        "statusBar": {
+          "order": ["model"],
+          "hidden": []
+        },
+        "blockPresentation": {
+          "command": {
+            "layout": "literal"
+          },
+          "toolParams": {
+            "canvas__anchor_edit": {
+              "collapsed": []
+            },
+            "canvas__anchor_write": {
+              "collapsed": []
+            },
+            "read": {
+              "collapsed": []
+            },
+            "canvas__anchor_read": {
+              "collapsed": []
+            }
+          }
+        }
+      }
     },
     {
-      "entry": "./src/features/workspace-tools/index.ts"
+      "entry": "./src/features/workspace-tools/index.ts",
+      "settings": {}
     },
     {
-      "entry": "./src/features/canvas/index.ts"
+      "entry": "./src/features/canvas/index.ts",
+      "settings": {}
     }
-  ]
+  ],
+  "settings": {
+    "agent": {},
+    "keybindings": {
+      "uix.session.new": "mod+n",
+      "uix.reload": "mod+r",
+      "chat.models.all": "mod+j"
+    }
+  }
 }
