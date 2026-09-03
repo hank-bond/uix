@@ -36,7 +36,7 @@ export function WorkspaceSessionControllerProvider({
 }): JSX.Element {
   const workspace = useWorkspaceClient();
   const agent = useMemo(
-    () => createChannelClient(workspace, agentChannels),
+    () => createChannelClient(workspace, "agent", agentChannels),
     [workspace],
   );
   const controller = useMemo(

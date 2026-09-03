@@ -25,7 +25,6 @@ import { TurnStateRegistry } from "../turn-state";
 const emptyParams = Type.Object({});
 
 function channelContribution(name = "refresh"): {
-  feature: string;
   requests: Record<
     string,
     {
@@ -37,7 +36,6 @@ function channelContribution(name = "refresh"): {
   events: Record<string, never>;
 } {
   return {
-    feature: "canvas",
     requests: {
       [name]: {
         requestSchema: emptyParams,

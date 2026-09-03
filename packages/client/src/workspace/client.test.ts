@@ -10,7 +10,6 @@ import {
 } from "@uix/api/workspace";
 
 const exampleChannels = {
-  feature: "reports",
   requests: {
     writeback: {
       requestSchema: Type.Object({
@@ -56,7 +55,7 @@ function fakeWorkspaceClient(): {
 describe("channel clients", () => {
   it("creates typed feature client from a channel contract", async () => {
     const { client, request, subscribe } = fakeWorkspaceClient();
-    const reports = createChannelClient(client, exampleChannels);
+    const reports = createChannelClient(client, "reports", exampleChannels);
     const onChanged = vi.fn();
 
     await reports.requests.writeback({
@@ -85,7 +84,7 @@ describe("channel clients", () => {
 
   it("creates typed agent client from the agent channel contract", async () => {
     const { client, request, subscribe } = fakeWorkspaceClient();
-    const agent = createChannelClient(client, agentChannels);
+    const agent = createChannelClient(client, "agent", agentChannels);
     const onEvent = vi.fn();
     request
       .mockResolvedValueOnce(undefined)
@@ -164,7 +163,7 @@ describe("channel clients", () => {
 
   it("covers the agent model channels and validates status events", async () => {
     const { client, request, subscribe } = fakeWorkspaceClient();
-    const agent = createChannelClient(client, agentChannels);
+    const agent = createChannelClient(client, "agent", agentChannels);
     const onStatus = vi.fn();
 
     await agent.requests.list_models(undefined);
@@ -215,7 +214,7 @@ describe("channel clients", () => {
 
   it("covers provider login requests and validates flow events", async () => {
     const { client, request, subscribe } = fakeWorkspaceClient();
-    const agent = createChannelClient(client, agentChannels);
+    const agent = createChannelClient(client, "agent", agentChannels);
     const onFlow = vi.fn();
 
     await agent.requests.list_auth_providers(undefined);

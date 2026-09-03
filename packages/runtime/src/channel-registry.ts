@@ -244,11 +244,6 @@ export function registerAgentChannelContracts(
   const bag = new DisposableBag();
   try {
     for (const contract of contracts) {
-      if (contract.feature !== featureId) {
-        throw new Error(
-          `Feature ${featureId} cannot register channels owned by ${contract.feature}`,
-        );
-      }
       for (const [name, request] of Object.entries(contract.requests)) {
         const canonicalId = toChannelCanonicalId(featureId, name);
         bag.add(
@@ -279,11 +274,6 @@ export function registerAgentChannelHandlers(
   const bag = new DisposableBag();
   try {
     for (const contribution of contributions) {
-      if (contribution.feature !== featureId) {
-        throw new Error(
-          `Feature ${featureId} cannot register channels owned by ${contribution.feature}`,
-        );
-      }
       for (const resolved of resolveChannelRequestContributions(
         featureId,
         contribution,
@@ -311,11 +301,6 @@ export function registerChannelContributions(
   const bag = new DisposableBag();
   try {
     for (const contribution of contributions) {
-      if (contribution.feature !== featureId) {
-        throw new Error(
-          `Feature ${featureId} cannot register channels owned by ${contribution.feature}`,
-        );
-      }
       for (const resolvedContribution of resolveChannelRequestContributions(
         featureId,
         contribution,
@@ -336,19 +321,13 @@ export function createFeatureEventPublisherFactory(
   publisher: Pick<ChannelRegistry, "publish">,
 ): FeatureEventPublisherFactory {
   return {
-    createPublisher: (contract) => {
-      if (contract.feature !== featureId) {
-        throw new Error(
-          `Feature ${featureId} cannot publish events on channels owned by ${contract.feature}`,
-        );
-      }
-      return createFeatureEventPublisher((name, payload, logOpts) => {
+    createPublisher: (contract) =>
+      createFeatureEventPublisher((name, payload, logOpts) => {
         publisher.publish(
           toChannelCanonicalId(featureId, name),
           payload,
           logOpts,
         );
-      }, contract);
-    },
+      }, contract),
   };
 }

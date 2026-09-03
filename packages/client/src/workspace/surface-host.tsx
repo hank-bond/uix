@@ -43,7 +43,7 @@ export interface SurfaceComposition {
 export function useSurfaces(): SurfaceComposition | undefined {
   const workspace = useWorkspaceClient();
   const client = useMemo(
-    () => createChannelClient(workspace, substrateChannels),
+    () => createChannelClient(workspace, "uix", substrateChannels),
     [workspace],
   );
   const [composition, setComposition] = useState<
@@ -93,9 +93,9 @@ export function SurfaceMount({
   const client = useMemo(
     () =>
       surface.contract
-        ? createChannelClient(workspace, surface.contract)
+        ? createChannelClient(workspace, entry.featureId, surface.contract)
         : undefined,
-    [workspace, surface],
+    [workspace, entry.featureId, surface],
   );
   const settings = useMemo(
     () => createFeatureSettingsClient(workspace, entry.featureId),

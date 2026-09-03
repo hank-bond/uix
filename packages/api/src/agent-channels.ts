@@ -397,7 +397,6 @@ const describeProviderAuthenticationPayload = (): { redacted: string } => ({
 export const AgentEventSchema = Type.Unsafe<AgentEvent>(Type.Any());
 
 export const agentChannels = {
-  feature: "agent",
   requests: {
     prompt: {
       requestSchema: PromptRequestSchema,

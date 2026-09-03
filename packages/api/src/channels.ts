@@ -51,8 +51,6 @@ export type ChannelEventContribution<Event extends TSchema = TSchema> =
   ChannelEventSchema<Event>;
 
 export interface ChannelContribution {
-  /** The owning channel id, taken from the contract for owner checks. */
-  readonly feature: string;
   readonly requests: Record<string, ChannelRequestContribution>;
   readonly events: Record<string, ChannelEventContribution>;
 }
@@ -61,15 +59,10 @@ export interface ChannelContribution {
  * Frontend channel contract: schema-only view of a backend contribution.
  * Features export an object of this shape in `shared/`. Both the backend
  * (via {@link withHandlers}) and the frontend (via `createChannelClient`)
- * consume the same object.
- *
- * `feature` is the owning channel id, stated once where the contract is
- * defined: clients derive canonical ids from it, and the substrate checks it
- * at every binding site (backend register operation, publisher minting) so a
- * contract can't silently register or publish under the wrong namespace.
+ * consume the same object. The substrate supplies the owning feature scope at
+ * each binding site. Authored contracts contain only local channel vocabulary.
  */
 export interface ChannelContract {
-  readonly feature: string;
   readonly requests: Record<string, ChannelRequestSchema>;
   readonly events: Record<string, ChannelEventSchema>;
 }
@@ -126,7 +119,6 @@ export function withHandlers<const C extends ChannelContract>(
     };
   }
   return {
-    feature: contract.feature,
     requests,
     events: contract.events,
   };

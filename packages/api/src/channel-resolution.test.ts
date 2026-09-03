@@ -35,7 +35,6 @@ describe("contributionId", () => {
 describe("resolveChannelContribution", () => {
   it("derives contribution and canonical ids from feature id and names", () => {
     const channels = resolveChannelContribution("canvas", {
-      feature: "canvas",
       requests: {
         writeback: {
           requestSchema: Type.Object({ html: Type.String() }),
@@ -65,7 +64,6 @@ describe("resolveChannelContribution", () => {
   it("rejects duplicate request/event names", () => {
     expect(() =>
       resolveChannelContribution("canvas", {
-        feature: "canvas",
         requests: {
           changed: {
             requestSchema: Type.Object({}),

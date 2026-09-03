@@ -20,7 +20,7 @@ export function KeybindingSync(): JSX.Element | null {
   const workspace = useWorkspaceClient();
   const registry = useActionRegistry();
   const client = useMemo(
-    () => createChannelClient(workspace, substrateChannels),
+    () => createChannelClient(workspace, "uix", substrateChannels),
     [workspace],
   );
 

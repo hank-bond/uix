@@ -237,7 +237,6 @@ describe("ChannelRegistry", () => {
       },
     });
     const contract = {
-      feature: "feature",
       requests: {},
       events: {
         changed: {
@@ -263,7 +262,6 @@ describe("ChannelRegistry", () => {
   it("registers contribution groups and rolls back earlier entries", async () => {
     const registry = new ChannelRegistry();
     const contract = {
-      feature: "feature",
       requests: {
         ping: {
           requestSchema: Type.Object({}),
@@ -329,28 +327,41 @@ describe("ChannelRegistry", () => {
     ).toMatchObject({ ok: false, error: { code: "handler_error" } });
   });
 
-  it("rejects contribution and publisher owner mismatches", () => {
-    const registry = new ChannelRegistry();
-    const contribution = withHandlers(
-      {
-        feature: "feature-a",
-        requests: {},
-        events: {},
-      },
-      {},
-    );
-
-    expect(() =>
-      registerChannelContributions(registry, "feature-b", [contribution]),
-    ).toThrow("cannot register channels");
-    expect(() =>
-      createFeatureEventPublisherFactory("feature-b", registry).createPublisher(
-        {
-          feature: "feature-a",
-          requests: {},
-          events: {},
+  it("derives contribution and publisher namespaces only from feature scope", () => {
+    const published: string[] = [];
+    const registry = new ChannelRegistry({
+      publish: (canonicalId) => published.push(canonicalId),
+    });
+    const contract = {
+      requests: {
+        ping: {
+          requestSchema: Type.Void(),
+          responseSchema: Type.Void(),
         },
-      ),
-    ).toThrow("cannot publish events");
+      },
+      events: {
+        changed: { event: Type.Void() },
+      },
+    } as const;
+    const contribution = withHandlers(contract, {
+      ping: { handler: () => undefined },
+    });
+
+    registerChannelContributions(registry, "feature_a", [contribution]);
+    registerChannelContributions(registry, "feature_b", [contribution]);
+    createFeatureEventPublisherFactory("feature_a", registry)
+      .createPublisher(contract)
+      .changed(undefined);
+    createFeatureEventPublisherFactory("feature_b", registry)
+      .createPublisher(contract)
+      .changed(undefined);
+
+    expect(contract).not.toHaveProperty("feature");
+    expect(contribution).not.toHaveProperty("feature");
+    expect(registry.listCanonicalIds()).toEqual([
+      "feature_a.ping",
+      "feature_b.ping",
+    ]);
+    expect(published).toEqual(["feature_a.changed", "feature_b.changed"]);
   });
 });

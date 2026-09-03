@@ -33,7 +33,7 @@ export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
   const workspace = useWorkspaceClient();
   const { sessionSelectionVersion } = useWorkspaceSession();
   const agent = useMemo(
-    () => createChannelClient(workspace, agentChannels),
+    () => createChannelClient(workspace, "agent", agentChannels),
     [workspace],
   );
   const iframeRef = useRef<HTMLIFrameElement>(null);

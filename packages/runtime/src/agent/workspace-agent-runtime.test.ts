@@ -561,7 +561,6 @@ describe("workspace agent instances", () => {
 
   it("creates separate feature closures for different sessions", async () => {
     const contract = {
-      feature: "counter",
       requests: {
         increment: {
           requestSchema: Type.Void(),
@@ -622,7 +621,6 @@ describe("workspace agent instances", () => {
 
   it("replaces idle feature callbacks and rejects reload during a turn", async () => {
     const contract = {
-      feature: "generation",
       requests: {
         read: {
           requestSchema: Type.Void(),
@@ -693,7 +691,6 @@ describe("workspace agent instances", () => {
 
   it("keeps feature channel operations outside the reload boundary", async () => {
     const contract = {
-      feature: "writer",
       requests: {
         write: {
           requestSchema: Type.Void(),

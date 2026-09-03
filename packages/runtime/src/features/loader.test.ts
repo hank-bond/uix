@@ -146,7 +146,6 @@ export const feature = {
     ctx.log.debug({}, "activated");
     return {
       channels: [{
-        feature: "${id}",
         requests: {
           ${request}: {
             requestSchema: Type.Object({}),
@@ -467,7 +466,6 @@ import { withHandlers } from "@uix/api/channels";
 import { Type } from "typebox";
 
 const contract = {
-  feature: "valuey",
   requests: {
     ping: {
       requestSchema: Type.Object({}),

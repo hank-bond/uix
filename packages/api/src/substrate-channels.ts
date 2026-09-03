@@ -55,7 +55,6 @@ export type ReloadResult = Static<typeof ReloadResultSchema>;
 // Substrate page channels under the reserved `uix` id: the surface
 // composition the renderer mounts. Same contract discipline as agentChannels.
 export const substrateChannels = {
-  feature: "uix",
   requests: {
     reload: {
       requestSchema: Type.Void(),

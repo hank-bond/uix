@@ -52,7 +52,6 @@ import { normalizeResourceRoute } from "@uix/api/resource-routes";
 import { defineSettings } from "@uix/api/settings";
 
 const contract = {
-  feature: "echo",
   requests: {
     ping: { requestSchema: Type.Object({}), responseSchema: Type.String() },
     read_doc: {
@@ -72,7 +71,6 @@ const contract = {
 } as const satisfies ChannelContract;
 
 const viewpointContract = {
-  feature: "echo",
   requests: {
     increment: {
       requestSchema: Type.Void(),
@@ -104,7 +102,6 @@ export const feature = defineFeature({
       agentChannelContracts: [viewpointContract],
       channels: [
         {
-          feature: "echo",
           requests: {
             ping: {
               requestSchema: Type.Object({}),

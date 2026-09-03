@@ -36,7 +36,7 @@ export function createWorkspaceReloadAction(
 export function WorkspaceReloadAction(): JSX.Element | null {
   const workspace = useWorkspaceClient();
   const client = useMemo(
-    () => createChannelClient(workspace, substrateChannels),
+    () => createChannelClient(workspace, "uix", substrateChannels),
     [workspace],
   );
   const actions = useMemo(

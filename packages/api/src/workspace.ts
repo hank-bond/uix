@@ -461,18 +461,19 @@ export interface ChannelClient<C extends ChannelContract> {
 
 export function createChannelClient<const C extends ChannelContract>(
   workspace: WorkspaceClient,
+  featureId: string,
   contract: C,
 ): ChannelClient<C> {
   const requests = {} as Record<string, unknown>;
   for (const name of Object.keys(contract.requests)) {
-    const canonicalId = toChannelCanonicalId(contract.feature, name);
+    const canonicalId = toChannelCanonicalId(featureId, name);
     requests[name] = (payload: unknown) =>
       workspace.request(canonicalId, payload);
   }
 
   const events = {} as Record<string, unknown>;
   for (const [name, evt] of Object.entries(contract.events)) {
-    const canonicalId = toChannelCanonicalId(contract.feature, name);
+    const canonicalId = toChannelCanonicalId(featureId, name);
     // Events cross the transport unvalidated (the registry only parses
     // request/response payloads), so the schema check lives here.
     events[name] = (handler: (payload: unknown) => void) =>
@@ -518,8 +519,8 @@ export interface ContractlessSurfaceDefinition extends Omit<
 /**
  * Defines a surface. With a `contract`, `render`'s `client` parameter is
  * fully typed from it. Features never cast. The substrate mount mints the
- * client under the contract's own channel id. A surface module must
- * export this result as `surface` (`export const surface = defineSurface(...)`);
+ * client under the feature scope that contributed the surface. A surface
+ * module must export this result as `surface` (`export const surface = defineSurface(...)`);
  * That is how the runtime loader finds it. The single unavoidable cast
  * (erasing the generic for the heterogeneous surface list) lives here in the
  * substrate. A mounted surface receives only workspace-scoped services: its

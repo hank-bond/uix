@@ -23,7 +23,6 @@ export const CanvasWritebackSchema = Type.Object({
 export type CanvasWriteback = Static<typeof CanvasWritebackSchema>;
 
 export const canvasChannels = {
-  feature: "canvas",
   requests: {
     read: {
       requestSchema: CanvasReadSchema,

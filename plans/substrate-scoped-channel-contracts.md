@@ -33,6 +33,10 @@ This migration establishes the ownership pattern that Agent-bound feature web co
 - Request and event validation, attachment routing, Agent handler selection, logging policy, and lifetimes remain unchanged.
 - This is a breaking source migration. Do not retain an overload or compatibility path for self-scoped contracts.
 
+## Progress
+
+- C1 implementation is ready for review. Focused channel tests pass, and every `npm run check` stage passes.
+
 ## Review units
 
 ### C1: Derive backend ownership from feature scope
