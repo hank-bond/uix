@@ -12,6 +12,7 @@ When an attempt resets, preserve a compact summary at the bottom of the plan. Re
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
+- **[agent-bound-canvas-document-route](./agent-bound-canvas-document-route.md)** Move Canvas document reads onto the first Agent-bound web route in nine small review units, ending with direct iframe loading through both hosts.
 - **[agent-feature-instances-and-viewpoint-state](./agent-feature-instances-and-viewpoint-state.md)** R0-A3 landed: mutable feature state and the current transcript now belong to each guarded Agent instance viewpoint.
 - **[backlog](./backlog.md)** Compact seeds for planned UIX deliverables that need enough context to be actionable but aren't standalone specs yet.
 - **[canvas-reusable-assets](./canvas-reusable-assets.md)** Give Canvas a reusable local web-asset library in eight reviewable units. These cover feature-static resources, a same-origin asset route, AGENTS.md catalogs, DOM serialization controls, authoring guidance, a component model, serve-time expansion, and conflict-handling updates.
