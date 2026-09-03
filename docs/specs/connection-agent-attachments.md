@@ -2,6 +2,7 @@
 summary: "An attachment binds one workspace connection to one Agent viewpoint. Retargeting changes future work without moving accepted work or peer connections."
 kind: reference
 status: draft
+implementation: incomplete
 ---
 
 # Connection–Agent attachments

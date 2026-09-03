@@ -2,6 +2,7 @@
 summary: "An Agent viewpoint ties one session branch to the feature state, documents, and working directory that the Agent sees."
 kind: reference
 status: draft
+implementation: incomplete
 ---
 
 # Agent viewpoints

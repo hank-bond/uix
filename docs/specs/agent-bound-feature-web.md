@@ -2,6 +2,7 @@
 summary: "An Agent feature can provide typed web routes and static assets at substrate-bound addresses. Feature code declares contracts, and UIX derives relative paths, a bound client, and validated responses."
 kind: reference
 status: draft
+implementation: incomplete
 ---
 
 # Agent-bound feature web namespaces

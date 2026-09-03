@@ -16,7 +16,7 @@ Each document layer has its own filename convention, summary template, and lifec
 | --- | --- | --- | --- |
 | `decisions/` | `YYYY-MM-DD-slug` | the conclusion | write-once (only `status` may change) |
 | `design/` | `problem-name` | the open question + axes | synthesis mutable, `## Log` append-only |
-| `specs/` | `concept-name` | the stable concept contract | draft → accepted, then changed only with the concept |
+| `specs/` | `concept-name` | the stable concept contract | normative content: draft → accepted, then changed only with the concept. Implementation state follows HEAD |
 | `architecture/` | `constraint-name` | a current cross-cutting invariant or hard-won context | living, always = HEAD |
 | `../plans/` | `deliverable` | the deliverable + units | active → landed or archived under `../plans/archive/` |
 

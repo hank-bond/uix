@@ -1,5 +1,5 @@
 ---
-summary: "Documentation frontmatter exposes each leaf's thesis, reader need, optional retrieval trigger, and exceptional lifecycle state without repeating its path context."
+summary: "Documentation frontmatter exposes each leaf's thesis, reader need, optional retrieval trigger, lifecycle state, and specification implementation state without repeating its path context."
 kind: reference
 read_when: "Read before adding or changing documentation frontmatter, summaries, kinds, triggers, or lifecycle states."
 ---
@@ -14,6 +14,7 @@ summary: "What this document establishes: its thesis, not its topic."
 kind: reference | explanation | how-to | tutorial
 read_when: "Read before {ACTIVITY} when the trigger is not obvious from the summary." # optional
 status: draft | accepted | exploring | resolved | landed | archived | stub | superseded # lifecycle only
+implementation: incomplete | conforming # specifications only
 ---
 ```
 
@@ -38,6 +39,8 @@ Summary length follows the number of independently addressable claims, not body 
 Omit a trigger that only restates the subject. Use ordinary inline links for conceptual relationships rather than encoding document dependencies in frontmatter.
 
 **`status` (lifecycle layers only):** A lifecycle position. Specifications always use `draft` or `accepted` because their authority must be explicit. Decisions use `accepted`, `superseded`, or `archived`. Design threads use `exploring` or `resolved`. Plans use `stub`, `landed`, or `archived`. Documents without a lifecycle, including each `AGENTS.md` and evergreen leaves, omit it.
+
+**`implementation` (specifications only):** The relation between the target contract and HEAD. `incomplete` means that HEAD has one or more known gaps. `conforming` means that HEAD and its test evidence satisfy the complete specification. This field is independent of `status` and may change without a normative specification change.
 
 ## Layer summaries
 

@@ -2,6 +2,7 @@
 summary: "Canvas gives each Agent a versioned HTML document that the Agent edits by anchors and the human edits through a browser."
 kind: reference
 status: draft
+implementation: incomplete
 ---
 
 # Canvas artifacts

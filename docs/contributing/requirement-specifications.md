@@ -6,11 +6,15 @@ read_when: "Read before writing a requirement specification, planning work from 
 
 # Requirement specifications
 
-A _requirement specification_ defines what one coherent UIX concept means and must do. It connects design, planning, code, and tests. Code and tests derive from the same specification rather than from each other.
+A _requirement specification_ defines the target behavior for one coherent UIX concept. It connects design, planning, code, and tests. Code and tests derive from the same specification rather than from each other. The specification remains future-facing when the implementation does not yet satisfy that target.
 
 A specification may align closely with one class when that class is the concept's semantic owner. Private helpers and incidental classes do not need specifications.
 
-Specifications live under `docs/specs/` and use a concept-name slug without a date. Every specification declares `status: draft` while requirements remain unsettled and `status: accepted` when it is authoritative. A draft may contain open questions. An accepted specification has no open questions and contains enough behavior and conformance detail to implement the concept without design history or a plan.
+Specifications live under `docs/specs/` and use a concept-name slug without a date. Every specification declares a requirement status and an implementation state in its frontmatter.
+
+`status: draft` means that the requirements remain unsettled. `status: accepted` means that the requirements are authoritative. A draft may contain open questions. An accepted specification has no open questions and contains enough behavior and conformance detail to implement the concept without design history or a plan. Acceptance does not claim that the implementation satisfies the specification.
+
+`implementation: incomplete` means that HEAD has one or more known gaps against the specification. This state covers unstarted, partial, and active work. `implementation: conforming` means that HEAD and its test evidence satisfy the complete specification. The implementation state is a non-normative relation to HEAD rather than part of the target contract.
 
 ## Knowledge boundaries
 
@@ -55,6 +59,8 @@ Use normative keywords only when they clarify an obligation or permitted choice.
 
 An accepted specification changes when the concept's boundary, invariant, observable behavior, dependency, compatibility commitment, or defining conformance outcome changes. A defect, mechanism change, or additional test does not change the specification when the accepted behavior remains the same.
 
+The `implementation` field may change without a normative specification change. Set it to `incomplete` when HEAD has a known gap, including when a specification change adds unsatisfied behavior. Set it to `conforming` only when the implementation and tests satisfy the complete specification.
+
 When implementation work exposes a gap, classify it before changing the specification:
 
 - Fix implementation defects in code or tests.
@@ -94,5 +100,6 @@ This optional shape keeps the summary compact:
 3. Implement and test one checked path.
 4. Record discoveries in the plan and promote durable changes to their proper owner.
 5. Continue until the attempt is behavior complete.
-6. If the attempt required material specification changes, discard it and rebuild from the revised specification.
-7. Treat a rebuild that needs unstated historical guidance as evidence that the specification needs improvement.
+6. Mark the specification implementation as `conforming` when HEAD and its tests satisfy the complete target.
+7. If the attempt required material specification changes, discard it and rebuild from the revised specification.
+8. Treat a rebuild that needs unstated historical guidance as evidence that the specification needs improvement.

@@ -76,36 +76,61 @@ describe("parseSourceSummary", () => {
 describe("specification validation", () => {
   it("requires an explicit draft or accepted status", () => {
     expect(() =>
-      assertSpecification("docs/specs/example.md", {}, "# Example\n"),
+      assertSpecification(
+        "docs/specs/example.md",
+        { implementation: "incomplete" },
+        "# Example\n",
+      ),
     ).toThrow("specification status must be draft or accepted");
     expect(() =>
       assertSpecification(
         "docs/specs/example.md",
-        { status: "exploring" },
+        { status: "exploring", implementation: "incomplete" },
         "# Example\n",
       ),
     ).toThrow("specification status must be draft or accepted");
   });
 
+  it("requires an explicit incomplete or conforming implementation state", () => {
+    expect(() =>
+      assertSpecification(
+        "docs/specs/example.md",
+        { status: "draft" },
+        "# Example\n",
+      ),
+    ).toThrow("specification implementation must be incomplete or conforming");
+    expect(() =>
+      assertSpecification(
+        "docs/specs/example.md",
+        { status: "draft", implementation: "in-progress" },
+        "# Example\n",
+      ),
+    ).toThrow("specification implementation must be incomplete or conforming");
+  });
+
   it("allows open questions only in draft specifications", () => {
     const text = "# Example\n\n## Open questions\n";
     expect(() =>
-      assertSpecification("docs/specs/example.md", { status: "draft" }, text),
+      assertSpecification(
+        "docs/specs/example.md",
+        { status: "draft", implementation: "incomplete" },
+        text,
+      ),
     ).not.toThrow();
     expect(() =>
       assertSpecification(
         "docs/specs/example.md",
-        { status: "accepted" },
+        { status: "accepted", implementation: "incomplete" },
         text,
       ),
     ).toThrow("accepted specification has open questions");
   });
 
-  it("allows an accepted specification without open questions", () => {
+  it("allows an accepted conforming specification without open questions", () => {
     expect(() =>
       assertSpecification(
         "docs/specs/example.md",
-        { status: "accepted" },
+        { status: "accepted", implementation: "conforming" },
         "# Example\n\n## Conformance\n",
       ),
     ).not.toThrow();

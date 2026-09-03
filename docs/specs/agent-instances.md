@@ -2,6 +2,7 @@
 summary: "An Agent instance runs one session branch, restores its feature state before use, and starts Pi only when needed."
 kind: reference
 status: draft
+implementation: incomplete
 ---
 
 # Agent instances

@@ -2,6 +2,7 @@
 summary: "Feature turn state records each feature's small private snapshots on the Pi session branch and restores them before the feature resumes work."
 kind: reference
 status: draft
+implementation: incomplete
 ---
 
 # Feature turn state

@@ -66,6 +66,8 @@ The lifecycle axis marks maturity over time. A design note distills into a decis
 
 Lifecycle is orthogonal to kind: a document has both a need and a maturity. Plans are the exception because they track the build rather than document it and have no kind. Documents without a lifecycle, including `AGENTS.md` files and evergreen leaves, omit `status`.
 
+A specification also records its relation to HEAD through a separate `implementation` field. `incomplete` marks a known implementation gap, while `conforming` marks a complete target supported by test evidence. This field does not change the specification's lifecycle or normative target.
+
 ### Evolution
 
 The documentation is living: a change to the code brings a documentation change that aligns future work. The evolution loop keeps the whole set coherent.

@@ -88,6 +88,7 @@ const STATUSES = new Set([
   "superseded",
 ]);
 const KINDS = new Set(["explanation", "how-to", "reference", "tutorial"]);
+const IMPLEMENTATIONS = new Set(["conforming", "incomplete"]);
 
 // Documentation Indexes
 
@@ -128,6 +129,11 @@ export function assertSpecification(file, frontmatter, text) {
   if (frontmatter.status !== "draft" && frontmatter.status !== "accepted") {
     throw new Error(`${file}: specification status must be draft or accepted`);
   }
+  if (!IMPLEMENTATIONS.has(frontmatter.implementation)) {
+    throw new Error(
+      `${file}: specification implementation must be incomplete or conforming`,
+    );
+  }
   if (frontmatter.status === "accepted" && /^## Open questions$/m.test(text)) {
     throw new Error(`${file}: accepted specification has open questions`);
   }
@@ -161,9 +167,11 @@ function renderIndex(entries) {
   if (entries.length === 0) return "_(none yet)_";
   return entries
     .map((e) => {
-      // The parenthetical renders when status or kind is present.
+      // The parenthetical renders when lifecycle, implementation, or kind is present.
       const trigger = e.read_when ? ` _${e.read_when}_` : "";
-      const state = [e.status, e.kind].filter(Boolean).join(", ");
+      const state = [e.status, e.implementation, e.kind]
+        .filter(Boolean)
+        .join(", ");
       const position = state ? ` _(${state})._` : "";
       return `- **[${e.slug}](./${e.file})**${position} ${e.summary}${trigger}`;
     })
@@ -222,7 +230,9 @@ function renderContainer(entries) {
   return entries
     .map((e) => {
       const trigger = e.read_when ? ` _${e.read_when}_` : "";
-      const state = [e.status, e.kind].filter(Boolean).join(", ");
+      const state = [e.status, e.implementation, e.kind]
+        .filter(Boolean)
+        .join(", ");
       const position = state ? ` _(${state})._` : "";
       return `- **[${e.label}](${e.link})**${position} ${e.summary}${trigger}`;
     })

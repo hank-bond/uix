@@ -2,6 +2,7 @@
 summary: "A web host exposes launcher, workspace-session, live-channel, and content access to a standard browser through deployment-authorized public origins while keeping runtime and feature contracts host-neutral."
 kind: reference
 status: accepted
+implementation: incomplete
 ---
 
 # Web host

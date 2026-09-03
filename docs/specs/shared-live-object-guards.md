@@ -2,6 +2,7 @@
 summary: "A supervisor owns each shared object, and guards keep it alive for independent callers."
 kind: reference
 status: draft
+implementation: incomplete
 ---
 
 # Shared live-object guards

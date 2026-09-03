@@ -2,6 +2,7 @@
 summary: "Managed documents expose current content with a durable revision and immutable versions behind a neutral store. Conditional replacement prevents silent lost writes."
 kind: reference
 status: draft
+implementation: incomplete
 ---
 
 # Managed documents

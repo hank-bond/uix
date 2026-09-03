@@ -39,7 +39,7 @@ The writing profiles decide how prescriptive a section is. Design threads exist 
 
 Use present tense for what exists. Do not use "currently," "now," "new," "recently," or "as of this writing" as document-time anchors. Present tense already implies them. "Will" is only for genuinely future behavior. "Currently" remains valid when it describes live state rather than document time.
 
-Living reference and source-local guidance describe current state only. Decisions and design logs are date-anchored by design. A not-yet-built capability belongs in `plans/`, not in a documentation stub.
+Living reference and source-local guidance describe current state only. Requirement specifications state their target contracts in normative present tense even when their implementation is incomplete. Decisions and design logs are date-anchored by design. Other not-yet-built capabilities belong in `plans/`, not in documentation stubs.
 
 Non-plan documents do not cite plans, plan units, or the timing of future work. A note that content awaits a later change, holds a temporary state, or expects rework belongs in the plan that schedules it. Decision records may reference plans as a whole for attribution, and design threads may reference plans as a whole. Documents that track the current state of active work, such as the architecture build map and open questions, may reference plans. Indexes and the documentation model navigate to the plans tree without making plan content authoritative for their claims. See [documentation.plan-reference](../architecture/conventions/rules/documentation.plan-reference.md).
 
