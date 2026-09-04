@@ -19,6 +19,7 @@ export type {
   Attachment,
   AttachmentAdmission,
   AttachmentId,
+  AttachmentWebBinding,
   BranchId,
   CreatedAttachment,
   SessionId,

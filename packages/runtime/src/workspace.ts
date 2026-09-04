@@ -11,6 +11,7 @@ const WorkspaceIdBrand: unique symbol = Symbol("WorkspaceId");
 const SessionIdBrand: unique symbol = Symbol("SessionId");
 const BranchIdBrand: unique symbol = Symbol("BranchId");
 const AttachmentIdBrand: unique symbol = Symbol("AttachmentId");
+const AttachmentWebBindingBrand: unique symbol = Symbol("AttachmentWebBinding");
 
 /** Canonical workspace id, owned by the host's workspace catalog. */
 export type WorkspaceId = string & { readonly [WorkspaceIdBrand]: true };
@@ -23,6 +24,14 @@ export type BranchId = string & { readonly [BranchIdBrand]: true };
 
 /** A connection's owned, retargetable binding within one workspace. */
 export type AttachmentId = string & { readonly [AttachmentIdBrand]: true };
+
+/**
+ * Opaque host-facing token for one attachment-target generation.
+ * Encode it into a physical address without treating it as an authorization credential.
+ */
+export type AttachmentWebBinding = string & {
+  readonly [AttachmentWebBindingBrand]: true;
+};
 
 function assertIdToken(label: string, id: string): void {
   if (id.length === 0 || id.trim() !== id) {
@@ -86,10 +95,19 @@ export interface Attachment extends Disposable {
   readonly workspaceId: WorkspaceId;
   /** Current accepted durable target. */
   readonly target: SessionTarget;
+  /** Current private binding for the accepted target generation. */
+  readonly webBinding: AttachmentWebBinding;
   /** Accept one request with immutable guarded context. */
   prepareDispatch(request: CanonicalRequest): PreparedDispatch;
   /** Acquire the new target before synchronously releasing the previous guard. */
   retarget(target: SessionTarget): Promise<void>;
+  /**
+   * Observe replacements of the current target generation's private binding.
+   * Listener failures do not reject an accepted retarget.
+   */
+  onWebBindingChange(
+    listener: (binding: AttachmentWebBinding) => void,
+  ): Disposable;
   /** Observe events selected and delivered by the supervised workspace. */
   onEvent(listener: (event: RuntimeEvent) => void): Disposable;
   /** Observe deterministic attachment closure. */

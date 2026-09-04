@@ -24,7 +24,8 @@ The route work also exposed older channel names that describe an Agent instead o
 
 - The channel-contract dependency landed through `e7f7acd`.
 - W1 landed in `96d3c71`. `path-pattern.ts` now owns feature-relative pattern normalization and URL-part encoding and decoding. Resource routes wrap that codec while retaining their existing logical URLs and transport behavior.
-- W2 is ready for review. `@uix/api` now defines schema-only `GET` document contracts with typed path and query input, inferred handlers, and contract-bound responders. Runtime admission intentionally supports only the R1 `GET` → `200` complete-document behavior. Workspace activation derives the feature namespace, each Agent instance owns its handler registry, and Canvas binds `/documents/:key*` to its viewpoint-local document buffer. Duplicate admission rolls back atomically, malformed keys do not invoke handlers, independent Agent handlers return their own content, and `npm run check` passes.
+- W2 landed in `ba6f123`. `@uix/api` now defines schema-only `GET` document contracts with typed path and query input, inferred handlers, and contract-bound responders. Runtime admission intentionally supports only the R1 `GET` → `200` complete-document behavior. Workspace activation derives the feature namespace, each Agent instance owns its handler registry, and Canvas binds `/documents/:key*` to its viewpoint-local document buffer.
+- W3 landed. Every accepted attachment now exposes one opaque `AttachmentWebBinding` for its current target generation and notifies host observers of replacements. The runtime-private binding registry retains the exact Agent generation, rejects revoked values, and lets already-retained target guards outlive retarget or close. Retarget acquires and registers the replacement before revoking the previous binding. Peers remain independent.
 
 ## R1 boundary
 

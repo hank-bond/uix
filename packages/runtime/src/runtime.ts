@@ -31,6 +31,10 @@ import {
 import { agentWorkspaceSettings } from "./agent/settings";
 import { createWorkspaceAgentRuntime } from "./agent/workspace-agent-runtime";
 import {
+  type AttachmentWebBindingHandle,
+  AttachmentWebBindingRegistry,
+} from "./attachment-web-bindings";
+import {
   ChannelRegistry,
   createFeatureEventPublisherFactory,
   registerChannelContributions,
@@ -69,6 +73,7 @@ import type {
   Attachment as AttachmentContract,
   AttachmentAdmission,
   AttachmentId,
+  AttachmentWebBinding,
   CreatedAttachment,
   SessionTarget,
   WorkspaceId,
@@ -77,6 +82,8 @@ import type {
 import { toAttachmentId, toSessionId } from "./workspace";
 import type { Workspace } from "./workspace-roots";
 import { createWorkspaceSettings } from "./workspace-settings";
+
+const attachmentLog = createLogger("attachments");
 
 /** The dependencies a host provides. The runtime declares them, never imports them. */
 export interface WorkspaceRuntimeDependencies {
@@ -120,6 +127,9 @@ interface AttachmentOwner {
     request: CanonicalRequest,
     disposeOperationGuard: () => void,
   ): PreparedDispatch;
+  registerWebBinding(
+    targetGuard: AgentInstanceGuard,
+  ): AttachmentWebBindingHandle;
   dropAttachment(attachment: Attachment): void;
 }
 
@@ -135,6 +145,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   readonly #featuresBag = new AsyncDisposableBag();
   readonly #channels: ChannelRegistry;
   readonly #resources: ResourceRegistry;
+  readonly #attachmentWebBindings = new AttachmentWebBindingRegistry();
   readonly #viewpointWebRoutes = new WebRouteContractRegistry();
   readonly #settingsRegistry: SettingsRegistry;
   readonly #surfaces = new SurfaceRegistry();
@@ -167,6 +178,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     const { workspace, piAppDataDir, dependencies } = opts;
     this.#lifetime.add(this.#bag);
     this.#lifetime.add(this.#featuresBag);
+    this.#bag.add(this.#attachmentWebBindings);
 
     const documents = createLocalDocumentStoreFactory(workspace.stateRoot);
     const workspaceManifest = this.#bag.add(
@@ -686,6 +698,12 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     }
   }
 
+  registerWebBinding(
+    targetGuard: AgentInstanceGuard,
+  ): AttachmentWebBindingHandle {
+    return this.#attachmentWebBindings.register(targetGuard);
+  }
+
   dropAttachment(attachment: Attachment): void {
     this.#attachments.delete(attachment);
   }
@@ -753,15 +771,47 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   }
 }
 
+interface AttachmentTargetState extends Disposable {
+  readonly target: SessionTarget;
+  readonly targetGuard: AgentInstanceGuard;
+  readonly webBinding: AttachmentWebBinding;
+}
+
+function createAttachmentTargetState(
+  owner: AttachmentOwner,
+  targetGuard: AgentInstanceGuard,
+): AttachmentTargetState {
+  const lifetime = new DisposableStack();
+  lifetime.use(targetGuard);
+  try {
+    const webBinding = lifetime.use(
+      owner.registerWebBinding(targetGuard),
+    ).binding;
+    return {
+      target: targetGuard.value.target,
+      targetGuard,
+      webBinding,
+      [Symbol.dispose]: () => {
+        lifetime.dispose();
+      },
+    };
+  } catch (error) {
+    lifetime.dispose();
+    throw error;
+  }
+}
+
 /** One runtime-created attachment object. */
 class Attachment implements AttachmentContract {
   readonly #owner: AttachmentOwner;
+  readonly #webBindingListeners = new Set<
+    (binding: AttachmentWebBinding) => void
+  >();
   readonly #eventListeners = new Set<(event: RuntimeEvent) => void>();
   readonly #closeListeners = new Set<() => void>();
   readonly attachmentId: AttachmentId;
   readonly workspaceId: WorkspaceId;
-  #target: SessionTarget;
-  #targetGuard: AgentInstanceGuard;
+  #targetState: AttachmentTargetState;
   #disposed = false;
 
   constructor(
@@ -772,17 +822,20 @@ class Attachment implements AttachmentContract {
     this.#owner = owner;
     this.attachmentId = attachmentId;
     this.workspaceId = owner.workspaceId;
-    this.#target = targetGuard.value.target;
-    this.#targetGuard = targetGuard;
+    this.#targetState = createAttachmentTargetState(owner, targetGuard);
   }
 
   get target(): SessionTarget {
-    return this.#target;
+    return this.#targetState.target;
+  }
+
+  get webBinding(): AttachmentWebBinding {
+    return this.#targetState.webBinding;
   }
 
   prepareDispatch(request: CanonicalRequest): PreparedDispatch {
     if (this.#disposed) throw new Error("Attachment is disposed");
-    const operationGuard = this.#targetGuard.retain("dispatch");
+    const operationGuard = this.#targetState.targetGuard.retain("dispatch");
     const acceptedTarget = operationGuard.value.target;
     return this.#owner.prepareDispatch(
       {
@@ -806,6 +859,14 @@ class Attachment implements AttachmentContract {
       undefined,
       false,
     );
+  }
+
+  onWebBindingChange(
+    listener: (binding: AttachmentWebBinding) => void,
+  ): Disposable {
+    if (this.#disposed) throw new Error("Attachment is disposed");
+    this.#webBindingListeners.add(listener);
+    return disposable(() => this.#webBindingListeners.delete(listener));
   }
 
   onEvent(listener: (event: RuntimeEvent) => void): Disposable {
@@ -832,7 +893,8 @@ class Attachment implements AttachmentContract {
     if (this.#disposed) return;
     this.#disposed = true;
     this.#owner.dropAttachment(this);
-    this.#targetGuard[Symbol.dispose]();
+    this.#targetState[Symbol.dispose]();
+    this.#webBindingListeners.clear();
     this.#eventListeners.clear();
     for (const listener of this.#closeListeners) listener();
     this.#closeListeners.clear();
@@ -856,11 +918,23 @@ class Attachment implements AttachmentContract {
       next[Symbol.dispose]();
       throw new Error("Attachment is disposed");
     }
-    const previous = this.#targetGuard;
-    this.#target = next.value.target;
-    this.#targetGuard = next;
-    previous[Symbol.dispose]();
-    return next.retain("retarget-response");
+    const nextTargetState = createAttachmentTargetState(this.#owner, next);
+    const previousTargetState = this.#targetState;
+    this.#targetState = nextTargetState;
+    previousTargetState[Symbol.dispose]();
+    for (const listener of this.#webBindingListeners) {
+      try {
+        listener(nextTargetState.webBinding);
+      } catch (thrown) {
+        const error =
+          thrown instanceof Error ? thrown : new Error(String(thrown));
+        attachmentLog.error(
+          { attachmentId: this.attachmentId, err: error.message },
+          "web_binding_listener_failed",
+        );
+      }
+    }
+    return nextTargetState.targetGuard.retain("retarget-response");
   }
 }
 

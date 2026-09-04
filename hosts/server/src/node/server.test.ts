@@ -747,10 +747,12 @@ function createAttachmentFixture(workspaceId: WorkspaceId): {
     attachmentId: toAttachmentId("attachment-1"),
     workspaceId,
     target: { sessionId: toSessionId("session-1") },
+    webBinding: "fixture-binding" as Attachment["webBinding"],
     prepareDispatch: () => {
       throw new Error("Unexpected dispatch preparation");
     },
     retarget: () => Promise.reject(new Error("Unexpected retarget")),
+    onWebBindingChange: () => noopDisposable(),
     onEvent: () => noopDisposable(),
     onClose: (listener) => {
       closeListener = listener;

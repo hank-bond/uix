@@ -303,6 +303,58 @@ async function dispatch(
 }
 
 describe("workspace runtime isolation", () => {
+  it("replaces the observable web binding for each attachment target", async () => {
+    const fixtureDir = await writeFixture();
+    const workspace = await makeWorkspace(
+      "attachment-web-bindings",
+      fixtureDir,
+      "hello",
+    );
+    const runtime = createWorkspaceRuntime({
+      workspaceId: toWorkspaceId("attachment-web-bindings"),
+      workspace,
+      piAppDataDir: join(workspace.stateRoot, ".pi"),
+      apiModuleDir,
+      dependencies: fakeTransports().dependencies,
+    });
+    await runtime.load();
+    const first = (await runtime.createAttachment({ kind: "new-session" }))
+      .attachment;
+    const peer = (await runtime.createAttachment(admitSession(first.target)))
+      .attachment;
+    const destination = (
+      await runtime.createAttachment({ kind: "new-session" })
+    ).attachment;
+    const initialBinding = first.webBinding;
+    const peerBinding = peer.webBinding;
+    const changes: string[] = [];
+    using _failingBindingSubscription = first.onWebBindingChange(() => {
+      throw new Error("observer failed");
+    });
+    using _bindingSubscription = first.onWebBindingChange((binding) => {
+      changes.push(binding);
+    });
+
+    expect(initialBinding).not.toBe(peerBinding);
+    await first.retarget(destination.target);
+
+    expect(first.webBinding).not.toBe(initialBinding);
+    expect(changes).toEqual([first.webBinding]);
+    expect(peer.webBinding).toBe(peerBinding);
+    await expect(
+      first.retarget({
+        sessionId: first.target.sessionId,
+        branchId: toBranchId("unsupported-branch"),
+      }),
+    ).rejects.toThrow("Branch session targets are not supported");
+    expect(changes).toEqual([first.webBinding]);
+
+    first[Symbol.dispose]();
+    peer[Symbol.dispose]();
+    destination[Symbol.dispose]();
+    await runtime[Symbol.asyncDispose]();
+  });
+
   it("cancels accepted dispatches before guarded workspace teardown", async () => {
     const fixtureDir = await writeFixture();
     const workspace = await makeWorkspace(

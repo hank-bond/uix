@@ -8,6 +8,7 @@ import type {
   Attachment,
   AttachmentAdmission,
   AttachmentId,
+  AttachmentWebBinding,
   CanonicalRequest,
   CanonicalResponse,
   CreatedAttachment,
@@ -129,12 +130,16 @@ class FakeAgentInstanceSupervisor {
 
 class FakeAttachment implements Attachment {
   readonly #runtime: FakeRuntime;
+  readonly #webBindingListeners = new Set<
+    (binding: AttachmentWebBinding) => void
+  >();
   readonly #eventListeners = new Set<(event: RuntimeEvent) => void>();
   readonly #closeListeners = new Set<() => void>();
   readonly attachmentId: AttachmentId;
   readonly workspaceId: WorkspaceId;
   #target: SessionTarget;
   #targetGuard: FakeAgentInstanceGuard;
+  #webBinding: AttachmentWebBinding;
   #disposed = false;
 
   constructor(
@@ -148,10 +153,15 @@ class FakeAttachment implements Attachment {
     this.workspaceId = runtime.workspaceId;
     this.#target = target;
     this.#targetGuard = targetGuard;
+    this.#webBinding = runtime.createAttachmentWebBinding();
   }
 
   get target(): SessionTarget {
     return this.#target;
+  }
+
+  get webBinding(): AttachmentWebBinding {
+    return this.#webBinding;
   }
 
   prepareDispatch(request: CanonicalRequest): PreparedDispatch {
@@ -229,7 +239,20 @@ class FakeAttachment implements Attachment {
     const previousGuard = this.#targetGuard;
     this.#target = target;
     this.#targetGuard = nextGuard;
+    this.#webBinding = this.#runtime.createAttachmentWebBinding();
     previousGuard[Symbol.dispose]();
+    for (const listener of this.#webBindingListeners) {
+      listener(this.#webBinding);
+    }
+  }
+
+  onWebBindingChange(
+    listener: (binding: AttachmentWebBinding) => void,
+  ): Disposable {
+    this.#webBindingListeners.add(listener);
+    return {
+      [Symbol.dispose]: () => this.#webBindingListeners.delete(listener),
+    };
   }
 
   onEvent(listener: (event: RuntimeEvent) => void): Disposable {
@@ -255,6 +278,7 @@ class FakeAttachment implements Attachment {
     if (this.#disposed) return;
     this.#disposed = true;
     this.#targetGuard[Symbol.dispose]();
+    this.#webBindingListeners.clear();
     this.#eventListeners.clear();
     for (const listener of this.#closeListeners) listener();
     this.#closeListeners.clear();
@@ -267,6 +291,7 @@ class FakeRuntime implements WorkspaceRuntime {
   readonly handlers = new Map<string, Handler>();
   readonly #listeners = new Set<(event: RuntimeEvent) => void>();
   #nextAttachment = 0;
+  #nextWebBinding = 0;
   #nextSession = 2;
   attachmentGate: Promise<void> | undefined;
   disposeError: Error | undefined;
@@ -278,6 +303,11 @@ class FakeRuntime implements WorkspaceRuntime {
 
   register(channel: string, handler: Handler): void {
     this.handlers.set(channel, handler);
+  }
+
+  createAttachmentWebBinding(): AttachmentWebBinding {
+    this.#nextWebBinding += 1;
+    return `web-binding-${String(this.#nextWebBinding)}` as AttachmentWebBinding;
   }
 
   onEvent(listener: (event: RuntimeEvent) => void): Disposable {
@@ -589,12 +619,19 @@ describe("unified attachments", () => {
     const supervisor = supervisorFor(runtime);
     const workspace = await supervisor.acquire(ws1);
     const attachment = await workspace.value.createAttachment(admitSession(s1));
+    const initialWebBinding = attachment.webBinding;
+    const webBindingChanges: AttachmentWebBinding[] = [];
+    using _webBindingSubscription = attachment.onWebBindingChange((binding) => {
+      webBindingChanges.push(binding);
+    });
     runtime.agents.failNextCreation(s2);
 
     await expect(attachment.retarget({ sessionId: s2 })).rejects.toThrow(
       "Creation failed",
     );
     expect(attachment.target.sessionId).toBe(s1);
+    expect(attachment.webBinding).toBe(initialWebBinding);
+    expect(webBindingChanges).toEqual([]);
     expect(runtime.agents.guardsFor(s1)).toBe(1);
     workspace[Symbol.dispose]();
     await supervisor[Symbol.asyncDispose]();

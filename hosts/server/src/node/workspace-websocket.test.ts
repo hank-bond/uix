@@ -67,8 +67,12 @@ function createAttachmentFixture(
       attachmentId: toAttachmentId("attachment-1"),
       workspaceId: toWorkspaceId("reference"),
       target: { sessionId: toSessionId("session-1") },
+      webBinding: "fixture-binding" as Attachment["webBinding"],
       prepareDispatch,
       retarget: () => Promise.reject(new Error("Unexpected retarget")),
+      onWebBindingChange: () => ({
+        [Symbol.dispose]: () => undefined,
+      }),
       onEvent(listener) {
         eventListener = listener;
         return {
