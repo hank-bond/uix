@@ -1,27 +1,21 @@
 // Normalizes resource routes and encodes and decodes host-neutral logical URLs.
 //
-// Resource routes describe a feature-owned browser-loadable resource location
-// independently of the transport URL used to fetch it. The same normalized
-// route is used in both directions:
-//
-// 1. Declaration/init: a feature declares a route path, query schema, and
-//    origin policy (`workspace` or `feature`). UIX normalizes and validates that
-//    declaration before any request can hit it.
-// 2. Encode/render: workspace/runtime code provides the resource address
-//    (workspace id + feature id + resource name) plus route values
-//    (path params + query). UIX validates those values and returns a branded
-//    logical `ResourceUrl`. The active workspace client maps it for the browser.
-// 3. Decode/request: the host transport restores an untrusted logical URL string.
-//    UIX parses it into URL parts. It validates the logical scheme, origin host, and
-//    resource address, matches the remaining path against the normalized route,
-//    validates query with TypeBox, then hands params/query to the contribution.
-//
-// The `uix-resource` scheme is a host-neutral address and an Electron
-// transport/permission class, not the semantic resource type. Origin
-// partitioning comes from the URL host where the physical host supports it.
+// Resource routes add resource identity and origin policy around the shared
+// feature-relative route-pattern codec. The `uix-resource` URL remains the
+// host-neutral logical address consumed by current resource transports.
 
 import type { TSchema } from "typebox";
-import { Value } from "typebox/value";
+
+import {
+  decodeRouteUrlParts,
+  encodeRouteUrlParts,
+  type NormalizedRoutePattern,
+  normalizeRoutePattern,
+  type RoutePattern,
+  type RoutePatternParams,
+  type RoutePatternParamValue,
+  type RoutePatternValues,
+} from "./path-pattern";
 
 export const ResourceProtocolScheme = "uix-resource";
 
@@ -33,28 +27,20 @@ export type ResourceUrl = string & {
 
 export type ResourceOrigin = "workspace" | "feature";
 
-export interface ResourceRoute<Query extends TSchema = TSchema> {
-  path: string;
-  query?: Query;
+export interface ResourceRoute<
+  Query extends TSchema = TSchema,
+> extends RoutePattern<Query> {
   origin: ResourceOrigin;
 }
 
-export type ResourceRouteParamValue = string | readonly string[];
-export type ResourceRouteParams = Record<string, ResourceRouteParamValue>;
+export type ResourceRouteParamValue = RoutePatternParamValue;
+export type ResourceRouteParams = RoutePatternParams;
 
-export interface NormalizedResourceRoute<Query extends TSchema = TSchema> {
-  path: string;
-  query?: Query;
+export interface NormalizedResourceRoute<
+  Query extends TSchema = TSchema,
+> extends NormalizedRoutePattern<Query> {
   origin: ResourceOrigin;
-  segments: readonly PatternSegment[];
-  params: readonly PatternParam[];
 }
-
-type PatternParam =
-  | { kind: "param"; name: string }
-  | { kind: "splat"; name: string };
-
-type PatternSegment = { kind: "static"; value: string } | PatternParam;
 
 export interface ResourceAddress {
   featureId: string;
@@ -62,10 +48,7 @@ export interface ResourceAddress {
   workspaceId: string;
 }
 
-export interface ResourceRouteValues {
-  params: ResourceRouteParams;
-  query: unknown;
-}
+export type ResourceRouteValues = RoutePatternValues;
 
 export type EncodeResourceUrlInput = ResourceAddress &
   Partial<ResourceRouteValues>;
@@ -84,68 +67,15 @@ type DecodeResult<T, Status extends number = 400 | 404> = Result<T, Status>;
 
 export type DecodeResourceUrlResult = DecodeResult<DecodedResourceUrl>;
 
-const RouteParamNamePattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const TransportTokenPattern = /^[a-z][a-z0-9-]*$/;
 
 export function normalizeResourceRoute<const Query extends TSchema>(
   route: ResourceRoute<Query>,
 ): NormalizedResourceRoute<Query> {
   assertOrigin(route.origin);
-  if (!route.path.startsWith("/")) {
-    throw new Error(
-      `Invalid resource route: ${route.path}. Expected leading /.`,
-    );
-  }
-  if (route.path.includes("?") || route.path.includes("#")) {
-    throw new Error(
-      `Invalid resource route: ${route.path}. Query and hash are declared separately.`,
-    );
-  }
-
-  const rawSegments = route.path === "/" ? [] : route.path.slice(1).split("/");
-  if (rawSegments.some((segment) => segment === "")) {
-    throw new Error(
-      `Invalid resource route: ${route.path}. Empty segments are not allowed.`,
-    );
-  }
-
-  const seen = new Set<string>();
-  const segments = rawSegments.map((segment, index): PatternSegment => {
-    if (!segment.startsWith(":"))
-      return { kind: "static", value: decodeRouteLiteral(segment) };
-
-    const splat = segment.endsWith("*");
-    const name = segment.slice(1, splat ? -1 : undefined);
-    if (!RouteParamNamePattern.test(name)) {
-      throw new Error(`Invalid resource route param: ${segment}.`);
-    }
-    if (seen.has(name)) {
-      throw new Error(`Duplicate resource route param: ${name}.`);
-    }
-    seen.add(name);
-    if (splat && index !== rawSegments.length - 1) {
-      throw new Error(
-        `Invalid resource route: splat param ${name} must be terminal.`,
-      );
-    }
-    return splat ? { kind: "splat", name } : { kind: "param", name };
-  });
-
-  const params = segments
-    .filter(
-      (
-        segment,
-      ): segment is Extract<PatternSegment, { kind: "param" | "splat" }> =>
-        segment.kind === "param" || segment.kind === "splat",
-    )
-    .map((segment) => ({ name: segment.name, kind: segment.kind }));
-
   return {
-    path: route.path,
-    query: route.query,
+    ...normalizeRoutePattern(route),
     origin: route.origin,
-    segments,
-    params,
   };
 }
 
@@ -174,15 +104,13 @@ export function encodeResourceUrl(
   location: EncodeResourceUrlInput,
 ): ResourceUrl {
   const { featureId, name, workspaceId } = validateResourceAddress(location);
-  const params = encodeRoutePath(route, location.params ?? {});
-  const query = encodeQuery(route, location.query);
-
+  const { pathname, search } = encodeRouteUrlParts(route, location);
   const { origin, pathPrefix } = encodeResourceOrigin(
     route,
     featureId,
     workspaceId,
   );
-  return `${origin}${pathPrefix}/${name}${params}${query}` as ResourceUrl;
+  return `${origin}${pathPrefix}/${name}${pathname}${search}` as ResourceUrl;
 }
 
 export function decodeResourceUrl(
@@ -196,11 +124,11 @@ export function decodeResourceUrl(
   const base = decodeBase(route, { featureId, name, workspaceId }, url);
   if (!base.ok) return base;
 
-  const params = decodeRoutePath(route, base.value.pathSegments);
-  if (!params.ok) return params;
-
-  const query = decodeQuery(route, url.searchParams);
-  if (!query.ok) return query;
+  const decoded = decodeRouteUrlParts(route, {
+    pathname: base.value.pathname,
+    searchParams: url.searchParams,
+  });
+  if (!decoded.ok) return decoded;
 
   return {
     ok: true,
@@ -208,163 +136,18 @@ export function decodeResourceUrl(
       featureId,
       name,
       workspaceId,
-      params: params.value,
-      query: query.value,
+      params: decoded.value.params,
+      query: decoded.value.query,
     },
   };
-}
-
-function encodeRoutePath(
-  route: NormalizedResourceRoute,
-  params: ResourceRouteParams,
-): string {
-  assertRouteParamKeys(route, params);
-  const pathSegments: string[] = [];
-
-  for (const segment of route.segments) {
-    if (segment.kind === "static") {
-      pathSegments.push(encodeURIComponent(segment.value));
-      continue;
-    }
-
-    const value = params[segment.name];
-    if (segment.kind === "param") {
-      if (typeof value !== "string") {
-        throw new Error(
-          `Invalid resource route param ${segment.name}: expected string.`,
-        );
-      }
-      pathSegments.push(encodePathSegment(segment.name, value));
-      continue;
-    }
-
-    if (!isStringArray(value)) {
-      throw new Error(
-        `Invalid resource route param ${segment.name}: expected string array.`,
-      );
-    }
-    for (const item of value)
-      pathSegments.push(encodePathSegment(segment.name, item));
-  }
-
-  return `/${pathSegments.join("/")}`;
-}
-
-function decodeRoutePath(
-  route: NormalizedResourceRoute,
-  pathSegments: readonly string[],
-): DecodeResult<ResourceRouteParams> {
-  const params: ResourceRouteParams = {};
-  let index = 0;
-
-  for (const segment of route.segments) {
-    if (segment.kind === "splat") {
-      const value = decodePathSegments(pathSegments.slice(index));
-      if (!value.ok) return value;
-      params[segment.name] = value.value;
-      index = pathSegments.length;
-      break;
-    }
-
-    if (index >= pathSegments.length) {
-      return {
-        ok: false,
-        status: 404,
-        reason: "Resource route did not match.",
-      };
-    }
-    const raw = pathSegments[index];
-    const decoded = decodePathSegment(raw);
-    if (!decoded.ok) return decoded;
-
-    if (segment.kind === "static") {
-      if (decoded.value !== segment.value) {
-        return {
-          ok: false,
-          status: 404,
-          reason: "Resource route did not match.",
-        };
-      }
-    } else {
-      params[segment.name] = decoded.value;
-    }
-    index += 1;
-  }
-
-  if (index !== pathSegments.length) {
-    return { ok: false, status: 404, reason: "Resource route did not match." };
-  }
-
-  return { ok: true, value: params };
-}
-
-function encodeQuery(
-  route: NormalizedResourceRoute,
-  rawQuery: unknown,
-): string {
-  if (!route.query) {
-    if (rawQuery === undefined) return "";
-    if (isPlainObject(rawQuery) && Object.keys(rawQuery).length === 0)
-      return "";
-    throw new Error("Resource route does not declare query params.");
-  }
-
-  const parsed = Value.Parse(route.query, rawQuery ?? {});
-  if (!isPlainObject(parsed)) {
-    throw new Error("Resource route query must parse to an object.");
-  }
-
-  const search = new URLSearchParams();
-  for (const [key, value] of Object.entries(parsed)) {
-    if (value === undefined) continue;
-    if (typeof value !== "string") {
-      throw new Error(`Invalid resource route query ${key}: expected string.`);
-    }
-    search.set(key, value);
-  }
-
-  const encoded = search.toString();
-  return encoded ? `?${encoded}` : "";
-}
-
-function decodeQuery(
-  route: NormalizedResourceRoute,
-  search: URLSearchParams,
-): DecodeResult<unknown, 400> {
-  const raw: Record<string, string> = {};
-  for (const [key, value] of search.entries()) {
-    if (Object.prototype.hasOwnProperty.call(raw, key)) {
-      return {
-        ok: false,
-        status: 400,
-        reason: `Duplicate query param: ${key}.`,
-      };
-    }
-    raw[key] = value;
-  }
-
-  if (!route.query) {
-    if (Object.keys(raw).length === 0) return { ok: true, value: {} };
-    return {
-      ok: false,
-      status: 400,
-      reason: "Resource route does not declare query params.",
-    };
-  }
-
-  try {
-    return { ok: true, value: Value.Parse(route.query, raw) };
-  } catch {
-    return { ok: false, status: 400, reason: "Invalid resource route query." };
-  }
 }
 
 function decodeBase(
   route: NormalizedResourceRoute,
   expected: ResourceAddress,
   url: URL,
-): DecodeResult<{ pathSegments: readonly string[] }, 404> {
-  // remove the colon at the end
+): DecodeResult<{ pathname: string }, 404> {
+  // URL.protocol includes its trailing colon.
   const protocol = url.protocol.slice(0, -1);
   if (protocol !== ResourceProtocolScheme) {
     return { ok: false, status: 404, reason: "Resource origin did not match." };
@@ -386,7 +169,7 @@ function decodeBase(
     if (rawName !== expected.name) {
       return { ok: false, status: 404, reason: "Resource type did not match." };
     }
-    return { ok: true, value: { pathSegments } };
+    return { ok: true, value: { pathname: `/${pathSegments.join("/")}` } };
   }
 
   if (url.hostname !== expected.workspaceId) {
@@ -396,64 +179,7 @@ function decodeBase(
   if (rawFeatureId !== expected.featureId || rawName !== expected.name) {
     return { ok: false, status: 404, reason: "Resource type did not match." };
   }
-  return { ok: true, value: { pathSegments } };
-}
-
-function assertRouteParamKeys(
-  route: NormalizedResourceRoute,
-  params: ResourceRouteParams,
-): void {
-  const expected = new Set(route.params.map((param) => param.name));
-  for (const key of Object.keys(params)) {
-    if (!expected.has(key))
-      throw new Error(`Unexpected resource route param: ${key}.`);
-  }
-  for (const key of expected) {
-    if (!Object.prototype.hasOwnProperty.call(params, key)) {
-      throw new Error(`Missing resource route param: ${key}.`);
-    }
-  }
-}
-
-function encodePathSegment(name: string, value: string): string {
-  if (value === "" || value.includes("/")) {
-    throw new Error(
-      `Invalid resource route param ${name}: expected non-empty path segment.`,
-    );
-  }
-  return encodeURIComponent(value);
-}
-
-function decodePathSegments(
-  segments: readonly string[],
-): DecodeResult<readonly string[], 400> {
-  const decoded: string[] = [];
-  for (const segment of segments) {
-    const value = decodePathSegment(segment);
-    if (!value.ok) return value;
-    decoded.push(value.value);
-  }
-  return { ok: true, value: decoded };
-}
-
-function decodePathSegment(segment: string): DecodeResult<string, 400> {
-  try {
-    return { ok: true, value: decodeURIComponent(segment) };
-  } catch {
-    return {
-      ok: false,
-      status: 400,
-      reason: "Malformed resource route path segment.",
-    };
-  }
-}
-
-function decodeRouteLiteral(segment: string): string {
-  try {
-    return decodeURIComponent(segment);
-  } catch {
-    throw new Error(`Invalid resource route segment: ${segment}.`);
-  }
+  return { ok: true, value: { pathname: `/${pathSegments.join("/")}` } };
 }
 
 function validateResourceAddress(address: ResourceAddress): ResourceAddress {
@@ -485,14 +211,4 @@ function toUrl(value: string): URL | null {
   } catch {
     return null;
   }
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isStringArray(value: unknown): value is readonly string[] {
-  return (
-    Array.isArray(value) && value.every((item) => typeof item === "string")
-  );
 }

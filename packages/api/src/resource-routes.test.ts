@@ -24,10 +24,6 @@ describe("normalizeResourceRoute", () => {
       { kind: "param", name: "id" },
       { kind: "splat", name: "rest" },
     ]);
-    expect(route.params).toEqual([
-      { kind: "param", name: "id" },
-      { kind: "splat", name: "rest" },
-    ]);
   });
 
   it("rejects invalid declarations at initialization time", () => {
@@ -39,13 +35,13 @@ describe("normalizeResourceRoute", () => {
     ).toThrow("Empty segments are not allowed");
     expect(() =>
       normalizeResourceRoute({ path: "/:id/:id", origin: "workspace" }),
-    ).toThrow("Duplicate resource route param: id");
+    ).toThrow("Duplicate route pattern param: id");
     expect(() =>
       normalizeResourceRoute({ path: "/:rest*/tail", origin: "workspace" }),
     ).toThrow("splat param rest must be terminal");
     expect(() =>
       normalizeResourceRoute({ path: "/:bad-name", origin: "workspace" }),
-    ).toThrow("Invalid resource route param");
+    ).toThrow("Invalid route pattern param");
     expect(() =>
       normalizeResourceRoute({ path: "/doc?x=1", origin: "workspace" }),
     ).toThrow("Query and hash are declared separately");
@@ -107,7 +103,7 @@ describe("encodeResourceUrl", () => {
         workspaceId: "local",
         params: { rest: [] },
       }),
-    ).toThrow("Missing resource route param: id");
+    ).toThrow("Missing route pattern param: id");
     expect(() =>
       encodeResourceUrl(route, {
         featureId: "canvas",
@@ -115,7 +111,7 @@ describe("encodeResourceUrl", () => {
         workspaceId: "local",
         params: { id: "main", rest: [], extra: "nope" },
       }),
-    ).toThrow("Unexpected resource route param: extra");
+    ).toThrow("Unexpected route pattern param: extra");
     expect(() =>
       encodeResourceUrl(route, {
         featureId: "canvas",
@@ -123,7 +119,7 @@ describe("encodeResourceUrl", () => {
         workspaceId: "local",
         params: { id: ["main"], rest: [] },
       }),
-    ).toThrow("Invalid resource route param id: expected string");
+    ).toThrow("Invalid route pattern param id: expected string");
     expect(() =>
       encodeResourceUrl(route, {
         featureId: "canvas",
@@ -131,7 +127,7 @@ describe("encodeResourceUrl", () => {
         workspaceId: "local",
         params: { id: "main", rest: "tail" },
       }),
-    ).toThrow("Invalid resource route param rest: expected string array");
+    ).toThrow("Invalid route pattern param rest: expected string array");
     expect(() =>
       encodeResourceUrl(route, {
         featureId: "canvas",

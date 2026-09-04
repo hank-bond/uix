@@ -18,6 +18,11 @@ This plan covers only document reads. Writeback and prompt actions remain on the
 
 The completed channel migration established backend ownership and explicit frontend targeting. This plan now applies backend ownership to web routes while deriving the R1 browser target from its mounted feature.
 
+## Progress
+
+- The channel-contract dependency landed through `e7f7acd`.
+- W1 is ready for review. `path-pattern.ts` now owns feature-relative pattern normalization and URL-part encoding and decoding. Resource routes wrap that codec while retaining their existing logical URLs and transport behavior. Focused API/runtime tests and `npm run check` pass.
+
 ## R1 boundary
 
 The first route supports the production behavior needed by Canvas document loading:
