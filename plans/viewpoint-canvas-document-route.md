@@ -1,12 +1,12 @@
 ---
-summary: "Move Canvas document reads onto the first Agent-bound web route in nine small review units, ending with direct iframe loading through both hosts."
+summary: "Move Canvas document reads onto the first viewpoint web route in nine small review units, ending with direct iframe loading through both hosts."
 ---
 
-# Agent-bound Canvas document route
+# Viewpoint Canvas document route
 
 ## Goal
 
-Prove the first production path through the [Agent-bound feature web namespace specification](../docs/specs/agent-bound-feature-web.md). A Canvas iframe loads the selected Agent viewpoint's HTML from a typed, feature-local `GET` route.
+Prove the first production path through the [viewpoint web namespace specification](../docs/specs/viewpoint-web-namespaces.md). A Canvas iframe loads the selected Agent viewpoint's HTML from a typed, feature-local `GET` route.
 
 The connection's attachment selects the Agent. No routing identity appears in the contract or request payload. Electron and the server use the same contract and handler. Retargeting issues a new private binding. Accepted requests finish against their original Agent, while retarget or close rejects later use of the old binding.
 
@@ -18,10 +18,13 @@ This plan covers only document reads. Writeback and prompt actions remain on the
 
 The completed channel migration established backend ownership and explicit frontend targeting. This plan now applies backend ownership to web routes while deriving the R1 browser target from its mounted feature.
 
+The route work also exposed older channel names that describe an Agent instead of their viewpoint scope. `AgentInstance` also has two paths to the same channel registry. [`viewpoint-channel-naming.md`](./viewpoint-channel-naming.md) records that independent cleanup. It follows the new scope-naming guidance but does not block this plan.
+
 ## Progress
 
 - The channel-contract dependency landed through `e7f7acd`.
-- W1 is ready for review. `path-pattern.ts` now owns feature-relative pattern normalization and URL-part encoding and decoding. Resource routes wrap that codec while retaining their existing logical URLs and transport behavior. Focused API/runtime tests and `npm run check` pass.
+- W1 landed in `96d3c71`. `path-pattern.ts` now owns feature-relative pattern normalization and URL-part encoding and decoding. Resource routes wrap that codec while retaining their existing logical URLs and transport behavior.
+- W2 is ready for review. `@uix/api` now defines schema-only `GET` document contracts with typed path and query input, inferred handlers, and contract-bound responders. Runtime admission intentionally supports only the R1 `GET` → `200` complete-document behavior. Workspace activation derives the feature namespace, each Agent instance owns its handler registry, and Canvas binds `/documents/:key*` to its viewpoint-local document buffer. Duplicate admission rolls back atomically, malformed keys do not invoke handlers, independent Agent handlers return their own content, and `npm run check` passes.
 
 ## R1 boundary
 
@@ -63,7 +66,7 @@ Later work must extend this route shape rather than replace it. Body codecs, mor
 - Browser code never constructs or persists a private binding.
 - Each binding names one attachment-target generation.
 - Revocation rejects new requests without cancelling accepted requests.
-- Workspace resources and Agent-bound routes keep separate registries even when they share a host transport.
+- Workspace resources and viewpoint routes keep separate registries even when they share a host transport.
 - Dynamic responses default to `Cache-Control: no-store`.
 - Injected base and shim markup never enter stored Canvas HTML, anchored reads, or writeback.
 
@@ -81,13 +84,13 @@ Likely ownership:
 - a focused path-pattern module under `packages/api/src/`
 - existing resource-route tests plus focused codec tests
 
-**Review gate:** Existing workspace and feature resource URLs remain byte-for-byte compatible. Existing codec cases still pass through the extracted implementation. They cover static and parameter routes, terminal wildcards, malformed encoding, absent or duplicate queries, and schema validation. No Agent-bound route type exists yet.
+**Review gate:** Existing workspace and feature resource URLs remain byte-for-byte compatible. Existing codec cases still pass through the extracted implementation. They cover static and parameter routes, terminal wildcards, malformed encoding, absent or duplicate queries, and schema validation. No viewpoint route type exists yet.
 
-### W2: Admit GET document contracts and bind Agent handlers
+### W2: Admit GET document contracts and bind viewpoint handlers
 
-Add the contract and contributions needed for a typed GET route with path/query schemas and one declared `200` complete-HTML response. The Workspace contribution admits the contract under its feature scope. Each Agent contribution binds that Agent's handler under the same scope.
+Add the contract and contributions needed for a typed GET route with path/query schemas and one declared `200` complete-HTML response. The Workspace contribution admits the contract under its feature-derived namespace. Each Agent contribution binds a handler in that viewpoint's registry under the same namespace.
 
-Add a per-Agent route-handler registry beside the per-Agent channel registry. Canvas is the first caller. It declares `/documents/:key*` in shared code. Its Agent factory binds a handler that reads canonical HTML from that instance's `CanvasDocumentBuffer`. A contract-bound responder replaces raw `Response` construction.
+Add a per-viewpoint route-handler registry beside the per-Agent channel registry. Canvas is the first caller. It declares `/documents/:key*` in shared code. Its Agent factory binds a handler that reads canonical HTML from that instance's `CanvasDocumentBuffer`. A contract-bound responder replaces raw `Response` construction.
 
 This unit does not expose the route through a host. Focused registry tests invoke the admitted contract and Agent handler directly.
 
@@ -97,7 +100,7 @@ Likely ownership:
 - `packages/api/src/feature.ts`
 - `packages/runtime/src/features/contributions.ts`
 - `packages/runtime/src/agent/instance.ts`
-- a focused Agent web route registry under `packages/runtime/src/`
+- a focused web route registry under `packages/runtime/src/`
 - Canvas shared addressing and backend contributions
 
 **Review gate:** The authored Canvas contract has no feature identity. Installation derives `canvas` from the active feature. Duplicate local routes fail atomically, and malformed keys never invoke the handler. Two independently constructed Canvas Agent instances return their own content through the same local contract.
@@ -129,7 +132,7 @@ Return `400` for invalid declared input and `404` for an unknown route or revoke
 
 ### W5: Adapt bound routes onto the shared content transport
 
-Carry Agent web dispatch through the existing content transport while keeping `ResourceRegistry` responsible for workspace resources. Workspace resource contributions remain attachment-free. Runtime composition chooses the resource or Agent-bound path before calling the host transport.
+Carry viewpoint web requests through the existing content transport while keeping `ResourceRegistry` responsible for workspace resources. Workspace resource contributions remain attachment-free. Runtime composition chooses the resource or viewpoint-route path before calling the host transport.
 
 The host supplies the physical feature root for a complete document. Shared adaptation injects that root as the effective base and produces the browser `Response`. The feature handler never sees the physical address. Tests use a synthetic root until the Electron and server units provide real ones. This prevents custom-scheme URLs from leaking into server HTML.
 
@@ -139,7 +142,7 @@ The host supplies the physical feature root for a complete document. Shared adap
 
 Add a framework-neutral URL client and the React adapter used by current surfaces. The client combines a route, typed values, the mounted feature's scope, and the host's current binding. Its synchronous `url()` returns a browser address.
 
-A target change replaces the bound client and rerenders its consumers. An old client remains tied to its revoked binding. Keep this separate from the connection generation used for server reconnection.
+A target change replaces the `WebRouteClient` and rerenders its consumers. An old client remains tied to its revoked binding. Keep this separate from the connection generation used for server reconnection.
 
 Do not add `request()` yet. Do not let a surface name its own feature id. Cross-feature route consumption remains outside R1.
 
@@ -193,7 +196,7 @@ Delete the workspace Canvas iframe resource and all `canvas.read` request code. 
 
 ## Documentation at the owning unit
 
-Update source summaries and generated indexes with the unit that adds or removes each owner. W9 updates the current architecture and Canvas implementation documentation. It describes direct Agent-bound document loading. The broader specifications remain marked `implementation: incomplete` because writeback routes, static assets, additional codecs, and `request()` remain outstanding.
+Update source summaries and generated indexes with the unit that adds or removes each owner. W9 updates the current architecture and Canvas implementation documentation. It describes direct viewpoint document loading. The broader specifications remain marked `implementation: incomplete` because writeback routes, static assets, additional codecs, and `request()` remain outstanding.
 
 Do not publish a general route-authoring how-to from R1. The public feature web namespace is still intentionally narrow. Add that guide when a second route shape proves the API beyond complete-document GET.
 

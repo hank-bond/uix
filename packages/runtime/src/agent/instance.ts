@@ -20,6 +20,7 @@ import type { AgentFeatureRegistries } from "../features/contributions";
 import { AsyncDisposableBag } from "../lifecycle";
 import type { OperationControl } from "../operation-tracker";
 import { TurnStateRegistry } from "../turn-state";
+import { WebRouteHandlerRegistry } from "../web-route-registry";
 import type { SessionTarget } from "../workspace";
 
 export interface AgentInstance {
@@ -76,6 +77,7 @@ export async function createAgentInstance(
 ): Promise<AgentInstanceOwnership> {
   const features: AgentFeatureRegistries = {
     channels: new AgentChannelHandlerRegistry(),
+    webRoutes: new WebRouteHandlerRegistry(),
     agentTools: new AgentToolRegistry(),
     agentSystemPrompt: new AgentSystemPromptRegistry(),
     agentSkills: new AgentSkillRegistry(),

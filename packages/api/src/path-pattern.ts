@@ -30,6 +30,30 @@ export interface RoutePatternValues {
   query: unknown;
 }
 
+/** One declared dynamic path member, used to validate a path-value schema. */
+interface RoutePatternParam {
+  readonly name: string;
+  readonly kind: "param" | "splat";
+}
+
+/** List dynamic path members in declaration order. */
+export function listRoutePatternParams(
+  pattern: NormalizedRoutePattern,
+): readonly RoutePatternParam[] {
+  return pattern.segments.flatMap((segment) =>
+    segment.kind === "static"
+      ? []
+      : [{ name: segment.name, kind: segment.kind }],
+  );
+}
+
+/** Return a stable representation for duplicate pattern detection. */
+export function toRoutePatternIdentity(
+  pattern: NormalizedRoutePattern,
+): string {
+  return JSON.stringify(pattern.segments);
+}
+
 interface EncodedRouteUrlParts {
   pathname: string;
   search: string;

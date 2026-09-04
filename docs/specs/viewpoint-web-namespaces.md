@@ -1,15 +1,15 @@
 ---
-summary: "An Agent feature can provide typed web routes and static assets at substrate-bound addresses. Feature code declares contracts, and UIX derives relative paths, a bound client, and validated responses."
+summary: "A feature can provide typed web routes and static assets in each viewpoint through substrate-bound addresses. Contracts remain generic while installation establishes namespace and scope."
 kind: reference
 status: draft
 implementation: incomplete
 ---
 
-# Agent-bound feature web namespaces
+# Viewpoint web namespaces
 
 ## Contract
 
-An _Agent-bound feature web namespace_ gives one Agent feature instance private web addresses for its assets and routes. A feature declares schema-only contracts once. Its browser content reaches those routes through derived relative paths, a bound typed client, and ordinary browser requests.
+A _viewpoint web namespace_ gives one feature instance at an Agent viewpoint private web addresses for its assets and routes. A feature declares schema-only contracts once. Its browser content reaches those routes through derived relative paths, a typed `WebRouteClient`, and ordinary browser requests.
 
 For each request, UIX resolves the originating connection's attachment to select the Agent and feature instance. UIX then validates declared input, invokes the matching handler, validates the declared response, and adapts the result onto the active host.
 
@@ -21,7 +21,7 @@ This specification depends on [`connection-agent-attachments.md`](./connection-a
 
 ## Boundary
 
-The feature web namespace owns declared route and asset names, path matching, request and response codecs, response statuses, and active-route lifetime. UIX derives relative paths from each route contract and binds them to the attachment when a client or document needs a physical address.
+The viewpoint web namespace owns declared route and asset names, path matching, request and response codecs, response statuses, and active-route lifetime. UIX derives relative paths from each route contract and binds them to the attachment when a client or document needs a physical address.
 
 The attachment selects the Agent feature instance and guards every accepted request. UIX mints a private web binding for each attachment-target generation and rotates it on retarget. The host encodes that binding and converts browser requests into the host-neutral web form.
 
@@ -31,10 +31,10 @@ Feature handlers own their reads, mutations, effects, and application behavior. 
 
 ### Scope and lifetime
 
-- Every active Agent feature instance **must** receive its own feature-local web namespace.
+- Every active Agent feature instance at a viewpoint **must** receive its own feature-local web namespace.
 - Identical route paths or asset paths from different features **must not** collide.
 - Route contracts **must** be schema-only values that backend and browser code share.
-- An authored contract **must not** include a feature identity. UIX **must** derive route and asset scope from the active feature contribution.
+- An authored contract **must not** include a feature identity. UIX **must** derive the route and asset namespace from the active feature contribution.
 - A feature **must** admit its web contracts once at workspace feature activation.
 - Each Agent feature factory **must** later contribute handlers bound to those admitted contracts.
 - Features **must not** add or remove routes imperatively or choose an Agent target for a route.
@@ -109,20 +109,20 @@ Feature handlers own their reads, mutations, effects, and application behavior. 
 
 - UIX **must** derive a typed relative path builder from each route contract.
 - The relative path builder output **must** contain no host, workspace, session, attachment, or binding value. Authored and persisted content may use it.
-- UIX **must** derive a bound typed client from each contract and the current binding.
-- The bound client **must** expose a `url()` operation for markup and a `request()` operation for typed calls.
+- UIX **must** derive a typed `WebRouteClient` from each contract and the current binding.
+- The `WebRouteClient` **must** expose a `url()` operation for markup and a `request()` operation for typed calls.
 - `url()` **must** return a physical address usable in images, links, forms, iframes, scripts, and custom fetch calls.
 - `request()` **must** send the declared method, typed headers and body, and return a typed status result with cancellation.
 - A mounted surface **must** receive a feature-scoped client bound to its connection generation.
 - A full browser document loads from a bound `url()`. Its injected base then binds ordinary relative requests to the same feature root.
-- When the attachment retargets, UIX **must** recreate the bound clients, rerender mounted consumers, and reload affected documents through the new binding.
+- When the attachment retargets, UIX **must** recreate its `WebRouteClient` instances, rerender mounted consumers, and reload affected documents through the new binding.
 - Clients bound to the old generation **must** fail new requests rather than reach the new Agent.
 
 ## Conformance
 
 A conforming implementation demonstrates these outcomes:
 
-1. A schema-only contract yields a typed relative path builder, a bound client, and a contract-bound responder. Feature code writes no routing identity.
+1. A schema-only contract yields a typed relative path builder, a `WebRouteClient`, and a contract-bound responder. Feature code writes no routing identity.
 2. Two attachments target different Agents and invoke the same route. Each request reaches its own Agent feature instance.
 3. Two features declare identical local paths without collision. Private routes do not become a cross-feature API.
 4. Malformed path, query, header, or body input never invokes a handler. An invalid typed response is rejected before encoding.

@@ -12,7 +12,6 @@ When an attempt resets, preserve a compact summary at the bottom of the plan. Re
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
-- **[agent-bound-canvas-document-route](./agent-bound-canvas-document-route.md)** Move Canvas document reads onto the first Agent-bound web route in nine small review units, ending with direct iframe loading through both hosts.
 - **[agent-feature-instances-and-viewpoint-state](./agent-feature-instances-and-viewpoint-state.md)** R0-A3 landed: mutable feature state and the current transcript now belong to each guarded Agent instance viewpoint.
 - **[backlog](./backlog.md)** Compact seeds for planned UIX deliverables that need enough context to be actionable but aren't standalone specs yet.
 - **[canvas-reusable-assets](./canvas-reusable-assets.md)** Give Canvas a reusable local web-asset library in eight reviewable units. These cover feature-static resources, a same-origin asset route, AGENTS.md catalogs, DOM serialization controls, authoring guidance, a component model, serve-time expansion, and conflict-handling updates.
@@ -29,6 +28,8 @@ When an attempt resets, preserve a compact summary at the bottom of the plan. Re
 - **[session-history-and-switching](./session-history-and-switching.md)** New Session, global session switching, titles, and branch restoration landed under the selected-session model. Remaining diagnostics and hardening pause until the host/runtime split rebases selection onto per-attachment agent instances.
 - **[session-worktrees-and-turn-checkpoints](./session-worktrees-and-turn-checkpoints.md)** Build the workspace-file state substrate: auto-initialized git per workspace, session-branch worktrees, and turn-boundary checkpoint commits on app-owned refs. Checkpoint restore covers checkpoint-on-leave, turn-state binding, close-out reclaim, and the diff-review/merge surface.
 - **[two-host-behavioral-conformance](./two-host-behavioral-conformance.md)** Drive real Electron and server hosts through shared scenarios, recording differences before planning parity work.
+- **[viewpoint-canvas-document-route](./viewpoint-canvas-document-route.md)** Move Canvas document reads onto the first viewpoint web route in nine small review units, ending with direct iframe loading through both hosts.
+- **[viewpoint-channel-naming](./viewpoint-channel-naming.md)** Rename viewpoint-scoped feature channel code for its actual scope and remove the duplicate AgentInstance channel-registry path without changing behavior or wire ids.
 - **[workspace-actions-and-command-palette](./workspace-actions-and-command-palette.md)** Build workspace actions and the replaceable default command palette in seven reviewable units. Units cover action resolution, renderer registry integration, durable keybindings and conflicts, keyboard/Electron dispatch, ambient surfaces, the palette feature, and customization/docs verification.
 - **[workspace-first-render-gate](./workspace-first-render-gate.md)** _(stub)._ Show a substrate-owned loading overlay while the accepted initial feature composition restores and renders underneath it. Reveal the workspace after restoration and first surface presentation settle.
 

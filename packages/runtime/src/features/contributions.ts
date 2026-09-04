@@ -35,16 +35,26 @@ import type { ResourceRegistry } from "../resource-registry";
 import { registerResourceContributions } from "../resource-registry";
 import type { TurnStateRegistry } from "../turn-state";
 import { registerTurnStateContributions } from "../turn-state";
+import type {
+  WebRouteContractRegistry,
+  WebRouteHandlerRegistry,
+} from "../web-route-registry";
+import {
+  registerWebRouteContracts,
+  registerWebRouteHandlers,
+} from "../web-route-registry";
 
 export interface WorkspaceFeatureRegistries {
   resources: ResourceRegistry;
   channels: ChannelRegistry;
   invokeAgentChannel: AgentChannelInvoker;
+  viewpointWebRoutes: WebRouteContractRegistry;
   surfaces: SurfaceRegistry;
 }
 
 export interface AgentFeatureRegistries {
   channels: AgentChannelHandlerRegistry;
+  webRoutes: WebRouteHandlerRegistry;
   agentTools: AgentToolRegistry;
   agentSystemPrompt: AgentSystemPromptRegistry;
   agentSkills: AgentSkillRegistry;
@@ -107,6 +117,15 @@ export function registerWorkspaceFeatureContributions(
         ),
       );
     }
+    if (contributions.viewpointWebRouteContracts?.length) {
+      bag.add(
+        registerWebRouteContracts(
+          registries.viewpointWebRoutes,
+          featureId,
+          contributions.viewpointWebRouteContracts,
+        ),
+      );
+    }
     if (contributions.surfaces?.length) {
       if (!origin.entryDir) {
         throw new Error(
@@ -144,6 +163,15 @@ export function registerAgentFeatureContributions(
           registries.channels,
           featureId,
           contributions.channels,
+        ),
+      );
+    }
+    if (contributions.webRoutes?.length) {
+      bag.add(
+        registerWebRouteHandlers(
+          registries.webRoutes,
+          featureId,
+          contributions.webRoutes,
         ),
       );
     }

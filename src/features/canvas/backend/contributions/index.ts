@@ -8,7 +8,9 @@ import { createCanvasAgentToolContributions } from "./agent-tools";
 import { createCanvasChannelContributions } from "./channels";
 import { createCanvasIframeResourceContributions } from "./resources";
 import { createCanvasTurnStateContributions } from "./turn-state";
+import { createCanvasWebRouteContributions } from "./web-routes";
 import { canvasChannels } from "../../shared/channels";
+import { CanvasDocumentRoute } from "../../shared/web-routes";
 import { createCanvasAgentInstanceContext } from "../agent-instance-context";
 
 export const canvasFeature = defineFeature({
@@ -17,6 +19,7 @@ export const canvasFeature = defineFeature({
     return {
       resources: createCanvasIframeResourceContributions(ctx),
       agentChannelContracts: [canvasChannels],
+      viewpointWebRouteContracts: [CanvasDocumentRoute],
       // Resolved against the feature entry file's dir (the feature root,
       // src/features/canvas), not this file's.
       surfaces: ["./workspace/surface.tsx"],
@@ -26,6 +29,7 @@ export const canvasFeature = defineFeature({
     const ctx = createCanvasAgentInstanceContext(baseContext);
     return {
       channels: createCanvasChannelContributions(ctx),
+      webRoutes: createCanvasWebRouteContributions(ctx),
       agentTools: createCanvasAgentToolContributions(ctx),
       agentSystemPrompt: CanvasAgentSystemPrompt,
       agentSkills: ["./skills/canvas-authoring"],

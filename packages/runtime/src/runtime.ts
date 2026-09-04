@@ -64,6 +64,7 @@ import {
   type ResourceTransportRegistrar,
 } from "./resource-registry";
 import { SettingsRegistry } from "./settings-registry";
+import { WebRouteContractRegistry } from "./web-route-registry";
 import type {
   Attachment as AttachmentContract,
   AttachmentAdmission,
@@ -134,6 +135,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   readonly #featuresBag = new AsyncDisposableBag();
   readonly #channels: ChannelRegistry;
   readonly #resources: ResourceRegistry;
+  readonly #viewpointWebRoutes = new WebRouteContractRegistry();
   readonly #settingsRegistry: SettingsRegistry;
   readonly #surfaces = new SurfaceRegistry();
   readonly #surfacePipeline: SurfaceModulePipeline;
@@ -485,6 +487,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
             canonicalId,
             payload,
           ),
+        viewpointWebRoutes: this.#viewpointWebRoutes,
         surfaces: this.#surfaces,
       },
     };

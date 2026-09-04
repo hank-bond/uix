@@ -10,6 +10,7 @@ The naming rules in [`rules/`](./rules/) state the invariants. This file explain
 
 ## Symbol naming
 
+- Prefer the simplest word that keeps the meaning exact. Use a more specialized word only when the simpler word would lose an important distinction.
 - A `DisposableBag` or `AsyncDisposableBag` that owns cleanup capabilities takes its name from the lifetime it tracks: `hostBag`, `workspaceBag`, `windowBag`, `sessionBag`.
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
 - Name symbols for their stable domain role and operation, not their current caller, pipeline position, trigger, owner, or implementation strategy. A name should remain correct if the symbol moves, gains another caller, or changes implementation without changing its essential domain guarantees. Let the receiver provide context (`turnStateCoordinator.restoreCurrent(...)`). Do not repeat that context in every method.
@@ -28,6 +29,23 @@ The naming rules in [`rules/`](./rules/) state the invariants. This file explain
 - Use `Store` for durable source-of-truth APIs/implementations. A store may expose a change feed when the change semantics are generic at that layer. Otherwise domain-specific buffers/features publish higher-level invalidation events.
 - Use `Buffer` for live, feature-specific working projections over a store. Buffers may cache regenerable state, normalize writes, and reconcile feature/editor semantics, but durable authority stays in the backing store.
 - Use `Registry` for central in-memory maps of contributed things plus their routing (`ChannelRegistry`, `SettingsRegistry`). Registries do not persist.
+
+## Qualification by scope
+
+Name the scopes that distinguish real concepts, and omit a scope when the containing name already makes it clear.
+
+| Axis | Question | Naming guidance |
+| --- | --- | --- |
+| **Ownership namespace** | Who owns these local names: `canvas`, another feature, or `uix`? | Include the namespace in live identities, but not in authored contracts. |
+| **Declaration scope** | Is this a reusable definition rather than a live instance? | Use an unqualified name such as `WebRouteContract`. |
+| **Instantiation scope** | Is this created once per Workspace or once per viewpoint? | Use `Workspace` or `Viewpoint` when both forms could exist at that boundary. |
+| **Target scope** | Which attachment-target generation can this reach? | Name the binding `AttachmentWebBinding`. Do not repeat that scope on every client using it. |
+| **Lifetime form** | Is this normalized, resolved, prepared, or registered? | Use the established lifecycle qualifier when those forms coexist. |
+| **Containing scope** | Does the owner already establish the scope? | Use `AgentFeatureContributions.webRoutes`, not `viewpointWebRoutes`. |
+
+A qualifier earns its place by separating two possible names at the same boundary. A generic route contract stays `WebRouteContract` because the same declaration can be installed for a Workspace or viewpoint. The Workspace contribution field is `viewpointWebRouteContracts` because it distinguishes those contracts from present or future Workspace route handlers. Inside `AgentFeatureContributions`, the field is `webRoutes` because the containing type already provides the viewpoint scope.
+
+A role should not repeat a property required by that role. Every client already knows how to reach its API, so use `WebRouteClient`, not `BoundWebRouteClient`. Name the separate capability that chooses the live target, such as `AttachmentWebBinding`.
 
 ## Owned-name prefixes
 
