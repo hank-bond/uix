@@ -13,18 +13,22 @@
 import type { JSX } from "react";
 import { Component, type ReactNode, useEffect, useMemo, useState } from "react";
 
+import type { ChannelContract } from "@uix/api/channels";
 import {
   substrateChannels,
   type SurfaceEntry,
 } from "@uix/api/substrate-channels";
 import {
+  type ChannelClient,
   createChannelClient,
   createFeatureSettingsClient,
   FeatureActionsProvider,
   FeatureSettingsProvider,
   resolveWorkspaceResourceUrl,
+  type SurfaceChannelContracts,
   type SurfaceContribution,
   useWorkspaceClient,
+  type WorkspaceClient,
 } from "@uix/api/workspace";
 
 import { useActionRegistry } from "./action-context";
@@ -32,6 +36,7 @@ import { useActionRegistry } from "./action-context";
 /** The composed surface list plus where it came from (or didn't). */
 export interface SurfaceComposition {
   surfaces: readonly SurfaceEntry[];
+  channelNamespaces: readonly string[];
   manifestPath: string;
   manifestFound: boolean;
 }
@@ -88,14 +93,11 @@ export function SurfaceMount({
     () => actionRegistry.forFeature(entry.featureId),
     [actionRegistry, entry.featureId],
   );
-  // Memoized so surface effects keyed on the client do not restart
+  // Memoized so surface effects keyed on clients do not restart
   // (resubscribing, re-fetching history) on every workspace render.
-  const client = useMemo(
-    () =>
-      surface.contract
-        ? createChannelClient(workspace, entry.featureId, surface.contract)
-        : undefined,
-    [workspace, entry.featureId, surface],
+  const clients = useMemo(
+    () => createSurfaceChannelClients(workspace, surface.channels),
+    [workspace, surface],
   );
   const settings = useMemo(
     () => createFeatureSettingsClient(workspace, entry.featureId),
@@ -122,10 +124,22 @@ export function SurfaceMount({
   return (
     <FeatureActionsProvider register={registerActions}>
       <FeatureSettingsProvider client={settings}>
-        {surface.render(client)}
+        {surface.render(clients)}
       </FeatureSettingsProvider>
     </FeatureActionsProvider>
   );
+}
+
+/** Create one validated client per declaratively selected namespace. */
+export function createSurfaceChannelClients(
+  workspace: WorkspaceClient,
+  channels: SurfaceChannelContracts | undefined,
+): Readonly<Record<string, ChannelClient<ChannelContract>>> {
+  const clients: Record<string, ChannelClient<ChannelContract>> = {};
+  for (const [namespace, contract] of Object.entries(channels ?? {})) {
+    clients[namespace] = createChannelClient(workspace, namespace, contract);
+  }
+  return clients;
 }
 
 /**

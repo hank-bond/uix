@@ -1,12 +1,11 @@
 // Renders the selected Agent viewpoint's Canvas HTML in a feature-origin iframe.
 
 import type { JSX } from "react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { agentChannels } from "@uix/api/agent-channels";
+import type { agentChannels } from "@uix/api/agent-channels";
 import {
   type ChannelClient,
-  createChannelClient,
   resolveWorkspaceResourceUrl,
   useWorkspaceClient,
   useWorkspaceSession,
@@ -27,15 +26,12 @@ import type { canvasChannels } from "../shared/channels";
 export interface CanvasProps {
   canvasKey: CanvasKey;
   client: ChannelClient<typeof canvasChannels>;
+  agent: ChannelClient<typeof agentChannels>;
 }
 
-export function Canvas({ canvasKey, client }: CanvasProps): JSX.Element {
+export function Canvas({ canvasKey, client, agent }: CanvasProps): JSX.Element {
   const workspace = useWorkspaceClient();
   const { sessionSelectionVersion } = useWorkspaceSession();
-  const agent = useMemo(
-    () => createChannelClient(workspace, "agent", agentChannels),
-    [workspace],
-  );
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const htmlRef = useRef("");
   const sessionSelectionVersionRef = useRef(sessionSelectionVersion);

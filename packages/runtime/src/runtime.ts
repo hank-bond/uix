@@ -302,6 +302,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
               surfaces: await this.#surfacePipeline.buildAll(
                 this.#surfaces.list(),
               ),
+              channelNamespaces: [...this.#channels.listNamespaces()],
               manifestPath: workspace.manifestPath,
               manifestFound: fs.existsSync(workspace.manifestPath),
             }),
@@ -352,6 +353,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     };
 
     const agentChannelsBag = this.#bag.add(new DisposableBag());
+    agentChannelsBag.add(this.#channels.registerNamespace("agent"));
     agentChannelsBag.add(
       registerAgentRequest("prompt", (context, request) =>
         this.#agentRuntime.commitPrompt(context.agentInstanceGuard, request),

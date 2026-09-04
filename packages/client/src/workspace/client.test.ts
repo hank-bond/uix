@@ -53,6 +53,18 @@ function fakeWorkspaceClient(): {
 }
 
 describe("channel clients", () => {
+  it("rejects an imported namespace outside the accepted composition", () => {
+    const { client } = fakeWorkspaceClient();
+
+    expect(() =>
+      createChannelClient(
+        { ...client, channelNamespaces: ["canvas", "uix"] },
+        "agent",
+        agentChannels,
+      ),
+    ).toThrow("Channel namespace is unavailable: agent");
+  });
+
   it("creates typed feature client from a channel contract", async () => {
     const { client, request, subscribe } = fakeWorkspaceClient();
     const reports = createChannelClient(client, "reports", exampleChannels);

@@ -1,14 +1,16 @@
 ---
-summary: "Move channel ownership out of authored contracts and into substrate-established feature scope, while making every cross-feature client target explicit."
+summary: "Move backend channel ownership into substrate-established feature scope, while surfaces declare every consumed namespace in one validated client map."
 ---
 
 # Substrate-scoped channel contracts
+
+This plan implements the [feature channels specification](../docs/specs/feature-channels.md).
 
 ## Goal
 
 Channel contracts should describe requests and events, not claim their own feature identity. UIX already knows the active feature when it installs Workspace and Agent contributions. The surface host also knows which feature contributed each mounted surface.
 
-Use those trusted scopes to derive canonical channel ids. Require a caller to name the target only when it deliberately consumes another feature's or the substrate's contract. Keep existing wire ids such as `canvas.writeback`, `agent.prompt`, and `uix.surfaces` unchanged.
+Use those trusted scopes to derive backend canonical channel ids. A surface declares every consumed namespace as the key of its channel-contract map, regardless of whether the provider is itself, another feature, or the substrate. Keep existing wire ids such as `canvas.writeback`, `agent.prompt`, and `uix.surfaces` unchanged.
 
 This migration establishes the ownership pattern that Agent-bound feature web contracts will follow.
 
@@ -18,7 +20,7 @@ This migration establishes the ownership pattern that Agent-bound feature web co
 - `registerWorkspaceFeatureContributions()` and `registerAgentFeatureContributions()` already receive the active feature id.
 - `FeatureEventPublisherFactory` is already created for one feature id.
 - `SurfaceMount` receives `SurfaceEntry.featureId` and already uses it to scope settings and actions.
-- Chat deliberately consumes the substrate-owned `agentChannels`. Canvas consumes its own contract through its mounted surface and separately consumes `agentChannels` for prompt actions.
+- Chat deliberately consumes the substrate-owned `agentChannels`. Canvas consumes both `canvasChannels` and `agentChannels`.
 
 ## Accepted behavior
 
@@ -26,16 +28,17 @@ This migration establishes the ownership pattern that Agent-bound feature web co
 - An authored channel contribution cannot select its canonical feature namespace.
 - UIX derives backend channel ids from the feature scope that owns the contribution.
 - A feature-owned event publisher can publish only within the scope UIX gave it.
-- A mounted surface binds an ordinary contract to the feature id on its `SurfaceEntry`. Feature code does not repeat that id.
-- A caller consuming another feature's or the substrate's channel contract must select that target explicitly at the client binding site.
-- Cross-feature selection changes only the client target. It does not grant event-publication or backend-contribution authority in the target namespace.
+- A mounted surface declares a map from every consumed namespace to its contract and receives one typed client per key.
+- A mounted feature client rejects any declared namespace absent from the backend channel registry's accepted projection instead of leaving subscriptions inert.
+- Frontend namespace selection changes only the client target. It does not grant event-publication or backend-contribution authority in that namespace.
 - Duplicate local channel names still fail within one feature scope.
 - Request and event validation, attachment routing, Agent handler selection, logging policy, and lifetimes remain unchanged.
 - This is a breaking source migration. Do not retain an overload or compatibility path for self-scoped contracts.
 
 ## Progress
 
-- C1 implementation is ready for review. Focused channel tests pass, and every `npm run check` stage passes.
+- C1 is committed as `f25cad3`.
+- C2 implementation is ready for review. Surfaces declare one namespace-keyed client map, and mounted feature clients validate every key against the backend channel registry's read-only projection. Focused client, channel-lifetime, runtime composition, and server-browser tests pass, followed by `npm run check`.
 
 ## Review units
 
@@ -47,17 +50,19 @@ Migrate Canvas, substrate Agent channels, substrate workspace channels, runtime 
 
 **Review gate:** Workspace handlers, Agent handlers, and events retain their existing canonical wire ids. Duplicate detection and schema validation still hold. Backend feature code has no authored namespace field.
 
-### C2: Inherit own-feature scope and name imported targets
+### C2: Declare and validate frontend channel namespaces
 
-Change renderer channel-client construction so UIX resolves a target scope before creating the client. `SurfaceMount` uses `SurfaceEntry.featureId` for its surface's own contract. Add one explicit caller-side form for imported contracts, then migrate Chat and Canvas Agent-channel consumption plus UIX-owned `agent` and `uix` client sites.
+Change surface channel-client construction to one namespace-keyed contract map. `SurfaceMount` creates one typed client per key before rendering. Migrate Chat to its `agent` client and Canvas to its `canvas` and `agent` clients. UIX-owned direct clients continue to name `agent` and `uix` explicitly.
 
-Keep the low-level canonical-id constructor behind the resolved scope. Do not make ordinary own-feature surface code repeat its feature id. The exact helper name and object shape may follow existing API naming conventions. Types and call sites must still distinguish own contracts from imported contracts.
+Project the backend channel registry's live namespaces with the accepted surface composition. Validate every surface map key against that read-only projection. Namespace lifetime follows admitted contracts, including event-only contracts and multiple contracts under one namespace. Do not infer availability from feature or surface lists.
 
-**Review gate:** A Canvas surface reaches `canvas.*` through inherited scope. Chat and Canvas reach `agent.*` only through an explicit imported target. UIX clients reach `uix.*` explicitly. An implicit cross-feature binding cannot silently address the imported provider.
+Defer multiple contracts under one namespace at a single surface binding until a caller needs them. A later API may accept `ChannelContract | readonly ChannelContract[]` and merge clients while rejecting duplicate local members.
+
+**Review gate:** Canvas receives typed `canvas` and `agent` clients from one declaration. Chat receives its typed `agent` client. UIX clients reach reserved namespaces explicitly. A missing or renamed provider fails visibly before its surface renders, and registry disposal removes a namespace only after its final contract lifetime ends.
 
 ### C3: Update author guidance and run conformance
 
-Update channel and surface documentation to teach substrate-owned scope first and explicit imported targets second. Remove examples and comments that describe contracts as owning or including a feature id.
+Update channel and surface documentation to teach substrate-owned backend scope and explicit namespace-keyed surface clients. Remove examples and comments that describe contracts as owning or including a feature id.
 
 Run focused API, channel-registry, feature-contribution, surface-host, and workspace-client tests, followed by `npm run check`.
 

@@ -1,4 +1,4 @@
-// Owns Workspace channel contracts and routes selected requests to per-Agent handlers.
+// Owns Workspace channel contracts, their namespace catalog, and selected request routing to per-Agent handlers.
 
 import { Value } from "typebox/value";
 
@@ -107,6 +107,7 @@ export class AgentChannelHandlerRegistry {
 export class ChannelRegistry {
   readonly #publish: ChannelEventPublisher;
   readonly #runners = new Map<ChannelCanonicalId, RegisteredRunner>();
+  readonly #namespaceReferences = new Map<string, number>();
 
   constructor(opts: ChannelRegistryOptions = {}) {
     this.#publish = opts.publish ?? (() => undefined);
@@ -123,6 +124,30 @@ export class ChannelRegistry {
   /** Current canonical request ids for diagnostics and composition tests. */
   listCanonicalIds(): readonly ChannelCanonicalId[] {
     return [...this.#runners.keys()];
+  }
+
+  /** Namespaces backed by at least one currently admitted channel contract. */
+  listNamespaces(): readonly string[] {
+    return [...this.#namespaceReferences.keys()].sort();
+  }
+
+  /** Retain one admitted contract's namespace for its registration lifetime. */
+  registerNamespace(namespace: string): Disposable {
+    this.#namespaceReferences.set(
+      namespace,
+      (this.#namespaceReferences.get(namespace) ?? 0) + 1,
+    );
+    let disposed = false;
+    return disposable(() => {
+      if (disposed) return;
+      disposed = true;
+      const references = this.#namespaceReferences.get(namespace);
+      if (references === undefined || references === 1) {
+        this.#namespaceReferences.delete(namespace);
+      } else {
+        this.#namespaceReferences.set(namespace, references - 1);
+      }
+    });
   }
 
   /** Register one validated handler in the workspace's canonical table. */
@@ -244,6 +269,7 @@ export function registerAgentChannelContracts(
   const bag = new DisposableBag();
   try {
     for (const contract of contracts) {
+      bag.add(registry.registerNamespace(featureId));
       for (const [name, request] of Object.entries(contract.requests)) {
         const canonicalId = toChannelCanonicalId(featureId, name);
         bag.add(
@@ -301,6 +327,7 @@ export function registerChannelContributions(
   const bag = new DisposableBag();
   try {
     for (const contribution of contributions) {
+      bag.add(registry.registerNamespace(featureId));
       for (const resolvedContribution of resolveChannelRequestContributions(
         featureId,
         contribution,

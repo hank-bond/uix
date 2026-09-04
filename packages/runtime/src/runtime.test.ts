@@ -717,16 +717,20 @@ describe("workspace runtime isolation", () => {
     }
     const surfacesValueA = surfacesA.value as {
       surfaces: Array<{ featureId: string; url: string }>;
+      channelNamespaces: string[];
       manifestFound: boolean;
     };
     const surfacesValueB = surfacesB.value as {
       surfaces: Array<{ featureId: string; url: string }>;
+      channelNamespaces: string[];
       manifestFound: boolean;
     };
     expect(surfacesValueA.surfaces).toHaveLength(1);
     expect(surfacesValueB.surfaces).toHaveLength(1);
     expect(surfacesValueA.surfaces[0].featureId).toBe("echo");
     expect(surfacesValueB.surfaces[0].featureId).toBe("echo");
+    expect(surfacesValueA.channelNamespaces).toEqual(["agent", "echo", "uix"]);
+    expect(surfacesValueB.channelNamespaces).toEqual(["agent", "echo", "uix"]);
     expect(surfacesValueA.manifestFound).toBe(true);
     expect(surfacesValueB.manifestFound).toBe(true);
     expect(surfacesValueA.surfaces[0].url).not.toBe(

@@ -64,6 +64,8 @@ export const substrateChannels = {
       requestSchema: Type.Void(),
       responseSchema: Type.Object({
         surfaces: Type.Array(SurfaceEntrySchema),
+        /** Active feature and built-in namespaces that imported clients may target. */
+        channelNamespaces: Type.Array(Type.String()),
         /** Where the manifest is (or would be): existence checked per request,
          * so a manifest created after boot flips this on the next fetch. */
         manifestPath: Type.String(),

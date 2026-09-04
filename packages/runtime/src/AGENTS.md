@@ -24,7 +24,7 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 
 - **[agent-skill-registry.ts](./agent-skill-registry.ts)** Assembles feature-provided Pi skill paths and provides them when Pi discovers runtime resources.
 - **[agent-system-prompt-registry.ts](./agent-system-prompt-registry.ts)** Assembles each feature's system-prompt section in workspace order for Pi.
-- **[channel-registry.ts](./channel-registry.ts)** Owns Workspace channel contracts and routes selected requests to per-Agent handlers.
+- **[channel-registry.ts](./channel-registry.ts)** Owns Workspace channel contracts, their namespace catalog, and selected request routing to per-Agent handlers.
 - **[dispatch.ts](./dispatch.ts)** Canonical request preparation and the attachment-stamped dispatch context.
 - **[document-store.ts](./document-store.ts)** Persists mutable document content and caller-supplied immutable versions under stable IDs.
 - **[events.ts](./events.ts)** Explicitly scoped canonical runtime events for host-selected delivery.

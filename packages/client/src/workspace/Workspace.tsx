@@ -17,7 +17,11 @@ import {
 } from "react-resizable-panels";
 
 import type { SurfaceEntry } from "@uix/api/substrate-channels";
-import { FeatureActionsProvider } from "@uix/api/workspace";
+import {
+  FeatureActionsProvider,
+  useWorkspaceClient,
+  WorkspaceClientProvider,
+} from "@uix/api/workspace";
 
 import { ActionRegistryProvider } from "./action-context";
 import {
@@ -71,7 +75,16 @@ export function Workspace({
 }
 
 function WorkspaceContent(): JSX.Element {
+  const workspace = useWorkspaceClient();
   const composition = useSurfaces();
+  const surfaceWorkspace = useMemo(
+    () =>
+      composition
+        ? { ...workspace, channelNamespaces: composition.channelNamespaces }
+        : workspace,
+    [composition, workspace],
+  );
+
   // Not yet fetched. Render the bare shell, no empty-state flash.
   if (!composition) return <div className="workspace" />;
   if (composition.surfaces.length === 0) {
@@ -84,7 +97,9 @@ function WorkspaceContent(): JSX.Element {
 
   return (
     <div className="workspace">
-      <ResizableSurfaceRow composition={composition} />
+      <WorkspaceClientProvider client={surfaceWorkspace}>
+        <ResizableSurfaceRow composition={composition} />
+      </WorkspaceClientProvider>
     </div>
   );
 }

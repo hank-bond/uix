@@ -277,6 +277,7 @@ describe("ChannelRegistry", () => {
       contribution,
     ]);
 
+    expect(registry.listNamespaces()).toEqual(["feature"]);
     expect(
       (
         await invoke(registry, {
@@ -289,7 +290,32 @@ describe("ChannelRegistry", () => {
     expect(() =>
       registerChannelContributions(registry, "feature", [contribution]),
     ).toThrow("already registered");
+    expect(registry.listNamespaces()).toEqual(["feature"]);
     lifetime[Symbol.dispose]();
+    expect(registry.listNamespaces()).toEqual([]);
+  });
+
+  it("retains event-only namespaces across independent contract lifetimes", () => {
+    const registry = new ChannelRegistry();
+    const contribution = withHandlers(
+      {
+        requests: {},
+        events: { changed: { event: Type.Void() } },
+      },
+      {},
+    );
+    const first = registerChannelContributions(registry, "feature", [
+      contribution,
+    ]);
+    const second = registerChannelContributions(registry, "feature", [
+      contribution,
+    ]);
+
+    expect(registry.listNamespaces()).toEqual(["feature"]);
+    first[Symbol.dispose]();
+    expect(registry.listNamespaces()).toEqual(["feature"]);
+    second[Symbol.dispose]();
+    expect(registry.listNamespaces()).toEqual([]);
   });
 
   it("validates real agent model references through the shared contract", async () => {

@@ -297,7 +297,7 @@ function browserChatSurfaceSource(
     "}",
     "export const surface = defineSurface({",
     '  name: "chat",',
-    "  contract: agentChannels,",
+    "  channels: { agent: agentChannels },",
     "  render: () => <BrowserChat />",
     "});",
   ].join("\n");

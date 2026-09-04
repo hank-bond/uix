@@ -212,6 +212,8 @@ export interface WorkspaceConnectionVersion {
 
 export interface WorkspaceClient {
   readonly workspaceId: string;
+  /** Accepted channel namespaces, when binding inside a mounted feature surface. */
+  readonly channelNamespaces?: readonly string[];
   readonly request: (channel: string, req: unknown) => Promise<unknown>;
   readonly subscribe: (
     channel: string,
@@ -459,21 +461,29 @@ export interface ChannelClient<C extends ChannelContract> {
   events: EventClient<C>;
 }
 
+/** Create a client for one explicitly selected channel namespace. */
 export function createChannelClient<const C extends ChannelContract>(
   workspace: WorkspaceClient,
-  featureId: string,
+  namespace: string,
   contract: C,
 ): ChannelClient<C> {
+  if (
+    workspace.channelNamespaces &&
+    !workspace.channelNamespaces.includes(namespace)
+  ) {
+    throw new Error(`Channel namespace is unavailable: ${namespace}`);
+  }
+
   const requests = {} as Record<string, unknown>;
   for (const name of Object.keys(contract.requests)) {
-    const canonicalId = toChannelCanonicalId(featureId, name);
+    const canonicalId = toChannelCanonicalId(namespace, name);
     requests[name] = (payload: unknown) =>
       workspace.request(canonicalId, payload);
   }
 
   const events = {} as Record<string, unknown>;
   for (const [name, evt] of Object.entries(contract.events)) {
-    const canonicalId = toChannelCanonicalId(featureId, name);
+    const canonicalId = toChannelCanonicalId(namespace, name);
     // Events cross the transport unvalidated (the registry only parses
     // request/response payloads), so the schema check lives here.
     events[name] = (handler: (payload: unknown) => void) =>
@@ -492,51 +502,56 @@ export function createChannelClient<const C extends ChannelContract>(
  * definition time and pushes the unavoidable cast into the substrate.
  */
 // Section: Surfaces
+export type SurfaceChannelContracts = Readonly<Record<string, ChannelContract>>;
+
+type SurfaceChannelClients<Channels extends SurfaceChannelContracts> = {
+  readonly [Namespace in keyof Channels]: ChannelClient<Channels[Namespace]>;
+};
+
 export interface SurfaceContribution {
   readonly name: string;
-  readonly contract?: ChannelContract;
+  readonly channels?: SurfaceChannelContracts;
   /** Adopted into the document while the surface is mounted. */
   readonly styles?: readonly CSSStyleSheet[];
-  readonly render: (client: unknown) => ReactNode;
+  readonly render: (clients: unknown) => ReactNode;
 }
 
-/** A surface bound to a channel contract; `render` gets the typed client. */
-export interface SurfaceDefinition<C extends ChannelContract> {
+/** A surface with explicitly namespaced channel contracts. */
+export interface SurfaceDefinition<Channels extends SurfaceChannelContracts> {
   readonly name: string;
-  readonly contract: C;
+  readonly channels: Channels;
   readonly styles?: readonly CSSStyleSheet[];
-  readonly render: (client: ChannelClient<C>) => ReactNode;
+  readonly render: (clients: SurfaceChannelClients<Channels>) => ReactNode;
 }
 
 /** A surface with no channel binding: pure presentation or local state. */
-export interface ContractlessSurfaceDefinition extends Omit<
-  SurfaceDefinition<ChannelContract>,
-  "contract" | "render"
-> {
+export interface ContractlessSurfaceDefinition {
+  readonly name: string;
+  readonly styles?: readonly CSSStyleSheet[];
   readonly render: () => ReactNode;
 }
 
 /**
- * Defines a surface. With a `contract`, `render`'s `client` parameter is
- * fully typed from it. Features never cast. The substrate mount mints the
- * client under the feature scope that contributed the surface. A surface
- * module must export this result as `surface` (`export const surface = defineSurface(...)`);
- * That is how the runtime loader finds it. The single unavoidable cast
- * (erasing the generic for the heterogeneous surface list) lives here in the
- * substrate. A mounted surface receives only workspace-scoped services: its
- * channel client, a feature-bound settings client, an action registrar, and
- * read-only session capabilities. It never receives Electron, main-process
- * registries, or another feature's settings handle.
+ * Defines a surface. Each `channels` key is the provider namespace for its
+ * contract and the local name of the typed client passed to `render`. Features
+ * never cast. A surface module must export this result as `surface`
+ * (`export const surface = defineSurface(...)`). That is how the runtime loader
+ * finds it. The single unavoidable cast, which erases the generic for the
+ * heterogeneous surface list, lives here in the substrate. A mounted surface
+ * receives only workspace-scoped services: its channel clients, a
+ * feature-bound settings client, an action registrar, and read-only session
+ * capabilities. It never receives Electron, main-process registries, or
+ * another feature's settings handle.
  */
-export function defineSurface<const C extends ChannelContract>(
-  surface: SurfaceDefinition<C>,
+export function defineSurface<const Channels extends SurfaceChannelContracts>(
+  surface: SurfaceDefinition<Channels>,
 ): SurfaceContribution;
 export function defineSurface(
   surface: ContractlessSurfaceDefinition,
 ): SurfaceContribution;
 export function defineSurface(
   surface: Omit<SurfaceContribution, "render"> & {
-    readonly render: (client: never) => ReactNode;
+    readonly render: (clients: never) => ReactNode;
   },
 ): SurfaceContribution {
   if (!isIdToken(surface.name)) {
@@ -546,8 +561,8 @@ export function defineSurface(
   }
   return {
     name: surface.name,
-    ...(surface.contract ? { contract: surface.contract } : {}),
+    ...(surface.channels ? { channels: surface.channels } : {}),
     ...(surface.styles ? { styles: surface.styles } : {}),
-    render: surface.render as (client: unknown) => ReactNode,
+    render: surface.render as (clients: unknown) => ReactNode,
   };
 }

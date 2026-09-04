@@ -26,7 +26,7 @@ import sessionPillSheet from "./SessionPill.css" with { type: "css" };
 
 export const surface = defineSurface({
   name: "chat",
-  contract: agentChannels,
+  channels: { agent: agentChannels },
   styles: [
     chatSheet,
     chatBlockSheet,
@@ -48,5 +48,5 @@ export const surface = defineSurface({
     providerLoginModalSheet,
     sessionPillSheet,
   ],
-  render: (client) => <Chat client={client} />,
+  render: ({ agent }) => <Chat client={agent} />,
 });
