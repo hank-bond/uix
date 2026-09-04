@@ -14,9 +14,9 @@ This plan covers only document reads. Writeback and prompt actions remain on the
 
 ## Dependency
 
-Complete [substrate-scoped channel contracts](./substrate-scoped-channel-contracts.md) first. Web routes use the same backend ownership rule: contracts contain local vocabulary, while UIX derives contribution scope from the Workspace and Agent factories. Channel surfaces declare every namespace they consume because they may target several providers. R1 web clients remain scoped to the mounted feature because cross-feature route consumption is outside this plan.
+[Substrate-scoped channel contracts](./archive/substrate-scoped-channel-contracts.md) have landed. Web routes use the same backend ownership rule: contracts contain local vocabulary, while UIX derives contribution scope from the Workspace and Agent factories. Channel surfaces declare every namespace they consume because they may target several providers. R1 web clients remain scoped to the mounted feature because cross-feature route consumption is outside this plan.
 
-Keep the channel migration and route work in separate review units. The channel migration establishes backend ownership and explicit frontend targeting. This plan applies backend ownership to web routes while deriving the R1 browser target from its mounted feature.
+The completed channel migration established backend ownership and explicit frontend targeting. This plan now applies backend ownership to web routes while deriving the R1 browser target from its mounted feature.
 
 ## R1 boundary
 

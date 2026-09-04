@@ -1,10 +1,11 @@
 ---
 summary: "Move backend channel ownership into substrate-established feature scope, while surfaces declare every consumed namespace in one validated client map."
+status: landed
 ---
 
 # Substrate-scoped channel contracts
 
-This plan implements the [feature channels specification](../docs/specs/feature-channels.md).
+This plan implements the [feature channels specification](../../docs/specs/feature-channels.md).
 
 ## Goal
 
@@ -36,11 +37,11 @@ This migration establishes the ownership pattern that Agent-bound feature web co
 - Request and event validation, attachment routing, Agent handler selection, logging policy, and lifetimes remain unchanged.
 - This is a breaking source migration. Do not retain an overload or compatibility path for self-scoped contracts.
 
-## Progress
+## Delivered commits
 
-- C1 is committed as `f25cad3`.
-- C2 is committed as `20c0685`.
-- C3 is ready for review. Author guidance and the architecture record now teach substrate-owned backend scope and explicit namespace-keyed surface clients. Focused conformance tests and `npm run check` pass.
+- C1 landed as `f25cad3`.
+- C2 landed as `20c0685`.
+- C3 landed as `e7f7acd`. Author guidance and the architecture record teach substrate-owned backend scope and explicit namespace-keyed surface clients.
 
 ## Review units
 
