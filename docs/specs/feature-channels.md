@@ -2,7 +2,7 @@
 summary: "Backend channel contributions inherit producer scope, while surfaces declare and validate each consumed namespace against the live registry projection."
 kind: reference
 status: accepted
-implementation: incomplete
+implementation: conforming
 ---
 
 # Feature channels
@@ -11,7 +11,7 @@ implementation: incomplete
 
 A feature channel groups typed request operations and backend-published events. Backend and browser code share one schema-only contract. UIX installs handlers and publishers under the producer's trusted feature scope, while a mounted surface receives typed clients derived from the same contract.
 
-A surface declares a map from every consumed provider namespace to its shared contract. The map may include its owning feature, another feature, or the substrate. UIX accepts each entry only while that namespace belongs to the active workspace composition.
+A surface declares a map from every consumed provider namespace to its shared contract. The map may include its owning feature, another feature, or the substrate. UIX accepts each entry only while the backend channel registry includes that namespace in its live projection.
 
 ## Boundary
 

@@ -116,7 +116,6 @@ import { Type } from "typebox";
 import type { ChannelContract } from "@uix/api/channels";
 
 export const notesChannels = {
-  feature: "notes",
   requests: {
     add: {
       requestSchema: Type.Object({ text: Type.String() }),
@@ -147,7 +146,7 @@ export const notesChannelsContribution: ChannelContribution = withHandlers(
 );
 ```
 
-Return a Workspace-scoped handler from `workspace(ctx)`. For per-Agent state, return the schema-only contract through `workspace(ctx).agentChannelContracts` and the handler through `agent(ctx).channels`. A surface binds the same contract through `defineSurface`. See [`add-a-channel.md`](./add-a-channel.md).
+Return a Workspace-scoped handler from `workspace(ctx)`. For per-Agent state, return the schema-only contract through `workspace(ctx).agentChannelContracts` and the handler through `agent(ctx).channels`. UIX derives the backend namespace from the contributing feature. A surface declares that namespace with the same contract through `defineSurface`. See [`add-a-channel.md`](./add-a-channel.md).
 
 ## Agent tools
 
@@ -235,12 +234,12 @@ import { notesChannels } from "../shared/channels";
 
 export const surface = defineSurface({
   name: "notes",
-  contract: notesChannels,
-  render: (client) => <Notes client={client} />,
+  channels: { notes: notesChannels },
+  render: ({ notes }) => <Notes client={notes} />,
 });
 ```
 
-A surface can omit `contract` when it needs only local state. See [`add-a-surface.md`](./add-a-surface.md) for styles, mounting, and best practices.
+A surface can omit `channels` when it needs only local state. Every channel key explicitly names the provider namespace and becomes the local typed client name. See [`add-a-surface.md`](./add-a-surface.md) for styles, mounting, and best practices.
 
 ## What happens on load
 

@@ -14,13 +14,14 @@ Use those trusted scopes to derive backend canonical channel ids. A surface decl
 
 This migration establishes the ownership pattern that Agent-bound feature web contracts will follow.
 
-## Current implementation
+## Delivered implementation
 
-- `ChannelContract.feature` currently provides the target to `createChannelClient()` and is checked against the feature id already held by backend contribution and publisher paths.
-- `registerWorkspaceFeatureContributions()` and `registerAgentFeatureContributions()` already receive the active feature id.
-- `FeatureEventPublisherFactory` is already created for one feature id.
-- `SurfaceMount` receives `SurfaceEntry.featureId` and already uses it to scope settings and actions.
-- Chat deliberately consumes the substrate-owned `agentChannels`. Canvas consumes both `canvasChannels` and `agentChannels`.
+- `ChannelContract` contains only local request and event vocabulary.
+- Workspace and Agent contribution installation derive backend namespaces from the active feature id.
+- Feature event publishers derive their namespace from the factory context UIX creates.
+- The channel registry owns a reference-counted catalog of live namespaces and projects it with the accepted surface composition.
+- Surfaces declare every consumed namespace in one contract map and receive a matching typed client map.
+- Chat consumes `agentChannels`. Canvas consumes both `canvasChannels` and `agentChannels`.
 
 ## Accepted behavior
 
@@ -38,7 +39,8 @@ This migration establishes the ownership pattern that Agent-bound feature web co
 ## Progress
 
 - C1 is committed as `f25cad3`.
-- C2 implementation is ready for review. Surfaces declare one namespace-keyed client map, and mounted feature clients validate every key against the backend channel registry's read-only projection. Focused client, channel-lifetime, runtime composition, and server-browser tests pass, followed by `npm run check`.
+- C2 is committed as `20c0685`.
+- C3 is ready for review. Author guidance and the architecture record now teach substrate-owned backend scope and explicit namespace-keyed surface clients. Focused conformance tests and `npm run check` pass.
 
 ## Review units
 

@@ -26,7 +26,6 @@ import { Type } from "typebox";
 import type { ChannelContract } from "@uix/api/channels";
 
 export const notesChannels = {
-  feature: "notes",
   requests: {
     add: {
       requestSchema: Type.Object({ text: Type.String() }),
@@ -42,7 +41,8 @@ export const notesChannels = {
 - **Requests** describe a frontend-to-backend operation with request and response schemas.
 - **Events** describe payloads the backend publishes and surfaces observe.
 - Use `Type.Void()` for acknowledgement-only requests. It communicates completion and backpressure without a response body.
-- `feature` is the owning id, stated once. The substrate checks it at every binding. A contract can't register or publish under the wrong namespace.
+- Contracts contain only local request and event vocabulary. They do not declare their feature namespace.
+- UIX derives the backend namespace from the feature whose `workspace(ctx)` or `agent(ctx)` factory contributes the contract. `ctx.channels.createPublisher(...)` is bound to that same feature.
 
 ## Bind backend handlers
 
@@ -133,7 +133,7 @@ Events published from `workspace(ctx)` reach every Workspace attachment. Events 
 
 ## Consume the typed client from a surface
 
-A surface binds the contract through `defineSurface(...)`, and `render` receives the derived `ChannelClient`:
+A surface declares every channel namespace it consumes through `defineSurface(...)`. Each `channels` key is both the provider namespace and the local name of the typed client passed to `render`:
 
 ```tsx
 // features/notes/workspace/surface.tsx
@@ -143,8 +143,8 @@ import { notesChannels } from "../shared/channels";
 
 export const surface = defineSurface({
   name: "notes",
-  contract: notesChannels,
-  render: (client) => <Notes client={client} />,
+  channels: { notes: notesChannels },
+  render: ({ notes }) => <Notes client={notes} />,
 });
 ```
 
@@ -167,11 +167,11 @@ function Notes({ client }: { client: ChannelClient<typeof notesChannels> }) {
 }
 ```
 
-Request returns resolve with the response type. Dispose event subscriptions (usually through React effect cleanup). See [`add-a-surface.md`](./add-a-surface.md) for more on surfaces and styles.
+Request returns resolve with the response type. Dispose event subscriptions (usually through React effect cleanup). A surface can list several providers, for example `channels: { notes: notesChannels, agent: agentChannels }`. UIX validates every namespace against the live backend channel registry before rendering the surface. An unavailable provider fails visibly instead of creating an inert client. See [`add-a-surface.md`](./add-a-surface.md) for more on surfaces and styles.
 
 ## Id derivation
 
-You author feature-local operation names. The facet derives two ids:
+You author feature-local operation names. The backend contribution scope supplies the feature id, while each surface client names the namespace it consumes. The facet derives two ids:
 
 ```text
 notes + add   -> contribution id notes.channel.add   / transport id notes.add
@@ -190,4 +190,4 @@ Every request, response, and event crossing appears in terminal logs (and option
 
 ## What happens on bind
 
-The channel registry validates unknown requests and handler responses at the transport boundary, while preserving contract-owned log descriptions. Canonical-id reservations remain recoverable across transport acquisition and disposal failures. Disposal removes the feature's routes without unregistering the application-wide transport. See [`packages/runtime/src/channel-registry.ts`](../../packages/runtime/src/channel-registry.ts).
+The channel registry validates unknown requests and handler responses at the transport boundary, while preserving contract-owned log descriptions. It also owns a reference-counted catalog of namespaces backed by admitted contracts, including event-only contracts. The workspace projects that catalog to surfaces for client validation. Canonical-id reservations remain recoverable across transport acquisition and disposal failures. Disposal removes a namespace after its final contract lifetime ends without unregistering the application-wide transport. See [`packages/runtime/src/channel-registry.ts`](../../packages/runtime/src/channel-registry.ts).

@@ -33,11 +33,11 @@ Reload is the canonical `uix.reload` substrate request. It rejects while an Agen
 
 ## Channels and resources
 
-A shared `ChannelContract` defines request, response, and event schemas. Backend code adds handlers with `withHandlers()` and obtains contract-bound event publishers through the injected feature context.
+A shared `ChannelContract` defines local request, response, and event schemas without naming a feature. Backend code adds handlers with `withHandlers()` and obtains contract-bound event publishers through the injected feature context. UIX derives their canonical namespace from the feature whose Workspace or Agent factory contributes them.
 
-Each workspace runtime owns one `ChannelRegistry` that resolves owner-scoped ids and validates requests and responses. Workspace handlers run directly. An Agent channel contract selects a handler from the prepared dispatch's accepted Agent guard. Each Agent instance owns those handler closures. Routing values do not enter feature payloads.
+Each workspace runtime owns one `ChannelRegistry` that resolves owner-scoped ids, validates requests and responses, and tracks the live namespaces backed by admitted contracts. Workspace handlers run directly. An Agent channel contract selects a handler from the prepared dispatch's accepted Agent guard. Each Agent instance owns those handler closures. Routing values do not enter feature payloads.
 
-A runtime-created attachment prepares each canonical request with immutable guarded context and the registry entry's log policy. Each host records the physical crossing and invokes that prepared dispatch. Workspace clients derive typed request and event methods, and event clients validate incoming payloads.
+A runtime-created attachment prepares each canonical request with immutable guarded context and the registry entry's log policy. Each host records the physical crossing and invokes that prepared dispatch. The surface composition projects the registry's namespace catalog. A surface declares every consumed namespace in one contract map and receives typed request and event clients under the matching keys. Client creation rejects unavailable namespaces, and event clients validate incoming payloads.
 
 Electron IPC and the server's correlated WebSocket protocol are the implemented physical channel transports. The server detects dead sockets with ping/pong. Its browser adapter reconnects to the canonical session with capped backoff and rejects disconnected requests without replay. An accepted-connection version makes mounted snapshot consumers resubscribe and rehydrate. Runtime events have workspace or session scope. Only matching attachments receive them. Canvas iframe writeback still uses a feature-owned `postMessage` shim before entering typed channels. A general iframe channel adapter does not exist.
 

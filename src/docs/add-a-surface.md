@@ -1,5 +1,5 @@
 ---
-summary: "Add a surface to a feature: author an entry with defineSurface, bind a channel contract, and mount it in the workspace."
+summary: "Add a surface to a feature: author an entry with defineSurface, declare its channel namespaces, and mount it in the workspace."
 kind: how-to
 read_when: "Read when adding a surface to a feature, or when asked to add a surface."
 ---
@@ -48,21 +48,27 @@ export const surface = defineSurface({
 });
 ```
 
-`name` is a lowercase id token within the feature. Omit `contract` when the surface needs only local state or other workspace contexts.
+`name` is a lowercase id token within the feature. Omit `channels` when the surface needs only local state or other workspace contexts.
 
-To bind a channel, pass the shared contract. `render` receives the fully typed `ChannelClient`:
+To bind channels, map each provider namespace to its shared contract. `render` receives a typed `ChannelClient` under every matching key:
 
 ```tsx
+import { agentChannels } from "@uix/api/agent-channels";
+import { notesChannels } from "../shared/channels";
+
 export const surface = defineSurface({
   name: "notes",
-  contract: notesChannels,
-  render(client) {
-    return <Notes client={client} />;
+  channels: {
+    agent: agentChannels,
+    notes: notesChannels,
+  },
+  render({ agent, notes }) {
+    return <Notes client={notes} agent={agent} />;
   },
 });
 ```
 
-See [`add-a-channel.md`](./add-a-channel.md) for the contract side of this pairing.
+The key is both the canonical provider namespace and the local client name. UIX validates every declared namespace against the live backend channel registry before rendering. This rule applies equally to the surface's feature, another feature, and reserved substrate providers such as `agent`. See [`add-a-channel.md`](./add-a-channel.md) for the contract side of this pairing.
 
 ## Add styles
 
@@ -84,4 +90,4 @@ The `styles` array is the cascade order: shared foundations precede component-ow
 
 ## Verify
 
-Reload the workspace. The surface mounts in composition order, and a channel-bound surface receives a typed client. A failing surface renders an attributed error card without unmounting its siblings.
+Reload the workspace. The surface mounts in composition order and receives its declared typed clients. A missing channel namespace or failing surface renders an attributed error card without unmounting its siblings.
