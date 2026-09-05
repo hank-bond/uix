@@ -1,12 +1,9 @@
 // Routes resource URLs to the active feature handlers through one validated boundary.
 //
-// Resource declarations remain transport-neutral. The host binds its custom
-// protocol or HTTP content plane through the injected registrar. A malformed
-// URL recognized by a route yields 400, while a URL matching no registered
-// route yields 404. The registry resolves
-// owner-scoped ids and rejects duplicate claims. Handlers are reload-scoped
-// contributions, and disposal removes their routes without unregistering any
-// host-wide transport.
+// Resource declarations remain transport-neutral. A malformed URL recognized
+// by a route yields 400, while a URL matching no registered route yields 404.
+// The registry owns reload-scoped contributions. Runtime composition owns the
+// shared host content transport.
 
 import {
   type ContributionId,
@@ -18,7 +15,6 @@ import {
   type DecodedResourceUrl,
   decodeResourceUrl,
   type NormalizedResourceRoute,
-  ResourceProtocolScheme,
 } from "@uix/api/resource-routes";
 import type {
   ResourceContribution,
@@ -38,21 +34,13 @@ interface ResolvedResourceContribution {
   ) => Response | Promise<Response>;
 }
 
-export type ResourceTransportRegistrar = (
-  scheme: typeof ResourceProtocolScheme,
-  handler: (request: Request) => Response | Promise<Response>,
-) => Disposable;
-
-export interface ResourceRegistryOptions {
+interface ResourceRegistryOptions {
   workspaceId: string;
-  /** Host-bound transport. When omitted the registry keeps routes without serving them. */
-  transportRegistrar?: ResourceTransportRegistrar;
 }
 
-/** Own live feature routes and the host-bound transport handler. */
+/** Own workspace resource routes independently of attachments and host transports. */
 export class ResourceRegistry implements Disposable {
   readonly #workspaceId: string;
-  readonly #transportDisposable: Disposable | undefined;
   readonly #canonicalIds = new Set<ResourceCanonicalId>();
   readonly #registeredResources = new Map<
     ResourceCanonicalId,
@@ -62,11 +50,6 @@ export class ResourceRegistry implements Disposable {
 
   constructor(opts: ResourceRegistryOptions) {
     this.#workspaceId = opts.workspaceId;
-    this.#transportDisposable = opts.transportRegistrar
-      ? opts.transportRegistrar(ResourceProtocolScheme, (request) =>
-          this.#dispatch(request),
-        )
-      : undefined;
   }
 
   /** Register one resolved route and return a lifetime for that exact route. */
@@ -100,10 +83,10 @@ export class ResourceRegistry implements Disposable {
     this.#disposed = true;
     this.#registeredResources.clear();
     this.#canonicalIds.clear();
-    this.#transportDisposable?.[Symbol.dispose]();
   }
 
-  async #dispatch(request: Request): Promise<Response> {
+  /** Dispatch a logical resource request without attachment selection or response adaptation. */
+  async dispatch(request: Request): Promise<Response> {
     let badRequestReason: string | null = null;
 
     for (const contribution of this.#registeredResources.values()) {

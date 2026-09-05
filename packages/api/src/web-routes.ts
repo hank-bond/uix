@@ -4,18 +4,45 @@
 // namespace and execution scope. The runtime provides routing identity,
 // decoded input, cancellation, and a contract-bound responder.
 
-import type { Static, TObject } from "typebox";
+import { type Static, type TObject, Type } from "typebox";
+
+// These values are schemas, not request payloads. TypeBox owns their guard
+// and static type. Admission does not interpret their nested declarations.
+const TypeBoxObjectSchema = Type.Unsafe<TObject>(
+  Type.Refine(
+    Type.Unknown(),
+    Type.IsObject,
+    () => "Expected a Type.Object schema",
+  ),
+);
+
+/** Structural admission schema shared with the author-facing contract type. */
+export const WebRouteContractSchema = Type.Object(
+  {
+    method: Type.Literal("GET"),
+    /** Use `/` or one literal, non-dot segment such as `/view`. Non-root paths cannot end in `/`. */
+    path: Type.String(),
+    /** Omit when the path has no parameters, as required for complete-page routes. */
+    params: Type.Optional(TypeBoxObjectSchema),
+    /** Omit when the route accepts no query input. Declare complete-page content selection here. */
+    query: Type.Optional(TypeBoxObjectSchema),
+    responses: Type.Object(
+      {
+        200: Type.Readonly(
+          Type.Object(
+            { content: Type.Readonly(Type.Literal("html-document")) },
+            { additionalProperties: false },
+          ),
+        ),
+      },
+      { additionalProperties: false },
+    ),
+  },
+  { additionalProperties: false },
+);
 
 /** Schema-only declaration shared by backend and browser code. */
-export interface WebRouteContract {
-  readonly method: "GET";
-  readonly path: string;
-  readonly params: TObject;
-  readonly query?: TObject;
-  readonly responses: Readonly<{
-    200: { readonly content: "html-document" };
-  }>;
-}
+export type WebRouteContract = Readonly<Static<typeof WebRouteContractSchema>>;
 
 /** Preserve authored schemas through route definition. */
 export function defineWebRoute<const Contract extends WebRouteContract>(
@@ -24,20 +51,16 @@ export function defineWebRoute<const Contract extends WebRouteContract>(
   return contract;
 }
 
-type ObjectValue<Schema> = Schema extends TObject
+type InputValue<Schema> = Schema extends TObject
   ? Static<Schema>
   : Record<string, never>;
 
-type ContractQuery<Contract extends WebRouteContract> = Contract extends {
-  readonly query: infer Query extends TObject;
-}
-  ? Query
-  : undefined;
-
 /** Typed input delivered after the runtime has decoded and validated a route. */
 export interface WebRouteHandlerRequest<Contract extends WebRouteContract> {
-  readonly params: ObjectValue<Contract["params"]>;
-  readonly query: ObjectValue<ContractQuery<Contract>>;
+  /** An empty object when the contract omits the path schema. */
+  readonly params: InputValue<Contract["params"]>;
+  /** An empty object when the contract omits the query schema. */
+  readonly query: InputValue<Contract["query"]>;
   readonly signal: AbortSignal;
 }
 

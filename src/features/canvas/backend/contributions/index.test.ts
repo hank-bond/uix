@@ -10,6 +10,7 @@ import type { AgentFeatureContext } from "@uix/api/feature";
 import type { WebRouteHandler, WebRouteResponder } from "@uix/api/web-routes";
 
 import { canvasFeature } from "./index";
+import { parseCanvasKey } from "../../shared/addressing";
 import type { CanvasDocumentRoute } from "../../shared/web-routes";
 
 function memoryDocuments(): DocumentStoreFactory {
@@ -105,8 +106,8 @@ describe("canvas Agent factory", () => {
     await expect(readFirst({ key: "main" })).resolves.toContain("first");
     const firstDocument = await firstDocumentHandler(
       {
-        params: { key: ["main"] },
-        query: {},
+        params: {},
+        query: { key: parseCanvasKey("main") },
         signal: new AbortController().signal,
       },
       respond,
@@ -121,8 +122,8 @@ describe("canvas Agent factory", () => {
     await expect(readSecond({ key: "main" })).resolves.not.toContain("first");
     const secondDocument = await secondDocumentHandler(
       {
-        params: { key: ["main"] },
-        query: {},
+        params: {},
+        query: { key: parseCanvasKey("main") },
         signal: new AbortController().signal,
       },
       respond,

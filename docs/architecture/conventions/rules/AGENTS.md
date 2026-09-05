@@ -20,6 +20,7 @@ The card format and its structural checks live in [`../contributing.md`](../cont
 - **[logging.component-logger](./logging.component-logger.md)** _(reference)._ Main-process logging uses component-scoped structured pino loggers, never console calls.
 - **[module-boundaries.export-minimum](./module-boundaries.export-minimum.md)** _(reference)._ Do not export a symbol until another module needs to import that symbol by name.
 - **[module-boundaries.node-imports](./module-boundaries.node-imports.md)** _(reference)._ Import Node built-ins explicitly with the node: prefix so execution-time dependencies stay visible.
+- **[module-boundaries.schema-validation](./module-boundaries.schema-validation.md)** _(reference)._ Use a declared schema as the structural authority for boundary data instead of handwritten field checks.
 - **[naming.boolean-predicate](./naming.boolean-predicate.md)** _(reference)._ Phrase a Boolean as a claim with an approved predicate term that states a truth claim.
 - **[naming.boolean-union](./naming.boolean-union.md)** _(reference)._ Represent mutually exclusive states with one status or discriminated union instead of multiple Booleans.
 - **[naming.callable-type](./naming.callable-type.md)** _(reference)._ Name a callable type with a noun phrase whose head noun identifies the callable role.

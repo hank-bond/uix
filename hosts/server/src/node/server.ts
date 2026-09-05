@@ -12,8 +12,8 @@ import {
   WorkspaceSupervisor,
 } from "@uix/host";
 import type { WorkspaceRuntime } from "@uix/runtime";
+import type { ContentTransportRegistrar } from "@uix/runtime/content-transport";
 import { createLogger } from "@uix/runtime/log";
-import type { ResourceTransportRegistrar } from "@uix/runtime/resource-registry";
 
 import { registerLauncherRoutes } from "./launcher-routes";
 import { setMutableResponseHeaders } from "./mutable-response";
@@ -33,7 +33,7 @@ const log = createLogger("server-websocket");
 const ShutdownMessage = "Server is shutting down; reconnecting…";
 
 export interface ServerWorkspaceDependencies {
-  readonly resourceTransport: ResourceTransportRegistrar;
+  readonly contentTransportRegistrar: ContentTransportRegistrar;
 }
 
 export interface CreateServerHostOptions {
@@ -97,7 +97,7 @@ export async function createServerHost(
         const runtime = await options.bootWorkspace(
           registry.require(workspaceId),
           {
-            resourceTransport: (_scheme, handler) => {
+            contentTransportRegistrar: (handler) => {
               const registration = resourceTransport.register(
                 workspaceId,
                 handler,

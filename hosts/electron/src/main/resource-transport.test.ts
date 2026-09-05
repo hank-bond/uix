@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ResourceProtocolScheme } from "@uix/api/resource-routes";
 import { toWorkspaceId } from "@uix/runtime";
+import type { ContentRequest } from "@uix/runtime/content-transport";
 
 const electronMock = vi.hoisted(() => ({
   handle: vi.fn(),
@@ -44,22 +45,23 @@ describe("Electron resource transport", () => {
 
   it("routes workspace and feature origins through the qualified runtime", async () => {
     const transport = new ElectronResourceTransport();
-    const handler = vi.fn((request: Request) =>
-      Promise.resolve(new Response(request.url, { status: 200 })),
-    );
+    const handler = vi.fn((content: ContentRequest) => {
+      if (content.kind !== "resource")
+        throw new Error("Unexpected viewpoint request");
+      return Promise.resolve(
+        new Response(content.request.url, { status: 200 }),
+      );
+    });
     const releaseGuard = vi.fn();
     const acquireWorkspaceGuard = vi.fn(() =>
       Promise.resolve({ [Symbol.dispose]: releaseGuard }),
     );
     const workspaceId = toWorkspaceId("local");
-    const workspaceRegistration = transport.registerWorkspace(
+    using _workspaceLifetime = transport.registerWorkspace(
       workspaceId,
       acquireWorkspaceGuard,
     );
-    const handlerRegistration = transport.createRegistrar(workspaceId)(
-      ResourceProtocolScheme,
-      handler,
-    );
+    using handlerLifetime = transport.createRegistrar(workspaceId)(handler);
 
     const workspaceRequest = new Request(
       "uix-resource://local/canvas/surface/index.js",
@@ -73,8 +75,14 @@ describe("Electron resource transport", () => {
     await expect(transport.handle(featureRequest)).resolves.toMatchObject({
       status: 200,
     });
-    expect(handler).toHaveBeenNthCalledWith(1, workspaceRequest);
-    expect(handler).toHaveBeenNthCalledWith(2, featureRequest);
+    expect(handler).toHaveBeenNthCalledWith(1, {
+      kind: "resource",
+      request: workspaceRequest,
+    });
+    expect(handler).toHaveBeenNthCalledWith(2, {
+      kind: "resource",
+      request: featureRequest,
+    });
     expect(acquireWorkspaceGuard).toHaveBeenNthCalledWith(
       1,
       "electron-resource",
@@ -85,12 +93,11 @@ describe("Electron resource transport", () => {
     );
     expect(releaseGuard).toHaveBeenCalledTimes(2);
 
-    handlerRegistration[Symbol.dispose]();
+    handlerLifetime[Symbol.dispose]();
     await expect(transport.handle(workspaceRequest)).resolves.toMatchObject({
       status: 503,
     });
     expect(releaseGuard).toHaveBeenCalledTimes(3);
-    workspaceRegistration[Symbol.dispose]();
   });
 
   it("resolves the current handler after guarded workspace acquisition", async () => {
@@ -100,21 +107,16 @@ describe("Electron resource transport", () => {
     const currentHandler = vi.fn(() =>
       Promise.resolve(new Response("current")),
     );
-    const oldRegistration = transport.createRegistrar(workspaceId)(
-      ResourceProtocolScheme,
-      oldHandler,
+    using lifetime = new DisposableStack();
+    const oldHandlerLifetime = lifetime.use(
+      transport.createRegistrar(workspaceId)(oldHandler),
     );
-    let currentRegistration: Disposable | undefined;
-    const workspaceRegistration = transport.registerWorkspace(
-      workspaceId,
-      () => {
-        oldRegistration[Symbol.dispose]();
-        currentRegistration = transport.createRegistrar(workspaceId)(
-          ResourceProtocolScheme,
-          currentHandler,
-        );
+    lifetime.use(
+      transport.registerWorkspace(workspaceId, () => {
+        oldHandlerLifetime[Symbol.dispose]();
+        lifetime.use(transport.createRegistrar(workspaceId)(currentHandler));
         return Promise.resolve({ [Symbol.dispose]: vi.fn() });
-      },
+      }),
     );
 
     const response = await transport.handle(
@@ -124,13 +126,11 @@ describe("Electron resource transport", () => {
     await expect(response.text()).resolves.toBe("current");
     expect(oldHandler).not.toHaveBeenCalled();
     expect(currentHandler).toHaveBeenCalledOnce();
-    currentRegistration?.[Symbol.dispose]();
-    workspaceRegistration[Symbol.dispose]();
   });
 
   it("binds Electron's protocol once for the transport lifetime", () => {
     const transport = new ElectronResourceTransport();
-    const lifetime = bindResourceProtocol(transport);
+    using lifetime = bindResourceProtocol(transport);
 
     expect(electronMock.handle).toHaveBeenCalledOnce();
     expect(electronMock.handle.mock.calls[0]?.[0]).toBe(ResourceProtocolScheme);

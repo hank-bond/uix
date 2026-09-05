@@ -30,9 +30,8 @@ import {
 const emptyParams = Type.Object({});
 const documentRoute = defineWebRoute({
   method: "GET",
-  path: "/documents/:key",
-  params: Type.Object({ key: Type.String() }),
-  query: Type.Object({}),
+  path: "/view",
+  query: Type.Object({ key: Type.String() }),
   responses: { 200: { content: "html-document" } },
 });
 

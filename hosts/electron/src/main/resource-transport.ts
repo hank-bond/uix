@@ -1,17 +1,17 @@
 // Electron host adapter for the substrate resource protocol.
 //
-// Electron registers the privileged scheme once for the host. Runtime resource
-// registries contribute workspace-qualified handlers to this transport instead
+// Electron registers the privileged scheme once for the host. Workspace
+// runtimes contribute content handlers to this transport instead
 // of registering and unregistering Electron's process-wide protocol directly.
 
 import { protocol } from "electron";
 
 import { ResourceProtocolScheme } from "@uix/api/resource-routes";
+import type { ContentTransportRegistrar } from "@uix/runtime/content-transport";
 import { disposable } from "@uix/runtime/lifecycle";
-import type { ResourceTransportRegistrar } from "@uix/runtime/resource-registry";
 import type { WorkspaceId } from "@uix/runtime/workspace";
 
-type ResourceHandler = Parameters<ResourceTransportRegistrar>[1];
+type ContentHandler = Parameters<ContentTransportRegistrar>[0];
 type WorkspaceGuardAcquirer = (origin: string) => Promise<Disposable>;
 
 interface WorkspaceResourceRoute {
@@ -45,7 +45,7 @@ export function registerResourceProtocol(): void {
 /** Process-wide table of workspace-qualified runtime resource handlers. */
 export class ElectronResourceTransport {
   readonly #workspaceRoutes = new Map<WorkspaceId, WorkspaceResourceRoute>();
-  readonly #handlers = new Map<WorkspaceId, ResourceHandler>();
+  readonly #handlers = new Map<WorkspaceId, ContentHandler>();
 
   /** Register one workspace's guarded resource route for its host lifetime. */
   registerWorkspace(
@@ -67,8 +67,8 @@ export class ElectronResourceTransport {
   }
 
   /** Construct the registrar injected into one workspace runtime generation. */
-  createRegistrar(workspaceId: WorkspaceId): ResourceTransportRegistrar {
-    return (_scheme, handler) => {
+  createRegistrar(workspaceId: WorkspaceId): ContentTransportRegistrar {
+    return (handler) => {
       if (this.#handlers.has(workspaceId)) {
         throw new Error(
           `Electron resource handler already registered: ${workspaceId as string}`,
@@ -116,7 +116,7 @@ export class ElectronResourceTransport {
       if (!handler) {
         return textResponse("Workspace resources are unavailable", 503);
       }
-      return await handler(request);
+      return await handler({ kind: "resource", request });
     }
     return textResponse("Workspace resources are unavailable", 503);
   }

@@ -151,7 +151,8 @@ async function openWorkspace(
           piAppDataDir,
           ...(fs.existsSync(apiModuleDir) && { apiModuleDir }),
           dependencies: {
-            resourceTransport: resourceTransport.createRegistrar(workspaceId),
+            contentTransportRegistrar:
+              resourceTransport.createRegistrar(workspaceId),
             launchProviderAuthLink: createExternalWebLinkLauncher((url) =>
               shell.openExternal(url),
             ),

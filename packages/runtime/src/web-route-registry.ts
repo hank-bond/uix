@@ -1,6 +1,5 @@
 // Stores web route contracts and handlers for a Workspace or viewpoint.
 
-import { Type } from "typebox";
 import { Value } from "typebox/value";
 
 import { isIdToken } from "@uix/api/contribution-id";
@@ -12,15 +11,17 @@ import {
   normalizeRoutePattern,
   toRoutePatternIdentity,
 } from "@uix/api/path-pattern";
-import type {
-  WebRouteContract,
-  WebRouteContribution,
-  WebRouteResponse,
+import {
+  type WebRouteContract,
+  WebRouteContractSchema,
+  type WebRouteContribution,
+  type WebRouteResponse,
 } from "@uix/api/web-routes";
 
 import { disposable, DisposableBag } from "./lifecycle";
 
 const WebRouteCanonicalIdBrand: unique symbol = Symbol("WebRouteCanonicalId");
+const HtmlResponsePathPattern = /^\/(?:[^/\\?#]+)?$/;
 
 /** Live identity derived from namespace, method, and local pattern. */
 type WebRouteCanonicalId = string & {
@@ -90,6 +91,11 @@ export class WebRouteContractRegistry {
 
   /** Resolve one namespace-local request without selecting or invoking a handler. */
   resolve(namespace: string, request: WebRouteRequest): WebRouteResolution {
+    // Resource path matching tolerates empty segments. Complete pages cannot
+    // accept directory aliases because those change browser URL resolution.
+    if (!HtmlResponsePathPattern.test(request.pathname)) {
+      return { ok: false, status: 404, reason: "Unknown web route." };
+    }
     const contracts = this.#namespaceContracts.get(namespace) ?? [];
     let hasPathMatch = false;
     for (const registered of contracts) {
@@ -108,10 +114,9 @@ export class WebRouteContractRegistry {
           ok: true,
           value: {
             canonicalId: registered.canonicalId,
-            params: Value.Parse(
-              registered.contract.params,
-              decoded.value.params,
-            ),
+            params: registered.contract.params
+              ? Value.Parse(registered.contract.params, decoded.value.params)
+              : decoded.value.params,
             query: decoded.value.query,
           },
         };
@@ -272,47 +277,22 @@ function assertWebRouteNamespace(namespace: string): void {
 function normalizeWebRouteContract(
   contract: WebRouteContract,
 ): NormalizedRoutePattern {
-  const method: unknown = contract.method;
-  if (method !== "GET") {
-    throw new Error(`Unsupported web route method: ${String(method)}`);
-  }
-  if (!Type.IsObject(contract.params)) {
-    throw new Error("Web route params schema must be a Type.Object");
-  }
-  if (contract.query !== undefined && !Type.IsObject(contract.query)) {
-    throw new Error("Web route query schema must be a Type.Object");
-  }
-  const unsupportedRequest = contract as WebRouteContract & {
-    readonly headers?: unknown;
-    readonly body?: unknown;
-  };
-  if (
-    unsupportedRequest.headers !== undefined ||
-    unsupportedRequest.body !== undefined
-  ) {
-    throw new Error("Web route request headers and bodies are not supported");
-  }
-  const responseEntries = Object.entries(
-    contract.responses as Record<
-      string,
-      { readonly content?: unknown; readonly headers?: unknown }
-    >,
-  );
-  if (
-    responseEntries.length !== 1 ||
-    responseEntries[0]?.[0] !== "200" ||
-    responseEntries[0]?.[1]?.content !== "html-document" ||
-    responseEntries[0]?.[1]?.headers !== undefined
-  ) {
-    throw new Error("Web routes must declare one 200 HTML document response");
+  if (!Value.Check(WebRouteContractSchema, contract)) {
+    const [error] = Value.Errors(WebRouteContractSchema, contract);
+    throw new Error(
+      `Invalid web route contract at ${error.instancePath || "/"}: ${error.message}`,
+    );
   }
 
+  assertHtmlResponsePath(contract.path);
   const pattern = normalizeRoutePattern({
     path: contract.path,
     ...(contract.query && { query: contract.query }),
   });
   const patternParams = listRoutePatternParams(pattern).map(({ name }) => name);
-  const schemaParams = Object.keys(contract.params.properties);
+  const schemaParams = contract.params
+    ? Object.keys(contract.params.properties)
+    : [];
   if (
     patternParams.length !== schemaParams.length ||
     patternParams.some((name) => !schemaParams.includes(name))
@@ -322,6 +302,22 @@ function normalizeWebRouteContract(
     );
   }
   return pattern;
+}
+
+function assertHtmlResponsePath(path: string): void {
+  const message = `Invalid html-document route path ${JSON.stringify(path)}: expected / or one literal, non-dot segment such as /view, without a trailing slash. Put content identifiers in query input.`;
+  if (!HtmlResponsePathPattern.test(path) || path.startsWith("/:")) {
+    throw new Error(message);
+  }
+  let segment: string;
+  try {
+    segment = decodeURIComponent(path.slice(1));
+  } catch (cause) {
+    throw new Error(message, { cause });
+  }
+  if (segment === "." || segment === ".." || /[/\\*]/.test(segment)) {
+    throw new Error(message);
+  }
 }
 
 function toWebRouteCanonicalId(

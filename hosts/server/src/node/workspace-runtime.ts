@@ -1,7 +1,7 @@
 // Boots one registered workspace runtime over server-owned dependency adapters.
 
 import { createWorkspaceRuntime, type WorkspaceRuntime } from "@uix/runtime";
-import type { ResourceTransportRegistrar } from "@uix/runtime/resource-registry";
+import type { ContentTransportRegistrar } from "@uix/runtime/content-transport";
 
 import type { RegisteredWorkspace } from "./registry";
 
@@ -9,7 +9,7 @@ interface CreateServerWorkspaceRuntimeOptions {
   readonly registered: RegisteredWorkspace;
   readonly piAppDataDir: string;
   readonly apiModuleDir: string;
-  readonly resourceTransport: ResourceTransportRegistrar;
+  readonly contentTransportRegistrar: ContentTransportRegistrar;
   readonly launchProviderAuthLink?: (url: string) => void;
 }
 
@@ -23,7 +23,7 @@ export async function createServerWorkspaceRuntime(
     piAppDataDir: options.piAppDataDir,
     apiModuleDir: options.apiModuleDir,
     dependencies: {
-      resourceTransport: options.resourceTransport,
+      contentTransportRegistrar: options.contentTransportRegistrar,
       ...(options.launchProviderAuthLink && {
         launchProviderAuthLink: options.launchProviderAuthLink,
       }),

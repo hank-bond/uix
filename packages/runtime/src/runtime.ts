@@ -39,6 +39,7 @@ import {
   createFeatureEventPublisherFactory,
   registerChannelContributions,
 } from "./channel-registry";
+import type { ContentTransportRegistrar } from "./content-transport";
 import type {
   AttachmentDispatchContext,
   CanonicalRequest,
@@ -65,10 +66,10 @@ import { createWorkspaceReloadCoordinator } from "./reload";
 import {
   registerResourceContributions,
   ResourceRegistry,
-  type ResourceTransportRegistrar,
 } from "./resource-registry";
 import { SettingsRegistry } from "./settings-registry";
 import { WebRouteContractRegistry } from "./web-route-registry";
+import { toWebRouteResponse } from "./web-route-response";
 import type {
   Attachment as AttachmentContract,
   AttachmentAdmission,
@@ -91,10 +92,10 @@ const webRouteLog = createLogger("web-routes");
 /** The dependencies a host provides. The runtime declares them, never imports them. */
 export interface WorkspaceRuntimeDependencies {
   /**
-   * Resource serving on the reserved substrate origin. Omitted when the host
-   * does not serve resources (the registry still owns routes, unbound).
+   * Shared workspace resource and viewpoint web delivery. Omitted when the
+   * host does not serve browser content. Registries still own their routes.
    */
-  resourceTransport?: ResourceTransportRegistrar;
+  contentTransportRegistrar?: ContentTransportRegistrar;
   /**
    * Optionally launch retained Pi provider-auth links.
    * The host owns failure logging and must not throw.
@@ -197,9 +198,22 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     this.#resources = this.#bag.add(
       new ResourceRegistry({
         workspaceId: this.#workspaceId,
-        transportRegistrar: dependencies.resourceTransport,
       }),
     );
+    if (dependencies.contentTransportRegistrar) {
+      this.#bag.add(
+        dependencies.contentTransportRegistrar(async (content) => {
+          switch (content.kind) {
+            case "resource":
+              return this.#resources.dispatch(content.request);
+            case "viewpoint":
+              return toWebRouteResponse(
+                await this.dispatchViewpointWebRequest(content.request),
+              );
+          }
+        }),
+      );
+    }
     this.#channels = new ChannelRegistry({
       publish: (channel, payload, logOptions) => {
         this.#emit({ kind: "workspace" }, channel, payload, logOptions);

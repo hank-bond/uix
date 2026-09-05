@@ -51,6 +51,8 @@ Feature handlers own their reads, mutations, effects, and application behavior. 
 - UIX **must** establish a path match before selecting its declared method, then validate only that contract's input.
 - A route pattern **may** provide a terminal wildcard when a feature deliberately routes a subtree itself.
 - A route contract **must** separately declare TypeBox schemas for path parameters, query parameters, request headers, and body that it accepts.
+- A route contract **may** omit the path or query schema when it accepts no values in that section. UIX **must** provide an empty object for that omitted section in handler input.
+- Declared path parameter names **must** match the properties of the path schema. A parameterized path **must** declare that schema.
 - An absent input section **must not** cause browser input from that section to be accepted silently.
 - The initial body codec is JSON. Form, multipart, and other body codecs are deferred until a concrete caller requires them.
 - UIX **must** decode and validate serialized input before invoking feature code.
@@ -63,6 +65,7 @@ Feature handlers own their reads, mutations, effects, and application behavior. 
 - Every route contract **must** declare the response statuses its handler may return.
 - Each declared status **must** name one content descriptor and may declare permitted response headers.
 - The content descriptors are complete HTML document, HTML fragment, plain text, and schema-backed JSON.
+- An `html-document` response body **must** be an HTML string intended as a complete browser page. This response kind defines serving behavior, not document identity or persistence.
 - An HTML-fragment response is a string with an HTML content type. UIX returns it unchanged and does not parse or validate it.
 - A text response is a string with a plain-text content type.
 - A JSON response **must** be validated against its TypeBox schema before encoding.
@@ -73,16 +76,38 @@ Feature handlers own their reads, mutations, effects, and application behavior. 
 - Dynamic responses default to `Cache-Control: no-store`.
 - Responses are finite. SSE, WebSockets, and other indefinite streaming responses are outside this version.
 
-### Complete HTML documents
+### Complete HTML responses and relative addressing
 
-- A complete HTML document response **must** establish the bound feature root as its effective base.
-- UIX **must** inject one `<base href>` element into the document head before the browser resolves relative resources.
-- UIX **must** remove or override any authored `<base href>` so a document cannot escape feature-relative addressing.
-- The injected base is derived content. It is not authored content and enters no managed document or durable feature state.
-- The base element is a browser document behavior, not an iframe behavior. Any full document loaded in a browser window uses it.
-- An HTML fragment response receives no base processing. It inherits the base of its containing document.
-- UIX **must** preserve same-document fragment navigation for links whose address starts with `#`.
-- A feature that binds every URL through its client may choose a full-document route without base injection.
+- If any declared response status uses `html-document`, the route path **must** be `/` or one literal, non-dot path segment such as `/view`.
+- Except for `/` itself, a complete-page route **must not** end in `/`. It **must not** contain nested segments, path parameters, or wildcards.
+- UIX **must** enforce this restriction during feature contract admission. An invalid declaration **must** fail feature activation with an error that identifies the route and the required shape.
+- When a complete-page route selects content by an identifier, the contract **must** declare that identifier as query input rather than a path parameter.
+- The host **must** encode complete-page URLs so their browser-resolved containing directory equals the bound feature root.
+- UIX **must** validate that relationship when constructing complete-page URLs. The host **must not** serve the page through an alternate URL whose containing directory differs from that root.
+- UIX **must** return the handler's HTML response body unchanged, with an HTML content type. The substrate **must not** parse or serialize that body, inject a base element, rewrite links, or add addressing cleanup markers.
+- Relative addressing **must** use native browser URL resolution from the page URL. UIX **must not** require a script or a DOM rewrite to preserve same-page `#` navigation.
+- Routes that declare only other response kinds are not subject to the complete-page path restriction. HTML fragments inserted into a page use the containing page's base rather than the fragment fetch URL.
+
+Viewpoint binding selects the Agent generation that handles a request. The complete-page path restriction instead makes directory-relative references predictable within that binding. A nested content identifier in the query does not change the page's containing directory.
+
+For example, a host may generate this physical page URL:
+
+```text
+https://host.example/workspaces/w/viewpoints/BINDING/canvas/view?key=reports/main
+```
+
+Native browser resolution gives these results:
+
+| Authored reference | Resolution |
+| --- | --- |
+| `assets/site.css` | The same bound feature root followed by `assets/site.css`. |
+| `api/data` | The same bound feature root followed by `api/data`. |
+| `#details` | The same page URL, including its query, with the fragment `details`. |
+| `?key=other` | The same page route and binding with a different content identifier. |
+
+The physical encoding in this example is not prescribed. These rules apply to pages loaded in iframes and separate browser windows, including links added by scripts or inserted HTML fragments.
+
+Relative addressing is not confinement. Origin-rooted references such as `/assets/site.css`, parent traversal such as `../`, absolute URLs, and authored `<base>` elements retain their browser meanings. The substrate does not rewrite them into the feature namespace. A feature may reject authored bases through its own content validation. Stylesheet references and JavaScript module imports retain their native resolution relative to the containing asset URL.
 
 ### Static assets
 
@@ -111,12 +136,13 @@ Feature handlers own their reads, mutations, effects, and application behavior. 
 
 - UIX **must** derive a typed relative path builder from each route contract.
 - The relative path builder output **must** contain no host, workspace, session, attachment, or binding value. Authored and persisted content may use it.
+- The relative path builder **must** return a directory-relative reference rather than an origin-rooted pathname, including when the declared route path is `/`.
 - UIX **must** derive a typed `WebRouteClient` from each contract and the current binding.
 - The `WebRouteClient` **must** expose a `url()` operation for markup and a `request()` operation for typed calls.
 - `url()` **must** return a physical address usable in images, links, forms, iframes, scripts, and custom fetch calls.
 - `request()` **must** send the declared method, typed headers and body, and return a typed status result with cancellation.
 - A mounted surface **must** receive a feature-scoped client bound to its connection generation.
-- A full browser document loads from a bound `url()`. Its injected base then binds ordinary relative requests to the same feature root.
+- A complete browser page **must** load from a bound `url()` satisfying the complete-page path restriction. Its containing directory establishes the bound feature root for ordinary directory-relative requests.
 - When the attachment retargets, UIX **must** recreate its `WebRouteClient` instances, rerender mounted consumers, and reload affected documents through the new binding.
 - Clients bound to the old generation **must** fail new requests rather than reach the new Agent.
 
@@ -128,10 +154,12 @@ A conforming implementation demonstrates these outcomes:
 2. Two attachments target different Agents and invoke the same route. Each request reaches its own Agent feature instance.
 3. Two features declare identical local paths without collision. Private routes do not become a cross-feature API.
 4. Malformed path, query, header, or body input never invokes a handler. An invalid typed response is rejected before encoding.
-5. A complete HTML document resolves authored relative links under the injected feature base. Fragment responses remain unchanged.
+5. Complete-page route admission accepts `/` and `/view`, and rejects nested, parameterized, wildcard, dot-segment, and trailing-slash page routes. The same path restriction does not apply to routes declaring only other response kinds.
 6. `url()` in markup and `request()` reach the same handler through both host transports.
 7. Retargeting revokes the old binding for new requests. Accepted requests finish against their recorded Agent, and mounted clients are recreated.
 8. Feature reload removes old routes and assets and exposes the replacement generation through the existing connection.
+9. Both hosts generate complete-page URLs whose containing directory equals the bound feature root and reject nonconforming page locations. A content key containing `/` remains query input and does not change that directory.
+10. Complete-page and fragment HTML response bodies reach the browser unchanged by the substrate. Directory-relative links retain the page's binding, and `#` navigation retains its query without injected markup. The same behavior holds for links added after page load.
 
 ## Degrees of freedom
 
@@ -139,7 +167,7 @@ A conforming implementation may choose:
 
 - Exact public API names and internal registry types.
 - Physical binding encodings and whether Electron uses a custom scheme or localhost HTTP.
-- The internal router, JSON codec, and base-injection mechanism.
+- The internal router and JSON codec.
 - Whether several Agent bindings deduplicate identical immutable asset bytes.
 - Static-file implementation and cache duration.
 
@@ -148,6 +176,4 @@ These choices must preserve declared routes, substrate-owned scope, automatic at
 ## Open questions
 
 - When should common `ETag` and `If-Match` behavior become an automatic route capability instead of declared headers?
-- Which full-document forms must base injection preserve beyond `#` fragment links?
-- How should a feature opt out of base injection while keeping ordinary relative requests reachable?
 - Which feature-source admission requirements must land before Agent-authored route changes can be activated conveniently?

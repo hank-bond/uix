@@ -7,7 +7,6 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ResourceProtocolScheme } from "@uix/api/resource-routes";
 import { parseWorkspaceCatalog } from "@uix/host/catalog";
 import type {
   Attachment,
@@ -438,8 +437,7 @@ describe("server host launcher", () => {
         registered: RegisteredWorkspace,
         dependencies: ServerWorkspaceDependencies,
       ): Promise<WorkspaceRuntime> => {
-        const transportRegistration = dependencies.resourceTransport(
-          ResourceProtocolScheme,
+        const transportRegistration = dependencies.contentTransportRegistrar(
           async () => {
             resourceStarted.resolve();
             await resourceRelease.promise;

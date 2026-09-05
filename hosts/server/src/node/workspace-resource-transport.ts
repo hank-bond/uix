@@ -1,20 +1,17 @@
 // Binds each supervised runtime's logical resource dispatcher to server HTTP requests.
 
+import type { ContentTransportRegistrar } from "@uix/runtime/content-transport";
 import { disposable } from "@uix/runtime/lifecycle";
-import type { ResourceTransportRegistrar } from "@uix/runtime/resource-registry";
 import type { WorkspaceId } from "@uix/runtime/workspace";
 
-type ResourceHandler = (request: Request) => Response | Promise<Response>;
+type ContentHandler = Parameters<ContentTransportRegistrar>[0];
 
 /** Own the live runtime resource handlers selected by workspace HTTP routes. */
 export class WorkspaceResourceTransport {
-  readonly #handlers = new Map<WorkspaceId, ResourceHandler>();
+  readonly #handlers = new Map<WorkspaceId, ContentHandler>();
 
   /** Register one runtime handler and return its exact registration lifetime. */
-  register(
-    workspaceId: WorkspaceId,
-    handler: Parameters<ResourceTransportRegistrar>[1],
-  ): Disposable {
+  register(workspaceId: WorkspaceId, handler: ContentHandler): Disposable {
     if (this.#handlers.has(workspaceId)) {
       throw new Error(`Resource transport already registered: ${workspaceId}`);
     }
@@ -37,6 +34,6 @@ export class WorkspaceResourceTransport {
         }),
       );
     }
-    return Promise.resolve(handler(request));
+    return Promise.resolve(handler({ kind: "resource", request }));
   }
 }

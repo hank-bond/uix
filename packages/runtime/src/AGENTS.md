@@ -26,6 +26,7 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 - **[agent-system-prompt-registry.ts](./agent-system-prompt-registry.ts)** Assembles each feature's system-prompt section in workspace order for Pi.
 - **[attachment-web-bindings.ts](./attachment-web-bindings.ts)** Owns private web bindings that retain one attachment-target generation until revocation.
 - **[channel-registry.ts](./channel-registry.ts)** Owns Workspace channel contracts, their namespace catalog, and selected request routing to per-Agent handlers.
+- **[content-transport.ts](./content-transport.ts)** Defines the host content boundary shared by workspace resources and viewpoint web routes.
 - **[dispatch.ts](./dispatch.ts)** Canonical request preparation and the attachment-stamped dispatch context.
 - **[document-store.ts](./document-store.ts)** Persists mutable document content and caller-supplied immutable versions under stable IDs.
 - **[events.ts](./events.ts)** Explicitly scoped canonical runtime events for host-selected delivery.
@@ -42,6 +43,7 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 - **[settings-registry.ts](./settings-registry.ts)** Retains validated settings for each live scope, notifies listeners, and delegates persistence to the workspace layer.
 - **[turn-state.ts](./turn-state.ts)** Commits and restores each feature's private branch state in Pi sessions without showing it to the model.
 - **[web-route-registry.ts](./web-route-registry.ts)** Stores web route contracts and handlers for a Workspace or viewpoint.
+- **[web-route-response.ts](./web-route-response.ts)** Adapts validated viewpoint web results into browser responses without changing their bodies.
 - **[workspace-roots.ts](./workspace-roots.ts)** Resolves stable paths for workspace state, the agent working directory, and the manifest from one startup target.
 - **[workspace-settings.ts](./workspace-settings.ts)** Validates a staged manifest's settings, makes them live together, and connects them to their persisted locations.
 - **[workspace.ts](./workspace.ts)** The host-facing contract for one workspace runtime and its attachments.

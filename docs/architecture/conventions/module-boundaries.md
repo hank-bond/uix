@@ -10,6 +10,8 @@ The [module-boundaries.export-minimum](./rules/module-boundaries.export-minimum.
 
 ## Validation
 
+Schemas own structural validation at data boundaries. The [module-boundaries.schema-validation](./rules/module-boundaries.schema-validation.md) rule distinguishes schema validation from semantic assertions and ordinary control flow.
+
 Use boolean guards only when the caller has a real branch to make. If failure always means "stop here," expose an assertion helper instead.
 
 ```ts

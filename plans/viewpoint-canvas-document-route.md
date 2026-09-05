@@ -27,14 +27,15 @@ The route work also exposed older channel names that describe an Agent instead o
 - W2 landed in `ba6f123`. `@uix/api` now defines schema-only `GET` document contracts with typed path and query input, inferred handlers, and contract-bound responders. Runtime admission intentionally supports only the R1 `GET` → `200` complete-document behavior. Workspace activation derives the feature namespace, each Agent instance owns its handler registry, and Canvas binds `/documents/:key*` to its viewpoint-local document buffer.
 - W3 landed in `415f0c2`. Every accepted attachment now exposes one opaque `AttachmentWebBinding` for its current target generation and notifies host observers of replacements. The runtime-private binding registry retains the exact Agent generation, rejects revoked values, and lets already-retained target guards outlive retarget or close. Retarget acquires and registers the replacement before revoking the previous binding. Peers remain independent.
 - W4 landed. The workspace runtime's web dispatch retains the Agent generation named by a live binding. It validates the feature-local route, invokes that instance's handler under a tracked operation, and returns a host-neutral response. Direct runtime coverage proves independent Canvas documents, status mapping, retarget behavior, revoked-binding rejection, replacement dispatch, and failure cleanup.
+- W5 is complete. The shared content handler and host registrars remain. HTML route admission enforces shallow literal paths, and viewpoint dispatch rejects directory aliases without changing resource matching. Canvas uses `/view` with required typed `key` query input, including nested keys. Routes omit unused input schemas rather than declaring empty objects, and omitted path and query schemas produce empty handler input objects. One admission schema owns declaration structure and the derived author-facing type. Admission preserves authored input schemas and their refinements, rejects unsupported fields, and reports schema failures by input location. Response adaptation returns the handler's body unchanged with content type and cache headers. The document-address type, HTML processing module, base injection, and fragment rewriting are deleted. Verification: `npm run check` passed, including 895 passing tests and 3 skipped tests. Physical URL construction and validation remain in W6 through W8.
 
 ## R1 boundary
 
 The first route supports the production behavior needed by Canvas document loading:
 
 ```text
-GET /documents/:key*
-→ 200 complete HTML document
+GET /view?key=reports/main
+→ 200 complete HTML response body
 ```
 
 R1 includes:
@@ -45,7 +46,8 @@ R1 includes:
 - guarded dispatch to the Agent instance selected when the request is accepted
 - a feature-scoped browser `url()` capability
 - equivalent Electron custom-protocol and server HTTP delivery
-- complete-document base injection
+- admission-enforced shallow `html-document` routes with content selection in typed query input
+- native relative URL resolution from the bound page URL, without substrate HTML rewriting
 - direct Canvas iframe loading
 - removal of the `canvas.read` channel request and bootstrap HTML transfer
 
@@ -68,9 +70,12 @@ Later work must extend this route shape rather than replace it. Body codecs, mor
 - Browser code never constructs or persists a private binding.
 - Each binding names one attachment-target generation.
 - Revocation rejects new requests without cancelling accepted requests.
-- Workspace resources and viewpoint routes keep separate registries even when they share a host transport.
+- Workspace resources and viewpoint routes keep separate registries even when they share a host transport. This is the current migration boundary, not a permanent resource architecture. Branch-local app generation ownership must precede that migration.
 - Dynamic responses default to `Cache-Control: no-store`.
-- Injected base and shim markup never enter stored Canvas HTML, anchored reads, or writeback.
+- An `html-document` response kind requires `/` or one literal, non-dot path segment, with no trailing slash except for `/` itself.
+- The physical complete-page URL's containing directory equals the bound feature root.
+- The substrate returns the handler's HTML body unchanged. It adds no base, rewritten links, or addressing cleanup markers.
+- Canvas-derived shim markup never enters stored Canvas HTML, anchored reads, or writeback.
 
 ## Review units
 
@@ -92,7 +97,7 @@ Likely ownership:
 
 Add the contract and contributions needed for a typed GET route with path/query schemas and one declared `200` complete-HTML response. The Workspace contribution admits the contract under its feature-derived namespace. Each Agent contribution binds a handler in that viewpoint's registry under the same namespace.
 
-Add a per-viewpoint route-handler registry beside the per-Agent channel registry. Canvas is the first caller. It declares `/documents/:key*` in shared code. Its Agent factory binds a handler that reads canonical HTML from that instance's `CanvasDocumentBuffer`. A contract-bound responder replaces raw `Response` construction.
+Add a per-viewpoint route-handler registry beside the per-Agent channel registry. Canvas is the first caller. This unit landed with `/documents/:key*` in shared code. W5 migrates that declaration and its consumers to `/view` with typed `key` query input. Its Agent factory binds a handler that reads canonical HTML from that instance's `CanvasDocumentBuffer`. A contract-bound responder replaces raw `Response` construction.
 
 This unit does not expose the route through a host. Focused registry tests invoke the admitted contract and Agent handler directly.
 
@@ -132,17 +137,29 @@ Return `400` for invalid declared input and `404` for an unknown route or revoke
 
 **Review gate:** Direct runtime tests invoke the same Canvas route through two attachment bindings and receive different Agent documents. A request accepted before retarget completes against the old retained instance. The same old binding is rejected afterward, and the replacement reaches the new instance. Handler failure disposes every retained operation guard.
 
-### W5: Adapt bound routes onto the shared content transport
+### W5: Adapt shallow HTML routes onto the shared content transport
 
-Carry viewpoint web requests through the existing content transport while keeping `ResourceRegistry` responsible for workspace resources. Workspace resource contributions remain attachment-free. Runtime composition chooses the resource or viewpoint-route path before calling the host transport.
+Retain one host-owned content transport and the workspace runtime's registered content handler. Runtime composition dispatches each host-decoded request to either the workspace resource registry or the viewpoint route registry. Workspace resource contributions remain attachment-free, and their responses remain unchanged.
 
-The host supplies the physical feature root for a complete document. Shared adaptation injects that root as the effective base and produces the browser `Response`. The feature handler never sees the physical address. Tests use a synthetic root until the Electron and server units provide real ones. This prevents custom-scheme URLs from leaking into server HTML.
+Enforce the complete-page path restriction when admitting any contract with an `html-document` response. Accept `/` and one literal, non-dot segment such as `/view`. Reject nested paths, path parameters, wildcards, and trailing slashes other than `/` itself. Preserve general path-pattern support for resource routes and response kinds without this restriction.
 
-**Review gate:** Existing workspace resource URLs and responses remain unchanged. A bound logical request reaches Agent dispatch through the same registered content transport. Given a synthetic physical feature root, complete-document adaptation injects that root. Authored or duplicate base elements cannot redirect relative resolution.
+Migrate the Canvas declaration and handler to `/view` with a required typed `key` query value. Make unused path schemas optional and omit Canvas's empty `params` declaration. Preserve typed inference and reject undeclared input when schemas are absent. Migrate registry fixtures and runtime tests with it, including invalid-query coverage and retained-request tests. Delete the old `/documents/:key*` declaration rather than retaining it as a second read path.
+
+Remove the uncommitted HTML parse and serialize pass, base injection, fragment-link rewriting, and cleanup markers. Delete `WebDocumentAddress`, `toWebDocumentHtml`, and their processing module rather than renaming them into another document abstraction. Retain `html-document` as a response-kind discriminator. Response adaptation sets the status, HTML content type, and `no-store` policy while returning the handler's body unchanged. Physical URL data belongs at URL construction and validation boundaries, not in response-body processing.
+
+**Review gate:**
+
+- Existing workspace resource URLs, response bodies, and headers remain unchanged through the shared content entry.
+- Invalid complete-page route declarations fail feature activation with an actionable error.
+- One schema owns declaration structure and the derived author type. Invalid declarations roll back both contract and handler contribution groups. Admission does not execute or rewrite nested input schemas. Path semantics remain explicit checks.
+- Nested Canvas keys are query values, not path segments. Missing, malformed, or duplicate key query values never invoke the handler.
+- A bound logical request reaches the selected Agent through the registered content transport. Retarget, close, and accepted-request behavior remain unchanged. Directory aliases such as `/view/` do not reach the page handler.
+- The returned HTML body equals the handler's body, including its whitespace, relative URLs, and fragment links. No physical address enters that body through substrate processing.
+- Focused tests pass, followed by `npm run check`.
 
 ### W6: Add the feature-scoped browser URL client
 
-Add a framework-neutral URL client and the React adapter used by current surfaces. The client combines a route, typed values, the mounted feature's scope, and the host's current binding. Its synchronous `url()` returns a browser address.
+Add a framework-neutral URL client and the React adapter used by current surfaces. The client derives a browser address from a route, typed values, the mounted feature's scope, and the host's current binding. Its synchronous `url()` returns that address. Complete-page URL construction validates that the browser-resolved containing directory equals the bound feature root. Relative path builders return directory-relative references, not origin-rooted paths.
 
 A target change replaces the `WebRouteClient` and rerenders its consumers. An old client remains tied to its revoked binding. Keep this separate from the connection generation used for server reconnection.
 
@@ -155,33 +172,33 @@ Likely ownership:
 - `packages/client/src/workspace/surface-host.tsx`
 - focused browser-client and surface-mount tests
 
-**Review gate:** A Canvas surface can derive a typed document URL without providing `canvas`, a workspace id, session id, or binding token. A retained client from an old target generation produces only its old, revoked address. A binding update recreates the mounted client without remounting the whole workspace. It does not conflate target change with physical reconnection.
+**Review gate:** A Canvas surface can derive a typed document URL without providing `canvas`, a workspace id, session id, or binding token. A retained client from an old target generation produces only its old, revoked address. A binding update recreates the mounted client without remounting the whole workspace. It does not conflate target change with physical reconnection. Synthetic host addresses demonstrate that `assets/site.css`, `api/data`, `#details`, and `?key=other` use native URL resolution correctly, including nested key values in the query. A nonconforming physical complete-page address is rejected rather than corrected through HTML processing.
 
 ### W7: Carry bindings through the Electron host
 
 Teach the Electron attachment/window composition and preload-backed workspace client to bootstrap the current binding before the shared workspace client mounts. Deliver later binding-generation changes over an Electron-owned control path, update the browser binding snapshot, and rerender bound consumers.
 
-The Electron adapter maps the host-neutral bound route onto the privileged `uix-resource` protocol. It supplies its physical feature root to complete-document adaptation. The process-wide resource transport still acquires a workspace guard and delegates semantic dispatch to the runtime. It does not interpret feature contracts or select an Agent itself.
+The Electron adapter maps the host-neutral bound route onto the privileged `uix-resource` protocol. A complete-page URL is the bound feature root or one literal segment beneath it, with content selection in the query. The adapter preserves that layout when decoding requests and rejects alternate page locations that violate it. The process-wide resource transport still acquires a workspace guard and delegates semantic dispatch to the runtime. It does not interpret feature contracts or select an Agent itself.
 
 This unit proves the host path through the Canvas document route but does not switch the iframe yet.
 
-**Review gate:** An Electron renderer URL reaches the attachment-selected Canvas route through the privileged protocol. Retarget updates the renderer binding before bound consumers render again. The previous URL fails, and window close revokes the route. Existing workspace resource and surface-module URLs remain unchanged.
+**Review gate:** An Electron renderer URL reaches the attachment-selected Canvas route through the privileged protocol. Retarget updates the renderer binding before bound consumers render again. The previous URL fails, and window close revokes the route. Existing workspace resource and surface-module URLs remain unchanged. Complete pages resolve directory-relative requests and same-page fragments natively without base injection. A nested Canvas key does not change their resolution directory.
 
 ### W8: Carry bindings through the server host
 
 Include the initial binding in the accepted WebSocket bootstrap and add one server-owned control message for later target-generation changes. The browser WebSocket adapter updates its binding snapshot without replacing the socket. Map bound logical addresses to workspace-qualified HTTP locations while keeping the binding opaque.
 
-An HTTP request continues to acquire its own workspace guard. It then presents the binding and server-encoded physical feature root to runtime dispatch. It must not create a second attachment or infer an Agent from the workspace/session URL. Origin policy, response hardening, and CORS remain server-owned.
+An HTTP request continues to acquire its own workspace guard. It then presents the host-decoded binding, feature namespace, local path, and query to runtime dispatch. Complete-page URLs retain the bound feature root as their containing directory. The host rejects alternate page locations that violate that relationship. It must not create a second attachment or infer an Agent from the workspace/session URL. Origin policy, response hardening, and CORS remain server-owned.
 
 This unit proves the host path through the Canvas document route but does not switch the iframe yet.
 
-**Review gate:** A browser URL reaches the attachment-selected Canvas route over HTTP. Two connections to different sessions receive their own content. Retarget on the existing WebSocket updates only that connection's binding. The old HTTP URL fails, and accepted HTTP work drains under its retained guards. Existing workspace content URLs remain unchanged.
+**Review gate:** A browser URL reaches the attachment-selected Canvas route over HTTP. Two connections to different sessions receive their own content. Retarget on the existing WebSocket updates only that connection's binding. The old HTTP URL fails, and accepted HTTP work drains under its retained guards. Existing workspace content URLs remain unchanged. Native browser resolution matches the Electron host for nested query keys, directory-relative references, and `#` links, including links added after page load.
 
 ### W9: Move Canvas reads onto the document route
 
-Switch the Canvas iframe from the workspace-scoped static bootstrap resource to its bound document `url()`. The Canvas handler serves canonical authored HTML with the existing browser shim injected as derived markup. The substrate injects the bound base. The iframe no longer waits for a parent `canvas:load` message.
+Switch the Canvas iframe from the workspace-scoped static bootstrap resource to its bound document `url()`. The Canvas handler serves canonical authored HTML with the existing browser shim injected as derived markup. The shallow page URL establishes native relative addressing without substrate body processing. The iframe no longer waits for a parent `canvas:load` message.
 
-Keep the current writeback and prompt messages. The parent still validates expected iframe source/origin, persists through `canvas.writeback`, and submits prompts through `agent.prompt`. Update serialization so both the injected base and injected shim are omitted from writeback. Reject an authored `<base href>` during Canvas canonicalization.
+Keep the current writeback and prompt messages. The parent still validates expected iframe source/origin, persists through `canvas.writeback`, and submits prompts through `agent.prompt`. Keep the Canvas-derived shim out of writeback. No substrate base or rewritten fragment attributes need cleanup. Reject an authored `<base href>` during Canvas canonicalization as a Canvas authoring rule, not a substrate response transformation.
 
 Delete the workspace Canvas iframe resource and all `canvas.read` request code. Also delete the ready/load message vocabulary and obsolete bootstrap code. `canvas.changed` still invalidates the selected key and causes the iframe to load the current bound document again.
 
@@ -192,7 +209,8 @@ Delete the workspace Canvas iframe resource and all `canvas.read` request code. 
 - Two attachments targeting different sessions render different `main` documents.
 - Agent writes still publish invalidation and reload the direct document URL.
 - Human writeback and trusted prompt actions retain their existing behavior.
-- Injected base and shim markup never enter the managed document, anchored tool output, or subsequent writeback.
+- The substrate adds no base, rewritten fragment addresses, or addressing cleanup markers. Canvas-derived shim markup never enters the managed document, anchored tool output, or subsequent writeback.
+- Nested Canvas keys in the query preserve directory-relative addressing. Same-page fragment links work both in the initial HTML and when added by scripts or inserted fragments.
 - The old Canvas read/resource path is deleted rather than retained as compatibility.
 - Focused API, runtime, host, browser, and Canvas tests pass, followed by `npm run check`.
 
@@ -207,3 +225,13 @@ Do not publish a general route-authoring how-to from R1. The public feature web 
 After R1, a separate Canvas-template loop can start with embedded review fixtures and inline styles/scripts. It should shape the code-review document before UIX standardizes live data routes or reusable components.
 
 A live source or Git-diff route is not part of R1. It should wait until `AgentFeatureContext` exposes the viewpoint's worktree root. It can then arrive with its first code-review caller. Static assets and HTMX can follow when the template first extracts repeated code or loads a fragment. Do not guess them inside the document-route commit.
+
+## Attempt notes
+
+### W5: base injection replaced by shallow page routes
+
+- **Worked:** The shared content transport separates host delivery from resource and viewpoint dispatch. Retained-Agent dispatch and host-neutral response adaptation remain useful.
+- **Did not work:** Base injection required fragment-link rewriting and writeback markers. Serve-time rewriting did not cover links added later by scripts or inserted fragments, and parsing and serializing the body changed more than addressing.
+- **Requirement change:** Complete-page routes use `/` or one literal segment and select content through typed query input. Native page URL resolution retains the viewpoint binding without substrate body rewriting. The specification retains `html-document` as a response kind, not a document identity or persistence abstraction.
+- **Outcome:** W5 is complete. The shared path codec tolerates empty segments for resources, so viewpoint dispatch separately rejects page-directory aliases. Tests cover feature-activation rejection, contribution rollback, nested query keys, revoked bindings, retained requests, and unchanged HTML response bytes.
+- **Pending:** W6 validates generated complete-page addresses, and W7 and W8 prove the concrete host mappings. Canvas shim processing and authored-base rejection remain feature responsibilities.
