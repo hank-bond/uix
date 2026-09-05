@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { WorkspaceClient } from "@uix/api/workspace";
 
 import type { ActionInvocationSource } from "./workspace/action-invocation-source";
+import type { AttachmentWebAddress } from "./workspace/attachment-web-address";
 import type { SessionLocationAdapter } from "./workspace/session-location";
 
 const fakes = vi.hoisted(() => ({
@@ -44,21 +45,34 @@ describe("mountWorkspaceClient", () => {
       synchronize: vi.fn(),
       subscribe: vi.fn(() => () => undefined),
     };
+    const attachmentWebAddress: AttachmentWebAddress = {
+      getSnapshot: () => ({
+        toFeatureRootUrl: (featureId) =>
+          `https://host.example/viewpoints/binding/${featureId}/`,
+      }),
+      subscribe: vi.fn(() => () => undefined),
+    };
 
     const mounted = mountWorkspaceClient({
       target,
       client,
       sessionLocationAdapter,
       actionInvocationSource,
+      attachmentWebAddress,
     });
 
     expect(fakes.installSurfaceSharedModules).toHaveBeenCalledOnce();
     expect(fakes.createRoot).toHaveBeenCalledWith(target);
     expect(fakes.render).toHaveBeenCalledOnce();
     const strictMode = fakes.render.mock.calls[0]?.[0] as ReactElement<{
-      children: ReactElement<{ children: ReactElement }>;
+      children: ReactElement<{
+        address: AttachmentWebAddress;
+        children: ReactElement<{ children: ReactElement }>;
+      }>;
     }>;
-    expect(strictMode.props.children.props.children.props).toMatchObject({
+    const addressProvider = strictMode.props.children;
+    expect(addressProvider.props.address).toBe(attachmentWebAddress);
+    expect(addressProvider.props.children.props.children.props).toMatchObject({
       sessionLocationAdapter,
       actionInvocationSource,
     });

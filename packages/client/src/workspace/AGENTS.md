@@ -24,6 +24,7 @@ This directory contains no concrete transport, URL parser, Electron global, runt
 - **[action-keyboard-dispatcher.tsx](./action-keyboard-dispatcher.tsx)** Binds keyboard shortcuts to action invocation, guarding editable targets and composing input.
 - **[action-registry.ts](./action-registry.ts)** Retains feature action contributions, projects their bindings, and runs actions for the workspace.
 - **[action-resolution.ts](./action-resolution.ts)** Resolves action contributions into ids, catalog entries, and default bindings.
+- **[attachment-web-address.tsx](./attachment-web-address.tsx)** Projects host-owned attachment web-address snapshots into mounted feature surfaces.
 - **[keybinding-sync.tsx](./keybinding-sync.tsx)** Synchronizes confirmed keybindings between the action registry and the substrate keybindings channel.
 - **[keyboard-event-shortcut.ts](./keyboard-event-shortcut.ts)** Converts a KeyboardEvent into a resolved shortcut chord for action matching.
 - **[reload-action.tsx](./reload-action.tsx)** Registers Workspace reload as a substrate-owned renderer action.

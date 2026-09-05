@@ -1,10 +1,20 @@
+import { createElement, type ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { Type } from "typebox";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ChannelContract } from "@uix/api/channels";
-import type { WorkspaceClient } from "@uix/api/workspace";
+import { defineWebRoute } from "@uix/api/web-routes";
+import {
+  useWebRouteClient,
+  type WorkspaceClient,
+  WorkspaceClientProvider,
+} from "@uix/api/workspace";
 
-import { createSurfaceChannelClients } from "./surface-host";
+import { ActionRegistryProvider } from "./action-context";
+import { ActionRegistry } from "./action-registry";
+import { AttachmentWebAddressProvider } from "./attachment-web-address";
+import { createSurfaceChannelClients, SurfaceMount } from "./surface-host";
 
 const contract = {
   requests: {
@@ -32,6 +42,18 @@ function fakeWorkspaceClient(namespaces: readonly string[]): {
   };
 }
 
+const DocumentRoute = defineWebRoute({
+  method: "GET",
+  path: "/view",
+  query: Type.Object({ key: Type.String() }),
+  responses: { 200: { content: "html-document" } },
+});
+
+function RouteUrlProbe(): ReactElement {
+  const route = useWebRouteClient(DocumentRoute);
+  return createElement("output", null, route.toUrl({ query: { key: "main" } }));
+}
+
 describe("surface channel clients", () => {
   it("uses each declarative key as its contract namespace", async () => {
     const { workspace, request } = fakeWorkspaceClient(["agent", "canvas"]);
@@ -53,5 +75,42 @@ describe("surface channel clients", () => {
     expect(() =>
       createSurfaceChannelClients(workspace, { agent: contract }),
     ).toThrow("Channel namespace is unavailable: agent");
+  });
+
+  it("binds route clients to the mounted feature without feature-authored identity", () => {
+    const { workspace } = fakeWorkspaceClient([]);
+    const toFeatureRootUrl = vi.fn(
+      (featureId: string) =>
+        `https://host.example/viewpoints/binding/${featureId}/`,
+    );
+    const address = {
+      getSnapshot: () => ({ toFeatureRootUrl }),
+      subscribe: () => () => undefined,
+    };
+    const registry = new ActionRegistry({ shortcutPlatform: "other" });
+    const mountedSurface = createElement(SurfaceMount, {
+      entry: { featureId: "canvas", entry: "/features/canvas.ts" },
+      surface: {
+        name: "canvas",
+        render: () => createElement(RouteUrlProbe),
+      },
+    });
+    const markup = renderToStaticMarkup(
+      createElement(AttachmentWebAddressProvider, {
+        address,
+        children: createElement(WorkspaceClientProvider, {
+          client: workspace,
+          children: createElement(ActionRegistryProvider, {
+            registry,
+            children: mountedSurface,
+          }),
+        }),
+      }),
+    );
+
+    expect(toFeatureRootUrl).toHaveBeenCalledExactlyOnceWith("canvas");
+    expect(markup).toContain(
+      "https://host.example/viewpoints/binding/canvas/view?key=main",
+    );
   });
 });

@@ -9,7 +9,7 @@ implementation: incomplete
 
 ## Contract
 
-A _viewpoint web namespace_ gives one feature instance at an Agent viewpoint private web addresses for its assets and routes. A feature declares schema-only contracts once. Its browser content reaches those routes through derived relative paths, a typed `WebRouteClient`, and ordinary browser requests.
+A _viewpoint web namespace_ gives one feature instance at an Agent viewpoint private web addresses for its assets and routes. A feature declares schema-only contracts once. Its browser content reaches those routes through derived relative paths, a typed browser route capability, and ordinary browser requests.
 
 For each request, UIX resolves the originating connection's attachment to select the Agent and feature instance. UIX then validates declared input, invokes the matching handler, validates the declared response, and adapts the result onto the active host.
 
@@ -137,25 +137,25 @@ Relative addressing is not confinement. Origin-rooted references such as `/asset
 - UIX **must** derive a typed relative path builder from each route contract.
 - The relative path builder output **must** contain no host, workspace, session, attachment, or binding value. Authored and persisted content may use it.
 - The relative path builder **must** return a directory-relative reference rather than an origin-rooted pathname, including when the declared route path is `/`.
-- UIX **must** derive a typed `WebRouteClient` from each contract and the current binding.
-- The `WebRouteClient` **must** expose a `url()` operation for markup and a `request()` operation for typed calls.
-- `url()` **must** return a physical address usable in images, links, forms, iframes, scripts, and custom fetch calls.
-- `request()` **must** send the declared method, typed headers and body, and return a typed status result with cancellation.
-- A mounted surface **must** receive a feature-scoped client bound to its connection generation.
-- A complete browser page **must** load from a bound `url()` satisfying the complete-page path restriction. Its containing directory establishes the bound feature root for ordinary directory-relative requests.
-- When the attachment retargets, UIX **must** recreate its `WebRouteClient` instances, rerender mounted consumers, and reload affected documents through the new binding.
-- Clients bound to the old generation **must** fail new requests rather than reach the new Agent.
+- UIX **must** derive a typed browser route capability from each contract and the current binding.
+- The capability **must** synchronously derive physical URLs for markup and provide typed request execution.
+- A derived physical URL **must** be usable in images, links, forms, iframes, scripts, and custom fetch calls.
+- Typed request execution **must** send the declared method, typed headers and body, and return a typed status result with cancellation.
+- A mounted surface **must** receive a feature-scoped capability bound to its attachment-target generation.
+- A complete browser page **must** load from a physical URL satisfying the complete-page path restriction. Its containing directory establishes the bound feature root for ordinary directory-relative requests.
+- When the attachment retargets, UIX **must** recreate its browser route capabilities, rerender mounted consumers, and reload affected documents through the new binding.
+- Capabilities bound to the old generation **must** fail new requests rather than reach the new Agent.
 
 ## Conformance
 
 A conforming implementation demonstrates these outcomes:
 
-1. A schema-only contract yields a typed relative path builder, a `WebRouteClient`, and a contract-bound responder. Feature code writes no routing identity.
+1. A schema-only contract yields a typed relative path builder, a typed browser route capability, and a contract-bound responder. Feature code writes no routing identity.
 2. Two attachments target different Agents and invoke the same route. Each request reaches its own Agent feature instance.
 3. Two features declare identical local paths without collision. Private routes do not become a cross-feature API.
 4. Malformed path, query, header, or body input never invokes a handler. An invalid typed response is rejected before encoding.
 5. Complete-page route admission accepts `/` and `/view`, and rejects nested, parameterized, wildcard, dot-segment, and trailing-slash page routes. The same path restriction does not apply to routes declaring only other response kinds.
-6. `url()` in markup and `request()` reach the same handler through both host transports.
+6. URLs used in markup and typed browser requests reach the same handler through both host transports.
 7. Retargeting revokes the old binding for new requests. Accepted requests finish against their recorded Agent, and mounted clients are recreated.
 8. Feature reload removes old routes and assets and exposes the replacement generation through the existing connection.
 9. Both hosts generate complete-page URLs whose containing directory equals the bound feature root and reject nonconforming page locations. A content key containing `/` remains query input and does not change that directory.

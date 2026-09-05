@@ -28,6 +28,7 @@ The route work also exposed older channel names that describe an Agent instead o
 - W3 landed in `415f0c2`. Every accepted attachment now exposes one opaque `AttachmentWebBinding` for its current target generation and notifies host observers of replacements. The runtime-private binding registry retains the exact Agent generation, rejects revoked values, and lets already-retained target guards outlive retarget or close. Retarget acquires and registers the replacement before revoking the previous binding. Peers remain independent.
 - W4 landed. The workspace runtime's web dispatch retains the Agent generation named by a live binding. It validates the feature-local route, invokes that instance's handler under a tracked operation, and returns a host-neutral response. Direct runtime coverage proves independent Canvas documents, status mapping, retarget behavior, revoked-binding rejection, replacement dispatch, and failure cleanup.
 - W5 is complete. The shared content handler and host registrars remain. HTML route admission enforces shallow literal paths, and viewpoint dispatch rejects directory aliases without changing resource matching. Canvas uses `/view` with required typed `key` query input, including nested keys. Routes omit unused input schemas rather than declaring empty objects, and omitted path and query schemas produce empty handler input objects. One admission schema owns declaration structure and the derived author-facing type. Admission preserves authored input schemas and their refinements, rejects unsupported fields, and reports schema failures by input location. Response adaptation returns the handler's body unchanged with content type and cache headers. The document-address type, HTML processing module, base injection, and fragment rewriting are deleted. Verification: `npm run check` passed, including 895 passing tests and 3 skipped tests. Physical URL construction and validation remain in W6 through W8.
+- W6 landed on 2026-09-05. `@uix/api` derives typed directory-relative references and immutable `WebRouteClient` instances whose `toUrl()` validates a host-provided physical feature root. The shared workspace mount accepts a host-owned observable attachment web address independently from connection recovery. Each surface observes target snapshots and receives a route provider bound internally to its feature id. Feature code supplies only its shared contract and typed values. Retained clients keep their old physical roots. Electron and server do not provide this address until W7 and W8. Verification: `npm run check` passed with 900 tests passing and 3 skipped.
 
 ## R1 boundary
 
@@ -44,7 +45,7 @@ R1 includes:
 - Workspace-time contract admission and one handler per Agent feature instance
 - one private binding per attachment-target generation
 - guarded dispatch to the Agent instance selected when the request is accepted
-- a feature-scoped browser `url()` capability
+- a feature-scoped browser `toUrl()` capability
 - equivalent Electron custom-protocol and server HTTP delivery
 - admission-enforced shallow `html-document` routes with content selection in typed query input
 - native relative URL resolution from the bound page URL, without substrate HTML rewriting
@@ -157,9 +158,9 @@ Remove the uncommitted HTML parse and serialize pass, base injection, fragment-l
 - The returned HTML body equals the handler's body, including its whitespace, relative URLs, and fragment links. No physical address enters that body through substrate processing.
 - Focused tests pass, followed by `npm run check`.
 
-### W6: Add the feature-scoped browser URL client
+### W6: Add the feature-scoped browser URL client · **landed 2026-09-05**
 
-Add a framework-neutral URL client and the React adapter used by current surfaces. The client derives a browser address from a route, typed values, the mounted feature's scope, and the host's current binding. Its synchronous `url()` returns that address. Complete-page URL construction validates that the browser-resolved containing directory equals the bound feature root. Relative path builders return directory-relative references, not origin-rooted paths.
+Add a framework-neutral URL client and the React adapter used by current surfaces. The client derives a browser address from a route, typed values, the mounted feature's scope, and the host's current binding. Its synchronous `toUrl()` returns that address. Complete-page URL construction validates that the browser-resolved containing directory equals the bound feature root. Relative path builders return directory-relative references, not origin-rooted paths.
 
 A target change replaces the `WebRouteClient` and rerenders its consumers. An old client remains tied to its revoked binding. Keep this separate from the connection generation used for server reconnection.
 
@@ -196,7 +197,7 @@ This unit proves the host path through the Canvas document route but does not sw
 
 ### W9: Move Canvas reads onto the document route
 
-Switch the Canvas iframe from the workspace-scoped static bootstrap resource to its bound document `url()`. The Canvas handler serves canonical authored HTML with the existing browser shim injected as derived markup. The shallow page URL establishes native relative addressing without substrate body processing. The iframe no longer waits for a parent `canvas:load` message.
+Switch the Canvas iframe from the workspace-scoped static bootstrap resource to its bound document `toUrl()`. The Canvas handler serves canonical authored HTML with the existing browser shim injected as derived markup. The shallow page URL establishes native relative addressing without substrate body processing. The iframe no longer waits for a parent `canvas:load` message.
 
 Keep the current writeback and prompt messages. The parent still validates expected iframe source/origin, persists through `canvas.writeback`, and submits prompts through `agent.prompt`. Keep the Canvas-derived shim out of writeback. No substrate base or rewritten fragment attributes need cleanup. Reject an authored `<base href>` during Canvas canonicalization as a Canvas authoring rule, not a substrate response transformation.
 

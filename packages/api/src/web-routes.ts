@@ -6,6 +6,12 @@
 
 import { type Static, type TObject, Type } from "typebox";
 
+import {
+  encodeRouteUrlParts,
+  normalizeRoutePattern,
+  type RoutePatternParams,
+} from "./path-pattern";
+
 // These values are schemas, not request payloads. TypeBox owns their guard
 // and static type. Admission does not interpret their nested declarations.
 const TypeBoxObjectSchema = Type.Unsafe<TObject>(
@@ -49,6 +55,105 @@ export function defineWebRoute<const Contract extends WebRouteContract>(
   contract: Contract,
 ): Contract {
   return contract;
+}
+
+type WebRouteParams<Contract extends WebRouteContract> = Contract extends {
+  readonly params: infer Schema extends TObject;
+}
+  ? { readonly params: Static<Schema> }
+  : { readonly params?: never };
+
+type WebRouteQuery<Contract extends WebRouteContract> = Contract extends {
+  readonly query: infer Schema extends TObject;
+}
+  ? { readonly query: Static<Schema> }
+  : { readonly query?: never };
+
+/** Typed values used to construct one route reference or physical URL. */
+export type WebRouteValues<Contract extends WebRouteContract> =
+  WebRouteParams<Contract> & WebRouteQuery<Contract>;
+
+type WebRouteArguments<Contract extends WebRouteContract> = Contract extends
+  | { readonly params: TObject }
+  | { readonly query: TObject }
+  ? readonly [values: WebRouteValues<Contract>]
+  : readonly [values?: WebRouteValues<Contract>];
+
+interface ErasedWebRouteValues {
+  readonly params?: RoutePatternParams;
+  readonly query?: unknown;
+}
+
+/** A route client already scoped to one feature and attachment-target generation. */
+export interface WebRouteClient<Contract extends WebRouteContract> {
+  /** Derive a physical browser URL using the client's retained feature root. */
+  readonly toUrl: (...args: WebRouteArguments<Contract>) => string;
+}
+
+/**
+ * Encode typed route values without host, workspace, feature, or binding
+ * identity. The result is directory-relative so authored content can retain
+ * its surrounding feature root.
+ */
+export function toWebRouteReference<const Contract extends WebRouteContract>(
+  contract: Contract,
+  ...args: WebRouteArguments<Contract>
+): string {
+  const values = args[0] as ErasedWebRouteValues | undefined;
+  const pattern = normalizeRoutePattern({
+    path: contract.path,
+    ...(contract.query ? { query: contract.query } : {}),
+  });
+  const { pathname, search } = encodeRouteUrlParts(pattern, {
+    params: values?.params,
+    query: values?.query,
+  });
+  const relativePath = pathname === "/" ? "./" : pathname.slice(1);
+  return `${relativePath}${search}`;
+}
+
+/**
+ * Bind one shared route contract to an immutable physical feature root. A new
+ * attachment-target generation receives a new client. Retained clients keep
+ * resolving through their original root.
+ */
+export function createWebRouteClient<const Contract extends WebRouteContract>(
+  contract: Contract,
+  featureRootUrl: string,
+): WebRouteClient<Contract> {
+  const featureRoot = parseFeatureRootUrl(featureRootUrl);
+  return {
+    toUrl: (...args): string => {
+      const pageUrl = new URL(
+        toWebRouteReference(contract, ...args),
+        featureRoot,
+      );
+      if (toContainingDirectoryUrl(pageUrl).href !== featureRoot.href) {
+        throw new Error(
+          `Web route URL is outside its feature root: ${pageUrl.href}`,
+        );
+      }
+      return pageUrl.href;
+    },
+  };
+}
+
+function parseFeatureRootUrl(value: string): URL {
+  const root = new URL(value);
+  if (
+    root.search !== "" ||
+    root.hash !== "" ||
+    toContainingDirectoryUrl(root).href !== root.href
+  ) {
+    throw new Error(
+      `Invalid web route feature root: ${value}. Expected a directory URL without query or fragment.`,
+    );
+  }
+  return root;
+}
+
+function toContainingDirectoryUrl(value: URL): URL {
+  return new URL(".", value);
 }
 
 type InputValue<Schema> = Schema extends TObject

@@ -2,7 +2,9 @@ import { type TObject, Type } from "typebox";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
+  createWebRouteClient,
   defineWebRoute,
+  toWebRouteReference,
   type WebRouteContract,
   withWebRouteHandler,
 } from "./web-routes";
@@ -83,5 +85,85 @@ describe("web route author contracts", () => {
       },
     );
     expect(contribution.contract.params).toBe(route.params);
+  });
+
+  it("builds a typed directory-relative route reference", () => {
+    expect(
+      toWebRouteReference(HtmlRoute, {
+        query: { key: "reports/main", version: "draft 1" },
+      }),
+    ).toBe("view?key=reports%2Fmain&version=draft+1");
+
+    const rootRoute = defineWebRoute({
+      method: "GET",
+      path: "/",
+      responses: { 200: { content: "html-document" } },
+    });
+    expect(toWebRouteReference(rootRoute)).toBe("./");
+
+    const assertRejectedTypes = (): void => {
+      // @ts-expect-error the declared query is required
+      toWebRouteReference(HtmlRoute);
+      // @ts-expect-error the query key must be a string
+      toWebRouteReference(HtmlRoute, { query: { key: 1 } });
+      // @ts-expect-error the route declares no path values
+      toWebRouteReference(HtmlRoute, { params: {}, query: { key: "main" } });
+    };
+    expect(assertRejectedTypes).toBeTypeOf("function");
+  });
+
+  it("derives a physical page URL whose directory is the feature root", () => {
+    const client = createWebRouteClient(
+      HtmlRoute,
+      "https://host.example/workspaces/w/viewpoints/old/canvas/",
+    );
+    const pageUrl = client.toUrl({ query: { key: "reports/main" } });
+
+    expect(pageUrl).toBe(
+      "https://host.example/workspaces/w/viewpoints/old/canvas/view?key=reports%2Fmain",
+    );
+    expect(new URL("assets/site.css", pageUrl).href).toBe(
+      "https://host.example/workspaces/w/viewpoints/old/canvas/assets/site.css",
+    );
+    expect(new URL("api/data", pageUrl).href).toBe(
+      "https://host.example/workspaces/w/viewpoints/old/canvas/api/data",
+    );
+    expect(new URL("#details", pageUrl).href).toBe(`${pageUrl}#details`);
+    expect(new URL("?key=other", pageUrl).href).toBe(
+      "https://host.example/workspaces/w/viewpoints/old/canvas/view?key=other",
+    );
+  });
+
+  it("keeps retained clients tied to their original physical root", () => {
+    const oldClient = createWebRouteClient(
+      HtmlRoute,
+      "uix-resource://old.canvas/",
+    );
+    const replacementClient = createWebRouteClient(
+      HtmlRoute,
+      "uix-resource://replacement.canvas/",
+    );
+
+    expect(oldClient.toUrl({ query: { key: "main" } })).toBe(
+      "uix-resource://old.canvas/view?key=main",
+    );
+    expect(replacementClient.toUrl({ query: { key: "main" } })).toBe(
+      "uix-resource://replacement.canvas/view?key=main",
+    );
+  });
+
+  it("rejects a non-directory physical feature root", () => {
+    expect(() =>
+      createWebRouteClient(
+        HtmlRoute,
+        "https://host.example/workspaces/w/viewpoints/binding/canvas",
+      ),
+    ).toThrow("Expected a directory URL without query or fragment");
+    expect(() =>
+      createWebRouteClient(
+        HtmlRoute,
+        "https://host.example/workspaces/w/viewpoints/binding/canvas/?other=1",
+      ),
+    ).toThrow("Expected a directory URL without query or fragment");
   });
 });

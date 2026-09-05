@@ -8,6 +8,8 @@ export {
   mountLauncherClient,
 } from "./launcher";
 export {
+  type AttachmentWebAddress,
+  type AttachmentWebAddressSnapshot,
   mountWorkspaceClient,
   type SessionLocationAdapter,
   type WorkspaceClientMountOptions,

@@ -29,6 +29,11 @@ import {
   FeatureSettingValueEnvelopeSchema,
   type SettingsDefinition,
 } from "./settings";
+import {
+  createWebRouteClient,
+  type WebRouteClient,
+  type WebRouteContract,
+} from "./web-routes";
 
 export type {
   ActionCatalog,
@@ -277,6 +282,53 @@ export function useWorkspaceClient(): WorkspaceClient {
   const client = useContext(WorkspaceClientContext);
   if (!client) {
     throw new Error("WorkspaceClientProvider is missing");
+  }
+  return client;
+}
+
+// Section: Feature web routes
+// `undefined` means no provider; `null` means the mounted host has not supplied
+// viewpoint web addressing. Keeping those states distinct gives surface
+// authors an actionable error.
+const FeatureWebRouteRootContext = createContext<string | null | undefined>(
+  undefined,
+);
+
+export interface FeatureWebRouteProviderProps {
+  /** Physical directory URL for this feature at one attachment-target generation. */
+  featureRootUrl?: string;
+  children: ReactNode;
+}
+
+/** Bind descendants to the mounted feature's current viewpoint web root. */
+export function FeatureWebRouteProvider({
+  featureRootUrl,
+  children,
+}: FeatureWebRouteProviderProps): ReactNode {
+  return createElement(
+    FeatureWebRouteRootContext.Provider,
+    { value: featureRootUrl ?? null },
+    children,
+  );
+}
+
+/** Derive one typed route client without exposing feature or binding identity. */
+export function useWebRouteClient<const Contract extends WebRouteContract>(
+  contract: Contract,
+): WebRouteClient<Contract> {
+  const featureRootUrl = useContext(FeatureWebRouteRootContext);
+  const client = useMemo(
+    () =>
+      typeof featureRootUrl === "string"
+        ? createWebRouteClient(contract, featureRootUrl)
+        : undefined,
+    [contract, featureRootUrl],
+  );
+  if (featureRootUrl === undefined) {
+    throw new Error("FeatureWebRouteProvider is missing");
+  }
+  if (!client) {
+    throw new Error("Viewpoint web routes are unavailable in this host");
   }
   return client;
 }
