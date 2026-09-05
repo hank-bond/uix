@@ -30,6 +30,7 @@ import type {
   CanonicalResponse,
   RuntimeEvent,
   SessionTarget,
+  ViewpointWebRequest,
 } from "@uix/runtime";
 import type { WorkspaceRuntimeDependencies } from "@uix/runtime";
 import {
@@ -50,6 +51,7 @@ import { type ChannelContract, withHandlers } from "@uix/api/channels";
 import { defineFeature } from "@uix/api/feature";
 import { normalizeResourceRoute } from "@uix/api/resource-routes";
 import { defineSettings } from "@uix/api/settings";
+import { defineWebRoute, withWebRouteHandler } from "@uix/api/web-routes";
 
 const contract = {
   requests: {
@@ -84,11 +86,29 @@ const viewpointContract = {
       requestSchema: Type.Object({ content: Type.String() }),
       responseSchema: Type.Void(),
     },
+    continue_web_route: {
+      requestSchema: Type.Void(),
+      responseSchema: Type.Void(),
+    },
   },
   events: {
     incremented: { event: Type.Number() },
   },
 } as const satisfies ChannelContract;
+
+const viewpointWebRoute = defineWebRoute({
+  method: "GET",
+  path: "/documents/:key*",
+  params: Type.Object(
+    {
+      key: Type.Array(Type.String({ pattern: "^[a-z0-9-]+$" }), {
+        minItems: 1,
+      }),
+    },
+    { additionalProperties: false },
+  ),
+  responses: { 200: { content: "html-document" } },
+});
 
 export const feature = defineFeature({
   id: "echo",
@@ -100,6 +120,7 @@ export const feature = defineFeature({
     const docs = ctx.documents.createStore({ namespace: "echo" });
     return {
       agentChannelContracts: [viewpointContract],
+      viewpointWebRouteContracts: [viewpointWebRoute],
       channels: [
         {
           requests: {
@@ -159,6 +180,7 @@ export const feature = defineFeature({
   },
   agent(ctx) {
     let count = 0;
+    const webRouteGate = Promise.withResolvers<void>();
     const documents = ctx.documents.createStore({ namespace: "echo-view" });
     const events = ctx.channels.createPublisher(viewpointContract);
     return {
@@ -177,6 +199,19 @@ export const feature = defineFeature({
           write_view: {
             handler: ({ content }) => documents.setCurrent("notes", content),
           },
+          continue_web_route: {
+            handler: () => {
+              webRouteGate.resolve();
+            },
+          },
+        }),
+      ],
+      webRoutes: [
+        withWebRouteHandler(viewpointWebRoute, async ({ params }, respond) => {
+          const key = params.key.join("/");
+          if (key === "wait") await webRouteGate.promise;
+          if (key === "fail") throw new Error("fixture route failed");
+          return respond(200, (await documents.getCurrent("notes")) ?? "empty");
         }),
       ],
     };
@@ -302,6 +337,20 @@ async function dispatch(
   return await prepared.invoke();
 }
 
+function createViewpointWebRequest(
+  attachment: Attachment,
+  pathname: string,
+  method = "GET",
+): ViewpointWebRequest {
+  return {
+    binding: attachment.webBinding,
+    namespace: "canvas",
+    method,
+    pathname,
+    queryString: "",
+  };
+}
+
 describe("workspace runtime isolation", () => {
   it("replaces the observable web binding for each attachment target", async () => {
     const fixtureDir = await writeFixture();
@@ -348,6 +397,162 @@ describe("workspace runtime isolation", () => {
       }),
     ).rejects.toThrow("Branch session targets are not supported");
     expect(changes).toEqual([first.webBinding]);
+
+    first[Symbol.dispose]();
+    peer[Symbol.dispose]();
+    destination[Symbol.dispose]();
+    await runtime[Symbol.asyncDispose]();
+  });
+
+  it("dispatches the production Canvas route through each attachment binding", async () => {
+    const workspace = await makeCanvasWorkspace();
+    const runtime = createWorkspaceRuntime({
+      workspaceId: toWorkspaceId("canvas-web-routes"),
+      workspace,
+      piAppDataDir: join(workspace.stateRoot, ".pi"),
+      apiModuleDir,
+      dependencies: fakeTransports().dependencies,
+    });
+    await runtime.load();
+    const first = (await runtime.createAttachment({ kind: "new-session" }))
+      .attachment;
+    const second = (await runtime.createAttachment({ kind: "new-session" }))
+      .attachment;
+    const writeback = toChannelCanonicalId("canvas", "writeback");
+    await dispatch(first, {
+      channel: writeback,
+      payload: { key: "main", html: "<main>first Agent</main>" },
+    });
+    await dispatch(second, {
+      channel: writeback,
+      payload: { key: "main", html: "<main>second Agent</main>" },
+    });
+
+    await expect(
+      runtime.dispatchViewpointWebRequest(
+        createViewpointWebRequest(first, "/documents/main"),
+      ),
+    ).resolves.toEqual({
+      status: 200,
+      content: "html-document",
+      body: "<html><head></head><body><main>first Agent</main></body></html>",
+    });
+    await expect(
+      runtime.dispatchViewpointWebRequest(
+        createViewpointWebRequest(second, "/documents/main"),
+      ),
+    ).resolves.toEqual({
+      status: 200,
+      content: "html-document",
+      body: "<html><head></head><body><main>second Agent</main></body></html>",
+    });
+    await expect(
+      runtime.dispatchViewpointWebRequest(
+        createViewpointWebRequest(first, "/documents/Not-Valid"),
+      ),
+    ).resolves.toMatchObject({ status: 400, content: "text" });
+    await expect(
+      runtime.dispatchViewpointWebRequest(
+        createViewpointWebRequest(first, "/unknown"),
+      ),
+    ).resolves.toMatchObject({ status: 404, content: "text" });
+    await expect(
+      runtime.dispatchViewpointWebRequest(
+        createViewpointWebRequest(first, "/documents/main", "POST"),
+      ),
+    ).resolves.toMatchObject({ status: 405, content: "text" });
+
+    first[Symbol.dispose]();
+    second[Symbol.dispose]();
+    await runtime[Symbol.asyncDispose]();
+  });
+
+  it("keeps accepted web requests on their retained Agent generation", async () => {
+    const fixtureDir = await writeFixture();
+    const workspace = await makeWorkspace(
+      "retained-web-route",
+      fixtureDir,
+      "hello",
+    );
+    const runtime = createWorkspaceRuntime({
+      workspaceId: toWorkspaceId("retained-web-route"),
+      workspace,
+      piAppDataDir: join(workspace.stateRoot, ".pi"),
+      apiModuleDir,
+      dependencies: fakeTransports().dependencies,
+    });
+    await runtime.load();
+    const first = (await runtime.createAttachment({ kind: "new-session" }))
+      .attachment;
+    const peer = (await runtime.createAttachment(admitSession(first.target)))
+      .attachment;
+    const destination = (
+      await runtime.createAttachment({ kind: "new-session" })
+    ).attachment;
+    const writeView = toChannelCanonicalId("echo", "write_view");
+    await dispatch(first, {
+      channel: writeView,
+      payload: { content: "first Agent" },
+    });
+    await dispatch(destination, {
+      channel: writeView,
+      payload: { content: "second Agent" },
+    });
+
+    const oldBinding = first.webBinding;
+    const accepted = runtime.dispatchViewpointWebRequest({
+      binding: oldBinding,
+      namespace: "echo",
+      method: "GET",
+      pathname: "/documents/wait",
+      queryString: "",
+    });
+    await first.retarget(destination.target);
+
+    await expect(
+      runtime.dispatchViewpointWebRequest({
+        binding: oldBinding,
+        namespace: "echo",
+        method: "GET",
+        pathname: "/documents/main",
+        queryString: "",
+      }),
+    ).resolves.toEqual({
+      status: 404,
+      content: "text",
+      body: "Web route not found.",
+    });
+    await expect(
+      runtime.dispatchViewpointWebRequest({
+        binding: first.webBinding,
+        namespace: "echo",
+        method: "GET",
+        pathname: "/documents/main",
+        queryString: "",
+      }),
+    ).resolves.toMatchObject({ status: 200, body: "second Agent" });
+
+    await dispatch(peer, {
+      channel: toChannelCanonicalId("echo", "continue_web_route"),
+      payload: undefined,
+    });
+    await expect(accepted).resolves.toMatchObject({
+      status: 200,
+      body: "first Agent",
+    });
+    await expect(
+      runtime.dispatchViewpointWebRequest({
+        binding: first.webBinding,
+        namespace: "echo",
+        method: "GET",
+        pathname: "/documents/fail",
+        queryString: "",
+      }),
+    ).resolves.toEqual({
+      status: 500,
+      content: "text",
+      body: "Internal web route error.",
+    });
 
     first[Symbol.dispose]();
     peer[Symbol.dispose]();

@@ -1,7 +1,9 @@
-// The workspace-runtime contract: ids, session targets, and the exactly-one-workspace runtime surface a host composes.
+// The host-facing contract for one workspace runtime and its attachments.
 //
 // A host never assumes one workspace per process or one globally selected
 // session. Session choice lives on each attachment.
+
+import type { WebRouteResponse } from "@uix/api/web-routes";
 
 import type { CanonicalRequest, PreparedDispatch } from "./dispatch";
 import type { RuntimeEvent } from "./events";
@@ -61,6 +63,28 @@ export function toAttachmentId(id: string): AttachmentId {
   return id as AttachmentId;
 }
 
+/** One host-decoded request for an attachment-bound viewpoint route. */
+export interface ViewpointWebRequest {
+  /** Opaque binding presented exactly as the host decoded it. */
+  readonly binding: string;
+  /** Feature namespace decoded from the physical feature root. */
+  readonly namespace: string;
+  readonly method: string;
+  /** Feature-relative pathname beginning with `/`. */
+  readonly pathname: string;
+  /** Encoded query text without the leading `?`. */
+  readonly queryString: string;
+}
+
+/** Host-neutral response below physical URL and browser response adaptation. */
+export type ViewpointWebResponse =
+  | WebRouteResponse
+  | {
+      readonly status: 400 | 404 | 405 | 500;
+      readonly content: "text";
+      readonly body: string;
+    };
+
 /** One durable session and optional born-branch viewpoint to resolve. */
 export interface SessionTarget {
   readonly sessionId: SessionId;
@@ -85,6 +109,10 @@ export interface WorkspaceRuntime extends AsyncDisposable {
   onEvent(listener: (event: RuntimeEvent) => void): Disposable;
   /** Atomically resolve the admitted target and create its attachment. */
   createAttachment(admission: AttachmentAdmission): Promise<CreatedAttachment>;
+  /** Dispatch through the Agent generation retained from one live web binding. */
+  dispatchViewpointWebRequest(
+    request: ViewpointWebRequest,
+  ): Promise<ViewpointWebResponse>;
   /** Activate the initial feature composition. A bad manifest logs and boots with no features. */
   load(): Promise<ActivationResult>;
 }

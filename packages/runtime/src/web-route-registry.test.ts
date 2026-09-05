@@ -38,13 +38,14 @@ type DocumentHandler = WebRouteHandler<typeof DocumentRoute>;
 function request(
   pathname: string,
   search = "",
+  method = "GET",
 ): {
-  readonly method: "GET";
+  readonly method: string;
   readonly pathname: string;
   readonly searchParams: URLSearchParams;
 } {
   return {
-    method: "GET",
+    method,
     pathname,
     searchParams: new URLSearchParams(search),
   };
@@ -55,7 +56,11 @@ async function invoke(
   handlers: WebRouteHandlerRegistry,
   webRequest: ReturnType<typeof request>,
 ): Promise<
-  | { readonly ok: false; readonly status: 400 | 404; readonly reason: string }
+  | {
+      readonly ok: false;
+      readonly status: 400 | 404 | 405;
+      readonly reason: string;
+    }
   | { readonly ok: true; readonly value: WebRouteResponse }
 > {
   const resolved = contracts.resolve("canvas", webRequest);
@@ -102,6 +107,31 @@ describe("web route registries", () => {
     expect(handlerRequest.query).toEqual({ version: "v1" });
     expect(handlerRequest.signal).toBeInstanceOf(AbortSignal);
     expect(typeof boundResponder).toBe("function");
+  });
+
+  it("returns a method mismatch without invoking a viewpoint handler", async () => {
+    const contracts = new WebRouteContractRegistry();
+    const handlers = new WebRouteHandlerRegistry();
+    const handler = vi.fn<DocumentHandler>((_request, respond) =>
+      respond(200, "not reached"),
+    );
+    registerWebRouteContracts(contracts, "canvas", [DocumentRoute]);
+    registerWebRouteHandlers(handlers, "canvas", [
+      withWebRouteHandler(DocumentRoute, handler),
+    ]);
+
+    await expect(
+      invoke(
+        contracts,
+        handlers,
+        request("/documents/main", "unexpected=1", "POST"),
+      ),
+    ).resolves.toEqual({
+      ok: false,
+      status: 405,
+      reason: "Web route method is not allowed.",
+    });
+    expect(handler).not.toHaveBeenCalled();
   });
 
   it("rejects malformed route values before invoking a viewpoint handler", async () => {

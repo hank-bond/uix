@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   decodeRouteUrlParts,
   encodeRouteUrlParts,
+  matchRoutePath,
   normalizeRoutePattern,
 } from "./path-pattern";
 
@@ -86,6 +87,25 @@ describe("encodeRouteUrlParts", () => {
         query: { v: "1" },
       }),
     ).toThrow("does not declare query params");
+  });
+});
+
+describe("matchRoutePath", () => {
+  it("matches a pathname without validating query values", () => {
+    const pattern = normalizeRoutePattern({
+      path: "/documents/:id",
+      query: Query,
+    });
+
+    expect(matchRoutePath(pattern, "/documents/main")).toEqual({ ok: true });
+    expect(matchRoutePath(pattern, "/reports/main")).toMatchObject({
+      ok: false,
+      status: 404,
+    });
+    expect(matchRoutePath(pattern, "/documents/%E0%A4%A")).toMatchObject({
+      ok: false,
+      status: 400,
+    });
   });
 });
 

@@ -388,6 +388,8 @@ describe("server host launcher", () => {
           workspaceId: toWorkspaceId("reference"),
           onEvent: () => noopDisposable(),
           createAttachment: () => Promise.resolve(created.value),
+          dispatchViewpointWebRequest: () =>
+            Promise.reject(new Error("Unexpected viewpoint web request")),
           load: () => Promise.reject(new Error("Unexpected runtime load")),
           [Symbol.asyncDispose]: runtimeDisposal,
         }),
@@ -457,6 +459,8 @@ describe("server host launcher", () => {
           onEvent: () => noopDisposable(),
           createAttachment: () =>
             Promise.resolve(createAttachmentFixture(registered.id).value),
+          dispatchViewpointWebRequest: () =>
+            Promise.reject(new Error("Unexpected viewpoint web request")),
           load: () => Promise.reject(new Error("Unexpected runtime load")),
           async [Symbol.asyncDispose]() {
             transportRegistration[Symbol.dispose]();
@@ -727,6 +731,8 @@ function createDeferredWorkspaceRuntime(
       started.resolve();
       return creation.promise;
     },
+    dispatchViewpointWebRequest: () =>
+      Promise.reject(new Error("Unexpected viewpoint web request")),
     load: () => Promise.reject(new Error("Unexpected runtime load")),
     [Symbol.asyncDispose]: disposal,
   };

@@ -44,6 +44,6 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 - **[web-route-registry.ts](./web-route-registry.ts)** Stores web route contracts and handlers for a Workspace or viewpoint.
 - **[workspace-roots.ts](./workspace-roots.ts)** Resolves stable paths for workspace state, the agent working directory, and the manifest from one startup target.
 - **[workspace-settings.ts](./workspace-settings.ts)** Validates a staged manifest's settings, makes them live together, and connects them to their persisted locations.
-- **[workspace.ts](./workspace.ts)** The workspace-runtime contract: ids, session targets, and the exactly-one-workspace runtime surface a host composes.
+- **[workspace.ts](./workspace.ts)** The host-facing contract for one workspace runtime and its attachments.
 
 <!-- INDEX:END -->

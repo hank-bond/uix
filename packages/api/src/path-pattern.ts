@@ -143,6 +143,21 @@ export function encodeRouteUrlParts(
   };
 }
 
+/** Test one feature-relative pathname without decoding any query values. */
+export function matchRoutePath(
+  pattern: NormalizedRoutePattern,
+  pathname: string,
+):
+  | { readonly ok: true }
+  | {
+      readonly ok: false;
+      readonly status: 400 | 404;
+      readonly reason: string;
+    } {
+  const decoded = decodeRoutePath(pattern, toPathSegments(pathname));
+  return decoded.ok ? { ok: true } : decoded;
+}
+
 /** Decode and validate feature-relative pathname and search components. */
 export function decodeRouteUrlParts(
   pattern: NormalizedRoutePattern,

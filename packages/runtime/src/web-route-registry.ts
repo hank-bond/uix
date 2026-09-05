@@ -7,6 +7,7 @@ import { isIdToken } from "@uix/api/contribution-id";
 import {
   decodeRouteUrlParts,
   listRoutePatternParams,
+  matchRoutePath,
   type NormalizedRoutePattern,
   normalizeRoutePattern,
   toRoutePatternIdentity,
@@ -42,7 +43,7 @@ type WebRouteResolution =
   | { readonly ok: true; readonly value: ResolvedWebRouteRequest }
   | {
       readonly ok: false;
-      readonly status: 400 | 404;
+      readonly status: 400 | 404 | 405;
       readonly reason: string;
     };
 
@@ -90,13 +91,18 @@ export class WebRouteContractRegistry {
   /** Resolve one namespace-local request without selecting or invoking a handler. */
   resolve(namespace: string, request: WebRouteRequest): WebRouteResolution {
     const contracts = this.#namespaceContracts.get(namespace) ?? [];
+    let hasPathMatch = false;
     for (const registered of contracts) {
-      if (registered.contract.method !== request.method) continue;
-      const decoded = decodeRouteUrlParts(registered.pattern, request);
-      if (!decoded.ok) {
-        if (decoded.status === 404) continue;
-        return decoded;
+      const pathMatch = matchRoutePath(registered.pattern, request.pathname);
+      if (!pathMatch.ok) {
+        if (pathMatch.status === 404) continue;
+        return pathMatch;
       }
+      hasPathMatch = true;
+      if (registered.contract.method !== request.method) continue;
+
+      const decoded = decodeRouteUrlParts(registered.pattern, request);
+      if (!decoded.ok) return decoded;
       try {
         return {
           ok: true,
@@ -117,11 +123,17 @@ export class WebRouteContractRegistry {
         };
       }
     }
-    return {
-      ok: false,
-      status: 404,
-      reason: "Unknown web route.",
-    };
+    return hasPathMatch
+      ? {
+          ok: false,
+          status: 405,
+          reason: "Web route method is not allowed.",
+        }
+      : {
+          ok: false,
+          status: 404,
+          reason: "Unknown web route.",
+        };
   }
 
   listCanonicalIds(): readonly WebRouteCanonicalId[] {

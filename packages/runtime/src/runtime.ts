@@ -76,6 +76,8 @@ import type {
   AttachmentWebBinding,
   CreatedAttachment,
   SessionTarget,
+  ViewpointWebRequest,
+  ViewpointWebResponse,
   WorkspaceId,
   WorkspaceRuntime as WorkspaceRuntimeContract,
 } from "./workspace";
@@ -84,6 +86,7 @@ import type { Workspace } from "./workspace-roots";
 import { createWorkspaceSettings } from "./workspace-settings";
 
 const attachmentLog = createLogger("attachments");
+const webRouteLog = createLogger("web-routes");
 
 /** The dependencies a host provides. The runtime declares them, never imports them. */
 export interface WorkspaceRuntimeDependencies {
@@ -633,6 +636,53 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     }
   }
 
+  async dispatchViewpointWebRequest(
+    request: ViewpointWebRequest,
+  ): Promise<ViewpointWebResponse> {
+    if (this.#disposed) {
+      return toWebRouteErrorResponse(404, "Web route not found.");
+    }
+
+    const retainedTargetGuard = this.#attachmentWebBindings.retainTarget(
+      request.binding,
+    );
+    if (!retainedTargetGuard) {
+      return toWebRouteErrorResponse(404, "Web route not found.");
+    }
+
+    using targetGuard = retainedTargetGuard;
+    await using operation = this.#dispatchOperations.acquire();
+    const resolved = this.#viewpointWebRoutes.resolve(request.namespace, {
+      method: request.method,
+      pathname: request.pathname,
+      searchParams: new URLSearchParams(request.queryString),
+    });
+    if (!resolved.ok) {
+      return toWebRouteErrorResponse(resolved.status, resolved.reason);
+    }
+
+    try {
+      return await targetGuard.value.features.webRoutes.invoke(
+        resolved.value,
+        operation.signal,
+      );
+    } catch (thrown) {
+      const error =
+        thrown instanceof Error ? thrown : new Error(String(thrown));
+      webRouteLog.error(
+        {
+          namespace: request.namespace,
+          method: request.method,
+          pathname: request.pathname,
+          sessionId: targetGuard.value.target.sessionId,
+          err: error.message,
+        },
+        "viewpoint_web_route_failed",
+      );
+      return toWebRouteErrorResponse(500, "Internal web route error.");
+    }
+  }
+
   async #createAcceptedAttachment(
     acceptedTarget: SessionTarget,
     openedManager?: SessionManager,
@@ -936,6 +986,13 @@ class Attachment implements AttachmentContract {
     }
     return nextTargetState.targetGuard.retain("retarget-response");
   }
+}
+
+function toWebRouteErrorResponse(
+  status: 400 | 404 | 405 | 500,
+  body: string,
+): ViewpointWebResponse {
+  return { status, content: "text", body };
 }
 
 function assertSupportedSessionTarget(target: SessionTarget): void {

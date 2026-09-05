@@ -24,6 +24,8 @@ export type {
   CreatedAttachment,
   SessionId,
   SessionTarget,
+  ViewpointWebRequest,
+  ViewpointWebResponse,
   WorkspaceId,
   WorkspaceRuntime,
 } from "./workspace";

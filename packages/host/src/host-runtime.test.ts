@@ -331,6 +331,10 @@ class FakeRuntime implements WorkspaceRuntime {
     return Promise.resolve({ activated: [], failed: [] });
   }
 
+  dispatchViewpointWebRequest(): Promise<never> {
+    return Promise.reject(new Error("Unexpected viewpoint web request"));
+  }
+
   async createAttachment(
     admission: AttachmentAdmission,
   ): Promise<CreatedAttachment> {

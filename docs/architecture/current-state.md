@@ -23,9 +23,9 @@ The ordered `features` array in `uix.workspace.json` is the complete composition
 
 The main-process loader evaluates entries with Jiti and aliases the blessed `@uix/api` and TypeBox modules. Feature code remains trusted local code, not sandboxed code.
 
-Activation hydrates provisional feature settings before running `workspace(ctx)`. Workspace contributions include resources, Workspace channel handlers, Agent channel contracts, and surfaces. The loader retains `agent(ctx)` in manifest order.
+Activation hydrates provisional feature settings before running `workspace(ctx)`. Workspace contributions include resources, Workspace channel handlers, Agent channel contracts, viewpoint web route contracts, and surfaces. The loader retains `agent(ctx)` in manifest order.
 
-Each Workspace activation owns one async-disposable feature bag. Each `AgentInstance` calls the retained Agent factories with fresh contexts. Its own bag holds their tools, channel handlers, prompt sections, skills, turn state, and model context. A failed Workspace or Agent factory loses its partial work, while sibling features continue.
+Each Workspace activation owns one async-disposable feature bag. Each `AgentInstance` calls the retained Agent factories with fresh contexts. Its own bag holds their tools, channel and web route handlers, prompt sections, skills, turn state, and model context. A failed Workspace or Agent factory loses its partial work, while sibling features continue.
 
 Manifest and workspace-setting candidates validate before replacing the live generation. A malformed reload preserves the active composition. A malformed startup candidate logs an error and opens without features.
 
@@ -38,6 +38,8 @@ A shared `ChannelContract` defines local request, response, and event schemas wi
 Each workspace runtime owns one `ChannelRegistry` that resolves owner-scoped ids, validates requests and responses, and tracks the live namespaces backed by admitted contracts. Workspace handlers run directly. An Agent channel contract selects a handler from the prepared dispatch's accepted Agent guard. Each Agent instance owns those handler closures. Routing values do not enter feature payloads.
 
 A runtime-created attachment prepares each canonical request with immutable guarded context and the registry entry's log policy. Each host records the physical crossing and invokes that prepared dispatch. The surface composition projects the registry's namespace catalog. A surface declares every consumed namespace in one contract map and receives typed request and event clients under the matching keys. Client creation rejects unavailable namespaces, and event clients validate incoming payloads.
+
+Each workspace runtime admits viewpoint web route contracts under their feature-derived namespaces. Each Agent instance owns the matching handlers. Every accepted attachment-target generation receives one private opaque web binding. Host-neutral web dispatch resolves a live binding and retains that exact Agent instance. It validates the local route and input, invokes the handler, and returns a finite response. Neither host currently adapts these responses onto its physical content transport.
 
 Electron IPC and the server's correlated WebSocket protocol are the implemented physical channel transports. The server detects dead sockets with ping/pong. Its browser adapter reconnects to the canonical session with capped backoff and rejects disconnected requests without replay. An accepted-connection version makes mounted snapshot consumers resubscribe and rehydrate. Runtime events have workspace or session scope. Only matching attachments receive them. Canvas iframe writeback still uses a feature-owned `postMessage` shim before entering typed channels. A general iframe channel adapter does not exist.
 

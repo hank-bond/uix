@@ -46,7 +46,9 @@ Feature handlers own their reads, mutations, effects, and application behavior. 
 ### Route contracts
 
 - Each route contract **must** declare one HTTP method and a feature-relative path pattern.
+- Several contracts in one namespace **may** share one normalized path pattern only when each declares a different method. UIX **must** reject a duplicate method and normalized path pair.
 - UIX **must** match and route declared path patterns so features do not have to implement their own router.
+- UIX **must** establish a path match before selecting its declared method, then validate only that contract's input.
 - A route pattern **may** provide a terminal wildcard when a feature deliberately routes a subtree itself.
 - A route contract **must** separately declare TypeBox schemas for path parameters, query parameters, request headers, and body that it accepts.
 - An absent input section **must not** cause browser input from that section to be accepted silently.
@@ -67,7 +69,7 @@ Feature handlers own their reads, mutations, effects, and application behavior. 
 - A handler **must** return one declared status through a contract-bound responder. It **must not** construct a raw response object.
 - The responder **must** require typed body and header values that match the declared status.
 - UIX **must** encode the typed result into the host-neutral web response and apply host-owned header policy.
-- Invalid input returns `400`, an unknown route returns `404`, and a method mismatch returns `405`. An unexpected handler or validation failure returns `500`.
+- Invalid input returns `400`, an unknown route returns `404`, and a method mismatch returns `405`. A matching path with no declared contract for the request method returns `405` before validating input declared by another method. An unexpected handler or validation failure returns `500`.
 - Dynamic responses default to `Cache-Control: no-store`.
 - Responses are finite. SSE, WebSockets, and other indefinite streaming responses are outside this version.
 

@@ -25,7 +25,8 @@ The route work also exposed older channel names that describe an Agent instead o
 - The channel-contract dependency landed through `e7f7acd`.
 - W1 landed in `96d3c71`. `path-pattern.ts` now owns feature-relative pattern normalization and URL-part encoding and decoding. Resource routes wrap that codec while retaining their existing logical URLs and transport behavior.
 - W2 landed in `ba6f123`. `@uix/api` now defines schema-only `GET` document contracts with typed path and query input, inferred handlers, and contract-bound responders. Runtime admission intentionally supports only the R1 `GET` → `200` complete-document behavior. Workspace activation derives the feature namespace, each Agent instance owns its handler registry, and Canvas binds `/documents/:key*` to its viewpoint-local document buffer.
-- W3 landed. Every accepted attachment now exposes one opaque `AttachmentWebBinding` for its current target generation and notifies host observers of replacements. The runtime-private binding registry retains the exact Agent generation, rejects revoked values, and lets already-retained target guards outlive retarget or close. Retarget acquires and registers the replacement before revoking the previous binding. Peers remain independent.
+- W3 landed in `415f0c2`. Every accepted attachment now exposes one opaque `AttachmentWebBinding` for its current target generation and notifies host observers of replacements. The runtime-private binding registry retains the exact Agent generation, rejects revoked values, and lets already-retained target guards outlive retarget or close. Retarget acquires and registers the replacement before revoking the previous binding. Peers remain independent.
+- W4 landed. The workspace runtime's web dispatch retains the Agent generation named by a live binding. It validates the feature-local route, invokes that instance's handler under a tracked operation, and returns a host-neutral response. Direct runtime coverage proves independent Canvas documents, status mapping, retarget behavior, revoked-binding rejection, replacement dispatch, and failure cleanup.
 
 ## R1 boundary
 
@@ -125,7 +126,7 @@ Likely ownership:
 
 ### W4: Dispatch through the retained Agent
 
-Resolve a live binding and retain its selected Agent instance. Then match the feature-local contract, validate path/query input, invoke that Agent's handler, and validate its result. Dispatch returns a host-neutral web result, below physical URL and browser response handling.
+Resolve a live binding and retain its selected Agent instance. Then match the feature-local contract, validate path/query input, invoke that Agent's handler, and validate its response. Dispatch returns a host-neutral web response, below physical URL and browser response handling.
 
 Return `400` for invalid declared input and `404` for an unknown route or revoked binding. Return `405` for a method mismatch and `500` for an unexpected handler or response failure. R1 supports only the declared successful complete-document result. Later response forms remain deferred.
 
