@@ -6,6 +6,7 @@
 
 import { type Static, type TObject, Type } from "typebox";
 
+import type { FeatureWebRootUrl } from "./feature-web-root-url";
 import {
   encodeRouteUrlParts,
   normalizeRoutePattern,
@@ -113,22 +114,21 @@ export function toWebRouteReference<const Contract extends WebRouteContract>(
 }
 
 /**
- * Bind one shared route contract to an immutable physical feature root. A new
+ * Bind one shared route contract to a validated physical feature root. A new
  * attachment-target generation receives a new client. Retained clients keep
  * resolving through their original root.
  */
 export function createWebRouteClient<const Contract extends WebRouteContract>(
   contract: Contract,
-  featureRootUrl: string,
+  featureRootUrl: FeatureWebRootUrl,
 ): WebRouteClient<Contract> {
-  const featureRoot = parseFeatureRootUrl(featureRootUrl);
   return {
     toUrl: (...args): string => {
       const pageUrl = new URL(
         toWebRouteReference(contract, ...args),
-        featureRoot,
+        featureRootUrl,
       );
-      if (toContainingDirectoryUrl(pageUrl).href !== featureRoot.href) {
+      if (toContainingDirectoryUrl(pageUrl).href !== featureRootUrl) {
         throw new Error(
           `Web route URL is outside its feature root: ${pageUrl.href}`,
         );
@@ -136,20 +136,6 @@ export function createWebRouteClient<const Contract extends WebRouteContract>(
       return pageUrl.href;
     },
   };
-}
-
-function parseFeatureRootUrl(value: string): URL {
-  const root = new URL(value);
-  if (
-    root.search !== "" ||
-    root.hash !== "" ||
-    toContainingDirectoryUrl(root).href !== root.href
-  ) {
-    throw new Error(
-      `Invalid web route feature root: ${value}. Expected a directory URL without query or fragment.`,
-    );
-  }
-  return root;
 }
 
 function toContainingDirectoryUrl(value: URL): URL {

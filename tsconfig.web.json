@@ -34,6 +34,8 @@
     "hosts/electron/src/renderer/**/*.ts",
     "hosts/electron/src/renderer/**/*.tsx",
     "hosts/electron/src/channel-transport.ts",
+    "hosts/electron/src/viewpoint-urls.ts",
+    "hosts/electron/src/viewpoint-web.test.ts",
     "src/features/**/workspace/**/*.ts",
     "src/features/**/workspace/**/*.tsx",
     "src/features/**/shared/**/*.ts"

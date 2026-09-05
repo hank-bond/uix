@@ -30,6 +30,14 @@ Call sites that cannot recover should say what they mean: `assertCanvasKey(key)`
 
 Custom errors start with plain `Error` and a clear message. Add a custom subclass only when callers must branch on its type, as in `err instanceof InvalidCanvasKeyError`. Until then, assertion helpers keep call sites stable if the thrown type changes.
 
+## Constrained strings
+
+A branded string preserves a domain value's validated structural meaning across internal APIs. The [`module-boundaries.branded-strings`](./rules/module-boundaries.branded-strings.md) rule applies throughout the repository.
+
+Keep three stages distinct: raw input, validated domain value, and external representation. Schemas define structural validity. A parser or checked encoder establishes the brand, and internal consumers require it rather than accepting arbitrary strings. Formatting, concatenation, and deserialization do not automatically preserve a brand's guarantees.
+
+Brand the shared concept at its semantic owner rather than creating a separate brand for each host. A feature-directory URL can have one host-neutral type while each host encodes its own scheme and layout. The type does not prove that the attachment behind the URL remains live.
+
 ## Imports
 
 `__dirname` and `__filename` are CommonJS module bindings, not importable values. Use them directly in the CJS main-process bundle.

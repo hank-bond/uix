@@ -1,9 +1,13 @@
-// The preload channel transport surface exposed on `window.channels`.
-import type { ChannelTransport } from "../channel-transport";
+// The host-only channel and attachment-binding bridges exposed by preload.
+import type {
+  AttachmentWebBindingTransport,
+  ChannelTransport,
+} from "../channel-transport";
 
 declare global {
   interface Window {
     channels: ChannelTransport;
+    attachmentWebBinding: AttachmentWebBindingTransport;
   }
 }
 

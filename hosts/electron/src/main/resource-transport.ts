@@ -1,4 +1,4 @@
-// Electron host adapter for the substrate resource protocol.
+// Adapts Electron's privileged protocol to guarded workspace resources and viewpoint routes.
 //
 // Electron registers the privileged scheme once for the host. Workspace
 // runtimes contribute content handlers to this transport instead
@@ -10,6 +10,8 @@ import { ResourceProtocolScheme } from "@uix/api/resource-routes";
 import type { ContentTransportRegistrar } from "@uix/runtime/content-transport";
 import { disposable } from "@uix/runtime/lifecycle";
 import type { WorkspaceId } from "@uix/runtime/workspace";
+
+import { decodeViewpointUrl } from "../viewpoint-urls";
 
 type ContentHandler = Parameters<ContentTransportRegistrar>[0];
 type WorkspaceGuardAcquirer = (origin: string) => Promise<Disposable>;
@@ -83,15 +85,14 @@ export class ElectronResourceTransport {
     };
   }
 
-  /** Select a runtime by the workspace token in the logical resource host. */
+  /** Decode the physical content address and retain its workspace for dispatch. */
   async handle(request: Request): Promise<Response> {
-    let hostname: string;
+    let url: URL;
     try {
-      const url = new URL(request.url);
+      url = new URL(request.url);
       if (url.protocol !== `${ResourceProtocolScheme}:`) {
         return textResponse("Resource scheme not found", 404);
       }
-      hostname = url.hostname;
     } catch {
       // URL parse failures are untrusted request input, so a 400 is sufficient.
       return textResponse("Invalid resource URL", 400);
@@ -99,11 +100,19 @@ export class ElectronResourceTransport {
 
     for (const [workspaceId, route] of this.#workspaceRoutes) {
       if (
-        hostname !== (workspaceId as string) &&
-        !hostname.endsWith(`.${workspaceId as string}`)
+        url.hostname !== (workspaceId as string) &&
+        !url.hostname.endsWith(`.${workspaceId as string}`)
       ) {
         continue;
       }
+      const isViewpoint = url.hostname.endsWith(
+        `.viewpoint.${workspaceId as string}`,
+      );
+      const viewpoint = isViewpoint
+        ? decodeViewpointUrl(url, workspaceId)
+        : undefined;
+      if (isViewpoint && !viewpoint)
+        return textResponse("Viewpoint location not found", 404);
       let workspaceGuard: Disposable;
       try {
         workspaceGuard = await route.acquireWorkspaceGuard("electron-resource");
@@ -116,7 +125,14 @@ export class ElectronResourceTransport {
       if (!handler) {
         return textResponse("Workspace resources are unavailable", 503);
       }
-      return await handler({ kind: "resource", request });
+      return await handler(
+        viewpoint
+          ? {
+              kind: "viewpoint",
+              request: { ...viewpoint, method: request.method },
+            }
+          : { kind: "resource", request },
+      );
     }
     return textResponse("Workspace resources are unavailable", 503);
   }

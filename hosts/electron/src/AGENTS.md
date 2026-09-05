@@ -4,7 +4,7 @@ summary: "Electron-owned process and browser code implementing native lifecycle,
 
 # Electron source
 
-The main process owns windows, menus, dialogs, recents, IPC, the resource protocol, and process lifecycle. Each workspace window binds its `webContents` identity to one supervised workspace guard and attachment. `preload.ts` exposes only `channel-transport.ts`, and the renderer entries adapt that transport into shared launcher and workspace clients.
+The main process owns windows, menus, dialogs, recents, IPC, the resource protocol, and process lifecycle. Each workspace window binds its `webContents` identity to one supervised workspace guard and attachment. `preload.ts` exposes the channel transport and a separate attachment-binding control bridge to the main frame only. The renderer entries adapt these capabilities into shared launcher and workspace clients.
 
 <!-- INDEX:START -->
 
@@ -18,6 +18,7 @@ The main process owns windows, menus, dialogs, recents, IPC, the resource protoc
 ### Source files
 
 - **[channel-transport.ts](./channel-transport.ts)** Defines the Electron host channel transport shared by main, preload, and renderer code.
-- **[preload.ts](./preload.ts)** Exposes the typed channel transport on `window.channels` for sandboxed renderer pages.
+- **[preload.ts](./preload.ts)** Exposes channel traffic and attachment-binding control to sandboxed main-frame renderer pages.
+- **[viewpoint-urls.ts](./viewpoint-urls.ts)** Encodes and decodes Electron's attachment-bound feature directory URLs.
 
 <!-- INDEX:END -->

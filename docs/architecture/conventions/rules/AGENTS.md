@@ -18,6 +18,7 @@ The card format and its structural checks live in [`../contributing.md`](../cont
 - **[lifetimes.composed-cleanup](./lifetimes.composed-cleanup.md)** _(reference)._ Compose ordered cleanup of owned capabilities in a disposal container instead of handwritten teardown choreography.
 - **[lifetimes.paired-cleanup](./lifetimes.paired-cleanup.md)** _(reference)._ Do not attach a listener, handler, subscription, or timer without directly pairing its cleanup.
 - **[logging.component-logger](./logging.component-logger.md)** _(reference)._ Main-process logging uses component-scoped structured pino loggers, never console calls.
+- **[module-boundaries.branded-strings](./module-boundaries.branded-strings.md)** _(reference)._ Represent structurally constrained domain strings with branded types, minted through validation or checked encoding and preserved through internal APIs.
 - **[module-boundaries.export-minimum](./module-boundaries.export-minimum.md)** _(reference)._ Do not export a symbol until another module needs to import that symbol by name.
 - **[module-boundaries.node-imports](./module-boundaries.node-imports.md)** _(reference)._ Import Node built-ins explicitly with the node: prefix so execution-time dependencies stay visible.
 - **[module-boundaries.schema-validation](./module-boundaries.schema-validation.md)** _(reference)._ Use a declared schema as the structural authority for boundary data instead of handwritten field checks.
@@ -26,6 +27,7 @@ The card format and its structural checks live in [`../contributing.md`](../cont
 - **[naming.callable-type](./naming.callable-type.md)** _(reference)._ Name a callable type with a noun phrase whose head noun identifies the callable role.
 - **[naming.callable-value](./naming.callable-value.md)** _(reference)._ Name a callable participant with a noun role and an object operation with a verb.
 - **[naming.contribution-lifecycle](./naming.contribution-lifecycle.md)** _(reference)._ Name each contribution stage with its approved lifecycle term, from Contribution through RegisteredX or a capability role.
+- **[naming.host-role](./naming.host-role.md)** _(reference)._ Name host-owned symbols and files by semantic responsibility, consistently across hosts where purpose and scope match.
 - **[naming.imported-term](./naming.imported-term.md)** _(reference)._ An imported term can retain the meaning and grammar of its source API when UIX directly represents the external concept.
 - **[naming.operation](./naming.operation.md)** _(reference)._ Name a UIX-owned function or method with an approved operation form, a verb phrase by default.
 - **[naming.operation-result](./naming.operation-result.md)** _(reference)._ Pair a transition verb with the result's domain role when an operation names a result or lifecycle transition.

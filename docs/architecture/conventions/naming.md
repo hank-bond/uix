@@ -57,6 +57,16 @@ A qualifier earns its place by separating two possible names at the same boundar
 
 A role should not repeat a property required by that role. Every client already knows how to reach its API, so use `WebRouteClient`, not `BoundWebRouteClient`. Name the separate capability that chooses the live target, such as `AttachmentWebBinding`.
 
+## Host-level names
+
+Host directories communicate ownership, while names communicate purpose and scope. The [`naming.host-role`](./rules/naming.host-role.md) rule applies this distinction across concrete hosts.
+
+- **Match equivalent responsibilities:** Use matching names across hosts when the concepts or processes have the same purpose and scope.
+- **Qualify platform-specific concepts:** Use platform qualifiers only when they describe a genuine platform dependency, not merely the implementation's location.
+- **Preserve meaningful differences:** Do not force matching names, files, or abstractions when host responsibilities differ.
+
+Ask whether a qualifier explains the concept or only repeats its directory. `AttachmentWebBindingSnapshot` identifies equivalent routing state without a host prefix. Electron's IPC events and the server's WebSocket messages still use their specific transport vocabulary. Matching names do not require shared implementations or symmetric source trees.
+
 ## Owned-name prefixes
 
 Project-owned names do not use the project name as a prefix. The repository, package, or owning feature is already the namespace. Each prefix is one more mention a project rename must chase down.

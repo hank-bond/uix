@@ -7,6 +7,8 @@ read_when: "Deciding whether code is host-owned (process, platform, transport) o
 
 Hosts are the concrete composition roots. Each host owns process and platform integration: physical connections, URL routing, origin policy, native capabilities, and the choice between local and proxy workspace handles. Hosts compose the shared supervisor, runtime, and browser clients. They never install app features silently or import each other. Code that both hosts would share belongs in `packages/host` or another substrate package, not in either host root.
 
+Use Playwright for browser and Electron behavior tests. Run the real host when checking its preload, protocol, window, or browser-rendering behavior.
+
 <!-- INDEX:START -->
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->

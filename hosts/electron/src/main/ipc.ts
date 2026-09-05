@@ -83,15 +83,15 @@ export interface HandleLogOptions<Req, Res> {
  */
 export function handle<Req, Res>(
   channel: string,
-  fn: (req: Req) => Res | Promise<Res>,
+  fn: (req: Req, webContentsId: number) => Res | Promise<Res>,
   logOpts?: HandleLogOptions<Req, Res>,
 ): Disposable {
-  ipcMain.handle(channel, async (_event, req: Req) => {
+  ipcMain.handle(channel, async (event, req: Req) => {
     recordWireCrossing({ terminal: log, file: fileLog }, `in:${channel}`, req, {
       describe: logOpts?.describeRequest,
     });
     try {
-      const res = await fn(req);
+      const res = await fn(req, event.sender.id);
       recordWireCrossing(
         { terminal: log, file: fileLog },
         `result:${channel}`,

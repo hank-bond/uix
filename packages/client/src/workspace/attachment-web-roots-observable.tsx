@@ -9,10 +9,12 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import type { FeatureWebRootUrl } from "@uix/api/feature-web-root-url";
+
 /** Physical feature-root URLs fixed to one attachment-target generation. */
 export interface AttachmentWebRootsSnapshot {
   /** Return the physical directory URL for one substrate-selected feature. */
-  readonly toFeatureRootUrl: (featureId: string) => string;
+  readonly toFeatureRootUrl: (featureId: string) => FeatureWebRootUrl;
 }
 
 /** Provides current attachment web roots and notifies listeners when retargeting replaces them. */
@@ -43,7 +45,9 @@ const getUnavailableSnapshot = (): undefined => undefined;
 const subscribeUnavailable = (): (() => void) => () => undefined;
 
 /** Resolve one feature's web root and rerender its consumers after retargeting. */
-export function useFeatureWebRootUrl(featureId: string): string | undefined {
+export function useFeatureWebRootUrl(
+  featureId: string,
+): FeatureWebRootUrl | undefined {
   const observable = useContext(AttachmentWebRootsObservableContext);
   const snapshot = useSyncExternalStore(
     observable?.subscribe ?? subscribeUnavailable,

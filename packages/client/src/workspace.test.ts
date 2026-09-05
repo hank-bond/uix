@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import { parseFeatureWebRootUrl } from "@uix/api/feature-web-root-url";
 import type { WorkspaceClient } from "@uix/api/workspace";
 
 import type { ActionInvocationSource } from "./workspace/action-invocation-source";
@@ -48,7 +49,9 @@ describe("mountWorkspaceClient", () => {
     const attachmentWebRootsObservable: AttachmentWebRootsObservable = {
       getSnapshot: () => ({
         toFeatureRootUrl: (featureId) =>
-          `https://host.example/viewpoints/binding/${featureId}/`,
+          parseFeatureWebRootUrl(
+            `https://host.example/viewpoints/binding/${featureId}/`,
+          ),
       }),
       subscribe: vi.fn(() => () => undefined),
     };

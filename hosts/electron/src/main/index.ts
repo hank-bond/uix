@@ -29,6 +29,7 @@ import { installProcessHandlers } from "@uix/runtime/lifecycle";
 import { createLogger } from "@uix/runtime/log";
 import { resolveWorkspace, type Workspace } from "@uix/runtime/workspace-roots";
 
+import { AttachmentWebBindingState } from "./attachment-web-binding-state";
 import {
   bindExternalWebLinks,
   createExternalWebLinkLauncher,
@@ -79,6 +80,7 @@ function openShellWindow(
       : { width: 1100, height: 720 };
   const win = new BrowserWindow({
     ...size,
+    show: !app.commandLine.hasSwitch("hidden"),
     title: "UIX",
     icon: join(__dirname, "../../hosts/electron/assets/icon-black-large.png"),
     webPreferences: {
@@ -134,7 +136,13 @@ async function openWorkspace(
 
   const workspaceId = toWorkspaceId(LocalWorkspaceId);
   const apiModuleDir = join(app.getAppPath(), "packages/api/src");
-  const attachmentByWebContentsId = new Map<number, Attachment>();
+  const connectionByWebContentsId = new Map<
+    number,
+    {
+      attachment: Attachment;
+      webBindingState: AttachmentWebBindingState;
+    }
+  >();
   let workspaceName: string | undefined;
   let mainWindow: BrowserWindow | null = null;
   const supervisor = workspaceBag.add(
@@ -187,9 +195,17 @@ async function openWorkspace(
   );
   hostBag.add(
     ipc.handleCanonicalRequest(Channels.request, (webContentsId, request) => {
-      const attachment = attachmentByWebContentsId.get(webContentsId);
-      if (!attachment) throw new Error("Workspace window is not attached");
-      return attachment.prepareDispatch(request);
+      const connection = connectionByWebContentsId.get(webContentsId);
+      if (!connection) throw new Error("Workspace window is not attached");
+      return connection.attachment.prepareDispatch(request);
+    }),
+  );
+
+  hostBag.add(
+    ipc.handle(Channels.webBindingRead, (_req: unknown, webContentsId) => {
+      const connection = connectionByWebContentsId.get(webContentsId);
+      if (!connection) throw new Error("Workspace window is not attached");
+      return connection.webBindingState.snapshot;
     }),
   );
 
@@ -214,14 +230,19 @@ async function openWorkspace(
         },
       });
       mainWindow = win;
-      attachmentByWebContentsId.set(win.webContents.id, windowAttachment);
+      const webBindingState = attachmentBag.add(
+        new AttachmentWebBindingState(windowAttachment, (snapshot) => {
+          ipc.send(win, Channels.webBindingChanged, snapshot);
+        }),
+      );
+      const connection = { attachment: windowAttachment, webBindingState };
+      connectionByWebContentsId.set(win.webContents.id, connection);
       attachmentBag.add(
         disposable(() => {
           if (
-            attachmentByWebContentsId.get(win.webContents.id) ===
-            windowAttachment
+            connectionByWebContentsId.get(win.webContents.id) === connection
           ) {
-            attachmentByWebContentsId.delete(win.webContents.id);
+            connectionByWebContentsId.delete(win.webContents.id);
           }
         }),
       );

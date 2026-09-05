@@ -128,6 +128,59 @@ describe("Electron resource transport", () => {
     expect(currentHandler).toHaveBeenCalledOnce();
   });
 
+  it("decodes viewpoint requests under an independent workspace guard", async () => {
+    const transport = new ElectronResourceTransport();
+    const workspaceId = toWorkspaceId("local");
+    const release = vi.fn();
+    using _workspace = transport.registerWorkspace(workspaceId, () =>
+      Promise.resolve({ [Symbol.dispose]: release }),
+    );
+    const handler = vi.fn(() =>
+      Promise.resolve(
+        new Response("<h1>Canvas</h1>", {
+          headers: {
+            "Content-Type": "text/html; charset=utf-8",
+            "Cache-Control": "no-store",
+          },
+        }),
+      ),
+    );
+    using _handler = transport.createRegistrar(workspaceId)(handler);
+    const response = await transport.handle(
+      new Request(
+        "uix-resource://canvas.viewpoint.local/token/view?key=reports%2Fmain",
+      ),
+    );
+    expect(handler).toHaveBeenCalledWith({
+      kind: "viewpoint",
+      request: {
+        binding: "token",
+        namespace: "canvas",
+        pathname: "/view",
+        queryString: "key=reports%2Fmain",
+        method: "GET",
+      },
+    });
+    expect(await response.text()).toBe("<h1>Canvas</h1>");
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(release).toHaveBeenCalledOnce();
+    expect(
+      (
+        await transport.handle(
+          new Request("uix-resource://canvas.viewpoint.local/token/view/"),
+        )
+      ).status,
+    ).toBe(404);
+    expect(handler).toHaveBeenCalledOnce();
+    handler.mockRejectedValueOnce(new Error("Handler failed"));
+    await expect(
+      transport.handle(
+        new Request("uix-resource://canvas.viewpoint.local/token/view"),
+      ),
+    ).rejects.toThrow("Handler failed");
+    expect(release).toHaveBeenCalledTimes(2);
+  });
+
   it("binds Electron's protocol once for the transport lifetime", () => {
     const transport = new ElectronResourceTransport();
     using lifetime = bindResourceProtocol(transport);

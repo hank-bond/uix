@@ -2,6 +2,11 @@ import { type TObject, Type } from "typebox";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
+  type FeatureWebRootUrl,
+  parseFeatureWebRootUrl,
+} from "./feature-web-root-url";
+import type { ResourceUrl } from "./resource-routes";
+import {
   createWebRouteClient,
   defineWebRoute,
   toWebRouteReference,
@@ -115,7 +120,9 @@ describe("web route author contracts", () => {
   it("derives a physical page URL whose directory is the feature root", () => {
     const client = createWebRouteClient(
       HtmlRoute,
-      "https://host.example/workspaces/w/viewpoints/old/canvas/",
+      parseFeatureWebRootUrl(
+        "https://host.example/workspaces/w/viewpoints/old/canvas/",
+      ),
     );
     const pageUrl = client.toUrl({ query: { key: "reports/main" } });
 
@@ -137,11 +144,11 @@ describe("web route author contracts", () => {
   it("keeps retained clients tied to their original physical root", () => {
     const oldClient = createWebRouteClient(
       HtmlRoute,
-      "uix-resource://old.canvas/",
+      parseFeatureWebRootUrl("uix-resource://old.canvas/"),
     );
     const replacementClient = createWebRouteClient(
       HtmlRoute,
-      "uix-resource://replacement.canvas/",
+      parseFeatureWebRootUrl("uix-resource://replacement.canvas/"),
     );
 
     expect(oldClient.toUrl({ query: { key: "main" } })).toBe(
@@ -152,18 +159,27 @@ describe("web route author contracts", () => {
     );
   });
 
-  it("rejects a non-directory physical feature root", () => {
-    expect(() =>
-      createWebRouteClient(
-        HtmlRoute,
-        "https://host.example/workspaces/w/viewpoints/binding/canvas",
-      ),
-    ).toThrow("Expected a directory URL without query or fragment");
-    expect(() =>
-      createWebRouteClient(
-        HtmlRoute,
-        "https://host.example/workspaces/w/viewpoints/binding/canvas/?other=1",
-      ),
-    ).toThrow("Expected a directory URL without query or fragment");
+  it("requires a validated root rather than a plain string or a different URL brand", () => {
+    expectTypeOf<
+      Parameters<typeof createWebRouteClient>[1]
+    >().toEqualTypeOf<FeatureWebRootUrl>();
+    const assertRejectedTypes = (resourceUrl: ResourceUrl): void => {
+      // @ts-expect-error raw strings are not validated feature roots
+      createWebRouteClient(HtmlRoute, "https://host.example/canvas/");
+      // @ts-expect-error a resource URL does not establish a feature directory root
+      createWebRouteClient(HtmlRoute, resourceUrl);
+    };
+    expect(assertRejectedTypes).toBeTypeOf("function");
+  });
+
+  it("still rejects page locations outside the branded root's containing directory", () => {
+    const root = parseFeatureWebRootUrl("https://host.example/canvas/");
+    const client = createWebRouteClient(
+      { ...HtmlRoute, path: "/nested/view" },
+      root,
+    );
+    expect(() => client.toUrl({ query: { key: "main" } })).toThrow(
+      "outside its feature root",
+    );
   });
 });

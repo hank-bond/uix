@@ -25,6 +25,7 @@ import type { AgentSnapshot, SessionSummary } from "./agent-channels";
 import { toChannelCanonicalId } from "./channel-resolution";
 import type { ChannelContract } from "./channels";
 import { isIdToken } from "./contribution-id";
+import type { FeatureWebRootUrl } from "./feature-web-root-url";
 import {
   FeatureSettingValueEnvelopeSchema,
   type SettingsDefinition,
@@ -290,13 +291,13 @@ export function useWorkspaceClient(): WorkspaceClient {
 // `undefined` means no provider; `null` means the mounted host has not supplied
 // viewpoint web addressing. Keeping those states distinct gives surface
 // authors an actionable error.
-const FeatureWebRouteRootContext = createContext<string | null | undefined>(
-  undefined,
-);
+const FeatureWebRouteRootContext = createContext<
+  FeatureWebRootUrl | null | undefined
+>(undefined);
 
 export interface FeatureWebRouteProviderProps {
   /** Physical directory URL for this feature at one attachment-target generation. */
-  featureRootUrl?: string;
+  featureRootUrl?: FeatureWebRootUrl;
   children: ReactNode;
 }
 

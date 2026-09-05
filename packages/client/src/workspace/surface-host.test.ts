@@ -1,11 +1,16 @@
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Type } from "typebox";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import type { ChannelContract } from "@uix/api/channels";
+import {
+  type FeatureWebRootUrl,
+  parseFeatureWebRootUrl,
+} from "@uix/api/feature-web-root-url";
 import { defineWebRoute } from "@uix/api/web-routes";
 import {
+  type FeatureWebRouteProviderProps,
   useWebRouteClient,
   type WorkspaceClient,
   WorkspaceClientProvider,
@@ -13,7 +18,11 @@ import {
 
 import { ActionRegistryProvider } from "./action-context";
 import { ActionRegistry } from "./action-registry";
-import { AttachmentWebRootsObservableProvider } from "./attachment-web-roots-observable";
+import type { useFeatureWebRootUrl } from "./attachment-web-roots-observable";
+import {
+  AttachmentWebRootsObservableProvider,
+  type AttachmentWebRootsSnapshot,
+} from "./attachment-web-roots-observable";
 import { createSurfaceChannelClients, SurfaceMount } from "./surface-host";
 
 const contract = {
@@ -77,11 +86,24 @@ describe("surface channel clients", () => {
     ).toThrow("Channel namespace is unavailable: agent");
   });
 
+  it("preserves the feature-root brand across the observable, hook, and provider", () => {
+    expectTypeOf<
+      ReturnType<AttachmentWebRootsSnapshot["toFeatureRootUrl"]>
+    >().toEqualTypeOf<FeatureWebRootUrl>();
+    expectTypeOf<ReturnType<typeof useFeatureWebRootUrl>>().toEqualTypeOf<
+      FeatureWebRootUrl | undefined
+    >();
+    expectTypeOf<
+      FeatureWebRouteProviderProps["featureRootUrl"]
+    >().toEqualTypeOf<FeatureWebRootUrl | undefined>();
+  });
+
   it("binds route clients to the mounted feature without feature-authored identity", () => {
     const { workspace } = fakeWorkspaceClient([]);
-    const toFeatureRootUrl = vi.fn(
-      (featureId: string) =>
+    const toFeatureRootUrl = vi.fn((featureId: string) =>
+      parseFeatureWebRootUrl(
         `https://host.example/viewpoints/binding/${featureId}/`,
+      ),
     );
     const rootsObservable = {
       getSnapshot: () => ({ toFeatureRootUrl }),
