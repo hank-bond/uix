@@ -295,7 +295,7 @@ describe("browser workspace WebSocket", () => {
     const accepted = acceptedClient;
     if (!accepted) throw new Error("Workspace client was not accepted");
     const versionChanged = vi.fn();
-    accepted.connectionVersion?.subscribe(versionChanged);
+    accepted.connectionVersionObservable?.subscribe(versionChanged);
     const pending = accepted.request("feature.mutate", { value: 1 });
 
     fixture.socket.emit("close");
@@ -322,7 +322,7 @@ describe("browser workspace WebSocket", () => {
 
     expect(readyHandler).toHaveBeenCalledOnce();
     expect(versionChanged).toHaveBeenCalledOnce();
-    expect(accepted.connectionVersion?.getSnapshot()).toBe(2);
+    expect(accepted.connectionVersionObservable?.getSnapshot()).toBe(2);
     expect(replacement.send).not.toHaveBeenCalled();
     expect(fixture.status.textContent).toBe("Connected");
     expect(fixture.status.hidden).toBe(true);

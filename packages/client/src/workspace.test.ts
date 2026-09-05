@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { WorkspaceClient } from "@uix/api/workspace";
 
 import type { ActionInvocationSource } from "./workspace/action-invocation-source";
-import type { AttachmentWebAddress } from "./workspace/attachment-web-address";
+import type { AttachmentWebRootsObservable } from "./workspace/attachment-web-roots-observable";
 import type { SessionLocationAdapter } from "./workspace/session-location";
 
 const fakes = vi.hoisted(() => ({
@@ -45,7 +45,7 @@ describe("mountWorkspaceClient", () => {
       synchronize: vi.fn(),
       subscribe: vi.fn(() => () => undefined),
     };
-    const attachmentWebAddress: AttachmentWebAddress = {
+    const attachmentWebRootsObservable: AttachmentWebRootsObservable = {
       getSnapshot: () => ({
         toFeatureRootUrl: (featureId) =>
           `https://host.example/viewpoints/binding/${featureId}/`,
@@ -58,7 +58,7 @@ describe("mountWorkspaceClient", () => {
       client,
       sessionLocationAdapter,
       actionInvocationSource,
-      attachmentWebAddress,
+      attachmentWebRootsObservable,
     });
 
     expect(fakes.installSurfaceSharedModules).toHaveBeenCalledOnce();
@@ -66,13 +66,13 @@ describe("mountWorkspaceClient", () => {
     expect(fakes.render).toHaveBeenCalledOnce();
     const strictMode = fakes.render.mock.calls[0]?.[0] as ReactElement<{
       children: ReactElement<{
-        address: AttachmentWebAddress;
+        observable: AttachmentWebRootsObservable;
         children: ReactElement<{ children: ReactElement }>;
       }>;
     }>;
-    const addressProvider = strictMode.props.children;
-    expect(addressProvider.props.address).toBe(attachmentWebAddress);
-    expect(addressProvider.props.children.props.children.props).toMatchObject({
+    const rootsProvider = strictMode.props.children;
+    expect(rootsProvider.props.observable).toBe(attachmentWebRootsObservable);
+    expect(rootsProvider.props.children.props.children.props).toMatchObject({
       sessionLocationAdapter,
       actionInvocationSource,
     });

@@ -12,18 +12,18 @@ import {
 
 import type { ActionInvocationSource } from "./workspace/action-invocation-source";
 import {
-  type AttachmentWebAddress,
-  AttachmentWebAddressProvider,
-} from "./workspace/attachment-web-address";
+  type AttachmentWebRootsObservable,
+  AttachmentWebRootsObservableProvider,
+} from "./workspace/attachment-web-roots-observable";
 import type { SessionLocationAdapter } from "./workspace/session-location";
 import { installSurfaceSharedModules } from "./workspace/surface-shared-modules";
 import { Workspace } from "./workspace/Workspace";
 
 export type { ActionInvocationSource } from "./workspace/action-invocation-source";
 export type {
-  AttachmentWebAddress,
-  AttachmentWebAddressSnapshot,
-} from "./workspace/attachment-web-address";
+  AttachmentWebRootsObservable,
+  AttachmentWebRootsSnapshot,
+} from "./workspace/attachment-web-roots-observable";
 export type { SessionLocationAdapter } from "./workspace/session-location";
 
 export interface WorkspaceClientMountOptions {
@@ -34,8 +34,8 @@ export interface WorkspaceClientMountOptions {
   readonly sessionLocationAdapter?: SessionLocationAdapter;
   /** Routes host-owned native UI selections through the renderer action registry. */
   readonly actionInvocationSource?: ActionInvocationSource;
-  /** Current attachment-target web address, supplied after host binding bootstrap. */
-  readonly attachmentWebAddress?: AttachmentWebAddress;
+  /** The host provides this observable after it bootstraps the attachment web binding. */
+  readonly attachmentWebRootsObservable?: AttachmentWebRootsObservable;
 }
 
 /** Mount the workspace and return its idempotent page-lifetime capability. */
@@ -44,7 +44,7 @@ export function mountWorkspaceClient({
   client,
   sessionLocationAdapter,
   actionInvocationSource,
-  attachmentWebAddress,
+  attachmentWebRootsObservable,
 }: WorkspaceClientMountOptions): Disposable {
   installSurfaceSharedModules();
   const root = createRoot(target);
@@ -52,8 +52,8 @@ export function mountWorkspaceClient({
     createElement(
       StrictMode,
       null,
-      createElement(AttachmentWebAddressProvider, {
-        address: attachmentWebAddress,
+      createElement(AttachmentWebRootsObservableProvider, {
+        observable: attachmentWebRootsObservable,
         children: createElement(WorkspaceClientProvider, {
           client,
           children: createElement(Workspace, {

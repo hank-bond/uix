@@ -2,7 +2,7 @@
 
 import type {
   WorkspaceClient,
-  WorkspaceConnectionVersion,
+  WorkspaceConnectionVersionObservable,
 } from "@uix/api/workspace";
 
 import type { WebSocketServerMessage } from "../websocket-messages";
@@ -52,7 +52,7 @@ export function createWorkspaceWebSocketAdapter(
   const pendingRequests = new Map<string, PendingRequest>();
   const handlersByChannel = new Map<string, Set<(payload: unknown) => void>>();
 
-  const connectionVersion: WorkspaceConnectionVersion = {
+  const connectionVersionObservable: WorkspaceConnectionVersionObservable = {
     getSnapshot: () => connectionVersionValue,
     subscribe(listener) {
       connectionVersionListeners.add(listener);
@@ -65,7 +65,7 @@ export function createWorkspaceWebSocketAdapter(
   const client: WorkspaceClient = {
     workspaceId,
     resolveResourceUrl,
-    connectionVersion,
+    connectionVersionObservable,
     request(channel, payload) {
       const acceptedSocket = activeSocket;
       if (

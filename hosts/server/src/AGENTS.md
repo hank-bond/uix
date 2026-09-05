@@ -12,7 +12,7 @@ The process side owns configuration, private workspace resolution, public locati
 
 ### Directories
 
-- **[browser/](./browser/AGENTS.md)** Browser-side server bootstraps for the catalog launcher and the shared workspace client over its WebSocket adapter.
+- **[browser/](./browser/AGENTS.md)** Server browser entries connect the public workspace catalog and one workspace WebSocket to the shared launcher and workspace clients.
 - **[node/](./node/AGENTS.md)** Node-side server composition: boot-loaded workspace registration, HTTP routes, attachment-bound WebSocket dispatch, listener startup, and deterministic disposal.
 
 ### Source files

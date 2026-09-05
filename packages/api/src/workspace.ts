@@ -207,8 +207,8 @@ export function useInvokeAction(): (
 }
 
 // Section: Workspace client
-/** Observable connection version used to restart snapshot consumers after replacement. */
-export interface WorkspaceConnectionVersion {
+/** Tracks accepted physical connection replacements for snapshot recovery. */
+export interface WorkspaceConnectionVersionObservable {
   /** Return the current monotonic connection version. */
   readonly getSnapshot: () => number;
   /** Observe version changes and return the matching cleanup operation. */
@@ -226,8 +226,8 @@ export interface WorkspaceClient {
   ) => () => void;
   /** Map a logical UIX resource URL or origin to this host's browser transport. */
   readonly resolveResourceUrl?: (logicalUrl: string) => string;
-  /** Optional host-neutral recovery signal for replaceable physical connections. */
-  readonly connectionVersion?: WorkspaceConnectionVersion;
+  /** Notifies snapshot consumers after the host accepts a replacement connection. */
+  readonly connectionVersionObservable?: WorkspaceConnectionVersionObservable;
 }
 
 /** Resolve a logical resource address without making Electron callers provide an identity adapter. */
@@ -258,11 +258,11 @@ export function WorkspaceClientProvider({
   client,
   children,
 }: WorkspaceClientProviderProps): ReactNode {
-  const connectionVersion = client.connectionVersion;
+  const connectionVersionObservable = client.connectionVersionObservable;
   const version = useSyncExternalStore(
-    connectionVersion?.subscribe ?? subscribeStaticConnectionVersion,
-    connectionVersion?.getSnapshot ?? getStaticConnectionVersion,
-    connectionVersion?.getSnapshot ?? getStaticConnectionVersion,
+    connectionVersionObservable?.subscribe ?? subscribeStaticConnectionVersion,
+    connectionVersionObservable?.getSnapshot ?? getStaticConnectionVersion,
+    connectionVersionObservable?.getSnapshot ?? getStaticConnectionVersion,
   );
   // Preserve the mounted workspace while changing the context value identity.
   // Snapshot-backed effects key on this value, so an accepted replacement

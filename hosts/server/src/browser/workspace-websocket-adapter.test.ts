@@ -157,7 +157,7 @@ describe("workspace WebSocket adapter", () => {
     expect(socket.send).toHaveBeenCalledOnce();
   });
 
-  it("replaces the socket without replaying requests and publishes a connection version", async () => {
+  it("replaces the socket without replaying requests and notifies the connection version observable", async () => {
     vi.stubGlobal("WebSocket", FakeWebSocket);
     const first = new FakeWebSocket();
     const adapter = createWorkspaceWebSocketAdapter(
@@ -167,7 +167,7 @@ describe("workspace WebSocket adapter", () => {
     );
     const versionChanged = vi.fn();
     const unsubscribeVersion =
-      adapter.client.connectionVersion?.subscribe(versionChanged);
+      adapter.client.connectionVersionObservable?.subscribe(versionChanged);
     const eventHandler = vi.fn();
     adapter.client.subscribe("feature.changed", eventHandler);
     const abandoned = adapter.client.request("feature.mutate", {
@@ -181,7 +181,7 @@ describe("workspace WebSocket adapter", () => {
 
     const second = new FakeWebSocket();
     adapter.setSocket(second as unknown as WebSocket);
-    expect(adapter.client.connectionVersion?.getSnapshot()).toBe(2);
+    expect(adapter.client.connectionVersionObservable?.getSnapshot()).toBe(2);
     expect(versionChanged).toHaveBeenCalledOnce();
     expect(second.send).not.toHaveBeenCalled();
 

@@ -33,7 +33,7 @@ import {
 } from "@uix/api/workspace";
 
 import { useActionRegistry } from "./action-context";
-import { useFeatureWebRootUrl } from "./attachment-web-address";
+import { useFeatureWebRootUrl } from "./attachment-web-roots-observable";
 
 /** The composed surface list plus where it came from (or didn't). */
 export interface SurfaceComposition {

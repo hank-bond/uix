@@ -13,7 +13,7 @@ import {
 
 import { ActionRegistryProvider } from "./action-context";
 import { ActionRegistry } from "./action-registry";
-import { AttachmentWebAddressProvider } from "./attachment-web-address";
+import { AttachmentWebRootsObservableProvider } from "./attachment-web-roots-observable";
 import { createSurfaceChannelClients, SurfaceMount } from "./surface-host";
 
 const contract = {
@@ -83,7 +83,7 @@ describe("surface channel clients", () => {
       (featureId: string) =>
         `https://host.example/viewpoints/binding/${featureId}/`,
     );
-    const address = {
+    const rootsObservable = {
       getSnapshot: () => ({ toFeatureRootUrl }),
       subscribe: () => () => undefined,
     };
@@ -96,8 +96,8 @@ describe("surface channel clients", () => {
       },
     });
     const markup = renderToStaticMarkup(
-      createElement(AttachmentWebAddressProvider, {
-        address,
+      createElement(AttachmentWebRootsObservableProvider, {
+        observable: rootsObservable,
         children: createElement(WorkspaceClientProvider, {
           client: workspace,
           children: createElement(ActionRegistryProvider, {

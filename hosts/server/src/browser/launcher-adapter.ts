@@ -1,4 +1,4 @@
-// Adapts the public workspace catalog to launcher listing and canonical browser navigation.
+// Adapts the public workspace catalog to launcher listing and server-provided workspace navigation.
 
 import type { LauncherAdapter } from "@uix/client/launcher";
 import {
