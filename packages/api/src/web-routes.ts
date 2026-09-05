@@ -114,9 +114,9 @@ export function toWebRouteReference<const Contract extends WebRouteContract>(
 }
 
 /**
- * Bind one shared route contract to a validated physical feature root. A new
- * attachment-target generation receives a new client. Retained clients keep
- * resolving through their original root.
+ * Bind one shared route contract to a validated physical feature root.
+ * Create a replacement client when the attachment target changes.
+ * Retained clients continue to resolve addresses through their original root.
  */
 export function createWebRouteClient<const Contract extends WebRouteContract>(
   contract: Contract,

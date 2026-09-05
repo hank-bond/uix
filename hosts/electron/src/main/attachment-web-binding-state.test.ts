@@ -5,7 +5,7 @@ import type { AttachmentWebBinding } from "@uix/runtime/workspace";
 
 import { AttachmentWebBindingState } from "./attachment-web-binding-state";
 
-it("emits immutable binding revisions and releases its attachment subscription", () => {
+it("notifies listeners of immutable binding revisions and disposes its attachment subscription", () => {
   let change: (binding: AttachmentWebBinding) => void = () => {
     throw new Error("Not subscribed");
   };

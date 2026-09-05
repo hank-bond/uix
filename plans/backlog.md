@@ -1,10 +1,10 @@
 ---
-summary: "Convention migrations track adoption of established rules, while deliverable seeds capture work that does not yet need a standalone plan."
+summary: "Track open convention questions, deferred migrations, and deliverables that do not yet need standalone plans."
 ---
 
 # Backlog
 
-Keep enough context that a future reader can recover the trigger, constraint, and likely shape without archaeology. Convention migrations track adoption of established rules until the migration lands. Deliverable seeds graduate to their own plans when execution details no longer fit here.
+Each entry records the trigger, constraints, and likely scope so a reader does not need to reconstruct the discussion. Convention evaluations track open questions, and migrations track adoption of approved rules. Promote a deliverable to its own plan when its execution details no longer fit in one entry.
 
 ## Convention evaluations
 
@@ -21,22 +21,22 @@ Convention evaluations track open vocabulary and rule questions. They do not aut
 
 ## Convention migrations
 
-Select these migrations independently between plans. Start each with a full audit of the convention's repository scope, including previously changed code. Initial changes and discovery signals provide examples for extrapolation, not exhaustive inventories. Remove an entry only after the migration lands.
+Select these migrations independently between plans. Start each migration with an audit of every use within the convention's repository scope, including previously changed code. The examples identify places to start, not a complete inventory. Remove an entry only after the migration lands.
 
 ### Host-role naming
 
 - **Convention:** [`naming.host-role`](../docs/architecture/conventions/rules/naming.host-role.md).
 - **Status:** Unscheduled.
-- **Initial change:** During W7, removed redundant host prefixes from the attachment web-binding state, root observable, and URL codec. For example, `ElectronAttachmentWebBindingState` became `AttachmentWebBindingState` in [`attachment-web-binding-state.ts`](../hosts/electron/src/main/attachment-web-binding-state.ts).
+- **Initial change:** The W7 slice in [`viewpoint-canvas-document-route.md`](./viewpoint-canvas-document-route.md) removed redundant host prefixes from the binding state, roots observable, and address encoder and decoder. For example, it renamed the `ElectronAttachmentWebBindingState` class to `AttachmentWebBindingState` in [`attachment-web-binding-state.ts`](../hosts/electron/src/main/attachment-web-binding-state.ts).
 - **Signals:** Resource transports, workspace clients, action sources, and launcher adapters across both hosts have names worth reviewing.
 
 ### Branded constrained strings
 
 - **Convention:** [`module-boundaries.branded-strings`](../docs/architecture/conventions/rules/module-boundaries.branded-strings.md).
 - **Status:** Unscheduled.
-- **Initial change:** During W7, added `FeatureWebRootUrl` and its validator in [`feature-web-root-url.ts`](../packages/api/src/feature-web-root-url.ts). The host encoder returns the brand, which remains intact through the roots observable, surface provider, and route client. The encoder in [`viewpoint-urls.ts`](../hosts/electron/src/viewpoint-urls.ts) prompted the convention.
+- **Initial change:** The W7 slice added the `FeatureWebRootUrl` type and its validator in [`feature-web-root-url.ts`](../packages/api/src/feature-web-root-url.ts). The host encoder returns a branded value, and the roots observable, surface provider, and route client preserve its type. Reviewing the encoder in [`viewpoint-urls.ts`](../hosts/electron/src/viewpoint-urls.ts) prompted the convention.
 - **Signals:** Other identifiers, keys, and formatted addresses across the repository.
-- **Context:** The feature-root type is host-neutral, while schemes and physical encoding remain host-owned. This does not require changing `ResourceProtocolScheme` or its shared logical-resource role.
+- **Context:** The feature-root type is host-neutral, while each host owns its scheme and physical encoding. This division does not require changing the `ResourceProtocolScheme` constant or its role in shared logical resource addresses.
 
 ## Deliverables
 

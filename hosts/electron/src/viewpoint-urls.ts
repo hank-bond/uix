@@ -15,7 +15,7 @@ interface FeatureWebRootAddress {
   readonly featureId: string;
 }
 
-/** Keep viewpoint origins distinct from both existing resource origin forms. */
+/** Encode a feature root on an origin distinct from workspace resource origins. */
 export function encodeFeatureWebRoot({
   workspaceId,
   binding,
@@ -39,7 +39,7 @@ interface ViewpointAddress {
   readonly queryString: string;
 }
 
-/** Decode only canonical locations without normalizing an alias onto a page. */
+/** Return undefined for malformed addresses or alternate page directories. */
 export function decodeViewpointUrl(
   url: URL,
   workspaceId: string,
@@ -63,8 +63,8 @@ export function decodeViewpointUrl(
       featureId: namespace,
     });
     const pathname = url.pathname.slice(separator);
-    // Complete pages occupy exactly the root or one literal segment below it.
-    // Keep the encoded path unchanged for semantic matching in the runtime.
+    // The page directory must equal the feature root so relative links preserve the binding.
+    // Preserve the encoded path for route matching in the workspace runtime.
     if (new URL(".", url).href !== root) return undefined;
     if (url.href !== `${root}${pathname.slice(1)}${url.search}${url.hash}`)
       return undefined;

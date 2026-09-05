@@ -11,7 +11,7 @@ import { expect, it } from "vitest";
 const repositoryRoot = resolve(__dirname, "../../..");
 const execFileAsync = promisify(execFile);
 
-it("loads attachment-selected Canvas documents through real Electron and rotates mounted URL clients", async () => {
+it("loads Canvas documents through Electron and updates route clients when the attachment target changes", async () => {
   await using lifetime = new AsyncDisposableStack();
   const root = await mkdtemp(join(tmpdir(), "uix-electron-viewpoint-"));
   lifetime.defer(() => rm(root, { recursive: true, force: true }));
@@ -126,7 +126,6 @@ it("loads attachment-selected Canvas documents through real Electron and rotates
         .evaluate(() => new URL("?key=other", location.href).href),
     ).toBe(`${featureRoot}view?key=other`);
 
-    // The unchanged production Canvas resource surface mounts beside the route probe.
     await page.locator('iframe[title="canvas main"]').waitFor();
     await page.locator("textarea").waitFor();
     const original = await page.evaluate(() =>
@@ -171,7 +170,7 @@ it("loads attachment-selected Canvas documents through real Electron and rotates
     expect(errors).toEqual([]);
 
     // Keep the process alive on hosts that quit when their last window closes.
-    // This observer has no attachment and cannot keep the old binding alive.
+    // This window has no attachment, so it cannot prevent binding revocation.
     await electron.evaluate(({ BrowserWindow }) => {
       new BrowserWindow({ show: false });
     });

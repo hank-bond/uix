@@ -40,7 +40,7 @@ Before the condition occurs, the marker creates no pending work. Do not use it f
 
 Add a warning or explanation where code cannot explain itself. Examples include load-bearing order, external format tolerance, hidden ownership constraints, and non-obvious side effects or optimizations. Each should prevent a plausible wrong assumption.
 
-Assume familiarity with language features and repository conventions. Use-site comments explain what is specific to that code, not general programming concepts or rules that apply everywhere. For example, a branded URL's comment states its URL requirements rather than explaining what branded types prove. Put general explanations in the owning convention or reference instead.
+Assume familiarity with language features and repository conventions. Explain constraints specific to the code rather than general programming concepts or repository-wide rules. For example, document which addresses a branded type accepts rather than explaining how brands work. Put general explanations in the owning convention or reference.
 
 ## Source-file headers
 

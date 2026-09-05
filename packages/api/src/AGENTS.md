@@ -26,7 +26,7 @@ The files divide by facet. `feature.ts` defines the Workspace and Agent factorie
 - **[channels.ts](./channels.ts)** Typed channel request and event contracts.
 - **[contribution-id.ts](./contribution-id.ts)** Shared contribution-id brand and constructor.
 - **[documents.ts](./documents.ts)** Document store contract.
-- **[feature-web-root-url.ts](./feature-web-root-url.ts)** Defines validated, host-neutral physical feature-directory URLs.
+- **[feature-web-root-url.ts](./feature-web-root-url.ts)** Validated directory addresses for feature web routes, independent of host scheme.
 - **[feature.ts](./feature.ts)** Defines Workspace and per-Agent feature factories and their contribution contracts.
 - **[index.ts](./index.ts)** The `@uix/api` public facade re-exporting shared feature-author contracts.
 - **[log.ts](./log.ts)** Feature logger contract.

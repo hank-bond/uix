@@ -15,7 +15,7 @@ const replacement: AttachmentWebBindingSnapshot = {
 };
 
 describe("Electron attachment web roots", () => {
-  it("subscribes before bootstrap and does not roll back a newer push", async () => {
+  it("subscribes before the initial read and rejects older revisions", async () => {
     let snapshotListener: (
       snapshot: AttachmentWebBindingSnapshot,
     ) => void = () => {
@@ -56,7 +56,7 @@ describe("Electron attachment web roots", () => {
     expect(unsubscribe).toHaveBeenCalledOnce();
   });
 
-  it("releases observation when bootstrap fails", async () => {
+  it("stops observation when bootstrap fails", async () => {
     const unsubscribe = vi.fn();
     using roots = createAttachmentWebRootsObservable({
       subscribe: () => unsubscribe,

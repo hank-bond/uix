@@ -85,7 +85,7 @@ export class ElectronResourceTransport {
     };
   }
 
-  /** Decode the physical content address and retain its workspace for dispatch. */
+  /** Hold a workspace guard until the content handler settles. */
   async handle(request: Request): Promise<Response> {
     let url: URL;
     try {

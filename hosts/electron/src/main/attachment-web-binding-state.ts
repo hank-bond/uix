@@ -1,4 +1,4 @@
-// Projects one Electron attachment's binding into revisioned host control snapshots.
+// Tracks an attachment's binding as snapshots with increasing revisions.
 
 import type { Attachment } from "@uix/runtime";
 

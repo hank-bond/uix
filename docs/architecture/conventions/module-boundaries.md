@@ -34,9 +34,9 @@ Custom errors start with plain `Error` and a clear message. Add a custom subclas
 
 A branded string preserves a domain value's validated structural meaning across internal APIs. The [`module-boundaries.branded-strings`](./rules/module-boundaries.branded-strings.md) rule applies throughout the repository.
 
-Keep three stages distinct: raw input, validated domain value, and external representation. Schemas define structural validity. A parser or checked encoder establishes the brand, and internal consumers require it rather than accepting arbitrary strings. Formatting, concatenation, and deserialization do not automatically preserve a brand's guarantees.
+Keep three stages distinct: raw input, validated domain value, and external representation. Schemas define structural validity. A parser or checked encoder establishes the brand, and internal consumers require that branded type rather than arbitrary strings. Formatting, concatenation, and deserialization do not automatically preserve the structural constraints.
 
-Brand the shared concept at its semantic owner rather than creating a separate brand for each host. A feature-directory URL can have one host-neutral type while each host encodes its own scheme and layout. The type does not prove that the attachment behind the URL remains live.
+Declare the brand where the shared concept is defined rather than creating a separate brand for each host. One host-neutral type can represent a feature's directory address while each host encodes its own scheme and layout. That type does not prove that the address's attachment binding remains valid.
 
 ## Imports
 

@@ -1,4 +1,4 @@
-// Mounts the shared workspace client over the Electron preload adapter.
+// Starts the shared workspace client with Electron's communication adapters.
 
 import { mountWorkspaceClient } from "@uix/client/workspace";
 

@@ -65,7 +65,7 @@ Host directories communicate ownership, while names communicate purpose and scop
 - **Qualify platform-specific concepts:** Use platform qualifiers only when they describe a genuine platform dependency, not merely the implementation's location.
 - **Preserve meaningful differences:** Do not force matching names, files, or abstractions when host responsibilities differ.
 
-Ask whether a qualifier explains the concept or only repeats its directory. `AttachmentWebBindingSnapshot` identifies equivalent routing state without a host prefix. Electron's IPC events and the server's WebSocket messages still use their specific transport vocabulary. Matching names do not require shared implementations or symmetric source trees.
+Ask whether a qualifier explains the concept or only repeats its directory. The `AttachmentWebBindingSnapshot` type names a routing snapshot without repeating the host name. Electron's inter-process communication (IPC) events and the server's WebSocket messages retain names specific to their mechanisms. Matching names do not require shared implementations or identical source trees.
 
 ## Owned-name prefixes
 

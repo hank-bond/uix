@@ -1,11 +1,11 @@
 ---
-summary: "Represent structurally constrained domain strings with branded types, minted through validation or checked encoding and preserved through internal APIs."
+summary: "Validation or checked encoding establishes string brands that internal APIs preserve."
 kind: reference
 ---
 
 # Brand structurally constrained strings
 
-**Rule: must.** Represent structurally constrained domain strings with branded types, minted through validation or checked encoding and preserved through internal APIs.
+**Rule: must.** Represent structurally constrained domain strings with brands established by validation or checked encoding and preserved through internal APIs.
 
 **Scope:** Repository-wide domain values whose meaning depends on a structural format, naming grammar, or allowed-character restriction. Examples include identifiers, document keys, formatted addresses, and directory URLs.
 
@@ -27,12 +27,12 @@ function parseDocumentKey(value: unknown): DocumentKey {
 }
 ```
 
-Consumers accept `DocumentKey` rather than `string`. An encoder may mint a brand when its validated inputs and construction establish the result's complete invariant. Keep the brand declaration and its validating or encoding operations at the value's owning boundary.
+Consumers accept the `DocumentKey` type rather than the `string` type. An encoder may establish a brand when its validated inputs and construction satisfy every structural requirement of the branded type. Declare the brand and its validation or encoding operations at the boundary that owns the value.
 
-**Nonconforming example:** Declare `type DocumentKey = string`, accept arbitrary strings in domain operations, or let callers cast unchecked input to `DocumentKey`. Widening a validated key back to `string` between internal APIs also loses the distinction.
+**Nonconforming example:** Declare `type DocumentKey = string`, accept arbitrary strings in domain operations, or let callers cast unchecked input to the `DocumentKey` type. Widening a validated key back to the `string` type between internal APIs also loses the distinction.
 
-**Reason:** A plain string cannot distinguish a validated domain value from raw input or a differently constrained value. The brand preserves that distinction after validation. It proves only the structural guarantees established when minted, not existence, authorization, or liveness. Serialization erases the brand, so receiving boundaries validate before recovering it.
+**Reason:** A plain string cannot distinguish a validated domain value from raw input or a value with different constraints. The brand preserves that distinction after validation. The brand records structural validity, not existence, authorization, or liveness. Serialization erases the brand, so the receiving code validates the value before restoring its branded type.
 
-**Exceptions:** Raw input remains `unknown` or `string` until validated. Unrestricted text remains `string`. Closed literal unions already encode their permitted values and need no additional structural brand. External APIs may accept ordinary strings without a UIX-specific type.
+**Exceptions:** Raw input has the `unknown` or `string` type until validation succeeds. Unrestricted text has the `string` type. Closed literal unions already encode their permitted values and need no additional structural brand. External APIs may accept ordinary strings without a UIX-specific type.
 
 **Enforcement:** Review constructors, encoders, and internal signatures. Type tests reject arbitrary strings and incompatible brands, while validation tests cover malformed input. Apply [`module-boundaries.schema-validation`](./module-boundaries.schema-validation.md) when defining structural validation.

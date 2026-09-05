@@ -1,4 +1,4 @@
-// The host-only channel and attachment-binding bridges exposed by preload.
+// Host communication capabilities provided by preload to main-frame pages.
 import type {
   AttachmentWebBindingTransport,
   ChannelTransport,

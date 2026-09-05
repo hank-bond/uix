@@ -1,8 +1,8 @@
-// Exposes channel traffic and attachment-binding control to sandboxed main-frame renderer pages.
+// Provides host communication capabilities only to sandboxed main-frame pages.
 //
-// Sandboxed + contextIsolated. The renderer never sees `ipcRenderer`
-// directly. It gets a typed surface on `window.channels` mirroring the
-// contract in the Electron host channel-transport.ts.
+// Context isolation prevents the renderer from accessing the `ipcRenderer`
+// object directly. Preload provides typed capabilities without granting
+// authored iframes access to host communication.
 
 import { contextBridge, ipcRenderer } from "electron";
 
@@ -47,9 +47,8 @@ const attachmentWebBinding: AttachmentWebBindingTransport = {
   },
 };
 
-// BrowserWindow preload is for the host shell only. Agent-authored canvas
-// iframes must not receive window.channels even if Electron ever loads this preload
-// in a subframe.
+// Authored iframes must not receive either capability, even if Electron loads
+// this preload in a subframe.
 if (process.isMainFrame) {
   contextBridge.exposeInMainWorld("channels", transport);
   contextBridge.exposeInMainWorld("attachmentWebBinding", attachmentWebBinding);

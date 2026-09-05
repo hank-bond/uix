@@ -13,7 +13,7 @@ When an attempt resets, preserve a compact summary at the bottom of the plan. Re
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
 
 - **[agent-feature-instances-and-viewpoint-state](./agent-feature-instances-and-viewpoint-state.md)** R0-A3 landed: mutable feature state and the current transcript now belong to each guarded Agent instance viewpoint.
-- **[backlog](./backlog.md)** Convention migrations track adoption of established rules, while deliverable seeds capture work that does not yet need a standalone plan.
+- **[backlog](./backlog.md)** Track open convention questions, deferred migrations, and deliverables that do not yet need standalone plans.
 - **[canvas-reusable-assets](./canvas-reusable-assets.md)** Give Canvas a reusable local web-asset library in eight reviewable units. These cover feature-static resources, a same-origin asset route, AGENTS.md catalogs, DOM serialization controls, authoring guidance, a component model, serve-time expansion, and conflict-handling updates.
 - **[chat-provider-login](./chat-provider-login.md)** Add chat-first provider connection UX over Pi's provider-owned ModelRuntime auth flows, followed by a no-model onboarding takeover and ordinary model-selection handoff.
 - **[chat-rendering-polish](./chat-rendering-polish.md)** Improve Chat in seven review-gated units: block rendering, Markdown and syntax highlighting, file-tool rendering, command tools, streamed thinking, thinking-effort control, performance, and documentation.

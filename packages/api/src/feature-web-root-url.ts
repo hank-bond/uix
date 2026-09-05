@@ -1,4 +1,4 @@
-// Defines validated, host-neutral physical feature-directory URLs.
+// Validated directory addresses for feature web routes, independent of host scheme.
 
 import { Type } from "typebox";
 import { Value } from "typebox/value";
@@ -7,7 +7,7 @@ const FeatureWebRootUrlBrand: unique symbol = Symbol("FeatureWebRootUrl");
 const FeatureWebRootUrlInputSchema = Type.String();
 
 /**
- * An absolute directory URL without a query or fragment, in browser-normalized form.
+ * An absolute directory address in browser-normalized form, without a query or fragment.
  */
 export type FeatureWebRootUrl = string & {
   readonly [FeatureWebRootUrlBrand]: true;
@@ -15,8 +15,8 @@ export type FeatureWebRootUrl = string & {
 
 /**
  * Validate a physical feature root and return its browser-normalized string.
- * Relative, opaque, and non-directory URLs fail rather than receiving an added slash.
- * Scheme selection and binding encoding remain host responsibilities.
+ * Reject relative, opaque, and non-directory addresses rather than adding a trailing slash.
+ * Each host selects the scheme and encodes the binding.
  */
 export function parseFeatureWebRootUrl(value: unknown): FeatureWebRootUrl {
   Value.Assert(FeatureWebRootUrlInputSchema, value);

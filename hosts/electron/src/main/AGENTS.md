@@ -14,7 +14,7 @@ Explicit host, window, launcher, and connection lifetimes own cleanup-producing 
 
 ### Source files
 
-- **[attachment-web-binding-state.ts](./attachment-web-binding-state.ts)** Projects one Electron attachment's binding into revisioned host control snapshots.
+- **[attachment-web-binding-state.ts](./attachment-web-binding-state.ts)** Tracks an attachment's binding as snapshots with increasing revisions.
 - **[external-links.ts](./external-links.ts)** Contains renderer navigation while delegating approved web URLs to the operating system.
 - **[index.ts](./index.ts)** Starts the discrete Electron host over shared supervision, runtime, and browser clients.
 - **[ipc-wire-log.ts](./ipc-wire-log.ts)** Writes each IPC request or event to the terminal log and, when enabled, a raw file log.

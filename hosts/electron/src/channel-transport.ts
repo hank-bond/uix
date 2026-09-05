@@ -14,8 +14,9 @@ import { Value } from "typebox/value";
 export const Channels = {
   /** Renderer → main. Generic canonical workspace request. */
   request: "uix:request",
-  /** Host-only attachment bootstrap and ordered target replacement notifications. */
+  /** Read the calling window's attachment binding snapshot. */
   webBindingRead: "uix:web-binding:read",
+  /** Notify the attached window when its binding changes. */
   webBindingChanged: "uix:web-binding:changed",
   /** Electron menu → focused renderer. Requests one action by canonical id. */
   actionInvocation: "uix:action:invoke",
@@ -68,12 +69,12 @@ const AttachmentWebBindingSnapshotSchema = Type.Object(
   { additionalProperties: false },
 );
 
-/** One immutable revision of a window's attachment target, never feature state. */
+/** Binding state for one window at one host revision. */
 export type AttachmentWebBindingSnapshot = Readonly<
   Static<typeof AttachmentWebBindingSnapshotSchema>
 >;
 
-/** Validate host control data before it enters attachment-root ordering or URL encoding. */
+/** Return a frozen snapshot, rejecting malformed host control data. */
 export function parseAttachmentWebBindingSnapshot(
   value: unknown,
 ): AttachmentWebBindingSnapshot {
@@ -81,7 +82,7 @@ export function parseAttachmentWebBindingSnapshot(
   return Object.freeze({ ...value });
 }
 
-/** Host-only bridge exposed separately from canonical feature traffic. */
+/** Host-only binding communication, separate from feature channels. */
 export interface AttachmentWebBindingTransport {
   read(): Promise<AttachmentWebBindingSnapshot>;
   subscribe(

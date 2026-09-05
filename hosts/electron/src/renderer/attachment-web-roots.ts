@@ -1,4 +1,4 @@
-// Observes Electron attachment web roots with immediate ownership of bootstrap cleanup.
+// Maintains current feature-root addresses from attachment binding updates.
 
 import type {
   AttachmentWebRootsObservable,
@@ -12,9 +12,11 @@ import type {
 import { encodeFeatureWebRoot } from "../viewpoint-urls";
 
 /**
- * Own the returned observable immediately, then await `ready` before reading its snapshot.
- * Subscription precedes the bootstrap read, so a delayed response cannot undo a newer push.
- * Disposal stops observation even while that read is pending and prevents its late commit.
+ * Add the returned observable to the caller's lifetime before awaiting initialization.
+ *
+ * - Await the `ready` promise before reading the snapshot.
+ * - Read subsequent snapshots to observe target changes. The observable rejects older revisions.
+ * - Dispose the observable to stop observation, even during the initial read. A pending response cannot update the snapshot after disposal.
  */
 export function createAttachmentWebRootsObservable(
   transport: AttachmentWebBindingTransport,
@@ -41,8 +43,8 @@ export function createAttachmentWebRootsObservable(
     };
     for (const listener of listeners) listener();
   };
+  // Subscribe before reading so target changes cannot be missed during initialization.
   lifetime.defer(transport.subscribe(commitSnapshot));
-  // Readiness is one write-once completion, not authority for the changing roots.
   const ready = (async (): Promise<void> => {
     try {
       commitSnapshot(await transport.read());

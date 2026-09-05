@@ -1,5 +1,5 @@
 ---
-summary: "Conventions authoring covers formats, quality tests, structural checks, and adoption with explicitly deferred migrations."
+summary: "Define conventions in their owning documents, apply them within the agreed scope, and track deferred migrations separately."
 kind: how-to
 read_when: "Read before proposing changes to any conventions document."
 ---
@@ -14,9 +14,9 @@ Defining a convention and migrating existing uses are separate work items. A con
 
 1. Define the convention in its owning rule, guidance, or lexicon entry.
 2. Apply it to additions and changes within the agreed slice. Keep the slice coherent without pulling in unrelated existing uses.
-3. Add the convention link, scheduling status, and initial change reference to the [convention migrations backlog](../../../plans/backlog.md#convention-migrations). Briefly describe the change as a worked example for later extrapolation. Include additional discovery signals when useful.
+3. Add the convention link, scheduling status, and initial change reference to the convention migrations section in [`backlog.md`](../../../plans/backlog.md#convention-migrations). Describe the initial change as an example for the later audit. Include other uses that need review.
 4. Leave the migration unscheduled unless the human explicitly selects it. Convention discovery does not append migration units to the active plan automatically.
-5. When selected, audit the convention's full repository scope, including previously changed code. Plan notes and backlog signals are not exhaustive inventories. Implement and review the migration against that audit, then remove the entry after it lands.
+5. When the human selects a migration, audit every use within the convention's repository scope, including previously changed code. Plan notes and backlog examples are not complete inventories. Implement and review the migration against that audit. Remove the entry after the migration lands.
 
 When a boundary changes, migrate its affected callers together. Deferred work does not justify compatibility aliases or duplicate supported paths. Keep existing checks passing and stage additional automated enforcement with the migration instead of disabling checks.
 
@@ -53,7 +53,7 @@ Operating rules:
 
 - **No partial bans.** A word is reserved (our sense owns it) or retired (all senses are out). Banning one sense of a living word loses to the LLM distribution, which keeps producing the word in its other senses.
 - **Overloaded words resolve to one role.** A word with both noun and verb senses in everyday English gets one defined role. The other role is actively nonconforming. Do not leave the second role ungoverned.
-- **Decisions track their corpus.** When a word is reserved or retired, migrate the current slice and record remaining active uses through the adoption workflow. Include identifiers, headers, comments, and active docs in the migration scope. Historical records keep their wording. Retiring a word that names an API operation includes its code rename and affected callers.
+- **Track vocabulary adoption.** When reserving or retiring a word, migrate uses within the agreed slice and record the remaining active uses through the adoption workflow. Include identifiers, headers, comments, and active documentation in the migration scope. Historical records retain their wording. When retiring a word that names an API operation, rename the operation and update its callers together.
 - **The single-meaning word beats the plain word.** This overrides the simplest-word-that-works rule in the prose style guide when the plain word is overloaded (`retain` over `keep`).
 - **Retirement requires a single-meaning alternative for every sense.** `save` retires because `persist`, `defer`, and `protect` each cover one sense cleanly.
 - **Vale enforces only the negative space:** retired words and always-wrong patterns. Semantic alignment is a review and LLM pass against this list.

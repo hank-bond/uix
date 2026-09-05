@@ -172,7 +172,7 @@ describe("web route author contracts", () => {
     expect(assertRejectedTypes).toBeTypeOf("function");
   });
 
-  it("still rejects page locations outside the branded root's containing directory", () => {
+  it("rejects page locations outside the feature root directory", () => {
     const root = parseFeatureWebRootUrl("https://host.example/canvas/");
     const client = createWebRouteClient(
       { ...HtmlRoute, path: "/nested/view" },
