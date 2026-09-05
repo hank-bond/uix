@@ -22,7 +22,7 @@ const switchSession = (): Promise<undefined> => Promise.resolve(undefined);
 const setSessionTitle = (): Promise<undefined> => Promise.resolve(undefined);
 
 describe("active session context", () => {
-  it("exposes the controller-owned projection read-only", () => {
+  it("provides the active-session projection through the session handle", () => {
     const html = renderToStaticMarkup(
       <WorkspaceSessionProvider
         session={{

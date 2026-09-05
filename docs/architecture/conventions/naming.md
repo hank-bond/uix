@@ -30,6 +30,16 @@ The naming rules in [`rules/`](./rules/) state the invariants. This file explain
 - Use `Buffer` for live, feature-specific working projections over a store. Buffers may cache regenerable state, normalize writes, and reconcile feature/editor semantics, but durable authority stays in the backing store.
 - Use `Registry` for central in-memory maps of contributed things plus their routing (`ChannelRegistry`, `SettingsRegistry`). Registries do not persist.
 
+## Observable capabilities
+
+The `Observable` suffix names a read-only observation capability, not every object that supports subscriptions.
+
+An observable provides synchronous `getSnapshot()` access and a `subscribe(listener)` method that returns an unsubscribe function. The snapshot remains immutable, and repeated reads return the same value until a change occurs. The owner replaces the snapshot before notifying listeners. Listeners receive no payload and read the replacement through `getSnapshot()`. An event stream without a current snapshot does not use this role.
+
+Name the capability for its domain: `AttachmentWebRootsObservable` provides `AttachmentWebRootsSnapshot` values. An owner such as `WorkspaceSessionState` also provides domain operations and may implement the same observation protocol without taking the `Observable` suffix. Its name describes its broader responsibility.
+
+A separate observable object is not required. An owner may provide a narrower interface backed by the same object, provided that interface offers only snapshot access and subscription. Introduce that interface when a consumer boundary needs read-only observation, not for every state owner. Neither the suffix nor the protocol requires a wrapper or a shared implementation.
+
 ## Qualification by scope
 
 Name the scopes that distinguish real concepts, and omit a scope when the containing name already makes it clear.

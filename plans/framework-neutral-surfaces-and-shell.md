@@ -86,7 +86,7 @@ Outcome: React is an ordinary implementation dependency of React features. A tri
 
 ### N3: Replace the workspace shell
 
-Move only the substrate state/lifetime ownership currently hidden in React providers and effect components into explicit framework-independent owners. Reuse existing channel clients, controllers, registries, and binding functions. Then replace the workspace entry, surface panels, loading/error/empty presentation, and resizable layout with direct DOM and CSS.
+Move only the substrate state/lifetime ownership currently hidden in React providers and effect components into explicit framework-independent owners. Reuse existing channel clients, state owners, registries, and binding functions. Then replace the workspace entry, surface panels, loading/error/empty presentation, and resizable layout with direct DOM and CSS.
 
 Do not generalize the shell's fixed rendering needs into a reusable UIX template/component system. The resizable layout is the main implementation risk and must preserve panel identity, persisted ratios, minimum sizes, pointer and keyboard behavior, and accessible separator semantics.
 
@@ -208,8 +208,8 @@ The questions are intentionally more exhaustive than the decisions above. They a
 
 ### Workspace shell migration
 
-- Which React providers currently own real substrate state/lifetime and which merely project already-neutral controllers?
-- Should ownership move into several purpose-specific controllers/bindings or one workspace-page composition root?
+- Which React providers own substrate state and lifetimes, and which present state from framework-independent owners?
+- Should ownership move into several purpose-specific state owners and binding functions or one workspace-page composition root?
 - What is the smallest direct-DOM update convention for the fixed shell that does not grow into an internal rendering framework?
 - Can surface catalog changes rebuild the whole small panel list, or must panel identity and mounted feature state survive selective composition changes?
 - Which reload paths already imply full remount, and which UI-visible registry changes require keyed reconciliation?

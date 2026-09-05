@@ -4,7 +4,7 @@
 export interface SessionLocationAdapter {
   /** Idempotently reflect an accepted client session in the host location. */
   readonly synchronize: (sessionId: string) => void;
-  /** Route host-location navigation through the shared session controller. */
+  /** Request session selection when the host location changes. */
   readonly subscribe: (
     navigate: (sessionId: string) => Promise<void>,
   ) => () => void;

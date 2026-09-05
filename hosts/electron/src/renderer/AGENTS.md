@@ -6,7 +6,7 @@ summary: "The renderer runs workspace and launcher shell pages over the Electron
 
 The renderer contains Electron's two browser-page bootstraps. The launcher and workspace pages adapt `window.channels` into shared `@uix/client` mounts. They never import `ipcRenderer` or own browser presentation.
 
-`main.ts` and `launcher/main.ts` are the page entries. `index.html` and `launcher.html` remain Electron-owned documents because their Content Security Policy and source routes are host concerns. `window.d.ts` declares the preload transport. Client presentation, controllers, styles, and surface hosting live in `packages/client`.
+`main.ts` and `launcher/main.ts` are the page entries. `index.html` and `launcher.html` remain Electron-owned documents because their Content Security Policy and source routes are host concerns. `window.d.ts` declares the preload transport. Client presentation, state owners, styles, and surface hosting live in `packages/client`.
 
 ## Contents
 

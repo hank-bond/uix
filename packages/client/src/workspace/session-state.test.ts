@@ -5,7 +5,7 @@ import type {
   SessionSummary,
 } from "@uix/api/agent-channels";
 
-import { WorkspaceSessionController } from "./session-controller";
+import { WorkspaceSessionState } from "./session-state";
 
 function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   let resolve!: (value: T) => void;
@@ -41,7 +41,7 @@ function historyResponse(
   };
 }
 
-interface ControllerRequests {
+interface SessionStateRequests {
   requestActiveHistory: () => Promise<SessionHistoryResponse>;
   requestRecentSessions: () => Promise<SessionSummary[]>;
   requestNewSession: () => Promise<SessionSummary>;
@@ -53,10 +53,10 @@ interface ControllerRequests {
   synchronizeSessionLocation: (sessionId: string) => void;
 }
 
-function createController(
-  overrides: Partial<ControllerRequests> = {},
-): WorkspaceSessionController {
-  return new WorkspaceSessionController({
+function createSessionState(
+  overrides: Partial<SessionStateRequests> = {},
+): WorkspaceSessionState {
+  return new WorkspaceSessionState({
     requestActiveHistory: () => Promise.resolve(historyResponse()),
     requestRecentSessions: () => Promise.resolve([]),
     requestNewSession: () => Promise.resolve(newSession),
@@ -66,17 +66,45 @@ function createController(
   });
 }
 
-describe("WorkspaceSessionController", () => {
-  it("publishes a new active session only after the backend responds", async () => {
+describe("WorkspaceSessionState", () => {
+  it("supports snapshot observation alongside session operations", () => {
+    const sessionState = createSessionState();
+    const previous = sessionState.getSnapshot();
+    expect(sessionState.getSnapshot()).toBe(previous);
+
+    const listener = vi.fn(() => sessionState.getSnapshot());
+    const unsubscribe = sessionState.subscribe(listener);
+    expect(listener).not.toHaveBeenCalled();
+
+    sessionState.updateAgentActivity({ type: "agent_start" });
+    const current = sessionState.getSnapshot();
+    expect(current).not.toBe(previous);
+    expect(current.isAgentRunning).toBe(true);
+    expect(previous.isAgentRunning).toBe(false);
+    expect(listener).toHaveBeenCalledExactlyOnceWith();
+    expect(listener.mock.results[0]?.value).toBe(current);
+    expect(sessionState.getSnapshot()).toBe(current);
+
+    sessionState.updateAgentActivity({ type: "agent_start" });
+    expect(sessionState.getSnapshot()).toBe(current);
+    expect(listener).toHaveBeenCalledOnce();
+
+    unsubscribe();
+    sessionState.updateAgentActivity({ type: "agent_end" });
+    expect(listener).toHaveBeenCalledOnce();
+    expect(current.isAgentRunning).toBe(true);
+  });
+
+  it("updates the active session only after the backend responds", async () => {
     const response = deferred<SessionSummary>();
-    const controller = createController({
+    const sessionState = createSessionState({
       requestNewSession: () => response.promise,
     });
     const listener = vi.fn();
-    const unsubscribe = controller.subscribe(listener);
+    const unsubscribe = sessionState.subscribe(listener);
 
-    const transition = controller.newSession();
-    expect(controller.getSnapshot()).toMatchObject({
+    const transition = sessionState.newSession();
+    expect(sessionState.getSnapshot()).toMatchObject({
       activeSession: undefined,
       sessionSelectionVersion: 0,
       isSessionMutationPending: true,
@@ -84,7 +112,7 @@ describe("WorkspaceSessionController", () => {
 
     response.resolve(newSession);
     await expect(transition).resolves.toEqual(newSession);
-    expect(controller.getSnapshot()).toMatchObject({
+    expect(sessionState.getSnapshot()).toMatchObject({
       activeSession: newSession,
       sessionSelectionVersion: 1,
       isSessionMutationPending: false,
@@ -93,17 +121,17 @@ describe("WorkspaceSessionController", () => {
 
     unsubscribe();
     const calls = listener.mock.calls.length;
-    await controller.newSession();
+    await sessionState.newSession();
     expect(listener).toHaveBeenCalledTimes(calls);
   });
 
   it("hydrates the active summary and shares an equivalent in-flight read", async () => {
     const response = deferred<SessionHistoryResponse>();
     const requestActiveHistory = vi.fn(() => response.promise);
-    const controller = createController({ requestActiveHistory });
+    const sessionState = createSessionState({ requestActiveHistory });
 
-    const first = controller.loadActiveHistory();
-    const second = controller.loadActiveHistory();
+    const first = sessionState.loadActiveHistory();
+    const second = sessionState.loadActiveHistory();
     expect(requestActiveHistory).toHaveBeenCalledOnce();
 
     response.resolve(historyResponse(existingSession, true));
@@ -111,7 +139,7 @@ describe("WorkspaceSessionController", () => {
       { transcript: { items: [] }, turnActive: true },
       { transcript: { items: [] }, turnActive: true },
     ]);
-    expect(controller.getSnapshot()).toMatchObject({
+    expect(sessionState.getSnapshot()).toMatchObject({
       activeSession: existingSession,
       sessionSelectionVersion: 0,
     });
@@ -119,11 +147,11 @@ describe("WorkspaceSessionController", () => {
 
   it("synchronizes each accepted session location once", async () => {
     const synchronizeSessionLocation = vi.fn();
-    const controller = createController({ synchronizeSessionLocation });
+    const sessionState = createSessionState({ synchronizeSessionLocation });
 
-    await controller.loadActiveHistory();
-    await controller.loadActiveHistory();
-    await controller.newSession();
+    await sessionState.loadActiveHistory();
+    await sessionState.loadActiveHistory();
+    await sessionState.newSession();
 
     expect(synchronizeSessionLocation.mock.calls).toEqual([
       [existingSession.sessionId],
@@ -135,30 +163,30 @@ describe("WorkspaceSessionController", () => {
     const reportError = vi.fn();
     vi.stubGlobal("reportError", reportError);
     const locationError = new Error("location failed");
-    const controller = createController({
+    const sessionState = createSessionState({
       synchronizeSessionLocation: () => {
         throw locationError;
       },
     });
 
-    await expect(controller.newSession()).resolves.toEqual(newSession);
-    expect(controller.getSnapshot().activeSession).toEqual(newSession);
+    await expect(sessionState.newSession()).resolves.toEqual(newSession);
+    expect(sessionState.getSnapshot().activeSession).toEqual(newSession);
     expect(reportError).toHaveBeenCalledWith(locationError);
     vi.unstubAllGlobals();
   });
 
   it("does not let an older history read replace a successful mutation", async () => {
     const pendingHistory = deferred<SessionHistoryResponse>();
-    const controller = createController({
+    const sessionState = createSessionState({
       requestActiveHistory: () => pendingHistory.promise,
     });
 
-    const history = controller.loadActiveHistory();
-    await controller.newSession();
+    const history = sessionState.loadActiveHistory();
+    await sessionState.newSession();
     pendingHistory.resolve(historyResponse());
     await history;
 
-    expect(controller.getSnapshot()).toMatchObject({
+    expect(sessionState.getSnapshot()).toMatchObject({
       activeSession: newSession,
       sessionSelectionVersion: 1,
     });
@@ -168,7 +196,7 @@ describe("WorkspaceSessionController", () => {
     const firstResponse = deferred<SessionSummary[]>();
     const secondResponse = deferred<SessionSummary[]>();
     const responses = [firstResponse.promise, secondResponse.promise];
-    const controller = createController({
+    const sessionState = createSessionState({
       requestRecentSessions: () => {
         const response = responses.shift();
         if (!response) throw new Error("Missing response");
@@ -176,15 +204,15 @@ describe("WorkspaceSessionController", () => {
       },
     });
 
-    const first = controller.loadRecentSessions();
-    const second = controller.loadRecentSessions();
+    const first = sessionState.loadRecentSessions();
+    const second = sessionState.loadRecentSessions();
     secondResponse.resolve([newSession]);
     await second;
-    expect(controller.getSnapshot().recentSessions).toEqual([newSession]);
+    expect(sessionState.getSnapshot().recentSessions).toEqual([newSession]);
 
     firstResponse.resolve([existingSession]);
     await first;
-    expect(controller.getSnapshot().recentSessions).toEqual([newSession]);
+    expect(sessionState.getSnapshot().recentSessions).toEqual([newSession]);
   });
 
   it("switches through one mutation and refreshes recents independently", async () => {
@@ -198,7 +226,7 @@ describe("WorkspaceSessionController", () => {
       refreshedRecentResponse.promise,
     ];
     const requestSwitchSession = vi.fn(() => switchResponse.promise);
-    const controller = createController({
+    const sessionState = createSessionState({
       requestRecentSessions: () => {
         const response = recentResponses.shift();
         if (!response) throw new Error("Missing response");
@@ -207,19 +235,21 @@ describe("WorkspaceSessionController", () => {
       requestSwitchSession,
     });
 
-    const initialRecentLoad = controller.loadRecentSessions();
+    const initialRecentLoad = sessionState.loadRecentSessions();
     initialRecentResponse.resolve([existingSession]);
     await initialRecentLoad;
-    expect(controller.getSnapshot().recentSessions).toEqual([existingSession]);
+    expect(sessionState.getSnapshot().recentSessions).toEqual([
+      existingSession,
+    ]);
 
-    const staleRecentLoad = controller.loadRecentSessions();
-    const switching = controller.switchSession(newSession.sessionId);
-    expect(controller.canSwitchSession()).toBe(false);
+    const staleRecentLoad = sessionState.loadRecentSessions();
+    const switching = sessionState.switchSession(newSession.sessionId);
+    expect(sessionState.canSwitchSession()).toBe(false);
     expect(requestSwitchSession).toHaveBeenCalledWith(newSession.sessionId);
 
     switchResponse.resolve(newSession);
     await expect(switching).resolves.toEqual(newSession);
-    expect(controller.getSnapshot()).toMatchObject({
+    expect(sessionState.getSnapshot()).toMatchObject({
       activeSession: newSession,
       recentSessions: undefined,
       sessionSelectionVersion: 1,
@@ -228,11 +258,11 @@ describe("WorkspaceSessionController", () => {
 
     staleRecentResponse.resolve([existingSession]);
     await staleRecentLoad;
-    expect(controller.getSnapshot().recentSessions).toBeUndefined();
+    expect(sessionState.getSnapshot().recentSessions).toBeUndefined();
 
     refreshedRecentResponse.resolve([newSession, existingSession]);
     await vi.waitFor(() => {
-      expect(controller.getSnapshot().recentSessions).toEqual([
+      expect(sessionState.getSnapshot().recentSessions).toEqual([
         newSession,
         existingSession,
       ]);
@@ -251,21 +281,21 @@ describe("WorkspaceSessionController", () => {
       .mockResolvedValueOnce([existingSession, newSession])
       .mockImplementationOnce(() => refreshedRecents.promise);
     const requestSetSessionTitle = vi.fn(() => Promise.resolve(titledSession));
-    const controller = createController({
+    const sessionState = createSessionState({
       requestRecentSessions,
       requestSetSessionTitle,
     });
-    await controller.loadActiveHistory();
-    await controller.loadRecentSessions();
+    await sessionState.loadActiveHistory();
+    await sessionState.loadRecentSessions();
 
     await expect(
-      controller.setSessionTitle(newSession.sessionId, "Research archive"),
+      sessionState.setSessionTitle(newSession.sessionId, "Research archive"),
     ).resolves.toEqual(titledSession);
     expect(requestSetSessionTitle).toHaveBeenCalledWith(
       newSession.sessionId,
       "Research archive",
     );
-    expect(controller.getSnapshot()).toMatchObject({
+    expect(sessionState.getSnapshot()).toMatchObject({
       activeSession: existingSession,
       recentSessions: [titledSession, existingSession],
       sessionSelectionVersion: 0,
@@ -274,7 +304,7 @@ describe("WorkspaceSessionController", () => {
 
     refreshedRecents.resolve([titledSession, existingSession]);
     await vi.waitFor(() => {
-      expect(controller.getSnapshot().recentSessions).toEqual([
+      expect(sessionState.getSnapshot().recentSessions).toEqual([
         titledSession,
         existingSession,
       ]);
@@ -289,18 +319,18 @@ describe("WorkspaceSessionController", () => {
     const requestActiveHistory = vi.fn(() =>
       Promise.resolve(historyResponse()),
     );
-    const controller = createController({
+    const sessionState = createSessionState({
       requestActiveHistory,
       requestSetSessionTitle: () => Promise.resolve(titledSession),
     });
-    await controller.loadActiveHistory();
+    await sessionState.loadActiveHistory();
 
-    await controller.setSessionTitle(
+    await sessionState.setSessionTitle(
       existingSession.sessionId,
       "Active research",
     );
 
-    expect(controller.getSnapshot()).toMatchObject({
+    expect(sessionState.getSnapshot()).toMatchObject({
       activeSession: titledSession,
       sessionSelectionVersion: 0,
     });
@@ -319,17 +349,17 @@ describe("WorkspaceSessionController", () => {
     const requestRecentSessions = vi.fn(() =>
       Promise.resolve([previewedSession]),
     );
-    const controller = createController({
+    const sessionState = createSessionState({
       requestActiveHistory: () => Promise.resolve(historyResponse(newSession)),
       requestRecentSessions,
     });
-    await controller.loadActiveHistory();
+    await sessionState.loadActiveHistory();
 
-    controller.updateAgentActivity({ type: "agent_start" });
-    controller.updateAgentActivity({ type: "agent_end" });
+    sessionState.updateAgentActivity({ type: "agent_start" });
+    sessionState.updateAgentActivity({ type: "agent_end" });
 
     await vi.waitFor(() => {
-      expect(controller.getSnapshot()).toMatchObject({
+      expect(sessionState.getSnapshot()).toMatchObject({
         activeSession: previewedSession,
         sessionSelectionVersion: 0,
       });
@@ -343,32 +373,32 @@ describe("WorkspaceSessionController", () => {
     const requestSetSessionTitle = vi.fn(() =>
       Promise.resolve(existingSession),
     );
-    const controller = createController({
+    const sessionState = createSessionState({
       requestSwitchSession,
       requestSetSessionTitle,
     });
 
-    controller.updateAgentActivity({ type: "agent_start" });
+    sessionState.updateAgentActivity({ type: "agent_start" });
     await expect(
-      controller.setSessionTitle("session-1", "While running"),
+      sessionState.setSessionTitle("session-1", "While running"),
     ).resolves.toEqual(existingSession);
     expect(requestSetSessionTitle).toHaveBeenCalledWith(
       "session-1",
       "While running",
     );
 
-    const first = controller.switchSession("session-2");
+    const first = sessionState.switchSession("session-2");
     expect(requestSwitchSession).toHaveBeenCalledOnce();
     await expect(
-      controller.switchSession("session-3"),
+      sessionState.switchSession("session-3"),
     ).resolves.toBeUndefined();
     await expect(
-      controller.setSessionTitle("session-1", "Pending"),
+      sessionState.setSessionTitle("session-1", "Pending"),
     ).resolves.toBeUndefined();
 
     switchResponse.resolve(newSession);
     await first;
-    expect(controller.getSnapshot()).toMatchObject({
+    expect(sessionState.getSnapshot()).toMatchObject({
       activeSession: newSession,
       isAgentRunning: false,
       canSwitchSession: true,
@@ -377,30 +407,30 @@ describe("WorkspaceSessionController", () => {
 
   it("returns the active row without requesting the same session", async () => {
     const requestSwitchSession = vi.fn(() => Promise.resolve(newSession));
-    const controller = createController({ requestSwitchSession });
-    await controller.loadActiveHistory();
+    const sessionState = createSessionState({ requestSwitchSession });
+    await sessionState.loadActiveHistory();
 
     await expect(
-      controller.switchSession(existingSession.sessionId),
+      sessionState.switchSession(existingSession.sessionId),
     ).resolves.toEqual(existingSession);
     expect(requestSwitchSession).not.toHaveBeenCalled();
-    expect(controller.getSnapshot().sessionSelectionVersion).toBe(0);
+    expect(sessionState.getSnapshot().sessionSelectionVersion).toBe(0);
   });
 
   it("keeps existing summaries when a title change fails", async () => {
-    const controller = createController({
+    const sessionState = createSessionState({
       requestRecentSessions: () =>
         Promise.resolve([existingSession, newSession]),
       requestSetSessionTitle: () =>
         Promise.reject(new Error("title change failed")),
     });
-    await controller.loadActiveHistory();
-    await controller.loadRecentSessions();
+    await sessionState.loadActiveHistory();
+    await sessionState.loadRecentSessions();
 
     await expect(
-      controller.setSessionTitle(existingSession.sessionId, "Broken"),
+      sessionState.setSessionTitle(existingSession.sessionId, "Broken"),
     ).rejects.toThrow("title change failed");
-    expect(controller.getSnapshot()).toMatchObject({
+    expect(sessionState.getSnapshot()).toMatchObject({
       activeSession: existingSession,
       recentSessions: [existingSession, newSession],
       sessionSelectionVersion: 0,
@@ -409,22 +439,22 @@ describe("WorkspaceSessionController", () => {
   });
 
   it("tracks selected-session activity without blocking retargeting", () => {
-    const controller = createController();
+    const sessionState = createSessionState();
     const listener = vi.fn();
-    controller.subscribe(listener);
+    sessionState.subscribe(listener);
 
-    expect(controller.isAgentRunning()).toBe(false);
-    expect(controller.canSwitchSession()).toBe(true);
-    controller.updateAgentActivity({ type: "agent_start" });
-    expect(controller.isAgentRunning()).toBe(true);
-    expect(controller.canSwitchSession()).toBe(true);
+    expect(sessionState.isAgentRunning()).toBe(false);
+    expect(sessionState.canSwitchSession()).toBe(true);
+    sessionState.updateAgentActivity({ type: "agent_start" });
+    expect(sessionState.isAgentRunning()).toBe(true);
+    expect(sessionState.canSwitchSession()).toBe(true);
     expect(listener).toHaveBeenCalledOnce();
 
-    controller.updateAgentActivity({ type: "turn_end" });
+    sessionState.updateAgentActivity({ type: "turn_end" });
     expect(listener).toHaveBeenCalledOnce();
-    controller.updateAgentActivity({ type: "agent_end" });
-    expect(controller.isAgentRunning()).toBe(false);
-    expect(controller.canSwitchSession()).toBe(true);
+    sessionState.updateAgentActivity({ type: "agent_end" });
+    expect(sessionState.isAgentRunning()).toBe(false);
+    expect(sessionState.canSwitchSession()).toBe(true);
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
@@ -433,17 +463,19 @@ describe("WorkspaceSessionController", () => {
       Promise.resolve(newSession),
       Promise.reject(new Error("transition failed")),
     ];
-    const controller = createController({
+    const sessionState = createSessionState({
       requestNewSession: () => {
         const response = responses.shift();
         if (!response) throw new Error("Missing response");
         return response;
       },
     });
-    await controller.newSession();
+    await sessionState.newSession();
 
-    await expect(controller.newSession()).rejects.toThrow("transition failed");
-    expect(controller.getSnapshot()).toMatchObject({
+    await expect(sessionState.newSession()).rejects.toThrow(
+      "transition failed",
+    );
+    expect(sessionState.getSnapshot()).toMatchObject({
       activeSession: newSession,
       sessionSelectionVersion: 1,
       isSessionMutationPending: false,
