@@ -20,6 +20,12 @@ Each note is slugged by the **problem**, not the solution (so it survives pivots
 
 Revisit a topic across sessions by appending a dated `## Log` entry and updating the synthesis. When a thread resolves, set `status: resolved` and link the decisions and plans it produced.
 
+## Ground the record in the discussion
+
+Capture what was actually discussed and agreed, including the rationale, alternatives, and unresolved questions. Distinguish accepted conclusions from proposals. Do not promote an assistant suggestion into a decision without explicit agreement.
+
+Do not fill gaps with inferred architecture, implementation sequences, or guarantees merely to make the document appear complete. Record important gaps as concise open questions. If a gap requires a decision, return it to the discussion rather than resolving it while writing. A design thread may close a discussion without completing the design.
+
 <!-- INDEX:START -->
 
 <!-- Generated from each doc's frontmatter by scripts/docs-index.mjs. Do not edit by hand; run `npm run docs:index`. -->
@@ -28,6 +34,7 @@ Revisit a topic across sessions by appending a dated `## Log` entry and updating
 - **[agent-isolation-and-execution-boundary](./agent-isolation-and-execution-boundary.md)** _(exploring, explanation)._ Exploring agent execution isolation: a per-agent VM as the bash execution boundary with the workspace mounted as a host volume, UIX-owned network/location/secrets policy encoded into VM policy, and hardware isolation for tool execution — while agent-in-VM, VM fs-signals, and VM snapshot file rollback are rejected paths with stated revisit triggers.
 - **[agent-session-routing](./agent-session-routing.md)** _(resolved, explanation)._ A connection attachment owns a guard on one session-bound agent instance and dispatches with guarded authority. Turns and asynchronous operations hold independent guards, and the instance supervisor applies teardown policy only after every guard disposes.
 - **[agent-state-messages](./agent-state-messages.md)** _(exploring, explanation)._ Exploring model-visible feature state through hidden agent context, buffered or turn-state-backed materialization, tool output contracts, transcript observers, and future ordering.
+- **[branch-local-feature-development](./branch-local-feature-development.md)** _(exploring, explanation)._ Exploring branch-local feature reloads so one session can run main while another tests app changes, with feature settings in each worktree and coordinated reloads for convenience.
 - **[canvas-data-channel](./canvas-data-channel.md)** _(exploring, explanation)._ Exploring Canvas document exchange through anchored tools, iframe writeback, branch-restored versions, human-edit context, and the store-buffer boundary.
 - **[conversation-render-primitives](./conversation-render-primitives.md)** _(exploring, explanation)._ Exploring public React transcript presentation through separate tool and custom-message registries, typed payloads, durable interaction identity, fallback, and failure isolation.
 - **[cross-feature-interoperability](./cross-feature-interoperability.md)** _(exploring, explanation)._ Exploring cross-feature interoperability through publisher-qualified shared protocols, optional typed providers, common document resources, and resource viewers while separating semantic capability, reactive state, presentation routing, and host delivery.
@@ -41,6 +48,5 @@ Revisit a topic across sessions by appending a dated `## Log` entry and updating
 - **[workspace-actions](./workspace-actions.md)** _(resolved, explanation)._ Workspace actions are feature-owned renderer workflows arranged in presentation trees: one renderer registry privately holds callbacks, publicly derives a serializable action-catalog projection, resolves durable workspace keybindings and conflicts, and lets replaceable palette/menu/tree features invoke actions by id while backend effects continue through typed channels.
 - **[workspace-feature-composition](./workspace-feature-composition.md)** _(exploring, explanation)._ Exploring surface, layout, and feature-agent composition inside one-workspace runtimes while hosts supervise concurrent workspaces and agent instances preserve a later multi-agent path. _Read before designing surface contributions or layout, feature-agent linking, multi-agent sharing of feature state, reintroducing any Host/iframe boundary, or deciding whether chat/canvas should be treated as substrate._
 - **[workspace-settings](./workspace-settings.md)** _(resolved, explanation)._ A uniform schema-defined settings-scope model: whole-object defaults materialize instead of layering, static and dynamic keys share one validator path, reload commits atomically, feature handles stay scoped, and a replaceable editor consumes a constrained cross-feature projection.
-- **[worktree-backed-app-generations](./worktree-backed-app-generations.md)** _(exploring, explanation)._ Exploring branch-local feature reloads so one session can run main while another tests app changes, with feature settings in each worktree and coordinated reloads for convenience.
 
 <!-- INDEX:END -->

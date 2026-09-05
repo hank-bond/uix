@@ -4,7 +4,7 @@ kind: explanation
 status: exploring
 ---
 
-# Worktree-backed app generations
+# Branch-local feature development
 
 ## Current synthesis
 
