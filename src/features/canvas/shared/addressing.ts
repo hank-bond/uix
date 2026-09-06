@@ -1,13 +1,7 @@
-// Parses Canvas keys and maps them to durable document ids and iframe routes.
+// Parses Canvas keys and maps them to durable document ids.
 
 import { Type } from "typebox";
 import { Value } from "typebox/value";
-
-import {
-  createResourceAddressHandle,
-  type ResourceRouteParamValue,
-  type ResourceUrl,
-} from "@uix/api/resources";
 
 declare const CanvasKeyBrand: unique symbol;
 export type CanvasKey = string & { readonly [CanvasKeyBrand]: true };
@@ -16,8 +10,6 @@ declare const CanvasDocumentResourceIdBrand: unique symbol;
 export type CanvasDocumentResourceId = string & {
   readonly [CanvasDocumentResourceIdBrand]: true;
 };
-
-export const CanvasIframeResourceName = "iframe";
 
 const CanvasKeyPattern = /^[a-z0-9-]+(?:\/[a-z0-9-]+)*$/;
 const CanvasDocumentResourceIdPrefix = "doc://canvas/";
@@ -60,44 +52,3 @@ export function parseCanvasKeyFromDocumentResourceId(
 
 export const CanvasKeyDescription =
   "lowercase slug segments [a-z0-9-]+ optionally separated by /";
-
-export const CanvasIframeQuerySchema = Type.Object({
-  v: Type.Optional(Type.String()),
-});
-
-const canvasIframeAddress = createResourceAddressHandle({
-  featureId: "canvas",
-  name: CanvasIframeResourceName,
-  path: "/:key*",
-  query: CanvasIframeQuerySchema,
-  origin: "feature",
-});
-
-export const CanvasIframeResourceRoute = canvasIframeAddress.route;
-
-export function parseCanvasKeyRouteParam(
-  value: ResourceRouteParamValue | undefined,
-): CanvasKey | null {
-  if (!Array.isArray(value)) return null;
-  try {
-    return parseCanvasKey(value.join("/"));
-  } catch {
-    return null;
-  }
-}
-
-export function toCanvasIframeUrl(
-  workspaceId: string,
-  key: CanvasKey,
-  token: number,
-): ResourceUrl {
-  return canvasIframeAddress.toUrl({
-    workspaceId,
-    params: { key: key.split("/") },
-    query: { v: String(token) },
-  });
-}
-
-export function toCanvasIframeOrigin(workspaceId: string): string {
-  return canvasIframeAddress.toOrigin(workspaceId);
-}

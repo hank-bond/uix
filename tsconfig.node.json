@@ -46,6 +46,7 @@
   // the DOM lib this config deliberately lacks.
   "exclude": [
     "packages/api/src/workspace.ts",
-    "hosts/server/src/viewpoint-web.test.ts"
+    "hosts/server/src/viewpoint-web.test.ts",
+    "src/features/canvas/backend/document-html.browser.test.ts"
   ]
 }

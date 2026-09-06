@@ -20,7 +20,7 @@
 // dev. The workspace-root install in a scaffolded workspace). jiti transpiles
 // its ESM entry, so these stay synchronous.
 
-import { parse, serialize } from "parse5";
+import { type DefaultTreeAdapterMap, parse, serialize } from "parse5";
 
 // Canonicalize a whole HTML document: used on agent `write`, when loading
 // stored content into the editor, and after `edit` has spliced its replacement
@@ -28,5 +28,26 @@ import { parse, serialize } from "parse5";
 // standalone fragments: HTML validity is often context-dependent, and a fragment
 // parser drops unmatched closing tags that are valid once spliced into place.
 export function canonicalizeHtml(html: string): string {
-  return serialize(parse(html));
+  const document = parse(html);
+  assertNoAuthoredBase(document);
+  return serialize(document);
+}
+
+function assertNoAuthoredBase(node: DefaultTreeAdapterMap["node"]): void {
+  if ("tagName" in node) {
+    if (
+      node.tagName === "base" &&
+      node.attrs.some(({ name }) => name === "href")
+    ) {
+      throw new Error(
+        "Canvas HTML must not contain an authored <base href>; use directory-relative URLs instead.",
+      );
+    }
+    if (node.tagName === "template" && "content" in node) {
+      assertNoAuthoredBase(node.content);
+    }
+  }
+  if ("childNodes" in node) {
+    for (const child of node.childNodes) assertNoAuthoredBase(child);
+  }
 }

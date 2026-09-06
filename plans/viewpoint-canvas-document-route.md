@@ -47,6 +47,16 @@ The route work also exposed older channel names that describe an Agent instead o
   - **Simplification:** The WebSocket binder derives its complete initial message from the attachment instead of accepting separately assembled target fields. All wire message types and the server-message union derive from their declared schemas.
   - **Checks:** `npm run check` passed with 997 tests passing and three skipped, including both hosts' Playwright tests.
 
+- W9 is complete and reviewed.
+  - **Production reads:** Canvas uses its feature-scoped document client for the iframe `src`. Key invalidation and target replacement reload that URL without transferring HTML through a read channel or parent load message.
+  - **Derived markup:** The Canvas handler inserts its self-removing shim into a served copy, preserving every authored byte. The shim removes itself before authored scripts run. Canonicalization rejects authored `<base href>` elements, including those inside templates.
+  - **Writeback:** The existing parent bridge retains source and origin checks, human writeback, and trusted prompt ordering. Effect cleanup rejects pending prompt continuation after viewpoint replacement or unmount.
+  - **Removal:** The Canvas static resource, address helpers, read request and handler, ready/load vocabulary, and bootstrap module are deleted. Runtime tests now read through viewpoint routes.
+  - **Browser coverage:** Both hosts exercise production Canvas for `main` and a nested key. Test controls invoke the real Agent write tool, proving invalidation-driven refresh. The server proves independent `main` documents across attachments. Both hosts prove native fragment navigation, human form writeback, shim removal, scripted-click rejection, and trusted prompt forwarding. Prompt completion uses a fixture receiver rather than starting a model run. The existing Lightpanda smoke assertion now expects the document route without changing test frameworks.
+  - **Documentation:** Current architecture, Canvas implementation guidance, the resource guide, and server documentation describe direct document loading. Broader specifications remain incomplete.
+  - **Convention review:** The iframe message schema owns its wire type and structural validation. The non-throwing refinement uses the `as` prefix. Naming, private exports, branded fixture keys, matching host contract names, and authoring prose follow the repository rules. One disposable page lifetime owns shim listeners, timers, and its explicit writeback trigger. Non-persisted page exit disposes them, while a browser-cached document retains its lifetime. A focused Chromium test proves that disposal cancels pending trusted prompts and writeback and stops subsequent input handling. Its DOM-aware TypeScript configuration remains separate from backend-only tests.
+  - **Checks:** `npm run check` passed with 1013 tests passing and three skipped, including both hosts' Playwright tests and the shim lifetime test. Screenshots remain in `out/test-results/` for review.
+
 The rule in [`naming.host-role.md`](../docs/architecture/conventions/rules/naming.host-role.md) governs names introduced in W7 and subsequent units. W7 also applies the constrained-string rule to the `FeatureWebRootUrl` type. The remaining host-name and constrained-string migrations are unscheduled entries in [`backlog.md`](./backlog.md#convention-migrations). Select those repository-wide audits independently of this plan.
 
 ## Testing choice
@@ -227,6 +237,8 @@ This unit proves the host path through the Canvas document route but does not sw
 **Review gate:** A browser URL reaches the attachment-selected Canvas route over HTTP. Two connections to different sessions receive their own content. Retarget on the existing WebSocket updates only that connection's binding. The old HTTP URL fails, and accepted HTTP work drains under its retained guards. Existing workspace content URLs remain unchanged. Native browser resolution matches the Electron host for nested query keys, directory-relative references, and `#` links, including links added after page load.
 
 ### W9: Move Canvas reads onto the document route
+
+**Status:** Complete and reviewed.
 
 Switch the Canvas iframe from the workspace-scoped static bootstrap resource to its bound document `toUrl()`. The Canvas handler serves canonical authored HTML with the existing browser shim injected as derived markup. The shallow page URL establishes native relative addressing without substrate body processing. The iframe no longer waits for a parent `canvas:load` message.
 

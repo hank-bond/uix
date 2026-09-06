@@ -86,8 +86,8 @@ describe("canvas Agent factory", () => {
       throw new Error("Missing Canvas Agent channels");
     }
     const writeFirst = firstChannel.requests["writeback"].handler;
-    const readFirst = firstChannel.requests["read"].handler;
-    const readSecond = secondChannel.requests["read"].handler;
+    expect(firstChannel.requests).not.toHaveProperty("read");
+    expect(workspace.resources).toBeUndefined();
     const firstDocumentRoute = first.webRoutes?.[0];
     const secondDocumentRoute = second.webRoutes?.[0];
     if (!firstDocumentRoute || !secondDocumentRoute) {
@@ -103,7 +103,6 @@ describe("canvas Agent factory", () => {
 
     await writeFirst({ key: "main", html: "<p>first</p>" });
 
-    await expect(readFirst({ key: "main" })).resolves.toContain("first");
     const firstDocument = await firstDocumentHandler(
       {
         params: {},
@@ -113,13 +112,14 @@ describe("canvas Agent factory", () => {
       respond,
     );
     expect(firstDocument.body).toContain("first");
+    expect(firstDocument.body).toContain("canvas:writeback");
+
     await expect(
       first.turnState.documents.createSnapshot(),
     ).resolves.toMatchObject({ "doc://canvas/main": "v1" });
     await expect(second.turnState.documents.createSnapshot()).resolves.toEqual(
       {},
     );
-    await expect(readSecond({ key: "main" })).resolves.not.toContain("first");
     const secondDocument = await secondDocumentHandler(
       {
         params: {},

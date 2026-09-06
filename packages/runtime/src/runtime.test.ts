@@ -471,7 +471,7 @@ describe("workspace runtime isolation", () => {
     ).resolves.toEqual({
       status: 200,
       content: "html-document",
-      body: "<html><head></head><body><main>first Agent</main></body></html>",
+      body: expect.stringContaining("<main>first Agent</main>") as unknown,
     });
     await expect(
       runtime.dispatchViewpointWebRequest(
@@ -480,7 +480,7 @@ describe("workspace runtime isolation", () => {
     ).resolves.toEqual({
       status: 200,
       content: "html-document",
-      body: "<html><head></head><body><main>second Agent</main></body></html>",
+      body: expect.stringContaining("<main>second Agent</main>") as unknown,
     });
     await expect(
       runtime.dispatchViewpointWebRequest(
@@ -741,15 +741,17 @@ describe("workspace runtime isolation", () => {
     const peerA = (
       await runtime.createAttachment(admitSession({ sessionId: sessionA }))
     ).attachment;
-    const read = toChannelCanonicalId("canvas", "read");
+    const read = async (attachment: Attachment): Promise<string> => {
+      const response = await runtime.dispatchViewpointWebRequest(
+        createViewpointWebRequest(attachment, "/view"),
+      );
+      expect(response.status).toBe(200);
+      return response.body;
+    };
     const writeback = toChannelCanonicalId("canvas", "writeback");
     const key = "main";
     const htmlA = "<main>session A</main>";
     const htmlB = "<main>session B</main>";
-    const canonicalA =
-      "<html><head></head><body><main>session A</main></body></html>";
-    const canonicalB =
-      "<html><head></head><body><main>session B</main></body></html>";
 
     await expect(
       dispatch(peerA, {
@@ -768,23 +770,14 @@ describe("workspace runtime isolation", () => {
     const sessionB = selected.target.sessionId;
     expect(sessionB).not.toBe(sessionA);
     expect(peerA.target.sessionId).toBe(sessionA);
-    await expect(
-      dispatch(selected, { channel: read, payload: { key } }),
-    ).resolves.toEqual({
-      ok: true,
-      value: "<html><head></head><body></body></html>",
-    });
+    await expect(read(selected)).resolves.toContain("<body></body>");
 
     await dispatch(selected, {
       channel: writeback,
       payload: { key, html: htmlB },
     });
-    await expect(
-      dispatch(peerA, { channel: read, payload: { key } }),
-    ).resolves.toEqual({ ok: true, value: canonicalA });
-    await expect(
-      dispatch(selected, { channel: read, payload: { key } }),
-    ).resolves.toEqual({ ok: true, value: canonicalB });
+    await expect(read(peerA)).resolves.toContain(htmlA);
+    await expect(read(selected)).resolves.toContain(htmlB);
 
     events.length = 0;
     await expect(
@@ -805,12 +798,8 @@ describe("workspace runtime isolation", () => {
         { kind: "session", sessionId: sessionB },
       ]),
     );
-    await expect(
-      dispatch(peerA, { channel: read, payload: { key } }),
-    ).resolves.toEqual({ ok: true, value: canonicalA });
-    await expect(
-      dispatch(selected, { channel: read, payload: { key } }),
-    ).resolves.toEqual({ ok: true, value: canonicalB });
+    await expect(read(peerA)).resolves.toContain(htmlA);
+    await expect(read(selected)).resolves.toContain(htmlB);
 
     peerA[Symbol.dispose]();
     selected[Symbol.dispose]();

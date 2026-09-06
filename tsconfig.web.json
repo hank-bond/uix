@@ -40,6 +40,9 @@
     "hosts/electron/src/viewpoint-web.test.ts",
     "src/features/**/workspace/**/*.ts",
     "src/features/**/workspace/**/*.tsx",
-    "src/features/**/shared/**/*.ts"
+    "src/features/**/shared/**/*.ts",
+    "src/features/canvas/backend/document-html.browser.test.ts",
+    "src/features/canvas/backend/document-html.ts",
+    "src/features/canvas/backend/html-canonicalization.ts"
   ]
 }

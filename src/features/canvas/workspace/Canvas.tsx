@@ -1,4 +1,4 @@
-// Renders the selected Agent viewpoint's Canvas HTML in a feature-origin iframe.
+// Loads the selected Canvas document directly and forwards iframe writeback and prompt actions.
 
 import type { JSX } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -6,38 +6,30 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { agentChannels } from "@uix/api/agent-channels";
 import {
   type ChannelClient,
-  resolveWorkspaceResourceUrl,
-  useWorkspaceClient,
+  useWebRouteClient,
   useWorkspaceSession,
 } from "@uix/api/workspace";
 
 import {
+  asCanvasIframeMessage,
   forwardCanvasIframeMessage,
-  isCanvasIframeReady,
-  parseCanvasIframeMessage,
 } from "./iframe-messages";
-import {
-  type CanvasKey,
-  toCanvasIframeOrigin,
-  toCanvasIframeUrl,
-} from "../shared/addressing";
+import type { CanvasKey } from "../shared/addressing";
 import type { canvasChannels } from "../shared/channels";
+import { CanvasDocumentRoute } from "../shared/web-routes";
 
-export interface CanvasProps {
+interface CanvasProps {
   canvasKey: CanvasKey;
   client: ChannelClient<typeof canvasChannels>;
   agent: ChannelClient<typeof agentChannels>;
 }
 
 export function Canvas({ canvasKey, client, agent }: CanvasProps): JSX.Element {
-  const workspace = useWorkspaceClient();
+  const documentClient = useWebRouteClient(CanvasDocumentRoute);
+  const documentUrl = documentClient.toUrl({ query: { key: canvasKey } });
   const { sessionSelectionVersion } = useWorkspaceSession();
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const htmlRef = useRef("");
-  const sessionSelectionVersionRef = useRef(sessionSelectionVersion);
-  sessionSelectionVersionRef.current = sessionSelectionVersion;
   const [changeVersion, setChangeVersion] = useState(0);
-  const [iframeVersion, setIframeVersion] = useState(0);
 
   useEffect(() => {
     return client.events.changed((event) => {
@@ -47,46 +39,18 @@ export function Canvas({ canvasKey, client, agent }: CanvasProps): JSX.Element {
     });
   }, [client, canvasKey]);
 
-  useEffect(() => {
-    let current = true;
-    htmlRef.current = "";
-    void client.requests
-      .read({ key: canvasKey })
-      .then((html) => {
-        if (!current) return;
-        htmlRef.current = html;
-        setIframeVersion((previous) => previous + 1);
-      })
-      .catch(() => {
-        if (!current) return;
-        htmlRef.current = "";
-        setIframeVersion((previous) => previous + 1);
-      });
-    return () => {
-      current = false;
-    };
-  }, [client, canvasKey, changeVersion, sessionSelectionVersion]);
-
   useLayoutEffect(() => {
-    const acceptedSessionSelectionVersion = sessionSelectionVersion;
-    const isCurrentViewpoint = (): boolean =>
-      sessionSelectionVersionRef.current === acceptedSessionSelectionVersion;
-    const iframeOrigin = resolveWorkspaceResourceUrl(
-      workspace,
-      toCanvasIframeOrigin(workspace.workspaceId),
-    );
-    const onMessage = (event: MessageEvent): void => {
-      if (!isCurrentViewpoint()) return;
+    let isActive = true;
+    const isCurrentViewpoint = (): boolean => isActive;
+    const url = new URL(documentUrl);
+    // Serialize the authority explicitly: URL.origin may report "null" for
+    // a host's privileged custom scheme even though Chromium assigns an origin.
+    const iframeOrigin = `${url.protocol}//${url.host}`;
+    const messageHandler = (event: MessageEvent): void => {
+      if (!isActive) return;
       if (event.origin !== iframeOrigin) return;
       if (event.source !== iframeRef.current?.contentWindow) return;
-      if (isCanvasIframeReady(event.data, canvasKey)) {
-        iframeRef.current.contentWindow?.postMessage(
-          { type: "canvas:load", key: canvasKey, html: htmlRef.current },
-          iframeOrigin,
-        );
-        return;
-      }
-      const message = parseCanvasIframeMessage(event.data, canvasKey);
+      const message = asCanvasIframeMessage(event.data, canvasKey);
       if (!message) return;
       void forwardCanvasIframeMessage(
         message,
@@ -95,21 +59,26 @@ export function Canvas({ canvasKey, client, agent }: CanvasProps): JSX.Element {
         agent.requests.prompt,
       );
     };
-    window.addEventListener("message", onMessage);
+    window.addEventListener("message", messageHandler);
     return () => {
-      window.removeEventListener("message", onMessage);
+      isActive = false;
+      window.removeEventListener("message", messageHandler);
     };
-  }, [agent, client, canvasKey, sessionSelectionVersion, workspace]);
+  }, [
+    agent,
+    client,
+    canvasKey,
+    documentUrl,
+    sessionSelectionVersion,
+    changeVersion,
+  ]);
 
   return (
     <iframe
-      key={`${String(sessionSelectionVersion)}:${String(iframeVersion)}`}
+      key={`${documentUrl}:${String(sessionSelectionVersion)}:${String(changeVersion)}`}
       ref={iframeRef}
       className="canvas-iframe"
-      src={resolveWorkspaceResourceUrl(
-        workspace,
-        toCanvasIframeUrl(workspace.workspaceId, canvasKey, iframeVersion),
-      )}
+      src={documentUrl}
       title={`canvas ${canvasKey}`}
       sandbox="allow-scripts allow-same-origin"
     />

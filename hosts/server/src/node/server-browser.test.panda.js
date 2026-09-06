@@ -161,19 +161,21 @@ canvasPage.waitForScript(
    document.querySelector(".canvas-iframe")?.contentDocument?.readyState === "complete"`,
   { timeout: 15000 },
 );
-const canvasBootstrap = JSON.parse(
+const canvasDocument = JSON.parse(
   canvasPage.evaluate(`JSON.stringify({
     location: document.querySelector(".canvas-iframe")?.contentWindow?.location?.href,
     html: document.querySelector(".canvas-iframe")?.contentDocument?.documentElement?.outerHTML,
   })`),
 );
 assert(
-  canvasBootstrap.location.includes("/resources/canvas.canvas/iframe/main"),
-  "Canvas did not load its iframe content resource",
+  /\/workspaces\/canvas\/viewpoints\/[^/]+\/canvas\/view\?key=main$/.test(
+    canvasDocument.location,
+  ),
+  "Canvas did not load its viewpoint document route",
 );
 assert(
-  canvasBootstrap.html.includes("canvas:ready"),
-  "Canvas iframe bootstrap was not served",
+  canvasDocument.html.includes("<body></body>"),
+  "Canvas document was not served",
 );
 canvasPage.close();
 console.log("UIX_BROWSER_STAGE:canvas");

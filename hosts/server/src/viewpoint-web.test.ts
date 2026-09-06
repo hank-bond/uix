@@ -99,21 +99,31 @@ it("loads viewpoint Canvas pages in the server browser and drains accepted HTTP 
     });
     expect(controlRoot).not.toBe(new URL(".", initialUrl).href);
     await writeCanvas(firstControl, "First Agent");
-    const canonicalHtml = await firstControl.request("canvas.read", {
-      key: "reports/main",
-    });
+    const servedHtml = await (await fetch(initialUrl)).text();
     await writeCanvas(peerControl, "Peer Agent");
     await firstControl[Symbol.asyncDispose]();
     expect((await fetch(initialUrl)).status).toBe(200);
     expect(
       (await fetch(new URL("view?key=reports%2Fmain", controlRoot))).status,
     ).toBe(404);
-    await reloadProbe(page, "First Agent");
-    await reloadProbe(peer, "Peer Agent");
-    await assertNativeAddressing(page, initialUrl);
+    await assertCanvasDocument(page, "First Agent");
+    await assertCanvasDocument(peer, "Peer Agent");
+    for (const [observed, label] of [
+      [page, "First Agent"],
+      [peer, "Peer Agent"],
+    ] as const) {
+      await expect
+        .poll(() =>
+          observed
+            .frameLocator('iframe[title="canvas main"]')
+            .locator("h1")
+            .textContent(),
+        )
+        .toBe(label);
+    }
 
     const response = await fetch(initialUrl, { headers: { Origin: origin } });
-    expect(await response.text()).toBe(canonicalHtml);
+    expect(await response.text()).toBe(servedHtml);
     expect(response.headers.get("content-type")).toContain("text/html");
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(response.headers.get("access-control-allow-origin")).toBe(origin);
@@ -141,6 +151,23 @@ it("loads viewpoint Canvas pages in the server browser and drains accepted HTTP 
     expect((await fetch(`${initialUrl}&key=other`)).status).toBe(400);
     expect((await fetch(initialUrl, { method: "POST" })).status).toBe(405);
 
+    await assertNativeAddressing(page, initialUrl);
+    const frame = page.frameLocator('iframe[title="canvas reports/main"]');
+    await frame.getByLabel("Choice").fill("human edit");
+    await expect
+      .poll(async () => (await fetch(initialUrl)).text())
+      .toContain('value="human edit"');
+    expect(await frame.locator("script").count()).toBe(1);
+    await frame.getByRole("button", { name: "Ask Agent" }).evaluate((node) => {
+      (node as HTMLButtonElement).click();
+    });
+    expect(await page.locator("[data-prompt]").textContent()).toBe("");
+    await frame.getByRole("button", { name: "Ask Agent" }).click();
+    await expect
+      .poll(() => page.locator("[data-prompt]").textContent())
+      .toBe("Review choices");
+    expect(await page.locator("[data-prompt-count]").textContent()).toBe("1");
+
     await peerControl.request("canvas.hold");
     const retained = fetch(
       initialUrl.replace("reports%2Fmain", "reports%2Fslow"),
@@ -167,7 +194,7 @@ it("loads viewpoint Canvas pages in the server browser and drains accepted HTTP 
     const nextControl = lifetime.use(await openConnection(page.url()));
     await writeCanvas(nextControl, "Next Agent");
     await nextControl[Symbol.asyncDispose]();
-    await reloadProbe(page, "Next Agent");
+    await assertCanvasDocument(page, "Next Agent");
     await mkdir(join(repositoryRoot, "out/test-results"), { recursive: true });
     await page.screenshot({
       path: join(repositoryRoot, "out/test-results/server-viewpoint.png"),
@@ -217,14 +244,11 @@ async function readRouteUrl(page: Page): Promise<string> {
   return url;
 }
 
-async function reloadProbe(page: Page, label: string): Promise<void> {
-  await page
-    .getByRole("button", { name: "Reload route probe", exact: true })
-    .click();
+async function assertCanvasDocument(page: Page, label: string): Promise<void> {
   await expect
     .poll(() =>
       page
-        .frameLocator('iframe[title="Route probe"]')
+        .frameLocator('iframe[title="canvas reports/main"]')
         .locator("h1")
         .textContent(),
     )
@@ -232,7 +256,7 @@ async function reloadProbe(page: Page, label: string): Promise<void> {
 }
 
 async function assertNativeAddressing(page: Page, url: string): Promise<void> {
-  const frame = page.frameLocator('iframe[title="Route probe"]');
+  const frame = page.frameLocator('iframe[title="canvas reports/main"]');
   const root = new URL(".", url).href;
   expect(
     await frame.locator("h1").evaluate((node) => getComputedStyle(node).color),
@@ -370,9 +394,9 @@ async function writeCanvas(
   connection: ProtocolConnection,
   label: string,
 ): Promise<void> {
-  const html = `<html><head><style>h1 { color: rgb(12, 34, 56); } #details { margin-top: 900px; }</style></head><body><h1>${label}</h1><a href="#details">Details</a><a id="asset" href="assets/site.css">Asset</a><a id="api" href="api/data">API</a><div id="details">Target</div><div id="dynamic">Dynamic target</div><script>document.body.insertAdjacentHTML('beforeend', '<a href="#dynamic">Dynamic details</a>');</script></body></html>`;
-  for (const key of ["reports/main", "reports/slow"]) {
-    await connection.request("canvas.writeback", { key, html });
+  const html = `<html><head><style>h1 { color: rgb(12, 34, 56); } #details { margin-top: 900px; }</style></head><body><h1>${label}</h1><label>Choice<input></label><button data-canvas-prompt="Review choices">Ask Agent</button><a href="#details">Details</a><a id="asset" href="assets/site.css">Asset</a><a id="api" href="api/data">API</a><div id="details">Target</div><div id="dynamic">Dynamic target</div><script>document.body.insertAdjacentHTML('beforeend', '<a href="#dynamic">Dynamic details</a>');</script></body></html>`;
+  for (const key of ["main", "reports/main", "reports/slow"]) {
+    await connection.request("canvas.fixture_write", { key, html });
   }
 }
 
@@ -423,6 +447,8 @@ export const surface = defineSurface({ name: "underscore-probe", render: () => <
 import { Type } from "typebox";
 import { withHandlers } from "@uix/api/channels";
 import { feature as canvas } from ${JSON.stringify(join(canvasRoot, "index.ts"))};
+import { CanvasKeySchema } from ${JSON.stringify(join(canvasRoot, "shared/addressing.ts"))};
+const writeChannels = { requests: { fixture_write: { requestSchema: Type.Object({ key: CanvasKeySchema, html: Type.String() }), responseSchema: Type.Void() } }, events: {} };
 const controls = { requests: {
   hold: { requestSchema: Type.Void(), responseSchema: Type.Void() },
   release: { requestSchema: Type.Void(), responseSchema: Type.Void() },
@@ -436,6 +462,7 @@ export const feature = {
   workspace(ctx) {
     const contributions = canvas.workspace(ctx);
     return { ...contributions,
+      agentChannelContracts: [...contributions.agentChannelContracts, writeChannels],
       surfaces: [${JSON.stringify(join(canvasRoot, "workspace/surface.tsx"))}, "./probe.tsx"],
       channels: [withHandlers(controls, {
         hold: { handler: () => { started = 0; gate = new Promise(resolve => { release = resolve; }); } },
@@ -445,7 +472,10 @@ export const feature = {
   },
   agent(ctx) {
     const contributions = canvas.agent(ctx);
-    return { ...contributions, webRoutes: contributions.webRoutes.map(route => ({
+    const writeTool = contributions.agentTools.find(tool => tool.name === "anchor_write").tool;
+    return { ...contributions,
+      channels: [...contributions.channels, withHandlers(writeChannels, { fixture_write: { async handler(input) { await writeTool.execute("fixture", { ...input, reason: "Browser coverage" }); } } })],
+      webRoutes: contributions.webRoutes.map(route => ({
       ...route, async handler(input, respond) {
         if (input.query.key === "reports/slow") { started += 1; await gate; }
         return route.handler(input, respond);
@@ -459,21 +489,27 @@ export const feature = {
     `
 import { useState } from "react";
 import { defineSurface, useWebRouteClient, useInvokeAction } from "@uix/api/workspace";
+import { agentChannels } from "@uix/api/agent-channels";
+import { canvasChannels } from ${JSON.stringify(join(canvasRoot, "shared/channels.ts"))};
+import { Canvas } from ${JSON.stringify(join(canvasRoot, "workspace/Canvas.tsx"))};
+import { parseCanvasKey } from ${JSON.stringify(join(canvasRoot, "shared/addressing.ts"))};
 import { CanvasDocumentRoute } from ${JSON.stringify(join(canvasRoot, "shared/web-routes.ts"))};
-function Probe() {
+function Probe({ canvas, agent }) {
   const client = useWebRouteClient(CanvasDocumentRoute);
   const actionRunner = useInvokeAction();
-  const url = client.toUrl({ query: { key: "reports/main" } });
-  const [reloadVersion, setReloadVersion] = useState(0);
+  const canvasKey = parseCanvasKey("reports/main");
+  const url = client.toUrl({ query: { key: canvasKey } });
+  const [prompt, setPrompt] = useState("");
+  const [promptCount, setPromptCount] = useState(0);
   return <section style={{ width: "100%", minWidth: 240 }}>
     <label>Retained surface state<input /></label>
     <output data-route style={{ display: "block", overflowWrap: "anywhere" }}>{url}</output>
-    <button onClick={() => setReloadVersion(reloadVersion + 1)}>Reload route probe</button>
+    <output data-prompt>{prompt}</output><output data-prompt-count>{promptCount}</output>
     <button onClick={() => actionRunner("uix.session.new")}>New probe session</button>
-    <iframe title="Route probe" key={url + reloadVersion} src={url} style={{ width: "100%", height: 400 }} />
+    <Canvas canvasKey={canvasKey} client={canvas} agent={{ ...agent, requests: { ...agent.requests, prompt: async ({ text }) => { setPrompt(text); setPromptCount(count => count + 1); } } }} />
   </section>;
 }
-export const surface = defineSurface({ name: "route-probe", render: () => <Probe /> });`,
+export const surface = defineSurface({ name: "route-probe", channels: { canvas: canvasChannels, agent: agentChannels }, render: clients => <Probe {...clients} /> });`,
   );
 }
 
