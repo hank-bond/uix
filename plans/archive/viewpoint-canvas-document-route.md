@@ -1,12 +1,15 @@
 ---
-summary: "Move Canvas reads onto viewpoint web routes in nine review units, ending with direct iframe loading through both hosts."
+summary: "Canvas reads now use viewpoint web routes in both hosts, with direct iframe loading and reviewed reload and query-validation fixes."
+status: landed
 ---
 
 # Viewpoint Canvas document route
 
+Completed and archived after W1–W9 and the R1 audit fixes. Final verification passed with 1027 tests and three skipped tests. The final audit commit is `68daa88`.
+
 ## Goal
 
-Prove the first production path through the [viewpoint web namespace specification](../docs/specs/viewpoint-web-namespaces.md). A Canvas iframe loads the selected Agent viewpoint's HTML from a typed, feature-local `GET` route.
+Prove the first production path through the [viewpoint web namespace specification](../../docs/specs/viewpoint-web-namespaces.md). A Canvas iframe loads the selected Agent viewpoint's HTML from a typed, feature-local `GET` route.
 
 The connection's attachment selects the Agent. No routing identity appears in the contract or request payload. Electron and the server use the same contract and handler. Retargeting issues a new private binding. Accepted requests finish against their original Agent, while retarget or close rejects later use of the old binding.
 
@@ -14,11 +17,11 @@ This plan covers only document reads. Writeback and prompt actions remain on the
 
 ## Dependency
 
-[Substrate-scoped channel contracts](./archive/substrate-scoped-channel-contracts.md) have landed. Web routes use the same backend ownership rule: contracts contain local vocabulary, while UIX derives contribution scope from the Workspace and Agent factories. Channel surfaces declare every namespace they consume because they may target several providers. R1 web clients remain scoped to the mounted feature because cross-feature route consumption is outside this plan.
+[Substrate-scoped channel contracts](./substrate-scoped-channel-contracts.md) have landed. Web routes use the same backend ownership rule: contracts contain local vocabulary, while UIX derives contribution scope from the Workspace and Agent factories. Channel surfaces declare every namespace they consume because they may target several providers. R1 web clients remain scoped to the mounted feature because cross-feature route consumption is outside this plan.
 
 The completed channel migration established backend ownership and explicit frontend targeting. This plan now applies backend ownership to web routes while deriving the R1 browser target from its mounted feature.
 
-The route work also exposed older channel names that describe an Agent instead of their viewpoint scope. `AgentInstance` also has two paths to the same channel registry. [`viewpoint-channel-naming.md`](./viewpoint-channel-naming.md) records that independent cleanup. It follows the new scope-naming guidance but does not block this plan.
+The route work also exposed older channel names that describe an Agent instead of their viewpoint scope. `AgentInstance` also has two paths to the same channel registry. [`viewpoint-channel-naming.md`](../viewpoint-channel-naming.md) records that independent cleanup. It follows the new scope-naming guidance but does not block this plan.
 
 ## Progress
 
@@ -60,14 +63,14 @@ The route work also exposed older channel names that describe an Agent instead o
 ### R1 audit fixes · complete and reviewed
 
 - Web handlers now acquire independent reload guards through the same owner as Agent turns and feature-channel handlers. Reload rejects while a guard is held, and guard acquisition rejects during reload. Regression tests cover successful and failed web operations, guard cleanup, replacement handlers, and unchanged attachment bindings after reload.
-- Guard naming now distinguishes `ThingGuard` against disposal from `ActionGuard` against the named action. Handler and turn code uses `acquireReloadGuard()` rather than `acquireOperation()`. Tracked operations remain responsible for cancellation and completion. They are not permits or guards. The conventions record this distinction, and [`backlog.md`](./backlog.md#guard-naming-forms) tracks the broader naming audit separately.
-- `WorkspaceRuntime` now owns reload guards and its serialized reload pipeline directly. The Agent runtime receives only guard acquisition. `ReloadAdmission` and the reload coordinator are deleted. Runtime tests cover active turns and handlers, guard disposal, queued reloads, restoration ordering, and recovery after reload failure. The focused `runtime-reload.test.ts` suite drives canonical dispatch through the real workspace owner. Test-only collaborator spies control commit, load, Agent replacement, Pi reload, and restoration failures. A throwing runtime listener exercises publication failure. It restores the former coordinator's failure matrix, cleanup aggregation, independent guard disposal, and exclusion through publication without adding production seams. [`lifetimes.guard-authority`](../docs/architecture/conventions/rules/lifetimes.guard-authority.md) establishes this ownership rule.
-- The attachment implementation, target-state helper, owner interface, and attachment logger now reside in [`attachment.ts`](../packages/runtime/src/attachment.ts). Workspace composition retains attachment creation and collection ownership. The moved implementation and owner interface match their prior forms apart from module exports, and existing runtime and host tests exercise the extracted path.
+- Guard naming now distinguishes `ThingGuard` against disposal from `ActionGuard` against the named action. Handler and turn code uses `acquireReloadGuard()` rather than `acquireOperation()`. Tracked operations remain responsible for cancellation and completion. They are not permits or guards. The conventions record this distinction, and [`backlog.md`](../backlog.md#guard-naming-forms) tracks the broader naming audit separately.
+- `WorkspaceRuntime` now owns reload guards and its serialized reload pipeline directly. The Agent runtime receives only guard acquisition. `ReloadAdmission` and the reload coordinator are deleted. Runtime tests cover active turns and handlers, guard disposal, queued reloads, restoration ordering, and recovery after reload failure. The focused `runtime-reload.test.ts` suite drives canonical dispatch through the real workspace owner. Test-only collaborator spies control commit, load, Agent replacement, Pi reload, and restoration failures. A throwing runtime listener exercises publication failure. It restores the former coordinator's failure matrix, cleanup aggregation, independent guard disposal, and exclusion through publication without adding production seams. [`lifetimes.guard-authority`](../../docs/architecture/conventions/rules/lifetimes.guard-authority.md) establishes this ownership rule.
+- The attachment implementation, target-state helper, owner interface, and attachment logger now reside in [`attachment.ts`](../../packages/runtime/src/attachment.ts). Workspace composition retains attachment creation and collection ownership. The moved implementation and owner interface match their prior forms apart from module exports, and existing runtime and host tests exercise the extracted path.
 - Query decoding preserves prototype-named keys in a prototype-free dictionary until validation. Undeclared `__proto__` input and duplicate keys return `400` instead of disappearing. Tests cover omitted and strict query schemas, encoded names, and rejection before handler invocation.
 - **Convention review:** Reload authority and guard tracking share one owner. Agent consumers receive only guard acquisition, and tracked operations retain cancellation and completion ownership. Internal exports have named consumers, and no production injection exists solely for tests. New Boolean names use predicate forms. The focused test harness composes rollback, temporary-directory removal, attachment disposal, and listener cleanup in a disposal stack. Integration fixtures pair temporary global state and prepared dispatch with cleanup, and blocked operations complete even when assertions fail. Historical log entries retain their original wording. Deferred guard-naming migration remains separately tracked.
 - `npm run check` and uncached `npm run lint` passed after guard-owner consolidation, reload-test migration, and attachment extraction. The suite has 1027 tests passing and three skipped, including both hosts' browser tests. The other coverage gaps identified by the audit remain outside these two selected fixes.
 
-The rule in [`naming.host-role.md`](../docs/architecture/conventions/rules/naming.host-role.md) governs names introduced in W7 and subsequent units. W7 also applies the constrained-string rule to the `FeatureWebRootUrl` type. The remaining host-name and constrained-string migrations are unscheduled entries in [`backlog.md`](./backlog.md#convention-migrations). Select those repository-wide audits independently of this plan.
+The rule in [`naming.host-role.md`](../../docs/architecture/conventions/rules/naming.host-role.md) governs names introduced in W7 and subsequent units. W7 also applies the constrained-string rule to the `FeatureWebRootUrl` type. The remaining host-name and constrained-string migrations are unscheduled entries in [`backlog.md`](../backlog.md#convention-migrations). Select those repository-wide audits independently of this plan.
 
 ## Testing choice
 

@@ -27,14 +27,14 @@ Select these migrations independently between plans. Start each migration with a
 
 - **Convention:** [`Guard`](../docs/architecture/conventions/lexicon/code-terms.md#uix-owned-role-terms) and [guard naming](../docs/architecture/conventions/lifetimes.md#guard-naming). `ThingGuard` prevents disposal of the named thing. `ActionGuard` prevents the named action from starting.
 - **Status:** Repository-wide audit unscheduled.
-- **Initial change:** The R1 fixes in [`viewpoint-canvas-document-route.md`](./viewpoint-canvas-document-route.md) renamed the turn and handler acquisition to `acquireReloadGuard()` and its local holders to `_reloadGuard`. `WorkspaceRuntime` now owns both that acquisition and reload invocation, following [`lifetimes.guard-authority`](../docs/architecture/conventions/rules/lifetimes.guard-authority.md). The separate `ReloadAdmission` class and reload coordinator are deleted. The operation tracker remains the separate owner of cancellation and completion.
+- **Initial change:** The R1 fixes in [`viewpoint-canvas-document-route.md`](./archive/viewpoint-canvas-document-route.md) renamed the turn and handler acquisition to `acquireReloadGuard()` and its local holders to `_reloadGuard`. `WorkspaceRuntime` now owns both that acquisition and reload invocation, following [`lifetimes.guard-authority`](../docs/architecture/conventions/rules/lifetimes.guard-authority.md). The separate `ReloadAdmission` class and reload coordinator are deleted. The operation tracker remains the separate owner of cancellation and completion.
 - **Scope:** Audit guard names, acquisition methods, and descriptions across active code and documentation. Check that each owner of a guarded action also owns guard creation, tracking, and enforcement. Holder-role names such as `operationGuard` are starting points for review, not automatic renames. Preserve the supervised-object specialization `Guard<Value>` and historical decisions. Do not introduce operation permits as a synonym for reload guards.
 
 ### Host-role naming
 
 - **Convention:** [`naming.host-role`](../docs/architecture/conventions/rules/naming.host-role.md).
 - **Status:** Unscheduled.
-- **Initial change:** The W7 slice in [`viewpoint-canvas-document-route.md`](./viewpoint-canvas-document-route.md) removed redundant host prefixes from the binding state, roots observable, and address encoder and decoder. For example, it renamed the `ElectronAttachmentWebBindingState` class to `AttachmentWebBindingState` in [`attachment-web-binding-state.ts`](../hosts/electron/src/main/attachment-web-binding-state.ts).
+- **Initial change:** The W7 slice in [`viewpoint-canvas-document-route.md`](./archive/viewpoint-canvas-document-route.md) removed redundant host prefixes from the binding state, roots observable, and address encoder and decoder. For example, it renamed the `ElectronAttachmentWebBindingState` class to `AttachmentWebBindingState` in [`attachment-web-binding-state.ts`](../hosts/electron/src/main/attachment-web-binding-state.ts).
 - **Signals:** Resource transports, workspace clients, action sources, and launcher adapters across both hosts have names worth reviewing.
 
 ### Branded constrained strings
