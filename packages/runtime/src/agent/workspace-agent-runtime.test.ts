@@ -14,6 +14,7 @@ import type {
   SettingsHandleFrom,
   SettingsValues,
 } from "@uix/api/settings";
+import { defineWebRoute, withWebRouteHandler } from "@uix/api/web-routes";
 
 import { agentWorkspaceSettings } from "./settings";
 import {
@@ -25,6 +26,7 @@ import {
   registerTurnStateContributions,
   TurnStateRegistry,
 } from "../turn-state";
+import { WebRouteContractRegistry } from "../web-route-registry";
 
 interface FakeModel {
   provider: string;
@@ -364,6 +366,39 @@ function deferred(): { promise: Promise<void>; resolve(): void } {
   return { promise, resolve };
 }
 
+function createReloadGuardFixture(): {
+  acquireReloadGuard: (label: string) => Disposable;
+  readonly guardCount: number;
+  setReloadActive(value: boolean): void;
+} {
+  let guardCount = 0;
+  let isReloadActive = false;
+  return {
+    acquireReloadGuard: (label) => {
+      if (isReloadActive) {
+        throw new Error(
+          `${label} cannot start while Workspace reload is active`,
+        );
+      }
+      guardCount += 1;
+      let isDisposed = false;
+      return {
+        [Symbol.dispose]() {
+          if (isDisposed) return;
+          isDisposed = true;
+          guardCount -= 1;
+        },
+      };
+    },
+    get guardCount() {
+      return guardCount;
+    },
+    setReloadActive(value) {
+      isReloadActive = value;
+    },
+  };
+}
+
 function createFakeSettings<Definition extends SettingsDefinition>(
   _definition: Definition,
   values = new Map<string, unknown>(),
@@ -433,6 +468,7 @@ function createHarness(
   ),
 ): {
   agentRuntime: WorkspaceAgentRuntime;
+  reloadGuards: ReturnType<typeof createReloadGuardFixture>;
   events: AgentEvent[];
   scopedEvents: Array<{ sessionId: string; event: AgentEvent }>;
   statuses: AgentStatus[];
@@ -440,7 +476,9 @@ function createHarness(
   const events: AgentEvent[] = [];
   const scopedEvents: Array<{ sessionId: string; event: AgentEvent }> = [];
   const statuses: AgentStatus[] = [];
+  const reloadGuards = createReloadGuardFixture();
   const agentRuntime = createWorkspaceAgentRuntime({
+    acquireReloadGuard: reloadGuards.acquireReloadGuard,
     documents: {
       createStore: () => ({
         getCurrent: () => Promise.resolve(null),
@@ -470,7 +508,13 @@ function createHarness(
     onProviderAuthFlowSnapshot: () => undefined,
     onModelAvailabilityChange: () => undefined,
   });
-  return { agentRuntime, events, scopedEvents, statuses };
+  return {
+    agentRuntime,
+    reloadGuards,
+    events,
+    scopedEvents,
+    statuses,
+  };
 }
 
 beforeEach(() => {
@@ -648,9 +692,12 @@ describe("workspace agent instances", () => {
         };
       },
     };
-    const { agentRuntime } = createHarness(undefined, undefined, undefined, [
-      feature,
-    ]);
+    const { agentRuntime, reloadGuards } = createHarness(
+      undefined,
+      undefined,
+      undefined,
+      [feature],
+    );
     const guard = await agentRuntime.acquire(
       { sessionId: "session-a" as never },
       sdk.manager as never,
@@ -666,18 +713,19 @@ describe("workspace agent instances", () => {
     await vi.waitFor(() => {
       expect(sdk.state.session?.["prompt"] as Mock).toHaveBeenCalledOnce();
     });
-    expect(() => agentRuntime.acquireReloadAdmission()).toThrow(
-      "Agent operation is active",
-    );
+    expect(reloadGuards.guardCount).toBe(1);
     promptGate.resolve();
     await prompt;
+    expect(reloadGuards.guardCount).toBe(0);
 
     generation = 2;
-    {
-      using _reload = agentRuntime.acquireReloadAdmission();
+    reloadGuards.setReloadActive(true);
+    try {
       await agentRuntime.prompt(guard, "blocked by reload");
       expect(sdk.state.session?.["prompt"] as Mock).toHaveBeenCalledOnce();
       await agentRuntime.reloadFeatureInstances();
+    } finally {
+      reloadGuards.setReloadActive(false);
     }
     await expect(
       guard.value.featureChannels.invoke(channel, undefined),
@@ -711,9 +759,12 @@ describe("workspace agent instances", () => {
         ],
       }),
     };
-    const { agentRuntime } = createHarness(undefined, undefined, undefined, [
-      feature,
-    ]);
+    const { agentRuntime, reloadGuards } = createHarness(
+      undefined,
+      undefined,
+      undefined,
+      [feature],
+    );
     const guard = await agentRuntime.acquire(
       { sessionId: "session-a" as never },
       sdk.manager as never,
@@ -725,23 +776,113 @@ describe("workspace agent instances", () => {
       channel,
       undefined,
     );
-    expect(() => agentRuntime.acquireReloadAdmission()).toThrow(
-      "Agent operation is active",
-    );
+    expect(reloadGuards.guardCount).toBe(1);
     operationGate.resolve();
     await operation;
+    expect(reloadGuards.guardCount).toBe(0);
 
-    {
-      using _reload = agentRuntime.acquireReloadAdmission();
+    reloadGuards.setReloadActive(true);
+    try {
       await expect(
         agentRuntime.invokeFeatureChannel(guard, channel, undefined),
       ).rejects.toThrow("Workspace reload is active");
+    } finally {
+      reloadGuards.setReloadActive(false);
     }
     expect(handler).toHaveBeenCalledOnce();
 
     guard[Symbol.dispose]();
     await agentRuntime[Symbol.asyncDispose]();
   });
+
+  it.each([false, true])(
+    "holds a reload guard for web handlers and disposes it when failure is %s",
+    async (shouldFail) => {
+      const route = defineWebRoute({
+        method: "GET",
+        path: "/view",
+        responses: { 200: { content: "html-document" } },
+      });
+      const contracts = new WebRouteContractRegistry();
+      using _contract = contracts.register("reader", route);
+      const resolved = contracts.resolve("reader", {
+        method: "GET",
+        pathname: "/view",
+        searchParams: new URLSearchParams(),
+      });
+      if (!resolved.ok) throw new Error(resolved.reason);
+      const operationGate = deferred();
+      let instanceNumber = 0;
+      const disposed: number[] = [];
+      const handler = vi.fn(async (value: number) => {
+        await operationGate.promise;
+        if (shouldFail && value === 1) throw new Error("fixture web failure");
+        return `instance ${String(value)}`;
+      });
+      const feature: ActivatedAgentFeature = {
+        id: "reader",
+        create: () => {
+          const value = ++instanceNumber;
+          return {
+            webRoutes: [
+              withWebRouteHandler(route, async (_request, respond) =>
+                respond(200, await handler(value)),
+              ),
+            ],
+            [Symbol.dispose]() {
+              disposed.push(value);
+            },
+          };
+        },
+      };
+      const { agentRuntime, reloadGuards } = createHarness(
+        undefined,
+        undefined,
+        undefined,
+        [feature],
+      );
+      await using _runtime = agentRuntime;
+      using guard = await agentRuntime.acquire(
+        { sessionId: "session-a" as never },
+        sdk.manager as never,
+      );
+      const signal = new AbortController().signal;
+      const operation = agentRuntime.invokeFeatureWebRoute(
+        guard,
+        resolved.value,
+        signal,
+      );
+      try {
+        expect(reloadGuards.guardCount).toBe(1);
+        expect(disposed).toEqual([]);
+      } finally {
+        operationGate.resolve();
+      }
+      if (shouldFail)
+        await expect(operation).rejects.toThrow("fixture web failure");
+      else
+        await expect(operation).resolves.toMatchObject({
+          body: "instance 1",
+        });
+      expect(reloadGuards.guardCount).toBe(0);
+
+      reloadGuards.setReloadActive(true);
+      try {
+        await expect(
+          agentRuntime.invokeFeatureWebRoute(guard, resolved.value, signal),
+        ).rejects.toThrow("Workspace reload is active");
+        expect(handler).toHaveBeenCalledOnce();
+        await agentRuntime.reloadFeatureInstances();
+      } finally {
+        reloadGuards.setReloadActive(false);
+      }
+      expect(disposed).toEqual([1]);
+      await expect(
+        agentRuntime.invokeFeatureWebRoute(guard, resolved.value, signal),
+      ).resolves.toMatchObject({ body: "instance 2" });
+      expect(handler).toHaveBeenCalledTimes(2);
+    },
+  );
 
   it("durably deduplicates a retried prompt mutation", async () => {
     const gate = deferred();

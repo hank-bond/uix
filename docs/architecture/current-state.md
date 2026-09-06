@@ -29,7 +29,7 @@ Each Workspace activation owns one async-disposable feature bag. Each `AgentInst
 
 Manifest and workspace-setting candidates validate before replacing the live generation. A malformed reload preserves the active composition. A malformed startup candidate logs an error and opens without features.
 
-Reload is the canonical `uix.reload` substrate request. It rejects while an Agent turn or feature-channel operation is active. An idle reload commits settled turn state, replaces Workspace features, rebuilds every live Agent feature bag, reloads initialized Pi runtimes, and restores each viewpoint. Cleanup failures do not stop forward replacement after the old generation clears. Workspace-scoped surface publication follows restoration, so every attached client refreshes its composition before reload reports collected failures. Requests serialize through `WorkspaceReloadCoordinator`.
+Reload is the canonical `uix.reload` substrate request. It rejects while an Agent turn, feature-channel handler, or viewpoint web handler is active. An idle reload commits settled turn state, replaces Workspace features, rebuilds every live Agent feature bag, reloads initialized Pi runtimes, and restores each viewpoint. Cleanup failures do not stop forward replacement after the old generation clears. Workspace-scoped surface publication follows restoration, so every attached client refreshes its composition before reload reports collected failures. `WorkspaceRuntime` owns reload guard tracking, serialized reload execution, and cleanup of the active-reload state. It provides only guard acquisition to the Agent runtime for turns and handlers.
 
 ## Channels and resources
 

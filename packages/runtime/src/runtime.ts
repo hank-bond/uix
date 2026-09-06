@@ -63,7 +63,6 @@ import { AsyncDisposableBag, disposable, DisposableBag } from "./lifecycle";
 import { createLogger } from "./log";
 import { WorkspaceManifestStore } from "./manifest-store";
 import { OperationTracker } from "./operation-tracker";
-import { createWorkspaceReloadCoordinator } from "./reload";
 import {
   registerResourceContributions,
   ResourceRegistry,
@@ -114,9 +113,9 @@ export interface WorkspaceRuntimeOptions {
 
 /**
  * The exactly-one-workspace runtime. Owns the accepted feature composition,
- * settings, stores, registries, workspace agent runtime, and reload
- * coordinator under one lifetime bag. Disposing it removes only this
- * workspace's state and routes.
+ * settings, stores, registries, workspace agent runtime, and reload pipeline
+ * under one lifetime bag. Disposing it removes only this workspace's state
+ * and routes.
  */
 class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   readonly #workspaceId: WorkspaceId;
@@ -133,13 +132,6 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   readonly #openFallbackSession: () => Promise<OpenedPrimarySession>;
   readonly #uixPublisher: FeatureEventPublisher<typeof substrateChannels>;
   readonly #substrate: FeatureSubstrate;
-  readonly #reloadCoordinator: {
-    reload(): Promise<{
-      featureActivation: ActivationResult;
-      piResourcesReloaded: boolean;
-      turnStateCommitted: boolean;
-    }>;
-  };
   readonly #attachments = new Set<Attachment>();
   readonly #listeners = new Set<(event: RuntimeEvent) => void>();
   readonly #dispatchOperations = new OperationTracker();
@@ -148,6 +140,9 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   #agentFeatures: readonly ActivatedAgentFeature[] = [];
   #nextAttachment = 0;
   #nextEventId = 0;
+  #reloadTail: Promise<void> = Promise.resolve();
+  #reloadGuardCount = 0;
+  #isReloadActive = false;
   #disposal: Promise<void> | undefined;
   #disposed = false;
 
@@ -220,6 +215,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     };
 
     this.#agentRuntime = createWorkspaceAgentRuntime({
+      acquireReloadGuard: (label) => this.#acquireReloadGuard(label),
       documents,
       onEvent: (sessionId, event) => {
         logChatContent(event);
@@ -495,19 +491,6 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
         surfaces: this.#surfaces,
       },
     };
-
-    this.#reloadCoordinator = createWorkspaceReloadCoordinator({
-      acquireReloadAdmission: () => this.#agentRuntime.acquireReloadAdmission(),
-      commitTurnState: () => this.#agentRuntime.commitFeatureTurnState(),
-      loadFeatures: () => this.#loadFeatures(),
-      featureCleanupErrors: (activation) => activation.cleanupErrors ?? [],
-      reloadAgentFeatures: () => this.#agentRuntime.reloadFeatureInstances(),
-      reloadPiResources: () => this.#agentRuntime.reloadPiResources(),
-      restoreTurnState: () => this.#agentRuntime.restoreFeatureTurnState(),
-      publishSurfacesChanged: () => {
-        this.#uixPublisher.surfaces_changed({});
-      },
-    });
   }
 
   get workspaceId(): WorkspaceId {
@@ -554,57 +537,119 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   }
 
   /**
-   * Replace the active feature composition and Pi resource tier: commit turn
-   * state, re-activate features, reload Pi resources, restore turn state, then
-   * publish surfaces_changed for the renderer. Serialized by the coordinator.
+   * Serialize reloads, exclude guarded Agent work, and replace the active
+   * feature composition through Pi reconciliation, restoration, and publication.
    */
-  async #reload(): Promise<ReloadResult> {
-    const reloadLog = createLogger("workspace");
-    reloadLog.debug({}, "reload_started");
-    try {
-      const { featureActivation, piResourcesReloaded, turnStateCommitted } =
-        await this.#reloadCoordinator.reload();
-      if (!turnStateCommitted) {
-        reloadLog.warn(
-          {},
-          "reload_turn_state_commit_skipped_restoration_pending",
+  #reload(): Promise<ReloadResult> {
+    const reload = this.#reloadTail.then(async () => {
+      const reloadLog = createLogger("workspace");
+      reloadLog.debug({}, "reload_started");
+      try {
+        if (this.#reloadGuardCount > 0) {
+          throw new Error("Cannot reload while a reload guard is held");
+        }
+        this.#isReloadActive = true;
+        using _reloadScope = disposable(() => {
+          this.#isReloadActive = false;
+        });
+
+        const didCommitTurnState =
+          await this.#agentRuntime.commitFeatureTurnState();
+        const featureActivation = await this.#loadFeatures();
+        const errors: unknown[] = [...(featureActivation.cleanupErrors ?? [])];
+        try {
+          errors.push(...(await this.#agentRuntime.reloadFeatureInstances()));
+        } catch (thrown) {
+          errors.push(thrown);
+        }
+
+        let didReloadPiResources = false;
+        try {
+          didReloadPiResources = await this.#agentRuntime.reloadPiResources();
+        } catch (thrown) {
+          errors.push(thrown);
+        }
+
+        try {
+          await this.#agentRuntime.restoreFeatureTurnState();
+        } catch (thrown) {
+          errors.push(thrown);
+        }
+
+        // Once activation has replaced the backend composition, the renderer
+        // must reconcile even when a later phase failed. Error surfaces and
+        // successfully activated siblings are still authoritative.
+        this.#uixPublisher.surfaces_changed({});
+
+        if (errors.length > 1) {
+          throw new AggregateError(
+            errors,
+            "Workspace reload completed with one or more failures",
+          );
+        }
+        if (errors.length === 1) throw errors[0];
+
+        if (!didCommitTurnState) {
+          reloadLog.warn(
+            {},
+            "reload_turn_state_commit_skipped_restoration_pending",
+          );
+        }
+        const failures = featureActivation.failed.map((failure) => ({
+          feature: failure.displayName,
+          entry: failure.entry,
+          error: failure.error.message,
+        }));
+        reloadLog.debug(
+          {
+            featuresActivated: featureActivation.activated.length,
+            featuresFailed: featureActivation.failed.length,
+            failures,
+            piResourcesReloaded: didReloadPiResources,
+            turnStateCommitted: didCommitTurnState,
+          },
+          "reload_completed",
         );
-      }
-      const failures = featureActivation.failed.map((f) => ({
-        feature: f.displayName,
-        entry: f.entry,
-        error: f.error.message,
-      }));
-      reloadLog.debug(
-        {
+        this.#emit(
+          { kind: "workspace" },
+          toChannelCanonicalId("uix", "composition_reloaded"),
+          this.#activationPayload(featureActivation),
+        );
+        return {
           featuresActivated: featureActivation.activated.length,
           featuresFailed: featureActivation.failed.length,
           failures,
-          piResourcesReloaded,
-          turnStateCommitted,
-        },
-        "reload_completed",
-      );
-      this.#emit(
-        { kind: "workspace" },
-        toChannelCanonicalId("uix", "composition_reloaded"),
-        this.#activationPayload(featureActivation),
-      );
-      return {
-        featuresActivated: featureActivation.activated.length,
-        featuresFailed: featureActivation.failed.length,
-        failures,
-        piResourcesReloaded,
-      };
-    } catch (thrown) {
-      const error =
-        thrown instanceof Error ? thrown : new Error(String(thrown));
-      reloadLog.error(
-        { err: error.message, stack: error.stack },
-        "reload_failed",
-      );
-      throw error;
+          piResourcesReloaded: didReloadPiResources,
+        };
+      } catch (thrown) {
+        const error =
+          thrown instanceof Error ? thrown : new Error(String(thrown));
+        reloadLog.error(
+          { err: error.message, stack: error.stack },
+          "reload_failed",
+        );
+        throw error;
+      }
+    });
+    this.#reloadTail = reload.then(
+      () => undefined,
+      () => undefined,
+    );
+    return reload;
+  }
+
+  /** Prevent reload until the returned guard is disposed. */
+  #acquireReloadGuard(label: string): Disposable {
+    if (this.#isReloadActive) {
+      throw new Error(`${label} cannot start while Workspace reload is active`);
     }
+    this.#reloadGuardCount += 1;
+    let isDisposed = false;
+    return disposable(() => {
+      if (isDisposed) return;
+      isDisposed = true;
+      this.#reloadGuardCount -= 1;
+    });
   }
 
   async createAttachment(
@@ -651,7 +696,8 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     }
 
     try {
-      return await targetGuard.value.features.webRoutes.invoke(
+      return await this.#agentRuntime.invokeFeatureWebRoute(
+        targetGuard,
         resolved.value,
         operation.signal,
       );

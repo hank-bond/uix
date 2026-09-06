@@ -11,7 +11,7 @@
 // runtime is proven against fake host dependencies, so failures reveal
 // runtime isolation rather than platform behavior.
 
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -46,6 +46,23 @@ import { disposable } from "./lifecycle";
 import type { Workspace } from "./workspace-roots";
 
 const apiModuleDir = join(__dirname, "../../api/src");
+const reloadControlSymbol = Symbol.for("uix.runtime.test.reload-control");
+interface ReloadControl {
+  shouldFailCleanup: boolean;
+  cleanupStartedListener: (() => void) | undefined;
+  cleanupGate: Promise<void> | undefined;
+}
+const reloadControlGlobal = globalThis as typeof globalThis & {
+  [reloadControlSymbol]?: ReloadControl;
+};
+
+function createDeferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
 
 /** The fixture feature both workspaces load: identical ids everywhere. */
 const fixtureFeature = `
@@ -176,6 +193,20 @@ export const feature = defineFeature({
         },
       ],
       surfaces: ["./surface.tsx"],
+      async [Symbol.asyncDispose]() {
+        const control = (globalThis as {
+          [key: symbol]: {
+            shouldFailCleanup?: boolean;
+            cleanupStartedListener?: () => void;
+            cleanupGate?: Promise<void>;
+          } | undefined;
+        })[Symbol.for("uix.runtime.test.reload-control")];
+        control?.cleanupStartedListener?.();
+        await control?.cleanupGate;
+        if (control?.shouldFailCleanup) {
+          throw new Error("fixture workspace cleanup failed");
+        }
+      },
     };
   },
   agent(ctx) {
@@ -214,6 +245,9 @@ export const feature = defineFeature({
           return respond(200, (await documents.getCurrent("notes")) ?? "empty");
         }),
       ],
+      [Symbol.dispose]() {
+        webRouteGate.resolve();
+      },
     };
   },
 });
@@ -670,6 +704,75 @@ describe("workspace runtime isolation", () => {
     await runtime[Symbol.asyncDispose]();
   });
 
+  it("rejects reload until accepted web handlers finish and disposes their reload guards after failure", async () => {
+    await using fixtureLifetime = new AsyncDisposableStack();
+    const fixtureDir = await writeFixture();
+    fixtureLifetime.defer(() =>
+      rm(fixtureDir, { recursive: true, force: true }),
+    );
+    const workspace = await makeWorkspace("web-reload", fixtureDir, "hello");
+    fixtureLifetime.defer(() =>
+      rm(workspace.stateRoot, { recursive: true, force: true }),
+    );
+    await using runtime = createWorkspaceRuntime({
+      workspaceId: toWorkspaceId("web-reload"),
+      workspace,
+      piAppDataDir: join(workspace.stateRoot, ".pi"),
+      apiModuleDir,
+      dependencies: createTestTransports().dependencies,
+    });
+    await runtime.load();
+    using attachment = (await runtime.createAttachment({ kind: "new-session" }))
+      .attachment;
+    const binding = attachment.webBinding;
+    const request: ViewpointWebRequest = {
+      binding,
+      namespace: "echo",
+      method: "GET",
+      pathname: "/view",
+      queryString: "key=wait",
+    };
+    const accepted = runtime.dispatchViewpointWebRequest(request);
+    const reloadRequest = {
+      channel: toChannelCanonicalId("uix", "reload"),
+      payload: undefined,
+    };
+    try {
+      expect(await dispatch(attachment, reloadRequest)).toMatchObject({
+        ok: false,
+        error: {
+          code: "handler_error",
+          message: expect.stringContaining("reload guard is held") as unknown,
+        },
+      });
+    } finally {
+      await dispatch(attachment, {
+        channel: toChannelCanonicalId("echo", "continue_web_route"),
+        payload: undefined,
+      });
+    }
+    await expect(accepted).resolves.toMatchObject({ status: 200 });
+    expect(await dispatch(attachment, reloadRequest)).toMatchObject({
+      ok: true,
+    });
+    expect(attachment.webBinding).toBe(binding);
+    await expect(
+      runtime.dispatchViewpointWebRequest({
+        ...request,
+        queryString: "key=main",
+      }),
+    ).resolves.toMatchObject({ status: 200 });
+    await expect(
+      runtime.dispatchViewpointWebRequest({
+        ...request,
+        queryString: "key=fail",
+      }),
+    ).resolves.toMatchObject({ status: 500 });
+    expect(await dispatch(attachment, reloadRequest)).toMatchObject({
+      ok: true,
+    });
+  });
+
   it("cancels accepted dispatches before guarded workspace teardown", async () => {
     const fixtureDir = await writeFixture();
     const workspace = await makeWorkspace(
@@ -730,7 +833,7 @@ describe("workspace runtime isolation", () => {
       dependencies: createTestTransports().dependencies,
     });
     const events: RuntimeEvent[] = [];
-    runtime.onEvent((event) => events.push(event));
+    using _events = runtime.onEvent((event) => events.push(event));
 
     const activation = await runtime.load();
     expect(activation.activated.map(({ id }) => id)).toEqual(["canvas"]);
@@ -798,6 +901,16 @@ describe("workspace runtime isolation", () => {
         { kind: "session", sessionId: sessionB },
       ]),
     );
+    const surfacesChangedIndex = events.findIndex(
+      ({ channel }) => channel === "uix.surfaces_changed",
+    );
+    const restoredCanvasIndices = events
+      .map(({ channel }, index) => (channel === "canvas.changed" ? index : -1))
+      .filter((index) => index >= 0);
+    expect(restoredCanvasIndices.length).toBeGreaterThan(0);
+    expect(Math.max(...restoredCanvasIndices)).toBeLessThan(
+      surfacesChangedIndex,
+    );
     await expect(read(peerA)).resolves.toContain(htmlA);
     await expect(read(selected)).resolves.toContain(htmlB);
 
@@ -821,14 +934,14 @@ describe("workspace runtime isolation", () => {
     const transportsA = createTestTransports();
     const transportsB = createTestTransports();
 
-    const runtimeA = createWorkspaceRuntime({
+    await using runtimeA = createWorkspaceRuntime({
       workspaceId: toWorkspaceId("ws-a"),
       workspace: workspaceA,
       piAppDataDir: join(workspaceA.stateRoot, ".pi"),
       apiModuleDir,
       dependencies: transportsA.dependencies,
     });
-    const runtimeB = createWorkspaceRuntime({
+    await using runtimeB = createWorkspaceRuntime({
       workspaceId: toWorkspaceId("ws-b"),
       workspace: workspaceB,
       piAppDataDir: join(workspaceB.stateRoot, ".pi"),
@@ -838,8 +951,8 @@ describe("workspace runtime isolation", () => {
 
     const eventsA: RuntimeEvent[] = [];
     const eventsB: RuntimeEvent[] = [];
-    runtimeA.onEvent((event) => eventsA.push(event));
-    runtimeB.onEvent((event) => eventsB.push(event));
+    using _eventsA = runtimeA.onEvent((event) => eventsA.push(event));
+    using _eventsB = runtimeB.onEvent((event) => eventsB.push(event));
 
     // Both workspaces activate the same feature id from the same entry.
     const activationA = await runtimeA.load();
@@ -1148,6 +1261,71 @@ describe("workspace runtime isolation", () => {
       await dispatch(attachA, { channel: increment, payload: undefined }),
     ).toEqual({ ok: true, value: 1 });
 
+    // While asynchronous feature replacement is active, an already-prepared
+    // Agent feature request cannot start and reach the stale generation.
+    const reloadControl: ReloadControl = {
+      shouldFailCleanup: false,
+      cleanupStartedListener: undefined,
+      cleanupGate: undefined,
+    };
+    const previousReloadControl = reloadControlGlobal[reloadControlSymbol];
+    reloadControlGlobal[reloadControlSymbol] = reloadControl;
+    using _reloadControlLifetime = disposable(() => {
+      reloadControl.shouldFailCleanup = false;
+      reloadControlGlobal[reloadControlSymbol] = previousReloadControl;
+    });
+    const cleanupStarted = createDeferred();
+    const cleanupGate = createDeferred();
+    reloadControl.cleanupStartedListener = cleanupStarted.resolve;
+    reloadControl.cleanupGate = cleanupGate.promise;
+    await using preparedDuringReload = attachA.prepareDispatch({
+      channel: increment,
+      payload: undefined,
+    });
+    const activeReload = dispatch(attachA, {
+      channel: toChannelCanonicalId("uix", "reload"),
+      payload: undefined,
+    });
+    try {
+      await cleanupStarted.promise;
+      const blockedDuringReload = await preparedDuringReload.invoke();
+      expect(blockedDuringReload.ok).toBe(false);
+      if (blockedDuringReload.ok) {
+        throw new Error("Prepared Agent request unexpectedly succeeded");
+      }
+      expect(blockedDuringReload.error.code).toBe("handler_error");
+      expect(blockedDuringReload.error.message).toContain(
+        "Workspace reload is active",
+      );
+    } finally {
+      cleanupGate.resolve();
+    }
+    await expect(activeReload).resolves.toMatchObject({ ok: true });
+    reloadControl.cleanupStartedListener = undefined;
+    reloadControl.cleanupGate = undefined;
+
+    // Cleanup failure is reported only after replacement and renderer
+    // notification complete. The active-reload state is still released.
+    reloadControl.shouldFailCleanup = true;
+    eventsA.length = 0;
+    expect(
+      await dispatch(attachA, {
+        channel: toChannelCanonicalId("uix", "reload"),
+        payload: undefined,
+      }),
+    ).toMatchObject({ ok: false, error: { code: "handler_error" } });
+    reloadControl.shouldFailCleanup = false;
+    expect(eventsA).toContainEqual(
+      expect.objectContaining({
+        channel: "uix.surfaces_changed",
+        scope: { kind: "workspace" },
+      }),
+    );
+    expect(await dispatch(attachA, { channel: ping, payload: {} })).toEqual({
+      ok: true,
+      value: "hello-A2",
+    });
+
     // A malformed candidate returns a structured canonical error and leaves
     // the accepted composition active.
     await writeFile(workspaceA.manifestPath, "{ invalid");
@@ -1163,6 +1341,46 @@ describe("workspace runtime isolation", () => {
     expect(await dispatch(attachA, { channel: ping, payload: {} })).toEqual({
       ok: true,
       value: "hello-A2",
+    });
+
+    // A failed reload does not poison serialization. Concurrent requests queue
+    // and both reconcile the repaired manifest successfully.
+    await writeFile(
+      workspaceA.manifestPath,
+      JSON.stringify(
+        {
+          name: "workspace-a",
+          features: [
+            {
+              entry: join(fixtureDir, "echo.ts"),
+              settings: { greeting: "hello-A3" },
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+    const queuedReloads = await Promise.all([
+      dispatch(attachA, {
+        channel: toChannelCanonicalId("uix", "reload"),
+        payload: undefined,
+      }),
+      dispatch(attachA, {
+        channel: toChannelCanonicalId("uix", "reload"),
+        payload: undefined,
+      }),
+    ]);
+    expect(queuedReloads).toHaveLength(2);
+    for (const response of queuedReloads) {
+      expect(response).toMatchObject({
+        ok: true,
+        value: { featuresActivated: 1 },
+      });
+    }
+    expect(await dispatch(attachA, { channel: ping, payload: {} })).toEqual({
+      ok: true,
+      value: "hello-A3",
     });
 
     // Disposing one runtime removes only its state and routes. Concurrent

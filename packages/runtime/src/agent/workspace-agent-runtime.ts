@@ -29,6 +29,7 @@ import type { ChannelCanonicalId } from "@uix/api/channel-resolution";
 import type { ChannelEventLogOptions } from "@uix/api/channels";
 import type { DocumentStoreFactory } from "@uix/api/documents";
 import type { SettingsHandleFrom } from "@uix/api/settings";
+import type { WebRouteResponse } from "@uix/api/web-routes";
 
 import { deriveProviderAuthCatalog } from "./auth-providers";
 import { type AgentInstaller, createUixCoreExtension } from "./installers";
@@ -39,7 +40,6 @@ import {
   createAgentInstanceSupervisor,
 } from "./instance-supervisor";
 import { createProviderAuthFlowCoordinator } from "./provider-auth-flow";
-import { ReloadAdmission } from "./reload-admission";
 import {
   createDurablePrimarySession,
   type OpenedPrimarySession,
@@ -69,6 +69,7 @@ import type { ActivatedAgentFeature } from "../features/loader";
 import { AsyncDisposableBag, DisposableBag } from "../lifecycle";
 import { createLogger } from "../log";
 import { OperationTracker } from "../operation-tracker";
+import type { ResolvedWebRouteRequest } from "../web-route-registry";
 import type { SessionId, SessionTarget } from "../workspace";
 import type { Workspace } from "../workspace-roots";
 
@@ -111,13 +112,18 @@ export interface WorkspaceAgentRuntime extends AsyncDisposable {
   ): ProviderAuthFlowSnapshot;
   answerProviderAuthFlow(flowId: string, promptId: string, value: string): void;
   cancelProviderAuthFlow(flowId: string): void;
-  /** Invoke one per-Agent handler outside the feature replacement boundary. */
+  /** Invoke one per-Agent channel handler with a reload guard. Reject during reload. */
   invokeFeatureChannel(
     guard: AgentInstanceGuard,
     canonicalId: ChannelCanonicalId,
     payload: unknown,
   ): Promise<unknown>;
-  acquireReloadAdmission(): Disposable;
+  /** Invoke one viewpoint web handler with a reload guard. Reject during reload. */
+  invokeFeatureWebRoute(
+    guard: AgentInstanceGuard,
+    request: ResolvedWebRouteRequest,
+    signal: AbortSignal,
+  ): Promise<WebRouteResponse>;
   commitFeatureTurnState(): Promise<boolean>;
   reloadFeatureInstances(): Promise<readonly unknown[]>;
   restoreFeatureTurnState(): Promise<void>;
@@ -125,6 +131,8 @@ export interface WorkspaceAgentRuntime extends AsyncDisposable {
 }
 
 export interface WorkspaceAgentRuntimeOptions {
+  /** Acquire protection against reload from the owning workspace runtime. */
+  readonly acquireReloadGuard: (label: string) => Disposable;
   readonly workspace: Workspace;
   /** Host-owned Pi app data directory shared across workspaces. */
   readonly piAppDataDir: string;
@@ -160,7 +168,6 @@ export function createWorkspaceAgentRuntime(
     SessionId,
     Promise<OpenedPrimarySession>
   >();
-  const reloadAdmission = new ReloadAdmission();
   let disposed = false;
 
   async function createServices(
@@ -530,7 +537,7 @@ export function createWorkspaceAgentRuntime(
     let turnSignal: AbortSignal | undefined;
 
     try {
-      using _reloadAdmission = reloadAdmission.acquireOperation("Agent turn");
+      using _reloadGuard = opts.acquireReloadGuard("Agent turn");
       // Declaring this bag before the tracked operation makes reverse disposal
       // complete cancellation before clearing the instance's active slot.
       using activeTurnLifetime = new DisposableBag();
@@ -725,13 +732,18 @@ export function createWorkspaceAgentRuntime(
     },
 
     async invokeFeatureChannel(guard, canonicalId, payload) {
-      using _reloadAdmission = reloadAdmission.acquireOperation(
+      using _reloadGuard = opts.acquireReloadGuard(
         "Agent feature-channel operation",
       );
       return await guard.value.featureChannels.invoke(canonicalId, payload);
     },
 
-    acquireReloadAdmission: () => reloadAdmission.acquireReload(),
+    async invokeFeatureWebRoute(guard, request, signal) {
+      using _reloadGuard = opts.acquireReloadGuard(
+        "Agent feature-web operation",
+      );
+      return await guard.value.features.webRoutes.invoke(request, signal);
+    },
 
     async commitFeatureTurnState() {
       let committed = true;

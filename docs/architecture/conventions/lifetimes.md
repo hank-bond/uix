@@ -1,5 +1,5 @@
 ---
-summary: "Exclusive cleanup belongs to Disposable lifetimes, while independently retained shared objects use supervisor-issued guards."
+summary: "Disposable lifetimes own cleanup. Guards prevent disposal of a thing or the start of an action, while tracked operations own cancellation and completion."
 kind: reference
 read_when: "Read before attaching callbacks, listeners, IPC, protocols, timers, or any other behavior that requires cleanup."
 ---
@@ -34,7 +34,7 @@ Disposable values with non-trivial cleanup implement `Disposable` or use `dispos
 
 Asynchronous ownerships implement `AsyncDisposable` and enter an `AsyncDisposableBag` when their lifetime outlives one lexical scope. The bag accepts synchronous and asynchronous values, disposes them in reverse order, continues after failures, and reports an aggregate error. It rejects additions after disposal starts. An exclusive owner puts independent cleanup capabilities in its bag instead of manually sequencing cleanup awaits. The Electron host stops synchronous bindings on the first `before-quit`, awaits its workspace bag, records teardown failure, and only then resumes quitting. Do not place asynchronous cleanup behind a fire-and-forget `Symbol.dispose` shim.
 
-Hot replacement validates candidates before clearing the active bag. A scoped reload-admission capability keeps Agent turns and feature-channel operations outside the replacement scope. Once clearing starts, the old generation cannot resume. The owner records cleanup failures, activates the replacement, completes restoration and publication, and then reports the collected errors.
+Hot replacement validates candidates before clearing the active bag. Agent turns, feature-channel handlers, and viewpoint web handlers hold reload guards for their execution. Reload rejects while a reload guard is held, and guard acquisition rejects while reload is active. Once clearing starts, the old generation cannot resume. The owner records cleanup failures, activates the replacement, completes restoration and publication, and then reports the collected errors.
 
 ## Composed cleanup
 
@@ -51,7 +51,7 @@ Keep domain transitions outside the container. Stopping admission, notifying cli
 A lexical state change returns an idempotent `Disposable` that reverses the change. The caller holds that capability with `using` for the complete scope.
 
 ```ts
-using _admission = reloadAdmission.acquireOperation("Agent turn");
+using reloadGuard = acquireReloadGuard("Agent turn");
 await runTurn();
 ```
 
@@ -74,13 +74,26 @@ The manual form can be correct, but it repeats owner bookkeeping at every call s
 
 Use a bag when the capability outlives one lexical scope. Use `await using` when reversal is genuinely asynchronous. Use a supervisor-issued guard when independent holders protect one shared live child. Adapt a third-party `try`/`finally` boundary into a disposable helper when the pattern recurs.
 
-Do not introduce a generic counter or flag wrapper that hides domain meaning. `ReloadAdmission` owns reload policy, while another owner names its own state and acquisition operation.
+Do not introduce a generic counter or flag wrapper that hides domain meaning. `WorkspaceRuntime` owns both reload guards and reload invocation. Its guard count and active-reload state remain private.
+
+## Guard naming
+
+A guard is named for what it prevents. The [guard lexicon entry](./lexicon/code-terms.md#uix-owned-role-terms) defines two forms:
+
+- **`ThingGuard`** prevents disposal of the named thing. An `AgentInstanceGuard` protects one Agent instance from teardown.
+- **`ActionGuard`** prevents the named action from starting. A reload guard prevents reload while a handler or turn executes.
+
+Acquisition names the returned protection: `acquireReloadGuard()`, not `acquireOperation()`. Disposing a guard removes only that holder's protection. It does not perform the prevented action or promise when that action will happen. Additional capabilities such as `value` and `retain` belong to the relevant guard type, not every guard.
+
+The [lifetimes.guard-authority](./rules/lifetimes.guard-authority.md) rule keeps guard authority with action ownership. The owner that invokes an action also issues, tracks, and honors its guards. `WorkspaceRuntime` invokes reload and provides its internal `acquireReloadGuard()` capability to the Agent runtime. Consumers may receive only guard acquisition, but they do not own separate guard state. A supervisor follows the same rule for guards against child disposal and the child's teardown.
+
+Guards do not provide cancellation. A tracked operation provides a cancellation signal and a completion boundary. Its owner can request cancellation and wait for completion before disposing the dependencies protected by the operation's guards. Holding a guard alone neither makes work cancellable nor makes it a tracked operation.
 
 ## Shared ownership uses guards
 
 Use a supervisor-issued guard when several independent holders can prevent teardown of one shared live object. Each acquisition receives its own guard. Disposing that guard is synchronous, idempotent, and affects no other holder. A live guard may `retain()` another independently disposable guard for asynchronous work derived from the current authority.
 
-When an operational value crosses beyond its lifecycle owner, the ordinary domain type defines operations. A private ownership capability combines that type with `Disposable` or `AsyncDisposable` authority and remains with the supervisor. Do not create an `XOwnership` split mechanically for an exclusive child used only by its owner. That child's domain contract can implement `Disposable` or `AsyncDisposable` directly. Ownership capabilities expose that authority through the disposal protocol rather than adding a parallel named `dispose()` operation. Every guard provides the protected generation's domain value without exposing its ownership. The generic guard owns only `value`, `retain`, and `Symbol.dispose`. Domain operations remain on `Workspace`, `AgentInstance`, or another guarded value. A disposed guard rejects further value access and retention. Operations reachable only through a live guard do not add method-level disposed checks: supervisor teardown cannot start until those guards drain. Zero guards only admits the supervisor's lifetime policy. It does not promise immediate teardown, and guard disposal never awaits teardown.
+When an operational value crosses beyond its lifecycle owner, the ordinary domain type defines operations. A private ownership capability combines that type with `Disposable` or `AsyncDisposable` authority and remains with the supervisor. Do not create an `XOwnership` split mechanically for an exclusive child used only by its owner. That child's domain contract can implement `Disposable` or `AsyncDisposable` directly. Ownership capabilities expose that authority through the disposal protocol rather than adding a parallel named `dispose()` operation. Every supervised-object guard provides the protected generation's domain value without exposing its ownership. The generic `Guard<Value>` owns only `value`, `retain`, and `Symbol.dispose`. Domain operations remain on `Workspace`, `AgentInstance`, or another guarded value. A disposed guard rejects further value access and retention. Operations reachable only through a live guard do not add method-level disposed checks: supervisor teardown cannot start until those guards drain. Zero guards only admits the supervisor's lifetime policy. It does not promise immediate teardown, and guard disposal never awaits teardown.
 
 ```ts
 interface Guard<Value> extends Disposable {
@@ -107,7 +120,7 @@ await handleCanonicalRequest(async (request) => {
 
 Use the same pattern for workspace runtimes, agent instances, and future shared live objects. A parent supervisor stops admission, drains live guards, and awaits actual child teardown during its asynchronous disposal. Teardown failures remain observable and cannot silently admit a replacement beside a child that failed to dispose.
 
-Do not replace ordinary ownership with guards. Registrations, listeners, timers, adapters, and uniquely owned child objects remain `Disposable` or `AsyncDisposable` values in lifetime bags. Guards are specifically for independently retained shared live objects.
+Do not replace ordinary ownership with guards. Registrations, listeners, timers, adapters, and uniquely owned child objects remain `Disposable` or `AsyncDisposable` values in lifetime bags. Use guards for disposal or action protection, not as a synonym for cleanup ownership.
 
 ## Supervision protocol
 

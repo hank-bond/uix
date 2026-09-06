@@ -34,7 +34,7 @@ interface WebRouteRequest {
   readonly searchParams: URLSearchParams;
 }
 
-interface ResolvedWebRouteRequest {
+export interface ResolvedWebRouteRequest {
   readonly canonicalId: WebRouteCanonicalId;
   readonly params: unknown;
   readonly query: unknown;

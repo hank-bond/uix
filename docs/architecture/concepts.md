@@ -41,7 +41,7 @@ _Feature activation_ validates a definition and settings, runs its Workspace fac
 
 An _activated Workspace feature_ is the live result of one successful Workspace activation: its local values, registered contributions, retained Agent factory, and per-feature lifetime bag. An _Agent feature instance_ is the result of calling that Agent factory for one `AgentInstance`. It has its own local values, registrations, and feature bag. A failed factory removes that feature's partial work without stopping siblings.
 
-The _active feature composition_ is the set of activated Workspace features and the corresponding Agent feature instances. Reload rejects during an active turn or Agent feature-channel operation. An idle reload commits every viewpoint, replaces Workspace features, rebuilds each live Agent feature bag, reloads initialized Pi runtimes, and restores each viewpoint. Cleanup failures are reported after forward replacement reaches a coherent state.
+The _active feature composition_ is the set of activated Workspace features and the corresponding Agent feature instances. `WorkspaceRuntime` owns reload invocation and the reload guards held by active turns, Agent feature-channel handlers, and viewpoint web handlers. Reload rejects while a guard is held, and guard acquisition rejects during reload. An idle reload commits every viewpoint, replaces Workspace features, rebuilds each live Agent feature bag, reloads initialized Pi runtimes, and restores each viewpoint. Cleanup failures are reported after forward replacement reaches a coherent state.
 
 Do not call an activated feature instance a feature generation. Use _generation_ only for a modeled replaceable object graph, such as a staged manifest or Pi runtime. Feature lifecycle uses activation, instance, active composition, and replacement instance.
 
@@ -289,7 +289,7 @@ The turn-state coordinator works across registered state cells:
 - Compares each cell independently with the selected branch.
 - Commits changed snapshots in one `uix.turn-state` session entry.
 
-`ProviderAuthFlowCoordinator` sequences one Pi-owned login flow across prompts, notices, link opening, answers, and cancellation. `WorkspaceReloadCoordinator` serializes candidate adoption, feature replacement, state restoration, and surface publication without taking ownership of those underlying authorities.
+`ProviderAuthFlowCoordinator` sequences one Pi-owned login flow across prompts, notices, link opening, answers, and cancellation. `WorkspaceRuntime` serializes candidate adoption, feature replacement, state restoration, and surface publication because it owns the complete reload action.
 
 A coordinator owns timing, in-flight workflow state, and cross-participant mechanics. Each participant retains authority. Features own cell behavior, Pi owns authentication, and the loader owns active feature instances.
 

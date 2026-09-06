@@ -5,7 +5,7 @@ read_when: "Implementing the workspace runtime, or changing the boundary the hos
 
 # Workspace runtime source map
 
-This package owns the runtime-facing contract and its implementation. An in-memory proof defined the smallest executable shape. The real substrate then moved out of `src/main` behind it. The runtime constructor (`runtime.ts`) composes documents, manifest store, workspace settings, facet registries, one workspace agent runtime, unified attachments, the surface pipeline, and the reload coordinator. The host imports this package and provides the runtime's dependencies as adapters. The generic `Guard<Value>` capability gives workspace and agent-instance supervisors one guard contract without exposing owner disposal. Nothing here imports a concrete host, and the envelope carries no transport or tenancy fields.
+This package owns the runtime-facing contract and its implementation. An in-memory proof defined the smallest executable shape. The real substrate then moved out of `src/main` behind it. The runtime constructor (`runtime.ts`) composes documents, manifest store, workspace settings, facet registries, one workspace agent runtime, unified attachments, the surface pipeline, and its reload pipeline. The host imports this package and provides the runtime's dependencies as adapters. The generic `Guard<Value>` capability gives workspace and agent-instance supervisors one guard contract without exposing owner disposal. Nothing here imports a concrete host, and the envelope carries no transport or tenancy fields.
 
 ## Contents
 
@@ -37,7 +37,6 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 - **[log.ts](./log.ts)** Creates main-process loggers that label messages by component and choose readable or JSON output for the environment.
 - **[manifest-store.ts](./manifest-store.ts)** Reads workspace manifests into staged copies and atomically writes the accepted copy back to disk.
 - **[operation-tracker.ts](./operation-tracker.ts)** Provides lexical cancellable operations that a parent can cancel and join during shutdown.
-- **[reload.ts](./reload.ts)** Reloads idle Workspace and Agent features before Pi resources, restored state, and renderer notification.
 - **[resource-registry.ts](./resource-registry.ts)** Routes resource URLs to the active feature handlers through one validated boundary.
 - **[runtime.ts](./runtime.ts)** Composes the workspace substrate into one exactly-one-workspace runtime over host-provided dependencies.
 - **[settings-namespace.ts](./settings-namespace.ts)** Defines a named, schema-checked group of workspace settings.

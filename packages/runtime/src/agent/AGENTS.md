@@ -28,7 +28,6 @@ Provider discovery and interactive sign-in share Pi's authentication state. A co
 - **[instance-supervisor.ts](./instance-supervisor.ts)** Supervises session-keyed agent instances and issues explicit lifetime guards.
 - **[instance.ts](./instance.ts)** Owns one live Pi execution, active-turn cancellation, and mutable feature state at one session viewpoint.
 - **[provider-auth-flow.ts](./provider-auth-flow.ts)** Runs one interactive provider sign-in at a time and exposes its prompts, links, progress, and result to the renderer.
-- **[reload-admission.ts](./reload-admission.ts)** Keeps Agent operations and Workspace feature reload outside each other's lexical scopes.
 - **[session-files.ts](./session-files.ts)** Finds recent Pi session files and resolves a session ID to its JSONL file.
 - **[session-manager.ts](./session-manager.ts)** Opens or creates one explicit, optionally caller-identified durable Pi session manager.
 - **[session-summary.ts](./session-summary.ts)** Reads session titles, first user-message previews, and timestamps without opening each Pi session.

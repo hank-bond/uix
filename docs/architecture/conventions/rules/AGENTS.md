@@ -16,6 +16,7 @@ The card format and its structural checks live in [`../contributing.md`](../cont
 
 - **[documentation.plan-reference](./documentation.plan-reference.md)** _(reference)._ Do not reference plans, plan units, or the timing of future work in code, comments, or non-plan documentation.
 - **[lifetimes.composed-cleanup](./lifetimes.composed-cleanup.md)** _(reference)._ Compose ordered cleanup of owned capabilities in a disposal container instead of handwritten teardown choreography.
+- **[lifetimes.guard-authority](./lifetimes.guard-authority.md)** _(reference)._ The owner that invokes an action also issues, tracks, and honors the guards that prevent it.
 - **[lifetimes.paired-cleanup](./lifetimes.paired-cleanup.md)** _(reference)._ Do not attach a listener, handler, subscription, or timer without directly pairing its cleanup.
 - **[logging.component-logger](./logging.component-logger.md)** _(reference)._ Main-process logging uses component-scoped structured pino loggers, never console calls.
 - **[module-boundaries.branded-strings](./module-boundaries.branded-strings.md)** _(reference)._ Validation or checked encoding establishes string brands that internal APIs preserve.
