@@ -24,8 +24,8 @@ import {
 } from "./public-origin";
 import { loadWorkspaceRegistry, type RegisteredWorkspace } from "./registry";
 import { recordWebSocketCrossing } from "./websocket-wire-log";
-import { registerWorkspaceResourceRoutes } from "./workspace-resource-routes";
-import { WorkspaceResourceTransport } from "./workspace-resource-transport";
+import { installWorkspaceContentRoutes } from "./workspace-content-routes";
+import { WorkspaceContentTransport } from "./workspace-content-transport";
 import { registerWorkspaceRoutes } from "./workspace-routes";
 import type { WebSocketShutdownMessage } from "../websocket-messages";
 
@@ -89,29 +89,29 @@ export async function createServerHost(
       ),
     ),
   });
-  const resourceTransport = new WorkspaceResourceTransport();
+  const contentTransport = new WorkspaceContentTransport();
   const supervisor = new WorkspaceSupervisor({
     boot: async (workspaceId) => {
-      let resourceRegistration: Disposable | undefined;
+      let contentRegistration: Disposable | undefined;
       try {
         const runtime = await options.bootWorkspace(
           registry.require(workspaceId),
           {
             contentTransportRegistrar: (handler) => {
-              const registration = resourceTransport.register(
+              const registration = contentTransport.register(
                 workspaceId,
                 handler,
               );
-              resourceRegistration = registration;
+              contentRegistration = registration;
               return registration;
             },
           },
         );
         // The runtime owns the returned registration after successful boot.
-        resourceRegistration = undefined;
+        contentRegistration = undefined;
         return runtime;
       } catch (error) {
-        resourceRegistration?.[Symbol.dispose]();
+        contentRegistration?.[Symbol.dispose]();
         throw error;
       }
     },
@@ -167,11 +167,11 @@ export async function createServerHost(
       workspaceStyles,
       publicOrigin,
     );
-    registerWorkspaceResourceRoutes(
+    installWorkspaceContentRoutes(
       app,
       registry,
       supervisor,
-      resourceTransport,
+      contentTransport,
       publicOrigin,
     );
   } catch (error) {

@@ -1,6 +1,6 @@
 // Defines and validates the server WebSocket transport's application messages.
 
-import { Type } from "typebox";
+import { type Static, Type } from "typebox";
 import { Value } from "typebox/value";
 
 const CorrelationIdSchema = Type.String({ minLength: 1, maxLength: 128 });
@@ -8,9 +8,20 @@ const CanonicalChannelSchema = Type.String({
   pattern: "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
 });
 
+const WebBindingSchema = Type.String({ minLength: 1 });
+
+const WebSocketBindingMessageSchema = Type.Object(
+  {
+    type: Type.Literal("web_binding"),
+    binding: WebBindingSchema,
+  },
+  { additionalProperties: false },
+);
+
 const WebSocketReadyMessageSchema = Type.Object(
   {
     type: Type.Literal("ready"),
+    webBinding: WebBindingSchema,
     sessionId: Type.String({ minLength: 1 }),
     canonicalPath: Type.String({ minLength: 1, pattern: "^/" }),
   },
@@ -67,58 +78,45 @@ const WebSocketShutdownMessageSchema = Type.Object(
 
 const WebSocketServerMessageSchema = Type.Union([
   WebSocketReadyMessageSchema,
+  WebSocketBindingMessageSchema,
   WebSocketResponseMessageSchema,
   WebSocketErrorMessageSchema,
   WebSocketEventMessageSchema,
   WebSocketShutdownMessageSchema,
 ]);
 
-export interface WebSocketReadyMessage {
-  readonly type: "ready";
-  readonly sessionId: string;
-  readonly canonicalPath: string;
-}
+export type WebSocketBindingMessage = Readonly<
+  Static<typeof WebSocketBindingMessageSchema>
+>;
 
-export interface WebSocketRequestMessage {
-  readonly type: "request";
-  readonly id: string;
-  readonly channel: string;
-  readonly payload?: unknown;
-}
+export type WebSocketReadyMessage = Readonly<
+  Static<typeof WebSocketReadyMessageSchema>
+>;
 
-export interface WebSocketResponseMessage {
-  readonly type: "response";
-  readonly id: string;
-  readonly value?: unknown;
-}
+export type WebSocketRequestMessage = Readonly<
+  Static<typeof WebSocketRequestMessageSchema>
+>;
 
-export interface WebSocketErrorMessage {
-  readonly type: "error";
-  readonly id?: string;
-  readonly code: string;
-  readonly message: string;
-  /** False for a physical protocol rejection that leaves accepted work pending. */
-  readonly isTerminal: boolean;
-}
+export type WebSocketResponseMessage = Readonly<
+  Static<typeof WebSocketResponseMessageSchema>
+>;
 
-export interface WebSocketEventMessage {
-  readonly type: "event";
-  readonly id: string;
-  readonly channel: string;
-  readonly payload?: unknown;
-}
+/** Set `isTerminal` to false for a physical protocol rejection that leaves accepted work pending. */
+export type WebSocketErrorMessage = Readonly<
+  Static<typeof WebSocketErrorMessageSchema>
+>;
 
-export interface WebSocketShutdownMessage {
-  readonly type: "shutdown";
-  readonly message: string;
-}
+export type WebSocketEventMessage = Readonly<
+  Static<typeof WebSocketEventMessageSchema>
+>;
 
-export type WebSocketServerMessage =
-  | WebSocketReadyMessage
-  | WebSocketResponseMessage
-  | WebSocketErrorMessage
-  | WebSocketEventMessage
-  | WebSocketShutdownMessage;
+export type WebSocketShutdownMessage = Readonly<
+  Static<typeof WebSocketShutdownMessageSchema>
+>;
+
+export type WebSocketServerMessage = Readonly<
+  Static<typeof WebSocketServerMessageSchema>
+>;
 
 /** Validate the first server message that accepts a session target. */
 export function parseWebSocketReadyMessage(
@@ -154,9 +152,11 @@ export function tryParseWebSocketCorrelationId(
 export function toWebSocketReadyMessage(
   sessionId: string,
   canonicalPath: string,
+  webBinding: string,
 ): WebSocketReadyMessage {
   return Value.Parse(WebSocketReadyMessageSchema, {
     type: "ready",
+    webBinding,
     sessionId,
     canonicalPath,
   });

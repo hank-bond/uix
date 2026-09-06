@@ -37,11 +37,23 @@ The route work also exposed older channel names that describe an Agent instead o
   - **Convention changes:** State and observable names describe their roles. The shared API validator establishes the `FeatureWebRootUrl` brand, which the host encoder, roots observable, surface provider, and route client preserve. Type tests reject arbitrary strings and unrelated address brands. Validation tests cover web-host and custom-scheme roots, malformed input, and browser normalization.
   - **Checks:** The `npm run check` command passed with 959 tests passing and three skipped. That command includes the Playwright test, which writes a screenshot to `out/test-results/electron-viewpoint.png`.
 
+- W8 is complete and reviewed.
+  - **Binding control:** The server includes the initial binding in WebSocket `ready` and sends ordered `web_binding` control messages on target changes. Browser roots update before channel traffic and before reconnect recovery notifications. Retarget does not replace the socket or advance its connection version. Stale socket messages cannot replace roots.
+  - **Addressing:** Physical roots use `/workspaces/:workspace/viewpoints/:binding/:feature/` under the configured public origin. One content transport dispatches resources and viewpoint requests. Each HTTP request owns a workspace guard. Runtime dispatch retains the binding-selected Agent. Shallow-page validation rejects alternate directories and URL-parser aliases, while resource locations remain unchanged.
+  - **Cleanup and policy:** WebSocket setup owns its subscriptions and heartbeat through one disposable acquisition. The shared HTTP boundary retains its existing cache, hardening, and configured-origin CORS policy. An HTTP client that leaves during handler execution no longer strands a workspace guard after its response close event has already fired.
+  - **Browser coverage:** Playwright launches the built server with production Canvas and Chat and a test-only Canvas route surface. It proves independent sessions and binding lifetimes, same-socket retarget without surface remounting, and revoked URLs. Native relative and dynamic fragment links work without changing canonical HTML bytes. Accepted reads complete against their original Agent after retarget or close. Production Canvas reads remain unchanged.
+  - **Convention review:** HTTP requests and workspace pages compose cleanup in disposal stacks. Regression tests prove that failed unmounts and subscriptions do not interrupt remaining cleanup. URL inputs use a declared structural schema, while encoded roots preserve the shared brand. Names distinguish operations, capabilities, and state. Browser fixtures pair listeners and timers with cleanup and use a native input label.
+  - **Workspace page naming:** `openWorkspacePage()` opens the page's stateful browser integration without navigating. Its returned `workspacePage` owner and internal `pageLifetime` span session navigation and physical WebSocket replacements. The module and test use the `workspace-page` basename. The `acquisition` stack remains the initial rollback and ownership-transfer scope.
+  - **Simplification:** The WebSocket binder derives its complete initial message from the attachment instead of accepting separately assembled target fields. All wire message types and the server-message union derive from their declared schemas.
+  - **Checks:** `npm run check` passed with 997 tests passing and three skipped, including both hosts' Playwright tests.
+
 The rule in [`naming.host-role.md`](../docs/architecture/conventions/rules/naming.host-role.md) governs names introduced in W7 and subsequent units. W7 also applies the constrained-string rule to the `FeatureWebRootUrl` type. The remaining host-name and constrained-string migrations are unscheduled entries in [`backlog.md`](./backlog.md#convention-migrations). Select those repository-wide audits independently of this plan.
 
 ## Testing choice
 
 Use Playwright for browser and Electron coverage in this plan. Migrating existing Lightpanda tests is outside W7 through W9.
+
+The W8 test uses Playwright's Chromium. Install it with `npx playwright install chromium`. It builds and launches an isolated server distribution and writes `out/test-results/server-viewpoint.png` for review.
 
 The W7 test uses Electron's Chromium and records screenshots for review, not as pixel-diff baselines. The test launches hidden windows by default and asserts their visibility state. Set the `UIX_ELECTRON_TEST_SHOW_WINDOW` environment variable to `1` to display the window for debugging.
 
@@ -203,6 +215,8 @@ This unit proves the host path through the Canvas document route but does not sw
 **Review gate:** An Electron renderer URL reaches the attachment-selected Canvas route through the privileged protocol. Retarget updates the renderer binding before bound consumers render again. The previous URL fails, and window close revokes the route. Existing workspace resource and surface-module URLs remain unchanged. Complete pages resolve directory-relative requests and same-page fragments natively without base injection. A nested Canvas key does not change their resolution directory.
 
 ### W8: Carry bindings through the server host
+
+**Status:** Complete and reviewed.
 
 Include the initial binding in the accepted WebSocket bootstrap and add one server-owned control message for later target-generation changes. The browser WebSocket adapter updates its binding snapshot without replacing the socket. Map bound logical addresses to workspace-qualified HTTP locations while keeping the binding opaque.
 

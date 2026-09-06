@@ -30,6 +30,8 @@
     "apps/features/**/workspace/**/*.ts",
     "hosts/server/src/browser/**/*.ts",
     "hosts/server/src/resource-urls.ts",
+    "hosts/server/src/viewpoint-urls.ts",
+    "hosts/server/src/viewpoint-web.test.ts",
     "hosts/server/src/websocket-messages.ts",
     "hosts/electron/src/renderer/**/*.ts",
     "hosts/electron/src/renderer/**/*.tsx",

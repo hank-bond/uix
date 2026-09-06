@@ -10,16 +10,11 @@ import { createLogger } from "@uix/runtime/log";
 
 import { setMutableResponseHeaders } from "./mutable-response";
 import type { RegisteredWorkspace, WorkspaceRegistry } from "./registry";
-import {
-  toWorkspaceSessionPath,
-  WorkspacePageRoute,
-  WorkspaceSessionPageRoute,
-} from "./routes";
+import { WorkspacePageRoute, WorkspaceSessionPageRoute } from "./routes";
 import {
   bindWorkspaceWebSocket,
   bindWorkspaceWebSocketMessageRejection,
 } from "./workspace-websocket";
-import { toWebSocketReadyMessage } from "../websocket-messages";
 
 const log = createLogger("server-websocket");
 
@@ -153,19 +148,8 @@ function workspaceWebSocketHandler(
       workspaceGuard = undefined;
       connectionAttachment = acceptedAttachment;
       acceptedAttachment = undefined;
-      const readyMessage = toWebSocketReadyMessage(
-        connectionAttachment.target.sessionId,
-        toWorkspaceSessionPath(
-          registered.id,
-          connectionAttachment.target.sessionId,
-        ),
-      );
       messageRejection[Symbol.dispose]();
-      webSocketBinding = bindWorkspaceWebSocket(
-        socket,
-        connectionAttachment,
-        readyMessage,
-      );
+      webSocketBinding = bindWorkspaceWebSocket(socket, connectionAttachment);
     } catch (error) {
       disposeConnectionOwnership();
       log.error(

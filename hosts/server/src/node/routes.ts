@@ -6,6 +6,7 @@ export const WorkspacePageRoute = "/workspaces/:workspaceId";
 export const WorkspaceSessionPageRoute =
   "/workspaces/:workspaceId/sessions/:sessionId";
 export const WorkspaceResourceRoute = "/workspaces/:workspaceId/resources/*";
+export const WorkspaceViewpointRoute = "/workspaces/:workspaceId/viewpoints/*";
 
 /** Encode one stateless workspace-shell path. */
 export function toWorkspacePath(workspaceId: WorkspaceId): string {

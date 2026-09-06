@@ -39,6 +39,7 @@ A reserved word owns its approved meaning. Other senses of the same word are non
 | `supervisor` | noun | Lifecycle owner for keyed shared live children. It owns child identity, single-flight creation, independent guard admission, lifetime policy, and teardown, then provides the protected operational value through independent guards for ordinary work. | "the workspace supervisor", "the agent instance supervisor" | "the workspace router" for connection traffic |
 | `teardown` | noun | Owner-coordinated lifecycle process that ends one supervised shared child's lifecycle after policy admits it. Use `dispose` for the deterministic cleanup operation on one object. | "the supervisor starts instance teardown after every guard disposes" | "teardown the instance" (use "dispose the instance" or "start instance teardown") |
 | `viewpoint` | noun | A live object's position in ordered history, such as an agent instance's branch, leaf, or ref in a session tree. | "at the instance's session-branch viewpoint" | "the agent's session scope" |
+| `workspace page` | noun | One loaded browser page hosting one workspace across session navigation and connection replacements. Reloading, closing, or navigating away ends the page instance. Use `connection` for one physical transport connection and `session` for the selected conversation. | "the workspace page opens a replacement WebSocket", `openWorkspacePage()` | "the workspace page closes when its WebSocket disconnects" |
 
 ## Retired terms
 
