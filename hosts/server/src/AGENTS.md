@@ -12,12 +12,13 @@ The process side owns configuration, private workspace resolution, public locati
 
 ### Directories
 
-- **[browser/](./browser/AGENTS.md)** Browser-side server bootstraps for the catalog launcher and the shared workspace client over its WebSocket adapter.
+- **[browser/](./browser/AGENTS.md)** Server browser entries open workspace pages and connect shared clients to the public catalog and workspace WebSockets.
 - **[node/](./node/AGENTS.md)** Node-side server composition: boot-loaded workspace registration, HTTP routes, attachment-bound WebSocket dispatch, listener startup, and deterministic disposal.
 
 ### Source files
 
 - **[resource-urls.ts](./resource-urls.ts)** Maps host-neutral logical resource addresses to the server's HTTP content plane.
+- **[viewpoint-urls.ts](./viewpoint-urls.ts)** Encodes and decodes the server's attachment-bound feature directory URLs.
 - **[websocket-messages.ts](./websocket-messages.ts)** Defines and validates the server WebSocket transport's application messages.
 
 <!-- INDEX:END -->

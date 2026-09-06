@@ -27,7 +27,10 @@
     "packages/host/src/**/*.ts",
     "hosts/electron/src/main/**/*.ts",
     "hosts/electron/src/preload.ts",
+    "hosts/electron/src/preload.test.ts",
     "hosts/electron/src/channel-transport.ts",
+    "hosts/electron/src/viewpoint-urls.ts",
+    "hosts/electron/src/viewpoint-urls.test.ts",
     "hosts/server/src/*.ts",
     "hosts/server/src/node/**/*.ts",
     "apps/features/**/backend/**/*.ts",
@@ -41,5 +44,9 @@
   // workspace.ts is the web-only half of @uix/api (React surfaces,
   // CSSStyleSheet); nothing in the main process imports it, and it needs
   // the DOM lib this config deliberately lacks.
-  "exclude": ["packages/api/src/workspace.ts"]
+  "exclude": [
+    "packages/api/src/workspace.ts",
+    "hosts/server/src/viewpoint-web.test.ts",
+    "src/features/canvas/backend/document-html.browser.test.ts"
+  ]
 }

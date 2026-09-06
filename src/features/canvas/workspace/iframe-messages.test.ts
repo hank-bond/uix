@@ -1,27 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  asCanvasIframeMessage,
   forwardCanvasIframeMessage,
-  isCanvasIframeReady,
-  parseCanvasIframeMessage,
 } from "./iframe-messages";
 import { parseCanvasKey } from "../shared/addressing";
 
 const main = parseCanvasKey("main");
 
 describe("canvas iframe messages", () => {
-  it("accepts readiness only from the current Canvas key", () => {
-    expect(
-      isCanvasIframeReady({ type: "canvas:ready", key: "main" }, main),
-    ).toBe(true);
-    expect(
-      isCanvasIframeReady({ type: "canvas:ready", key: "other" }, main),
-    ).toBe(false);
-  });
-
   it("accepts a prompt carrying the current hydrated document", () => {
     expect(
-      parseCanvasIframeMessage(
+      asCanvasIframeMessage(
         {
           type: "canvas:prompt",
           key: "main",
@@ -31,7 +21,7 @@ describe("canvas iframe messages", () => {
         main,
       ),
     ).toEqual({
-      type: "prompt",
+      type: "canvas:prompt",
       key: "main",
       html: "<html><body>choice b</body></html>",
       prompt: "Respond to my choices",
@@ -40,7 +30,7 @@ describe("canvas iframe messages", () => {
 
   it("rejects malformed, empty, and wrong-canvas prompt messages", () => {
     expect(
-      parseCanvasIframeMessage(
+      asCanvasIframeMessage(
         {
           type: "canvas:prompt",
           key: "other",
@@ -51,7 +41,7 @@ describe("canvas iframe messages", () => {
       ),
     ).toBeUndefined();
     expect(
-      parseCanvasIframeMessage(
+      asCanvasIframeMessage(
         {
           type: "canvas:prompt",
           key: "main",
@@ -62,7 +52,7 @@ describe("canvas iframe messages", () => {
       ),
     ).toBeUndefined();
     expect(
-      parseCanvasIframeMessage(
+      asCanvasIframeMessage(
         {
           type: "canvas:prompt",
           key: "main",
@@ -72,6 +62,36 @@ describe("canvas iframe messages", () => {
         main,
       ),
     ).toBeUndefined();
+  });
+
+  it.each([
+    null,
+    [],
+    "message",
+    {},
+    { type: "canvas:writeback", key: "main", html: 1 },
+    { type: "canvas:writeback", key: "main", html: "" },
+    { type: "canvas:writeback", key: "Bad", html: "<p>Hi</p>" },
+    { type: "canvas:prompt", key: "main", html: "<p>Hi</p>", prompt: 1 },
+    { type: "canvas:prompt", key: "main", html: "<p>Hi</p>", prompt: "\n\t " },
+    { type: "unknown", key: "main", html: "<p>Hi</p>" },
+  ])("rejects unsupported message structure: %j", (value) => {
+    expect(asCanvasIframeMessage(value, main)).toBeUndefined();
+  });
+
+  it("accepts writeback and drops additional fields without mutating input", () => {
+    const input = {
+      type: "canvas:writeback",
+      key: "main",
+      html: "<p>Hi</p>",
+      extra: true,
+    };
+    expect(asCanvasIframeMessage(input, main)).toEqual({
+      type: "canvas:writeback",
+      key: main,
+      html: input.html,
+    });
+    expect(input.extra).toBe(true);
   });
 
   it("finishes writeback before prompting the agent", async () => {
@@ -87,7 +107,7 @@ describe("canvas iframe messages", () => {
 
     await forwardCanvasIframeMessage(
       {
-        type: "prompt",
+        type: "canvas:prompt",
         key: main,
         html: "<html></html>",
         prompt: "respond",
@@ -114,7 +134,7 @@ describe("canvas iframe messages", () => {
     await expect(
       forwardCanvasIframeMessage(
         {
-          type: "prompt",
+          type: "canvas:prompt",
           key: main,
           html: "<html></html>",
           prompt: "respond",
@@ -134,7 +154,7 @@ describe("canvas iframe messages", () => {
 
     await forwardCanvasIframeMessage(
       {
-        type: "writeback",
+        type: "canvas:writeback",
         key: main,
         html: "<html></html>",
       },
@@ -148,25 +168,35 @@ describe("canvas iframe messages", () => {
   });
 
   it("drops stale iframe work before writeback and between writeback and prompt", async () => {
-    let current = false;
+    let isCurrent = false;
     const writeback = vi.fn(() => Promise.resolve());
     const prompt = vi.fn(() => Promise.resolve());
     const message = {
-      type: "prompt" as const,
+      type: "canvas:prompt" as const,
       key: main,
       html: "<html></html>",
       prompt: "respond",
     };
 
-    await forwardCanvasIframeMessage(message, () => current, writeback, prompt);
+    await forwardCanvasIframeMessage(
+      message,
+      () => isCurrent,
+      writeback,
+      prompt,
+    );
     expect(writeback).not.toHaveBeenCalled();
 
-    current = true;
+    isCurrent = true;
     writeback.mockImplementation(() => {
-      current = false;
+      isCurrent = false;
       return Promise.resolve();
     });
-    await forwardCanvasIframeMessage(message, () => current, writeback, prompt);
+    await forwardCanvasIframeMessage(
+      message,
+      () => isCurrent,
+      writeback,
+      prompt,
+    );
 
     expect(writeback).toHaveBeenCalledOnce();
     expect(prompt).not.toHaveBeenCalled();

@@ -9,9 +9,14 @@ import {
 } from "vitest";
 
 import type { WorkspaceClient } from "@uix/api/workspace";
-import type { SessionLocationAdapter } from "@uix/client/workspace";
+import type {
+  AttachmentWebRootsObservable,
+  SessionLocationAdapter,
+} from "@uix/client/workspace";
 
-import { openWorkspaceWebSocket } from "./workspace-websocket";
+import { openWorkspacePage } from "./workspace-page";
+
+const initialBinding = { webBinding: "initial-binding" };
 
 class FakeWebSocket extends EventTarget {
   static readonly OPEN = 1;
@@ -45,28 +50,32 @@ type ReplaceState = (
   url?: string | URL | null,
 ) => void;
 
-interface WorkspaceWebSocketFixture {
+interface WorkspacePageFixture {
   readonly socket: FakeWebSocket;
   readonly status: { hidden: boolean; textContent: string };
   readonly replaceState: Mock<ReplaceState>;
   readonly pushState: Mock<ReplaceState>;
   readonly navigateHistory: (pathname: string) => void;
-  readonly workspaceWebSocket: Disposable;
+  readonly workspacePage: Disposable;
 }
 
+let testLifetime: DisposableStack;
+
 beforeEach(() => {
+  testLifetime = new DisposableStack();
   FakeWebSocket.instances.length = 0;
 });
 
 afterEach(() => {
+  testLifetime.dispose();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
-function createWorkspaceWebSocketFixture(
+function createWorkspacePageFixture(
   pathname: string,
-  options: Parameters<typeof openWorkspaceWebSocket>[0] = {},
-): WorkspaceWebSocketFixture {
+  options: Parameters<typeof openWorkspacePage>[0] = {},
+): WorkspacePageFixture {
   const status = { hidden: false, textContent: "Connecting…" };
   const location = {
     href: `https://uix.example${pathname}?ignored=yes#fragment`,
@@ -98,7 +107,7 @@ function createWorkspaceWebSocketFixture(
   });
   vi.stubGlobal("WebSocket", FakeWebSocket);
 
-  const workspaceWebSocket = openWorkspaceWebSocket(options);
+  const workspacePage = testLifetime.use(openWorkspacePage(options));
   const socket = FakeWebSocket.instances.at(-1);
   if (!socket) throw new Error("WebSocket was not constructed");
   expect(socket.location).toBe(`wss://uix.example${pathname}`);
@@ -111,19 +120,191 @@ function createWorkspaceWebSocketFixture(
       location.pathname = nextPathname;
       windowEvents.dispatchEvent(new Event("popstate"));
     },
-    workspaceWebSocket,
+    workspacePage,
   };
 }
 
-describe("browser workspace WebSocket", () => {
+describe("workspace page", () => {
+  // Binding roots and ownership
+
+  it("continues page cleanup when the mounted workspace fails to dispose", async () => {
+    vi.useFakeTimers();
+    let client: WorkspaceClient | undefined;
+    let roots: AttachmentWebRootsObservable | undefined;
+    const fixture = createWorkspacePageFixture("/workspaces/reference", {
+      readyHandler: (ready) => {
+        client = ready.client;
+        roots = ready.attachmentWebRootsObservable;
+        return {
+          [Symbol.dispose]: () => {
+            throw new Error("Unmount failed");
+          },
+        };
+      },
+    });
+    fixture.socket.emitMessage(
+      JSON.stringify({
+        type: "ready",
+        sessionId: "session-1",
+        canonicalPath: "/workspaces/reference/sessions/session-1",
+        ...initialBinding,
+      }),
+    );
+    if (!client || !roots) throw new Error("Workspace was not accepted");
+    const rejected = expect(
+      client.request("feature.read", undefined),
+    ).rejects.toMatchObject({ code: "connection_closed" });
+    expect(() => {
+      fixture.workspacePage[Symbol.dispose]();
+    }).toThrow("Unmount failed");
+    await rejected;
+    const observable = roots;
+    expect(() => observable.subscribe(() => {})).toThrow("disposed");
+    expect(fixture.socket.close).toHaveBeenCalledWith(1000, "Page closed");
+    fixture.workspacePage[Symbol.dispose]();
+    fixture.socket.emit("close");
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+  });
+
+  it("replaces roots before notifying channel and recovery consumers without remounting", async () => {
+    vi.useFakeTimers();
+    let roots: AttachmentWebRootsObservable | undefined;
+    let client: WorkspaceClient | undefined;
+    const mountHandler = vi.fn<
+      NonNullable<
+        NonNullable<Parameters<typeof openWorkspacePage>[0]>["readyHandler"]
+      >
+    >(({ attachmentWebRootsObservable, client: acceptedClient }) => {
+      roots = attachmentWebRootsObservable;
+      client = acceptedClient;
+      return { [Symbol.dispose]: vi.fn() };
+    });
+    const fixture = createWorkspacePageFixture("/workspaces/reference", {
+      readyHandler: mountHandler,
+    });
+    const ready = {
+      type: "ready",
+      sessionId: "session-1",
+      canonicalPath: "/workspaces/reference/sessions/session-1",
+      webBinding: "first",
+    };
+    fixture.socket.emitMessage(JSON.stringify(ready));
+    if (!roots || !client) throw new Error("Workspace was not accepted");
+    const observable = roots;
+    const first = observable.getSnapshot();
+    const firstUrl = first.toFeatureRootUrl("canvas");
+    const changed = vi.fn();
+    observable.subscribe(changed);
+    const eventRoots: string[] = [];
+    client.subscribe("feature.changed", () => {
+      eventRoots.push(observable.getSnapshot().toFeatureRootUrl("canvas"));
+    });
+    fixture.socket.emitMessage(
+      JSON.stringify({ type: "web_binding", binding: "next" }),
+    );
+    fixture.socket.emitMessage(
+      JSON.stringify({ type: "event", id: "e1", channel: "feature.changed" }),
+    );
+    expect(eventRoots).toEqual([
+      "https://uix.example/workspaces/reference/viewpoints/next/canvas/",
+    ]);
+    expect(first.toFeatureRootUrl("canvas")).toBe(firstUrl);
+    expect(client.connectionVersionObservable?.getSnapshot()).toBe(1);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+
+    const recoveryRoots: string[] = [];
+    client.connectionVersionObservable?.subscribe(() => {
+      recoveryRoots.push(observable.getSnapshot().toFeatureRootUrl("canvas"));
+    });
+    fixture.socket.emit("close");
+    await vi.advanceTimersByTimeAsync(250);
+    const replacement = FakeWebSocket.instances.at(-1);
+    if (!replacement || replacement === fixture.socket) {
+      throw new Error("Replacement WebSocket was not constructed");
+    }
+    replacement.emitMessage(
+      JSON.stringify({ ...ready, webBinding: "reconnected" }),
+    );
+    expect(recoveryRoots).toEqual([
+      "https://uix.example/workspaces/reference/viewpoints/reconnected/canvas/",
+    ]);
+    fixture.socket.emitMessage(
+      JSON.stringify({ type: "web_binding", binding: "stale" }),
+    );
+    expect(changed).toHaveBeenCalledTimes(2);
+    expect(mountHandler).toHaveBeenCalledOnce();
+    fixture.workspacePage[Symbol.dispose]();
+    replacement.emitMessage(
+      JSON.stringify({ type: "web_binding", binding: "disposed" }),
+    );
+    expect(changed).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([undefined, "", 123, {}])(
+    "rejects invalid initial bindings: %j",
+    (webBinding) => {
+      const readyHandler = vi.fn();
+      const fixture = createWorkspacePageFixture("/workspaces/reference", {
+        readyHandler,
+      });
+      fixture.socket.emitMessage(
+        JSON.stringify({
+          type: "ready",
+          sessionId: "session-1",
+          canonicalPath: "/workspaces/reference/sessions/session-1",
+          webBinding,
+        }),
+      );
+      expect(readyHandler).not.toHaveBeenCalled();
+      expect(fixture.socket.close).toHaveBeenCalledWith(
+        1002,
+        "Invalid WebSocket ready message",
+      );
+      fixture.workspacePage[Symbol.dispose]();
+    },
+  );
+
+  it("rejects binding updates before acceptance and malformed updates after acceptance", () => {
+    const early = createWorkspacePageFixture("/workspaces/reference");
+    early.socket.emitMessage(
+      JSON.stringify({ type: "web_binding", binding: "early" }),
+    );
+    expect(early.socket.close).toHaveBeenCalledWith(
+      1002,
+      "Invalid WebSocket ready message",
+    );
+    early.workspacePage[Symbol.dispose]();
+    const fixture = createWorkspacePageFixture("/workspaces/reference");
+    fixture.socket.emitMessage(
+      JSON.stringify({
+        type: "ready",
+        sessionId: "session-1",
+        canonicalPath: "/workspaces/reference/sessions/session-1",
+        ...initialBinding,
+      }),
+    );
+    fixture.socket.emitMessage(
+      JSON.stringify({ type: "web_binding", binding: "" }),
+    );
+    expect(fixture.socket.close).toHaveBeenCalledWith(
+      1002,
+      "Invalid WebSocket message",
+    );
+    fixture.workspacePage[Symbol.dispose]();
+  });
+
+  // Session locations
+
   it("canonicalizes a workspace-only location after the server accepts a new session", () => {
-    const { socket, status, replaceState, workspaceWebSocket } =
-      createWorkspaceWebSocketFixture("/workspaces/reference");
+    const { socket, status, replaceState, workspacePage } =
+      createWorkspacePageFixture("/workspaces/reference");
 
     socket.emit("open");
     expect(status.textContent).toBe("Opening workspace…");
     socket.emitMessage(
       JSON.stringify({
+        ...initialBinding,
         type: "ready",
         sessionId: "session-1",
         canonicalPath: "/workspaces/reference/sessions/session-1",
@@ -137,14 +318,14 @@ describe("browser workspace WebSocket", () => {
       "https://uix.example/workspaces/reference/sessions/session-1",
     );
 
-    workspaceWebSocket[Symbol.dispose]();
-    workspaceWebSocket[Symbol.dispose]();
+    workspacePage[Symbol.dispose]();
+    workspacePage[Symbol.dispose]();
     expect(socket.close).toHaveBeenCalledOnce();
     expect(socket.close).toHaveBeenCalledWith(1000, "Page closed");
   });
 
   it("uses the server's canonical route for an accepted named session", () => {
-    const { socket, status, replaceState } = createWorkspaceWebSocketFixture(
+    const { socket, status, replaceState } = createWorkspacePageFixture(
       "/workspaces/reference/sessions/session-1",
     );
 
@@ -153,6 +334,7 @@ describe("browser workspace WebSocket", () => {
         type: "ready",
         sessionId: "session-1",
         canonicalPath: "/workspaces/reference/sessions/session-1",
+        ...initialBinding,
       }),
     );
 
@@ -168,7 +350,7 @@ describe("browser workspace WebSocket", () => {
       sessionLocation?.synchronize(sessionId);
       return Promise.resolve();
     });
-    const fixture = createWorkspaceWebSocketFixture(
+    const fixture = createWorkspacePageFixture(
       "/workspaces/reference/sessions/session-1",
       {
         readyHandler: ({ sessionLocationAdapter }) => {
@@ -183,6 +365,7 @@ describe("browser workspace WebSocket", () => {
         type: "ready",
         sessionId: "session-1",
         canonicalPath: "/workspaces/reference/sessions/session-1",
+        ...initialBinding,
       }),
     );
     if (!sessionLocation) throw new Error("Session location was not accepted");
@@ -210,7 +393,7 @@ describe("browser workspace WebSocket", () => {
   it("restores the accepted location when history retargeting fails", async () => {
     let sessionLocation: SessionLocationAdapter | undefined;
     const navigate = vi.fn(() => Promise.reject(new Error("Unknown session")));
-    const fixture = createWorkspaceWebSocketFixture(
+    const fixture = createWorkspacePageFixture(
       "/workspaces/reference/sessions/session-1",
       {
         readyHandler: ({ sessionLocationAdapter }) => {
@@ -225,6 +408,7 @@ describe("browser workspace WebSocket", () => {
         type: "ready",
         sessionId: "session-1",
         canonicalPath: "/workspaces/reference/sessions/session-1",
+        ...initialBinding,
       }),
     );
     if (!sessionLocation) throw new Error("Session location was not accepted");
@@ -244,11 +428,12 @@ describe("browser workspace WebSocket", () => {
   });
 
   it("rejects a cross-origin canonical path or malformed ready message", () => {
-    const crossOrigin = createWorkspaceWebSocketFixture(
+    const crossOrigin = createWorkspacePageFixture(
       "/workspaces/reference/sessions/session-1",
     );
     crossOrigin.socket.emitMessage(
       JSON.stringify({
+        ...initialBinding,
         type: "ready",
         sessionId: "session-1",
         canonicalPath:
@@ -264,7 +449,7 @@ describe("browser workspace WebSocket", () => {
     crossOrigin.socket.emit("close");
     expect(crossOrigin.status.textContent).toBe("Unable to open workspace");
 
-    const malformed = createWorkspaceWebSocketFixture("/workspaces/reference");
+    const malformed = createWorkspacePageFixture("/workspaces/reference");
     malformed.socket.emitMessage("{}");
     expect(malformed.replaceState).not.toHaveBeenCalled();
     expect(malformed.socket.close).toHaveBeenCalledWith(
@@ -272,6 +457,8 @@ describe("browser workspace WebSocket", () => {
       "Invalid WebSocket ready message",
     );
   });
+
+  // Recovery and protocol failures
 
   it("reconnects to the canonical session, rejects pending work, and retains the mounted client", async () => {
     vi.useFakeTimers();
@@ -282,7 +469,7 @@ describe("browser workspace WebSocket", () => {
         return { [Symbol.dispose]: vi.fn() };
       },
     );
-    const fixture = createWorkspaceWebSocketFixture("/workspaces/reference", {
+    const fixture = createWorkspacePageFixture("/workspaces/reference", {
       readyHandler,
     });
     fixture.socket.emitMessage(
@@ -290,12 +477,13 @@ describe("browser workspace WebSocket", () => {
         type: "ready",
         sessionId: "session-1",
         canonicalPath: "/workspaces/reference/sessions/session-1",
+        ...initialBinding,
       }),
     );
     const accepted = acceptedClient;
     if (!accepted) throw new Error("Workspace client was not accepted");
     const versionChanged = vi.fn();
-    accepted.connectionVersion?.subscribe(versionChanged);
+    accepted.connectionVersionObservable?.subscribe(versionChanged);
     const pending = accepted.request("feature.mutate", { value: 1 });
 
     fixture.socket.emit("close");
@@ -317,12 +505,13 @@ describe("browser workspace WebSocket", () => {
         type: "ready",
         sessionId: "session-1",
         canonicalPath: "/workspaces/reference/sessions/session-1",
+        webBinding: "replacement-binding",
       }),
     );
 
     expect(readyHandler).toHaveBeenCalledOnce();
     expect(versionChanged).toHaveBeenCalledOnce();
-    expect(accepted.connectionVersion?.getSnapshot()).toBe(2);
+    expect(accepted.connectionVersionObservable?.getSnapshot()).toBe(2);
     expect(replacement.send).not.toHaveBeenCalled();
     expect(fixture.status.textContent).toBe("Connected");
     expect(fixture.status.hidden).toBe(true);
@@ -330,12 +519,13 @@ describe("browser workspace WebSocket", () => {
 
   it("presents server shutdown and reconnects to the accepted session after close", async () => {
     vi.useFakeTimers();
-    const fixture = createWorkspaceWebSocketFixture("/workspaces/reference");
+    const fixture = createWorkspacePageFixture("/workspaces/reference");
     fixture.socket.emitMessage(
       JSON.stringify({
         type: "ready",
         sessionId: "session-1",
         canonicalPath: "/workspaces/reference/sessions/session-1",
+        ...initialBinding,
       }),
     );
 
@@ -362,8 +552,9 @@ describe("browser workspace WebSocket", () => {
   });
 
   it("rejects a second ready message on one accepted connection", () => {
-    const fixture = createWorkspaceWebSocketFixture("/workspaces/reference");
+    const fixture = createWorkspacePageFixture("/workspaces/reference");
     const readyMessage = JSON.stringify({
+      ...initialBinding,
       type: "ready",
       sessionId: "session-1",
       canonicalPath: "/workspaces/reference/sessions/session-1",
@@ -381,12 +572,13 @@ describe("browser workspace WebSocket", () => {
 
   it("rejects a replacement connection that changes the canonical session", async () => {
     vi.useFakeTimers();
-    const fixture = createWorkspaceWebSocketFixture("/workspaces/reference");
+    const fixture = createWorkspacePageFixture("/workspaces/reference");
     fixture.socket.emitMessage(
       JSON.stringify({
         type: "ready",
         sessionId: "session-1",
         canonicalPath: "/workspaces/reference/sessions/session-1",
+        ...initialBinding,
       }),
     );
     fixture.socket.emit("close");
@@ -401,6 +593,7 @@ describe("browser workspace WebSocket", () => {
         type: "ready",
         sessionId: "session-2",
         canonicalPath: "/workspaces/reference/sessions/session-2",
+        webBinding: "replacement-binding",
       }),
     );
 
@@ -413,7 +606,7 @@ describe("browser workspace WebSocket", () => {
 
   it("closes the connection when an accepted session cannot enter history", () => {
     let sessionLocation: SessionLocationAdapter | undefined;
-    const fixture = createWorkspaceWebSocketFixture(
+    const fixture = createWorkspacePageFixture(
       "/workspaces/reference/sessions/session-1",
       {
         readyHandler: ({ sessionLocationAdapter }) => {
@@ -427,6 +620,7 @@ describe("browser workspace WebSocket", () => {
         type: "ready",
         sessionId: "session-1",
         canonicalPath: "/workspaces/reference/sessions/session-1",
+        ...initialBinding,
       }),
     );
     const acceptedLocation = sessionLocation;
@@ -450,7 +644,7 @@ describe("browser workspace WebSocket", () => {
   });
 
   it("does not accept a target when canonical history replacement fails", () => {
-    const { socket, status, replaceState } = createWorkspaceWebSocketFixture(
+    const { socket, status, replaceState } = createWorkspacePageFixture(
       "/workspaces/reference",
     );
     replaceState.mockImplementation(() => {
@@ -462,6 +656,7 @@ describe("browser workspace WebSocket", () => {
         type: "ready",
         sessionId: "session-1",
         canonicalPath: "/workspaces/reference/sessions/session-1",
+        ...initialBinding,
       }),
     );
 

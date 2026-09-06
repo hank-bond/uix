@@ -54,7 +54,7 @@ describe("server workspace runtime", () => {
       },
       piAppDataDir: join(root, "server-profile", "pi"),
       apiModuleDir,
-      resourceTransport: () => ({
+      contentTransportRegistrar: () => ({
         [Symbol.dispose]() {},
       }),
     });

@@ -32,7 +32,7 @@ A package can contain Pi extensions and UIX feature entries, but neither system 
 
 Main-owned stores and registries remain authoritative. Surfaces use typed channels for requests and events; they do not message peer surfaces or import backend owners.
 
-`TurnStateCoordinator` sequences branch-scoped feature snapshots and restoration. The model-context assembler combines model-visible sections. `WorkspaceReloadCoordinator` sequences feature replacement, Pi reconciliation, restoration, and renderer notification.
+`TurnStateCoordinator` sequences branch-scoped feature snapshots and restoration. The model-context assembler combines model-visible sections. `WorkspaceRuntime` owns feature replacement, Pi reconciliation, restoration, and renderer notification as its reload action.
 
 These coordinator and assembler roles do not become authorities over participant state. Each feature retains its own snapshot, restore, materialization, and domain behavior.
 

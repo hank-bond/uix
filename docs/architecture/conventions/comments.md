@@ -40,6 +40,8 @@ Before the condition occurs, the marker creates no pending work. Do not use it f
 
 Add a warning or explanation where code cannot explain itself. Examples include load-bearing order, external format tolerance, hidden ownership constraints, and non-obvious side effects or optimizations. Each should prevent a plausible wrong assumption.
 
+Assume familiarity with language features and repository conventions. Explain constraints specific to the code rather than general programming concepts or repository-wide rules. For example, document which addresses a branded type accepts rather than explaining how brands work. Put general explanations in the owning convention or reference.
+
 ## Source-file headers
 
 Every indexed authored production TypeScript and JavaScript file starts with one `//` summary sentence. Every indexed authored production CSS file starts with one single-line `/* */` summary. Every indexed authored production HTML file starts with one single-line `<!-- -->` summary. The summary starts on the first line and forms the first comment paragraph. A long summary may wrap onto continuation lines, and the generated index joins the paragraph into one line. The summary is sentence case: the first word starts with a capital letter. A summary that leads with a code identifier keeps the identifier's casing. The header is the summary plus at most one `//` elaboration paragraph, whose length scales with the file's size.

@@ -25,10 +25,16 @@ import type { AgentSnapshot, SessionSummary } from "./agent-channels";
 import { toChannelCanonicalId } from "./channel-resolution";
 import type { ChannelContract } from "./channels";
 import { isIdToken } from "./contribution-id";
+import type { FeatureWebRootUrl } from "./feature-web-root-url";
 import {
   FeatureSettingValueEnvelopeSchema,
   type SettingsDefinition,
 } from "./settings";
+import {
+  createWebRouteClient,
+  type WebRouteClient,
+  type WebRouteContract,
+} from "./web-routes";
 
 export type {
   ActionCatalog,
@@ -202,8 +208,8 @@ export function useInvokeAction(): (
 }
 
 // Section: Workspace client
-/** Observable connection version used to restart snapshot consumers after replacement. */
-export interface WorkspaceConnectionVersion {
+/** Tracks accepted physical connection replacements for snapshot recovery. */
+export interface WorkspaceConnectionVersionObservable {
   /** Return the current monotonic connection version. */
   readonly getSnapshot: () => number;
   /** Observe version changes and return the matching cleanup operation. */
@@ -221,8 +227,8 @@ export interface WorkspaceClient {
   ) => () => void;
   /** Map a logical UIX resource URL or origin to this host's browser transport. */
   readonly resolveResourceUrl?: (logicalUrl: string) => string;
-  /** Optional host-neutral recovery signal for replaceable physical connections. */
-  readonly connectionVersion?: WorkspaceConnectionVersion;
+  /** Notifies snapshot consumers after the host accepts a replacement connection. */
+  readonly connectionVersionObservable?: WorkspaceConnectionVersionObservable;
 }
 
 /** Resolve a logical resource address without making Electron callers provide an identity adapter. */
@@ -253,11 +259,11 @@ export function WorkspaceClientProvider({
   client,
   children,
 }: WorkspaceClientProviderProps): ReactNode {
-  const connectionVersion = client.connectionVersion;
+  const connectionVersionObservable = client.connectionVersionObservable;
   const version = useSyncExternalStore(
-    connectionVersion?.subscribe ?? subscribeStaticConnectionVersion,
-    connectionVersion?.getSnapshot ?? getStaticConnectionVersion,
-    connectionVersion?.getSnapshot ?? getStaticConnectionVersion,
+    connectionVersionObservable?.subscribe ?? subscribeStaticConnectionVersion,
+    connectionVersionObservable?.getSnapshot ?? getStaticConnectionVersion,
+    connectionVersionObservable?.getSnapshot ?? getStaticConnectionVersion,
   );
   // Preserve the mounted workspace while changing the context value identity.
   // Snapshot-backed effects key on this value, so an accepted replacement
@@ -277,6 +283,53 @@ export function useWorkspaceClient(): WorkspaceClient {
   const client = useContext(WorkspaceClientContext);
   if (!client) {
     throw new Error("WorkspaceClientProvider is missing");
+  }
+  return client;
+}
+
+// Section: Feature web routes
+// `undefined` means no provider; `null` means the mounted host has not supplied
+// viewpoint web addressing. Keeping those states distinct gives surface
+// authors an actionable error.
+const FeatureWebRouteRootContext = createContext<
+  FeatureWebRootUrl | null | undefined
+>(undefined);
+
+export interface FeatureWebRouteProviderProps {
+  /** Physical directory URL for this feature at one attachment-target generation. */
+  featureRootUrl?: FeatureWebRootUrl;
+  children: ReactNode;
+}
+
+/** Bind descendants to the mounted feature's current viewpoint web root. */
+export function FeatureWebRouteProvider({
+  featureRootUrl,
+  children,
+}: FeatureWebRouteProviderProps): ReactNode {
+  return createElement(
+    FeatureWebRouteRootContext.Provider,
+    { value: featureRootUrl ?? null },
+    children,
+  );
+}
+
+/** Derive one typed route client without exposing feature or binding identity. */
+export function useWebRouteClient<const Contract extends WebRouteContract>(
+  contract: Contract,
+): WebRouteClient<Contract> {
+  const featureRootUrl = useContext(FeatureWebRouteRootContext);
+  const client = useMemo(
+    () =>
+      typeof featureRootUrl === "string"
+        ? createWebRouteClient(contract, featureRootUrl)
+        : undefined,
+    [contract, featureRootUrl],
+  );
+  if (featureRootUrl === undefined) {
+    throw new Error("FeatureWebRouteProvider is missing");
+  }
+  if (!client) {
+    throw new Error("Viewpoint web routes are unavailable in this host");
   }
   return client;
 }

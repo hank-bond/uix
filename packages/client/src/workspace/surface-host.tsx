@@ -24,6 +24,7 @@ import {
   createFeatureSettingsClient,
   FeatureActionsProvider,
   FeatureSettingsProvider,
+  FeatureWebRouteProvider,
   resolveWorkspaceResourceUrl,
   type SurfaceChannelContracts,
   type SurfaceContribution,
@@ -32,6 +33,7 @@ import {
 } from "@uix/api/workspace";
 
 import { useActionRegistry } from "./action-context";
+import { useFeatureWebRootUrl } from "./attachment-web-roots-observable";
 
 /** The composed surface list plus where it came from (or didn't). */
 export interface SurfaceComposition {
@@ -89,6 +91,7 @@ export function SurfaceMount({
 }): JSX.Element {
   const workspace = useWorkspaceClient();
   const actionRegistry = useActionRegistry();
+  const featureRootUrl = useFeatureWebRootUrl(entry.featureId);
   const registerActions = useMemo(
     () => actionRegistry.forFeature(entry.featureId),
     [actionRegistry, entry.featureId],
@@ -122,11 +125,13 @@ export function SurfaceMount({
   }, [surface]);
 
   return (
-    <FeatureActionsProvider register={registerActions}>
-      <FeatureSettingsProvider client={settings}>
-        {surface.render(clients)}
-      </FeatureSettingsProvider>
-    </FeatureActionsProvider>
+    <FeatureWebRouteProvider featureRootUrl={featureRootUrl}>
+      <FeatureActionsProvider register={registerActions}>
+        <FeatureSettingsProvider client={settings}>
+          {surface.render(clients)}
+        </FeatureSettingsProvider>
+      </FeatureActionsProvider>
+    </FeatureWebRouteProvider>
   );
 }
 

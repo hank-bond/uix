@@ -11,11 +11,19 @@ import {
 } from "@uix/api/workspace";
 
 import type { ActionInvocationSource } from "./workspace/action-invocation-source";
+import {
+  type AttachmentWebRootsObservable,
+  AttachmentWebRootsObservableProvider,
+} from "./workspace/attachment-web-roots-observable";
 import type { SessionLocationAdapter } from "./workspace/session-location";
 import { installSurfaceSharedModules } from "./workspace/surface-shared-modules";
 import { Workspace } from "./workspace/Workspace";
 
 export type { ActionInvocationSource } from "./workspace/action-invocation-source";
+export type {
+  AttachmentWebRootsObservable,
+  AttachmentWebRootsSnapshot,
+} from "./workspace/attachment-web-roots-observable";
 export type { SessionLocationAdapter } from "./workspace/session-location";
 
 export interface WorkspaceClientMountOptions {
@@ -26,6 +34,8 @@ export interface WorkspaceClientMountOptions {
   readonly sessionLocationAdapter?: SessionLocationAdapter;
   /** Routes host-owned native UI selections through the renderer action registry. */
   readonly actionInvocationSource?: ActionInvocationSource;
+  /** The host provides this observable after it bootstraps the attachment web binding. */
+  readonly attachmentWebRootsObservable?: AttachmentWebRootsObservable;
 }
 
 /** Mount the workspace and return its idempotent page-lifetime capability. */
@@ -34,6 +44,7 @@ export function mountWorkspaceClient({
   client,
   sessionLocationAdapter,
   actionInvocationSource,
+  attachmentWebRootsObservable,
 }: WorkspaceClientMountOptions): Disposable {
   installSurfaceSharedModules();
   const root = createRoot(target);
@@ -41,11 +52,14 @@ export function mountWorkspaceClient({
     createElement(
       StrictMode,
       null,
-      createElement(WorkspaceClientProvider, {
-        client,
-        children: createElement(Workspace, {
-          sessionLocationAdapter,
-          actionInvocationSource,
+      createElement(AttachmentWebRootsObservableProvider, {
+        observable: attachmentWebRootsObservable,
+        children: createElement(WorkspaceClientProvider, {
+          client,
+          children: createElement(Workspace, {
+            sessionLocationAdapter,
+            actionInvocationSource,
+          }),
         }),
       }),
     ),

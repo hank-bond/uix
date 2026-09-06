@@ -41,7 +41,7 @@ _Feature activation_ validates a definition and settings, runs its Workspace fac
 
 An _activated Workspace feature_ is the live result of one successful Workspace activation: its local values, registered contributions, retained Agent factory, and per-feature lifetime bag. An _Agent feature instance_ is the result of calling that Agent factory for one `AgentInstance`. It has its own local values, registrations, and feature bag. A failed factory removes that feature's partial work without stopping siblings.
 
-The _active feature composition_ is the set of activated Workspace features and the corresponding Agent feature instances. Reload rejects during an active turn or Agent feature-channel operation. An idle reload commits every viewpoint, replaces Workspace features, rebuilds each live Agent feature bag, reloads initialized Pi runtimes, and restores each viewpoint. Cleanup failures are reported after forward replacement reaches a coherent state.
+The _active feature composition_ is the set of activated Workspace features and the corresponding Agent feature instances. `WorkspaceRuntime` owns reload invocation and the reload guards held by active turns, Agent feature-channel handlers, and viewpoint web handlers. Reload rejects while a guard is held, and guard acquisition rejects during reload. An idle reload commits every viewpoint, replaces Workspace features, rebuilds each live Agent feature bag, reloads initialized Pi runtimes, and restores each viewpoint. Cleanup failures are reported after forward replacement reaches a coherent state.
 
 Do not call an activated feature instance a feature generation. Use _generation_ only for a modeled replaceable object graph, such as a staged manifest or Pi runtime. Feature lifecycle uses activation, instance, active composition, and replacement instance.
 
@@ -192,17 +192,17 @@ A _buffer_ is a live, feature-specific working projection over a store. It may c
 
 A buffer is not durable authority. It persists snapshots through its backing store and rebuilds from durable state when needed. Each `CanvasDocumentBuffer` keeps one Agent viewpoint's HTML and anchored document projections. `DocumentStore` owns the immutable versions referenced by Canvas turn state.
 
-## Controller
+## State
 
-A _controller_ is a renderer-owned, framework-independent state owner for one interactive domain. It translates intent into backend requests and consumes authoritative responses and events.
+_State_ is an owner's current authority within a defined scope. A state object may provide domain operations and change notifications as well as snapshot access. Its authority does not extend to the sources from which it derives a projection.
 
-The controller coordinates in-flight operations, rejects stale results, and publishes an immutable snapshot with narrow capabilities. React can adapt this API into context. Rendering and context lifetime remain separate.
+The `WorkspaceSessionState` object owns the renderer's session projection and pending mutations. It requests backend changes, incorporates authoritative responses and events, and prevents stale responses from replacing newer state. It replaces its snapshot and notifies listeners, while Pi and the workspace runtime remain authoritative for session graphs. React provides the state object's narrow capabilities to consumers without owning the interaction policy. Ordinary component-local state remains in React.
 
-A controller owns the renderer projection, not durable domain state. It does not persist data, own an external runtime, or coordinate registered contributions.
+## Observable
 
-Keep ordinary component-local state in React. Use a controller when multiple consumers must share one ordered interaction protocol.
+An _observable_ provides read-only access to a current snapshot and notifications when that snapshot changes. The `Observable` suffix names this consumer capability, not every owner that implements the observation protocol.
 
-`WorkspaceSessionController` coordinates session projections, agent activity, mutations, and stale-result versions. Main and Pi remain authoritative for durable session graphs.
+An owner can provide an observable interface backed by the same object. A separate wrapper is not required, and an observation-only interface is introduced only when a consumer boundary needs it. The [observable naming guidance](./conventions/naming.md#observable-capabilities) defines the protocol and its distinction from broader state owners.
 
 ## Sessions, attachments, and agent instances
 
@@ -289,7 +289,7 @@ The turn-state coordinator works across registered state cells:
 - Compares each cell independently with the selected branch.
 - Commits changed snapshots in one `uix.turn-state` session entry.
 
-`ProviderAuthFlowCoordinator` sequences one Pi-owned login flow across prompts, notices, link opening, answers, and cancellation. `WorkspaceReloadCoordinator` serializes candidate adoption, feature replacement, state restoration, and surface publication without taking ownership of those underlying authorities.
+`ProviderAuthFlowCoordinator` sequences one Pi-owned login flow across prompts, notices, link opening, answers, and cancellation. `WorkspaceRuntime` serializes candidate adoption, feature replacement, state restoration, and surface publication because it owns the complete reload action.
 
 A coordinator owns timing, in-flight workflow state, and cross-participant mechanics. Each participant retains authority. Features own cell behavior, Pi owns authentication, and the loader owns active feature instances.
 

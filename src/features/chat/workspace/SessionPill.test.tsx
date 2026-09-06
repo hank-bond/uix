@@ -81,7 +81,7 @@ describe("session pill", () => {
     expect(html).toContain("New conversation");
   });
 
-  it("disables switching while the workspace session controller is busy", () => {
+  it("disables switching when the session handle disallows it", () => {
     const html = renderToStaticMarkup(
       <WorkspaceSessionProvider
         session={{ ...session, canSwitchSession: false }}

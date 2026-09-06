@@ -20,17 +20,13 @@ export function createCanvasChannelContributions(
 ): readonly ChannelContribution[] {
   return [
     withHandlers(canvasChannels, {
-      read: {
-        handler: ({ key }) => ctx.buffer.readHtml(key),
-      },
       writeback: {
         async handler(req) {
           ctx.log.debug(
             { key: req.key, bytes: req.html.length },
             "canvas_writeback",
           );
-          // No broadcast: the pane already shows the human's edit, and the
-          // channel pulls from the canvas document buffer on its next turn.
+          // No broadcast: the iframe already shows the human's edit.
           await ctx.buffer.writeback(req.key, req.html);
         },
       },

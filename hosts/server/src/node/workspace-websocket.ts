@@ -14,13 +14,16 @@ import type {
 } from "@uix/runtime";
 import { createLogger } from "@uix/runtime/log";
 
+import { toWorkspaceSessionPath } from "./routes";
 import {
   recordMalformedInboundWebSocketCrossing,
   recordWebSocketCrossing,
 } from "./websocket-wire-log";
 import {
   parseWebSocketRequestMessage,
+  toWebSocketReadyMessage,
   tryParseWebSocketCorrelationId,
+  type WebSocketBindingMessage,
   type WebSocketErrorMessage,
   type WebSocketEventMessage,
   type WebSocketReadyMessage,
@@ -53,20 +56,30 @@ export function bindWorkspaceWebSocketMessageRejection(
   };
 }
 
-/** Bind post-handshake protocol processing to one attachment-owned connection. */
+/** Send the attachment's accepted target and bind protocol processing for this socket. */
 export function bindWorkspaceWebSocket(
   socket: WebSocket,
   attachment: Attachment,
-  readyMessage: WebSocketReadyMessage,
 ): Disposable {
+  using acquisition = new DisposableStack();
+  const lifetime = acquisition.use(new DisposableStack());
   const inFlightRequestIds = new Set<string>();
-  let isDisposed = false;
 
-  const eventSubscription = attachment.onEvent((event) => {
-    if (!isDisposed) sendEventMessage(socket, event);
-  });
+  lifetime.use(
+    attachment.onEvent((event) => {
+      if (!lifetime.disposed) sendEventMessage(socket, event);
+    }),
+  );
+  lifetime.use(
+    attachment.onWebBindingChange((binding) => {
+      if (lifetime.disposed) return;
+      // WebSocket delivery orders binding changes before subsequent channel traffic.
+      const message: WebSocketBindingMessage = { type: "web_binding", binding };
+      sendMessage(socket, message, "out:web_binding", message);
+    }),
+  );
   const messageHandler = (data: unknown, isBinary: boolean): void => {
-    if (isDisposed) return;
+    if (lifetime.disposed) return;
     if (isBinary) {
       recordMalformedInboundMessage();
       sendProtocolErrorMessage(
@@ -80,26 +93,19 @@ export function bindWorkspaceWebSocket(
     acceptWebSocketRequest(socket, attachment, inFlightRequestIds, data);
   };
   socket.on("message", messageHandler);
-  const heartbeat = bindHeartbeat(socket);
-
-  try {
-    sendMessage(socket, readyMessage, "out:ready", readyMessage);
-  } catch (error) {
-    heartbeat[Symbol.dispose]();
+  lifetime.defer(() => {
     socket.off("message", messageHandler);
-    eventSubscription[Symbol.dispose]();
-    throw error;
-  }
+  });
+  lifetime.use(bindHeartbeat(socket));
 
-  return {
-    [Symbol.dispose](): void {
-      if (isDisposed) return;
-      isDisposed = true;
-      heartbeat[Symbol.dispose]();
-      socket.off("message", messageHandler);
-      eventSubscription[Symbol.dispose]();
-    },
-  };
+  const sessionId = attachment.target.sessionId;
+  const initial = toWebSocketReadyMessage(
+    sessionId,
+    toWorkspaceSessionPath(attachment.workspaceId, sessionId),
+    attachment.webBinding,
+  );
+  sendMessage(socket, initial, "out:ready", initial);
+  return acquisition.move();
 }
 
 function bindHeartbeat(socket: WebSocket): Disposable {
@@ -329,6 +335,7 @@ function sendMessage<Payload>(
   socket: WebSocket,
   message:
     | WebSocketReadyMessage
+    | WebSocketBindingMessage
     | WebSocketResponseMessage
     | WebSocketErrorMessage
     | WebSocketEventMessage,

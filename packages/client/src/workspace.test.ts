@@ -1,9 +1,11 @@
 import type { ReactElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import { parseFeatureWebRootUrl } from "@uix/api/feature-web-root-url";
 import type { WorkspaceClient } from "@uix/api/workspace";
 
 import type { ActionInvocationSource } from "./workspace/action-invocation-source";
+import type { AttachmentWebRootsObservable } from "./workspace/attachment-web-roots-observable";
 import type { SessionLocationAdapter } from "./workspace/session-location";
 
 const fakes = vi.hoisted(() => ({
@@ -44,21 +46,36 @@ describe("mountWorkspaceClient", () => {
       synchronize: vi.fn(),
       subscribe: vi.fn(() => () => undefined),
     };
+    const attachmentWebRootsObservable: AttachmentWebRootsObservable = {
+      getSnapshot: () => ({
+        toFeatureRootUrl: (featureId) =>
+          parseFeatureWebRootUrl(
+            `https://host.example/viewpoints/binding/${featureId}/`,
+          ),
+      }),
+      subscribe: vi.fn(() => () => undefined),
+    };
 
     const mounted = mountWorkspaceClient({
       target,
       client,
       sessionLocationAdapter,
       actionInvocationSource,
+      attachmentWebRootsObservable,
     });
 
     expect(fakes.installSurfaceSharedModules).toHaveBeenCalledOnce();
     expect(fakes.createRoot).toHaveBeenCalledWith(target);
     expect(fakes.render).toHaveBeenCalledOnce();
     const strictMode = fakes.render.mock.calls[0]?.[0] as ReactElement<{
-      children: ReactElement<{ children: ReactElement }>;
+      children: ReactElement<{
+        observable: AttachmentWebRootsObservable;
+        children: ReactElement<{ children: ReactElement }>;
+      }>;
     }>;
-    expect(strictMode.props.children.props.children.props).toMatchObject({
+    const rootsProvider = strictMode.props.children;
+    expect(rootsProvider.props.observable).toBe(attachmentWebRootsObservable);
+    expect(rootsProvider.props.children.props.children.props).toMatchObject({
       sessionLocationAdapter,
       actionInvocationSource,
     });

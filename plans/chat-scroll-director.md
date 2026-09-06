@@ -4,7 +4,7 @@ summary: "Replace Chat's unconditional bottom-scroll effect with a chat-owned se
 
 # Chat scroll director
 
-Replace Chat's unconditional `scrollTop = scrollHeight` effect with one chat-owned controller for all programmatic transcript positioning. This is renderer behavior, not a substrate primitive: the controller consumes the existing `TranscriptItem` projection and the Chat DOM.
+Replace Chat's unconditional `scrollTop = scrollHeight` effect with one chat-owned scroll director for all programmatic transcript positioning. This is renderer behavior, not a substrate primitive: the director consumes the existing `TranscriptItem` projection and the Chat DOM.
 
 It builds on [conversation render primitives](../docs/design/conversation-render-primitives.md), especially durable/pre-key row identity, and respects [transcript keyed on persist](../docs/decisions/2026-06-09-transcript-keyed-on-persist.md). It follows the Chat work in [chat rendering polish](./chat-rendering-polish.md).
 
@@ -28,24 +28,24 @@ A manual wheel/touch/keyboard scroll suspends automated positioning for that tur
 
 ## Anchor model
 
-Do not add hidden layout elements per message. Each existing `article.msg` is the physical anchor. Give it a stable transcript-item id/ref and let the controller retain its viewport offset.
+Do not add hidden layout elements per message. Each existing `article.msg` is the physical anchor. Give it a stable transcript-item id/ref and let the director retain its viewport offset.
 
-The controller must understand three anchor intents:
+The director must support three anchor intents:
 
 1. **Bottom affinity**: retain distance from the bottom (normally zero).
 2. **Semantic turn anchor**: hold the initiating user, first assistant, or final assistant row at the configured top inset.
 3. **Reading/action anchor**: preserve the clicked tool row during a settings mutation, or otherwise preserve the first visible transcript row.
 
-Tool calls are born keyed. A streaming assistant row can rekey once. Migrate any active assistant anchor through the existing `previousId` replacement. The optimistic user echo is renderer-local, so the controller must adopt the canonical user row once it confirms.
+Tool calls are born keyed. A streaming assistant row can rekey once. Migrate any active assistant anchor through the existing `previousId` replacement. The optimistic user echo is renderer-local, so the director must adopt the canonical user row once it confirms.
 
-## S1: Controller core and layout-mutation preservation
+## S1: Scroll director core and layout-mutation preservation
 
 - Add stable row identity/ref registration to `ChatBlock`.
 - Replace the current item-change bottom-scroll effect in `Chat.tsx` with a `TranscriptScrollDirector` owned by the Chat surface.
 - Track programmatic versus user scroll so manual reading always wins.
 - Add a layout-mutation transaction: capture the active anchor before a tool display-setting write. After the confirmed setting render, measure the same row in a layout effect and compensate its `scrollTop` offset delta.
 - Use bottom affinity when already near the bottom, an active semantic anchor when pinned, and the clicked tool row/first visible row otherwise.
-- Disable native CSS scroll anchoring on the transcript container so it cannot double-compensate the controller.
+- Disable native CSS scroll anchoring on the transcript container so it cannot double-compensate the director.
 - Cover expanding and contracting tool params above, at, and below the anchor.
 
 Stop for review before S2.

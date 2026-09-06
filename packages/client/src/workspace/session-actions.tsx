@@ -6,7 +6,7 @@ import { useMemo } from "react";
 import type { ActionContribution } from "@uix/api/actions";
 import { useActionContribution } from "@uix/api/workspace";
 
-import { useWorkspaceSessionController } from "./session-context";
+import { useWorkspaceSessionState } from "./session-context";
 
 interface CreateWorkspaceSessionActionsOptions {
   newSession: () => Promise<unknown>;
@@ -33,13 +33,13 @@ export function createWorkspaceSessionActions(
 }
 
 export function WorkspaceSessionActions(): JSX.Element | null {
-  const controller = useWorkspaceSessionController();
+  const sessionState = useWorkspaceSessionState();
   const actions = useMemo(
     () =>
       createWorkspaceSessionActions({
-        newSession: () => controller.newSession(),
+        newSession: () => sessionState.newSession(),
       }),
-    [controller],
+    [sessionState],
   );
   useActionContribution(actions);
   return null;

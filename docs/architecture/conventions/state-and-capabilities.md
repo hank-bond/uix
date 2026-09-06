@@ -44,6 +44,8 @@ Do not introduce a generic lazy-cell abstraction until multiple consumers need i
 
 Handles hide by construction rather than enforcement. Code holding only `get(key)` cannot accidentally couple to another owner's slice. A module's reach remains visible from the handles in its context.
 
+An owner may implement the observation protocol alongside its domain operations. A consumer that only needs observation can receive a narrower interface backed by that same object. The [observable naming guidance](./naming.md#observable-capabilities) distinguishes that read-only capability from its owner without requiring a separate wrapper.
+
 Only the handle crosses the boundary, so later process separation becomes a transport swap instead of a redesign. This convention defines a trust model, not a sandbox. Iframe containment remains responsible for untrusted code.
 
 Two corollaries:

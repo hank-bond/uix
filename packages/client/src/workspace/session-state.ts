@@ -7,7 +7,7 @@ import type {
   SessionSummary,
 } from "@uix/api/agent-channels";
 
-interface WorkspaceSessionControllerOptions {
+interface WorkspaceSessionStateOptions {
   requestActiveHistory: () => Promise<SessionHistoryResponse>;
   requestRecentSessions: () => Promise<SessionSummary[]>;
   requestNewSession: () => Promise<SessionSummary>;
@@ -31,7 +31,7 @@ interface WorkspaceSessionSnapshot {
 type Listener = () => void;
 
 /** Renderer owner for the active-session projection and session mutations. */
-export class WorkspaceSessionController {
+export class WorkspaceSessionState {
   readonly #requestActiveHistory: () => Promise<SessionHistoryResponse>;
   readonly #requestRecentSessions: () => Promise<SessionSummary[]>;
   readonly #requestNewSession: () => Promise<SessionSummary>;
@@ -63,7 +63,7 @@ export class WorkspaceSessionController {
       }
     | undefined;
 
-  constructor(opts: WorkspaceSessionControllerOptions) {
+  constructor(opts: WorkspaceSessionStateOptions) {
     this.#requestActiveHistory = opts.requestActiveHistory;
     this.#requestRecentSessions = opts.requestRecentSessions;
     this.#requestNewSession = opts.requestNewSession;
@@ -95,7 +95,7 @@ export class WorkspaceSessionController {
     if (event.type === "agent_start") isAgentRunning = true;
     if (event.type === "agent_end") isAgentRunning = false;
     if (isAgentRunning === wasRunning) return;
-    this.#publish({ isAgentRunning });
+    this.#updateSnapshot({ isAgentRunning });
     if (wasRunning && !isAgentRunning && this.#snapshot.activeSession) {
       void this.loadRecentSessions().catch(() => {});
     }
@@ -113,7 +113,7 @@ export class WorkspaceSessionController {
         if (
           sessionSelectionVersion === this.#snapshot.sessionSelectionVersion
         ) {
-          this.#publish({ activeSession: result.session });
+          this.#updateSnapshot({ activeSession: result.session });
           this.#synchronizeLocation(result.session.sessionId);
         }
         return result;
@@ -137,7 +137,7 @@ export class WorkspaceSessionController {
             ({ sessionId }) => sessionId === activeSession.sessionId,
           )
         : undefined;
-      this.#publish({
+      this.#updateSnapshot({
         recentSessions: [...sessions],
         ...(refreshedActive && { activeSession: refreshedActive }),
       });
@@ -167,12 +167,12 @@ export class WorkspaceSessionController {
     title: string | null,
   ): Promise<SessionSummary | undefined> {
     if (this.#snapshot.isSessionMutationPending) return undefined;
-    this.#publish({ isSessionMutationPending: true });
+    this.#updateSnapshot({ isSessionMutationPending: true });
     try {
       const updated = await this.#requestSetSessionTitle(sessionId, title);
       ++this.#recentSessionsRequestVersion;
       const recentSessions = this.#snapshot.recentSessions;
-      this.#publish({
+      this.#updateSnapshot({
         ...(this.#snapshot.activeSession?.sessionId === updated.sessionId && {
           activeSession: updated,
         }),
@@ -189,7 +189,7 @@ export class WorkspaceSessionController {
       void this.loadRecentSessions().catch(() => {});
       return updated;
     } catch (error) {
-      this.#publish({ isSessionMutationPending: false });
+      this.#updateSnapshot({ isSessionMutationPending: false });
       throw error;
     }
   }
@@ -197,10 +197,10 @@ export class WorkspaceSessionController {
   async #runSessionMutation(
     request: () => Promise<SessionSummary>,
   ): Promise<SessionSummary> {
-    this.#publish({ isSessionMutationPending: true });
+    this.#updateSnapshot({ isSessionMutationPending: true });
     try {
       const activeSession = await request();
-      this.#publish({
+      this.#updateSnapshot({
         activeSession,
         recentSessions: undefined,
         sessionSelectionVersion: this.#snapshot.sessionSelectionVersion + 1,
@@ -213,7 +213,7 @@ export class WorkspaceSessionController {
       void this.loadRecentSessions().catch(() => {});
       return activeSession;
     } catch (error) {
-      this.#publish({ isSessionMutationPending: false });
+      this.#updateSnapshot({ isSessionMutationPending: false });
       throw error;
     }
   }
@@ -233,7 +233,7 @@ export class WorkspaceSessionController {
     }
   }
 
-  #publish(update: Partial<WorkspaceSessionSnapshot>): void {
+  #updateSnapshot(update: Partial<WorkspaceSessionSnapshot>): void {
     const next = { ...this.#snapshot, ...update };
     this.#snapshot = {
       ...next,

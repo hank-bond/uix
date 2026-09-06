@@ -1,8 +1,12 @@
-// Owns one reconnecting workspace connection, shutdown notices, and its stable client.
+// Owns one workspace page across session navigation and WebSocket reconnections.
 
 import type { WorkspaceClient } from "@uix/api/workspace";
-import type { SessionLocationAdapter } from "@uix/client/workspace";
+import type {
+  AttachmentWebRootsObservable,
+  SessionLocationAdapter,
+} from "@uix/client/workspace";
 
+import { AttachmentWebRootsState } from "./attachment-web-roots";
 import {
   createWorkspaceWebSocketAdapter,
   type WorkspaceWebSocketAdapter,
@@ -10,26 +14,35 @@ import {
 import { resolveServerResourceUrl } from "../resource-urls";
 import { parseWebSocketServerMessage } from "../websocket-messages";
 
-interface WorkspaceWebSocketReady {
+interface WorkspacePageReady {
   readonly client: WorkspaceClient;
+  readonly attachmentWebRootsObservable: AttachmentWebRootsObservable;
   readonly sessionId: string;
   readonly sessionLocationAdapter: SessionLocationAdapter;
 }
 
-interface OpenWorkspaceWebSocketOptions {
-  readonly readyHandler?: (
-    ready: WorkspaceWebSocketReady,
-  ) => Disposable | undefined;
+interface OpenWorkspacePageOptions {
+  readonly readyHandler?: (ready: WorkspacePageReady) => Disposable | undefined;
 }
 
-/** Own the concrete browser connection, recovery, and accepted session target. */
-export function openWorkspaceWebSocket(
-  options: OpenWorkspaceWebSocketOptions = {},
+/**
+ * Open the loaded workspace page's stateful browser integration without navigating.
+ *
+ * Call once per page load and dispose the returned owner when the page closes.
+ * Session navigation and socket replacement retain the page's mounted client.
+ */
+export function openWorkspacePage(
+  options: OpenWorkspacePageOptions = {},
 ): Disposable {
   const status = document.getElementById("status");
   if (!status) throw new Error("#status not found");
   const initialPath = window.location.pathname;
   const workspaceId = parseWorkspaceIdFromPath(initialPath);
+  using acquisition = new DisposableStack();
+  const pageLifetime = acquisition.use(new DisposableStack());
+  const webRoots = pageLifetime.use(
+    new AttachmentWebRootsState(window.location.origin, workspaceId),
+  );
 
   let activeSocket: WebSocket | undefined;
   let activeSocketListeners: AbortController | undefined;
@@ -38,13 +51,22 @@ export function openWorkspaceWebSocket(
   let acceptedSessionId: string | undefined;
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   let reconnectAttempt = 0;
-  let isDisposed = false;
   let hasFatalFailure = false;
   let historyNavigationTarget: string | undefined;
   let historyNavigation: Promise<void> | undefined;
   let sessionNavigationHandler:
     | ((sessionId: string) => Promise<void>)
     | undefined;
+
+  pageLifetime.defer(() => {
+    activeSocket?.close(1000, "Page closed");
+  });
+  pageLifetime.defer(() => {
+    activeSocketListeners?.abort();
+  });
+  pageLifetime.defer(() => {
+    sessionNavigationHandler = undefined;
+  });
 
   const getConnectionPath = (): string =>
     acceptedSessionId
@@ -79,7 +101,7 @@ export function openWorkspaceWebSocket(
   const reconcileHistoryLocation = (): void => {
     const previousSessionId = acceptedSessionId;
     if (
-      isDisposed ||
+      pageLifetime.disposed ||
       hasFatalFailure ||
       !previousSessionId ||
       historyNavigation
@@ -163,9 +185,11 @@ export function openWorkspaceWebSocket(
     reconnectTimer = undefined;
   };
 
+  pageLifetime.defer(clearReconnectTimer);
+
   const scheduleReconnect = (): void => {
     if (
-      isDisposed ||
+      pageLifetime.disposed ||
       hasFatalFailure ||
       activeSocket ||
       reconnectTimer !== undefined
@@ -183,13 +207,13 @@ export function openWorkspaceWebSocket(
   };
 
   const openSocketNow = (): void => {
-    if (isDisposed || hasFatalFailure || activeSocket) return;
+    if (pageLifetime.disposed || hasFatalFailure || activeSocket) return;
     clearReconnectTimer();
     openSocket();
   };
 
   const openSocket = (): void => {
-    if (isDisposed || hasFatalFailure || activeSocket) return;
+    if (pageLifetime.disposed || hasFatalFailure || activeSocket) return;
     const socket = new WebSocket(resolveWebSocketLocation());
     const socketListeners = new AbortController();
     activeSocket = socket;
@@ -199,7 +223,7 @@ export function openWorkspaceWebSocket(
     socket.addEventListener(
       "open",
       () => {
-        if (isDisposed || socket !== activeSocket) return;
+        if (pageLifetime.disposed || socket !== activeSocket) return;
         status.hidden = false;
         status.textContent = webSocketAdapter
           ? "Reopening workspace…"
@@ -210,7 +234,8 @@ export function openWorkspaceWebSocket(
     socket.addEventListener(
       "message",
       (event) => {
-        if (isDisposed || socket !== activeSocket) return;
+        if (pageLifetime.disposed || hasFatalFailure || socket !== activeSocket)
+          return;
         try {
           if (typeof event.data !== "string") {
             throw new Error("WebSocket messages must be text");
@@ -255,22 +280,29 @@ export function openWorkspaceWebSocket(
             acceptedSessionId = readyMessage.sessionId;
             isAccepted = true;
             reconnectAttempt = 0;
+            // Publish roots before mount or recovery notifies snapshot consumers.
+            webRoots.setBinding(readyMessage.webBinding);
             if (!webSocketAdapter) {
-              webSocketAdapter = createWorkspaceWebSocketAdapter(
-                socket,
-                workspaceId,
-                (logicalUrl) =>
-                  resolveServerResourceUrl(
-                    window.location.origin,
-                    workspaceId,
-                    logicalUrl,
-                  ),
+              webSocketAdapter = pageLifetime.use(
+                createWorkspaceWebSocketAdapter(
+                  socket,
+                  workspaceId,
+                  (logicalUrl) =>
+                    resolveServerResourceUrl(
+                      window.location.origin,
+                      workspaceId,
+                      logicalUrl,
+                    ),
+                ),
               );
-              clientMount = options.readyHandler?.({
-                client: webSocketAdapter.client,
-                sessionId: readyMessage.sessionId,
-                sessionLocationAdapter,
-              });
+              clientMount = pageLifetime.use(
+                options.readyHandler?.({
+                  client: webSocketAdapter.client,
+                  attachmentWebRootsObservable: webRoots,
+                  sessionId: readyMessage.sessionId,
+                  sessionLocationAdapter,
+                }),
+              );
             } else {
               webSocketAdapter.setSocket(socket);
             }
@@ -280,6 +312,10 @@ export function openWorkspaceWebSocket(
           }
           if (!isAccepted) {
             throw new Error("First WebSocket message did not accept a session");
+          }
+          if (serverMessage.type === "web_binding") {
+            webRoots.setBinding(serverMessage.binding);
+            return;
           }
           webSocketAdapter?.messageHandler(serverMessage, socket);
         } catch {
@@ -299,7 +335,8 @@ export function openWorkspaceWebSocket(
     socket.addEventListener(
       "error",
       () => {
-        if (isDisposed || socket !== activeSocket || hasFatalFailure) return;
+        if (pageLifetime.disposed || socket !== activeSocket || hasFatalFailure)
+          return;
         status.hidden = false;
         status.textContent = webSocketAdapter
           ? "Connection interrupted…"
@@ -316,7 +353,7 @@ export function openWorkspaceWebSocket(
           activeSocket = undefined;
           activeSocketListeners = undefined;
         }
-        if (!isDisposed && !hasFatalFailure) scheduleReconnect();
+        if (!pageLifetime.disposed && !hasFatalFailure) scheduleReconnect();
       },
       { signal: socketListeners.signal },
     );
@@ -328,30 +365,22 @@ export function openWorkspaceWebSocket(
   const visibilityHandler = (): void => {
     if (document.visibilityState === "visible") openSocketNow();
   };
-  window.addEventListener("online", onlineHandler);
-  window.addEventListener("popstate", reconcileHistoryLocation);
-  document.addEventListener("visibilitychange", visibilityHandler);
+  const pageListeners = new AbortController();
+  pageLifetime.defer(() => {
+    pageListeners.abort();
+  });
+  window.addEventListener("online", onlineHandler, {
+    signal: pageListeners.signal,
+  });
+  window.addEventListener("popstate", reconcileHistoryLocation, {
+    signal: pageListeners.signal,
+  });
+  document.addEventListener("visibilitychange", visibilityHandler, {
+    signal: pageListeners.signal,
+  });
   openSocket();
 
-  return {
-    [Symbol.dispose](): void {
-      if (isDisposed) return;
-      isDisposed = true;
-      clearReconnectTimer();
-      window.removeEventListener("online", onlineHandler);
-      window.removeEventListener("popstate", reconcileHistoryLocation);
-      document.removeEventListener("visibilitychange", visibilityHandler);
-      sessionNavigationHandler = undefined;
-      activeSocketListeners?.abort();
-      activeSocketListeners = undefined;
-      clientMount?.[Symbol.dispose]();
-      clientMount = undefined;
-      webSocketAdapter?.[Symbol.dispose]();
-      webSocketAdapter = undefined;
-      activeSocket?.close(1000, "Page closed");
-      activeSocket = undefined;
-    },
-  };
+  return acquisition.move();
 }
 
 function deriveReconnectDelayMs(attempt: number): number {

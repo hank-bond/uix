@@ -5,7 +5,7 @@ read_when: "Implementing the workspace runtime, or changing the boundary the hos
 
 # Workspace runtime source map
 
-This package owns the runtime-facing contract and its implementation. An in-memory proof defined the smallest executable shape. The real substrate then moved out of `src/main` behind it. The runtime constructor (`runtime.ts`) composes documents, manifest store, workspace settings, facet registries, one workspace agent runtime, unified attachments, the surface pipeline, and the reload coordinator. The host imports this package and provides the runtime's dependencies as adapters. The generic `Guard<Value>` capability gives workspace and agent-instance supervisors one guard contract without exposing owner disposal. Nothing here imports a concrete host, and the envelope carries no transport or tenancy fields.
+This package owns the runtime-facing contract and its implementation. An in-memory proof defined the smallest executable shape. The real substrate then moved out of `src/main` behind it. The runtime constructor (`runtime.ts`) composes documents, manifest store, workspace settings, facet registries, one workspace agent runtime, unified attachments, the surface pipeline, and its reload pipeline. The host imports this package and provides the runtime's dependencies as adapters. The generic `Guard<Value>` capability gives workspace and agent-instance supervisors one guard contract without exposing owner disposal. Nothing here imports a concrete host, and the envelope carries no transport or tenancy fields.
 
 ## Contents
 
@@ -24,7 +24,10 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 
 - **[agent-skill-registry.ts](./agent-skill-registry.ts)** Assembles feature-provided Pi skill paths and provides them when Pi discovers runtime resources.
 - **[agent-system-prompt-registry.ts](./agent-system-prompt-registry.ts)** Assembles each feature's system-prompt section in workspace order for Pi.
+- **[attachment-web-bindings.ts](./attachment-web-bindings.ts)** Owns private web bindings that retain one attachment-target generation until revocation.
+- **[attachment.ts](./attachment.ts)** Owns one connection's Agent target, retained request authority, web binding, event observation, and disposal.
 - **[channel-registry.ts](./channel-registry.ts)** Owns Workspace channel contracts, their namespace catalog, and selected request routing to per-Agent handlers.
+- **[content-transport.ts](./content-transport.ts)** Defines the host content boundary shared by workspace resources and viewpoint web routes.
 - **[dispatch.ts](./dispatch.ts)** Canonical request preparation and the attachment-stamped dispatch context.
 - **[document-store.ts](./document-store.ts)** Persists mutable document content and caller-supplied immutable versions under stable IDs.
 - **[events.ts](./events.ts)** Explicitly scoped canonical runtime events for host-selected delivery.
@@ -34,14 +37,15 @@ This package owns the runtime-facing contract and its implementation. An in-memo
 - **[log.ts](./log.ts)** Creates main-process loggers that label messages by component and choose readable or JSON output for the environment.
 - **[manifest-store.ts](./manifest-store.ts)** Reads workspace manifests into staged copies and atomically writes the accepted copy back to disk.
 - **[operation-tracker.ts](./operation-tracker.ts)** Provides lexical cancellable operations that a parent can cancel and join during shutdown.
-- **[reload.ts](./reload.ts)** Reloads idle Workspace and Agent features before Pi resources, restored state, and renderer notification.
 - **[resource-registry.ts](./resource-registry.ts)** Routes resource URLs to the active feature handlers through one validated boundary.
 - **[runtime.ts](./runtime.ts)** Composes the workspace substrate into one exactly-one-workspace runtime over host-provided dependencies.
 - **[settings-namespace.ts](./settings-namespace.ts)** Defines a named, schema-checked group of workspace settings.
 - **[settings-registry.ts](./settings-registry.ts)** Retains validated settings for each live scope, notifies listeners, and delegates persistence to the workspace layer.
 - **[turn-state.ts](./turn-state.ts)** Commits and restores each feature's private branch state in Pi sessions without showing it to the model.
+- **[web-route-registry.ts](./web-route-registry.ts)** Stores web route contracts and handlers for a Workspace or viewpoint.
+- **[web-route-response.ts](./web-route-response.ts)** Adapts validated viewpoint web results into browser responses without changing their bodies.
 - **[workspace-roots.ts](./workspace-roots.ts)** Resolves stable paths for workspace state, the agent working directory, and the manifest from one startup target.
 - **[workspace-settings.ts](./workspace-settings.ts)** Validates a staged manifest's settings, makes them live together, and connects them to their persisted locations.
-- **[workspace.ts](./workspace.ts)** The workspace-runtime contract: ids, session targets, and the exactly-one-workspace runtime surface a host composes.
+- **[workspace.ts](./workspace.ts)** The host-facing contract for one workspace runtime and its attachments.
 
 <!-- INDEX:END -->

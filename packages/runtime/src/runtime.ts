@@ -30,11 +30,17 @@ import {
 } from "./agent/session-manager";
 import { agentWorkspaceSettings } from "./agent/settings";
 import { createWorkspaceAgentRuntime } from "./agent/workspace-agent-runtime";
+import { Attachment, type AttachmentOwner } from "./attachment";
+import {
+  type AttachmentWebBindingHandle,
+  AttachmentWebBindingRegistry,
+} from "./attachment-web-bindings";
 import {
   ChannelRegistry,
   createFeatureEventPublisherFactory,
   registerChannelContributions,
 } from "./channel-registry";
+import type { ContentTransportRegistrar } from "./content-transport";
 import type {
   AttachmentDispatchContext,
   CanonicalRequest,
@@ -57,19 +63,19 @@ import { AsyncDisposableBag, disposable, DisposableBag } from "./lifecycle";
 import { createLogger } from "./log";
 import { WorkspaceManifestStore } from "./manifest-store";
 import { OperationTracker } from "./operation-tracker";
-import { createWorkspaceReloadCoordinator } from "./reload";
 import {
   registerResourceContributions,
   ResourceRegistry,
-  type ResourceTransportRegistrar,
 } from "./resource-registry";
 import { SettingsRegistry } from "./settings-registry";
+import { WebRouteContractRegistry } from "./web-route-registry";
+import { toWebRouteResponse } from "./web-route-response";
 import type {
-  Attachment as AttachmentContract,
   AttachmentAdmission,
-  AttachmentId,
   CreatedAttachment,
   SessionTarget,
+  ViewpointWebRequest,
+  ViewpointWebResponse,
   WorkspaceId,
   WorkspaceRuntime as WorkspaceRuntimeContract,
 } from "./workspace";
@@ -77,13 +83,15 @@ import { toAttachmentId, toSessionId } from "./workspace";
 import type { Workspace } from "./workspace-roots";
 import { createWorkspaceSettings } from "./workspace-settings";
 
+const webRouteLog = createLogger("web-routes");
+
 /** The dependencies a host provides. The runtime declares them, never imports them. */
 export interface WorkspaceRuntimeDependencies {
   /**
-   * Resource serving on the reserved substrate origin. Omitted when the host
-   * does not serve resources (the registry still owns routes, unbound).
+   * Shared workspace resource and viewpoint web delivery. Omitted when the
+   * host does not serve browser content. Registries still own their routes.
    */
-  resourceTransport?: ResourceTransportRegistrar;
+  contentTransportRegistrar?: ContentTransportRegistrar;
   /**
    * Optionally launch retained Pi provider-auth links.
    * The host owns failure logging and must not throw.
@@ -104,29 +112,10 @@ export interface WorkspaceRuntimeOptions {
 }
 
 /**
- * The runtime-internal surface an attachment closes over. Not part of the
- * WorkspaceRuntime contract: the host never sees these.
- */
-interface AttachmentOwner {
-  readonly workspaceId: WorkspaceId;
-  acquireAgentInstanceGuard(
-    target: SessionTarget,
-    openedManager?: SessionManager,
-    origin?: string,
-  ): Promise<AgentInstanceGuard>;
-  prepareDispatch(
-    context: Omit<AttachmentDispatchContext, "signal">,
-    request: CanonicalRequest,
-    disposeOperationGuard: () => void,
-  ): PreparedDispatch;
-  dropAttachment(attachment: Attachment): void;
-}
-
-/**
  * The exactly-one-workspace runtime. Owns the accepted feature composition,
- * settings, stores, registries, workspace agent runtime, and reload
- * coordinator under one lifetime bag. Disposing it removes only this
- * workspace's state and routes.
+ * settings, stores, registries, workspace agent runtime, and reload pipeline
+ * under one lifetime bag. Disposing it removes only this workspace's state
+ * and routes.
  */
 class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   readonly #workspaceId: WorkspaceId;
@@ -134,6 +123,8 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   readonly #featuresBag = new AsyncDisposableBag();
   readonly #channels: ChannelRegistry;
   readonly #resources: ResourceRegistry;
+  readonly #attachmentWebBindings = new AttachmentWebBindingRegistry();
+  readonly #viewpointWebRoutes = new WebRouteContractRegistry();
   readonly #settingsRegistry: SettingsRegistry;
   readonly #surfaces = new SurfaceRegistry();
   readonly #surfacePipeline: SurfaceModulePipeline;
@@ -141,13 +132,6 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   readonly #openFallbackSession: () => Promise<OpenedPrimarySession>;
   readonly #uixPublisher: FeatureEventPublisher<typeof substrateChannels>;
   readonly #substrate: FeatureSubstrate;
-  readonly #reloadCoordinator: {
-    reload(): Promise<{
-      featureActivation: ActivationResult;
-      piResourcesReloaded: boolean;
-      turnStateCommitted: boolean;
-    }>;
-  };
   readonly #attachments = new Set<Attachment>();
   readonly #listeners = new Set<(event: RuntimeEvent) => void>();
   readonly #dispatchOperations = new OperationTracker();
@@ -156,6 +140,9 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   #agentFeatures: readonly ActivatedAgentFeature[] = [];
   #nextAttachment = 0;
   #nextEventId = 0;
+  #reloadTail: Promise<void> = Promise.resolve();
+  #reloadGuardCount = 0;
+  #isReloadActive = false;
   #disposal: Promise<void> | undefined;
   #disposed = false;
 
@@ -165,6 +152,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     const { workspace, piAppDataDir, dependencies } = opts;
     this.#lifetime.add(this.#bag);
     this.#lifetime.add(this.#featuresBag);
+    this.#bag.add(this.#attachmentWebBindings);
 
     const documents = createLocalDocumentStoreFactory(workspace.stateRoot);
     const workspaceManifest = this.#bag.add(
@@ -180,9 +168,22 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     this.#resources = this.#bag.add(
       new ResourceRegistry({
         workspaceId: this.#workspaceId,
-        transportRegistrar: dependencies.resourceTransport,
       }),
     );
+    if (dependencies.contentTransportRegistrar) {
+      this.#bag.add(
+        dependencies.contentTransportRegistrar(async (content) => {
+          switch (content.kind) {
+            case "resource":
+              return this.#resources.dispatch(content.request);
+            case "viewpoint":
+              return toWebRouteResponse(
+                await this.dispatchViewpointWebRequest(content.request),
+              );
+          }
+        }),
+      );
+    }
     this.#channels = new ChannelRegistry({
       publish: (channel, payload, logOptions) => {
         this.#emit({ kind: "workspace" }, channel, payload, logOptions);
@@ -214,6 +215,7 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
     };
 
     this.#agentRuntime = createWorkspaceAgentRuntime({
+      acquireReloadGuard: (label) => this.#acquireReloadGuard(label),
       documents,
       onEvent: (sessionId, event) => {
         logChatContent(event);
@@ -485,22 +487,10 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
             canonicalId,
             payload,
           ),
+        viewpointWebRoutes: this.#viewpointWebRoutes,
         surfaces: this.#surfaces,
       },
     };
-
-    this.#reloadCoordinator = createWorkspaceReloadCoordinator({
-      acquireReloadAdmission: () => this.#agentRuntime.acquireReloadAdmission(),
-      commitTurnState: () => this.#agentRuntime.commitFeatureTurnState(),
-      loadFeatures: () => this.#loadFeatures(),
-      featureCleanupErrors: (activation) => activation.cleanupErrors ?? [],
-      reloadAgentFeatures: () => this.#agentRuntime.reloadFeatureInstances(),
-      reloadPiResources: () => this.#agentRuntime.reloadPiResources(),
-      restoreTurnState: () => this.#agentRuntime.restoreFeatureTurnState(),
-      publishSurfacesChanged: () => {
-        this.#uixPublisher.surfaces_changed({});
-      },
-    });
   }
 
   get workspaceId(): WorkspaceId {
@@ -547,57 +537,119 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   }
 
   /**
-   * Replace the active feature composition and Pi resource tier: commit turn
-   * state, re-activate features, reload Pi resources, restore turn state, then
-   * publish surfaces_changed for the renderer. Serialized by the coordinator.
+   * Serialize reloads, exclude guarded Agent work, and replace the active
+   * feature composition through Pi reconciliation, restoration, and publication.
    */
-  async #reload(): Promise<ReloadResult> {
-    const reloadLog = createLogger("workspace");
-    reloadLog.debug({}, "reload_started");
-    try {
-      const { featureActivation, piResourcesReloaded, turnStateCommitted } =
-        await this.#reloadCoordinator.reload();
-      if (!turnStateCommitted) {
-        reloadLog.warn(
-          {},
-          "reload_turn_state_commit_skipped_restoration_pending",
+  #reload(): Promise<ReloadResult> {
+    const reload = this.#reloadTail.then(async () => {
+      const reloadLog = createLogger("workspace");
+      reloadLog.debug({}, "reload_started");
+      try {
+        if (this.#reloadGuardCount > 0) {
+          throw new Error("Cannot reload while a reload guard is held");
+        }
+        this.#isReloadActive = true;
+        using _reloadScope = disposable(() => {
+          this.#isReloadActive = false;
+        });
+
+        const didCommitTurnState =
+          await this.#agentRuntime.commitFeatureTurnState();
+        const featureActivation = await this.#loadFeatures();
+        const errors: unknown[] = [...(featureActivation.cleanupErrors ?? [])];
+        try {
+          errors.push(...(await this.#agentRuntime.reloadFeatureInstances()));
+        } catch (thrown) {
+          errors.push(thrown);
+        }
+
+        let didReloadPiResources = false;
+        try {
+          didReloadPiResources = await this.#agentRuntime.reloadPiResources();
+        } catch (thrown) {
+          errors.push(thrown);
+        }
+
+        try {
+          await this.#agentRuntime.restoreFeatureTurnState();
+        } catch (thrown) {
+          errors.push(thrown);
+        }
+
+        // Once activation has replaced the backend composition, the renderer
+        // must reconcile even when a later phase failed. Error surfaces and
+        // successfully activated siblings are still authoritative.
+        this.#uixPublisher.surfaces_changed({});
+
+        if (errors.length > 1) {
+          throw new AggregateError(
+            errors,
+            "Workspace reload completed with one or more failures",
+          );
+        }
+        if (errors.length === 1) throw errors[0];
+
+        if (!didCommitTurnState) {
+          reloadLog.warn(
+            {},
+            "reload_turn_state_commit_skipped_restoration_pending",
+          );
+        }
+        const failures = featureActivation.failed.map((failure) => ({
+          feature: failure.displayName,
+          entry: failure.entry,
+          error: failure.error.message,
+        }));
+        reloadLog.debug(
+          {
+            featuresActivated: featureActivation.activated.length,
+            featuresFailed: featureActivation.failed.length,
+            failures,
+            piResourcesReloaded: didReloadPiResources,
+            turnStateCommitted: didCommitTurnState,
+          },
+          "reload_completed",
         );
-      }
-      const failures = featureActivation.failed.map((f) => ({
-        feature: f.displayName,
-        entry: f.entry,
-        error: f.error.message,
-      }));
-      reloadLog.debug(
-        {
+        this.#emit(
+          { kind: "workspace" },
+          toChannelCanonicalId("uix", "composition_reloaded"),
+          this.#activationPayload(featureActivation),
+        );
+        return {
           featuresActivated: featureActivation.activated.length,
           featuresFailed: featureActivation.failed.length,
           failures,
-          piResourcesReloaded,
-          turnStateCommitted,
-        },
-        "reload_completed",
-      );
-      this.#emit(
-        { kind: "workspace" },
-        toChannelCanonicalId("uix", "composition_reloaded"),
-        this.#activationPayload(featureActivation),
-      );
-      return {
-        featuresActivated: featureActivation.activated.length,
-        featuresFailed: featureActivation.failed.length,
-        failures,
-        piResourcesReloaded,
-      };
-    } catch (thrown) {
-      const error =
-        thrown instanceof Error ? thrown : new Error(String(thrown));
-      reloadLog.error(
-        { err: error.message, stack: error.stack },
-        "reload_failed",
-      );
-      throw error;
+          piResourcesReloaded: didReloadPiResources,
+        };
+      } catch (thrown) {
+        const error =
+          thrown instanceof Error ? thrown : new Error(String(thrown));
+        reloadLog.error(
+          { err: error.message, stack: error.stack },
+          "reload_failed",
+        );
+        throw error;
+      }
+    });
+    this.#reloadTail = reload.then(
+      () => undefined,
+      () => undefined,
+    );
+    return reload;
+  }
+
+  /** Prevent reload until the returned guard is disposed. */
+  #acquireReloadGuard(label: string): Disposable {
+    if (this.#isReloadActive) {
+      throw new Error(`${label} cannot start while Workspace reload is active`);
     }
+    this.#reloadGuardCount += 1;
+    let isDisposed = false;
+    return disposable(() => {
+      if (isDisposed) return;
+      isDisposed = true;
+      this.#reloadGuardCount -= 1;
+    });
   }
 
   async createAttachment(
@@ -615,6 +667,54 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
         const opened = await this.#agentRuntime.createSession();
         return this.#createAcceptedAttachment(opened.target, opened.manager);
       }
+    }
+  }
+
+  async dispatchViewpointWebRequest(
+    request: ViewpointWebRequest,
+  ): Promise<ViewpointWebResponse> {
+    if (this.#disposed) {
+      return toWebRouteErrorResponse(404, "Web route not found.");
+    }
+
+    const retainedTargetGuard = this.#attachmentWebBindings.retainTarget(
+      request.binding,
+    );
+    if (!retainedTargetGuard) {
+      return toWebRouteErrorResponse(404, "Web route not found.");
+    }
+
+    using targetGuard = retainedTargetGuard;
+    await using operation = this.#dispatchOperations.acquire();
+    const resolved = this.#viewpointWebRoutes.resolve(request.namespace, {
+      method: request.method,
+      pathname: request.pathname,
+      searchParams: new URLSearchParams(request.queryString),
+    });
+    if (!resolved.ok) {
+      return toWebRouteErrorResponse(resolved.status, resolved.reason);
+    }
+
+    try {
+      return await this.#agentRuntime.invokeFeatureWebRoute(
+        targetGuard,
+        resolved.value,
+        operation.signal,
+      );
+    } catch (thrown) {
+      const error =
+        thrown instanceof Error ? thrown : new Error(String(thrown));
+      webRouteLog.error(
+        {
+          namespace: request.namespace,
+          method: request.method,
+          pathname: request.pathname,
+          sessionId: targetGuard.value.target.sessionId,
+          err: error.message,
+        },
+        "viewpoint_web_route_failed",
+      );
+      return toWebRouteErrorResponse(500, "Internal web route error.");
     }
   }
 
@@ -681,6 +781,12 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
       void lifetime.disposeAsync().catch(() => undefined);
       throw error;
     }
+  }
+
+  registerWebBinding(
+    targetGuard: AgentInstanceGuard,
+  ): AttachmentWebBindingHandle {
+    return this.#attachmentWebBindings.register(targetGuard);
   }
 
   dropAttachment(attachment: Attachment): void {
@@ -750,115 +856,11 @@ class WorkspaceRuntime implements WorkspaceRuntimeContract, AttachmentOwner {
   }
 }
 
-/** One runtime-created attachment object. */
-class Attachment implements AttachmentContract {
-  readonly #owner: AttachmentOwner;
-  readonly #eventListeners = new Set<(event: RuntimeEvent) => void>();
-  readonly #closeListeners = new Set<() => void>();
-  readonly attachmentId: AttachmentId;
-  readonly workspaceId: WorkspaceId;
-  #target: SessionTarget;
-  #targetGuard: AgentInstanceGuard;
-  #disposed = false;
-
-  constructor(
-    owner: AttachmentOwner,
-    attachmentId: AttachmentId,
-    targetGuard: AgentInstanceGuard,
-  ) {
-    this.#owner = owner;
-    this.attachmentId = attachmentId;
-    this.workspaceId = owner.workspaceId;
-    this.#target = targetGuard.value.target;
-    this.#targetGuard = targetGuard;
-  }
-
-  get target(): SessionTarget {
-    return this.#target;
-  }
-
-  prepareDispatch(request: CanonicalRequest): PreparedDispatch {
-    if (this.#disposed) throw new Error("Attachment is disposed");
-    const operationGuard = this.#targetGuard.retain("dispatch");
-    const acceptedTarget = operationGuard.value.target;
-    return this.#owner.prepareDispatch(
-      {
-        workspaceId: this.workspaceId,
-        attachmentId: this.attachmentId,
-        target: acceptedTarget,
-        agentInstanceGuard: operationGuard,
-        retarget: (target, openedManager) =>
-          this.#retargetAndGuard(target, openedManager, true),
-      },
-      request,
-      () => {
-        operationGuard[Symbol.dispose]();
-      },
-    );
-  }
-
-  async retarget(target: SessionTarget): Promise<void> {
-    using _retargetGuard = await this.#retargetAndGuard(
-      target,
-      undefined,
-      false,
-    );
-  }
-
-  onEvent(listener: (event: RuntimeEvent) => void): Disposable {
-    if (this.#disposed) throw new Error("Attachment is disposed");
-    this.#eventListeners.add(listener);
-    return disposable(() => this.#eventListeners.delete(listener));
-  }
-
-  onClose(listener: () => void): Disposable {
-    if (this.#disposed) {
-      listener();
-      return disposable(() => undefined);
-    }
-    this.#closeListeners.add(listener);
-    return disposable(() => this.#closeListeners.delete(listener));
-  }
-
-  deliver(event: RuntimeEvent): void {
-    if (this.#disposed) return;
-    for (const listener of this.#eventListeners) listener(event);
-  }
-
-  [Symbol.dispose](): void {
-    if (this.#disposed) return;
-    this.#disposed = true;
-    this.#owner.dropAttachment(this);
-    this.#targetGuard[Symbol.dispose]();
-    this.#eventListeners.clear();
-    for (const listener of this.#closeListeners) listener();
-    this.#closeListeners.clear();
-  }
-
-  async #retargetAndGuard(
-    target: SessionTarget,
-    openedManager: SessionManager | undefined,
-    allowClosed: boolean,
-  ): Promise<AgentInstanceGuard> {
-    if (this.#disposed && !allowClosed) {
-      throw new Error("Attachment is disposed");
-    }
-    const next = await this.#owner.acquireAgentInstanceGuard(
-      target,
-      openedManager,
-      "attachment",
-    );
-    if (this.#disposed) {
-      if (allowClosed) return next;
-      next[Symbol.dispose]();
-      throw new Error("Attachment is disposed");
-    }
-    const previous = this.#targetGuard;
-    this.#target = next.value.target;
-    this.#targetGuard = next;
-    previous[Symbol.dispose]();
-    return next.retain("retarget-response");
-  }
+function toWebRouteErrorResponse(
+  status: 400 | 404 | 405 | 500,
+  body: string,
+): ViewpointWebResponse {
+  return { status, content: "text", body };
 }
 
 function assertSupportedSessionTarget(target: SessionTarget): void {

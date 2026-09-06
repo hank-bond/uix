@@ -8,7 +8,7 @@ status: exploring
 
 ## Current synthesis
 
-Canvas is an ordinary feature over substrate documents, channels, agent facets, turn state, and resources. It is part of the repository reference composition, not a bare-workspace default.
+Canvas is an ordinary feature over substrate documents, channels, agent facets, turn state, and viewpoint web routes. It is part of the repository reference composition, not a bare-workspace default.
 
 Canvas documents use stable `doc://canvas/{KEY}` resource ids. Each Agent factory receives a document store with viewpoint-scoped mutable current bytes and shared immutable versions. Its `CanvasDocumentBuffer` owns HTML canonicalization and anchored working projections for that viewpoint.
 
@@ -16,7 +16,9 @@ The anchored tool surface provides `canvas__anchor_read`, `canvas__anchor_write`
 
 Every tool result returns fresh anchored lines for the affected range. Edit boundaries include anchor and text, so stale text rejects rather than silently targeting a different line.
 
-Human interactions enter through a contained iframe writeback script. A static feature-origin iframe receives selected-viewpoint HTML after the surface reads it through the Agent channel. The script serializes supported form state, explicit `contenteditable` changes, and trusted prompt actions. The Canvas surface forwards writeback through the same selected channel client.
+The iframe loads selected-viewpoint HTML directly from the typed `/view` route with its Canvas key in the query. The route handler inserts a self-removing writeback shim into a served copy without changing authored bytes. No document-read channel or parent load handshake remains. Native directory-relative and fragment addressing follows the bound page URL, and Canvas canonicalization rejects authored `<base href>` elements.
+
+Human interactions enter through the shim, which serializes supported form state, explicit `contenteditable` changes, and trusted prompt actions. The Canvas surface validates iframe source and origin, then forwards writeback through the selected channel client. It persists prompt-action HTML before prompting and rejects pending actions when the view changes or unmounts. The shim remains outside stored HTML, anchored reads, and writeback.
 
 Agent writes publish `canvas.changed` so the surface reloads the document. Human writeback does not echo a refresh because the iframe already displays that change.
 

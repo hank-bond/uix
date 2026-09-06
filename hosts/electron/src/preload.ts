@@ -1,12 +1,17 @@
-// Exposes the typed channel transport on `window.channels` for sandboxed renderer pages.
+// Provides host communication capabilities only to sandboxed main-frame pages.
 //
-// Sandboxed + contextIsolated. The renderer never sees `ipcRenderer`
-// directly. It gets a typed surface on `window.channels` mirroring the
-// contract in the Electron host channel-transport.ts.
+// Context isolation prevents the renderer from accessing the `ipcRenderer`
+// object directly. Preload provides typed capabilities without granting
+// authored iframes access to host communication.
 
 import { contextBridge, ipcRenderer } from "electron";
 
-import { Channels, type ChannelTransport } from "./channel-transport";
+import {
+  type AttachmentWebBindingTransport,
+  Channels,
+  type ChannelTransport,
+  parseAttachmentWebBindingSnapshot,
+} from "./channel-transport";
 
 const transport: ChannelTransport = {
   request: (channel, payload) =>
@@ -25,9 +30,26 @@ const transport: ChannelTransport = {
   },
 };
 
-// BrowserWindow preload is for the host shell only. Agent-authored canvas
-// iframes must not receive window.channels even if Electron ever loads this preload
-// in a subframe.
+const attachmentWebBinding: AttachmentWebBindingTransport = {
+  read: async () =>
+    parseAttachmentWebBindingSnapshot(
+      await ipcRenderer.invoke(Channels.webBindingRead),
+    ),
+  subscribe: (snapshotListener) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      snapshot: unknown,
+    ): void => {
+      snapshotListener(parseAttachmentWebBindingSnapshot(snapshot));
+    };
+    ipcRenderer.on(Channels.webBindingChanged, listener);
+    return () => ipcRenderer.off(Channels.webBindingChanged, listener);
+  },
+};
+
+// Authored iframes must not receive either capability, even if Electron loads
+// this preload in a subframe.
 if (process.isMainFrame) {
   contextBridge.exposeInMainWorld("channels", transport);
+  contextBridge.exposeInMainWorld("attachmentWebBinding", attachmentWebBinding);
 }

@@ -10,6 +10,7 @@ The naming rules in [`rules/`](./rules/) state the invariants. This file explain
 
 ## Symbol naming
 
+- Prefer the simplest word that keeps the meaning exact. Use a more specialized word only when the simpler word would lose an important distinction.
 - A `DisposableBag` or `AsyncDisposableBag` that owns cleanup capabilities takes its name from the lifetime it tracks: `hostBag`, `workspaceBag`, `windowBag`, `sessionBag`.
 - Helpers that register listeners are verb-shaped: `handle`, `onApp`, `onWindow`, `subscribe`. They always return `Disposable`.
 - Name symbols for their stable domain role and operation, not their current caller, pipeline position, trigger, owner, or implementation strategy. A name should remain correct if the symbol moves, gains another caller, or changes implementation without changing its essential domain guarantees. Let the receiver provide context (`turnStateCoordinator.restoreCurrent(...)`). Do not repeat that context in every method.
@@ -28,6 +29,43 @@ The naming rules in [`rules/`](./rules/) state the invariants. This file explain
 - Use `Store` for durable source-of-truth APIs/implementations. A store may expose a change feed when the change semantics are generic at that layer. Otherwise domain-specific buffers/features publish higher-level invalidation events.
 - Use `Buffer` for live, feature-specific working projections over a store. Buffers may cache regenerable state, normalize writes, and reconcile feature/editor semantics, but durable authority stays in the backing store.
 - Use `Registry` for central in-memory maps of contributed things plus their routing (`ChannelRegistry`, `SettingsRegistry`). Registries do not persist.
+
+## Observable capabilities
+
+The `Observable` suffix names a read-only observation capability, not every object that supports subscriptions.
+
+An observable provides synchronous `getSnapshot()` access and a `subscribe(listener)` method that returns an unsubscribe function. The snapshot remains immutable, and repeated reads return the same value until a change occurs. The owner replaces the snapshot before notifying listeners. Listeners receive no payload and read the replacement through `getSnapshot()`. An event stream without a current snapshot does not use this role.
+
+Name the capability for its domain: `AttachmentWebRootsObservable` provides `AttachmentWebRootsSnapshot` values. An owner such as `WorkspaceSessionState` also provides domain operations and may implement the same observation protocol without taking the `Observable` suffix. Its name describes its broader responsibility.
+
+A separate observable object is not required. An owner may provide a narrower interface backed by the same object, provided that interface offers only snapshot access and subscription. Introduce that interface when a consumer boundary needs read-only observation, not for every state owner. Neither the suffix nor the protocol requires a wrapper or a shared implementation.
+
+## Qualification by scope
+
+Name the scopes that distinguish real concepts, and omit a scope when the containing name already makes it clear.
+
+| Axis | Question | Naming guidance |
+| --- | --- | --- |
+| **Ownership namespace** | Who owns these local names: `canvas`, another feature, or `uix`? | Include the namespace in live identities, but not in authored contracts. |
+| **Declaration scope** | Is this a reusable definition rather than a live instance? | Use an unqualified name such as `WebRouteContract`. |
+| **Instantiation scope** | Is this created once per Workspace or once per viewpoint? | Use `Workspace` or `Viewpoint` when both forms could exist at that boundary. |
+| **Target scope** | Which attachment-target generation can this reach? | Name the binding `AttachmentWebBinding`. Do not repeat that scope on every client using it. |
+| **Lifetime form** | Is this normalized, resolved, prepared, or registered? | Use the established lifecycle qualifier when those forms coexist. |
+| **Containing scope** | Does the owner already establish the scope? | Use `AgentFeatureContributions.webRoutes`, not `viewpointWebRoutes`. |
+
+A qualifier earns its place by separating two possible names at the same boundary. A generic route contract stays `WebRouteContract` because the same declaration can be installed for a Workspace or viewpoint. The Workspace contribution field is `viewpointWebRouteContracts` because it distinguishes those contracts from present or future Workspace route handlers. Inside `AgentFeatureContributions`, the field is `webRoutes` because the containing type already provides the viewpoint scope.
+
+A role should not repeat a property required by that role. Every client already knows how to reach its API, so use `WebRouteClient`, not `BoundWebRouteClient`. Name the separate capability that chooses the live target, such as `AttachmentWebBinding`.
+
+## Host-level names
+
+Host directories communicate ownership, while names communicate purpose and scope. The [`naming.host-role`](./rules/naming.host-role.md) rule applies this distinction across concrete hosts.
+
+- **Match equivalent responsibilities:** Use matching names across hosts when the concepts or processes have the same purpose and scope.
+- **Qualify platform-specific concepts:** Use platform qualifiers only when they describe a genuine platform dependency, not merely the implementation's location.
+- **Preserve meaningful differences:** Do not force matching names, files, or abstractions when host responsibilities differ.
+
+Ask whether a qualifier explains the concept or only repeats its directory. The `AttachmentWebBindingSnapshot` type names a routing snapshot without repeating the host name. Electron's inter-process communication (IPC) events and the server's WebSocket messages retain names specific to their mechanisms. Matching names do not require shared implementations or identical source trees.
 
 ## Owned-name prefixes
 

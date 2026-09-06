@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AgentToolContribution } from "@uix/api/agent-tools";
 import type { TurnStateContributions } from "@uix/api/turn-state";
+import { defineWebRoute, withWebRouteHandler } from "@uix/api/web-routes";
 
 import {
   type AgentFeatureRegistries,
@@ -21,8 +22,18 @@ import {
 } from "../channel-registry";
 import { ResourceRegistry } from "../resource-registry";
 import { TurnStateRegistry } from "../turn-state";
+import {
+  WebRouteContractRegistry,
+  WebRouteHandlerRegistry,
+} from "../web-route-registry";
 
 const emptyParams = Type.Object({});
+const documentRoute = defineWebRoute({
+  method: "GET",
+  path: "/view",
+  query: Type.Object({ key: Type.String() }),
+  responses: { 200: { content: "html-document" } },
+});
 
 function channelContribution(name = "refresh"): {
   requests: Record<
@@ -56,6 +67,7 @@ function workspaceRegistries(): WorkspaceFeatureRegistries {
         canonicalId,
         payload,
       ),
+    viewpointWebRoutes: new WebRouteContractRegistry(),
     surfaces: new SurfaceRegistry(),
   };
 }
@@ -63,6 +75,7 @@ function workspaceRegistries(): WorkspaceFeatureRegistries {
 function agentRegistries(): AgentFeatureRegistries {
   return {
     channels: new AgentChannelHandlerRegistry(),
+    webRoutes: new WebRouteHandlerRegistry(),
     agentTools: new AgentToolRegistry(),
     agentSystemPrompt: new AgentSystemPromptRegistry(),
     agentSkills: new AgentSkillRegistry(),
@@ -101,16 +114,19 @@ describe("feature contribution registration", () => {
       "canvas",
       {
         agentChannelContracts: [channelContribution()],
+        viewpointWebRouteContracts: [documentRoute],
         surfaces: ["./surface.tsx"],
       },
       { entryDir: "/feature" },
     );
 
     expect(registries.channels.listCanonicalIds()).toEqual(["canvas.refresh"]);
+    expect(registries.viewpointWebRoutes.listCanonicalIds()).toHaveLength(1);
     expect(registries.surfaces.list()).toHaveLength(1);
 
     lifetime[Symbol.dispose]();
     expect(registries.channels.listCanonicalIds()).toEqual([]);
+    expect(registries.viewpointWebRoutes.listCanonicalIds()).toEqual([]);
     expect(registries.surfaces.list()).toEqual([]);
   });
 
@@ -121,6 +137,11 @@ describe("feature contribution registration", () => {
       "canvas",
       {
         channels: [channelContribution()],
+        webRoutes: [
+          withWebRouteHandler(documentRoute, (_request, respond) =>
+            respond(200, "document"),
+          ),
+        ],
         agentTools: [agentTool("anchor_read")],
         agentToolOverrides: [agentTool("read")],
         agentSystemPrompt: "Canvas guidance",
@@ -138,6 +159,7 @@ describe("feature contribution registration", () => {
     );
 
     expect(registries.channels.listCanonicalIds()).toEqual(["canvas.refresh"]);
+    expect(registries.webRoutes.listCanonicalIds()).toHaveLength(1);
     expect(registries.agentTools.list()).toHaveLength(2);
     expect(registries.agentSkills.list()[0]?.path).toBe(
       "/feature/skills/canvas-authoring",
@@ -147,6 +169,7 @@ describe("feature contribution registration", () => {
 
     lifetime[Symbol.dispose]();
     expect(registries.channels.listCanonicalIds()).toEqual([]);
+    expect(registries.webRoutes.listCanonicalIds()).toEqual([]);
     expect(registries.agentTools.list()).toEqual([]);
     expect(registries.turnState.list()).toEqual([]);
   });
@@ -170,17 +193,27 @@ describe("feature contribution registration", () => {
     ).toBe(false);
   });
 
-  it("rejects path facets without an entry directory", () => {
+  it("rejects path facets without an entry directory and rolls back earlier routes", () => {
+    const workspace = workspaceRegistries();
     expect(() =>
-      registerWorkspaceFeatureContributions(workspaceRegistries(), "canvas", {
+      registerWorkspaceFeatureContributions(workspace, "canvas", {
+        viewpointWebRouteContracts: [documentRoute],
         surfaces: ["./surface.tsx"],
       }),
     ).toThrow("without an entry directory");
+    expect(workspace.viewpointWebRoutes.listCanonicalIds()).toEqual([]);
 
+    const agent = agentRegistries();
     expect(() =>
-      registerAgentFeatureContributions(agentRegistries(), "canvas", {
+      registerAgentFeatureContributions(agent, "canvas", {
+        webRoutes: [
+          withWebRouteHandler(documentRoute, (_request, respond) =>
+            respond(200, "document"),
+          ),
+        ],
         agentSkills: ["./skill"],
       }),
     ).toThrow("without an entry directory");
+    expect(agent.webRoutes.listCanonicalIds()).toEqual([]);
   });
 });

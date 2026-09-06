@@ -7,10 +7,17 @@
 // preload via contextBridge. These types describe that contract so both sides
 // stay in sync.
 
+import { type Static, Type } from "typebox";
+import { Value } from "typebox/value";
+
 /** Host channel names. Keep this list small. Features register their own. */
 export const Channels = {
   /** Renderer → main. Generic canonical workspace request. */
   request: "uix:request",
+  /** Read the calling window's attachment binding snapshot. */
+  webBindingRead: "uix:web-binding:read",
+  /** Notify the attached window when its binding changes. */
+  webBindingChanged: "uix:web-binding:changed",
   /** Electron menu → focused renderer. Requests one action by canonical id. */
   actionInvocation: "uix:action:invoke",
   /** Launcher → main. invoke-style. Reads the known workspace catalog. */
@@ -52,6 +59,36 @@ export interface LauncherCreateRequest {
 export type LauncherActionResult =
   | { ok: true }
   | { ok: false; canceled?: boolean; error?: string };
+
+const AttachmentWebBindingSnapshotSchema = Type.Object(
+  {
+    revision: Type.Integer({ minimum: 0, maximum: Number.MAX_SAFE_INTEGER }),
+    workspaceId: Type.String({ pattern: "^[a-z][a-z0-9-]*$" }),
+    binding: Type.String({ minLength: 1 }),
+  },
+  { additionalProperties: false },
+);
+
+/** Binding state for one window at one host revision. */
+export type AttachmentWebBindingSnapshot = Readonly<
+  Static<typeof AttachmentWebBindingSnapshotSchema>
+>;
+
+/** Return a frozen snapshot, rejecting malformed host control data. */
+export function parseAttachmentWebBindingSnapshot(
+  value: unknown,
+): AttachmentWebBindingSnapshot {
+  Value.Assert(AttachmentWebBindingSnapshotSchema, value);
+  return Object.freeze({ ...value });
+}
+
+/** Host-only binding communication, separate from feature channels. */
+export interface AttachmentWebBindingTransport {
+  read(): Promise<AttachmentWebBindingSnapshot>;
+  subscribe(
+    listener: (snapshot: AttachmentWebBindingSnapshot) => void,
+  ): () => void;
+}
 
 /** Shape exposed on `window.channels` by the preload. */
 export interface ChannelTransport {

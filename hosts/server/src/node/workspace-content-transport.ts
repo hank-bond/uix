@@ -1,22 +1,22 @@
-// Binds each supervised runtime's logical resource dispatcher to server HTTP requests.
+// Binds each supervised runtime's content dispatcher to server HTTP requests.
 
+import type {
+  ContentRequest,
+  ContentTransportRegistrar,
+} from "@uix/runtime/content-transport";
 import { disposable } from "@uix/runtime/lifecycle";
-import type { ResourceTransportRegistrar } from "@uix/runtime/resource-registry";
 import type { WorkspaceId } from "@uix/runtime/workspace";
 
-type ResourceHandler = (request: Request) => Response | Promise<Response>;
+type ContentHandler = Parameters<ContentTransportRegistrar>[0];
 
-/** Own the live runtime resource handlers selected by workspace HTTP routes. */
-export class WorkspaceResourceTransport {
-  readonly #handlers = new Map<WorkspaceId, ResourceHandler>();
+/** Own the live runtime content handlers selected by workspace HTTP routes. */
+export class WorkspaceContentTransport {
+  readonly #handlers = new Map<WorkspaceId, ContentHandler>();
 
   /** Register one runtime handler and return its exact registration lifetime. */
-  register(
-    workspaceId: WorkspaceId,
-    handler: Parameters<ResourceTransportRegistrar>[1],
-  ): Disposable {
+  register(workspaceId: WorkspaceId, handler: ContentHandler): Disposable {
     if (this.#handlers.has(workspaceId)) {
-      throw new Error(`Resource transport already registered: ${workspaceId}`);
+      throw new Error(`Content transport already registered: ${workspaceId}`);
     }
     this.#handlers.set(workspaceId, handler);
     return disposable(() => {
@@ -27,11 +27,14 @@ export class WorkspaceResourceTransport {
   }
 
   /** Dispatch through the handler protected by the caller's workspace guard. */
-  dispatch(workspaceId: WorkspaceId, request: Request): Promise<Response> {
+  dispatch(
+    workspaceId: WorkspaceId,
+    request: ContentRequest,
+  ): Promise<Response> {
     const handler = this.#handlers.get(workspaceId);
     if (!handler) {
       return Promise.resolve(
-        new Response("Workspace resources are unavailable", {
+        new Response("Workspace content is unavailable", {
           status: 503,
           headers: { "Content-Type": "text/plain; charset=utf-8" },
         }),

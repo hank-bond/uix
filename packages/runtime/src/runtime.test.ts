@@ -11,7 +11,7 @@
 // runtime is proven against fake host dependencies, so failures reveal
 // runtime isolation rather than platform behavior.
 
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -21,7 +21,6 @@ import { toChannelCanonicalId } from "@uix/api/channel-resolution";
 import {
   encodeResourceUrl,
   normalizeResourceRoute,
-  ResourceProtocolScheme,
 } from "@uix/api/resource-routes";
 import type {
   Attachment,
@@ -30,6 +29,7 @@ import type {
   CanonicalResponse,
   RuntimeEvent,
   SessionTarget,
+  ViewpointWebRequest,
 } from "@uix/runtime";
 import type { WorkspaceRuntimeDependencies } from "@uix/runtime";
 import {
@@ -38,9 +38,31 @@ import {
   toWorkspaceId,
 } from "@uix/runtime";
 
+import type {
+  ContentRequest,
+  ContentTransportRegistrar,
+} from "./content-transport";
+import { disposable } from "./lifecycle";
 import type { Workspace } from "./workspace-roots";
 
 const apiModuleDir = join(__dirname, "../../api/src");
+const reloadControlSymbol = Symbol.for("uix.runtime.test.reload-control");
+interface ReloadControl {
+  shouldFailCleanup: boolean;
+  cleanupStartedListener: (() => void) | undefined;
+  cleanupGate: Promise<void> | undefined;
+}
+const reloadControlGlobal = globalThis as typeof globalThis & {
+  [reloadControlSymbol]?: ReloadControl;
+};
+
+function createDeferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
 
 /** The fixture feature both workspaces load: identical ids everywhere. */
 const fixtureFeature = `
@@ -50,6 +72,7 @@ import { type ChannelContract, withHandlers } from "@uix/api/channels";
 import { defineFeature } from "@uix/api/feature";
 import { normalizeResourceRoute } from "@uix/api/resource-routes";
 import { defineSettings } from "@uix/api/settings";
+import { defineWebRoute, withWebRouteHandler } from "@uix/api/web-routes";
 
 const contract = {
   requests: {
@@ -84,11 +107,25 @@ const viewpointContract = {
       requestSchema: Type.Object({ content: Type.String() }),
       responseSchema: Type.Void(),
     },
+    continue_web_route: {
+      requestSchema: Type.Void(),
+      responseSchema: Type.Void(),
+    },
   },
   events: {
     incremented: { event: Type.Number() },
   },
 } as const satisfies ChannelContract;
+
+const viewpointWebRoute = defineWebRoute({
+  method: "GET",
+  path: "/view",
+  query: Type.Object(
+    { key: Type.String({ pattern: "^[a-z0-9-]+(?:/[a-z0-9-]+)*$" }) },
+    { additionalProperties: false },
+  ),
+  responses: { 200: { content: "html-document" } },
+});
 
 export const feature = defineFeature({
   id: "echo",
@@ -100,6 +137,7 @@ export const feature = defineFeature({
     const docs = ctx.documents.createStore({ namespace: "echo" });
     return {
       agentChannelContracts: [viewpointContract],
+      viewpointWebRouteContracts: [viewpointWebRoute],
       channels: [
         {
           requests: {
@@ -155,10 +193,25 @@ export const feature = defineFeature({
         },
       ],
       surfaces: ["./surface.tsx"],
+      async [Symbol.asyncDispose]() {
+        const control = (globalThis as {
+          [key: symbol]: {
+            shouldFailCleanup?: boolean;
+            cleanupStartedListener?: () => void;
+            cleanupGate?: Promise<void>;
+          } | undefined;
+        })[Symbol.for("uix.runtime.test.reload-control")];
+        control?.cleanupStartedListener?.();
+        await control?.cleanupGate;
+        if (control?.shouldFailCleanup) {
+          throw new Error("fixture workspace cleanup failed");
+        }
+      },
     };
   },
   agent(ctx) {
     let count = 0;
+    const webRouteGate = Promise.withResolvers<void>();
     const documents = ctx.documents.createStore({ namespace: "echo-view" });
     const events = ctx.channels.createPublisher(viewpointContract);
     return {
@@ -177,8 +230,24 @@ export const feature = defineFeature({
           write_view: {
             handler: ({ content }) => documents.setCurrent("notes", content),
           },
+          continue_web_route: {
+            handler: () => {
+              webRouteGate.resolve();
+            },
+          },
         }),
       ],
+      webRoutes: [
+        withWebRouteHandler(viewpointWebRoute, async ({ query }, respond) => {
+          const key = query.key;
+          if (key === "wait") await webRouteGate.promise;
+          if (key === "fail") throw new Error("fixture route failed");
+          return respond(200, (await documents.getCurrent("notes")) ?? "empty");
+        }),
+      ],
+      [Symbol.dispose]() {
+        webRouteGate.resolve();
+      },
     };
   },
 });
@@ -195,30 +264,30 @@ export const surface = defineSurface({
 
 interface FakeTransports {
   dependencies: WorkspaceRuntimeDependencies;
-  resourceHandlers: Map<
-    string,
-    (request: Request) => Response | Promise<Response>
-  >;
+  readonly isRegistered: boolean;
+  request(content: ContentRequest): Promise<Response>;
 }
 
-function fakeTransports(): FakeTransports {
-  const resourceHandlers = new Map<
-    string,
-    (request: Request) => Response | Promise<Response>
-  >();
+function createTestTransports(): FakeTransports {
+  let handler: Parameters<ContentTransportRegistrar>[0] | undefined;
   return {
     dependencies: {
-      resourceTransport: (scheme, handler) => {
-        resourceHandlers.set(scheme, handler);
-        return {
-          [Symbol.dispose]() {
-            resourceHandlers.delete(scheme);
-          },
-        };
+      contentTransportRegistrar: (requestHandler) => {
+        if (handler) throw new Error("Content transport already registered");
+        handler = requestHandler;
+        return disposable(() => {
+          if (handler === requestHandler) handler = undefined;
+        });
       },
       launchProviderAuthLink: () => {},
     },
-    resourceHandlers,
+    get isRegistered() {
+      return handler !== undefined;
+    },
+    request(content) {
+      if (!handler) throw new Error("Content transport is not registered");
+      return Promise.resolve(handler(content));
+    },
   };
 }
 
@@ -302,7 +371,408 @@ async function dispatch(
   return await prepared.invoke();
 }
 
+function createViewpointWebRequest(
+  attachment: Attachment,
+  pathname: string,
+  queryString = "key=main",
+  method = "GET",
+): ViewpointWebRequest {
+  return {
+    binding: attachment.webBinding,
+    namespace: "canvas",
+    method,
+    pathname,
+    queryString,
+  };
+}
+
 describe("workspace runtime isolation", () => {
+  it("rejects an invalid HTML route during feature activation and removes its earlier contributions", async () => {
+    const fixtureDir = await writeFixture();
+    await writeFile(
+      join(fixtureDir, "echo.ts"),
+      fixtureFeature.replace('path: "/view"', 'path: "/reports/view"'),
+    );
+    const workspace = await makeWorkspace(
+      "html-path-admission",
+      fixtureDir,
+      "hello",
+    );
+    const transports = createTestTransports();
+    await using runtime = createWorkspaceRuntime({
+      workspaceId: toWorkspaceId("html-path-admission"),
+      workspace,
+      piAppDataDir: join(workspace.stateRoot, ".pi"),
+      apiModuleDir,
+      dependencies: transports.dependencies,
+    });
+    const activation = await runtime.load();
+    expect(activation.activated).toEqual([]);
+    expect(activation.failed).toHaveLength(1);
+    expect(activation.failed[0].error.message).toContain(
+      'Invalid html-document route path "/reports/view"',
+    );
+    expect(activation.failed[0].error.message).toContain(
+      "Put content identifiers in query input",
+    );
+    expect(
+      await transports.request({
+        kind: "resource",
+        request: new Request("uix-resource://echo.html-path-admission/greet/"),
+      }),
+    ).toMatchObject({ status: 404 });
+  });
+  it("replaces the observable web binding for each attachment target", async () => {
+    const fixtureDir = await writeFixture();
+    const workspace = await makeWorkspace(
+      "attachment-web-bindings",
+      fixtureDir,
+      "hello",
+    );
+    const runtime = createWorkspaceRuntime({
+      workspaceId: toWorkspaceId("attachment-web-bindings"),
+      workspace,
+      piAppDataDir: join(workspace.stateRoot, ".pi"),
+      apiModuleDir,
+      dependencies: createTestTransports().dependencies,
+    });
+    await runtime.load();
+    const first = (await runtime.createAttachment({ kind: "new-session" }))
+      .attachment;
+    const peer = (await runtime.createAttachment(admitSession(first.target)))
+      .attachment;
+    const destination = (
+      await runtime.createAttachment({ kind: "new-session" })
+    ).attachment;
+    const initialBinding = first.webBinding;
+    const peerBinding = peer.webBinding;
+    const changes: string[] = [];
+    using _failingBindingSubscription = first.onWebBindingChange(() => {
+      throw new Error("observer failed");
+    });
+    using _bindingSubscription = first.onWebBindingChange((binding) => {
+      changes.push(binding);
+    });
+
+    expect(initialBinding).not.toBe(peerBinding);
+    await first.retarget(destination.target);
+
+    expect(first.webBinding).not.toBe(initialBinding);
+    expect(changes).toEqual([first.webBinding]);
+    expect(peer.webBinding).toBe(peerBinding);
+    await expect(
+      first.retarget({
+        sessionId: first.target.sessionId,
+        branchId: toBranchId("unsupported-branch"),
+      }),
+    ).rejects.toThrow("Branch session targets are not supported");
+    expect(changes).toEqual([first.webBinding]);
+
+    first[Symbol.dispose]();
+    peer[Symbol.dispose]();
+    destination[Symbol.dispose]();
+    await runtime[Symbol.asyncDispose]();
+  });
+
+  it("dispatches the production Canvas route through each attachment binding", async () => {
+    const workspace = await makeCanvasWorkspace();
+    const runtime = createWorkspaceRuntime({
+      workspaceId: toWorkspaceId("canvas-web-routes"),
+      workspace,
+      piAppDataDir: join(workspace.stateRoot, ".pi"),
+      apiModuleDir,
+      dependencies: createTestTransports().dependencies,
+    });
+    await runtime.load();
+    const first = (await runtime.createAttachment({ kind: "new-session" }))
+      .attachment;
+    const second = (await runtime.createAttachment({ kind: "new-session" }))
+      .attachment;
+    const writeback = toChannelCanonicalId("canvas", "writeback");
+    await dispatch(first, {
+      channel: writeback,
+      payload: { key: "main", html: "<main>first Agent</main>" },
+    });
+    await dispatch(second, {
+      channel: writeback,
+      payload: { key: "main", html: "<main>second Agent</main>" },
+    });
+
+    await expect(
+      runtime.dispatchViewpointWebRequest(
+        createViewpointWebRequest(first, "/view"),
+      ),
+    ).resolves.toEqual({
+      status: 200,
+      content: "html-document",
+      body: expect.stringContaining("<main>first Agent</main>") as unknown,
+    });
+    await expect(
+      runtime.dispatchViewpointWebRequest(
+        createViewpointWebRequest(second, "/view"),
+      ),
+    ).resolves.toEqual({
+      status: 200,
+      content: "html-document",
+      body: expect.stringContaining("<main>second Agent</main>") as unknown,
+    });
+    await expect(
+      runtime.dispatchViewpointWebRequest(
+        createViewpointWebRequest(first, "/view", "key=Not-Valid"),
+      ),
+    ).resolves.toMatchObject({ status: 400, content: "text" });
+    await expect(
+      runtime.dispatchViewpointWebRequest(
+        createViewpointWebRequest(first, "/unknown"),
+      ),
+    ).resolves.toMatchObject({ status: 404, content: "text" });
+    await expect(
+      runtime.dispatchViewpointWebRequest(
+        createViewpointWebRequest(first, "/view", "key=main", "POST"),
+      ),
+    ).resolves.toMatchObject({ status: 405, content: "text" });
+
+    first[Symbol.dispose]();
+    second[Symbol.dispose]();
+    await runtime[Symbol.asyncDispose]();
+  });
+
+  it("serves nested Canvas keys through the content transport without rewriting HTML", async () => {
+    const workspace = await makeCanvasWorkspace();
+    const transports = createTestTransports();
+    await using runtime = createWorkspaceRuntime({
+      workspaceId: toWorkspaceId("canvas-content"),
+      workspace,
+      piAppDataDir: join(workspace.stateRoot, ".pi"),
+      apiModuleDir,
+      dependencies: transports.dependencies,
+    });
+    await runtime.load();
+    using first = (await runtime.createAttachment({ kind: "new-session" }))
+      .attachment;
+    using second = (await runtime.createAttachment({ kind: "new-session" }))
+      .attachment;
+    const viewpoints = [
+      [first, "first"],
+      [second, "second"],
+    ] as const;
+    for (const [attachment, label] of viewpoints) {
+      await dispatch(attachment, {
+        channel: toChannelCanonicalId("canvas", "writeback"),
+        payload: {
+          key: "reports/main",
+          html: `<main>${label}</main>\n<a href="#section">jump</a>\n<img src="assets/chart.svg">`,
+        },
+      });
+    }
+    for (const [attachment, label] of viewpoints) {
+      const request = createViewpointWebRequest(
+        attachment,
+        "/view",
+        "key=reports%2Fmain",
+      );
+      const response = await transports.request({ kind: "viewpoint", request });
+      expect(response.status).toBe(200);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      const html = await response.text();
+      const canonical = await runtime.dispatchViewpointWebRequest(request);
+      expect(html).toBe(canonical.body);
+      expect(html).toContain(`<main>${label}</main>`);
+      expect(html).toContain('<a href="#section">jump</a>');
+      expect(html).toContain('<img src="assets/chart.svg">');
+      expect(html).not.toContain("<base");
+      expect(html).not.toContain("data-uix-");
+      expect(html).not.toContain(attachment.webBinding);
+
+      for (const [pathname, queryString, method, status] of [
+        ["/view", "", "GET", 400],
+        ["/view", "key=Not-Valid", "GET", 400],
+        ["/view", "key=reports/main&key=other", "GET", 400],
+        ["/view", "key=reports/main&extra=1", "GET", 400],
+        ["/missing", "key=reports/main", "GET", 404],
+        ["/documents/reports/main", "", "GET", 404],
+        ["/view/", "key=reports/main", "GET", 404],
+        ["/view", "key=reports/main", "POST", 405],
+      ] as const) {
+        const rejected = await transports.request({
+          kind: "viewpoint",
+          request: { ...request, pathname, queryString, method },
+        });
+        expect(rejected.status).toBe(status);
+        expect(rejected.headers.get("content-type")).toBe(
+          "text/plain; charset=utf-8",
+        );
+        expect(await rejected.text()).not.toContain("<base");
+      }
+      attachment[Symbol.dispose]();
+      expect(
+        await transports.request({ kind: "viewpoint", request }),
+      ).toMatchObject({ status: 404 });
+    }
+  });
+
+  it("keeps accepted web requests on their retained Agent generation", async () => {
+    const fixtureDir = await writeFixture();
+    const workspace = await makeWorkspace(
+      "retained-web-route",
+      fixtureDir,
+      "hello",
+    );
+    const runtime = createWorkspaceRuntime({
+      workspaceId: toWorkspaceId("retained-web-route"),
+      workspace,
+      piAppDataDir: join(workspace.stateRoot, ".pi"),
+      apiModuleDir,
+      dependencies: createTestTransports().dependencies,
+    });
+    await runtime.load();
+    const first = (await runtime.createAttachment({ kind: "new-session" }))
+      .attachment;
+    const peer = (await runtime.createAttachment(admitSession(first.target)))
+      .attachment;
+    const destination = (
+      await runtime.createAttachment({ kind: "new-session" })
+    ).attachment;
+    const writeView = toChannelCanonicalId("echo", "write_view");
+    await dispatch(first, {
+      channel: writeView,
+      payload: { content: "first Agent" },
+    });
+    await dispatch(destination, {
+      channel: writeView,
+      payload: { content: "second Agent" },
+    });
+
+    const oldBinding = first.webBinding;
+    const accepted = runtime.dispatchViewpointWebRequest({
+      binding: oldBinding,
+      namespace: "echo",
+      method: "GET",
+      pathname: "/view",
+      queryString: "key=wait",
+    });
+    await first.retarget(destination.target);
+
+    await expect(
+      runtime.dispatchViewpointWebRequest({
+        binding: oldBinding,
+        namespace: "echo",
+        method: "GET",
+        pathname: "/view",
+        queryString: "key=main",
+      }),
+    ).resolves.toEqual({
+      status: 404,
+      content: "text",
+      body: "Web route not found.",
+    });
+    await expect(
+      runtime.dispatchViewpointWebRequest({
+        binding: first.webBinding,
+        namespace: "echo",
+        method: "GET",
+        pathname: "/view",
+        queryString: "key=main",
+      }),
+    ).resolves.toMatchObject({ status: 200, body: "second Agent" });
+
+    await dispatch(peer, {
+      channel: toChannelCanonicalId("echo", "continue_web_route"),
+      payload: undefined,
+    });
+    await expect(accepted).resolves.toMatchObject({
+      status: 200,
+      body: "first Agent",
+    });
+    await expect(
+      runtime.dispatchViewpointWebRequest({
+        binding: first.webBinding,
+        namespace: "echo",
+        method: "GET",
+        pathname: "/view",
+        queryString: "key=fail",
+      }),
+    ).resolves.toEqual({
+      status: 500,
+      content: "text",
+      body: "Internal web route error.",
+    });
+
+    first[Symbol.dispose]();
+    peer[Symbol.dispose]();
+    destination[Symbol.dispose]();
+    await runtime[Symbol.asyncDispose]();
+  });
+
+  it("rejects reload until accepted web handlers finish and disposes their reload guards after failure", async () => {
+    await using fixtureLifetime = new AsyncDisposableStack();
+    const fixtureDir = await writeFixture();
+    fixtureLifetime.defer(() =>
+      rm(fixtureDir, { recursive: true, force: true }),
+    );
+    const workspace = await makeWorkspace("web-reload", fixtureDir, "hello");
+    fixtureLifetime.defer(() =>
+      rm(workspace.stateRoot, { recursive: true, force: true }),
+    );
+    await using runtime = createWorkspaceRuntime({
+      workspaceId: toWorkspaceId("web-reload"),
+      workspace,
+      piAppDataDir: join(workspace.stateRoot, ".pi"),
+      apiModuleDir,
+      dependencies: createTestTransports().dependencies,
+    });
+    await runtime.load();
+    using attachment = (await runtime.createAttachment({ kind: "new-session" }))
+      .attachment;
+    const binding = attachment.webBinding;
+    const request: ViewpointWebRequest = {
+      binding,
+      namespace: "echo",
+      method: "GET",
+      pathname: "/view",
+      queryString: "key=wait",
+    };
+    const accepted = runtime.dispatchViewpointWebRequest(request);
+    const reloadRequest = {
+      channel: toChannelCanonicalId("uix", "reload"),
+      payload: undefined,
+    };
+    try {
+      expect(await dispatch(attachment, reloadRequest)).toMatchObject({
+        ok: false,
+        error: {
+          code: "handler_error",
+          message: expect.stringContaining("reload guard is held") as unknown,
+        },
+      });
+    } finally {
+      await dispatch(attachment, {
+        channel: toChannelCanonicalId("echo", "continue_web_route"),
+        payload: undefined,
+      });
+    }
+    await expect(accepted).resolves.toMatchObject({ status: 200 });
+    expect(await dispatch(attachment, reloadRequest)).toMatchObject({
+      ok: true,
+    });
+    expect(attachment.webBinding).toBe(binding);
+    await expect(
+      runtime.dispatchViewpointWebRequest({
+        ...request,
+        queryString: "key=main",
+      }),
+    ).resolves.toMatchObject({ status: 200 });
+    await expect(
+      runtime.dispatchViewpointWebRequest({
+        ...request,
+        queryString: "key=fail",
+      }),
+    ).resolves.toMatchObject({ status: 500 });
+    expect(await dispatch(attachment, reloadRequest)).toMatchObject({
+      ok: true,
+    });
+  });
+
   it("cancels accepted dispatches before guarded workspace teardown", async () => {
     const fixtureDir = await writeFixture();
     const workspace = await makeWorkspace(
@@ -315,7 +785,7 @@ describe("workspace runtime isolation", () => {
       workspace,
       piAppDataDir: join(workspace.stateRoot, ".pi"),
       apiModuleDir,
-      dependencies: fakeTransports().dependencies,
+      dependencies: createTestTransports().dependencies,
     });
     await runtime.load();
     const attachment = (await runtime.createAttachment({ kind: "new-session" }))
@@ -360,10 +830,10 @@ describe("workspace runtime isolation", () => {
       workspace,
       piAppDataDir: join(workspace.stateRoot, ".pi"),
       apiModuleDir,
-      dependencies: fakeTransports().dependencies,
+      dependencies: createTestTransports().dependencies,
     });
     const events: RuntimeEvent[] = [];
-    runtime.onEvent((event) => events.push(event));
+    using _events = runtime.onEvent((event) => events.push(event));
 
     const activation = await runtime.load();
     expect(activation.activated.map(({ id }) => id)).toEqual(["canvas"]);
@@ -374,15 +844,17 @@ describe("workspace runtime isolation", () => {
     const peerA = (
       await runtime.createAttachment(admitSession({ sessionId: sessionA }))
     ).attachment;
-    const read = toChannelCanonicalId("canvas", "read");
+    const read = async (attachment: Attachment): Promise<string> => {
+      const response = await runtime.dispatchViewpointWebRequest(
+        createViewpointWebRequest(attachment, "/view"),
+      );
+      expect(response.status).toBe(200);
+      return response.body;
+    };
     const writeback = toChannelCanonicalId("canvas", "writeback");
     const key = "main";
     const htmlA = "<main>session A</main>";
     const htmlB = "<main>session B</main>";
-    const canonicalA =
-      "<html><head></head><body><main>session A</main></body></html>";
-    const canonicalB =
-      "<html><head></head><body><main>session B</main></body></html>";
 
     await expect(
       dispatch(peerA, {
@@ -401,23 +873,14 @@ describe("workspace runtime isolation", () => {
     const sessionB = selected.target.sessionId;
     expect(sessionB).not.toBe(sessionA);
     expect(peerA.target.sessionId).toBe(sessionA);
-    await expect(
-      dispatch(selected, { channel: read, payload: { key } }),
-    ).resolves.toEqual({
-      ok: true,
-      value: "<html><head></head><body></body></html>",
-    });
+    await expect(read(selected)).resolves.toContain("<body></body>");
 
     await dispatch(selected, {
       channel: writeback,
       payload: { key, html: htmlB },
     });
-    await expect(
-      dispatch(peerA, { channel: read, payload: { key } }),
-    ).resolves.toEqual({ ok: true, value: canonicalA });
-    await expect(
-      dispatch(selected, { channel: read, payload: { key } }),
-    ).resolves.toEqual({ ok: true, value: canonicalB });
+    await expect(read(peerA)).resolves.toContain(htmlA);
+    await expect(read(selected)).resolves.toContain(htmlB);
 
     events.length = 0;
     await expect(
@@ -438,12 +901,18 @@ describe("workspace runtime isolation", () => {
         { kind: "session", sessionId: sessionB },
       ]),
     );
-    await expect(
-      dispatch(peerA, { channel: read, payload: { key } }),
-    ).resolves.toEqual({ ok: true, value: canonicalA });
-    await expect(
-      dispatch(selected, { channel: read, payload: { key } }),
-    ).resolves.toEqual({ ok: true, value: canonicalB });
+    const surfacesChangedIndex = events.findIndex(
+      ({ channel }) => channel === "uix.surfaces_changed",
+    );
+    const restoredCanvasIndices = events
+      .map(({ channel }, index) => (channel === "canvas.changed" ? index : -1))
+      .filter((index) => index >= 0);
+    expect(restoredCanvasIndices.length).toBeGreaterThan(0);
+    expect(Math.max(...restoredCanvasIndices)).toBeLessThan(
+      surfacesChangedIndex,
+    );
+    await expect(read(peerA)).resolves.toContain(htmlA);
+    await expect(read(selected)).resolves.toContain(htmlB);
 
     peerA[Symbol.dispose]();
     selected[Symbol.dispose]();
@@ -462,17 +931,17 @@ describe("workspace runtime isolation", () => {
       fixtureDir,
       "hello-B",
     );
-    const transportsA = fakeTransports();
-    const transportsB = fakeTransports();
+    const transportsA = createTestTransports();
+    const transportsB = createTestTransports();
 
-    const runtimeA = createWorkspaceRuntime({
+    await using runtimeA = createWorkspaceRuntime({
       workspaceId: toWorkspaceId("ws-a"),
       workspace: workspaceA,
       piAppDataDir: join(workspaceA.stateRoot, ".pi"),
       apiModuleDir,
       dependencies: transportsA.dependencies,
     });
-    const runtimeB = createWorkspaceRuntime({
+    await using runtimeB = createWorkspaceRuntime({
       workspaceId: toWorkspaceId("ws-b"),
       workspace: workspaceB,
       piAppDataDir: join(workspaceB.stateRoot, ".pi"),
@@ -482,8 +951,8 @@ describe("workspace runtime isolation", () => {
 
     const eventsA: RuntimeEvent[] = [];
     const eventsB: RuntimeEvent[] = [];
-    runtimeA.onEvent((event) => eventsA.push(event));
-    runtimeB.onEvent((event) => eventsB.push(event));
+    using _eventsA = runtimeA.onEvent((event) => eventsA.push(event));
+    using _eventsB = runtimeB.onEvent((event) => eventsB.push(event));
 
     // Both workspaces activate the same feature id from the same entry.
     const activationA = await runtimeA.load();
@@ -691,14 +1160,22 @@ describe("workspace runtime isolation", () => {
       name: "greet",
       workspaceId: "ws-b",
     });
-    const responseA = await transportsA.resourceHandlers.get(
-      ResourceProtocolScheme,
-    )?.(new Request(urlA));
-    const responseB = await transportsB.resourceHandlers.get(
-      ResourceProtocolScheme,
-    )?.(new Request(urlB));
-    expect(await responseA?.text()).toBe("hello-A");
-    expect(await responseB?.text()).toBe("hello-B");
+    const responseA = await transportsA.request({
+      kind: "resource",
+      request: new Request(urlA),
+    });
+    const responseB = await transportsB.request({
+      kind: "resource",
+      request: new Request(urlB),
+    });
+    expect(await responseA.text()).toBe("hello-A");
+    expect(await responseB.text()).toBe("hello-B");
+    expect(Object.fromEntries(responseA.headers)).toEqual({
+      "content-type": "text/plain;charset=UTF-8",
+    });
+    expect(Object.fromEntries(responseB.headers)).toEqual(
+      Object.fromEntries(responseA.headers),
+    );
 
     // Surface composition: both serve the same feature id, built per runtime.
     const surfaces = toChannelCanonicalId("uix", "surfaces");
@@ -784,6 +1261,71 @@ describe("workspace runtime isolation", () => {
       await dispatch(attachA, { channel: increment, payload: undefined }),
     ).toEqual({ ok: true, value: 1 });
 
+    // While asynchronous feature replacement is active, an already-prepared
+    // Agent feature request cannot start and reach the stale generation.
+    const reloadControl: ReloadControl = {
+      shouldFailCleanup: false,
+      cleanupStartedListener: undefined,
+      cleanupGate: undefined,
+    };
+    const previousReloadControl = reloadControlGlobal[reloadControlSymbol];
+    reloadControlGlobal[reloadControlSymbol] = reloadControl;
+    using _reloadControlLifetime = disposable(() => {
+      reloadControl.shouldFailCleanup = false;
+      reloadControlGlobal[reloadControlSymbol] = previousReloadControl;
+    });
+    const cleanupStarted = createDeferred();
+    const cleanupGate = createDeferred();
+    reloadControl.cleanupStartedListener = cleanupStarted.resolve;
+    reloadControl.cleanupGate = cleanupGate.promise;
+    await using preparedDuringReload = attachA.prepareDispatch({
+      channel: increment,
+      payload: undefined,
+    });
+    const activeReload = dispatch(attachA, {
+      channel: toChannelCanonicalId("uix", "reload"),
+      payload: undefined,
+    });
+    try {
+      await cleanupStarted.promise;
+      const blockedDuringReload = await preparedDuringReload.invoke();
+      expect(blockedDuringReload.ok).toBe(false);
+      if (blockedDuringReload.ok) {
+        throw new Error("Prepared Agent request unexpectedly succeeded");
+      }
+      expect(blockedDuringReload.error.code).toBe("handler_error");
+      expect(blockedDuringReload.error.message).toContain(
+        "Workspace reload is active",
+      );
+    } finally {
+      cleanupGate.resolve();
+    }
+    await expect(activeReload).resolves.toMatchObject({ ok: true });
+    reloadControl.cleanupStartedListener = undefined;
+    reloadControl.cleanupGate = undefined;
+
+    // Cleanup failure is reported only after replacement and renderer
+    // notification complete. The active-reload state is still released.
+    reloadControl.shouldFailCleanup = true;
+    eventsA.length = 0;
+    expect(
+      await dispatch(attachA, {
+        channel: toChannelCanonicalId("uix", "reload"),
+        payload: undefined,
+      }),
+    ).toMatchObject({ ok: false, error: { code: "handler_error" } });
+    reloadControl.shouldFailCleanup = false;
+    expect(eventsA).toContainEqual(
+      expect.objectContaining({
+        channel: "uix.surfaces_changed",
+        scope: { kind: "workspace" },
+      }),
+    );
+    expect(await dispatch(attachA, { channel: ping, payload: {} })).toEqual({
+      ok: true,
+      value: "hello-A2",
+    });
+
     // A malformed candidate returns a structured canonical error and leaves
     // the accepted composition active.
     await writeFile(workspaceA.manifestPath, "{ invalid");
@@ -801,6 +1343,46 @@ describe("workspace runtime isolation", () => {
       value: "hello-A2",
     });
 
+    // A failed reload does not poison serialization. Concurrent requests queue
+    // and both reconcile the repaired manifest successfully.
+    await writeFile(
+      workspaceA.manifestPath,
+      JSON.stringify(
+        {
+          name: "workspace-a",
+          features: [
+            {
+              entry: join(fixtureDir, "echo.ts"),
+              settings: { greeting: "hello-A3" },
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+    const queuedReloads = await Promise.all([
+      dispatch(attachA, {
+        channel: toChannelCanonicalId("uix", "reload"),
+        payload: undefined,
+      }),
+      dispatch(attachA, {
+        channel: toChannelCanonicalId("uix", "reload"),
+        payload: undefined,
+      }),
+    ]);
+    expect(queuedReloads).toHaveLength(2);
+    for (const response of queuedReloads) {
+      expect(response).toMatchObject({
+        ok: true,
+        value: { featuresActivated: 1 },
+      });
+    }
+    expect(await dispatch(attachA, { channel: ping, payload: {} })).toEqual({
+      ok: true,
+      value: "hello-A3",
+    });
+
     // Disposing one runtime removes only its state and routes. Concurrent
     // callers share the same drain rather than observing early completion.
     const disposalA = runtimeA[Symbol.asyncDispose]();
@@ -813,12 +1395,16 @@ describe("workspace runtime isolation", () => {
       ok: true,
       value: "hello-B",
     });
+    expect(transportsA.isRegistered).toBe(false);
+    expect(transportsB.isRegistered).toBe(true);
     expect(
-      await transportsB.resourceHandlers.get(ResourceProtocolScheme)?.(
-        new Request(urlB),
-      ),
-    ).toBeDefined();
+      await transportsB.request({
+        kind: "resource",
+        request: new Request(urlB),
+      }),
+    ).toMatchObject({ status: 200 });
 
     await runtimeB[Symbol.asyncDispose]();
+    expect(transportsB.isRegistered).toBe(false);
   });
 });

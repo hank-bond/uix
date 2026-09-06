@@ -8,6 +8,12 @@ summary: "Authoring guidance for interactive, stateful UIX Canvas HTML, includin
 
 A canvas is a persisted HTML document that both the human and Agent can change. Use it when information benefits from visual structure or direct interaction rather than plain conversational text.
 
+## Document loading and addresses
+
+Canvas loads the selected Agent's document directly into an iframe through its viewpoint document route. Agent writes refresh that document. Human writeback does not reload the iframe. Canvas adds a browser shim only to the served copy, and the shim removes itself before authored scripts run. Do not copy shim code or generated physical URLs into authored HTML.
+
+Use directory-relative references such as `assets/site.css` when the feature provides those locations. Same-page `#details` links work natively, including links added by scripts. Nested Canvas keys do not change the relative-address directory. Canvas rejects authored `<base href>` elements rather than rewriting addresses. Static assets and additional route response forms are not part of the current Canvas implementation.
+
 ## State belongs in the document
 
 UIX serializes the hydrated document after human interaction. State represented by these mechanisms survives reloads and can be relayed back to the Agent as a compact diff:

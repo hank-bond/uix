@@ -42,7 +42,7 @@ vi.mock("./ipc-wire-log", () => ({
   recordWireCrossing: wireLogMock.record,
 }));
 
-import { handleCanonicalRequest } from "./ipc";
+import { handle, handleCanonicalRequest } from "./ipc";
 
 const PhysicalChannel = "uix:request";
 const ipcEvent = { sender: { id: 42 } };
@@ -52,6 +52,23 @@ beforeEach(() => {
   electronMock.handle.mockClear();
   electronMock.removeHandler.mockClear();
   wireLogMock.record.mockClear();
+});
+
+it("resolves host control reads from the physical sender, not the payload", async () => {
+  const read = vi.fn((_request: unknown, webContentsId: number) => ({
+    binding: `window-${String(webContentsId)}`,
+  }));
+  using lifetime = handle("uix:web-binding:read", read);
+  const handler = electronMock.handlers.get("uix:web-binding:read");
+  if (!handler) throw new Error("Host control handler was not registered");
+  const payload = { webContentsId: 99 };
+  await expect(handler(ipcEvent, payload)).resolves.toEqual({
+    binding: "window-42",
+  });
+  expect(read).toHaveBeenCalledWith(payload, 42);
+  expect(wireLogMock.record).toHaveBeenCalledTimes(2);
+  lifetime[Symbol.dispose]();
+  expect(electronMock.handlers.has("uix:web-binding:read")).toBe(false);
 });
 
 describe("canonical IPC request logging", () => {

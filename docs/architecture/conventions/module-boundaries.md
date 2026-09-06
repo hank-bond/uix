@@ -10,6 +10,8 @@ The [module-boundaries.export-minimum](./rules/module-boundaries.export-minimum.
 
 ## Validation
 
+Schemas own structural validation at data boundaries. The [module-boundaries.schema-validation](./rules/module-boundaries.schema-validation.md) rule distinguishes schema validation from semantic assertions and ordinary control flow.
+
 Use boolean guards only when the caller has a real branch to make. If failure always means "stop here," expose an assertion helper instead.
 
 ```ts
@@ -27,6 +29,14 @@ export function assertCanvasKey(key: string): void {
 Call sites that cannot recover should say what they mean: `assertCanvasKey(key)` instead of repeating the `if` and `throw`.
 
 Custom errors start with plain `Error` and a clear message. Add a custom subclass only when callers must branch on its type, as in `err instanceof InvalidCanvasKeyError`. Until then, assertion helpers keep call sites stable if the thrown type changes.
+
+## Constrained strings
+
+A branded string preserves a domain value's validated structural meaning across internal APIs. The [`module-boundaries.branded-strings`](./rules/module-boundaries.branded-strings.md) rule applies throughout the repository.
+
+Keep three stages distinct: raw input, validated domain value, and external representation. Schemas define structural validity. A parser or checked encoder establishes the brand, and internal consumers require that branded type rather than arbitrary strings. Formatting, concatenation, and deserialization do not automatically preserve the structural constraints.
+
+Declare the brand where the shared concept is defined rather than creating a separate brand for each host. One host-neutral type can represent a feature's directory address while each host encodes its own scheme and layout. That type does not prove that the address's attachment binding remains valid.
 
 ## Imports
 

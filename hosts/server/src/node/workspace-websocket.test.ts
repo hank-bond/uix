@@ -60,15 +60,28 @@ function createAttachmentFixture(
 ): {
   readonly attachment: Attachment;
   emit(event: RuntimeEvent): void;
+  replaceBinding(binding: string): void;
 } {
   let eventListener: ((event: RuntimeEvent) => void) | undefined;
+  let bindingListener:
+    | ((binding: Attachment["webBinding"]) => void)
+    | undefined;
   return {
     attachment: {
       attachmentId: toAttachmentId("attachment-1"),
       workspaceId: toWorkspaceId("reference"),
       target: { sessionId: toSessionId("session-1") },
+      webBinding: "fixture-binding" as Attachment["webBinding"],
       prepareDispatch,
       retarget: () => Promise.reject(new Error("Unexpected retarget")),
+      onWebBindingChange(listener) {
+        bindingListener = listener;
+        return {
+          [Symbol.dispose]: () => {
+            bindingListener = undefined;
+          },
+        };
+      },
       onEvent(listener) {
         eventListener = listener;
         return {
@@ -82,6 +95,9 @@ function createAttachmentFixture(
     },
     emit(event): void {
       eventListener?.(event);
+    },
+    replaceBinding(binding): void {
+      bindingListener?.(binding as Attachment["webBinding"]);
     },
   };
 }
@@ -120,6 +136,115 @@ describe("server workspace WebSocket binding", () => {
     vi.useRealTimers();
   });
 
+  it("derives the initial message and canonical path from the accepted attachment", () => {
+    const fixture = createAttachmentFixture(() => {
+      throw new Error("Unexpected dispatch");
+    });
+    const socket = new FakeSocket();
+    using _binding = bindWorkspaceWebSocket(socket as never, {
+      ...fixture.attachment,
+      workspaceId: toWorkspaceId("other-workspace"),
+      target: { sessionId: toSessionId("session/2") },
+    });
+    expect(parseSentMessages(socket)).toEqual([
+      {
+        type: "ready",
+        webBinding: fixture.attachment.webBinding,
+        sessionId: "session/2",
+        canonicalPath: "/workspaces/other-workspace/sessions/session%2F2",
+      },
+    ]);
+  });
+
+  it("orders host binding updates before target events and disposes both subscriptions", () => {
+    const fixture = createAttachmentFixture(() => {
+      throw new Error("Unexpected dispatch");
+    });
+    const socket = new FakeSocket();
+    using binding = bindWorkspaceWebSocket(socket as never, fixture.attachment);
+    fixture.replaceBinding("next-binding");
+    const event: RuntimeEvent = {
+      id: "e1",
+      payload: undefined,
+      channel: "feature.changed" as never,
+      scope: { kind: "session", sessionId: toSessionId("session-2") },
+    };
+    fixture.emit(event);
+    expect(parseSentMessages(socket)).toEqual([
+      {
+        type: "ready",
+        sessionId: "session-1",
+        canonicalPath: "/workspaces/reference/sessions/session-1",
+        webBinding: "fixture-binding",
+      },
+      { type: "web_binding", binding: "next-binding" },
+      { type: "event", id: "e1", channel: "feature.changed" },
+    ]);
+    binding[Symbol.dispose]();
+    binding[Symbol.dispose]();
+    fixture.replaceBinding("closed-binding");
+    fixture.emit(event);
+    expect(socket.send).toHaveBeenCalledTimes(3);
+    expect(socket.listenerCount("message")).toBe(0);
+    expect(socket.listenerCount("pong")).toBe(0);
+  });
+
+  it("stops delivery and completes cleanup when a binding subscription fails to dispose", () => {
+    const fixture = createAttachmentFixture(() => {
+      throw new Error("Unexpected dispatch");
+    });
+    const socket = new FakeSocket();
+    using binding = bindWorkspaceWebSocket(socket as never, {
+      ...fixture.attachment,
+      onWebBindingChange(listener) {
+        const subscription = fixture.attachment.onWebBindingChange(listener);
+        return {
+          [Symbol.dispose]() {
+            subscription[Symbol.dispose]();
+            listener(fixture.attachment.webBinding);
+            throw new Error("Unsubscribe failed");
+          },
+        };
+      },
+    });
+    expect(() => {
+      binding[Symbol.dispose]();
+    }).toThrow("Unsubscribe failed");
+    fixture.emit({
+      id: "e1",
+      payload: undefined,
+      channel: "feature.changed" as never,
+      scope: { kind: "session", sessionId: toSessionId("session-1") },
+    });
+    expect(socket.send).toHaveBeenCalledOnce();
+    expect(socket.listenerCount("message")).toBe(0);
+    expect(socket.listenerCount("pong")).toBe(0);
+    binding[Symbol.dispose]();
+  });
+
+  it("rolls back subscriptions and heartbeat if initial delivery fails", () => {
+    const fixture = createAttachmentFixture(() => {
+      throw new Error("Unexpected dispatch");
+    });
+    const socket = new FakeSocket();
+    socket.send.mockImplementationOnce(() => {
+      throw new Error("Send failed");
+    });
+    expect(() =>
+      bindWorkspaceWebSocket(socket as never, fixture.attachment),
+    ).toThrow("Send failed");
+    fixture.replaceBinding("later");
+    fixture.emit({
+      id: "e1",
+      payload: undefined,
+      channel: "feature.changed" as never,
+      scope: { kind: "session", sessionId: toSessionId("session-1") },
+    });
+    expect(socket.send).toHaveBeenCalledOnce();
+    expect(socket.listenerCount("message")).toBe(0);
+    expect(socket.listenerCount("pong")).toBe(0);
+  });
+
   it("pings live connections and terminates one that stops answering", () => {
     vi.useFakeTimers();
     const fixture = createAttachmentFixture(() => {
@@ -129,11 +254,6 @@ describe("server workspace WebSocket binding", () => {
     using _binding = bindWorkspaceWebSocket(
       socket as never,
       fixture.attachment,
-      {
-        type: "ready",
-        sessionId: "session-1",
-        canonicalPath: "/workspaces/reference/sessions/session-1",
-      },
     );
 
     vi.advanceTimersByTime(30_000);
@@ -156,11 +276,6 @@ describe("server workspace WebSocket binding", () => {
     using _binding = bindWorkspaceWebSocket(
       socket as never,
       fixture.attachment,
-      {
-        type: "ready",
-        sessionId: "session-1",
-        canonicalPath: "/workspaces/reference/sessions/session-1",
-      },
     );
 
     socket.emitMessage({
@@ -178,6 +293,7 @@ describe("server workspace WebSocket binding", () => {
     expect(parseSentMessages(socket)).toEqual([
       {
         type: "ready",
+        webBinding: "fixture-binding",
         sessionId: "session-1",
         canonicalPath: "/workspaces/reference/sessions/session-1",
       },
@@ -200,11 +316,6 @@ describe("server workspace WebSocket binding", () => {
     using _binding = bindWorkspaceWebSocket(
       socket as never,
       fixture.attachment,
-      {
-        type: "ready",
-        sessionId: "session-1",
-        canonicalPath: "/workspaces/reference/sessions/session-1",
-      },
     );
     const request = {
       type: "request",
@@ -241,11 +352,6 @@ describe("server workspace WebSocket binding", () => {
     using _binding = bindWorkspaceWebSocket(
       socket as never,
       fixture.attachment,
-      {
-        type: "ready",
-        sessionId: "session-1",
-        canonicalPath: "/workspaces/reference/sessions/session-1",
-      },
     );
 
     socket.emitMessage({
@@ -284,11 +390,6 @@ describe("server workspace WebSocket binding", () => {
     using _binding = bindWorkspaceWebSocket(
       socket as never,
       fixture.attachment,
-      {
-        type: "ready",
-        sessionId: "session-1",
-        canonicalPath: "/workspaces/reference/sessions/session-1",
-      },
     );
 
     socket.emitEncodedMessage(
@@ -376,11 +477,6 @@ describe("server workspace WebSocket binding", () => {
     using _binding = bindWorkspaceWebSocket(
       socket as never,
       fixture.attachment,
-      {
-        type: "ready",
-        sessionId: "session-1",
-        canonicalPath: "/workspaces/reference/sessions/session-1",
-      },
     );
 
     socket.emitMessage({
@@ -408,11 +504,6 @@ describe("server workspace WebSocket binding", () => {
     using _binding = bindWorkspaceWebSocket(
       socket as never,
       fixture.attachment,
-      {
-        type: "ready",
-        sessionId: "session-1",
-        canonicalPath: "/workspaces/reference/sessions/session-1",
-      },
     );
 
     fixture.emit({
@@ -439,15 +530,7 @@ describe("server workspace WebSocket binding", () => {
       createPreparedDispatch(request, () => result.promise, disposal),
     );
     const socket = new FakeSocket();
-    const binding = bindWorkspaceWebSocket(
-      socket as never,
-      fixture.attachment,
-      {
-        type: "ready",
-        sessionId: "session-1",
-        canonicalPath: "/workspaces/reference/sessions/session-1",
-      },
-    );
+    const binding = bindWorkspaceWebSocket(socket as never, fixture.attachment);
 
     socket.emitMessage({
       type: "request",

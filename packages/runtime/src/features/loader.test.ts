@@ -14,6 +14,7 @@ import { ChannelRegistry } from "../channel-registry";
 import { AsyncDisposableBag } from "../lifecycle";
 import { WorkspaceManifestStore } from "../manifest-store";
 import { ResourceRegistry } from "../resource-registry";
+import { WebRouteContractRegistry } from "../web-route-registry";
 
 interface LoaderHarness {
   substrate: FeatureSubstrate;
@@ -104,6 +105,7 @@ function makeSubstrate(manifestPath?: string): LoaderHarness {
           canonicalId,
           payload,
         ),
+      viewpointWebRoutes: new WebRouteContractRegistry(),
       surfaces,
     },
     apiModuleDir: join(__dirname, "../../../api/src"),

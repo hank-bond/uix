@@ -29,6 +29,7 @@ import type {
   SettingsHandleFrom,
 } from "./settings";
 import type { TurnStateContributions } from "./turn-state";
+import type { WebRouteContract, WebRouteContribution } from "./web-routes";
 
 export type { AgentContextContribution } from "./agent-context";
 export type { AgentSkillContribution } from "./agent-skills";
@@ -46,6 +47,7 @@ export type {
   TurnStateCellDefinition,
   TurnStateContributions,
 } from "./turn-state";
+export type { WebRouteContribution } from "./web-routes";
 
 export interface FeatureContext {
   documents: DocumentStoreFactory;
@@ -65,6 +67,8 @@ export interface WorkspaceFeatureContributions {
   channels?: readonly ChannelContribution[];
   /** Contracts whose handlers are supplied by each Agent factory. */
   agentChannelContracts?: readonly ChannelContract[];
+  /** Viewpoint web contracts whose handlers are supplied by each Agent factory. */
+  viewpointWebRouteContracts?: readonly WebRouteContract[];
   /**
    * Frontend surface entry files, resolved against the feature entry's
    * directory (absolute paths pass through). Each module must export
@@ -78,6 +82,8 @@ export interface WorkspaceFeatureContributions {
 export interface AgentFeatureContributions {
   /** Handlers for contracts registered by `agentChannelContracts`. */
   channels?: readonly ChannelContribution[];
+  /** Handlers for contracts registered by `viewpointWebRouteContracts`. */
+  webRoutes?: readonly WebRouteContribution[];
   /** Feature-namespaced Pi tools. */
   agentTools?: readonly AgentToolContribution[];
   /** Intentional exact-name Pi tools, including replacements and app vocabulary. */

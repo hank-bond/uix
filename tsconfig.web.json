@@ -30,12 +30,19 @@
     "apps/features/**/workspace/**/*.ts",
     "hosts/server/src/browser/**/*.ts",
     "hosts/server/src/resource-urls.ts",
+    "hosts/server/src/viewpoint-urls.ts",
+    "hosts/server/src/viewpoint-web.test.ts",
     "hosts/server/src/websocket-messages.ts",
     "hosts/electron/src/renderer/**/*.ts",
     "hosts/electron/src/renderer/**/*.tsx",
     "hosts/electron/src/channel-transport.ts",
+    "hosts/electron/src/viewpoint-urls.ts",
+    "hosts/electron/src/viewpoint-web.test.ts",
     "src/features/**/workspace/**/*.ts",
     "src/features/**/workspace/**/*.tsx",
-    "src/features/**/shared/**/*.ts"
+    "src/features/**/shared/**/*.ts",
+    "src/features/canvas/backend/document-html.browser.test.ts",
+    "src/features/canvas/backend/document-html.ts",
+    "src/features/canvas/backend/html-canonicalization.ts"
   ]
 }

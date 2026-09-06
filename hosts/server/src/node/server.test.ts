@@ -7,7 +7,6 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ResourceProtocolScheme } from "@uix/api/resource-routes";
 import { parseWorkspaceCatalog } from "@uix/host/catalog";
 import type {
   Attachment,
@@ -355,7 +354,9 @@ describe("server host launcher", () => {
     const peer = await openWorkspaceWebSocket(
       `${webSocketAddress}/workspaces/reference/sessions/${first.ready.sessionId}`,
     );
-    expect(peer.ready).toEqual(first.ready);
+    expect(peer.ready.sessionId).toBe(first.ready.sessionId);
+    expect(peer.ready.canonicalPath).toBe(first.ready.canonicalPath);
+    expect(peer.ready.webBinding).not.toBe(first.ready.webBinding);
     expect(bootWorkspace).toHaveBeenCalledOnce();
 
     await closeWebSocket(first.socket);
@@ -388,6 +389,8 @@ describe("server host launcher", () => {
           workspaceId: toWorkspaceId("reference"),
           onEvent: () => noopDisposable(),
           createAttachment: () => Promise.resolve(created.value),
+          dispatchViewpointWebRequest: () =>
+            Promise.reject(new Error("Unexpected viewpoint web request")),
           load: () => Promise.reject(new Error("Unexpected runtime load")),
           [Symbol.asyncDispose]: runtimeDisposal,
         }),
@@ -425,92 +428,165 @@ describe("server host launcher", () => {
     await expect(fetch(`${address}/api/catalog`)).rejects.toThrow();
   });
 
-  it("keeps an in-flight content fetch alive after its originating socket disconnects", async () => {
-    const fixture = await createFixture();
-    const listener = await reserveLoopbackListener();
-    const resourceStarted = createDeferred();
-    const resourceRelease = createDeferred();
-    const runtimeDisposal = vi.fn(() => Promise.resolve());
-    const bootWorkspace = vi.fn(
-      (
-        registered: RegisteredWorkspace,
-        dependencies: ServerWorkspaceDependencies,
-      ): Promise<WorkspaceRuntime> => {
-        const transportRegistration = dependencies.resourceTransport(
-          ResourceProtocolScheme,
-          async () => {
-            resourceStarted.resolve();
-            await resourceRelease.promise;
-            return new Response("immutable report", {
-              headers: {
-                "Cache-Control": "public, max-age=31536000, immutable",
-                "Content-Type": "text/plain; charset=utf-8",
-                "Access-Control-Allow-Origin": "https://unauthorized.example",
-                "Access-Control-Allow-Credentials": "true",
-                Vary: "Accept-Encoding, Origin",
-              },
-            });
-          },
-        );
-        return Promise.resolve({
-          workspaceId: registered.id,
-          onEvent: () => noopDisposable(),
-          createAttachment: () =>
-            Promise.resolve(createAttachmentFixture(registered.id).value),
-          load: () => Promise.reject(new Error("Unexpected runtime load")),
-          async [Symbol.asyncDispose]() {
-            transportRegistration[Symbol.dispose]();
-            await runtimeDisposal();
-          },
-        });
-      },
-    );
-    await using host = await createServerHost({
-      registryPath: fixture.registryPath,
-      publicOrigin: listener.origin,
-      assetRoot: fixture.assetRoot,
-      bootWorkspace,
-    });
-    const address = await host.listen(listener.options);
-    const socket = await openWorkspaceWebSocket(
-      `${address.replace(/^http/, "ws")}/workspaces/reference`,
-    );
-    const logicalUrl = "uix-resource://reference/reports/document/weekly?v=abc";
-    const fetchPromise = fetch(
-      resolveServerResourceUrl(address, "reference", logicalUrl),
-      { headers: { Origin: listener.origin } },
-    );
+  it.each(["resource", "viewpoint"])(
+    "keeps an in-flight $0 fetch alive after its originating socket disconnects",
+    async (kind) => {
+      const fixture = await createFixture();
+      const listener = await reserveLoopbackListener();
+      const resourceStarted = createDeferred();
+      const resourceRelease = createDeferred();
+      const runtimeDisposal = vi.fn(() => Promise.resolve());
+      const bootWorkspace = vi.fn(
+        (
+          registered: RegisteredWorkspace,
+          dependencies: ServerWorkspaceDependencies,
+        ): Promise<WorkspaceRuntime> => {
+          const transportRegistration = dependencies.contentTransportRegistrar(
+            async () => {
+              resourceStarted.resolve();
+              await resourceRelease.promise;
+              return new Response("immutable report", {
+                headers: {
+                  "Cache-Control": "public, max-age=31536000, immutable",
+                  "Content-Type": "text/plain; charset=utf-8",
+                  "Access-Control-Allow-Origin": "https://unauthorized.example",
+                  "Access-Control-Allow-Credentials": "true",
+                  Vary: "Accept-Encoding, Origin",
+                },
+              });
+            },
+          );
+          return Promise.resolve({
+            workspaceId: registered.id,
+            onEvent: () => noopDisposable(),
+            createAttachment: () =>
+              Promise.resolve(createAttachmentFixture(registered.id).value),
+            dispatchViewpointWebRequest: () =>
+              Promise.reject(new Error("Unexpected viewpoint web request")),
+            load: () => Promise.reject(new Error("Unexpected runtime load")),
+            async [Symbol.asyncDispose]() {
+              transportRegistration[Symbol.dispose]();
+              await runtimeDisposal();
+            },
+          });
+        },
+      );
+      await using host = await createServerHost({
+        registryPath: fixture.registryPath,
+        publicOrigin: listener.origin,
+        assetRoot: fixture.assetRoot,
+        bootWorkspace,
+      });
+      const address = await host.listen(listener.options);
+      const socket = await openWorkspaceWebSocket(
+        `${address.replace(/^http/, "ws")}/workspaces/reference`,
+      );
+      const logicalUrl =
+        "uix-resource://reference/reports/document/weekly?v=abc";
+      const contentUrl =
+        kind === "resource"
+          ? resolveServerResourceUrl(address, "reference", logicalUrl)
+          : `${address}/workspaces/reference/viewpoints/${socket.ready.webBinding}/reports/view`;
+      const fetchPromise = fetch(contentUrl, {
+        headers: { Origin: listener.origin },
+      });
 
-    await resourceStarted.promise;
-    await closeWebSocket(socket.socket);
-    expect(runtimeDisposal).not.toHaveBeenCalled();
+      await resourceStarted.promise;
+      await closeWebSocket(socket.socket);
+      expect(runtimeDisposal).not.toHaveBeenCalled();
 
-    resourceRelease.resolve();
-    const response = await fetchPromise;
-    expect(await response.text()).toBe("immutable report");
-    expect(response.headers.get("cache-control")).toBe(
-      "public, max-age=31536000, immutable",
-    );
-    expect(response.headers.get("access-control-allow-origin")).toBe(
-      listener.origin,
-    );
-    expect(response.headers.get("access-control-allow-credentials")).toBeNull();
-    expect(response.headers.get("vary")).toBe("Accept-Encoding, Origin");
-    await vi.waitFor(() => {
-      expect(runtimeDisposal).toHaveBeenCalledOnce();
-    });
+      resourceRelease.resolve();
+      const response = await fetchPromise;
+      expect(await response.text()).toBe("immutable report");
+      expect(response.headers.get("cache-control")).toBe(
+        "public, max-age=31536000, immutable",
+      );
+      expect(response.headers.get("access-control-allow-origin")).toBe(
+        listener.origin,
+      );
+      expect(
+        response.headers.get("access-control-allow-credentials"),
+      ).toBeNull();
+      expect(response.headers.get("vary")).toBe("Accept-Encoding, Origin");
+      await vi.waitFor(() => {
+        expect(runtimeDisposal).toHaveBeenCalledOnce();
+      });
 
-    const admittedOriginResponse = await fetch(
-      resolveServerResourceUrl(address, "reference", logicalUrl),
-      { headers: { Origin: listener.origin } },
-    );
-    expect(
-      admittedOriginResponse.headers.get("access-control-allow-origin"),
-    ).toBe(listener.origin);
-    expect(admittedOriginResponse.headers.get("vary")).toBe(
-      "Accept-Encoding, Origin",
-    );
-  });
+      const admittedOriginResponse = await fetch(contentUrl, {
+        headers: { Origin: listener.origin },
+      });
+      expect(
+        admittedOriginResponse.headers.get("access-control-allow-origin"),
+      ).toBe(listener.origin);
+      expect(admittedOriginResponse.headers.get("vary")).toBe(
+        "Accept-Encoding, Origin",
+      );
+    },
+  );
+
+  it.each(["resource", "viewpoint"])(
+    "releases a $0 request guard when HTTP closes before its handler settles",
+    async (kind) => {
+      const fixture = await createFixture();
+      const listener = await reserveLoopbackListener();
+      const started = createDeferred();
+      const release = createDeferred();
+      const runtimeDisposal = vi.fn(() => Promise.resolve());
+      const createAttachment = vi.fn(() =>
+        Promise.reject(new Error("Content must not create attachments")),
+      );
+      await using host = await createServerHost({
+        registryPath: fixture.registryPath,
+        publicOrigin: listener.origin,
+        assetRoot: fixture.assetRoot,
+        bootWorkspace: (registered, dependencies) => {
+          const registration = dependencies.contentTransportRegistrar(
+            async (request) => {
+              expect(request.kind).toBe(kind);
+              started.resolve();
+              await release.promise;
+              return new Response("completed");
+            },
+          );
+          return Promise.resolve({
+            workspaceId: registered.id,
+            onEvent: () => noopDisposable(),
+            createAttachment,
+            dispatchViewpointWebRequest: () =>
+              Promise.reject(new Error("Unexpected direct dispatch")),
+            load: () => Promise.reject(new Error("Unexpected load")),
+            async [Symbol.asyncDispose]() {
+              registration[Symbol.dispose]();
+              await runtimeDisposal();
+            },
+          });
+        },
+      });
+      const address = await host.listen(listener.options);
+      const controller = new AbortController();
+      const path =
+        kind === "resource"
+          ? "resources/reference/reports/document/main"
+          : "viewpoints/token/reports/view";
+      const response = fetch(`${address}/workspaces/reference/${path}`, {
+        signal: controller.signal,
+      });
+      try {
+        await started.promise;
+        controller.abort();
+        await expect(response).rejects.toThrow();
+        // Allow the physical HTTP close to arrive while the handler remains held.
+        await new Promise((resolve) => setTimeout(resolve, 25));
+        expect(runtimeDisposal).not.toHaveBeenCalled();
+      } finally {
+        release.resolve();
+      }
+      await vi.waitFor(() => {
+        expect(runtimeDisposal).toHaveBeenCalledOnce();
+      });
+      expect(createAttachment).not.toHaveBeenCalled();
+    },
+  );
 
   it("retains workspace ownership until attachment creation settles after disconnect", async () => {
     const fixture = await createFixture();
@@ -727,6 +803,8 @@ function createDeferredWorkspaceRuntime(
       started.resolve();
       return creation.promise;
     },
+    dispatchViewpointWebRequest: () =>
+      Promise.reject(new Error("Unexpected viewpoint web request")),
     load: () => Promise.reject(new Error("Unexpected runtime load")),
     [Symbol.asyncDispose]: disposal,
   };
@@ -747,10 +825,12 @@ function createAttachmentFixture(workspaceId: WorkspaceId): {
     attachmentId: toAttachmentId("attachment-1"),
     workspaceId,
     target: { sessionId: toSessionId("session-1") },
+    webBinding: "fixture-binding" as Attachment["webBinding"],
     prepareDispatch: () => {
       throw new Error("Unexpected dispatch preparation");
     },
     retarget: () => Promise.reject(new Error("Unexpected retarget")),
+    onWebBindingChange: () => noopDisposable(),
     onEvent: () => noopDisposable(),
     onClose: (listener) => {
       closeListener = listener;

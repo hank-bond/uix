@@ -18,16 +18,16 @@ import {
   WorkspaceSessionProvider,
 } from "@uix/api/workspace";
 
-import { WorkspaceSessionController } from "./session-controller";
 import type { SessionLocationAdapter } from "./session-location";
+import { WorkspaceSessionState } from "./session-state";
 
 const RecentSessionLimit = 10;
 
-const WorkspaceSessionControllerContext = createContext<
-  WorkspaceSessionController | undefined
+const WorkspaceSessionStateContext = createContext<
+  WorkspaceSessionState | undefined
 >(undefined);
 
-export function WorkspaceSessionControllerProvider({
+export function WorkspaceSessionStateProvider({
   children,
   sessionLocationAdapter,
 }: {
@@ -39,9 +39,9 @@ export function WorkspaceSessionControllerProvider({
     () => createChannelClient(workspace, "agent", agentChannels),
     [workspace],
   );
-  const controller = useMemo(
+  const sessionState = useMemo(
     () =>
-      new WorkspaceSessionController({
+      new WorkspaceSessionState({
         requestActiveHistory: () => agent.requests.session_history({}),
         requestRecentSessions: () =>
           agent.requests.list_session_summaries({ limit: RecentSessionLimit }),
@@ -56,43 +56,43 @@ export function WorkspaceSessionControllerProvider({
     [agent, sessionLocationAdapter],
   );
   const snapshot = useSyncExternalStore(
-    controller.subscribe,
-    controller.getSnapshot,
-    controller.getSnapshot,
+    sessionState.subscribe,
+    sessionState.getSnapshot,
+    sessionState.getSnapshot,
   );
 
   useEffect(
     () =>
       agent.events.event((event) => {
-        controller.updateAgentActivity(event);
+        sessionState.updateAgentActivity(event);
       }),
-    [agent, controller],
+    [agent, sessionState],
   );
   useEffect(() => {
-    void controller.loadRecentSessions().catch(() => {});
-  }, [controller]);
+    void sessionState.loadRecentSessions().catch(() => {});
+  }, [sessionState]);
   useEffect(() => {
     if (!sessionLocationAdapter) return;
     return sessionLocationAdapter.subscribe(async (sessionId) => {
-      const selected = await controller.switchSession(sessionId);
+      const selected = await sessionState.switchSession(sessionId);
       if (selected?.sessionId !== sessionId) {
         throw new Error(`Unable to navigate to session: ${sessionId}`);
       }
     });
-  }, [controller, sessionLocationAdapter]);
+  }, [sessionState, sessionLocationAdapter]);
 
   const loadActiveHistory = useCallback(
-    () => controller.loadActiveHistory(),
-    [controller],
+    () => sessionState.loadActiveHistory(),
+    [sessionState],
   );
   const switchSession = useCallback(
-    (sessionId: string) => controller.switchSession(sessionId),
-    [controller],
+    (sessionId: string) => sessionState.switchSession(sessionId),
+    [sessionState],
   );
   const setSessionTitle = useCallback(
     (sessionId: string, title: string | null) =>
-      controller.setSessionTitle(sessionId, title),
-    [controller],
+      sessionState.setSessionTitle(sessionId, title),
+    [sessionState],
   );
   const session = useMemo(
     () => ({
@@ -108,18 +108,18 @@ export function WorkspaceSessionControllerProvider({
   );
 
   return (
-    <WorkspaceSessionControllerContext.Provider value={controller}>
+    <WorkspaceSessionStateContext.Provider value={sessionState}>
       <WorkspaceSessionProvider session={session}>
         {children}
       </WorkspaceSessionProvider>
-    </WorkspaceSessionControllerContext.Provider>
+    </WorkspaceSessionStateContext.Provider>
   );
 }
 
-export function useWorkspaceSessionController(): WorkspaceSessionController {
-  const controller = useContext(WorkspaceSessionControllerContext);
-  if (!controller) {
-    throw new Error("WorkspaceSessionControllerProvider is missing");
+export function useWorkspaceSessionState(): WorkspaceSessionState {
+  const sessionState = useContext(WorkspaceSessionStateContext);
+  if (!sessionState) {
+    throw new Error("WorkspaceSessionStateProvider is missing");
   }
-  return controller;
+  return sessionState;
 }

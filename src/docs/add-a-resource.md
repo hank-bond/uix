@@ -12,9 +12,9 @@ Files involved:
 
 - [`packages/api/src/resources.ts`](../../packages/api/src/resources.ts), `createResourceAddressHandle`, `ResourceContribution`, `ResourceRequestContext`
 - [`packages/api/src/resource-routes.ts`](../../packages/api/src/resource-routes.ts), route normalization and URL encode/decode
-- [`packages/runtime/src/resource-registry.ts`](../../packages/runtime/src/resource-registry.ts), the transport registry
+- [`packages/runtime/src/resource-registry.ts`](../../packages/runtime/src/resource-registry.ts), the workspace resource registry
 
-The Canvas static iframe resource in [`src/features/canvas/backend/contributions/resources.ts`](../../src/features/canvas/backend/contributions/resources.ts) is a current example. Its Agent-viewpoint HTML still travels through a selected channel handler rather than the Workspace resource request.
+Resources belong to the Workspace and do not select an Agent viewpoint. Canvas instead loads its Agent-local HTML through a viewpoint document route. That route is not a resource contribution.
 
 ## Declare an address in shared code
 

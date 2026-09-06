@@ -33,7 +33,7 @@ import { ActionRegistry } from "./action-registry";
 import { KeybindingSync } from "./keybinding-sync";
 import { WorkspaceReloadAction } from "./reload-action";
 import { WorkspaceSessionActions } from "./session-actions";
-import { WorkspaceSessionControllerProvider } from "./session-context";
+import { WorkspaceSessionStateProvider } from "./session-context";
 import type { SessionLocationAdapter } from "./session-location";
 import { toShortcutPlatform } from "./shortcut-platform";
 import {
@@ -57,7 +57,7 @@ export function Workspace({
   return (
     <ActionRegistryProvider registry={actionRegistry}>
       <FeatureActionsProvider register={registerWorkspaceActions}>
-        <WorkspaceSessionControllerProvider
+        <WorkspaceSessionStateProvider
           sessionLocationAdapter={sessionLocationAdapter}
         >
           <WorkspaceSessionActions />
@@ -68,7 +68,7 @@ export function Workspace({
           <ActionKeyboardDispatcher />
           <KeybindingSync />
           <WorkspaceContent />
-        </WorkspaceSessionControllerProvider>
+        </WorkspaceSessionStateProvider>
       </FeatureActionsProvider>
     </ActionRegistryProvider>
   );

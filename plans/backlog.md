@@ -1,10 +1,53 @@
 ---
-summary: "Compact seeds for planned UIX deliverables that need enough context to be actionable but aren't standalone specs yet."
+summary: "Track open convention questions, deferred migrations, and deliverables that do not yet need standalone plans."
 ---
 
 # Backlog
 
-Compact seeds. Keep enough context that a future reader can recover the trigger, constraint, and likely shape without archaeology. Promote a seed to its own plan once it needs sections, ordered units, acceptance criteria, or design rationale that no longer fits comfortably here. Delete the seed here when it graduates.
+Each entry records the trigger, constraints, and likely scope so a reader does not need to reconstruct the discussion. Convention evaluations track open questions, and migrations track adoption of approved rules. Promote a deliverable to its own plan when its execution details no longer fit in one entry.
+
+## Convention evaluations
+
+Convention evaluations track open vocabulary and rule questions. They do not authorize conventions or migrations.
+
+### Transport boundary role
+
+- **Status:** Unscheduled. No naming decision or migration is approved.
+- **Trigger:** Comparing the `AttachmentWebBindingTransport` and `AttachmentWebRootsObservable` interfaces revealed an unclear distinction. Both provide snapshots and subscriptions, but those operations alone do not explain the naming roles.
+- **Candidate meaning:** A communication capability connecting two sides across a host boundary without requiring callers to know the delivery mechanism. This sketch remains unclear and needs more thought, especially about what constitutes the boundary and which behaviors the capability provides.
+- **Intent:** Use consistent names for communication boundaries across inter-process communication (IPC), WebSocket, and Hypertext Transfer Protocol (HTTP). Distinguish the capability from the payload bytes without restricting the term to IPC and WebSocket.
+- **Comparison:** The observable guidance in [`naming.md`](../docs/architecture/conventions/naming.md#observable-capabilities) specifies synchronous access to a stable, immutable current snapshot and change notifications. It does not require a separate state owner or wrapper. The roots observable implementation manages bootstrap, revision ordering, and cleanup, but the suffix alone does not imply those responsibilities.
+- **Evaluation:** Distinguish the boundary capability from delivery mechanisms, adapters, handler registries, and local snapshot observables. Audit the `AttachmentWebBindingTransport` and `ChannelTransport` interfaces, the `WorkspaceResourceTransport` and `ElectronResourceTransport` classes, and the `ContentTransportRegistrar` type. These names describe different abstraction levels. Evaluate their responsibilities rather than treating existing names as precedent. Decide the convention before tracking any approved migration.
+
+## Convention migrations
+
+Select these migrations independently between plans. Start each migration with an audit of every use within the convention's repository scope, including previously changed code. The examples identify places to start, not a complete inventory. Remove an entry only after the migration lands.
+
+### Guard naming forms
+
+- **Convention:** [`Guard`](../docs/architecture/conventions/lexicon/code-terms.md#uix-owned-role-terms) and [guard naming](../docs/architecture/conventions/lifetimes.md#guard-naming). `ThingGuard` prevents disposal of the named thing. `ActionGuard` prevents the named action from starting.
+- **Status:** Repository-wide audit unscheduled.
+- **Initial change:** The R1 fixes in [`viewpoint-canvas-document-route.md`](./archive/viewpoint-canvas-document-route.md) renamed the turn and handler acquisition to `acquireReloadGuard()` and its local holders to `_reloadGuard`. `WorkspaceRuntime` now owns both that acquisition and reload invocation, following [`lifetimes.guard-authority`](../docs/architecture/conventions/rules/lifetimes.guard-authority.md). The separate `ReloadAdmission` class and reload coordinator are deleted. The operation tracker remains the separate owner of cancellation and completion.
+- **Scope:** Audit guard names, acquisition methods, and descriptions across active code and documentation. Check that each owner of a guarded action also owns guard creation, tracking, and enforcement. Holder-role names such as `operationGuard` are starting points for review, not automatic renames. Preserve the supervised-object specialization `Guard<Value>` and historical decisions. Do not introduce operation permits as a synonym for reload guards.
+
+### Host-role naming
+
+- **Convention:** [`naming.host-role`](../docs/architecture/conventions/rules/naming.host-role.md).
+- **Status:** Unscheduled.
+- **Initial change:** The W7 slice in [`viewpoint-canvas-document-route.md`](./archive/viewpoint-canvas-document-route.md) removed redundant host prefixes from the binding state, roots observable, and address encoder and decoder. For example, it renamed the `ElectronAttachmentWebBindingState` class to `AttachmentWebBindingState` in [`attachment-web-binding-state.ts`](../hosts/electron/src/main/attachment-web-binding-state.ts).
+- **Signals:** Resource transports, workspace clients, action sources, and launcher adapters across both hosts have names worth reviewing.
+
+### Branded constrained strings
+
+- **Convention:** [`module-boundaries.branded-strings`](../docs/architecture/conventions/rules/module-boundaries.branded-strings.md).
+- **Status:** Unscheduled.
+- **Initial change:** The W7 slice added the `FeatureWebRootUrl` type and its validator in [`feature-web-root-url.ts`](../packages/api/src/feature-web-root-url.ts). The host encoder returns a branded value, and the roots observable, surface provider, and route client preserve its type. Reviewing the encoder in [`viewpoint-urls.ts`](../hosts/electron/src/viewpoint-urls.ts) prompted the convention.
+- **Signals:** Other identifiers, keys, and formatted addresses across the repository.
+- **Context:** The feature-root type is host-neutral, while each host owns its scheme and physical encoding. This division does not require changing the `ResourceProtocolScheme` constant or its role in shared logical resource addresses.
+
+## Deliverables
+
+Promote a seed to its own plan once ordered units, acceptance criteria, or design rationale no longer fit comfortably here. Delete the seed when it graduates.
 
 - **Surface contributions + workspace layout**: done. Features export `defineSurface` contributions from their workspace dirs. `surface-host.tsx` composes the flat list, and `SurfaceMount` hands each surface its typed channel client.
 - **Typed channel events**: done: shared `ChannelContract`s drive backend handlers (`withHandlers`), typed frontend clients (`createChannelClient`), and typed event publishers (`FeatureEventPublisherFactory`). Events are schema-validated on both publish and subscribe.
