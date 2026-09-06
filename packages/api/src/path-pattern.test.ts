@@ -130,6 +130,40 @@ describe("decodeRouteUrlParts", () => {
     });
   });
 
+  it.each([undefined, Type.Object({}, { additionalProperties: false })])(
+    "rejects undeclared prototype-named query keys with schema %j",
+    (query) => {
+      const pattern = normalizeRoutePattern({ path: "/view", query });
+      for (const search of [
+        "__proto__=1",
+        "%5F%5Fproto%5F%5F=1",
+        "constructor=1",
+        "toString=1",
+      ]) {
+        expect(
+          decodeRouteUrlParts(pattern, {
+            pathname: "/view",
+            searchParams: new URLSearchParams(search),
+          }),
+        ).toMatchObject({ ok: false, status: 400 });
+      }
+    },
+  );
+
+  it("rejects duplicate prototype-named query keys before schema validation", () => {
+    const pattern = normalizeRoutePattern({ path: "/view" });
+    expect(
+      decodeRouteUrlParts(pattern, {
+        pathname: "/view",
+        searchParams: new URLSearchParams("__proto__=1&%5F%5Fproto%5F%5F=2"),
+      }),
+    ).toEqual({
+      ok: false,
+      status: 400,
+      reason: "Duplicate query param: __proto__.",
+    });
+  });
+
   it("distinguishes route mismatch from malformed input", () => {
     const pattern = normalizeRoutePattern({
       path: "/documents/:id",

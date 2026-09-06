@@ -279,7 +279,9 @@ function decodeQuery(
   pattern: NormalizedRoutePattern,
   search: URLSearchParams,
 ): Result<unknown, 400> {
-  const raw: Record<string, string> = {};
+  // Preserve every query key for duplicate detection and schema validation,
+  // including names such as __proto__ inherited by ordinary objects.
+  const raw = Object.create(null) as Record<string, string>;
   for (const [key, value] of search.entries()) {
     if (Object.prototype.hasOwnProperty.call(raw, key)) {
       return {

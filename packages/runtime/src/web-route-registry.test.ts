@@ -87,9 +87,15 @@ describe("web route registries", () => {
       value: { status: 200, body: "<main>hello</main>" },
     });
     expect(handler.mock.calls[0][0]).toMatchObject({ params: {}, query: {} });
-    await expect(
-      invoke(contracts, handlers, toRouteRequest("/", "key=main")),
-    ).resolves.toMatchObject({ ok: false, status: 400 });
+    for (const query of [
+      "key=main",
+      "__proto__=1",
+      "__proto__=1&__proto__=2",
+    ]) {
+      await expect(
+        invoke(contracts, handlers, toRouteRequest("/", query)),
+      ).resolves.toMatchObject({ ok: false, status: 400 });
+    }
     expect(handler).toHaveBeenCalledOnce();
   });
 
@@ -418,6 +424,8 @@ describe("web route registries", () => {
     "key=Not-Valid",
     "key=main&key=other",
     "key=main&extra=1",
+    "key=main&__proto__=1",
+    "key=main&__proto__=1&__proto__=2",
     "key=reports//main",
     "key=../main",
     "key=%FF",
