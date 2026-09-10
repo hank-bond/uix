@@ -53,6 +53,8 @@ A specification contains only the sections that its concept needs. The common sh
 
 A specification does not copy private types, algorithms, file layouts, helper names, exact error text, build paths, or test inventories. It also omits other facts that can change while the specified behavior remains correct. A specification may cite an exported contract when code already states an exact shape.
 
+For example, checkpoint consumers need compact, opaque IDs that permanently identify immutable state. Backend selection, hash-prefix length, and collision handling are implementation choices. Prescribe such details only when callers depend on them as observable behavior, not because one implementation needs them.
+
 Use normative keywords only when they clarify an obligation or permitted choice. Add stable requirement identifiers only when another specification, plan, or conformance artifact needs to cite them.
 
 ## Specification changes

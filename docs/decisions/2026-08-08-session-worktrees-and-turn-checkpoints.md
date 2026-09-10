@@ -1,7 +1,7 @@
 ---
 summary: "Workspace files version on git: sessions are git worktrees of the workspace repo (auto-initialized when absent), per-turn checkpoints commit to app-owned refs/uix/... refs (never the work branch), undo restores working-tree content from checkpoints, and the branch only moves through agent/user git operations. Merging to main is a normal git merge plus a review surface."
 kind: explanation
-status: accepted
+status: superseded
 ---
 
 # Session worktrees and turn checkpoints

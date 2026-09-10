@@ -17,7 +17,7 @@ Requests and responses use ordinary finite web semantics. Electron may use its p
 
 ## Dependencies
 
-This specification depends on [`connection-agent-attachments.md`](./connection-agent-attachments.md) for Agent selection, accepted-request lifetime, retargeting, and revocation. It depends on [`agent-viewpoints.md`](./agent-viewpoints.md) for each feature instance's branch state and on [`web-host.md`](./web-host.md) for public origins, connection admission, and browser transport. It also follows the feature activation, lifetime, and TypeBox conventions.
+This specification depends on [`connection-agent-attachments.md`](./connection-agent-attachments.md) for Agent selection, accepted-request lifetime, retargeting, and revocation. It depends on [`agent-viewpoints.md`](./agent-viewpoints.md) for each feature instance's branch state and on [`web-host.md`](./web-host.md) for public origins, connection admission, and browser transport. [`feature-composition.md`](./feature-composition.md) owns feature activation and page reload after replacement. The lifetime and TypeBox conventions also apply.
 
 ## Boundary
 
@@ -35,13 +35,13 @@ Feature handlers own their reads, mutations, effects, and application behavior. 
 - Identical route paths or asset paths from different features **must not** collide.
 - Route contracts **must** be schema-only values that backend and browser code share.
 - An authored contract **must not** include a feature identity. UIX **must** derive the route and asset namespace from the active feature contribution.
-- A feature **must** admit its web contracts once at workspace feature activation.
-- Each Agent feature factory **must** later contribute handlers bound to those admitted contracts.
+- A feature **must** contribute its web contracts and matching handlers through its single activation within the Agent's composition.
+- Contract admission **must** use the candidate composition rather than a shared Workspace feature definition.
 - Features **must not** add or remove routes imperatively or choose an Agent target for a route.
 - Active routes and assets **must** share the Agent feature generation's lifetime. UIX **must** remove them when it disposes that instance or generation.
 - Feature reload **must** replace affected routes and assets without leaving old handlers reachable.
 - New trusted backend source becomes active only through feature admission and reload. A browser request **must not** execute a source file merely by naming it.
-- A feature **must not** treat another feature's private routes as an integration API. Features **must** publish a typed contract when they intend to integrate.
+- A feature **must not** treat another feature's private routes as an integration API. Features **must** expose a typed contract when they intend to integrate.
 
 ### Route contracts
 
@@ -113,23 +113,15 @@ Relative addressing is not confinement. Origin-rooted references such as `/asset
 
 - A feature **may** declare one static asset root in its private namespace.
 - Asset lookup **must** stay relative to that declared root and **must not** escape it.
-- Static assets **must** share the Agent feature generation's lifetime, even when several generations use the same primary worktree.
 - Static assets **may** use content-hash cache busting and immutable caching when their address names exact bytes.
-- A future Agent worktree implementation **may** resolve the same logical asset location against a different physical root without changing authored browser content.
+- The same logical asset location **may** resolve against different worktree roots without changing authored browser content.
 
 ### Web binding
 
-- UIX **must** mint a private web binding for each accepted attachment-target generation.
+[`connection-agent-attachments.md`](./connection-agent-attachments.md#feature-web-binding) owns binding identity, host encoding, feature-code restrictions, accepted-request authority, and independent revocation lifetimes. The web namespace applies those rules to ordinary browser requests.
+
 - The binding **must** let an independent browser request reach the attachment that owns it.
-- The binding is not a security boundary. It protects retarget and close correctness, not hostile code.
-- UIX **must** encode the binding physically through the host. A path token, custom-scheme location, or similar private form is acceptable.
-- Feature contracts, handler input, authored content, and persisted state **must not** contain the binding.
-- Feature code **must not** construct, validate, copy, or persist the binding.
-- Browser code **may** observe the physical URLs UIX generates. It must not depend on the binding value.
-- Retargeting **must** revoke the old binding and issue a replacement without a new physical connection.
-- Requests accepted before revocation **must** finish against the recorded target. Requests presented afterward **must** be rejected.
-- Closing the connection or attachment **must** permanently revoke its binding.
-- Two attachments to the same Agent **must** have independent binding lifetimes.
+- Feature contracts and handler input **must not** contain the binding.
 - The namespace mechanism **must not** require a separate web server for each workspace, Agent, or feature.
 
 ### Browser access
@@ -143,8 +135,8 @@ Relative addressing is not confinement. Origin-rooted references such as `/asset
 - Typed request execution **must** send the declared method, typed headers and body, and return a typed status result with cancellation.
 - A mounted surface **must** receive a feature-scoped capability bound to its attachment-target generation.
 - A complete browser page **must** load from a physical URL satisfying the complete-page path restriction. Its containing directory establishes the bound feature root for ordinary directory-relative requests.
-- When the attachment retargets, UIX **must** recreate its browser route capabilities, rerender mounted consumers, and reload affected documents through the new binding.
-- Capabilities bound to the old generation **must** fail new requests rather than reach the new Agent.
+- When an attachment selects another viewpoint, UIX **must** recreate its browser route capabilities and rerender mounted consumers. Affected documents **must** reload through the new binding without reloading the workspace page or reconnecting.
+- Reloaded pages **must** obtain browser route capabilities and document URLs from their replacement attachment bindings.
 
 ## Conformance
 
@@ -157,7 +149,7 @@ A conforming implementation demonstrates these outcomes:
 5. Complete-page route admission accepts `/` and `/view`, and rejects nested, parameterized, wildcard, dot-segment, and trailing-slash page routes. The same path restriction does not apply to routes declaring only other response kinds.
 6. URLs used in markup and typed browser requests reach the same handler through both host transports.
 7. Retargeting revokes the old binding for new requests. Accepted requests finish against their recorded Agent, and mounted clients are recreated.
-8. Feature reload removes old routes and assets and exposes the replacement generation through the existing connection.
+8. Successful feature reload replaces routes and assets. Browser route capabilities and document URLs use the replacement attachment's binding. A rejected candidate preserves existing routes and assets.
 9. Both hosts generate complete-page URLs whose containing directory equals the bound feature root and reject nonconforming page locations. A content key containing `/` remains query input and does not change that directory.
 10. Complete-page and fragment HTML response bodies reach the browser unchanged by the substrate. Directory-relative links retain the page's binding, and `#` navigation retains its query without injected markup. The same behavior holds for links added after page load.
 

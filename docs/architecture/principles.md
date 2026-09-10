@@ -35,16 +35,16 @@ When current state can be replaced, commit the replacement at one named generati
 
 Asynchronous consumers reject stale results instead of letting completion order choose current truth. Derived metadata may use a `WeakMap` when garbage collection provides sufficient cleanup. Resources and cleanup capabilities always have explicit lifetimes.
 
-## Validate candidates atomically, isolate loadable units
+## Validate complete candidates before replacement
 
 Treat disk state, external edits, and batch mutations as candidate snapshots: parse, hydrate, and validate the complete transaction before replacing live state. A rejected candidate applies nothing and leaves the previous live snapshot authoritative. Expose diagnostics rather than silently repairing, dropping, or mixing fields.
 
-After configuration commits, isolate runtime activation at the loadable-unit boundary. One feature's settings and substrate-owned contributions install provisionally as a unit. Failure removes all of them while sibling features continue. This does not promise restoration of the feature's previous implementation or rollback of arbitrary side effects outside substrate ownership. See [`2026-07-13-atomic-candidates-and-feature-activation.md`](../decisions/2026-07-13-atomic-candidates-and-feature-activation.md).
+Use the concept's specified acceptance boundary rather than inferring it from a module or cleanup lifetime. [`feature-composition.md`](../specs/feature-composition.md) owns composition acceptance. [`2026-09-09-whole-composition-replacement.md`](../decisions/2026-09-09-whole-composition-replacement.md) records the replacement of independent per-feature acceptance. Neither a wider acceptance unit nor candidate cleanup implies rollback of arbitrary effects outside substrate ownership.
 
 ## State rollback stops at the authority boundary
 
 Queries observe state, mutations intend to change a declared authority, and effects cross beyond the state UIX can coordinate and restore. A mutation gains rollback behavior only from its authority's actual checkpoint integration. Never imply that restoring local state or running compensation reverses an external effect. See [`rollback-boundaries.md`](../design/rollback-boundaries.md).
 
-## Materialize defaults, do not layer them
+## Materialize application setting defaults
 
-A durable setting's default fills missing state and is then persisted. Runtime reads the materialized value rather than joining sparse overrides with live feature defaults on every access. Existing persisted values always win, and changing a default does not silently rewrite an established workspace. See [`2026-07-13-settings-defaults-materialize.md`](../decisions/2026-07-13-settings-defaults-materialize.md).
+An application setting's default fills missing manifest state and is then persisted. The settings registry reads the materialized value rather than assembling sparse overrides with live feature defaults on every access. Existing persisted values always win, and changing a default does not silently rewrite an established workspace. See [`2026-07-13-settings-defaults-materialize.md`](../decisions/2026-07-13-settings-defaults-materialize.md).

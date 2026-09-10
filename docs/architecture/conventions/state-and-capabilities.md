@@ -51,4 +51,4 @@ Only the handle crosses the boundary, so later process separation becomes a tran
 Two corollaries:
 
 - **The owner API may remain open:** Trusted composition code can call `registry.get(scopeId, key)`. Narrow access when minting the smallest handle that serves each consumer.
-- **Handles resolve lazily by id, not by captured object reference**, wherever the owner's contents can be replaced underneath (reload). A handle minted before a reload keeps working after it. An unknown target fails on first _use_, not at mint time.
+- **Lazy lookup preserves the handle's declared scope:** A stable-owner handle can resolve replacement contents within that scope. A generation-bound capability does not acquire replacement authority implicitly. Choose lookup behavior from the capability's lifetime rather than assuming every handle survives reload.

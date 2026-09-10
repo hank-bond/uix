@@ -1,5 +1,5 @@
 ---
-summary: "An attachment binds one workspace connection to one Agent viewpoint. Retargeting changes future work without moving accepted work or peer connections."
+summary: "An attachment binds one connection to an Agent viewpoint. Viewpoint selection affects one connection, while Agent replacement updates every attachment targeting that Agent."
 kind: reference
 status: draft
 implementation: incomplete
@@ -15,7 +15,7 @@ In this version, one physical connection owns one attachment, and one attachment
 
 UIX accepts a request when the attachment records its current target and creates an independent guard for the request. A private web binding is a temporary host address or token. It lets an HTTP request use the attachment without revealing its identity to feature code.
 
-An Agent viewpoint belongs to a durable session branch. The current policy provides one primary Agent for each session. A later version may run several branch Agents in one session without changing how attachments work.
+An Agent viewpoint belongs to a durable session branch. The current policy provides one primary Agent for each session. Several branch Agents may execute in one session without changing how attachments work.
 
 ## Dependencies
 
@@ -27,7 +27,7 @@ The attachment owns one connection's current Agent target, retargeting, event ob
 
 The host owns the physical connection and disposes the attachment when that connection closes. The Agent-instance supervisor resolves, creates, retains, and tears down Agent instances. The channel and feature-web registries own handlers, validation, and logging policy.
 
-An attachment is not the only reason an Agent instance may remain alive. Accepted turns and operations hold their own guards. Scheduled or headless work also acquires a guard directly instead of creating a fake connection or attachment.
+An attachment is not the only reason an Agent instance may remain alive. Accepted runs and operations hold their own guards. Scheduled or headless work also acquires a guard directly instead of creating a fake connection or attachment.
 
 An attachment cannot move between workspaces. A workspace URL change creates a new logical connection, workspace guard, and attachment. A host may reuse lower-level transport machinery, but clients still observe a new connection.
 
@@ -45,14 +45,27 @@ An attachment cannot move between workspaces. A workspace URL change creates a n
 
 ### Retargeting
 
+This section governs one connection selecting a viewpoint. Replacement of the Agent at the same viewpoint follows the separate handoff requirements below.
+
 - Retargeting is limited to Agent viewpoints within the attachment's workspace.
 - Retargeting **must** acquire the proposed target before disposing the current target guard.
 - A failed acquisition **must** leave the attachment on its previous accepted target.
 - After a successful retarget, future operations and events **must** use the new target.
 - Retargeting **must not** wait for previously accepted work against the old target to finish.
 - Retargeting **must not** move or interrupt peer attachments, including peers attached to the same old Agent.
-- The physical connection **must** remain usable across a successful retarget, Agent reload, or internal replacement needed to continue the same logical binding.
+- Viewpoint selection **must** preserve the physical connection. Composition replacement follows the page-reload behavior defined below.
 - UIX **may** mutate the attachment or replace internal objects as long as clients observe the behavior above.
+
+### Same-viewpoint replacement
+
+[`feature-composition.md`](./feature-composition.md) owns replacement acceptance, affected-page reload, and preservation of the durable viewpoint.
+
+- Successful composition replacement **must** revoke previous request authority for every attachment targeting that Agent, including its private web binding.
+- Requests presented through that previous authority **must** be rejected rather than invoke replacement handlers.
+- A rejected composition candidate **must not** change the attachments' accepted generation or revoke their existing bindings.
+- Replacing one Agent's composition **must not** revoke another Agent's attachment authority.
+
+These rules do not require preservation of the previous physical connection or prescribe a binding identifier in each transport message.
 
 ### Accepted operations
 
@@ -83,12 +96,12 @@ An attachment cannot move between workspaces. A workspace URL change creates a n
 - Retargeting **must** revoke the old web binding for future requests. It **must** provide the replacement binding before consumers generate more URLs and without a new physical connection.
 - Closing the connection or attachment **must** permanently revoke its web binding.
 - Two attachments to the same Agent **must** have independent web-binding lifetimes. Retargeting or closing one **must not** invalidate the other.
-- A feature-web request accepted before revocation **may** finish against its recorded target. A request presented afterward **must** be rejected.
+- A feature-web request accepted before revocation **must** retain its recorded target through completion. A request presented afterward **must** be rejected.
 
 ### Connection loss, reconnect, and shutdown
 
 - Closing a physical connection **must** dispose its attachment.
-- Connection loss **must not** cancel already accepted Agent turns or operations.
+- Connection loss **must not** cancel already accepted Agent runs or operations.
 - Reconnect **must** create a new physical connection and a new attachment. A closed attachment or web binding is never reclaimed.
 - After reconnect, a client **must** read current state instead of reviving the old attachment or replaying missed transient events.
 - A later warm-instance policy belongs to the Agent-instance supervisor, not attachments.
@@ -104,8 +117,9 @@ A conforming implementation demonstrates these outcomes:
 4. A request accepted before retarget or disconnect completes against the Agent instance it already guarded. A later request uses the new target or is rejected after closure.
 5. A private feature-web location reaches the same target as a channel request. Retargeting revokes that location without affecting a peer connection.
 6. Reconnect creates a new attachment and reads the current session snapshot without reviving the old attachment or replaying missed transient events.
-7. Connection loss leaves an accepted Agent turn running, while coordinated host shutdown cancels it and waits for teardown.
+7. Connection loss leaves an accepted Agent run active, while coordinated host shutdown cancels it and waits for teardown.
 8. A workspace change creates a new logical connection and attachment rather than retargeting the existing attachment across workspace runtimes.
+9. Successful composition replacement revokes every affected attachment's previous request authority and web binding. Requests through old authority reject, while replacement attachments reach the accepted composition. Failed preparation preserves previous authority. Attachments targeting another Agent remain unchanged.
 
 ## Degrees of freedom
 
@@ -121,5 +135,5 @@ These choices must not add routing fields to feature payloads or change accepted
 
 ## Open questions
 
-- Which durable identity will address an Agent branch once several Agents may run concurrently in one session?
+- Which durable identity will address an Agent branch once several Agents may execute concurrently in one session?
 - How should an event identify its recipients when one session contains several branch Agents?

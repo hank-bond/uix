@@ -2,7 +2,7 @@
 summary: "Backend channel contributions inherit producer scope, while surfaces declare and validate each consumed namespace against the live registry projection."
 kind: reference
 status: accepted
-implementation: conforming
+implementation: incomplete
 ---
 
 # Feature channels
@@ -17,14 +17,15 @@ A surface declares a map from every consumed provider namespace to its shared co
 
 Feature channels provide private vertical communication between a feature's backend and browser surfaces. They also support direct provider-owned imports for tightly coupled features. They do not provide public protocol identity, provider discovery or selection, permissions, or implementation-independent cross-feature capabilities. Those concerns belong to public capability protocols.
 
-Agent-scoped channel dispatch additionally depends on [connection-agent attachments](./connection-agent-attachments.md) for accepted Agent selection and operation lifetime.
+Agent-scoped channel dispatch depends on [`connection-agent-attachments.md`](./connection-agent-attachments.md) for accepted Agent selection and operation lifetime. [`feature-composition.md`](./feature-composition.md) owns composition acceptance and page reload after replacement.
 
 ## Requirements
 
 ### Contracts and scope
 
 - A channel contract **must** contain request and event schemas but no feature, workspace, session, attachment, or transport identity.
-- UIX **must** derive backend channel scope from the feature whose Workspace or Agent factory contributes the contract or handlers.
+- UIX **must** derive backend channel scope from the feature whose activation contributes the contract or handlers within the Agent's composition.
+- Different Agent compositions **may** provide different contracts under the same feature namespace. UIX **must** validate and dispatch against the contract belonging to the accepted target composition.
 - A feature contribution **must not** register handlers or publish events under another feature's scope.
 - Substrate-owned channels **must** use reserved scopes while following the same contract, validation, and client model as feature channels.
 - A feature **may** split its channel vocabulary across multiple contracts. All such contracts share the feature's canonical scope.
@@ -35,7 +36,7 @@ Agent-scoped channel dispatch additionally depends on [connection-agent attachme
 
 - Every request descriptor **must** declare TypeBox request and response schemas.
 - UIX **must** validate a request before invoking its handler and validate the returned value before completing the request.
-- An Agent-scoped request **must** invoke the handler from the Agent guard retained when dispatch was accepted. Retargeting must not move accepted work.
+- An Agent-scoped request **must** invoke the handler from the Agent guard retained when dispatch was accepted.
 - Every event descriptor **must** declare a TypeBox event schema.
 - A feature-bound publisher **must** canonicalize events only within the scope UIX granted it.
 - A browser client **must** validate received event payloads before invoking a feature callback.
@@ -48,12 +49,13 @@ Agent-scoped channel dispatch additionally depends on [connection-agent attachme
 - A surface **may** consume contracts from its own feature, other features, and reserved substrate providers in the same declaration.
 - Selecting a frontend namespace grants no handler-registration or event-publication authority in that scope.
 - The backend channel registry **must** own the live set of namespaces backed by admitted contracts, independently of the surface registry.
-- UIX **must** expose a read-only projection of those registered namespaces to the frontend as part of the accepted workspace composition.
+- UIX **must** expose a read-only projection of those registered namespaces to the frontend as part of the attachment-selected Agent composition.
 - The namespace projection **must not** infer availability from active feature names or surface contributions.
-- Before rendering a mounted feature, UIX **must** verify that every declared namespace appears in that accepted projection.
+- Before rendering a mounted feature, UIX **must** check that every declared namespace appears in that accepted projection.
 - A missing namespace **must** fail visibly during client binding. It must not leave an event subscription silently waiting on a provider that is not active.
 - Built-in provider namespaces such as `agent` and `uix` participate in the same availability check.
-- Feature reload **must** replace the accepted namespace projection and cause mounted consumers to rebind or revalidate their channel clients.
+- Successful feature reload **must** replace the accepted namespace projection. Reloaded pages **must** create channel clients from the accepted composition before mounting its surfaces.
+- A rejected candidate **must** preserve the accepted namespace projection. Replacing one Agent's composition **must not** change another Agent's projection.
 
 ## Conformance
 
@@ -67,6 +69,7 @@ A conforming implementation demonstrates these outcomes:
 6. A mounted feature that names a missing or renamed provider fails during client binding rather than creating an inert subscription.
 7. Invalid requests, responses, and events are rejected at their respective runtime boundaries.
 8. Duplicate local members roll back atomically, and reload replaces the available namespace projection with the newly accepted composition.
+9. Two Agent compositions provide different contracts under the same namespace. Each attachment uses its selected contract and handlers. Replacement clients use the accepted namespace projection. A rejected candidate preserves the previous projection, and another Agent's projection remains unchanged.
 
 ## Degrees of freedom
 

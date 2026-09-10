@@ -1,12 +1,16 @@
 ---
-summary: "Define request-scoped completion versus accepted independent operations, then make workspace setting responses await immediate revisioned manifest persistence."
+summary: "Rebase settings persistence onto worktree-owned immediate writes before resuming this deferred request-completion plan."
 ---
 
 # Request completion and workspace settings persistence
 
 ## Status
 
-Deferred while host work continues. The current `uix.set_setting` handler acknowledges the live in-memory update before the manifest store's five-second debounced write. An explicit workspace reload can therefore promote disk state and discard an acknowledged preference change.
+Deferred and requires rebasing before implementation. [`feature-composition.md`](../docs/specs/feature-composition.md) establishes worktree-owned settings, last-write-wins manifest replacement, and immediate request-scoped persistence without a debounce or background persistence queue. The Workspace-global authority and revisioned persistence drain described below are superseded planning assumptions, not the implementation target. Preserve the request-completion distinction when revising this attempt.
+
+The existing `uix.set_setting` handler acknowledges the live in-memory update before the manifest store's five-second debounced write. An explicit workspace reload can therefore promote disk state and discard an acknowledged setting change.
+
+Browser-local presentation preferences follow [`browser-presentation-state.md`](../docs/specs/browser-presentation-state.md) instead. They are not application settings, and their optional persistence must not inherit this plan's manifest-write guarantees.
 
 ## Decisions
 

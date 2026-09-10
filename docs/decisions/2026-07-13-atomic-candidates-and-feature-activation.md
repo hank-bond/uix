@@ -1,7 +1,7 @@
 ---
 summary: "Persisted candidates validate and commit atomically. Feature activation is isolated by feature and rolls back all substrate-owned settings and facet registrations for a failed feature without aborting siblings."
 kind: explanation
-status: accepted
+status: superseded
 ---
 
 # Atomic candidates and feature-scoped activation
