@@ -29,6 +29,7 @@ Draft specifications may contain open questions and have no normative authority.
 - **[shared-live-object-guards](./shared-live-object-guards.md)** _(draft, incomplete, reference)._ A supervisor owns each shared object, and guards keep it alive for independent callers.
 - **[viewpoint-web-namespaces](./viewpoint-web-namespaces.md)** _(draft, incomplete, reference)._ A feature can provide typed web routes and static assets in each viewpoint through substrate-bound addresses. Contracts remain generic while installation establishes namespace and scope.
 - **[web-host](./web-host.md)** _(accepted, incomplete, reference)._ A web host exposes launcher, workspace-session, live-channel, and content access to a standard browser through deployment-authorized public origins while keeping runtime and feature contracts host-neutral.
+- **[workspace-development-baseline](./workspace-development-baseline.md)** _(draft, incomplete, reference)._ UIX provides an optional development baseline that guides app builders and agents from understandable requirements to reviewed code and tests.
 - **[workspace-file-state](./workspace-file-state.md)** _(draft, incomplete, reference)._ UIX gives each conversation branch an independent worktree and immutable file checkpoints addressed by compact, stable IDs.
 
 <!-- INDEX:END -->
