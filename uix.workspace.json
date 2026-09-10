@@ -39,7 +39,18 @@
     }
   ],
   "settings": {
-    "agent": {},
+    "agent": {
+      "favoriteModels": [
+        {
+          "provider": "deepseek",
+          "id": "deepseek-v4-flash-vision-exp"
+        },
+        {
+          "provider": "openai-codex",
+          "id": "gpt-6-astra"
+        }
+      ]
+    },
     "keybindings": {
       "uix.session.new": "mod+n",
       "uix.reload": "mod+r",
