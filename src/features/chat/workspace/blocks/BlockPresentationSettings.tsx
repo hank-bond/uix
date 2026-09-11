@@ -41,8 +41,8 @@ export function BlockPresentationSettingsProvider({
     async (layout: CommandLayout) => {
       await setting.set({
         ...settings,
-        command: {
-          ...settings.command,
+        shell: {
+          ...settings.shell,
           layout,
         },
       });

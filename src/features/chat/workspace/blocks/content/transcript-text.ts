@@ -17,12 +17,11 @@ export function truncateText(
   if (value === undefined || value === null) return undefined;
   const text =
     typeof value === "string" ? value : JSON.stringify(value, undefined, 2);
-  if (!text) return undefined;
   return text.length > charLimit ? `${text.slice(0, charLimit)}…` : text;
 }
 
 function extractTextBlocks(value: unknown[]): string | undefined {
-  const text = value
+  const parts = value
     .map((block) => {
       if (typeof block === "string") return block;
       if (typeof block !== "object" || block === null) return undefined;
@@ -31,7 +30,7 @@ function extractTextBlocks(value: unknown[]): string | undefined {
         ? obj.text
         : undefined;
     })
-    .filter((part): part is string => part !== undefined)
-    .join("");
-  return text || undefined;
+    .filter((part): part is string => part !== undefined);
+  // An empty text block is still text, not an unknown structured payload.
+  return parts.length ? parts.join("") : undefined;
 }

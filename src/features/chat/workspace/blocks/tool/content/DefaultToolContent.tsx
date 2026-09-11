@@ -12,7 +12,9 @@ export function DefaultToolContent({ item }: { item: ToolItem }): JSX.Element {
 
   return (
     <>
-      {payload ? (
+      {payload === "" && item.complete ? (
+        <span className="tool-call__empty">No output</span>
+      ) : payload ? (
         <pre className="tool-block__payload" data-block-part="tool-payload">
           {payload}
         </pre>

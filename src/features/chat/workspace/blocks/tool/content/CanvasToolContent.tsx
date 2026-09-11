@@ -18,7 +18,9 @@ export function CanvasToolContent({ item }: { item: ToolItem }): JSX.Element {
       className="canvas-tool-block__payload"
       data-block-part="canvas-tool-payload"
     >
-      {lines.length ? (
+      {payload === "" && item.complete ? (
+        <span className="tool-call__empty">No output</span>
+      ) : lines.length ? (
         <>
           <pre className="tool-block__payload" data-block-part="tool-payload">
             {visibleLines.join("\n")}

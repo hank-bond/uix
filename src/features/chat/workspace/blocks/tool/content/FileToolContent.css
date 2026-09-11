@@ -5,3 +5,8 @@
   gap: 0.45rem;
   min-width: 0;
 }
+
+pre.file-tool-block__prose {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

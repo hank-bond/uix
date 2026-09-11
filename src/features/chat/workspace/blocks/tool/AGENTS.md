@@ -14,7 +14,7 @@ summary: "The tool block subtree derives per-tool chat presentations and renders
 
 ### Directories
 
-- **[content/](./content/AGENTS.md)** The tool content components render each known tool's payload: canvas, command, and file tool rows, plus the default fallback.
+- **[content/](./content/AGENTS.md)** The tool content components render each known tool's payload: canvas, shell, and file tool rows, plus the default fallback.
 
 ### Source files
 

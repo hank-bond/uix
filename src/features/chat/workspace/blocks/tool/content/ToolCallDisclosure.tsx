@@ -40,22 +40,8 @@ export function ToolCallDisclosure({
           <span className="tool-call__chevron" aria-hidden="true" />
           <span className="block-status-row__content">
             <span className="block-status-row__label">{label}</span>
-            {params.length ? (
-              <span className="tool-call__params">
-                {params.map((param) => (
-                  <span key={param.key} className="tool-call__param">
-                    <span className="tool-call__param-key">{param.key}</span>
-                    <span className="tool-call__param-value">
-                      {param.value}
-                    </span>
-                  </span>
-                ))}
-              </span>
-            ) : null}
             {description ? (
-              <span
-                className={`block-status-row__copy${params.length ? "" : " block-status-row__copy--inline"}`}
-              >
+              <span className="block-status-row__copy block-status-row__copy--inline">
                 <span className="block-status-row__description">
                   {description}
                 </span>
@@ -65,6 +51,16 @@ export function ToolCallDisclosure({
               <span className="block-status-row__state">error</span>
             ) : null}
           </span>
+          {params.length ? (
+            <span className="tool-call__params">
+              {params.map((param) => (
+                <span key={param.key} className="tool-call__param">
+                  <span className="tool-call__param-key">{param.key}</span>
+                  <span className="tool-call__param-value">{param.value}</span>
+                </span>
+              ))}
+            </span>
+          ) : null}
           {state === "running" ? (
             <progress
               className="msg__running-track"

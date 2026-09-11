@@ -51,6 +51,33 @@ function renderFileItem(value: ToolItem): string {
 }
 
 describe("file tool chat rendering", () => {
+  it.each(["read", "write", "edit"])(
+    "wraps %s prose without changing source line breaks",
+    (toolName) => {
+      for (const path of ["notes.md", "NOTES.TXT", "notes.markdown"]) {
+        const html = renderFileItem(
+          item({
+            toolName,
+            args: {
+              path,
+              content: "first\nsecond",
+              edits: [{ oldText: "before", newText: "after" }],
+              reason: "Update notes.",
+            },
+            result: { content: [{ type: "text", text: "first\nsecond" }] },
+          }),
+        );
+        expect(html).toContain('data-block-part="file-tool"');
+        expect(html).toContain('class="code-block file-tool-block__prose"');
+        expect(html).toContain("first\nsecond");
+      }
+    },
+  );
+
+  it("does not wrap source-code files", () => {
+    expect(renderFileItem(item())).not.toContain("file-tool-block__prose");
+  });
+
   it("shows the path param and reason while keeping file content disclosed", () => {
     const html = renderFileItem(
       item({

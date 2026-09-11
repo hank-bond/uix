@@ -14,7 +14,7 @@ function item(overrides: Partial<ToolItem> = {}): ToolItem {
     id: "entry:tool:call",
     kind: "tool",
     toolCallId: "call",
-    toolName: "command",
+    toolName: "shell",
     cwd: "/workspace",
     complete: true,
     args: {
@@ -44,11 +44,11 @@ function renderCommandItem(value: ToolItem): string {
   );
 }
 
-describe("command tool chat rendering", () => {
+describe("shell tool chat rendering", () => {
   it("shows a clickable label-and-reason row and discloses command and output", () => {
     const html = renderCommandItem(item());
 
-    expect(html).toContain('class="block-status-row__label">command</span>');
+    expect(html).toContain('class="block-status-row__label">shell</span>');
     expect(html).toContain("I need to verify the changes.");
     expect(html).toContain('class="tool-call__param-key">command</span>');
     expect(html).toContain("npm test");
@@ -105,7 +105,7 @@ describe("command tool chat rendering", () => {
 
     expect(html).toContain('data-block-part="tool-payload"');
     expect(html).toContain('data-block-part="tool-details"');
-    expect(html).not.toContain('data-block-part="command-tool"');
+    expect(html).not.toContain('data-block-part="shell-tool"');
     expect(html).toContain('class="tool-call__param-key">query</span>');
   });
 });

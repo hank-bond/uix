@@ -1,13 +1,13 @@
-/* Command tool expanded-detail layout. */
+/* Shell tool expanded-detail layout. */
 
-.command-tool-block__details {
+.shell-tool-block__details {
   display: grid;
   gap: 0.45rem;
   min-width: 0;
 }
 
-pre.command-tool-block__command,
-pre.command-tool-block__command code {
+pre.shell-tool-block__command,
+pre.shell-tool-block__command code {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;

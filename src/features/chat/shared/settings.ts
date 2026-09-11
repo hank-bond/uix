@@ -24,7 +24,7 @@ export const ToolParamVisibilitySchema = Type.Object({
 export type ToolParamVisibility = Static<typeof ToolParamVisibilitySchema>;
 
 export const BlockPresentationSettingsSchema = Type.Object({
-  command: Type.Object({
+  shell: Type.Object({
     layout: CommandLayoutSchema,
   }),
   /** Per-tool collapsed-param visibility. Absent tool = show all params. */
@@ -35,7 +35,7 @@ export type BlockPresentationSettings = Static<
 >;
 
 export const defaultBlockPresentationSettings: BlockPresentationSettings = {
-  command: {
+  shell: {
     layout: "literal",
   },
   toolParams: {},

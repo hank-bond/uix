@@ -9,7 +9,7 @@
           "hidden": []
         },
         "blockPresentation": {
-          "command": {
+          "shell": {
             "layout": "literal"
           },
           "toolParams": {
@@ -23,6 +23,15 @@
               "collapsed": []
             },
             "canvas__anchor_read": {
+              "collapsed": []
+            },
+            "edit": {
+              "collapsed": []
+            },
+            "write": {
+              "collapsed": []
+            },
+            "shell": {
               "collapsed": []
             }
           }

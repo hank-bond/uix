@@ -14,6 +14,8 @@ import { isPendingUserId } from "../pending-user-identity";
 
 interface ChatBlockProps {
   item: TranscriptItem;
+  /** Allow an empty, incomplete assistant row to show the active placeholder. */
+  showThinking?: boolean;
 }
 
 interface ChatBlockRendering {
@@ -30,7 +32,17 @@ interface ChatBlockRendering {
 // unrelated Chat state and another item's stream updates out of this subtree.
 export const ChatBlock = memo(function ChatBlock({
   item,
-}: ChatBlockProps): JSX.Element {
+  showThinking = false,
+}: ChatBlockProps): JSX.Element | null {
+  // Keep empty rows in transcript state for later deltas, but never leave a
+  // thinking placeholder behind after completion or a subsequent block.
+  if (
+    item.kind === "assistant" &&
+    !item.text.trim() &&
+    (item.complete || !showThinking)
+  ) {
+    return null;
+  }
   const rendering = deriveChatBlockRendering(item);
 
   return (

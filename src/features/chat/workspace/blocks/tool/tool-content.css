@@ -106,17 +106,21 @@
   color: var(--fg);
 }
 
+.tool-call__summary .block-status-row__content {
+  display: grid;
+}
+
 .tool-call__params {
-  grid-column: 2;
-  grid-row: 1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.1rem 0.45rem;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: grid;
+  gap: 0.15rem;
   min-width: 0;
 }
 
 .tool-call__param {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: 0.25rem;
   align-items: baseline;
   min-width: 0;
@@ -133,6 +137,7 @@
 
 .tool-call__param-value {
   min-width: 0;
+  white-space: pre-wrap;
   color: var(--fg-dim);
   overflow-wrap: anywhere;
   font-family:
@@ -149,15 +154,10 @@
   min-width: 0;
 }
 
-.tool-call__params-list .tool-call__param {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-}
-
 .tool-call__content {
   display: grid;
   min-width: 0;
-  padding: 0.4rem 0 0.15rem var(--chat-message-padding);
+  padding: 0.4rem 0.4rem 0.15rem;
 }
 
 .tool-call__section-label {
@@ -168,7 +168,8 @@
   letter-spacing: 0.04em;
 }
 
-.tool-call__pending {
+.tool-call__pending,
+.tool-call__empty {
   color: var(--fg-dim);
   font-size: var(--chat-text-meta);
 }
@@ -177,19 +178,6 @@
 .msg--tool-error .block-status-row__description,
 .msg--tool-error .tool-call__chevron {
   color: var(--error);
-}
-
-/* Narrow chat column: rows with params keep them beside the label and move
- * the reason below at full width. */
-@container chat-surface (max-width: 480px) {
-  .tool-call__params {
-    order: 1;
-  }
-
-  .block-status-row__content:has(.tool-call__params) .block-status-row__copy {
-    flex-basis: 100%;
-    order: 3;
-  }
 }
 
 @media (hover: none) {

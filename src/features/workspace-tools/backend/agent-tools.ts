@@ -35,10 +35,14 @@ const WriteParams = Type.Object({
 });
 
 const BaselineEdit = createEditToolDefinition(".");
+const EditParams = Type.Object({
+  ...BaselineEdit.parameters.properties,
+  reason: ReasonSchema,
+});
 
-const BaselineCommand = createBashToolDefinition(".");
-const CommandParams = Type.Object({
-  ...BaselineCommand.parameters.properties,
+const BaselineShell = createBashToolDefinition(".");
+const ShellParams = Type.Object({
+  ...BaselineShell.parameters.properties,
   reason: ReasonSchema,
 });
 
@@ -47,7 +51,7 @@ export function createWorkspaceToolOverrideContributions(): readonly AgentToolOv
     { name: "read", tool: createReadOverride() },
     { name: "write", tool: createWriteOverride() },
     { name: "edit", tool: createEditOverride() },
-    { name: "command", tool: createCommandTool() },
+    { name: "shell", tool: createShellTool() },
   ];
 }
 
@@ -89,16 +93,19 @@ function createWriteOverride(): AgentToolDefinition<typeof WriteParams> {
   };
 }
 
-function createEditOverride(): AgentToolDefinition<
-  typeof BaselineEdit.parameters
-> {
+function createEditOverride(): AgentToolDefinition<typeof EditParams> {
   return {
     label: BaselineEdit.label,
-    description: BaselineEdit.description,
+    description: `${BaselineEdit.description} Include a concise reason so the user can understand why the file is being edited.`,
     promptSnippet: BaselineEdit.promptSnippet,
     promptGuidelines: BaselineEdit.promptGuidelines,
-    parameters: BaselineEdit.parameters,
-    execute(toolCallId, params, signal, onUpdate, ctx) {
+    parameters: EditParams,
+    // Pi preserves extra fields, including reason. Validation against EditParams
+    // still runs after preparation, so a missing reason remains invalid.
+    prepareArguments: BaselineEdit.prepareArguments as AgentToolDefinition<
+      typeof EditParams
+    >["prepareArguments"],
+    execute(toolCallId, { reason: _reason, ...params }, signal, onUpdate, ctx) {
       return createEditToolDefinition(ctx.cwd).execute(
         toolCallId,
         params,
@@ -110,14 +117,14 @@ function createEditOverride(): AgentToolDefinition<
   };
 }
 
-function createCommandTool(): AgentToolDefinition<typeof CommandParams> {
+function createShellTool(): AgentToolDefinition<typeof ShellParams> {
   return {
-    label: "command",
+    label: "shell",
     description:
       "Execute a command in the current working directory and return its output. Output is truncated to the last 2000 lines or 50KB, whichever is reached first. Optionally provide a timeout in seconds. Include a concise reason so the human can understand why the command is useful.",
     promptSnippet: "Execute commands (ls, grep, find, etc.)",
-    promptGuidelines: BaselineCommand.promptGuidelines,
-    parameters: CommandParams,
+    promptGuidelines: BaselineShell.promptGuidelines,
+    parameters: ShellParams,
     execute(toolCallId, { reason: _reason, ...params }, signal, onUpdate, ctx) {
       return createBashToolDefinition(ctx.cwd).execute(
         toolCallId,

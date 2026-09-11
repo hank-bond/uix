@@ -27,7 +27,7 @@ function item(overrides: Partial<ToolItem> = {}): ToolItem {
 }
 
 const defaultSettings: BlockPresentationSettings = {
-  command: { layout: "literal" },
+  shell: { layout: "literal" },
   toolParams: {},
 };
 
@@ -65,7 +65,7 @@ describe("deriveToolChatBlockPresentation", () => {
 
   it("moves params hidden by settings into the expanded view", () => {
     const { summary } = derive(item(), {
-      command: { layout: "literal" },
+      shell: { layout: "literal" },
       toolParams: {
         canvas__anchor_read: { collapsed: [] },
       },
@@ -78,14 +78,14 @@ describe("deriveToolChatBlockPresentation", () => {
   it("keeps the surfaceable param list in call order regardless of visibility", () => {
     const { summary } = derive(
       item({
-        toolName: "command",
+        toolName: "shell",
         args: { command: "npm test", timeout: 30, reason: "Verifying." },
       }),
       {
-        command: { layout: "literal" },
-        toolParams: { command: { collapsed: ["timeout"] } },
+        shell: { layout: "literal" },
+        toolParams: { shell: { collapsed: ["timeout"] } },
       },
-      "command",
+      "shell",
     );
 
     // The settings list keeps arg order even though only `timeout` is shown.
@@ -121,7 +121,7 @@ describe("deriveToolChatBlockPresentation", () => {
 
   it("renders expanded params as label:value rows in the disclosure", () => {
     const { summary } = derive(item(), {
-      command: { layout: "literal" },
+      shell: { layout: "literal" },
       toolParams: {
         canvas__anchor_read: { collapsed: [] },
       },

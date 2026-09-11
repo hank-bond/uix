@@ -15,6 +15,7 @@ const tool: AgentToolDefinition<typeof baseline.parameters> = {
   promptSnippet: baseline.promptSnippet,
   promptGuidelines: baseline.promptGuidelines,
   parameters: baseline.parameters,
+  prepareArguments: baseline.prepareArguments,
   execute(toolCallId, params, signal, onUpdate, ctx) {
     return createEditToolDefinition(ctx.cwd).execute(
       toolCallId,

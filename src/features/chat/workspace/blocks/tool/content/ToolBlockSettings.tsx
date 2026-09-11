@@ -1,7 +1,7 @@
 // Opens per-tool block presentation settings from a hover-revealed row action.
 //
 // Lists the tool's surfaceable params with "show in summary" toggles, and for
-// command calls the shell-structure layout toggle. Persisted per tool name.
+// shell calls the shell-structure layout toggle. Persisted per tool name.
 
 import type { JSX } from "react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -40,7 +40,7 @@ export function ToolBlockSettings({
   const displayedError = writeError ?? error;
   const visibility = toolParamVisibility(settings, toolName);
   const collapsed = visibility?.collapsed;
-  const structured = settings.command.layout === "structured";
+  const structured = settings.shell.layout === "structured";
   // Absent setting = show every surfaceable param (the chat default).
   const shownKeys = pendingCollapsed ?? collapsed;
   const isShown = (key: string): boolean =>
@@ -153,7 +153,7 @@ export function ToolBlockSettings({
               </label>
             ))}
           </div>
-          {toolName === "command" ? (
+          {toolName === "shell" ? (
             <label className="tool-block-settings__option">
               <input
                 type="checkbox"

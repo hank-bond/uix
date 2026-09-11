@@ -95,8 +95,8 @@ Tool transcript items retain their execution working directory. Main derives fil
 
 The repository manifest composes these ordinary features:
 
-- **Chat:** Provides the conversation surface, session and model controls, provider login, Markdown rendering, syntax highlighting, and specialized tool presentations.
-- **Workspace tools:** Provides exact-name reason-bearing `read`, `write`, and `command` tools plus passthrough `edit`.
+- **Chat:** Provides the conversation surface, session and model controls, provider login, Markdown rendering, syntax highlighting, and specialized tool presentations. Tool summaries keep the reason beside the name above unindented parameter rows. Structured parameters pretty-print with visible line breaks. File tools soft-wrap prose formats while keeping code horizontally scrollable. Empty assistant placeholders appear only while the latest block is incomplete and its turn is active.
+- **Workspace tools:** Provides exact-name reason-bearing `read`, `write`, `edit`, and `shell` tools.
 - **Canvas:** Provides contained HTML documents with per-Agent anchored buffers, direct viewpoint reads, and a writeback channel. It also contributes turn state, agent context, prompt guidance, and an authoring skill. `canvas.changed` reloads the selected document URL after Agent writes or restoration. Human writeback does not echo a refresh. The parent checks iframe source and origin and persists prompt-action HTML before forwarding the prompt, rejecting pending actions after viewpoint replacement or unmount. Canonicalization rejects authored `<base href>` elements. The served shim removes itself before authored scripts run and never enters stored HTML or anchored reads.
 
 None of these features is a compiled-in substrate default. Bare workspaces start with editable passthrough Pi tool source instead.

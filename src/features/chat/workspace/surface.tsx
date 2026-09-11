@@ -11,8 +11,8 @@ import markdownContentSheet from "./blocks/content/MarkdownContent.css" with { t
 import errorChatBlockSheet from "./blocks/ErrorChatBlock.css" with { type: "css" };
 import messageChatBlockSheet from "./blocks/MessageChatBlock.css" with { type: "css" };
 import canvasToolContentSheet from "./blocks/tool/content/CanvasToolContent.css" with { type: "css" };
-import commandToolContentSheet from "./blocks/tool/content/CommandToolContent.css" with { type: "css" };
 import fileToolContentSheet from "./blocks/tool/content/FileToolContent.css" with { type: "css" };
+import shellToolContentSheet from "./blocks/tool/content/ShellToolContent.css" with { type: "css" };
 import toolBlockSettingsSheet from "./blocks/tool/content/ToolBlockSettings.css" with { type: "css" };
 import toolContentSheet from "./blocks/tool/tool-content.css" with { type: "css" };
 import { Chat } from "./Chat";
@@ -38,7 +38,7 @@ export const surface = defineSurface({
     highlightedCodeSheet,
     markdownContentSheet,
     canvasToolContentSheet,
-    commandToolContentSheet,
+    shellToolContentSheet,
     toolBlockSettingsSheet,
     fileToolContentSheet,
     modelPillSheet,

@@ -11,9 +11,9 @@ import type { ReactNode } from "react";
 import type { ToolCallSummary, ToolItem, ToolState } from "./call-presentation";
 import { toToolDescription, toToolParams } from "./call-presentation";
 import { CanvasToolContent } from "./content/CanvasToolContent";
-import { CommandToolContent } from "./content/CommandToolContent";
 import { DefaultToolContent } from "./content/DefaultToolContent";
 import { FileToolContent } from "./content/FileToolContent";
+import { ShellToolContent } from "./content/ShellToolContent";
 import {
   type BlockPresentationSettings,
   toolParamVisibility,
@@ -77,11 +77,19 @@ const contentPolicyByToolName: ReadonlyMap<string, ToolContentPolicy> = new Map(
       },
     ],
     [
-      "command",
+      "edit",
       {
         contentArgs: [],
-        part: "command-tool",
-        render: ({ item }) => <CommandToolContent item={item} />,
+        part: "file-tool",
+        render: ({ item }) => <FileToolContent item={item} />,
+      },
+    ],
+    [
+      "shell",
+      {
+        contentArgs: [],
+        part: "shell-tool",
+        render: ({ item }) => <ShellToolContent item={item} />,
       },
     ],
   ],

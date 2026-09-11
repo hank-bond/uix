@@ -11,9 +11,7 @@ import type { AgentToolDefinition } from "@uix/api/agent-tools";
 import { createWorkspaceToolOverrideContributions } from "./agent-tools";
 import { feature } from "../index";
 
-function tool(
-  name: "read" | "write" | "edit" | "command",
-): AgentToolDefinition {
+function tool(name: "read" | "write" | "edit" | "shell"): AgentToolDefinition {
   const contribution = createWorkspaceToolOverrideContributions().find(
     (entry) => entry.name === name,
   );
@@ -29,7 +27,7 @@ describe("file tool overrides", () => {
     expect(feature.workspace).toBeUndefined();
     expect(
       contributions.agentToolOverrides?.map((entry) => entry.name),
-    ).toEqual(["read", "write", "edit", "command"]);
+    ).toEqual(["read", "write", "edit", "shell"]);
   });
 
   it("require a reason while preserving Pi's baseline arguments", () => {
@@ -58,14 +56,67 @@ describe("file tool overrides", () => {
     ).toBe(false);
 
     expect(
-      Value.Check(tool("command").parameters, {
+      Value.Check(tool("shell").parameters, {
         command: "npm test",
         reason: "I need to verify the changes.",
       }),
     ).toBe(true);
+    expect(Value.Check(tool("shell").parameters, { command: "npm test" })).toBe(
+      false,
+    );
+  });
+
+  it("requires a reason for edit while preserving its batch edit schema", () => {
+    const args = {
+      path: "notes.md",
+      edits: [{ oldText: "before", newText: "after" }],
+    };
+    expect(Value.Check(tool("edit").parameters, args)).toBe(false);
     expect(
-      Value.Check(tool("command").parameters, { command: "npm test" }),
-    ).toBe(false);
+      Value.Check(tool("edit").parameters, {
+        ...args,
+        reason: "Update notes.",
+      }),
+    ).toBe(true);
+    expect(tool("edit").description).toContain("Include a concise reason");
+  });
+
+  it.each([
+    { edits: [{ oldText: "before", newText: "after" }] },
+    { edits: '[{"oldText":"before","newText":"after"}]' },
+    { oldText: "before", newText: "after" },
+  ])("preserves Pi argument preparation and the reason: %j", (input) => {
+    const edit = tool("edit");
+    if (!edit.prepareArguments) throw new Error("Missing edit preparation");
+    const prepared = edit.prepareArguments({
+      ...input,
+      path: "notes.md",
+      reason: "Update notes.",
+    });
+    expect(prepared).toEqual({
+      path: "notes.md",
+      edits: [{ oldText: "before", newText: "after" }],
+      reason: "Update notes.",
+    });
+    expect(Value.Check(edit.parameters, prepared)).toBe(true);
+  });
+
+  it("does not let preparation bypass reason or edit validation", () => {
+    const edit = tool("edit");
+    if (!edit.prepareArguments) throw new Error("Missing edit preparation");
+    for (const input of [
+      { path: "notes.md", edits: '[{"oldText":"before","newText":"after"}]' },
+      { path: "notes.md", edits: "not JSON", reason: "Update notes." },
+      {
+        path: "notes.md",
+        edits: '[{"oldText":"before"}]',
+        reason: "Update notes.",
+      },
+    ]) {
+      expect(Value.Check(edit.parameters, edit.prepareArguments(input))).toBe(
+        false,
+      );
+    }
   });
 
   it("delegates execution to Pi under the execution cwd", async () => {
@@ -110,22 +161,21 @@ describe("file tool overrides", () => {
       readFile(join(cwd, "nested", "output.txt"), "utf8"),
     ).resolves.toBe("written");
 
-    await tool("edit").execute(
-      "edit-1",
-      {
-        path: "input.txt",
-        edits: [{ oldText: "hello", newText: "updated" }],
-      },
-      undefined,
-      undefined,
-      ctx,
-    );
+    const edit = tool("edit");
+    if (!edit.prepareArguments) throw new Error("Missing edit preparation");
+    const prepared = edit.prepareArguments({
+      path: "input.txt",
+      edits: JSON.stringify([{ oldText: "hello", newText: "updated" }]),
+      reason: "I need to update the fixture.",
+    });
+    expect(Value.Check(edit.parameters, prepared)).toBe(true);
+    await edit.execute("edit-1", prepared, undefined, undefined, ctx);
     await expect(readFile(join(cwd, "input.txt"), "utf8")).resolves.toBe(
       "updated\n",
     );
 
-    const commandResult = await tool("command").execute(
-      "command-1",
+    const shellResult = await tool("shell").execute(
+      "shell-1",
       {
         command: "pwd",
         reason: "I need to verify the execution directory.",
@@ -134,7 +184,7 @@ describe("file tool overrides", () => {
       undefined,
       ctx,
     );
-    expect(commandResult.content).toContainEqual({
+    expect(shellResult.content).toContainEqual({
       type: "text",
       text: `${await realpath(cwd)}\n`,
     });

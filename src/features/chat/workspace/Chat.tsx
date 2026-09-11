@@ -184,7 +184,13 @@ export function Chat({ client }: ChatProps): JSX.Element {
                 : "loading transcript…"}
             </div>
           ) : (
-            items.map((item) => <ChatBlock key={item.id} item={item} />)
+            items.map((item, index) => (
+              <ChatBlock
+                key={item.id}
+                item={item}
+                showThinking={isTurnActive && index === items.length - 1}
+              />
+            ))
           )}
         </BlockPresentationSettingsProvider>
       </div>

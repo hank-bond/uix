@@ -1,4 +1,4 @@
-// Renders file tool expanded content: written content or read result disclosure.
+// Renders file tool content and results with syntax highlighting and soft wrapping for prose files.
 
 import type { JSX } from "react";
 
@@ -24,9 +24,9 @@ export function FileToolContent({ item }: { item: ToolItem }): JSX.Element {
       : item.complete
         ? toToolTextContent(item)
         : undefined;
-  const language = inferCodeLanguageFromPath(
-    item.file?.absolutePath ?? path ?? "",
-  );
+  const sourcePath = item.file?.absolutePath ?? path ?? "";
+  const language = inferCodeLanguageFromPath(sourcePath);
+  const softWrap = /\.(?:md|markdown|mdx|txt|text|rst|adoc)$/i.test(sourcePath);
 
   return (
     <div className="file-tool-block__details">
@@ -35,9 +35,17 @@ export function FileToolContent({ item }: { item: ToolItem }): JSX.Element {
           <span className="tool-call__section-label">
             {item.toolName === "write" ? "content" : "result"}
           </span>
-          <CodeBlock>
-            <HighlightedCode text={disclosure} language={language} />
-          </CodeBlock>
+          {disclosure === "" ? (
+            <span className="tool-call__empty">
+              {item.toolName === "write" ? "Empty content" : "No output"}
+            </span>
+          ) : (
+            <CodeBlock
+              className={softWrap ? "file-tool-block__prose" : undefined}
+            >
+              <HighlightedCode text={disclosure} language={language} />
+            </CodeBlock>
+          )}
         </>
       ) : undefined}
     </div>
