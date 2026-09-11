@@ -17,6 +17,8 @@ import type {
   AgentToolOverrideContribution,
 } from "@uix/api/agent-tools";
 
+import { createQueuedReadOperations } from "./queued-read";
+
 const ReasonSchema = Type.String({
   description:
     "One concise sentence in layman's terms explaining why this operation is useful for the current task. This enables less-technical users to follow your thought process and understand why certain actions are being made.",
@@ -63,13 +65,9 @@ function createReadOverride(): AgentToolDefinition<typeof ReadParams> {
     promptGuidelines: BaselineRead.promptGuidelines,
     parameters: ReadParams,
     execute(toolCallId, { reason: _reason, ...params }, signal, onUpdate, ctx) {
-      return createReadToolDefinition(ctx.cwd).execute(
-        toolCallId,
-        params,
-        signal,
-        onUpdate,
-        ctx,
-      );
+      return createReadToolDefinition(ctx.cwd, {
+        operations: createQueuedReadOperations(signal),
+      }).execute(toolCallId, params, signal, onUpdate, ctx);
     },
   };
 }
